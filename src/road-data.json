@@ -1,0 +1,86 @@
+[
+  {
+    "name": "草地",
+    "type": "prob",
+    "editor": { "w": 10, "h": 3 },
+    "game": {
+      "width": 40, "height": 3,
+      "rows": [
+        [{ "col": 1,  "row": 58, "weight": 100 }],
+        [{ "col": 1,  "row": 59, "weight": 100 }],
+        [{ "col": 1,  "row": 60, "weight": 100 }]
+      ]
+    }
+  },
+  {
+    "name": "碎石路",
+    "type": "prob",
+    "editor": { "w": 10, "h": 3 },
+    "game": {
+      "width": 40, "height": 3,
+      "rows": [
+        [{ "col": 44, "row": 0, "weight": 60 }, { "col": 45, "row": 0, "weight": 40 }],
+        [{ "col": 44, "row": 0, "weight": 60 }, { "col": 45, "row": 0, "weight": 40 }],
+        [{ "col": 44, "row": 0, "weight": 60 }, { "col": 45, "row": 0, "weight": 40 }]
+      ]
+    }
+  },
+  {
+    "name": "沙漠",
+    "type": "prob",
+    "editor": { "w": 10, "h": 3 },
+    "game": {
+      "width": 40, "height": 3,
+      "rows": [
+        [{ "col": 65, "row": 9,  "weight": 100 }],
+        [{ "col": 65, "row": 10, "weight": 100 }],
+        [{ "col": 65, "row": 11, "weight": 100 }]
+      ]
+    }
+  },
+  {
+    "name": "花盆路",
+    "type": "fixed",
+    "editor": { "w": 10, "h": 3 },
+    "game": {
+      "width": 40, "height": 3,
+      "tiles": [
+        [{ "col": 67, "row": 22 }, { "col": 69, "row": 22 }, { "col": 67, "row": 22 }, { "col": 69, "row": 22 }, { "col": 67, "row": 22 },
+         { "col": 69, "row": 22 }, { "col": 67, "row": 22 }, { "col": 69, "row": 22 }, { "col": 67, "row": 22 }, { "col": 69, "row": 22 }],
+        [{ "col": 70, "row": 22 }, { "col": 69, "row": 22 }, { "col": 70, "row": 22 }, { "col": 70, "row": 22 }, { "col": 70, "row": 22 },
+         { "col": 70, "row": 22 }, { "col": 70, "row": 22 }, { "col": 70, "row": 22 }, { "col": 70, "row": 22 }, { "col": 70, "row": 22 }],
+        [{ "col": 68, "row": 23 }, { "col": 69, "row": 22 }, { "col": 68, "row": 23 }, { "col": 69, "row": 22 }, { "col": 68, "row": 23 },
+         { "col": 69, "row": 22 }, { "col": 68, "row": 23 }, { "col": 69, "row": 22 }, { "col": 68, "row": 23 }, { "col": 69, "row": 22 }]
+      ]
+    }
+  },
+  {
+    "name": "路灯路",
+    "type": "fixed",
+    "editor": { "w": 10, "h": 3 },
+    "game": {
+      "width": 40, "height": 3,
+      "tiles": [
+        [{ "col": 43, "row": 2 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 },
+         { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }],
+        [{ "col": 43, "row": 3 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 },
+         { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }],
+        [{ "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 },
+         { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }, { "col": 46, "row": 8 }]
+      ]
+    }
+  },
+  {
+    "name": "花砖路",
+    "type": "prob",
+    "editor": { "w": 10, "h": 3 },
+    "game": {
+      "width": 40, "height": 3,
+      "rows": [
+        [{ "col": 25, "row": 9,  "weight": 100 }],
+        [{ "col": 27, "row": 5,  "weight": 100 }],
+        [{ "col": 27, "row": 5,  "weight": 100 }]
+      ]
+    }
+  }
+]

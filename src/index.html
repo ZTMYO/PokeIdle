@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>宝可梦挂机</title>
+  <script type="module" src="./main.js" defer></script>
+</head>
+<body>
+  <div class="console">
+    <!-- 标题栏 -->
+    <div class="title-bar" data-tauri-drag-region>
+      <div id="appTitle" class="app-title">宝可梦挂机</div>
+      <div class="window-controls">
+        <button class="control-btn window-icon" id="btnPokedex" data-view="pokedexView" aria-label="图鉴" title="图鉴">
+          <svg><use xlink:href="./icons/sprites.svg#icon-book"/></svg>
+        </button>
+        <button class="control-btn window-icon" id="btnShop" data-view="shopView" aria-label="商店" title="商店">
+          <svg><use xlink:href="./icons/sprites.svg#icon-shop"/></svg>
+        </button>
+        <button class="control-btn window-icon" id="btnData" data-view="dataView" aria-label="统计" title="统计">
+          <svg><use xlink:href="./icons/sprites.svg#icon-data"/></svg>
+        </button>
+        <button class="control-btn window-icon" id="btnSettings" data-view="settingsView" aria-label="设置" title="设置">
+          <svg><use xlink:href="./icons/sprites.svg#icon-settings"/></svg>
+        </button>
+        <button class="control-btn minimize" aria-label="最小化" title="最小化">
+          <svg><use xlink:href="./icons/sprites.svg#icon-minus"/></svg>
+        </button>
+        <button class="control-btn close" aria-label="关闭" title="关闭">
+          <svg><use xlink:href="./icons/sprites.svg#icon-close"></use></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 掌机屏幕 -->
+    <div class="screen-wrapper">
+      <div class="screen" id="screen">
+        <div class="screen-inner" id="screenInner">
+
+          <!-- 空闲状态 -->
+          <div id="idleView" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div class="idle-text" id="idleText"></div>
+            <div id="walkGif" class="walk-gif brendan-stop"></div>
+            <div id="roadLayer" class="road-layer"></div>
+          </div>
+
+          <div id="pokedexView" style="display:none;flex-direction:column;">
+            <div class="pokedex-progress" id="pokedexProgress"></div>
+            <div class="pokedex-search">
+              <div class="pokedex-search-row">
+                <input id="pokedexSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" />
+                <div id="pokedexRegionFilter" class="pokedex-region-select" tabindex="0">
+                  <span id="pokedexRegionLabel">全部地区</span>
+                  <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+                  <div id="pokedexRegionDropdown" class="region-dropdown" style="display:none;"></div>
+                </div>
+              </div>
+              <div id="pokedexSearchDropdown" class="pokedex-dropdown" style="display:none;"></div>
+            </div>
+            <div class="pokedex-header">
+              <span class="pokedex-star"></span>
+              <span class="pokedex-idx" data-sort="index">#</span>
+              <span class="pokedex-name" data-sort="name">名称</span>
+              <span class="pokedex-stat" data-sort="seen">遇</span>
+              <span class="pokedex-stat" data-sort="caught">捕</span>
+              <span class="pokedex-stat" data-sort="shinySeen">闪遇</span>
+              <span class="pokedex-stat" data-sort="shinyCaught">闪捕</span>
+            </div>
+            <div id="pokedexList"></div>
+          </div>
+
+          <!-- 数据统计 -->
+          <div id="dataView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;">
+            <div id="dataContent" style="flex:1;color:var(--ui-color);line-height:1.8;"></div>
+          </div>
+
+          <!-- 商店 -->
+          <div id="shopView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;">
+            <div id="shopContent" style="flex:1;color:var(--ui-color);"></div>
+          </div>
+
+          <!-- 设置 -->
+          <div id="settingsView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;">
+            <div id="settingsContent" style="flex:1;color:var(--ui-color);"></div>
+          </div>
+
+          <!-- 教程 -->
+          <div id="tutorialView" style="display:none;flex-direction:column;overflow-y:auto;">
+            <div id="tutorialContent" style="flex:1;color:var(--ui-color);line-height:1.7;padding:3px 6px;"></div>
+          </div>
+
+          <!-- 系统日志 -->
+          <div id="systemLogView" style="display:none;flex-direction:column;overflow-y:auto;">
+            <div id="systemLogContent" style="flex:1;color:var(--ui-color);padding:3px 6px;"></div>
+          </div>
+
+          <!-- 遇敌状态 -->
+          <div id="encounterView" style="display:none;position:relative;">
+            <div class="encounter-name" id="encounterName"></div>
+            <div class="encounter-types" id="encounterTypes"></div>
+            <div class="encounter-right">
+              <svg id="encounterHavedIcon" class="encounter-haved" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="./icons/sprites.svg#icon-haved"/></svg>
+              <div id="encounterCatchRate" class="encounter-catch-rate"></div>
+            </div>
+            <img id="encounterGif" class="encounter-gif" src="" alt="" />
+            <!-- 丢球角色（左下角，始终显示，不被文字框遮住） -->
+            <div id="animThrowChar" class="anim-throw-char">
+              <img src="./character/brendan_back.png" class="anim-throw-char-img" alt="" />
+            </div>
+            <!-- 捕捉动画舞台 -->
+            <div class="catch-stage" id="catchStage">
+              <img id="animBall" class="anim-ball" src="./items/poke-ball.png" alt="精灵球" />
+              <div id="animStars" style="position:absolute;inset:0;pointer-events:none;z-index:4;"></div>
+              <div id="animMsg" class="catch-msg"></div>
+            </div>
+          </div>
+
+          <!-- 糖果兑换弹窗 -->
+          <div id="candyDialog" class="candy-dialog">
+            <div class="candy-box">
+              <div class="candy-title">糖果兑换</div>
+              <div class="candy-opt" data-cost="10" data-item="poke-ball">10 糖果 → 精灵球</div>
+              <div class="candy-opt" data-cost="25" data-item="ultra-ball">25 糖果 → 高级球</div>
+              <div class="candy-opt" data-cost="50" data-item="master-ball">50 糖果 → 大师球</div>
+              <div class="candy-opt" data-cost="15" data-item="sweet-honey">15 糖果 → 甜甜蜜×2</div>
+              <div class="candy-opt" data-cost="100" data-item="mystery-egg">100 糖果 → 神秘蛋</div>
+              <div class="candy-opt" data-cost="1000" data-item="shiny-charm">1000 糖果 → 闪耀护符</div>
+              <div class="candy-close">关闭</div>
+            </div>
+          </div>
+
+          <!-- 捕捉成功（仅蛋孵化用） -->
+          <div id="caughtView" style="display:none;">
+            <div id="caughtInfo" style="font-family:'Courier New',monospace;font-size:11px;color:var(--ui-color);font-weight:700;"></div>
+          </div>
+
+        </div>
+
+        <!-- 底部文字框（GBA风格） -->
+        <div id="textBox" class="text-box" style="transform:translateY(100%);">
+          <div id="textBoxContent" class="text-box-content"></div>
+          <div id="textBoxArrow" class="text-box-arrow" style="display:none;">
+            <svg viewBox="0 0 12 8" width="14" height="10"><path d="M1,2 L11,2 L6,8 Z" fill="#306230"/></svg>
+          </div>
+          <div id="catchConfirmBtns" class="catch-confirm-btns" style="display:none;">
+            <span id="confirmYes" class="catch-confirm-btn">确定</span>
+            <span id="confirmNo" class="catch-confirm-btn">取消</span>
+          </div>
+          <div id="fleeBtn" class="flee-btn" style="display:none;">逃跑</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 背包 -->
+    <div class="backpack-bar">
+      <div class="backpack-items" id="backpack">
+        <div class="bag-slot" data-item="poke-ball">
+          <img src="./items/poke-ball.png" class="bag-icon" alt="精灵球" />
+          <span class="bag-name">精灵球</span>
+          <span class="bag-qty" id="bag-poke-ball">0</span>
+        </div>
+        <div class="bag-slot" data-item="ultra-ball">
+          <img src="./items/ultra-ball.png" class="bag-icon" alt="高级球" />
+          <span class="bag-name">高级球</span>
+          <span class="bag-qty" id="bag-ultra-ball">0</span>
+        </div>
+        <div class="bag-slot" data-item="master-ball">
+          <img src="./items/master-ball.png" class="bag-icon" alt="大师球" />
+          <span class="bag-name">大师球</span>
+          <span class="bag-qty" id="bag-master-ball">0</span>
+        </div>
+        <div class="bag-slot" data-item="mystery-egg">
+          <img src="./items/mystery-egg.png" class="bag-icon" alt="神秘蛋" />
+          <span class="bag-name">神秘蛋</span>
+          <span class="bag-qty" id="bag-mystery-egg">0</span>
+        </div>
+        <div class="bag-slot" data-item="sweet-honey">
+          <img src="./items/honey.png" class="bag-icon" alt="甜甜蜜" />
+          <span class="bag-name">甜甜蜜</span>
+          <span class="bag-qty" id="bag-sweet-honey">0</span>
+        </div>
+        <div class="bag-slot" data-item="shiny-charm">
+          <img src="./items/shiny-charm.png" class="bag-icon" alt="闪耀护符" />
+          <span class="bag-name">闪耀护符</span>
+          <span class="bag-qty" id="bag-shiny-charm">0</span>
+        </div>
+      </div>
+      <div class="stats-bar">
+        <span id="statProgress"><img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> 0</span>
+        <span id="statAutoStatus" class="stat-auto-status"><span id="statAutoText"></span><span class="stat-auto-bar-wrap"><span id="statAutoBar" class="stat-auto-bar-fill"></span></span></span>
+        <span id="statTime">挂机 00:00</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

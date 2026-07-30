@@ -1,0 +1,1258 @@
+/* ==================== 宝可梦挂机 - 掌机风格 ==================== */
+
+:root {
+  --color-text: #1f1f1f;
+  --color-muted: #7c7c7c;
+  --screen-bg: #73c5a4;
+  --screen-bg-dark: #4c8d73;
+  --ui-color: #376d56;
+  --ui-color-rgb: 48, 98, 48;
+  --console-body: #e8dcc0;
+  --console-border: #c4b692;
+  --console-shadow: #b8a88a;
+  --item-bg: rgba(255,255,255,0.15);
+  --item-border: rgba(0,0,0,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none !important; }
+button { -webkit-tap-highlight-color: transparent; user-select: none; }
+button:focus { outline: none !important; box-shadow: none !important; }
+
+html, body {
+  height: 100vh; width: 100vw; overflow: hidden;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--console-body);
+}
+body { margin: 0; padding: 0; cursor: default; }
+
+/* === 主机外壳 === */
+.console {
+  width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--console-body);
+  position: relative;
+}
+
+/* === 标题栏 === */
+.title-bar {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px 0 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.app-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-text);
+  opacity: 0.8;
+  user-select: none;
+}
+.window-controls { display: flex; gap: 3px; }
+
+.control-btn {
+  width: 24px; height: 24px;
+  border: none; background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+.control-btn:hover { background: rgba(0,0,0,0.08); }
+.control-btn.window-icon { opacity: 0.7; }
+.control-btn.window-icon:hover { opacity: 1; background: rgba(0,0,0,0.08); }
+.control-btn.window-icon.active { opacity: 1; background: rgba(0,0,0,0.12); }
+.control-btn svg { width: 15px; height: 15px; display: block; }
+
+/* === 屏幕区域 (上半) === */
+.screen-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  min-height: 0;
+}
+
+.screen {
+  width: 100%;
+  height: 100%;
+  background: var(--screen-bg);
+  border-radius: 10px;
+  border: 3px solid var(--screen-bg-dark);
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* 屏幕内部渐变色块 */
+.screen-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 空闲状态*/
+.idle-text {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ui-color);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  user-select: none;
+  padding: 8px 20px;
+  text-align: center;
+  margin-bottom: 100px;
+}
+
+.walk-gif {
+  position: absolute;
+  bottom: 28px;
+  left: 30%;
+  width: 32px;
+  height: 42px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 30;
+  user-select: none;
+}
+/* Brendan stop stance (面向右, 20x21 → 2x 显示 40x42) */
+.walk-gif.brendan-stop {
+  width: 40px;
+  background-image: url('./character/brendan-stop.png');
+  background-size: 40px 42px;
+  background-position: 0 0;
+}
+/* Brendan 向右行走 */
+.walk-gif.brendan-walk {
+  width: 28px;
+  background-image: url('./character/brendan-walk-right.png');
+  background-size: 112px 42px;
+  animation: brendanWalk 0.6s steps(1) infinite;
+}
+/* Brendan 跑步（buff 生效时）- 使用专用跑步精灵图 56x20（4帧） */
+.walk-gif.brendan-run {
+  width: 28px;
+  background-image: url('./character/brendan-run-right.png');
+  background-size: 112px 40px;
+  animation: brendanRun 0.45s steps(1) infinite;
+}
+/* Brendan 捡道具（5帧, 20x21/帧 → 2x 显示 40×42；使用 sprite sheet + JS 动画） */
+.walk-gif.brendan-get-item {
+  width: 40px;
+  height: 42px;
+}
+@keyframes brendanWalk {
+  0%   { background-position: 0px 0; }
+  25%  { background-position: 0px 0; }
+  25.01% { background-position: -28px 0; }
+  50%  { background-position: -28px 0; }
+  50.01% { background-position: -56px 0; }
+  75%  { background-position: -56px 0; }
+  75.01% { background-position: -84px 0; }
+  100% { background-position: -84px 0; }
+}
+@keyframes brendanRun {
+  0%   { background-position: 0px 0; }
+  25%  { background-position: 0px 0; }
+  25.01% { background-position: -28px 0; }
+  50%  { background-position: -28px 0; }
+  50.01% { background-position: -56px 0; }
+  75%  { background-position: -56px 0; }
+  75.01% { background-position: -84px 0; }
+  100% { background-position: -84px 0; }
+}
+
+
+
+/* === 道具向主角移动 === */
+.item-fly {
+  position: absolute;
+  z-index: 10;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+/* === 路面层 (Canvas 无限滚动) === */
+.road-layer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+.road-layer .road-canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* === 遇敌 (屏幕内) === */
+#encounterView {
+  width: 100%;
+  height: 100%;
+}
+
+.encounter-gif {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+.encounter-name {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: 'Segoe UI', 'Noto Sans SC', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-color);
+  z-index: 2;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.06);
+  margin-bottom: 2px;
+  user-select: none;
+}
+
+.encounter-types {
+  position: absolute;
+  top: 28px;
+  left: 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+  user-select: none;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+  user-select: none;
+}
+
+.encounter-right {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  z-index: 2;
+  user-select: none;
+  pointer-events: none;
+}
+.encounter-haved {
+  width: 18px;
+  height: 18px;
+  color: var(--ui-color);
+  user-select: none;
+  pointer-events: none;
+}
+.encounter-catch-rate {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--ui-color);
+  text-align: right;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* === 底部文字框（GBA 宝可梦风格） === */
+.text-box {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  background: var(--console-body);
+  border-top: 2px solid var(--console-border);
+  z-index: 50;
+  overflow: hidden;
+  transition: transform 0.25s ease-out;
+  display: flex;
+  align-items: center;
+}
+.text-box.show {
+  transform: translateY(0) !important;
+}
+
+.text-box-content {
+  flex: 1;
+  padding: 8px 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #306230;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.text-box-arrow {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s;
+  user-select: none;
+  line-height: 1;
+}
+.text-box-arrow:hover { transform: scale(1.25); }
+.text-box-arrow:active { transform: scale(0.85); }
+
+.flee-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #306230;
+  cursor: pointer;
+  padding: 2px 6px;
+  border: 1px solid #306230;
+  border-radius: 3px;
+  user-select: none;
+  transition: background 0.15s;
+}
+.flee-btn:hover { background: rgba(48,98,48,0.15); }
+.flee-btn:active { transform: scale(0.92); }
+.flee-btn.disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+
+.catch-confirm-btns {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.catch-confirm-btn {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #306230;
+  cursor: pointer;
+  padding: 2px 8px;
+  border: 1px solid #306230;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.catch-confirm-btn:hover { background: rgba(48,98,48,0.15); }
+.catch-confirm-btn:active { transform: scale(0.92); }
+
+/* 捕捉反馈文字（已废弃，保留兼容） */
+.catch-feedback { display: none !important; }
+
+/* === 捕捉成功 / 逃跑（已废弃，保留兼容） */
+.result-view, .result-icon, .result-text, .result-sub, .continue-sm { display: none !important; }
+
+/* === 神秘蛋 === */
+.egg-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.egg-big {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  animation: eggBob 1.2s ease-in-out infinite;
+  transition: transform 0.2s;
+}
+.egg-big:hover { transform: scale(1.1); }
+
+@keyframes eggBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.egg-text {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--ui-color);
+  font-weight: 700;
+}
+
+/* 道具收集 Q 弹动画（仅图标） */
+@keyframes bagPop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.5); }
+  60%  { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+.bag-icon.pop {
+  animation: bagPop 0.4s ease-out;
+}
+
+/* === 背包 (下半) === */
+.backpack-bar {
+  flex-shrink: 0;
+  padding: 6px 10px 8px;
+  border-top: 2px solid var(--console-border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.backpack-items {
+  display: flex;
+  gap: 3px;
+}
+
+.bag-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 2px 1px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.03);
+  min-width: 0;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.12s;
+  user-select: none;
+}
+.bag-slot:hover { background: rgba(255,255,255,0.3); }
+.bag-slot:active { transform: scale(0.92); }
+.bag-slot.disabled { opacity: 0.4; cursor: default; }
+.bag-slot.disabled:active { transform: none; }
+
+.bag-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.bag-name {
+  font-size: 7px;
+  color: var(--color-muted);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.bag-qty {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.stats-bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px 0;
+  font-size: 9px;
+  color: #306230;
+  opacity: 0.7;
+  user-select: none;
+}
+.stats-bar span:first-child { cursor: pointer; }
+.stats-bar span:first-child:hover { opacity: 0.7; color: #306230; }
+.stats-bar span:last-child { cursor: pointer; }
+.stats-bar span:last-child:hover { opacity: 0.7; color: #306230; }
+
+.stat-auto-status { display: inline-flex; align-items: center; gap: 4px; }
+.stat-auto-bar-wrap {
+  display: inline-block;
+  width: 40px;
+  height: 4px;
+  background: #8BAC8F;
+  border: 1px solid #306230;
+  border-radius: 2px;
+  vertical-align: middle;
+  overflow: hidden;
+}
+.stat-auto-bar-fill {
+  display: none;
+  height: 100%;
+  width: 100%;
+  background: #306230;
+  border-radius: 1px;
+  transition: width 0.2s linear;
+}
+
+/* === 加载失败 === */
+.load-error {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: #8b3a3a;
+}
+
+/* ==================== 捕捉动画舞台 ==================== */
+.catch-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 20;
+  display: none;
+}
+.catch-stage.active { display: block; }
+
+.catch-stage .anim-ball {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  z-index: 3;
+  opacity: 0;
+}
+.catch-stage .anim-ball.visible { opacity: 1; }
+
+/* 丢球角色（左下角，不被文字框遮住，默认显最后一帧） */
+.anim-throw-char {
+  position: absolute;
+  bottom: 52px;
+  left: 0;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  z-index: 25;
+  pointer-events: none;
+}
+.anim-throw-char-img {
+  display: block;
+  width: 64px;
+  height: 256px;
+  image-rendering: pixelated;
+  margin-top: -192px; /* 默认第4帧（最后一帧） */
+}
+.anim-throw-char.throwing .anim-throw-char-img {
+  animation: throwPose 0.6s forwards;
+  margin-top: 0;
+}
+@keyframes throwPose {
+  0%     { margin-top: 0; }        /* 帧1 */
+  24.99% { margin-top: 0; }
+  25%    { margin-top: -64px; }    /* 帧2 */
+  49.99% { margin-top: -64px; }
+  50%    { margin-top: -128px; }   /* 帧3 */
+  74.99% { margin-top: -128px; }
+  75%    { margin-top: -192px; }   /* 帧4 */
+  100%   { margin-top: -192px; }
+}
+
+@keyframes ballSwingRight {
+  0%   { transform: rotate(0deg); }
+  30%  { transform: rotate(22deg); }
+  55%  { transform: rotate(-5deg); }
+  80%  { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes ballSwingLeft {
+  0%   { transform: rotate(0deg); }
+  30%  { transform: rotate(-22deg); }
+  55%  { transform: rotate(5deg); }
+  80%  { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes ballBounce {
+  0%   { transform: translateY(0); }
+  20%  { transform: translateY(-40px); }
+  40%  { transform: translateY(-18px); }
+  60%  { transform: translateY(-6px); }
+  80%  { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes lockFeedback {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+@keyframes starFloat {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(0.2); }
+}
+
+/* 蛋摇晃动画 — 底部中心为支点 */
+.egg-shake {
+  animation: eggShake 0.6s ease-in-out 3;
+  transform-origin: bottom center;
+}
+@keyframes eggShake {
+  0%, 100% { transform: translate(-50%,-50%) rotate(0deg); }
+  25% { transform: translate(-50%,-50%) rotate(-5deg); }
+  50% { transform: translate(-50%,-50%) rotate(5deg); }
+  75% { transform: translate(-50%,-50%) rotate(-3deg); }
+}
+
+/* 孵化出现动画：从蛋中心放大 */
+.hatch-appear {
+  transition: transform 0.35s ease-out, opacity 0.25s ease-out;
+}
+
+.star-particle {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+.star-particle::after {
+  content: '✦';
+  font-size: 14px;
+  color: #ffd700;
+  display: block;
+  line-height: 1;
+  filter: drop-shadow(0 0 2px rgba(255,215,0,0.6));
+}
+
+/* 闪光出场星星粒子 */
+.shiny-sparkle {
+  position: absolute;
+  pointer-events: none;
+  z-index: 6;
+}
+.shiny-sparkle::after {
+  content: '✦';
+  font-size: 9px;
+  color: #ffffff;
+  display: block;
+  line-height: 1;
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.9));
+}
+
+.catch-msg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color);
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+}
+.catch-msg.show {
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+/* ===== 统计页面 ===== */
+.stat-inner {
+  padding: 6px 8px;
+}
+.stat-section {
+  font-weight: 700;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--ui-color);
+  margin-top: 0;
+}
+.stat-section + .stat-section {
+  margin-top: 6px;
+}
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+}
+.stat-row span:last-child {
+  font-weight: 600;
+}
+
+/* ===== 糖果兑换弹窗 ===== */
+.candy-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 99;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.25);
+}
+.candy-dialog.open { display: flex; }
+
+.candy-box {
+  background: var(--screen-bg);
+  border: 2px solid var(--screen-bg-dark);
+  border-radius: 6px;
+  padding: 12px;
+  min-width: 140px;
+}
+.candy-title {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.candy-opt {
+  padding: 4px 8px;
+  margin-bottom: 3px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb),0.1);
+  text-align: center;
+  transition: background 0.12s;
+}
+.candy-opt:hover { background: rgba(var(--ui-color-rgb),0.25); }
+.candy-opt:active { transform: scale(0.95); }
+.candy-opt.disabled { opacity: 0.35; cursor: default; }
+.candy-opt.disabled:active { transform: none; }
+.candy-close {
+  margin-top: 6px;
+  padding: 3px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  color: var(--ui-color);
+  opacity: 0.6;
+  cursor: pointer;
+}
+.candy-close:hover { opacity: 1; }
+
+/* ===== 图鉴列表 ===== */
+#pokedexView {
+  width: 100%;
+  align-self: stretch;
+  height: 100%;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--ui-color);
+  user-select: none;
+  padding: 0 6px 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.log-back-inline {
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.6;
+  padding: 2px 0;
+  user-select: none;
+  color: inherit;
+}
+.log-back-inline:hover { opacity: 0.7; }
+.log-back-inline svg { color: inherit; }
+.pokedex-progress {
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  padding: 0 0 2px;
+  margin: 2px;
+  line-height: 1.6;
+}
+.pokedex-close {
+  cursor: pointer;
+  opacity: 0.5;
+}
+.pokedex-close:hover { opacity: 1; }
+.pokedex-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb),0.08);
+  cursor: pointer;
+}
+.pokedex-entry:hover { background: rgba(var(--ui-color-rgb),0.06); }
+.pokedex-entry.disabled { cursor: default; opacity: 0.85; }
+.pokedex-entry.disabled:hover { background: transparent; }
+.pokedex-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 0 2px;
+  font-size: 9px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb),0.2);
+  position: sticky;
+  top: 0;
+  background: transparent;
+  z-index: 1;
+}
+
+#pokedexList {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.pokedex-header [data-sort] {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+.pokedex-header [data-sort]:hover {
+  opacity: 1;
+}
+.pokedex-header [data-sort].sort-asc::after {
+  content: '▲';
+  font-size: 7px;
+  margin-left: 1px;
+  opacity: 0.8;
+  vertical-align: middle;
+}
+.pokedex-header [data-sort].sort-desc::after {
+  content: '▼';
+  font-size: 7px;
+  margin-left: 1px;
+  opacity: 0.8;
+  vertical-align: middle;
+}
+
+#pokedexList::-webkit-scrollbar {
+  width: 4px;
+}
+#pokedexList::-webkit-scrollbar-track {
+  background: transparent;
+}
+#pokedexList::-webkit-scrollbar-thumb {
+  background: rgba(var(--ui-color-rgb),0.3);
+  border-radius: 2px;
+}
+
+/* ---- 图鉴详情正方形容器 + 格子背景 ---- */
+.poke-img-grid {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image:
+    linear-gradient(45deg, rgba(0,0,0,0.06) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(0,0,0,0.06) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.06) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.06) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.poke-img-in-grid {
+  max-width: 54px;
+  max-height: 54px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* ---- 图鉴拼音搜索 ---- */
+.pokedex-search {
+  position: relative;
+  margin-bottom: 4px;
+}
+.pokedex-search-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.pokedex-search-input {
+  flex: 1;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  font-size: 10px;
+  border: 1px solid rgba(var(--ui-color-rgb),0.25);
+  border-radius: 3px;
+  background: rgba(var(--ui-color-rgb),0.06);
+  color: var(--ui-color);
+  outline: none;
+  font-family: inherit;
+}
+.pokedex-search-input::placeholder {
+  color: rgba(var(--ui-color-rgb),0.35);
+}
+.pokedex-search-input:focus {
+  border-color: rgba(var(--ui-color-rgb),0.5);
+  background: rgba(255,255,255,0.3);
+}
+.pokedex-region-select {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid rgba(var(--ui-color-rgb),0.25);
+  border-radius: 3px;
+  background: rgba(var(--ui-color-rgb),0.06);
+  color: var(--ui-color);
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  user-select: none;
+  white-space: nowrap;
+}
+.pokedex-region-select:hover {
+  background-color: rgba(var(--ui-color-rgb),0.1);
+}
+.pokedex-region-select:focus,
+.pokedex-region-select.open {
+  border-color: rgba(var(--ui-color-rgb),0.5);
+  background-color: rgba(255,255,255,0.3);
+}
+.region-arrow {
+  flex-shrink: 0;
+  color: var(--ui-color);
+  opacity: 0.6;
+  transition: transform 0.15s;
+}
+.pokedex-region-select.open .region-arrow {
+  transform: rotate(180deg);
+}
+.region-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  max-height: 160px;
+  overflow-y: auto;
+  background: rgba(232,220,192,0.97);
+  border: 1px solid rgba(var(--ui-color-rgb),0.2);
+  border-radius: 0 0 3px 3px;
+  z-index: 100;
+}
+.region-dropdown::-webkit-scrollbar {
+  width: 3px;
+}
+.region-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(var(--ui-color-rgb),0.25);
+  border-radius: 2px;
+}
+.region-dropdown-item {
+  padding: 3px 6px;
+  font-size: 10px;
+  color: var(--ui-color);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb),0.06);
+}
+.region-dropdown-item:last-child {
+  border-bottom: none;
+}
+.region-dropdown-item:hover {
+  background: rgba(var(--ui-color-rgb),0.08);
+}
+.region-dropdown-item.active {
+  background: rgba(var(--ui-color-rgb),0.12);
+  font-weight: 700;
+}
+.pokedex-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  background: rgba(232,220,192,0.97);
+  border: 1px solid rgba(var(--ui-color-rgb),0.2);
+  border-radius: 0 0 3px 3px;
+  z-index: 100;
+}
+.pokedex-dropdown::-webkit-scrollbar {
+  width: 3px;
+}
+.pokedex-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(var(--ui-color-rgb),0.25);
+  border-radius: 2px;
+}
+.pokedex-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  font-size: 10px;
+  color: var(--ui-color);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb),0.06);
+}
+.pokedex-dropdown-item:last-child {
+  border-bottom: none;
+}
+.pokedex-dropdown-item:hover {
+  background: rgba(var(--ui-color-rgb),0.08);
+}
+.pokedex-dropdown-item .dd-idx {
+  opacity: 0.4;
+  min-width: 24px;
+}
+.pokedex-dropdown-item .dd-name {
+  flex: 1;
+}
+/* 搜索结果高亮闪烁 */
+@keyframes searchFlash {
+  0%   { background: rgba(var(--ui-color-rgb),0.25); }
+  100% { background: transparent; }
+}
+.pokedex-entry.flash {
+  animation: searchFlash 1s ease-out 2;
+}
+.log-back {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  cursor: pointer;
+  padding: 2px 0;
+  margin-bottom: 2px;
+  user-select: none;
+}
+.log-back:hover { opacity: 0.7; }
+.pokedex-idx {
+  opacity: 0.5;
+  width: 28px;
+}
+.pokedex-star {
+  width: 14px;
+  text-align: right;
+  font-size: 10px;
+  flex-shrink: 0;
+  padding-right: 1px;
+}
+.pokedex-name {
+  flex: 1;
+  min-width: 0;
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 3px;
+}
+.pokedex-stat {
+  width: 28px;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+/* ===== 商店/数据视图 ===== */
+#shopView, #dataView, #tutorialView {
+  height: 100%;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--ui-color);
+}
+#shopView::-webkit-scrollbar,
+#dataView::-webkit-scrollbar,
+#tutorialView::-webkit-scrollbar,
+#settingsView::-webkit-scrollbar,
+#systemLogView::-webkit-scrollbar {
+  width: 4px;
+}
+#shopView::-webkit-scrollbar-track,
+#dataView::-webkit-scrollbar-track,
+#tutorialView::-webkit-scrollbar-track,
+#settingsView::-webkit-scrollbar-track,
+#systemLogView::-webkit-scrollbar-track {
+  background: transparent;
+}
+#shopView::-webkit-scrollbar-thumb,
+#dataView::-webkit-scrollbar-thumb,
+#tutorialView::-webkit-scrollbar-thumb,
+#settingsView::-webkit-scrollbar-thumb,
+#systemLogView::-webkit-scrollbar-thumb {
+  background: rgba(var(--ui-color-rgb),0.3);
+  border-radius: 2px;
+}
+.shop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border: 1px solid rgba(var(--ui-color-rgb),0.15);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.2);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.shop-item:hover { background: rgba(var(--ui-color-rgb),0.1); }
+.shop-item:active { transform: scale(0.98); }
+.shop-item.disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+.shop-item-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.shop-icon {
+  width: 20px;
+  height: 20px;
+  image-rendering: pixelated;
+}
+.shop-item-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ui-color);
+}
+.shop-item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.shop-cost {
+  font-size: 10px;
+  color: var(--ui-color);
+  font-weight: 600;
+}
+.shop-btn {
+  font-size: 9px;
+  padding: 2px 6px;
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  color: var(--ui-color);
+  font-weight: 700;
+}
+
+/* ===== 设置面板 ===== */
+#settingsView {
+  padding: 4px 3px;
+}
+
+#settingsView,
+#tutorialView,
+#dataView,
+#shopView {
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+}
+#tutorialContent p {
+  margin-bottom: 6px;
+}
+#tutorialContent .indent {
+  padding-left: 12px;
+}
+#tutorialContent .item-row {
+  display: block;
+  padding-left: 12px;
+  line-height: 1.9;
+}
+.auto-catch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 4px;
+}
+.auto-catch-label {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color);
+  user-select: none;
+}
+.toggle-switch {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.toggle-track {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  background: rgba(var(--ui-color-rgb),0.2);
+  transition: background 0.2s;
+}
+.toggle-track.on {
+  background: var(--ui-color);
+}
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+.toggle-track.on + .toggle-knob {
+  transform: translateX(14px);
+}
+
+.ball-check-row {
+  display: flex;
+  gap: 4px;
+  padding: 2px 4px 6px;
+  justify-content: center;
+}
+.ball-check {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--ui-color);
+  cursor: pointer;
+  user-select: none;
+  padding: 1px 4px;
+  border-radius: 3px;
+  transition: background 0.12s;
+}
+.ball-check:hover {
+  background: rgba(var(--ui-color-rgb),0.1);
+}
+.ball-check.on {
+  font-weight: 700;
+}
+
+.tutorial-btn {
+  margin-top: 8px;
+  padding: 5px 10px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color);
+  cursor: pointer;
+  border: 1px solid var(--ui-color);
+  border-radius: 4px;
+  transition: background 0.15s;
+  user-select: none;
+  width: fit-content;
+  margin-inline: auto;
+}
+.tutorial-btn:hover {
+  background: rgba(var(--ui-color-rgb),0.1);
+}
+.tutorial-btn:active {
+  transform: scale(0.96);
+}
