@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_WATER_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, HATCH_TIME_MIN, HATCH_TIME_MAX } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_WATER_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView, getIncubatorUnlockCost, setGameData, getDefaultSave, ensureGpsState } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS } from './items.js';
@@ -179,6 +179,9 @@ export function renderSystemLogs() {
         break;
       case 'region_change':
         desc = `进入 ${log.details.region} 地区`;
+        break;
+      case 'bounty_claim':
+        desc = `完成地区悬赏，获得糖果 ×${log.details.candy}`;
         break;
       default:
         desc = `未知事件 (${log.type})`;
@@ -529,6 +532,12 @@ const TUTORIAL_SECTIONS = [
     title: '地区',
     html: `<p>进入游戏后从<b>丰缘</b>出发，共 ${REGION_CYCLE.length} 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同。</p>`
       + `<p>在<b>导航</b>应用中<b>选择目的地</b>或开启<b>环国旅行</b>即可前往其他地区：按距离矩阵规划<b>最短路线</b>，真实行走抵达后进入下一地区。</p>`
+  },
+  {
+    title: '悬赏',
+    html: `<p>每个地区每天<b>0 点</b>刷新<b>${BOUNTY_PER_REGION} 条地区悬赏</b>：指定宝可梦来自<b>全国图鉴</b>（各地区互不重复，可能不在该地区出没），悬赏糖果奖励 <b>${BOUNTY_CANDY_MIN}~${BOUNTY_CANDY_MAX} 颗</b>，越难捕获奖励越高。</p>`
+      + `<p><b>今日到访过</b>的地区才能看到悬赏内容；当天内<b>捕获</b>指定宝可梦即可领取（野生与钓鱼捕获算，<b>孵蛋获得不算</b>），但<b>领取必须到达对应地区</b>。</p>`
+      + `<p>悬赏每日刷新、生成后当天不变，未领取不累积。</p>`,
   },
   {
     title: '道路',

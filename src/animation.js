@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// ==================== 捕捉动画函数 ====================
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// ==================== 捕捉动画函数 ====================
 import { $, fitPokemonImage, getStageSize } from './ui.js';
 import { currentEncounter, currentIsShiny, encounterBallsUsed } from './state.js';
 import { FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';

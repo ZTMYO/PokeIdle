@@ -193,6 +193,7 @@ export function getDefaultSave() {
     incubators: Array.from({length: 8}, () => emptyIncubator()),
     incubatorUnlockedSlots: 0,
     gps: defaultGpsState(),
+    bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],

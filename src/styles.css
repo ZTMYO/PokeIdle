@@ -112,7 +112,7 @@ body { margin: 0; padding: 0; cursor: default; }
 
 /* 空闲状态*/
 .idle-text {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 16px;
   font-weight: 700;
   color: var(--ui-color);
@@ -430,7 +430,7 @@ body { margin: 0; padding: 0; cursor: default; }
 .text-box-content {
   flex: 1;
   padding: 8px 10px;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 12px;
   font-weight: 700;
   color: #306230;
@@ -482,7 +482,7 @@ body { margin: 0; padding: 0; cursor: default; }
   align-items: center;
 }
 .catch-confirm-btn {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 10px;
   font-weight: 700;
   color: #306230;
@@ -525,7 +525,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 
 .egg-text {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 10px;
   color: var(--ui-color);
   font-weight: 700;
@@ -763,7 +763,7 @@ body { margin: 0; padding: 0; cursor: default; }
 
 /* === 加载失败 === */
 .load-error {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 10px;
   color: #8b3a3a;
 }
@@ -914,7 +914,7 @@ body { margin: 0; padding: 0; cursor: default; }
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-color);
@@ -969,7 +969,7 @@ body { margin: 0; padding: 0; cursor: default; }
   min-width: 140px;
 }
 .candy-title {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-color);
@@ -981,7 +981,7 @@ body { margin: 0; padding: 0; cursor: default; }
   margin-bottom: 3px;
   border-radius: 3px;
   cursor: pointer;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 9px;
   color: var(--ui-color);
   background: rgba(var(--ui-color-rgb),0.1);
@@ -996,7 +996,7 @@ body { margin: 0; padding: 0; cursor: default; }
   margin-top: 6px;
   padding: 3px;
   text-align: center;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 9px;
   color: var(--ui-color);
   opacity: 0.6;
@@ -1009,7 +1009,7 @@ body { margin: 0; padding: 0; cursor: default; }
   width: 100%;
   align-self: stretch;
   height: 100%;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 11px;
   color: var(--ui-color);
   user-select: none;
@@ -1081,8 +1081,9 @@ body { margin: 0; padding: 0; cursor: default; }
   gap: 3px;
   cursor: pointer;
   transition: transform 0.1s ease, opacity 0.15s ease;
+  opacity: 0.85;
 }
-.phone-app:hover { opacity: 0.85; }
+.phone-app:hover { opacity: 1; }
 .phone-app:active { transform: scale(0.92); }
 .phone-app-icon {
   position: relative;
@@ -1097,6 +1098,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .phone-app-icon svg { width: 24px; height: 24px; display: block; }
 .phone-app-name {
+  font-family: monospace;
   font-size: 10px;
   font-weight: 700;
 }
@@ -1288,7 +1290,7 @@ body { margin: 0; padding: 0; cursor: default; }
   gap: 3px;
 }
 .gps-dialog-title {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-color);
@@ -1299,7 +1301,7 @@ body { margin: 0; padding: 0; cursor: default; }
   padding: 5px 8px;
   border-radius: 3px;
   cursor: pointer;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 12px;
   color: var(--ui-color);
   background: rgba(var(--ui-color-rgb),0.1);
@@ -1325,6 +1327,146 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .gps-dialog-close:hover { opacity: 1; }
 .gps-dest-none { opacity: 0.5; }
+
+/* ===== 地区悬赏 ===== */
+.bounty-wrap {
+  padding: 6px 2px;
+  display: flex;
+  flex-direction: column;
+}
+.bounty-title {
+  font-weight: 700;
+  font-size: 12px;
+  text-align: center;
+  margin-bottom: 3px;
+}
+.bounty-head {
+  font-size: 9px;
+  opacity: 0.6;
+  text-align: center;
+  margin-bottom: 6px;
+}
+.bounty-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* 翻页布局：左右箭头 + 中间卡片 */
+.bounty-pager {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+}
+/* 箭头：无背景无边框，仅图标 */
+.bounty-arrow {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--ui-color);
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.bounty-arrow svg { display: block; }
+.bounty-arrow.next svg { transform: scaleX(-1); } /* back 图标水平翻转即右箭头 */
+.bounty-arrow:not(:disabled):hover { opacity: 0.6; }
+.bounty-arrow:not(:disabled):active { transform: scale(0.9); }
+.bounty-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.bounty-page {
+  flex: 1;
+  min-width: 0;
+}
+/* 卡片固定宽高，翻页时布局不跳动 */
+.bounty-card {
+  box-sizing: border-box;
+  width: 100%;
+  height: 132px;
+  display: flex;
+  flex-direction: column;
+  background: var(--screen-bg-light);
+  border: 1px solid var(--item-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+/* 当前所在地区的悬赏卡片高亮描边 */
+.bounty-card.cur { border-color: var(--ui-color); }
+.bounty-line {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  min-height: 0;
+}
+.bounty-line + .bounty-line {
+  border-top: 1px dashed rgba(var(--ui-color-rgb), 0.15);
+}
+.bounty-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bounty-candy {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.8;
+}
+.bounty-claim {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--ui-color);
+  color: var(--screen-bg);
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+.bounty-claim:active { transform: scale(0.95); }
+.bounty-claim:not(.locked):not(.done):hover { filter: brightness(0.9); }
+.bounty-claim.locked,
+.bounty-claim.done {
+  background: rgba(var(--ui-color-rgb), 0.12);
+  color: var(--ui-color);
+  cursor: default;
+  opacity: 0.7;
+}
+.bounty-unknown {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  opacity: 0.55;
+  min-height: 0;
+}
+.bounty-refresh {
+  font-size: 9px;
+  opacity: 0.55;
+  text-align: center;
+  margin-top: 6px;
+}
+/* 悬赏页面滚动条美化 */
+#bountyView::-webkit-scrollbar { width: 6px; }
+#bountyView::-webkit-scrollbar-track { background: transparent; }
+#bountyView::-webkit-scrollbar-thumb {
+  background: rgba(var(--ui-color-rgb), 0.25);
+  border-radius: 3px;
+}
+#bountyView::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.4); }
+
 .pokedex-entry {
   display: flex;
   align-items: center;
@@ -1602,13 +1744,13 @@ body { margin: 0; padding: 0; cursor: default; }
 .pokedex-stat {
   width: 28px;
   text-align: right;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
 }
 
 /* ===== 商店/数据视图 ===== */
 #shopView, #dataView, #tutorialView {
   height: 100%;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 11px;
   color: var(--ui-color);
 }
@@ -1699,7 +1841,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #tutorialView,
 #dataView,
 #shopView,
-#gpsView {
+#gpsView,
+#bountyView {
   align-self: stretch;
   width: 100%;
   height: 100%;
@@ -1747,7 +1890,7 @@ body { margin: 0; padding: 0; cursor: default; }
   overflow-y: auto;
   padding: 2px 3px 2px 0;
   border-right: 1px solid rgba(var(--ui-color-rgb),0.15);
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 10px;
   color: var(--ui-color);
   user-select: none;
@@ -1777,7 +1920,7 @@ body { margin: 0; padding: 0; cursor: default; }
   min-width: 0;
   overflow-y: auto;
   padding: 3px 6px;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 11px;
   line-height: 1.7;
   color: var(--ui-color);
@@ -1798,7 +1941,7 @@ body { margin: 0; padding: 0; cursor: default; }
   padding: 5px 4px;
 }
 .auto-catch-label {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-color);
@@ -1843,7 +1986,7 @@ body { margin: 0; padding: 0; cursor: default; }
   justify-content: center;
 }
 .ball-check {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 10px;
   color: var(--ui-color);
   cursor: pointer;
@@ -1913,7 +2056,7 @@ body { margin: 0; padding: 0; cursor: default; }
   padding: 4px;
 }
 .splash-title {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-weight: 800;
   font-size: clamp(20px, 5vmin, 28px);
   letter-spacing: 8px;
@@ -1923,7 +2066,7 @@ body { margin: 0; padding: 0; cursor: default; }
   user-select: none;
 }
 .splash-subtitle {
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   font-size: 10px;
   letter-spacing: 6px;
   text-indent: 6px;

@@ -426,7 +426,7 @@ export function sortHeaderClick() {
     if (!span) return;
     const field = span.dataset.sort;
     if (_pokedexSortBy === field) {
-      _pokedexSortDir *= -1; // 同字段切换升降序
+      setPokedexSortDir(_pokedexSortDir * -1); // 同字段切换升降序
     } else {
       setPokedexSortBy(field);
       setPokedexSortDir(-1);   // 新字段默认降序

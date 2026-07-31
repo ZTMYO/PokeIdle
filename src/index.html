@@ -19,7 +19,7 @@
         <button class="control-btn window-icon" id="btnShop" data-view="shopView" aria-label="商店" title="商店">
           <svg><use xlink:href="./icons/sprites.svg#icon-shop"/></svg>
         </button>
-        <button class="control-btn window-icon" id="btnStation" aria-label="地区驿站" title="地区驿站">
+        <button class="control-btn window-icon" id="btnStation" data-view="bountyView" aria-label="地区悬赏" title="地区悬赏">
           <svg><use xlink:href="./icons/sprites.svg#icon-station"/></svg>
         </button>
         <button class="control-btn window-icon" id="btnSettings" data-view="settingsView" aria-label="设置" title="设置">
@@ -83,6 +83,11 @@
           <!-- GPS 模拟导航 -->
           <div id="gpsView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 0 0;">
             <div id="gpsContent" style="flex:1;color:var(--ui-color);"></div>
+          </div>
+
+          <!-- 地区悬赏 -->
+          <div id="bountyView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;">
+            <div id="bountyContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
           <!-- 数据统计 -->

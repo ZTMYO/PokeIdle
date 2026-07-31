@@ -70,6 +70,13 @@ export const REGION_CYCLE = ['关都', '城都', '丰缘', '神奥', '合众', '
 // 像素 ↔ 米换算（用于统计行走距离展示；26px ≈ 1m，约为步行速度 0.6px/帧 × 60fps ≈ 5km/h）
 export const PX_PER_METER = 26;
 
+// ===== 地区悬赏 =====
+export const BOUNTY_PER_REGION = 5;   // 每个地区每天生成的悬赏条数（全国抽样，各地区不重复）
+export const BOUNTY_CANDY_MIN = 30;    // 悬赏最低糖果奖励（最常见宝可梦）
+export const BOUNTY_CANDY_MAX = 1500;    // 悬赏最高糖果奖励（最难捕获宝可梦）
+export const BOUNTY_JITTER = 0.25;     // 糖果奖励随机浮动比例（±25%）
+export const BOUNTY_RARE_WEIGHT = 0.7; // 悬赏选角时稀有度权重（权重 = 0.3 + 稀有度 × 该值）
+
 // 自动存档间隔（秒）
 export const SAVE_INTERVAL = 30;
 

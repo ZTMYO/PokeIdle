@@ -42,6 +42,7 @@ import { showSystemLogs, showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView } from './phone.js';
 import { gpsAddDistance } from './gps.js';
+import { ensureBounty } from './bounty.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -145,6 +146,9 @@ function onGameTick() {
     addSystemLog('region_change', { region: region.name });
   }
 
+  // 地区悬赏：跨过 0 点自动刷新（日期变化时重新生成，当天保持不变）
+  ensureBounty();
+
   if (phase !== 'idle') { updateStats(); return; }
 
   // 道路轮播：每 2 个完整循环切下一个（过渡中/钓鱼中不切）
@@ -244,6 +248,7 @@ async function init() {
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
   ensureGpsState(); // 兼容旧存档：补齐 GPS 状态（默认从丰缘出发）
+  ensureBounty();   // 生成/恢复当日地区悬赏
 
   setLastRegionId(getCurrentRegion().id);
   await saveGame();
@@ -447,6 +452,7 @@ async function init() {
   $('btnPhone')?.addEventListener('click', showPhoneView);
   $('btnShop')?.addEventListener('click', showShopView);
   $('btnSettings')?.addEventListener('click', showSettingsView);
+  $('btnStation')?.addEventListener('click', () => import('./bounty.js').then(m => m.showBountyView()));
 
   // 状态栏点击
   $('statProgress')?.addEventListener('click', showShopView);

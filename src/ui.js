@@ -13,7 +13,7 @@ export function showView(id) {
     id = 'encounterView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','dataView','shopView','settingsView','tutorialView','systemLogView','incubatorView'];
+  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','systemLogView','incubatorView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
