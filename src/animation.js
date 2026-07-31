@@ -1,7 +1,14 @@
 ﻿﻿// ==================== 捕捉动画函数 ====================
 import { $, fitPokemonImage } from './ui.js';
-import { currentEncounter, currentIsShiny } from './state.js';
-import { BATTLE_BALLS, FLEE_CHANCE } from './config.js';
+import { currentEncounter, currentIsShiny, encounterBallsUsed } from './state.js';
+import { FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';
+
+// 精灵球捕捉动画用的图片（位于 src/items/）
+const BATTLE_BALLS = {
+  'poke-ball': { closed: 'ball-00.png', open: 'ball-00-open.png' },
+  'ultra-ball': { closed: 'ball-03.png', open: 'ball-03-open.png' },
+  'master-ball': { closed: 'ball-04.png', open: 'ball-04-open.png' },
+};
 
 export function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -79,6 +86,8 @@ export async function setupCatchAnim(ballType) {
   const pkmnOrigY = stageH * 0.58 - pkmnH;
 
   // 把宝可梦从 CSS 居中改为像素定位，供动画操纵
+  // 需同时停掉 encGrow 动画（both 填充的 translateX(-50%) 会覆盖内联 transform，导致图片左移半个身位）
+  pkmn.style.animation = 'none';
   pkmn.style.position = 'absolute';
   pkmn.style.left = pkmnOrigX + 'px';
   pkmn.style.top = pkmnOrigY + 'px';
@@ -101,6 +110,45 @@ export async function setupCatchAnim(ballType) {
   return { stage, ball, ballType, pkmn, stars, msg, stageW, stageH, pkmnOrigX, pkmnOrigY, pkmnW, pkmnH, throwChar };
 }
 
+// 宝可梦逃跑动画：水平翻转后向中下方向平移，最终停在底部文字框右上角附近（用于宝可梦逃走场景）
+export function playFleeAnim(duration = 1000) {
+  const pkmn = $('encounterGif');
+  if (!pkmn) return Promise.resolve();
+  // 还原为 CSS 居中定位（若处于丢球动画的像素定位）
+  pkmn.style.position = '';
+  pkmn.style.left = '';
+  pkmn.style.top = '';
+  pkmn.style.animation = 'none';
+  pkmn.style.zIndex = '';
+  pkmn.style.transform = '';
+  // 强制重排，确保 transition 从当前状态开始
+  void pkmn.offsetWidth;
+  // 终点：底部文字框右上角附近（水平靠右、底部贴文字框顶沿）
+  const box = document.querySelector('.text-box');
+  const start = pkmn.getBoundingClientRect();
+  const w = pkmn.offsetWidth || start.width;
+  const h = pkmn.offsetHeight || start.height;
+  let dx = 40, dy = 120;
+  if (box) {
+    const br = box.getBoundingClientRect();
+    // 图片左缘超出视口右缘至少 20px（或 20% 图片宽），确保完全跑出屏幕
+    const targetX = br.right + Math.max(20, w * 0.2);
+    const targetY = br.top - h + br.height * 0.3; // 底部略微压进文字框
+    dx = targetX - start.left;
+    dy = targetY - start.top;
+  }
+  // 保持水平居中的 translateX(-50%)，叠加水平翻转 + 向终点平移
+  // 第一步：瞬间完成 2D 水平翻转（scaleX(-1)，不做缩放插值，避免"3D 翻转"观感）
+  pkmn.style.transition = 'none';
+  pkmn.style.transform = 'translateX(-50%) scaleX(-1)';
+  void pkmn.offsetWidth;
+  // 第二步：匀速平移到终点（不用缓动；scaleX(-1) 位于位移外层会镜像水平位移，故 dx 取负才能向右移动）
+  pkmn.style.transition = `transform ${duration}ms linear`;
+  pkmn.style.transform = `translateX(-50%) scaleX(-1) translate(${-dx}px, ${dy}px)`;
+  // 动画结束后保持终点位置（不清理 transform），由下次 renderEncounterScene 重置，避免弹回原位
+  return new Promise(resolve => setTimeout(resolve, duration));
+}
+
 export function restoreCatchAnim() {
   const pkmn = $('encounterGif');
   if (!pkmn) return;
@@ -111,6 +159,9 @@ export function restoreCatchAnim() {
   pkmn.style.transform = '';
   pkmn.style.opacity = '';
   pkmn.style.zIndex = '';
+  // 保持 animation:none，避免恢复 CSS 的 encGrow 放大动画（挣脱/摇晃结束后会重新从头播放）
+  // 新遭遇的入场动画由 renderEncounterScene 重新启用
+  pkmn.style.animation = 'none';
   // 移除丢球角色动画状态（回到默认最后一帧）
   const tc = $('animThrowChar');
   if (tc) { tc.classList.remove('throwing'); }
@@ -429,6 +480,8 @@ export async function playCatchSequence(ballType, isCaught) {
   stage.classList.remove('active');
   restoreCatchAnim();
 
-  if (Math.random() < FLEE_CHANCE) return { result: 'fled', shakes: breakRound };
+  // 逃跑概率随丢球次数递增（encounterBallsUsed 为本次丢球后的计数）
+  const fleeChance = Math.min(FLEE_CHANCE + (encounterBallsUsed - 1) * FLEE_CHANCE_INC, FLEE_CHANCE_MAX);
+  if (Math.random() < fleeChance) return { result: 'fled', shakes: breakRound };
   return { result: 'continue', shakes: breakRound };
 }

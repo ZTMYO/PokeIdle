@@ -80,7 +80,7 @@ pub fn run() {
                 let mut tray_builder = TrayIconBuilder::with_id("tray")
                     .menu(&tray_menu)
                     .show_menu_on_left_click(false)
-                    .tooltip("宝可梦挂机");
+                    .tooltip("口袋挂机");
                 if let Some(icon) = tray_icon {
                     tray_builder = tray_builder.icon(icon);
                 }

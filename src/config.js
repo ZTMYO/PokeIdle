@@ -1,89 +1,92 @@
 // ===== 游戏常量配置 =====
 
-export const TYPE_COLORS = {
-  '一般':'#B5B4AF','格斗':'#BE4D47','飞行':'#81b9ef','毒':'#8943B0',
-  '地面':'#9C5A59','岩石':'#D3A865','虫':'#9CAE1E','幽灵':'#704170',
-  '钢':'#60a1b8','火':'#E75357','水':'#3F98EA','草':'#3fa129',
-  '电':'#F9CE40','超能':'#F8669C','冰':'#3fd8ff','龙':'#5060e1',
-  '恶':'#61484B','妖精':'#E259E7',
-};
-
+// 道具概率权重（行走掉落 & 钓鱼收获共用）：
+// 每秒累计一次该概率，达到 1 时掉落 1 个道具
 export const ITEM_RATES = {
-  'poke-ball': 1/90, 'ultra-ball': 1/220, 'master-ball': 1/900,
-  'candy': 1/30, 'sweet-honey': 1/400, 'mystery-egg': 1/800, 'shiny-charm': 1/1000,
+  'poke-ball':   1 / 90,   // 精灵球
+  'ultra-ball':  1 / 220,  // 高级球
+  'master-ball': 1 / 900,  // 大师球
+  'candy':       1 / 30,   // 糖果
+  'sweet-honey': 1 / 400,  // 甜甜蜜
+  'mystery-egg': 1 / 800,  // 神秘蛋
+  'shiny-charm': 1 / 1000, // 闪耀护符
 };
 
+// 道具显示名称
 export const ITEM_NAMES = {
-  'poke-ball':'精灵球','ultra-ball':'高级球',
-  'master-ball':'大师球','candy':'糖果',
-  'sweet-honey':'甜甜蜜','mystery-egg':'神秘蛋','shiny-charm':'闪耀护符',
+  'poke-ball': '精灵球', 'ultra-ball': '高级球',
+  'master-ball': '大师球', 'candy': '糖果',
+  'sweet-honey': '甜甜蜜', 'mystery-egg': '神秘蛋', 'shiny-charm': '闪耀护符',
 };
 
-export const ITEM_ICONS = {
-  'poke-ball':'poke-ball.png','ultra-ball':'ultra-ball.png',
-  'master-ball':'master-ball.png','candy':'candy.png',
-  'sweet-honey':'honey.png','mystery-egg':'mystery-egg.png','shiny-charm':'shiny-charm.png',
-};
-
+// 精灵球基础捕获率（最终 = 基础率 × 宝可梦 catchRate × 丢球加成；加成仅在逃跑率拉满后每球 +10%，见 battle.js）
 export const CATCH_RATES = {
-  'poke-ball':0.30,'ultra-ball':0.70,'master-ball':1.00,
+  'poke-ball': 0.30, 'ultra-ball': 0.70, 'master-ball': 1.00,
 };
 
+// 逃跑率上限后丢球的捕获加成
+export const CATCH_BONUS_INC = 0.10;
+
+// 糖果商店兑换价格
 export const CANDY_EXCHANGE = {
   'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 50,
   'sweet-honey': 15, 'mystery-egg': 100, 'shiny-charm': 1000,
 };
 
-export const FLEE_CHANCE = 0.10;
+// 丢球挣脱后宝可梦逃跑的概率
+// 逃跑率随丢球次数递增：第 1 球为基础 FLEE_CHANCE，之后每多丢一球 +FLEE_CHANCE_INC，最高不超过 FLEE_CHANCE_MAX
+export const FLEE_CHANCE = 0.05;     // 第 1 球挣脱后的逃跑概率
+export const FLEE_CHANCE_INC = 0.05; // 每多丢一球额外增加的逃跑概率
+export const FLEE_CHANCE_MAX = 0.5; // 逃跑概率上限
+
+// 普通遇敌间隔（秒，范围内随机）
 export const ENCOUNTER_MIN = 120;
 export const ENCOUNTER_MAX = 240;
+
+// 甜甜蜜 / 闪耀护符：增益持续时间（秒）
+export const BUFF_DURATION = 60;
+// 甜甜蜜 / 闪耀护符：增益期间的快速遇敌间隔（秒，范围内随机）
+export const BUFF_ENCOUNTER_MIN = 15;
+export const BUFF_ENCOUNTER_MAX = 30;
+// 甜甜蜜 / 闪耀护符：稀有度加成权重（越高极稀有出现概率越大，见 items.js pickWeightedPokemon）
+export const HONEY_RARITY_BOOST = 0.5;
+export const CHARM_RARITY_BOOST = 0.7;
+
+// 野生/钓鱼/孵蛋的基础闪光概率
 export const SHINY_CHANCE = 1 / 1000;
-export const REGION_CYCLE = ['关都','城都','丰缘','神奥','合众','卡洛斯','阿罗拉','伽勒尔','帕底亚'];
+// 闪耀护符生效时，遇敌/钓鱼出宝可梦的闪光概率
+export const CHARM_SHINY_CHANCE = 0.8;
+
+// 地区轮换顺序（每 REGION_DURATION 秒换一个地区）
+export const REGION_CYCLE = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
+
+// 每个地区的持续时间（秒）
 export const REGION_DURATION = 3600;
+
+// 自动存档间隔（秒）
 export const SAVE_INTERVAL = 30;
+
+// 佛系模式：遇敌后自动逃跑的倒计时（毫秒）
 export const AUTO_FLEE_TIMEOUT = 30000;
+
+// 佛系模式：自动操作无球时，展示遇敌画面后逃跑的等待（毫秒）
 export const AUTO_FLEE_NO_BALL_DELAY = 800;
 
-export const BREAK_MSGS = {
-  0: [
-      '精灵球刚落地就被挣脱了！',
-      '精灵球没稳住，它直接冲出来了！',
-      '刚落地，宝可梦就突破了精灵球！',
-      '精灵球一碰地面就被挣脱开来！',
-      '落地一瞬，它便从精灵球脱身！'
-  ],
-  1: [
-    '它一下就弹开了！',
-    '宝可梦冲了出来！',
-    '可恶，没能抓住它！',
-    '真是可惜，差一点就抓住了！'
-  ],
-  2: [
-    '就差一点点，没能收服它！',
-    '哎呀，差一点就抓到了！',
-    '眼看就要成功，可恶！',
-    '这一次差一点就成功了！'
-  ],
-  3: [
-    '明明差一点就要成功了！',
-    '就差最后一下了！',
-    '可惜！明明就差一点了！',
-    '几乎要成功了！',
-    '太可惜了！就差那么一下！'
-  ]
-};
+// ===== 钓鱼 =====
+export const FISH_POKEMON_CHANCE = 0.1;   // 每次钓鱼钓到宝可梦的几率（无 buff 时）
+export const FISH_BUFF_POKEMON_CHANCE = 0.5; // 甜甜蜜/闪耀护符生效期间，每次钓鱼钓到宝可梦的几率
+export const FISH_RARE_RATE = 0.6;      // 钓到宝可梦时，极稀有所占比例（其余为当地水系，含双属性）
+export const FISH_WAIT_MIN = 6;         // 等待上钩最短秒数
+export const FISH_WAIT_MAX = 30;        // 等待上钩最长秒数（范围内随机）
+export const FISH_QTY_MIN = 1;          // 钓到道具最少数量
+export const FISH_QTY_MAX = 10;         // 钓到道具最多数量（范围内随机）
+export const FISH_TRIGGER_MIN = 5;      // 进入垂钓路段后，预定开始钓鱼的最短秒数
+export const FISH_TRIGGER_MAX = 20;     // 进入垂钓路段后，预定开始钓鱼的最长秒数（范围内随机）
 
-export const REGION_OPTIONS = ['全部地区', '关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
-
-export const BATTLE_BALLS = {
-  'poke-ball': { closed: 'ball-00.png', open: 'ball-00-open.png' },
-  'ultra-ball': { closed: 'ball-03.png', open: 'ball-03-open.png' },
-  'master-ball': { closed: 'ball-04.png', open: 'ball-04-open.png' },
-};
-
-export const PICKUP_PLACES = ['在草丛里','在路边','在树荫下','在石头缝中','在花丛里','在水边','在泥土里','在落叶堆里','在沙地里','在墙角边','在小路上','在灌木丛中','在岩石下','在藤蔓旁','在溪滩边','在古树根','在青苔石','在碎石坡','在芦苇丛','在树洞中','在野莓丛','在干草堆','在卵石滩','在树桩旁'];
-export const PICKUP_ACTIONS = ['踢了一下','随手拨开','扒拉了几下','俯身翻看','无意中踢到','随手一翻','扒开小土坑','扫开灰尘','蹲下来翻找','拂开落叶','刨开沙土','伸手摸索','掀开树皮','轻踹土块','伸手掏了掏','扫开细沙'];
-export const PICKUP_RESULTS = ['捡到了','发现了','找到了','翻出了','捞到了','寻获了','意外拾获','顺手拾起','居然是','竟挖到','无意间摸出','凑巧找到','意外翻出','随手摸出','掘出了','捞起了'];
+// ===== 路段生成 =====
+export const ROAD_WATER_CHANCE = 0.05;     // 新路段为水域（可钓鱼）的概率，其余从陆地池中选取
+export const ROAD_WIDTH_MIN = 50;          // prob（随机生成）类路段的最短格数
+export const ROAD_WIDTH_MAX = 200;         // prob（随机生成）类路段的最长格数（范围内均匀随机）
 
 // ===== 路面滚动速度 =====
 export const ROAD_SPEED_WALK = 0.6;   // 走路时瓦片滚动速度

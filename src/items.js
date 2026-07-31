@@ -1,11 +1,27 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, ITEM_ICONS, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, SHINY_CHANCE, TYPE_COLORS } from './config.js';
-import { phase, gameData, allPokemon, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _honeyEncounterCount, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, _catchStreak, setCatchStreak, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyEncounterCount, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDuration, getIncubatorUnlockCost } from './state.js';
+import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST } from './config.js';
+import { phase, gameData, allPokemon, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _honeyEncounterCount, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyEncounterCount, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDuration, getIncubatorUnlockCost } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnGameView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge } from './ui.js';
-import { showIdlePickup } from './messages.js';
+import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay } from './animation.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
+
+// 宝可梦属性显示颜色（图鉴/战斗页类型标签用）
+export const TYPE_COLORS = {
+  '一般': '#B5B4AF', '格斗': '#BE4D47', '飞行': '#81b9ef', '毒': '#8943B0',
+  '地面': '#9C5A59', '岩石': '#D3A865', '虫': '#9CAE1E', '幽灵': '#704170',
+  '钢': '#60a1b8', '火': '#E75357', '水': '#3F98EA', '草': '#3fa129',
+  '电': '#F9CE40', '超能': '#F8669C', '冰': '#3fd8ff', '龙': '#5060e1',
+  '恶': '#61484B', '妖精': '#E259E7',
+};
+
+// 道具图标文件名（位于 src/items/ 目录）
+export const ITEM_ICONS = {
+  'poke-ball': 'poke-ball.png', 'ultra-ball': 'ultra-ball.png',
+  'master-ball': 'master-ball.png', 'candy': 'candy.png',
+  'sweet-honey': 'honey.png', 'mystery-egg': 'mystery-egg.png', 'shiny-charm': 'shiny-charm.png',
+};
 
 // ---------- 权重随机选精灵 ----------
 // rarityBoost 越高稀有精灵出现概率越大
@@ -31,9 +47,15 @@ export function pickRandomPokemon() {
   const pool = allPokemon.filter(p => p.region === region.name);
   if (pool.length === 0) return null;
   let rarityBoost = 0;
-  if (honeyBuffActive) rarityBoost = Math.max(rarityBoost, 0.5);
-  if (charmBuffActive) rarityBoost = Math.max(rarityBoost, 0.7);
+  if (honeyBuffActive) rarityBoost = Math.max(rarityBoost, HONEY_RARITY_BOOST);
+  if (charmBuffActive) rarityBoost = Math.max(rarityBoost, CHARM_RARITY_BOOST);
   return pickWeightedPokemon(rarityBoost, pool);
+}
+
+// 孵蛋：全图鉴纯随机，不受地区限制、无稀有度加权
+export function pickAnyPokemon() {
+  if (allPokemon.length === 0) return null;
+  return allPokemon[randInt(0, allPokemon.length - 1)];
 }
 
 // ---------- 道具随路面滚动进入 ----------
@@ -164,10 +186,10 @@ export function placeEggInIncubator(slotIndex) {
   gameData.items['mystery-egg']--;
   updateBackpack();
 
-  const poke = pickRandomPokemon();
+  const poke = pickAnyPokemon();
   if (!poke) return;
 
-  const eggIsShiny = Math.random() < 1/1000;
+  const eggIsShiny = Math.random() < SHINY_CHANCE;
   const duration = calcHatchDuration(poke);
 
   incubators[slotIndex] = {
@@ -252,7 +274,7 @@ export async function hatchFromIncubator(slotIndex) {
   if (strayStage) strayStage.classList.remove('active');
   $('encounterName').textContent = '';
   $('encounterTypes').innerHTML = '';
-  $('encounterHavedIcon').style.display = 'none';
+  $('encounterOwnedWrap').style.display = 'none';
   $('encounterCatchRate').textContent = '';
   $('encounterNewLabel').style.display = 'none';
   $('fleeBtn').style.display = 'none';
@@ -353,7 +375,21 @@ export async function hatchFromIncubator(slotIndex) {
   if (newLabel) newLabel.style.display = isNewDiscovery ? '' : 'none';
 
   // 已捕获标记（普通/闪光分开）
-  $('encounterHavedIcon').style.display = (existingEntry && (eggIsShiny ? existingEntry.shinyCaught > 0 : existingEntry.caught > 0)) ? '' : 'none';
+  $('encounterOwnedWrap').style.display = (existingEntry && (eggIsShiny ? existingEntry.shinyCaught > 0 : existingEntry.caught > 0)) ? '' : 'none';
+  if (existingEntry && (eggIsShiny ? existingEntry.shinyCaught > 0 : existingEntry.caught > 0)) {
+    const tipEl = $('encounterOwnedTip');
+    if (tipEl) {
+      const logs = (gameData.encounterLogs || {})[idx] || [];
+      const first = logs.find(l => l.result === 'caught' && !!l.shiny === eggIsShiny);
+      if (first && first.time) {
+        const d = new Date(first.time);
+        const pad = n => String(n).padStart(2, '0');
+        tipEl.textContent = `首次收服：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } else {
+        tipEl.textContent = '首次收服：较早前';
+      }
+    }
+  }
 
   // ★ 以下数据操作移到动画完成后、saveGame 之前
   // 这样如果在动画期间关闭游戏，孵蛋器槽位仍保留（hatched=true），重进后可重新孵化
@@ -442,26 +478,28 @@ export function activateHoney() {
   setHoneyBuffActive(true);
   setIdleCharacter('walk');
   particles.stop();
-  particles.start('rgba(255,215,0,1)');
+  particles.start('rgba(255,215,0,1)', 'circle', { sizeMult: 0.7, alphaMult: 0.6 });
 
   $('idleText').textContent = '✦ 甜蜜蜜生效中 ✦';
   setIdleMsgIdx(-1);
-  // 甜甜蜜持续 1 分钟
+  // 甜甜蜜持续 BUFF_DURATION 秒
   if (nextEncounterTimer) clearTimeout(nextEncounterTimer);
   if (honeyExpiryTimer) clearTimeout(honeyExpiryTimer);
-  const d = 60000;
+  const d = BUFF_DURATION * 1000;
   setHoneyCountdownEnd(Date.now() + d);
   // 快速遇敌
   setNextEncounterTimer(setTimeout(async () => {
     const { tryEncounter } = await import('./battle.js');
     tryEncounter();
-  }, rand(15, 30) * 1000));
+  }, rand(BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX) * 1000));
   // 甜甜蜜到期
   setHoneyExpiryTimer(setTimeout(() => {
     setHoneyBuffActive(false);
     setHoneyCountdownEnd(0);
     clearHoneyCountdown();
-    // 自动续杯
+    // buff 结束：立即显示"效果渐渐褪去"
+    $('idleText').textContent = '✦ 甜蜜蜜的效果渐渐褪去了';
+    // 自动续杯：立即用新的"生效中"文案刷新上面的结束文案
     if (gameData.settings?.autoBuffHoney && (gameData.items['sweet-honey']||0) > 0) {
       setHoneyExpiryTimer(null);
       activateHoney();
@@ -474,7 +512,6 @@ export function activateHoney() {
     setHoneyEncounterCount(0);
     setIdleCharacter('walk');
     particles.stop();
-    $('idleText').textContent = '';
     setHoneyExpiryTimer(null);
   }, d));
   updateBackpack();
@@ -526,30 +563,30 @@ export function activateShinyCharm() {
   if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
   if (charmExpiryTimer) { clearTimeout(charmExpiryTimer); setCharmExpiryTimer(null); }
 
-  // 闪耀护符持续 60 秒，期间快速遇敌
-  const d = 60000;
+  // 闪耀护符持续 BUFF_DURATION 秒，期间快速遇敌
+  const d = BUFF_DURATION * 1000;
   setCharmCountdownEnd(Date.now() + d);
 
-  // 首次遇敌（15-30秒后）
+  // 首次遇敌（BUFF_ENCOUNTER_MIN~MAX 秒后）
   setNextEncounterTimer(setTimeout(async () => {
     const { tryEncounter } = await import('./battle.js');
     tryEncounter();
-  }, rand(15, 30) * 1000));
+  }, rand(BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX) * 1000));
 
   // 护符到期
   setCharmExpiryTimer(setTimeout(() => {
     setCharmBuffActive(false);
     setCharmCountdownEnd(0);
     clearCharmCountdown();
-    // 自动续杯：优先甜甜蜜
+    // buff 结束：立即显示"效果渐渐褪去"
+    showBuffExpired('charm');
+    // 自动续杯：优先甜甜蜜，立即用新的"生效中"文案刷新上面的结束文案
     if (gameData.settings?.autoBuffHoney && (gameData.items['sweet-honey']||0) > 0) {
-      $('idleText').textContent = '';
       setCharmExpiryTimer(null);
       activateHoney();
       return;
     }
     if (gameData.settings?.autoBuffCharm && (gameData.items['shiny-charm']||0) > 0) {
-      $('idleText').textContent = '';
       setCharmExpiryTimer(null);
       activateShinyCharm();
       return;
@@ -561,7 +598,6 @@ export function activateShinyCharm() {
     setCharmEncounterCount(0);
     setIdleCharacter('walk');
     particles.stop();
-    $('idleText').textContent = '';
     setCharmExpiryTimer(null);
   }, d));
 

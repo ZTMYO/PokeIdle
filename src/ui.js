@@ -50,25 +50,39 @@ export function showView(id) {
     hideTextBox();
   } else if (phase === 'encounter' && currentEncounter) {
     const box = $('textBox');
+    const tc = $('animThrowChar');
     if (box && !box.classList.contains('show')) {
+      // 遇敌页入场：文字框与主角背影同步慢速升起（文案把主角"顶起"）
+      const screen = $('screen');
+      if (screen) {
+        screen.classList.add('encounter-intro');
+        setTimeout(() => screen.classList.remove('encounter-intro'), 750);
+      }
       box.style.display = 'flex';
       box.style.transform = 'translateY(100%)';
       void box.offsetHeight;
       box.classList.add('show');
       box.style.transform = 'translateY(0)';
+      // 主角背影从底部随文案一起升起
+      if (tc) {
+        tc.style.transition = 'none';
+        tc.style.bottom = '0';
+        void tc.offsetHeight;
+        tc.style.transition = 'bottom 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
+        tc.style.bottom = '52px';
+      }
     }
     $('fleeBtn').style.display = '';
     // 防止 display:none→flex 导致 CSS animation 重播丢球动画
-    const tc = $('animThrowChar');
     if (tc) tc.classList.remove('throwing');
   }
   const title = $('appTitle');
   if (id === 'idleView' || id === 'encounterView') {
-    title.innerHTML = '宝可梦挂机';
+    title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
     const names = { pokedexView:'图鉴', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', systemLogView:'系统日志', incubatorView:'孵蛋器' };
-    title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
+    title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
 }
@@ -385,7 +399,7 @@ export function renderIncubatorView() {
     } else {
       const canPlace = (gameData.items['mystery-egg'] || 0) > 0;
       html += `<div class="incubator-row">
-        <div class="incubator-egg-slot" data-empty="${i}" style="${canPlace ? 'cursor:pointer;' : ''}">${canPlace ? '<span style="font-size:14px;color:var(--ui-color);">+</span>' : ''}</div>
+        <div class="incubator-egg-slot" data-empty="${i}" style="${canPlace ? 'cursor:pointer;' : ''}">${canPlace ? '<span style="font-size:14px;color:var(--ui-color);transform:translateY(-2px);">+</span>' : ''}</div>
         <div class="incubator-info"><div class="incubator-name">空孵蛋器</div></div>
       </div>`;
     }

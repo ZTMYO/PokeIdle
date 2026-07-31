@@ -1,4 +1,4 @@
-/* ==================== 宝可梦挂机 - 掌机风格 ==================== */
+/* ==================== 口袋挂机 - 掌机风格 ==================== */
 
 :root {
   --color-text: #1f1f1f;
@@ -298,12 +298,44 @@ body { margin: 0; padding: 0; cursor: default; }
   user-select: none;
   pointer-events: none;
 }
-.encounter-haved {
+.encounter-owned {
   width: 18px;
   height: 18px;
   color: var(--ui-color);
   user-select: none;
   pointer-events: none;
+  cursor: pointer;
+}
+.encounter-owned-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  pointer-events: auto;
+}
+.encounter-owned-wrap .encounter-owned {
+  pointer-events: auto;
+}
+.encounter-tooltip {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 6px);
+  transform: translateY(-50%);
+  background: var(--screen-bg-dark);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 3px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s;
+  z-index: 10;
+  pointer-events: none;
+}
+.encounter-owned-wrap:hover .encounter-tooltip {
+  opacity: 1;
+  visibility: visible;
 }
 .encounter-catch-rate {
   font-size: 8px;
@@ -325,6 +357,39 @@ body { margin: 0; padding: 0; cursor: default; }
 @keyframes pulseNew {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* === 遇敌入场动画 === */
+/* 左上角信息（名字/类型）从左上方平移入场（左上与右上同时，纯平移无透明度变化） */
+#encounterView .encounter-name {
+  animation: encFlyTL 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+#encounterView .encounter-types {
+  animation: encFlyTL 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/* 右上角信息（已捕获/捕获率/新发现）从右上方平移入场 */
+#encounterView .encounter-right {
+  animation: encFlyTR 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes encFlyTL {
+  from { transform: translate(-48px, -28px); }
+  to   { transform: translate(0, 0); }
+}
+@keyframes encFlyTR {
+  from { transform: translate(48px, -28px); }
+  to   { transform: translate(0, 0); }
+}
+/* 敌人出现：纯缩放放大（从远到近），与左上/右上 UI 入场同时开始 */
+#encounterView .encounter-gif {
+  animation: encGrow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes encGrow {
+  from { transform: translateX(-50%) scale(0.6); }
+  to   { transform: translateX(-50%) scale(1); }
+}
+/* 遇敌期间文字框慢速升起，主角背影同步被"顶起" */
+#screen.encounter-intro .text-box {
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* === 底部文字框（GBA 宝可梦风格） === */
@@ -492,8 +557,11 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .bag-slot:hover { background: rgba(255,255,255,0.3); }
 .bag-slot:active { transform: scale(0.92); }
-.bag-slot.disabled { opacity: 0.4; cursor: default; }
+.bag-slot.disabled { opacity: 0.45; cursor: default; background: rgba(0,0,0,0.06); }
+.bag-slot.disabled:hover { background: rgba(0,0,0,0.06); }
 .bag-slot.disabled:active { transform: none; }
+.bag-slot.disabled .bag-icon { opacity: 0.6; }
+.bag-slot.disabled .bag-qty { color: var(--color-muted); font-weight: 600; }
 
 .bag-icon {
   width: 18px;
@@ -518,6 +586,7 @@ body { margin: 0; padding: 0; cursor: default; }
 
 /* === 背包红点 badge === */
 .bag-slot { position: relative; }
+
 .bag-badge {
   position: absolute;
   top: -2px;
@@ -731,6 +800,7 @@ body { margin: 0; padding: 0; cursor: default; }
   overflow: hidden;
   z-index: 25;
   pointer-events: none;
+  user-select: none;
 }
 .anim-throw-char-img {
   display: block;
@@ -1346,13 +1416,89 @@ body { margin: 0; padding: 0; cursor: default; }
 #tutorialContent p {
   margin-bottom: 6px;
 }
-#tutorialContent .indent {
-  padding-left: 12px;
+#tutorialContent .tutorial-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 6px;
+  font-size: 10px;
+  table-layout: fixed;
 }
-#tutorialContent .item-row {
-  display: block;
-  padding-left: 12px;
-  line-height: 1.9;
+#tutorialContent .tutorial-table th,
+#tutorialContent .tutorial-table td {
+  border: 1px solid rgba(var(--ui-color-rgb),0.2);
+  padding: 2px 5px;
+  text-align: center;
+  line-height: 1.45;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+#tutorialContent .tutorial-table th {
+  background: rgba(var(--ui-color-rgb),0.1);
+  font-weight: 700;
+  font-size: 10px;
+}
+/* 首列按表头宽度分配（如"特性/道具/球种"），其余列平分剩余空间 */
+#tutorialContent .tutorial-table th:first-child,
+#tutorialContent .tutorial-table td:first-child {
+  width: 46px;
+}
+
+/* ===== 教程双栏：左侧导航列表 + 右侧详情 ===== */
+#tutorialView {
+  flex-direction: row;
+  overflow: hidden;
+  padding: 3px;
+}
+#tutorialList {
+  flex-shrink: 0;
+  width: 70px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 3px 2px 0;
+  border-right: 1px solid rgba(var(--ui-color-rgb),0.15);
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--ui-color);
+  user-select: none;
+}
+#tutorialList::-webkit-scrollbar { width: 3px; }
+#tutorialList::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb),0.25); border-radius: 2px; }
+.tutorial-nav-item {
+  padding: 4px 6px;
+  margin-bottom: 2px;
+  border-radius: 3px;
+  cursor: pointer;
+  line-height: 1.35;
+  color: var(--ui-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s;
+}
+.tutorial-nav-item:hover { background: rgba(var(--ui-color-rgb),0.08); }
+.tutorial-nav-item.active {
+  background: var(--ui-color);
+  color: #fff;
+  font-weight: 700;
+}
+#tutorialContent {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 3px 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ui-color);
+}
+#tutorialContent::-webkit-scrollbar { width: 3px; }
+#tutorialContent::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb),0.25); border-radius: 2px; }
+#tutorialContent .tutorial-title {
+  font-size: 12px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb),0.2);
+  padding-bottom: 3px;
+  margin-bottom: 6px;
 }
 .auto-catch-row {
   display: flex;
@@ -1443,4 +1589,110 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .tutorial-btn:active {
   transform: scale(0.96);
+}
+
+/* === 启动画面=== */
+#splash {
+  position: absolute;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--screen-bg);
+  transition: opacity 0.45s ease;
+}
+#splash.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+.splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 100%;
+  padding: 4px;
+}
+.splash-title {
+  font-family: 'Courier New', monospace;
+  font-weight: 800;
+  font-size: clamp(20px, 5vmin, 28px);
+  letter-spacing: 8px;
+  text-indent: 8px;
+  color: var(--console-body);
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.25);
+  user-select: none;
+}
+.splash-subtitle {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 6px;
+  text-indent: 6px;
+  margin-top: 3px;
+  color: var(--console-body);
+  opacity: 0.7;
+  user-select: none;
+}
+.splash-stage {
+  position: relative;
+  width: 300px;
+  height: min(200px, 46vh);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.splash-hero {
+  width: 90px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  opacity: 0;
+  animation: splash-item-in 0.6s ease 0.2s forwards;
+  user-select: none;
+}
+.splash-ring {
+  --r: min(86px, 22vh);
+  position: absolute;
+  inset: 0;
+  z-index: 1; /* 道具层在主角之上，收缩叠放时不被遮挡 */
+  pointer-events: none;
+  animation: splash-spin 1.5s linear both;
+  user-select: none;
+}
+.splash-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  image-rendering: pixelated;
+  opacity: 0;
+  z-index: calc(6 - var(--i));
+  transform: rotate(calc(var(--i) * 51.428deg)) translateY(calc(var(--r) * -1)) rotate(calc(var(--i) * -51.428deg));
+  animation: splash-item-in 0.45s ease calc(var(--i) * 0.08s + 0.15s) forwards;
+}
+.splash-item--sm {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+}
+@keyframes splash-spin {
+  to { transform: rotate(480deg); }
+}
+@keyframes splash-item-in {
+  to { opacity: 1; }
+}
+/* 启动期间背包槽位隐藏，道具落位时依次浮现 */
+.splash-hidden { opacity: 0 !important; }
+.bag-slot--pop { animation: bag-pop 0.45s ease forwards; }
+@keyframes bag-pop {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+/* 统计栏渐显 */
+.stats-fade { animation: stats-fade-in 0.45s ease forwards; }
+@keyframes stats-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

@@ -1,12 +1,14 @@
 // ===== 钓鱼系统 =====
 // 进入有垂钓点的路段后停下钓鱼一次：甩竿 → 等待上钩（随机6~30s）→ 上钩抖动 → 收获随机道具×1~10
-import { ITEM_NAMES, ITEM_RATES, ITEM_ICONS } from './config.js';
-import { phase, gameData, nextEncounterTimer, honeyBuffActive, charmBuffActive, _itemDropActive, _fishing, gameTick, setFishing, setNextEncounterTimer, saveGame, addSystemLog, randInt } from './state.js';
+import { ITEM_NAMES, ITEM_RATES, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX } from './config.js';
+import { ITEM_ICONS, clearHoneyCountdown, clearCharmCountdown, startHoneyCountdown, startCharmCountdown } from './items.js';
+import { phase, gameData, nextEncounterTimer, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, _itemDropActive, _fishing, gameTick, allPokemon, getCurrentRegion, setFishing, setNextEncounterTimer, saveGame, addSystemLog, randInt, rand, setHoneyBuffActive, setCharmBuffActive, setHoneyCountdownEnd, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval } from './state.js';
 import { $, setIdleCharacter, updateBackpack, updateStats } from './ui.js';
-import { showFishingWait, showFishingResult } from './messages.js';
+import { showFishingWait, showFishingResult, showBuffExpired } from './messages.js';
 import { delay } from './animation.js';
-import { scheduleNextEncounter } from './battle.js';
+import { scheduleNextEncounter, startFishingEncounter, tryEncounter } from './battle.js';
 import * as road from './road.js';
+import * as particles from './particles.js';
 
 const FISH_FRAME_W = 64; // 每帧 32px，2x 显示
 
@@ -77,7 +79,12 @@ export function isFishing() { return _fishing; }
 // opts.fished 为 true 表示该路段本次循环已钓过（刷新页面后恢复），不再触发
 export function onRoadChanged(fishingRow, opts = {}) {
   _fishedInSegment = !!opts.fished;
-  _fishingDueTick = _fishedInSegment ? 0 : (fishingRow ? gameTick + randInt(5, 15) : 0);
+  _fishingDueTick = _fishedInSegment ? 0 : (fishingRow ? gameTick + randInt(FISH_TRIGGER_MIN, FISH_TRIGGER_MAX) : 0);
+  // 即将在垂钓路段钓鱼：取消预定遇敌，避免在等待钓鱼的窗口期先触发普通遇敌（表现为"没钓鱼就直接进遭遇"）
+  if (fishingRow && !_fishedInSegment && nextEncounterTimer) {
+    clearTimeout(nextEncounterTimer);
+    setNextEncounterTimer(null);
+  }
 }
 
 // 供存档使用：当前路段是否已钓过（随 pokemon_idle_road 持久化）
@@ -89,7 +96,6 @@ export function getFishingGuarantee() {
 export function tryStartFishing() {
   if (_fishing) return;
   if (phase !== 'idle') return;
-  if (honeyBuffActive || charmBuffActive) return; // buff 期间不钓鱼（避免和快速遇敌冲突）
   if (_itemDropActive) return;                     // 有道路道具飞行中不钓鱼
   if (!road.getFishingRow()) return;               // 当前路段无垂钓点
   if (road.isTransitioning() || !road.isActive()) return;
@@ -122,6 +128,7 @@ async function startFishing() {
   setFishing(true);
   // 取消预定的遇敌，钓鱼期间不遇敌
   if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
+  pauseBuffCountdown(); // 钓鱼（等待上钩）期间 buff 暂停计时，钓完恢复
   road.pause();
   spawnFloatingItems();
 
@@ -138,7 +145,7 @@ async function startFishing() {
   if (phase !== 'idle') { abortFishing(); return; }
 
   // 等待上钩：第4/8帧 ↔ 对应待机帧来回切换（待机动画）+ 钓鱼轮播文字（随机 6~30s）
-  const waitMs = randInt(6, 30) * 1000;
+  const waitMs = randInt(FISH_WAIT_MIN, FISH_WAIT_MAX) * 1000;
   showFishingWait();
   const idleFrame = row >= 3 ? 9 : 8;   // 待机帧：第3行→第10帧(索引9)，第1行→第9帧(索引8)
   const startT = Date.now();
@@ -162,9 +169,23 @@ async function startFishing() {
   }
   applyFishingFrame(el, base + 3);
 
+  // 有一定几率钓到宝可梦：不做道具收获动画，直接进入战斗
+  // 甜甜蜜/闪耀护符生效期间，直接按 FISH_BUFF_POKEMON_CHANCE 决定是否钓到宝可梦
+  const fishPokemonChance = (honeyBuffActive || charmBuffActive)
+    ? FISH_BUFF_POKEMON_CHANCE
+    : FISH_POKEMON_CHANCE;
+  if (Math.random() < fishPokemonChance) {
+    const poke = pickFishingPokemon();
+    if (poke) {
+      finishFishing(true);              // 静默收杆：清理钓鱼状态，遇敌调度交给战斗结束后统一处理
+      startFishingEncounter(poke);
+      return;
+    }
+  }
+
   // 钓到随机道具 ×1~10
   const itemKey = pickFishingReward();
-  const qty = randInt(1, 10);
+  const qty = randInt(FISH_QTY_MIN, FISH_QTY_MAX);
   gameData.items[itemKey] = (gameData.items[itemKey] || 0) + qty;
   gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + qty;
   addSystemLog('fishing', { item: itemKey, qty });
@@ -185,14 +206,88 @@ function abortFishing() {
   if (_fishing) finishFishing();
 }
 
-function finishFishing() {
+function finishFishing(silent = false) {
   _fishedInSegment = true;   // 本路段已钓过，本段不再触发
   _fishingDueTick = 0;
   clearFloatingItems();
   setFishing(false);
   setIdleCharacter('walk');
   road.resume();
-  scheduleNextEncounter();
+  if (!silent) {
+    // 有 buff 被暂停 → 恢复倒计时（由 buff 接管后续遇敌调度）；否则正常安排下次遇敌
+    if (!resumeBuffCountdown()) scheduleNextEncounter();
+  }
+}
+
+// 钓鱼开始：暂停进行中的 buff 倒计时（等待上钩不消耗 buff 时间，钓完恢复）
+function pauseBuffCountdown() {
+  if (charmBuffActive && charmCountdownEnd > Date.now()) {
+    setCharmPausedRemaining(charmCountdownEnd - Date.now());
+    setCharmCountdownEnd(0);
+    if (charmCountdownInterval) { clearInterval(charmCountdownInterval); setCharmCountdownInterval(null); }
+    if (charmExpiryTimer) { clearTimeout(charmExpiryTimer); setCharmExpiryTimer(null); }
+  } else if (charmCountdownEnd > 0 && charmCountdownEnd <= Date.now()) {
+    setCharmBuffActive(false);
+    setCharmCountdownEnd(0);
+    clearCharmCountdown();
+  }
+  if (honeyBuffActive && honeyCountdownEnd > Date.now()) {
+    setHoneyPausedRemaining(honeyCountdownEnd - Date.now());
+    setHoneyCountdownEnd(0);
+    if (honeyCountdownInterval) { clearInterval(honeyCountdownInterval); setHoneyCountdownInterval(null); }
+    if (honeyExpiryTimer) { clearTimeout(honeyExpiryTimer); setHoneyExpiryTimer(null); }
+  } else if (honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now()) {
+    setHoneyBuffActive(false);
+    setHoneyCountdownEnd(0);
+    clearHoneyCountdown();
+  }
+}
+
+// 钓鱼结束（钓到道具）：恢复被暂停的 buff 倒计时；返回 true 表示已恢复（后续遇敌调度由 buff 接管）
+function resumeBuffCountdown() {
+  if (charmBuffActive && charmPausedRemaining > 0) {
+    $('idleText').textContent = '✦ 闪耀护符生效中 ✦';
+    setCharmCountdownEnd(Date.now() + charmPausedRemaining);
+    const rem = charmPausedRemaining;
+    setCharmPausedRemaining(0);
+    // 快速遇敌
+    setNextEncounterTimer(setTimeout(tryEncounter, rand(BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX) * 1000));
+    // 护符到期
+    setCharmExpiryTimer(setTimeout(() => {
+      setCharmBuffActive(false);
+      setCharmCountdownEnd(0);
+      clearCharmCountdown();
+      particles.stop();
+      setIdleCharacter('walk');
+      // buff 结束：立即显示"效果渐渐褪去"（无条件覆盖，避免空白）
+      showBuffExpired('charm');
+      setCharmExpiryTimer(null);
+    }, rem));
+    startCharmCountdown();
+    return true;
+  }
+  if (honeyBuffActive && honeyPausedRemaining > 0) {
+    $('idleText').textContent = '✦ 甜蜜蜜生效中 ✦';
+    setHoneyCountdownEnd(Date.now() + honeyPausedRemaining);
+    const d = honeyPausedRemaining;
+    setHoneyPausedRemaining(0);
+    // 快速遇敌
+    setNextEncounterTimer(setTimeout(tryEncounter, rand(BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX) * 1000));
+    // 甜甜蜜到期
+    setHoneyExpiryTimer(setTimeout(() => {
+      setHoneyBuffActive(false);
+      setHoneyCountdownEnd(0);
+      clearHoneyCountdown();
+      particles.stop();
+      setIdleCharacter('walk');
+      // buff 结束：立即显示"效果渐渐褪去"（无条件覆盖，避免空白）
+      showBuffExpired('honey');
+      setHoneyExpiryTimer(null);
+    }, d));
+    startHoneyCountdown();
+    return true;
+  }
+  return false;
 }
 
 // 按道具掉率加权：越常见的道具越容易钓到
@@ -206,4 +301,18 @@ function pickFishingReward() {
     if (r <= 0) return entries[i][0];
   }
   return entries[entries.length - 1][0];
+}
+
+// 钓到宝可梦：60% 当前地区极稀有（rarity>0.8），40% 当地水系（含双属性）
+function pickFishingPokemon() {
+  const regionName = getCurrentRegion().name;
+  const pool = allPokemon.filter(p => p.region === regionName);
+  const rarePool = pool.filter(p => (p.rarity || 0.5) > 0.8);      // 极稀有
+  const waterPool = pool.filter(p => (p.types || []).includes('水')); // 水系（含双属性）
+  // FISH_RARE_RATE 比例钓到极稀有 / 其余为当地水系；选定池子为空则退回另一池
+  const wantRare = Math.random() < FISH_RARE_RATE;
+  let candidates = wantRare ? rarePool : waterPool;
+  if (candidates.length === 0) candidates = wantRare ? waterPool : rarePool;
+  if (candidates.length === 0) return null;
+  return candidates[randInt(0, candidates.length - 1)];
 }

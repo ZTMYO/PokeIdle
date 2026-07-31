@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <link rel="stylesheet" href="styles.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>宝可梦挂机</title>
+  <title>口袋挂机</title>
   <script type="module" src="./main.js" defer></script>
 </head>
 <body>
   <div class="console">
     <!-- 标题栏 -->
     <div class="title-bar" data-tauri-drag-region>
-      <div id="appTitle" class="app-title">宝可梦挂机</div>
+      <div id="appTitle" class="app-title">口袋挂机</div>
       <div class="window-controls">
         <button class="control-btn window-icon" id="btnPokedex" data-view="pokedexView" aria-label="图鉴" title="图鉴">
           <svg><use xlink:href="./icons/sprites.svg#icon-book"/></svg>
@@ -87,8 +87,9 @@
           </div>
 
           <!-- 教程 -->
-          <div id="tutorialView" style="display:none;flex-direction:column;overflow-y:auto;">
-            <div id="tutorialContent" style="flex:1;color:var(--ui-color);line-height:1.7;padding:3px 6px;"></div>
+          <div id="tutorialView" style="display:none;">
+            <div id="tutorialList"></div>
+            <div id="tutorialContent"></div>
           </div>
 
           <!-- 系统日志 -->
@@ -101,7 +102,10 @@
             <div class="encounter-name" id="encounterName"></div>
             <div class="encounter-types" id="encounterTypes"></div>
             <div class="encounter-right">
-              <svg id="encounterHavedIcon" class="encounter-haved" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="./icons/sprites.svg#icon-haved"/></svg>
+              <span id="encounterOwnedWrap" class="encounter-owned-wrap" style="display:none;">
+                <svg id="encounterOwnedIcon" class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="./icons/sprites.svg#icon-owned"/></svg>
+                <span class="encounter-tooltip" id="encounterOwnedTip"></span>
+              </span>
               <div id="encounterCatchRate" class="encounter-catch-rate"></div>
               <div id="encounterNewLabel" class="encounter-new-label" style="display:none;">新发现！</div>
             </div>
@@ -155,6 +159,26 @@
             <span id="confirmNo" class="catch-confirm-btn">取消</span>
           </div>
           <div id="fleeBtn" class="flee-btn" style="display:none;">逃跑</div>
+        </div>
+
+        <!-- 启动画面-->
+        <div id="splash">
+          <div class="splash-inner">
+            <div class="splash-title">口袋挂机</div>
+            <div class="splash-subtitle">POKEMON IDLE</div>
+            <div class="splash-stage">
+              <img class="splash-hero" src="./character/brendan_front.png" alt="" />
+              <div class="splash-ring" id="splashRing">
+                <img class="splash-item" style="--i:0" src="./items/poke-ball.png" alt="" />
+                <img class="splash-item" style="--i:1" src="./items/ultra-ball.png" alt="" />
+                <img class="splash-item" style="--i:2" src="./items/master-ball.png" alt="" />
+                <img class="splash-item" style="--i:3" src="./items/mystery-egg.png" alt="" />
+                <img class="splash-item" style="--i:4" src="./items/honey.png" alt="" />
+                <img class="splash-item" style="--i:5" src="./items/shiny-charm.png" alt="" />
+                <img class="splash-item splash-item--sm" style="--i:6" src="./items/candy.png" alt="" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

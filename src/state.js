@@ -9,7 +9,6 @@ export let currentEncounter = null;
 export let currentIsShiny = false;
 export let encounterBallsUsed = 0;
 export let currentEncounterBalls = {};
-export let _catchStreak = 0;
 export let nextEncounterTimer = null;
 export let gameTick = 0;
 
@@ -63,7 +62,6 @@ export function setCurrentEncounter(e) { currentEncounter = e; }
 export function setCurrentIsShiny(s) { currentIsShiny = s; }
 export function setEncounterBallsUsed(n) { encounterBallsUsed = n; }
 export function setCurrentEncounterBalls(b) { currentEncounterBalls = b; }
-export function setCatchStreak(n) { _catchStreak = n; }
 export function setAllPokemon(a) { allPokemon = a; }
 export function setGameTick(n) { gameTick = n; }
 export function setPrevView(v) { _prevView = v; }
@@ -186,6 +184,10 @@ export async function saveGame() {
   try { localStorage.setItem('pokemon_idle_save', s); } catch (_) {}
 }
 
+// 当前遭遇的自定义文案（如钓鱼"上钩了"），写入会话状态以便刷新后沿用
+export let encounterMsg = null;
+export function setEncounterMsg(msg) { encounterMsg = msg; }
+
 // ---------- 会话状态保存/恢复 ----------
 const SESSION_KEY = 'pokemon_idle_session';
 
@@ -207,6 +209,7 @@ export function saveSessionState() {
         isShiny: currentIsShiny,
         ballsUsed: encounterBallsUsed,
         balls: { ...currentEncounterBalls },
+        msg: encounterMsg,
       };
     }
     if (honeyBuffActive && honeyCountdownEnd > Date.now()) {

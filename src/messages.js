@@ -135,9 +135,9 @@ export const regionMsg = {
   ]
 };
 
-export const PICKUP_PLACES = ['在草丛里','在路边','在树荫下','在石头缝中','在花丛里','在水边','在泥土里','在落叶堆里','在沙地里','在墙角边','在小路上','在灌木丛中','在岩石下','在藤蔓旁','在溪滩边','在古树根','在青苔石','在碎石坡','在芦苇丛','在树洞中','在野莓丛','在干草堆','在卵石滩','在树桩旁'];
-export const PICKUP_ACTIONS = ['踢了一下','随手拨开','扒拉了几下','俯身翻看','无意中踢到','随手一翻','扒开小土坑','扫开灰尘','蹲下来翻找','拂开落叶','刨开沙土','伸手摸索','掀开树皮','轻踹土块','伸手掏了掏','扫开细沙'];
-export const PICKUP_RESULTS = ['捡到了','发现了','找到了','翻出了','捞到了','寻获了','意外拾获','顺手拾起','居然是','竟挖到','无意间摸出','凑巧找到','意外翻出','随手摸出','掘出了','捞起了'];
+// 路边拾取道具的随机动作/结果文案
+export const PICKUP_ACTIONS = ['踢了一下', '随手拨开', '扒拉了几下', '俯身翻看', '无意中踢到', '随手一翻', '扒开小土坑', '扫开灰尘', '蹲下来翻找', '拂开落叶', '刨开沙土', '伸手摸索', '掀开树皮', '轻踹土块', '伸手掏了掏', '扫开细沙'];
+export const PICKUP_RESULTS = ['捡到了', '发现了', '找到了', '翻出了', '捞到了', '寻获了', '意外拾获', '顺手拾起', '居然是', '竟挖到', '无意间摸出', '凑巧找到', '意外翻出', '随手摸出', '掘出了', '捞起了'];
 
 export function buildIdleMessages() {
   if (!gameData) return;
@@ -380,7 +380,7 @@ export function rotateIdleMessage() {
 }
 
 export function showIdlePickup(itemName, place) {
-  const loc = place || PICKUP_PLACES[randInt(0, PICKUP_PLACES.length - 1)];
+  const loc = place;
   const action = PICKUP_ACTIONS[randInt(0, PICKUP_ACTIONS.length - 1)];
   const result = PICKUP_RESULTS[randInt(0, PICKUP_RESULTS.length - 1)];
   $('idleText').textContent = `${loc}${action}，${result}${itemName}！`;
@@ -427,6 +427,13 @@ export function showFishingResult(itemName, qty, place) {
     clearInterval(_idleMsgTimer);
     setIdleMsgTimer(setInterval(rotateIdleMessage, 10000));
   }
+}
+
+// 显示 buff 结束的"效果渐渐褪去"轮播文案
+export function showBuffExpired(kind) {
+  $('idleText').textContent = kind === 'honey'
+    ? '✦ 甜蜜蜜的效果渐渐褪去了...'
+    : '✦ 闪耀护符的效果渐渐褪去了...';
 }
 
 export function startIdleRotation() {

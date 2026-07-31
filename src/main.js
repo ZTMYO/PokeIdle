@@ -1,5 +1,5 @@
-// ===== 宝可梦挂机 - 入口模块 =====
-import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES } from './config.js';
+// ===== 口袋挂机 - 入口模块 =====
+import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_WATER_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX } from './config.js';
 import {
   allPokemon, gameData, phase, currentEncounter, currentIsShiny,
   currentEncounterBalls, encounterBallsUsed,
@@ -14,13 +14,14 @@ import {
   _lastRegionId, gameTick, _fishing,
   setAllPokemon, setGameData, setPhase, setCurrentEncounter,
   setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls,
-  setCatchStreak, setGameTick, setPrevView, setLastRegionId,
+  setGameTick, setPrevView, setLastRegionId,
   setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd,
   setHoneyPausedRemaining, setCharmPausedRemaining,
   setHoneyEncounterCount, setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
   getDefaultSave, saveGame, cleanSaveData, ensureGameData,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion,
   hasAnyBall, saveSessionState, rand, randInt, formatNum, formatTime,
+  setEncounterMsg,
 } from './state.js';
 import {
   $, showView, updateTextBox, hideTextBox,
@@ -31,7 +32,7 @@ import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
   closeCandyDialog, doCandyExchange } from './items.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
-  tryEncounter, startAutoFleeTimer, stopAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
+  tryEncounter, startAutoFleeTimer, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
 import { showEncounterLogs, restorePokedex, setupRegionDropdown,
@@ -42,24 +43,28 @@ import * as road from './road.js';
 import * as particles from './particles.js';
 
 let ROAD_PRESETS = null;
+let ROAD_LAND = [];   // 陆地路段池（无垂钓点）
+let ROAD_WATER = [];  // 水域路段池（有垂钓点，可钓鱼）
 let _roadIdx = 0;
 let _roadCycleStart = 0;
 
-function _randomWidth(base) {
-  // 在 base 的 1~2.5 倍间随机，至少 50 格
-  const rawMin = Math.max(50, Math.floor(base));
-  const rawMax = Math.floor(base * 2.5);
-  const min = Math.min(rawMin, rawMax);
-  const max = Math.max(rawMin, rawMax);
-  return min + Math.floor(Math.random() * (max - min + 1));
+function _randomWidth() {
+  // prob（随机生成）道路长度在 [ROAD_WIDTH_MIN, ROAD_WIDTH_MAX] 间均匀随机
+  return ROAD_WIDTH_MIN + Math.floor(Math.random() * (ROAD_WIDTH_MAX - ROAD_WIDTH_MIN + 1));
 }
 
 function loadRoad(idx, useTransition, saved) {
   const p = ROAD_PRESETS[idx];
-  // fixed 类型循环 5 次原图案；prob 类型随机宽度
-  const game = p.type === 'fixed'
-    ? { ...p.game, width: (p.game.tiles[0]?.length || p.game.width) * 5 }
-    : { ...p.game, width: _randomWidth(p.game.width) };
+  // 先随机一段长度，再按类型处理：
+  // fixed 向上取整到瓦片行宽的整数倍后循环拼接；prob 直接用随机长度逐格生成
+  const base = _randomWidth();
+  let game;
+  if (p.type === 'fixed') {
+    const rowLen = p.game.tiles[0]?.length || p.game.width;
+    game = { ...p.game, width: rowLen * Math.max(1, Math.ceil(base / rowLen)) };
+  } else {
+    game = { ...p.game, width: base };
+  }
   if (useTransition) {
     if (p.type === 'prob') road.transitionToProb(game);
     else road.transitionTo(game);
@@ -73,6 +78,18 @@ function loadRoad(idx, useTransition, saved) {
   onRoadChanged(p.game.fishingRow || 0, { fished: !!saved?.fished });
   road.resetScroll();
   _roadCycleStart = 0;
+}
+
+// 从陆路/水域两个池子中选取下一段路：水域概率由 ROAD_WATER_CHANCE 控制，
+// 选定池子后再随机决定具体是哪一段（两类道路仅外观不同，无其他差异）
+function _pickNextRoad() {
+  const useWater = ROAD_WATER.length > 0 && Math.random() < ROAD_WATER_CHANCE;
+  let pool = useWater ? ROAD_WATER : ROAD_LAND;
+  if (pool.length === 0) pool = ROAD_PRESETS.map((_, i) => i); // 目标池为空时退回全量
+  if (pool.length === 1) return pool[0];
+  let next;
+  do { next = pool[Math.floor(Math.random() * pool.length)]; } while (next === _roadIdx);
+  return next;
 }
 
 // ---------- 返回按钮 ----------
@@ -92,7 +109,7 @@ function onBagClick(itemKey) {
       if (!hasEnabled) return;
     }
     if (CATCH_RATES[itemKey] && (gameData.items[itemKey]||0) > 0) {
-      stopAutoFleeTimer();
+      pauseAutoFleeTimer();
       throwBall(itemKey);
     }
     return;
@@ -130,9 +147,7 @@ function onGameTick() {
     const cyc = road.getCycles();
     if (cyc >= 2 && _roadCycleStart < cyc) {
       if (ROAD_PRESETS.length > 1) {
-        let next;
-        do { next = Math.floor(Math.random() * ROAD_PRESETS.length); } while (next === _roadIdx);
-        _roadIdx = next;
+        _roadIdx = _pickNextRoad();
         _roadCycleStart = cyc;
         loadRoad(_roadIdx, true);
         setIdleCharacter('walk');
@@ -280,6 +295,12 @@ async function init() {
     console.error('加载道路数据失败', e);
     ROAD_PRESETS = [];
   }
+  // 构建陆路/水域两个池子（有垂钓点的为水域，可钓鱼）
+  ROAD_LAND = [];
+  ROAD_WATER = [];
+  ROAD_PRESETS.forEach((p, i) => {
+    (p.game && p.game.fishingRow ? ROAD_WATER : ROAD_LAND).push(i);
+  });
 
   // 加载路面数据（优先恢复上次道路，兜底第一预设）
   let savedRoad = null;
@@ -317,14 +338,14 @@ async function init() {
           $('idleText').textContent = '✦ 甜蜜蜜生效中 ✦';
           setIdleMsgIdx(-1);
           particles.stop();
-          particles.start('rgba(255,215,0,1)');
+          particles.start('rgba(255,215,0,1)', 'circle', { sizeMult: 0.7, alphaMult: 0.6 });
           startHoneyCountdown();
         }
       } else if (sessionState.honeyPausedRemaining > 0) {
         setHoneyBuffActive(true);
         setHoneyPausedRemaining(sessionState.honeyPausedRemaining);
         particles.stop();
-        particles.start('rgba(255,215,0,1)');
+        particles.start('rgba(255,215,0,1)', 'circle', { sizeMult: 0.7, alphaMult: 0.6 });
         // 恢复视觉 UI（即使遇敌中，以便战后恢复）
         $('idleText').textContent = '✦ 甜蜜蜜生效中 ✦';
         setIdleMsgIdx(-1);
@@ -382,10 +403,10 @@ async function init() {
         setCurrentIsShiny(!!sessionState.encounter.isShiny);
         setEncounterBallsUsed(sessionState.encounter.ballsUsed || 0);
         setCurrentEncounterBalls(sessionState.encounter.balls || { 'poke-ball': 0, 'ultra-ball': 0, 'master-ball': 0 });
-        // 连胜应归零，球已从背包扣除（存档已保存），不重复回退
-        // currentEncounterBalls 保留原值以便捕获日志完整记录
-        setCatchStreak(0);
+        // 球已从背包扣除（存档已保存），不重复回退；currentEncounterBalls 保留原值以便捕获日志完整记录
         setPhase('encounter');
+        // 恢复自定义遭遇文案（如钓鱼"上钩了"），避免刷新后退化为默认"跳出来了"
+        setEncounterMsg(sessionState.encounter.msg || null);
         showEncounter(poke, true);
         if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
           startAutoFleeTimer();
@@ -496,42 +517,133 @@ async function init() {
   setInterval(() => saveGame(), SAVE_INTERVAL * 1000);
 
   setTimeout(() => {
-    if (allPokemon.length > 0) scheduleNextEncounter(5000);
+    // 当前处于未钓过的垂钓路段时，不预排遇敌：让钓鱼流程先走（钓完/进战斗后由钓鱼逻辑统一调度）
+    if (allPokemon.length > 0 && !(road.getFishingRow() && !getFishingGuarantee().fished)) scheduleNextEncounter(5000);
   }, 2000);
+
+  // 启动画面：旋转结束后图标依次飞向背包槽位/糖果计数实际位置，最后一个道具（糖果）落位完成后自动淡出移除
+  startSplashDrop();
+}
+
+// 启动画面落位：旋转结束后道具依次飞向各自对应的背包槽位/糖果计数
+// 偏移值写死（相对环中心，与真实 UI 大致对应：精灵球/糖果在左下角，高级球中左，护符在右）
+const SPLASH_DROP = [
+  { dx: -200, dy: 240 }, // 精灵球 → 左下角槽位
+  { dx: -120, dy: 240 }, // 高级球 → 中左
+  { dx: -40,  dy: 240 }, // 大师球
+  { dx: 40,   dy: 240 }, // 神秘蛋
+  { dx: 120,  dy: 240 }, // 甜甜蜜
+  { dx: 200,  dy: 240 }, // 闪耀护符 → 右侧槽位
+  { dx: -200, dy: 290 }, // 糖果 → 左下角糖果计数
+];
+
+function startSplashDrop() {
+  const ring = document.getElementById('splashRing');
+  const items = [...document.querySelectorAll('.splash-item')];
+  const slots = [...document.querySelectorAll('.bag-slot')];
+  const candy = document.getElementById('statProgress');
+  const autoStatus = document.getElementById('statAutoStatus');
+  const timeEl = document.getElementById('statTime');
+  if (!ring || items.length === 0) return;
+  // 启动期间背包槽位、糖果计数与底部统计栏先隐藏，道具落位时再依次浮现
+  slots.forEach(s => s.classList.add('splash-hidden'));
+  if (candy) candy.classList.add('splash-hidden');
+  if (autoStatus) autoStatus.classList.add('splash-hidden');
+  if (timeEl) timeEl.classList.add('splash-hidden');
+  setTimeout(() => {
+    ring.style.animation = 'none';
+    items.forEach(el => {
+      const s = el.classList.contains('splash-item--sm') ? 18 / 22 : 18 / 30;
+      el.style.transition = 'transform 0.35s ease';
+      el.style.transform = `translate(0, 0) scale(${s})`;
+    });
+    // 聚拢完成后，按顺序依次飞向写死的落位偏移
+    setTimeout(() => {
+      items.forEach((el, i) => {
+        const t = SPLASH_DROP[i] || { dx: 0, dy: 240 };
+        const target = slots[i] || (i === 6 ? candy : null);
+        const s = el.classList.contains('splash-item--sm') ? 18 / 22 : 18 / 30;
+        el.style.animation = 'none';
+        el.style.transition = 'none';
+        el.style.opacity = '1';
+        void el.offsetHeight;
+        el.style.transition = 'transform 0.55s cubic-bezier(0.4, 0, 1, 1), opacity 0.55s ease';
+        el.style.transitionDelay = i * 0.12 + 's';
+        el.style.transform = `translate(${t.dx}px, ${t.dy}px) scale(${s})`;
+        el.style.opacity = '0';
+        // 对应背包槽位浮现
+        if (target) {
+          setTimeout(() => {
+            target.classList.remove('splash-hidden');
+            target.classList.add(i === 6 ? 'stats-fade' : 'bag-slot--pop');
+            // 糖果（左）浮现后，统计栏中（自动状态）、右（挂机时间）按同一 120ms 节奏依次跟随
+            if (i === 6) {
+              if (autoStatus) {
+                setTimeout(() => {
+                  autoStatus.classList.remove('splash-hidden');
+                  autoStatus.classList.add('stats-fade');
+                }, 120);
+              }
+              if (timeEl) {
+                setTimeout(() => {
+                  timeEl.classList.remove('splash-hidden');
+                  timeEl.classList.add('stats-fade');
+                }, 240);
+              }
+            }
+          }, i * 120 + 300);
+        }
+      });
+      setTimeout(() => {
+        const splash = $('splash');
+        if (splash) {
+          splash.classList.add('hide');
+          setTimeout(() => splash.remove(), 550);
+        }
+      }, (items.length - 1) * 120 + 550);
+    }, 250);
+  }, 1000);
 }
 
 // 根据遭遇日志重新计算图鉴数据，修复 session 还原导致的多余计数
+// 会话中正在进行的遭遇（日志尚未写入）会补计 1 次，避免刷新后"新发现"误判
 function fixPokedexFromLogs() {
   if (!gameData || !gameData.pokedex) return;
   const logs = gameData.encounterLogs || {};
+  // 会话中正在进行中的遭遇：日志尚未写入，重算时需补计一次 seen
+  let cur = null;
+  try {
+    const raw = localStorage.getItem('pokemon_idle_session');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && s.phase === 'encounter' && s.encounter) {
+        cur = { index: String(s.encounter.index), shiny: !!s.encounter.isShiny, time: s._savedAt || 0 };
+      }
+    }
+  } catch (_) {}
   let changed = false;
 
   for (const [idxStr, entry] of Object.entries(gameData.pokedex)) {
     const entryLogs = logs[idxStr];
-    if (!entryLogs || !Array.isArray(entryLogs) || entryLogs.length === 0) {
-      if (entry && (entry.seen > 0 || entry.caught > 0)) {
-        entry.seen = 0;
-        entry.caught = 0;
-        entry.shinySeen = 0;
-        entry.shinyCaught = 0;
-        entry.lastTime = null;
-        changed = true;
-      }
-      continue;
-    }
-
-    // 从日志重新统计
     let seen = 0, caught = 0, shinySeen = 0, shinyCaught = 0;
     let lastTime = null;
-    for (const log of entryLogs) {
-      if (!log || typeof log !== 'object') continue;
-      seen++;
-      if (log.shiny) shinySeen++;
-      if (log.result === 'caught') {
-        caught++;
-        if (log.shiny) shinyCaught++;
+    if (entryLogs && Array.isArray(entryLogs)) {
+      for (const log of entryLogs) {
+        if (!log || typeof log !== 'object') continue;
+        seen++;
+        if (log.shiny) shinySeen++;
+        if (log.result === 'caught') {
+          caught++;
+          if (log.shiny) shinyCaught++;
+        }
+        if (log.time && (!lastTime || log.time > lastTime)) lastTime = log.time;
       }
-      if (log.time && (!lastTime || log.time > lastTime)) lastTime = log.time;
+    }
+    // 当前正在进行的遭遇补计（该次遭遇的日志要等结束才写入）
+    if (cur && cur.index === idxStr) {
+      seen++;
+      if (cur.shiny) shinySeen++;
+      if (cur.time && (!lastTime || cur.time > lastTime)) lastTime = cur.time;
     }
 
     if (entry.seen !== seen || entry.caught !== caught ||

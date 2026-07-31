@@ -1,7 +1,7 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_ICONS, ITEM_RATES, CATCH_RATES, FLEE_CHANCE, SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView } from './state.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, REGION_DURATION, AUTO_FLEE_TIMEOUT, ROAD_WATER_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN } from './config.js';
+import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView, getIncubatorUnlockCost } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats } from './ui.js';
-import { doCandyExchange, activateHoney, activateShinyCharm } from './items.js';
+import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch } from './battle.js';
 
@@ -19,8 +19,8 @@ export function showDataView() {
   for (const entry of Object.values(pokedex)) {
     totalSeen += entry.seen || 0;
     totalCaught += entry.caught || 0;
-    if ((entry.seen||0) > mostSeen.count) {
-      mostSeen = { name: entry.name, count: entry.seen||0 };
+    if ((entry.seen || 0) > mostSeen.count) {
+      mostSeen = { name: entry.name, count: entry.seen || 0 };
     }
   }
 
@@ -39,7 +39,7 @@ export function showDataView() {
   let earnedHtml = '';
   for (const [k, v] of Object.entries(earned)) {
     earnedHtml += `<div class="stat-row">
-      <span>${ITEM_NAMES[k]||k}</span><span>×${v}</span>
+      <span>${ITEM_NAMES[k] || k}</span><span>×${v}</span>
     </div>`;
   }
 
@@ -86,47 +86,49 @@ export function renderSystemLogs() {
     <div style="border-bottom:1px solid var(--ui-color);margin-bottom:3px;font-size:10px;">最近 ${Math.min(sorted.length, 50)} 条活动记录</div>
     ${sorted.length === 0 ? '<div style="padding:12px 4px;text-align:center;">暂无活动记录</div>' : ''}
     ${sorted.map(log => {
-      const time = formatLogTime(log.time);
-      let desc = '';
-      switch (log.type) {
-        case 'item_gain':
-          desc = `获得 ${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty}`;
-          break;
-        case 'item_use':
-          desc = `${log.details.auto ? '[自动] ' : ''}使用了${ITEM_NAMES[log.details.item] || log.details.item}`;
-          break;
-        case 'fishing':
-          desc = `钓鱼获得 ${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}`;
-          break;
-        case 'shop_purchase':
-          desc = `商店兑换${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（消耗${log.details.cost}糖果）`;
-          break;
-        case 'encounter':
-          desc = `遇到 ${log.details.shiny ? '闪光' : ''}${log.details.name}`;
-          break;
-        case 'pokemon_caught':
-          desc = `${log.details.auto ? '[自动] ' : ''}收服了${log.details.shiny ? '闪光' : ''}${log.details.name}`;
-          break;
-        case 'player_fled':
-          desc = log.details.auto ? '[自动] 你逃走了' : '你逃走了';
-          break;
-        case 'pokemon_escaped':
-          desc = `${log.details.auto ? '[自动] ' : ''}${log.details.name} 逃走了。`;
-          break;
-        case 'egg_hatch':
-          desc = `孵化出${log.details.shiny ? '闪光' : ''}${log.details.name}`;
-          break;
-        case 'region_change':
-          desc = `进入 ${log.details.region} 地区`;
-          break;
-        default:
-          desc = `未知事件 (${log.type})`;
-      }
-      return `<div style="font-size:10px;line-height:1.8;padding:1px 0;">
+    const time = formatLogTime(log.time);
+    let desc = '';
+    switch (log.type) {
+      case 'item_gain':
+        desc = `获得 ${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty}`;
+        break;
+      case 'item_use':
+        desc = `${log.details.auto ? '[自动] ' : ''}使用了${ITEM_NAMES[log.details.item] || log.details.item}`;
+        break;
+      case 'fishing':
+        desc = `钓鱼获得 ${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}`;
+        break;
+      case 'shop_purchase':
+        desc = `商店兑换${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（消耗${log.details.cost}糖果）`;
+        break;
+      case 'encounter':
+        desc = log.details.source === 'fishing'
+          ? ` 钓鱼上钩了 ${log.details.shiny ? '闪光' : ''}${log.details.name}`
+          : `遇到 ${log.details.shiny ? '闪光' : ''}${log.details.name}`;
+        break;
+      case 'pokemon_caught':
+        desc = `${log.details.auto ? '[自动] ' : ''}收服了${log.details.shiny ? '闪光' : ''}${log.details.name}`;
+        break;
+      case 'player_fled':
+        desc = log.details.auto ? '[自动] 你逃走了' : '你逃走了';
+        break;
+      case 'pokemon_escaped':
+        desc = `${log.details.auto ? '[自动] ' : ''}${log.details.name} 逃走了。`;
+        break;
+      case 'egg_hatch':
+        desc = `孵化出${log.details.shiny ? '闪光' : ''}${log.details.name}`;
+        break;
+      case 'region_change':
+        desc = `进入 ${log.details.region} 地区`;
+        break;
+      default:
+        desc = `未知事件 (${log.type})`;
+    }
+    return `<div style="font-size:10px;line-height:1.8;padding:1px 0;">
         <span style="opacity:0.6;">${time}</span>
         <span style="margin-left:6px;">${desc}</span>
       </div>`;
-    }).join('')}
+  }).join('')}
   `;
 }
 
@@ -238,6 +240,11 @@ export function renderSettings(container, s) {
         </div>
       </div>
       <div class="tutorial-btn" id="tutorialBtn">游戏教程</div>
+      <a href="https://github.com/ZTMYO/PokeIdle" id="githubLink" target="_blank" rel="noopener"
+         style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;padding:6px 0;color:var(--ui-color);text-decoration:none;font-size:12px;cursor:pointer;">
+        <svg viewBox="0 0 1024 1024" width="16" height="16" style="flex-shrink:0;"><use xlink:href="./icons/sprites.svg#icon-github"/></svg>
+        <span style="font-weight:600;">ZTMYO</span>
+      </a>
     </div>
   `;
   container.querySelector('#toggleAutoCatch')?.addEventListener('click', toggleAutoCatch);
@@ -249,6 +256,13 @@ export function renderSettings(container, s) {
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);
   container.querySelectorAll('.ball-check[data-ball]').forEach(el => {
     el.addEventListener('click', () => toggleAutoCatchBall(el.dataset.ball));
+  });
+  // GitHub 仓库链接：Tauri 下用 opener 插件在系统浏览器打开
+  container.querySelector('#githubLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const url = 'https://github.com/ZTMYO/PokeIdle';
+    if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
+    else window.open(url, '_blank');
   });
 }
 
@@ -312,12 +326,12 @@ function toggleWindowPinned() {
   const pinned = gameData.settings.windowPinned;
   // 调用 Tauri API 固定/取消固定窗口
   if (window.__TAURI__?.core?.invoke) {
-    window.__TAURI__.core.invoke('set_window_pinned', { pinned }).catch(() => {});
+    window.__TAURI__.core.invoke('set_window_pinned', { pinned }).catch(() => { });
     try {
       const tw = window.__TAURI__?.window;
       if (tw?.getCurrentWindow) tw.getCurrentWindow().setAlwaysOnTop(pinned);
       else if (tw?.appWindow?.setAlwaysOnTop) tw.appWindow.setAlwaysOnTop(pinned);
-    } catch (_) {}
+    } catch (_) { }
   }
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
@@ -356,38 +370,173 @@ export function toggleShinyStop() {
 }
 
 // ===== 教程视图 =====
+// 左侧导航列表 + 右侧详情文案（数值实时引用 config，随配置变动保持同步）
+
+// 渲染数据表：表头数组 + 行数组（每行与表头同列数），带边框表格（数据驱动）
+// widths 可选：每列宽度数组（数字=px，字符串按原样，如 '28%'/'auto'），缺省列按 fixed 布局平分剩余
+function tutorialTable(rows, headers, widths) {
+  const head = headers.map((h, i) =>
+    `<th${widths ? ` style="width:${typeof widths[i] === 'number' ? widths[i] + 'px' : widths[i]}"` : ''}>${h}</th>`).join('');
+  const body = rows.map(row => `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+  return `<table class="tutorial-table"><tr>${head}</tr>${body}</table>`;
+}
+
+// 道具掉落：按稀有度从低到高（常见→稀有）排序，配置变化自动同步（单位秒，1/X 秒掉落一个）
+const ITEM_DROP_ROWS = Object.entries(ITEM_RATES)
+  .sort((a, b) => b[1] - a[1])
+  .map(([k, rate]) => [ITEM_NAMES[k], `<b>1/${Math.round(1 / rate)}</b>`]);
+
+// 钓鱼收获道具的概率：按 ITEM_RATES 权重占比计算，配置变化自动同步
+const FISH_ITEM_ROWS = (() => {
+  const total = Object.values(ITEM_RATES).reduce((a, b) => a + b, 0);
+  return Object.entries(ITEM_RATES)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, rate]) => [ITEM_NAMES[k], `<b>${Math.round((rate / total) * 100)}%</b>`]);
+})();
+
+// 极稀有（稀有度≈1）出现权重相对无 buff 的倍率（公式与 items.js pickWeightedPokemon 一致）
+function rarityWeightBoost(boost) {
+  const penalty = Math.max(0.2, 0.8 - boost * 0.5);
+  return ((1 - penalty) / 0.2).toFixed(2);
+}
+
+const TUTORIAL_SECTIONS = [
+  {
+    title: '目标',
+    html: `<p>挂机收集道具，捕捉宝可梦，完成全图鉴！</p>`,
+  },
+  {
+    title: '道具',
+    html: `<p>挂机时主角会拾取到道具，稀有度从低到高如下：</p>` + tutorialTable(ITEM_DROP_ROWS, ['道具', '概率（秒/个）'], [52, 'auto']),
+  },
+  {
+    title: '遭遇',
+    html: `<p>拥有精灵球时，每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)} 分钟</b>遇到一只野生宝可梦。</p>`
+      + `<p><b>没有精灵球时不触发遇敌</b>。</p>`,
+  },
+  {
+    title: '图鉴',
+    html: `<p>支持<b>搜索</b>（输入名称快速检索）与<b>地区筛选</b>。点击表头可按相应字段<b>排序</b>，再次点击同一表头切换升/降序。</p>`
+      + `<p>点击条目查看详情：<b>未遇到过</b>显示"？？？"且不可点击；<b>遇到过未捕获</b>显示基础信息+完整日志；<b>已捕获</b>额外解锁精确数值、种族值条和图鉴描述。</p>`,
+  },
+  {
+    title: '地区',
+    html: `<p>游戏按 <b>${REGION_CYCLE.length}</b> 个地区循环轮换：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同，每 <b>${Math.round(REGION_DURATION / 60)} </b>分钟自动轮换到下一个地区。</p>`
+      + `<p>钓鱼产出的宝可梦来自<b>当前地区</b>（孵蛋不受地区限制，<b>纯随机</b>）。</p>`,
+  },
+  {
+    title: '道路',
+    html: `<p>挂机时路段会自动轮换，每 <b>2</b> 个完整循环切换到下一段路。</p>`
+      + `<p>生成下一段路时，有 <b>${Math.round(ROAD_WATER_CHANCE * 100)}%</b> 的概率是可钓鱼的水域路段（如石桥、浅滩），其余 <b>${Math.round((1 - ROAD_WATER_CHANCE) * 100)}%</b> 为普通陆地路段。</p>`
+      + `<p>两类路段仅外观不同，只有水域路段有垂钓点（详见「钓鱼」章节）。</p>`,
+  },
+  {
+    title: '捕捉',
+    html: `<p>丢出精灵球进行捕捉，不同球种捕获率：</p>`
+      + tutorialTable([
+        ['精灵球', `<b>${CATCH_RATES['poke-ball'] * 100}%</b>`],
+        ['高级球', `<b>${CATCH_RATES['ultra-ball'] * 100}%</b>`],
+        ['大师球', `<b>${CATCH_RATES['master-ball'] * 100}%</b>`],
+      ], ['球种', '捕获率'], [48, 'auto'])
+      + `<p>每一次捕捉失败后宝可梦都有几率挣脱逃跑（首球 <b>${FLEE_CHANCE * 100}%</b>，每多丢一球 <b>+${FLEE_CHANCE_INC * 100}%</b>，上限 <b>${FLEE_CHANCE_MAX * 100}%</b>）。</p>`
+      + `<p>当逃跑率达到上限后，每多丢一球捕获率 <b>+${Math.round(CATCH_BONUS_INC * 100)}%</b>，无上限。</p>`
+      + `<p>也可主动点击<b>"逃跑"</b>按钮逃离宝可梦。</p>`,
+  },
+  {
+    title: '闪光',
+    html: `<p>闪光宝可梦是<b>稀有变种</b>（配色不同），默认出现概率 <b>1/${Math.round(1 / SHINY_CHANCE)}</b>。</p>`
+      + `<p>捕获后图鉴有<b>特殊标记</b>，并计入<b>闪光统计</b>。</p>`
+      + `<p>使用<b>闪耀护符</b>可大幅提升遇闪概率（详见「增益」章节）。</p>`,
+  },
+
+  {
+    title: '糖果',
+    html: `<p>糖果可通过挂机掉落获得，可在<b>商店页面</b>兑换各种道具，也可用于解锁孵蛋器槽位（详见「孵蛋」章节）。</p>`
+      + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost} 糖果</b>`]), ['道具', '价格'], [52, 'auto']),
+  },
+  {
+    title: '增益',
+    html: `<p>甜甜蜜与闪耀护符都是 <b>${BUFF_DURATION} 秒</b>增益，使用后主角进入跑步姿态。</p>`
+      + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)} 分钟</b>缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>；效果结束时若一次都没遇到则<b>保底</b>触发一次。</p>`
+      + `<p>倒计时仅在挂机等待时消耗，<b>遇敌/钓鱼</b>期间暂停。</p>`
+      + tutorialTable([
+        ['生效', `<b>${BUFF_DURATION} 秒</b>`, `<b>${BUFF_DURATION} 秒</b>`],
+        ['遇敌', `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>`, `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>`],
+        ['稀有', `极稀有出现权重 ×<b>${rarityWeightBoost(HONEY_RARITY_BOOST)}</b>`, `极稀有出现权重 ×<b>${rarityWeightBoost(CHARM_RARITY_BOOST)}</b>`],
+        ['闪光', '无加成', `<b>${Math.round(CHARM_SHINY_CHANCE * 100)}%</b> 闪光、<b>${Math.round((1 - CHARM_SHINY_CHANCE) * 100)}%</b> 未收录宝可梦`],
+        ['钓鱼', `钓到宝可梦概率提升至 <b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}%</b>`, `钓到宝可梦概率提升至 <b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}%</b>，闪光率 <b>${Math.round(CHARM_SHINY_CHANCE * 100)}%</b>`],
+      ], ['特性', '甜甜蜜', '闪耀护符'], [32, '40%', 'auto']),
+  },
+  {
+    title: '孵蛋',
+    html: `非遭遇时<p>点击背包的<b>神秘蛋</b>打开<b>孵蛋器</b>，放入空闲槽位开始孵化。</p>`
+      + `<p>孵化时间由宝可梦的<b>体重</b>和<b>稀有度</b>决定（<b>10 分钟~8 小时</b>，附加 <b>±20%</b> 随机浮动）。</p>`
+      + `<p>孵化完成后点击<b>孵化</b>按钮即可获得宝可梦，结果<b>完全随机</b>，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`
+      + `<p>槽位解锁价格（糖果）：</p>`
+      + tutorialTable(Array.from({ length: 8 }, (_, i) => [`槽位 <b>${i + 1}</b>`, `<b>${getIncubatorUnlockCost(i)} 糖果</b>`]), ['槽位', '价格'], [56, 'auto']),
+  },
+  {
+    title: '钓鱼',
+    html: `<p>经过有垂钓点的水上路段（如石桥）时会停下钓鱼。每段路<b>只钓一次</b>：进入路段 <b>${FISH_TRIGGER_MIN}~${FISH_TRIGGER_MAX} 秒</b>后开始，等待上钩（<b>${FISH_WAIT_MIN}~${FISH_WAIT_MAX} 秒</b>）后收获随机道具 <b>${FISH_QTY_MIN}~${FISH_QTY_MAX}</b> 个。</p>`
+      + `<p>钓到宝可梦的概率：</p>`
+      + tutorialTable([
+        ['无增益时', `<b>${Math.round(FISH_POKEMON_CHANCE * 100)}%</b>`],
+        ['增益期间', `<b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}%</b>`],
+      ], ['情况', '概率'], [80, 'auto'])
+      + `<p>钓到宝可梦的种类：</p>`
+      + tutorialTable([
+        ['极稀有宝可梦', `<b>${Math.round(FISH_RARE_RATE * 100)}%</b>`],
+        ['水系宝可梦', `<b>${Math.round((1 - FISH_RARE_RATE) * 100)}%</b>`],
+      ], ['种类', '占比'], [80, 'auto'])
+      + `<p>钓到道具时的种类概率（按掉率权重占比）：</p>`
+      + tutorialTable(FISH_ITEM_ROWS, ['道具', '概率'], [52, 'auto'])
+      + `<p>增益加成：护符期间钓到的宝可梦更容易<b>闪光</b>；等待上钩时间<b>不计入</b>增益时长。</p>`,
+  },
+  {
+    title: '自动操作',
+    html: `<p>开启后遇敌<b>自动处理</b>：</p>`
+      + `<p><b>勾选球种</b>：自动捕获（会根据捕获率智能选择勾选的球种）。</p>`
+      + `<p><b>不勾选任何球种</b>：自动逃跑。</p>`
+      + `<p><b>勾选增益道具</b>：增益结束后自动续杯（同时勾选优先甜甜蜜）。</p>`
+      + `<p><b>开启闪光暂停</b>：闪光出现时不自动操作。</p>`,
+  },
+  {
+    title: '佛系模式',
+    html: `<p>与自动操作互斥，开启后遇敌不自动处理。</p>`
+      + `<p><b>${AUTO_FLEE_TIMEOUT / 1000} 秒</b>内未操作则宝可梦自行逃跑，不会卡住进度，适合挂后台偶尔手动抓两把的场合。</p>`,
+  },
+  {
+    title: '系统日志',
+    html: `<p>记录最近的活动（获得道具、遇敌、捕捉等），点击右下角<b>挂机时间</b>即可查看。</p>`,
+  },
+  {
+    title: '宝可梦难度',
+    html: `<p>不同宝可梦基础捕获难度不同（极低~高）。</p>`
+      + `<p>每只宝可梦还有<b>稀有度</b>（常见/一般/稀有/罕见/极稀有），由<b>捕获率</b>和<b>种族值总和</b>共同决定，越稀有的宝可梦出现概率越低。</p>`
+      + `<p>在<b>甜甜蜜</b>和<b>闪耀护符</b>期间，稀有精灵的出现概率会大幅提升（详见「增益」章节）。</p>`,
+  },
+];
+
 export function showTutorialView() {
   setPrevView('settingsView');
+  const list = $('tutorialList');
   const content = $('tutorialContent');
-  content.innerHTML = `
-    <p><b>目标</b>：挂机收集道具，捕捉宝可梦，完成全图鉴！</p>
-    <p><b>道具掉落</b>：挂机会自动产出道具，稀有度从高到低如下：</p>
-    <span class="item-row"><b>糖果</b> 1/${Math.round(1/ITEM_RATES['candy'])}秒 |
-    <b>精灵球</b> 1/${Math.round(1/ITEM_RATES['poke-ball'])}秒 |
-    <b>高级球</b> 1/${Math.round(1/ITEM_RATES['ultra-ball'])}秒 |
-    <b>甜甜蜜</b> 1/${Math.round(1/ITEM_RATES['sweet-honey'])}秒 |
-    <b>神秘蛋</b> 1/${Math.round(1/ITEM_RATES['mystery-egg'])}秒 |
-    <b>大师球</b> 1/${Math.round(1/ITEM_RATES['master-ball'])}秒 |
-    <b>闪耀护符</b> 1/${Math.round(1/ITEM_RATES['shiny-charm'])}秒</span>
-    <p><b>钓鱼</b>：经过有垂钓点的水上路段（如石桥）时会停下钓鱼。每段路<b>只钓一次</b>：等待上钩（6~30 秒）后收获随机道具 <b>1~10</b> 个。</p>
-    <p><b>遇敌</b>：拥有精灵球时，每隔 <b>${Math.round(ENCOUNTER_MIN/60)}~${Math.round(ENCOUNTER_MAX/60)} 分钟</b>遇到一只野生宝可梦。</p>
-    <p><b>捕捉</b>：丢出精灵球进行捕捉，不同球种捕获率：</p>
-    <span class="indent"><b>精灵球</b> <b>${CATCH_RATES['poke-ball']*100}%</b> ｜ <b>高级球</b> <b>${CATCH_RATES['ultra-ball']*100}%</b> ｜ <b>大师球</b> <b>${CATCH_RATES['master-ball']*100}%</b></span>
-    <p><b>捕获率递增</b>：连续丢球未击中时，捕获率每次 <b>+15%</b> 递增（最高<b>翻倍</b>）。</p>
-    <p><b>宝可梦难度</b>：不同宝可梦基础捕获难度不同，右上角标注了<b>捕获率等级</b>（极低~高）。同时每只宝可梦有<b>稀有度</b>（常见/一般/稀有/罕见/极稀有），由<b>捕获率</b>和<b>种族值总和</b>共同决定。越稀有的宝可梦出现概率越低，但在<b>甜甜蜜</b>和<b>闪耀护符</b>期间稀有精灵的出现概率会大幅提升。</p>
-    <p><b>逃跑</b>：丢球后宝可梦有 <b>${FLEE_CHANCE*100}%</b> 概率挣脱逃跑，也可主动点击<b>"逃跑"</b>按钮。</p>
-    <p><b>糖果</b>：可兑换各种道具，在商店页面操作。</p>
-    <p><b>甜甜蜜</b>：使用后 <b>1 分钟</b>内宝可梦会频繁出现，且稀有宝可梦出现概率提升。效果结束时若一次都没遇到则保底触发一次。可在设置中勾选自动续杯。</p>
-    <p><b>神秘蛋</b>：点击打开<b>孵蛋器</b>，放入空闲槽位开始孵化。孵化时间由宝可梦的<b>体重</b>和<b>稀有度</b>决定（<b>10分钟~8小时</b>）。孵化完成后点击<b>孵化</b>按钮即可获得宝可梦。<b>1/${Math.round(1/SHINY_CHANCE)}</b> 概率出闪光。</p>
-    <p><b>孵蛋器槽位</b>：共 <b>8</b> 个槽位，全部需用<b>糖果</b>解锁，价格递增：100 → 200 → 400 → 800 → 1600 → 3200 → 6400 → 12800。</p>
-    <p><b>闪耀护符</b>：价值 <b>${CANDY_EXCHANGE['shiny-charm']} 糖果</b>的珍稀道具。使用后 <b>60 秒</b>内快速遇敌（15~30秒一次），<b>80%</b> 为闪光 / <b>20%</b> 为未捕获品种，且稀有宝可梦出现概率大幅提升。效果结束时若一次都没遇到则保底触发一次。极小概率挂机捡到。</p>
-    <p><b>闪光</b>：默认概率 <b>1/${Math.round(1/SHINY_CHANCE)}</b>，捕获后图鉴有特殊标记。使用闪耀护符可大量遇闪。</p>
-    <p><b>图鉴详情</b>：点击图鉴条目查看详情。<b>未遇到过</b>显示"???"且不可点击；<b>遇到过未捕获</b>显示基础信息+完整日志；<b>已捕获</b>额外解锁精确数值、种族值条和图鉴描述。</p>
-    <p><b>自动操作</b>：设置中开启后遇敌自动处理。勾选球种则自动捕获（<b>智能选球</b>：捕获率低的精灵优先使用高级球/大师球），不勾选任何球种则自动逃跑。勾选<b>自动甜甜蜜/自动护符</b>可在结束后自动续杯（两者都勾选时优先甜甜蜜）。开启<b>"闪光暂停"</b>可让闪光出现时转手动操作。</p>
-    <p><b>佛系模式</b>：与自动操作互斥。开启后遇敌不自动处理，但 <b>30 秒</b>内未操作则宝可梦自行逃跑，不会卡住进度。适合挂后台偶尔手动抓两把的场合。</p>
-    <p><b>存档</b>：自动保存，退出重开会自动加载。</p>
-    <p><b>系统日志</b>：记录最近的活动（获得道具、遇敌、捕捉等）。点击右下角<b>挂机时间</b>即可查看。</p>
-  `;
+  // 渲染左侧导航列表
+  list.innerHTML = TUTORIAL_SECTIONS.map((s, i) =>
+    `<div class="tutorial-nav-item" data-i="${i}">${s.title}</div>`
+  ).join('');
+  function render(idx) {
+    content.innerHTML = `<p class="tutorial-title">${TUTORIAL_SECTIONS[idx].title}</p>` + TUTORIAL_SECTIONS[idx].html;
+    list.querySelectorAll('.tutorial-nav-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+    content.scrollTop = 0;
+  }
+  // 用 onclick 赋值，避免每次进入页面重复累加监听
+  list.onclick = e => {
+    const item = e.target.closest('.tutorial-nav-item');
+    if (!item) return;
+    render(Number(item.dataset.i));
+  };
+  render(0);
   showView('tutorialView');
 }
 

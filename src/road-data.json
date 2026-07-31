@@ -90,11 +90,11 @@
     "name": "草地3",
     "type": "prob",
     "editor": {
-      "w": 10,
+      "w": 20,
       "h": 3
     },
     "game": {
-      "width": 10,
+      "width": 20,
       "height": 3,
       "place": "在草丛里",
       "rows": [
@@ -116,17 +116,22 @@
           {
             "col": 65,
             "row": 5,
-            "weight": 70
+            "weight": 20
           },
           {
             "col": 67,
             "row": 5,
-            "weight": 20
+            "weight": 25
           },
           {
             "col": 68,
             "row": 5,
-            "weight": 10
+            "weight": 5
+          },
+          {
+            "col": 1,
+            "row": 60,
+            "weight": 50
           }
         ]
       ]

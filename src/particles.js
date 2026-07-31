@@ -45,16 +45,18 @@ function _drawStar(cx, cy, r, sharpness) {
   ctx.fill();
 }
 
-function _createParticles(w, h, color, shape) {
+function _createParticles(w, h, color, shape, sizeMult, alphaMult) {
   const pts = [];
+  const sm = sizeMult || 1;
+  const am = alphaMult || 1;
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     pts.push({
       x: Math.random() * w,
       y: Math.random() * h,
       vx: (Math.random() - 0.5) * 0.6,
       vy: -(Math.random() * 0.8 + BASE_SPEED),
-      size: Math.random() * 3 + 3,
-      alpha: Math.random() * 0.4 + 0.5,
+      size: (Math.random() * 3 + 3) * sm,
+      alpha: (Math.random() * 0.4 + 0.5) * am,
       phase: Math.random() * Math.PI * 2,
       color: color || 'rgba(255, 255, 200, 1)',
       shape: shape || 'circle',
@@ -112,7 +114,8 @@ function _draw() {
   rafId = requestAnimationFrame(_draw);
 }
 
-export function start(color, shape) {
+// start(color, shape, opts)：opts.sizeMult / opts.alphaMult 可整体缩放粒子尺寸与透明度
+export function start(color, shape, opts = {}) {
   if (active) return;
   const container = $('screen');
   if (!container) return;
@@ -124,7 +127,7 @@ export function start(color, shape) {
 
   const w = container.clientWidth;
   const h = container.clientHeight;
-  particles = _createParticles(w, h, color || 'rgba(255,255,200,1)', shape || 'circle');
+  particles = _createParticles(w, h, color || 'rgba(255,255,200,1)', shape || 'circle', opts.sizeMult, opts.alphaMult);
   _resize();
   active = true;
   rafId = requestAnimationFrame(_draw);

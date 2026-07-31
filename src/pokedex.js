@@ -1,7 +1,11 @@
 // ===== 图鉴模块 =====
-import { TYPE_COLORS, ITEM_NAMES, ITEM_ICONS, REGION_OPTIONS } from './config.js';
+import { ITEM_NAMES } from './config.js';
 import { phase, gameData, allPokemon, currentEncounter, _pokedexInLogView, _pokedexSortBy, _pokedexSortDir, pad, randInt, setPrevView, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
 import { $, showView, tryLoadPokemonImage, fitPokemonImage } from './ui.js';
+import { TYPE_COLORS } from './items.js';
+
+// 图鉴/统计页的地区筛选选项
+const REGION_OPTIONS = ['全部地区', '关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
 
 export function formatLogTime(ts) {
   const d = new Date(ts);
@@ -62,7 +66,7 @@ export function showEncounterLogs(pokemonIndex) {
   const caughtEntry = gameData.pokedex[idx];
   const seenCount = caughtEntry?.seen || 0;
   const caughtCount = caughtEntry?.caught || 0;
-  const displayName = seenCount > 0 ? (poke?.name || `#${pokemonIndex}`) : '???';
+  const displayName = seenCount > 0 ? (poke?.name || `#${pokemonIndex}`) : '？？？';
   const list = $('pokedexList');
   if (!list) return;
 
@@ -77,7 +81,7 @@ export function showEncounterLogs(pokemonIndex) {
   if (progEl) progEl.style.display = 'none';
 
   // 构建 HTML：宝可梦素材 + 日志列表
-  let html = `<div style="font-size:11px;font-weight:700;padding:6px 3px 2px;">${displayName}</div>`;
+  let html = `<div style="font-size:14px;font-weight:700;padding:6px 5px 2px;">${displayName}</div>`;
   // 未遇到：不展示素材
   if (seenCount > 0) {
     html += `<div style="display:flex;gap:8px;padding:2px 3px;align-items:center;">
@@ -148,11 +152,11 @@ export function showEncounterLogs(pokemonIndex) {
       if (isHatch) {
         label = '☆ 孵化获得';
       } else if (log.result === 'caught') {
-        label = '☆ 捕获成功';
+        label = log.source === 'fishing' ? '☆ 钓鱼捕获' : '☆ 捕获成功';
       } else if (log.manual !== undefined) {
-        label = '主动逃跑';
+        label = log.source === 'fishing' ? '钓鱼遭遇后逃跑' : '主动逃跑';
       } else {
-        label = '精灵逃跑';
+        label = log.source === 'fishing' ? '钓鱼遭遇后逃脱' : '精灵逃跑';
       }
       const typeLabel = (() => {
         if (isHatch) return '';
@@ -388,7 +392,7 @@ export function showPokedex() {
     html += `<div class="pokedex-entry${seen > 0 ? '' : ' disabled'}" data-index="${p.index}" data-seen="${seen > 0 ? '1' : '0'}">
       <span class="pokedex-star">${shinyTag}</span>
       <span class="pokedex-idx">#${p.index}</span>
-      <span class="pokedex-name">${seen > 0 ? p.name : '???'}</span>
+      <span class="pokedex-name">${seen > 0 ? p.name : '？？？'}</span>
       <span class="pokedex-stat">${seen}</span>
       <span class="pokedex-stat">${caught}</span>
       <span class="pokedex-stat">${shinySeen}</span>
