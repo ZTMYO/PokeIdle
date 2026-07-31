@@ -135,7 +135,7 @@ function renderBounty() {
       const btnText = claimed ? '已领取' : caught ? (isCur ? '领取' : '可领取') : '未捕获';
       const btnTip = caught && !isCur ? `到达${name}后可领取` : '';
       return `
-      <div class="bounty-line">
+      <div class="bounty-line${claimed ? ' claimed' : ''}">
         <span class="bounty-name">${poke.name}</span>
         <span class="bounty-candy">${CANDY_IMG}×${b.candy}</span>
         <span class="bounty-claim ${btnCls}" data-region="${i}" data-bi="${k}"${btnTip ? ` title="${btnTip}"` : ''}>${btnText}</span>
@@ -152,9 +152,9 @@ function renderBounty() {
       <div class="bounty-title">${name}${isCur ? '（当前）' : ''}-地区悬赏</div>
       <div class="bounty-head">${head}</div>
       <div class="bounty-pager">
-        <button class="bounty-arrow prev" data-page="prev" aria-label="上一个地区"${i === 0 ? ' disabled' : ''}>${BACK_ICON}</button>
+        <button class="bounty-arrow prev" data-page="prev" aria-label="上一个地区">${BACK_ICON}</button>
         <div class="bounty-page">${body}</div>
-        <button class="bounty-arrow next" data-page="next" aria-label="下一个地区"${i === REGION_CYCLE.length - 1 ? ' disabled' : ''}>${BACK_ICON}</button>
+        <button class="bounty-arrow next" data-page="next" aria-label="下一个地区">${BACK_ICON}</button>
       </div>
       <div class="bounty-refresh" id="bountyRefresh">距下次刷新 ${formatTime(untilMidnight())}</div>
     </div>`;
@@ -183,9 +183,11 @@ export function showBountyView() {
   showView('bountyView');
   const content = $('bountyContent');
   content.onclick = (e) => {
-    const arrow = e.target.closest('.bounty-arrow:not(:disabled)');
+    const arrow = e.target.closest('.bounty-arrow');
     if (arrow) {
-      _pageIdx += arrow.dataset.page === 'next' ? 1 : -1;
+      // 无限翻页：首尾循环
+      const n = REGION_CYCLE.length;
+      _pageIdx = (arrow.dataset.page === 'next' ? _pageIdx + 1 : _pageIdx - 1 + n) % n;
       renderBounty();
       return;
     }

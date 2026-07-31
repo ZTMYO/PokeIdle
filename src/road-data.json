@@ -1225,7 +1225,8 @@
     "game": {
       "width": 10,
       "height": 3,
-      "place": "在天桥上",
+      "place": "在自行车道上",
+      "bike": true,
       "rows": [
         [
           {
@@ -1261,7 +1262,8 @@
     "game": {
       "width": 10,
       "height": 3,
-      "place": "在天桥上",
+      "place": "在自行车道上",
+      "bike": true,
       "rows": [
         [
           {

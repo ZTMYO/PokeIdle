@@ -376,3 +376,8 @@ export function getPlace() { return _currentPlace; }
 let _fishingRow = 0;
 export function setFishingRow(row) { _fishingRow = row || 0; }
 export function getFishingRow() { return _fishingRow; }
+
+// ---- 自行车道标记（骑行路段：快速推进里程，不触发遭遇/道具拾取）----
+let _bike = false;
+export function setBike(v) { _bike = !!v; }
+export function isBike() { return _bike; }

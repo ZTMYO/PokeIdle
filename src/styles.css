@@ -136,13 +136,6 @@ body { margin: 0; padding: 0; cursor: default; }
   z-index: 30;
   user-select: none;
 }
-/* Brendan stop stance (面向右, 20x21 → 2x 显示 40x42) */
-.walk-gif.brendan-stop {
-  width: 40px;
-  background-image: url('./character/brendan-stop.png');
-  background-size: 40px 42px;
-  background-position: 0 0;
-}
 /* Brendan 向右行走 */
 .walk-gif.brendan-walk {
   width: 28px;
@@ -189,6 +182,21 @@ body { margin: 0; padding: 0; cursor: default; }
   75%  { background-position: -56px 0; }
   75.01% { background-position: -84px 0; }
   100% { background-position: -84px 0; }
+}
+/* Brendan 骑车（自行车道，2帧动画；translateX 对齐行走脚线） */
+.walk-gif.brendan-bike {
+  width: 64px;
+  height: 46px;
+  background-image: url('./character/brendan-bike.png');
+  background-size: 128px 46px;
+  transform: translateX(-8px);
+  animation: brendanBike 0.25s steps(1) infinite;
+}
+@keyframes brendanBike {
+  0%   { background-position: 0px 0; }
+  50%  { background-position: 0px 0; }
+  50.01% { background-position: -64px 0; }
+  100% { background-position: -64px 0; }
 }
 
 
@@ -1373,12 +1381,8 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .bounty-arrow svg { display: block; }
 .bounty-arrow.next svg { transform: scaleX(-1); } /* back 图标水平翻转即右箭头 */
-.bounty-arrow:not(:disabled):hover { opacity: 0.6; }
-.bounty-arrow:not(:disabled):active { transform: scale(0.9); }
-.bounty-arrow:disabled {
-  opacity: 0.25;
-  cursor: default;
-}
+.bounty-arrow:hover { opacity: 0.6; }
+.bounty-arrow:active { transform: scale(0.9); }
 .bounty-page {
   flex: 1;
   min-width: 0;
@@ -1407,6 +1411,11 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .bounty-line + .bounty-line {
   border-top: 1px dashed rgba(var(--ui-color-rgb), 0.15);
+}
+.bounty-line.claimed .bounty-name,
+.bounty-line.claimed .bounty-candy {
+  text-decoration: line-through;
+  opacity: 0.5;
 }
 .bounty-name {
   flex: 1;
@@ -1441,7 +1450,13 @@ body { margin: 0; padding: 0; cursor: default; }
   background: rgba(var(--ui-color-rgb), 0.12);
   color: var(--ui-color);
   cursor: default;
+}
+.bounty-claim.locked {
   opacity: 0.7;
+}
+.bounty-claim.done {
+  font-weight: 400;
+  opacity: 0.45;
 }
 .bounty-unknown {
   flex: 1;
@@ -1762,7 +1777,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #settingsView::-webkit-scrollbar,
 #systemLogView::-webkit-scrollbar,
 #incubatorView::-webkit-scrollbar,
-#gpsView::-webkit-scrollbar {
+#gpsView::-webkit-scrollbar,
+#declarationView::-webkit-scrollbar {
   width: 4px;
 }
 #shopView::-webkit-scrollbar-track,
@@ -1771,7 +1787,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #settingsView::-webkit-scrollbar-track,
 #systemLogView::-webkit-scrollbar-track,
 #incubatorView::-webkit-scrollbar-track,
-#gpsView::-webkit-scrollbar-track {
+#gpsView::-webkit-scrollbar-track,
+#declarationView::-webkit-scrollbar-track {
   background: transparent;
 }
 #shopView::-webkit-scrollbar-thumb,
@@ -1780,7 +1797,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #settingsView::-webkit-scrollbar-thumb,
 #systemLogView::-webkit-scrollbar-thumb,
 #incubatorView::-webkit-scrollbar-thumb,
-#gpsView::-webkit-scrollbar-thumb {
+#gpsView::-webkit-scrollbar-thumb,
+#declarationView::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb),0.3);
   border-radius: 2px;
 }

@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_WATER_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView, getIncubatorUnlockCost, setGameData, getDefaultSave, ensureGpsState } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS } from './items.js';
@@ -312,6 +312,7 @@ export function renderSettings(container, s) {
         <svg viewBox="0 0 1024 1024" width="16" height="16" style="flex-shrink:0;"><use xlink:href="./icons/sprites.svg#icon-github"/></svg>
         <span style="font-weight:600;">ZTMYO</span>
       </a>
+      <div id="declarationBtn" style="text-align:center;font-size:9px;opacity:0.5;padding:2px 0 4px;cursor:pointer;">版权声明</div>
     </div>
   `;
   container.querySelector('#toggleAutoCatch')?.addEventListener('click', toggleAutoCatch);
@@ -345,6 +346,8 @@ export function renderSettings(container, s) {
     if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
     else window.open(url, '_blank');
   });
+  // 版权声明：跳转声明视图
+  container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
 }
 
 // 重置存档：清空本地存档并开新档
@@ -542,8 +545,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '道路',
     html: `<p>挂机时路段会自动轮换，每 <b>2</b> 个完整循环切换到下一段路。</p>`
-      + `<p>生成下一段路时，有 <b>${Math.round(ROAD_WATER_CHANCE * 100)}%</b> 的概率是可钓鱼的水域路段（如石桥、浅滩），其余 <b>${Math.round((1 - ROAD_WATER_CHANCE) * 100)}%</b> 为普通陆地路段。</p>`
-      + `<p>两类路段仅外观不同，只有水域路段有垂钓点（详见「钓鱼」章节）。</p>`,
+      + `<p>生成下一段路时，有 <b>${Math.round(ROAD_SPECIAL_CHANCE * 100)}%</b> 的概率是特殊路段（可钓鱼的水域或自行车道，各占一半概率），其余 <b>${Math.round((1 - ROAD_SPECIAL_CHANCE) * 100)}%</b> 为普通陆地路段。</p>`
+      + `<p>水域路段有垂钓点（详见「钓鱼」章节）；自行车道快速推进里程，但不触发遭遇与道具拾取。</p>`,
   },
   {
     title: '捕捉',
@@ -658,5 +661,32 @@ export function showTutorialView() {
   };
   render(0);
   showView('tutorialView');
+}
+
+// ===== 版权声明 =====
+export function showDeclarationView() {
+  setPrevView('settingsView');
+  const content = $('declarationContent');
+  content.innerHTML = `
+    <div style="text-align:center;padding:14px 0;">
+      <div style="font-size:16px;font-weight:700;">口袋挂机</div>
+      <div style="font-size:10px;opacity:0.6;margin-top:2px;">POKEMON IDLE · 粉丝自制挂机游戏</div>
+    </div>
+    <div style="font-size:11px;line-height:1.9;">
+      <p style="margin:6px 0;"><b>作者</b>：@ZTMYO</p>
+      <p style="margin:6px 0;"><b>项目地址</b>：<span id="declarationLink" style="text-decoration:underline;cursor:pointer;">github.com/ZTMYO/PokeIdle</span></p>
+      <p style="margin:12px 0 4px;padding-top:8px;border-top:1px dashed rgba(var(--ui-color-rgb),0.2);"><b>版权声明</b></p>
+      <p style="margin:4px 0;">宝可梦（Pokémon）及其相关角色、名称、标志、插图与动画，版权均归 Nintendo / Creatures Inc. / GAME FREAK inc. / The Pokémon Company 所有。</p>
+      <p style="margin:4px 0;">本项目为个人学习与娱乐交流的粉丝作品，<b>非官方游戏，与官方无任何关联</b>，不用于任何商业用途。</p>
+      <p style="margin:4px 0;">项目使用的宝可梦动画素材来自非官方社区资源（Pokémon Showdown），版权归属其原始权利方，本项目不主张任何所有权。</p>
+      <p style="margin:4px 0;">如涉及侵权，请联系作者删除相关内容。</p>
+    </div>
+  `;
+  content.querySelector('#declarationLink')?.addEventListener('click', () => {
+    const url = 'https://github.com/ZTMYO/PokeIdle';
+    if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
+    else window.open(url, '_blank');
+  });
+  showView('declarationView');
 }
 

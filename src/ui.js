@@ -1,7 +1,7 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing } from './state.js';
 import { formatNum, formatTime, getCurrentRegion, anyIncubatorReady, getIncubatorUnlockCost } from './state.js';
-import { ROAD_SPEED_WALK, ROAD_SPEED_RUN } from './config.js';
+import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE } from './config.js';
 import * as road from './road.js';
 
 // DOM 快捷获取
@@ -13,7 +13,7 @@ export function showView(id) {
     id = 'encounterView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','systemLogView','incubatorView'];
+  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
@@ -86,7 +86,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', systemLogView:'系统日志', incubatorView:'孵蛋器' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -172,9 +172,7 @@ export function setIdleCharacter(state, itemKey) {
   el.style.backgroundImage = '';
   el.style.backgroundSize = '';
   el.style.backgroundPosition = '';
-  if (state === 'stop') {
-    el.classList.add('brendan-stop');
-  } else if (state === 'get-item') {
+  if (state === 'get-item') {
     el.classList.add('brendan-get-item');
     if (itemKey && GET_ITEM_X[itemKey] !== undefined) {
       // 使用 sprite sheet + JS 动画（每种道具不同列）
@@ -183,8 +181,11 @@ export function setIdleCharacter(state, itemKey) {
       startGetItemAnim(el, GET_ITEM_X[itemKey]);
     }
   } else {
-    // walk → 根据 buff 状态决定走还是跑
-    if (isBuffActive()) {
+    // walk → 自行车道优先（骑行动画），否则根据 buff 状态决定走还是跑
+    if (road.isBike()) {
+      el.classList.add('brendan-bike');
+      road.setSpeed(ROAD_SPEED_BIKE);
+    } else if (isBuffActive()) {
       el.classList.add('brendan-run');
       road.setSpeed(ROAD_SPEED_RUN);
     } else {

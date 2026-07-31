@@ -1,6 +1,7 @@
 // ===== 闲置轮播消息 + 地区文案 =====
 import { $, showView } from './ui.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer } from './state.js';
+import * as road from './road.js';
 
 // 对应9个世代大区的氛围文案
 export const regionMsg = {
@@ -152,35 +153,19 @@ export function buildIdleMessages() {
   const nameOf = idx => { const p = getPokemonByIndex(idx); return p ? p.name : '#' + idx; };
   const msgs = [];
 
-  // ——— 氛围感环境文案 ———
-  const envMsgs = [
-    '路边的野花随风轻轻晃动。',
-    '潺潺溪流穿过整片森林。',
-    '晚风带来了果实淡淡的甜香。',
-    '静谧森林里只有虫鸣回荡。',
-    '朝阳缓缓升起，照亮整片原野。',
-    '薄雾笼罩着整片灌木丛。',
-    '飞鸟掠过头顶的云层。',
-    '绵绵细雨轻轻落在草丛间。',
-    '山间传来不知名宝可梦的鸣叫。',
-    '一轮圆月悬挂在漆黑夜空。',
-  ];
-  msgs.push(envMsgs[randInt(0, envMsgs.length - 1)]);
-
   // ——— 教程指引类 ———
   const guideMsgs = [
     '点击精灵球可丢出，收服野生的宝可梦！',
-    '在图鉴中点击任意宝可梦，可查看它的遭遇日志。',
+    '手机里的图鉴应用，记录着你的每一次相遇。',
     '背包里的道具会自动产出，挂机就能获得！',
     '糖果可以在商店兑换成各种精灵球。',
     '甜甜蜜可以吸引更多宝可梦来访。',
     '捡到的神秘蛋会孵出随机宝可梦！',
-    '图鉴按序号排列，点击条目查看详细日志。',
-    '逃跑的宝可梦会记录在图鉴日志中。',
+    '手机里的孵蛋器，可以管理正在孵化的神秘蛋。',
+    '遇见的宝可梦都会记录在图鉴。',
     '闪光宝可梦非常稀有，遇见了不要错过！',
     '大师球百分百捕获，留给最想要的宝可梦吧。',
-    '点击下方进度条可快速打开图鉴。',
-    '丢出精灵球后连摇三下，没挣脱就是捕获成功！',
+    '手机里的导航应用，可以规划前往其他地区的路线。',
   ];
   msgs.push(guideMsgs[randInt(0, guideMsgs.length - 1)]);
 
@@ -214,14 +199,14 @@ const chatMsgs = [
   '今天会不会遇见稀有闪光宝可梦呢？',
   '多攒一些糖果，去商店兑换些好东西吧。',
   '再多准备几颗精灵球，防止宝可梦逃走。',
-  '翻翻图鉴，看看还有哪些精灵没收集。',
+  '手机里的统计应用，记录着一路的收获与欧气。',
   '不知道下一次草丛里会出现谁。',
   '错过的闪光精灵，下次一定要抓住！',
   '今天的运气还不错，继续前进吧！',
   '宝可梦的世界总是在发生新的故事……',
   '囤一点甜甜蜜，加快遇见宝可梦的速度吧。',
-  '神秘蛋里藏着未知的惊喜，慢慢攒糖果兑换。',
-  '回头看看图鉴日志，全是一路走来的回忆。',
+  '神秘蛋里藏着未知的惊喜。',
+  '回头看看手机里的图鉴，全是一路走来的回忆。',
   '大师球要省着用，留给难得一见的闪光。',
   '草丛静悄悄的，说不定稀有宝可梦正在靠近。',
   '已经遇见那么多伙伴，离全图鉴又近一步。',
@@ -234,7 +219,7 @@ const chatMsgs = [
 msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   // ——— 里程碑收集类 ———
   if (caught > 0) {
-    if (caught >= total) msgs.push('🎉 全部宝可梦都已收录！你当之无愧是宝可梦大师！');
+    if (caught >= total) msgs.push('全部宝可梦都已收录！你当之无愧是宝可梦大师！');
     else {
       const pct = Math.round(caught / total * 100);
       if (pct >= 75) msgs.push(`图鉴收集进度${pct}%，只差一点就能集齐所有伙伴！`);
@@ -253,8 +238,8 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   }
   if (stats.totalPlaySeconds >= 3600) {
     const hours = Math.round(stats.totalPlaySeconds / 3600);
-    if (hours >= 168) msgs.push(`已经连续冒险${Math.round(hours/24)}天，草丛始终为你等候。`);
-    else msgs.push(`已经连续冒险${hours}小时，草丛始终为你等候。`);
+    if (hours >= 168) msgs.push(`已经连续冒险${Math.round(hours/24)}天，准备好成为宝可梦大师了。`);
+    else msgs.push(`已经连续冒险${hours}小时，，准备好成为宝可梦大师了。`);
   }
   if (stats.totalBallsUsed > 0) msgs.push(`至今一共抛出${stats.totalBallsUsed}颗精灵球。`);
   if (stats.totalFlees > 0) msgs.push(`有${stats.totalFlees}只宝可梦挣脱精灵球逃走了……`);
@@ -272,12 +257,13 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
 
   // ——— 图鉴回忆类 ———
   if (entries.length > 0) {
+    // 从所有相遇过的宝可梦中平等概率抽取（已捕获→回忆；遇见但未捕获→草丛等待，两条文案概率均等）
     const pick1 = entries[randInt(0, entries.length - 1)];
     if (pick1.caught > 0) {
       msgs.push(`还记得初次遇见${nameOf(pick1._idx)}的时刻，它是珍贵的伙伴。`);
       if (pick1.shinyCaught > 0) msgs.push(`你拥有一只闪光${nameOf(pick1._idx)}，这般运气十分难得！`);
     } else {
-      msgs.push(`${nameOf(pick1._idx)}仍藏在野外草丛，期待与你的相遇。`);
+      msgs.push(`${nameOf(pick1._idx)}仍藏在野外草丛，期待与你的再次相遇。`);
       msgs.push(`你遇到过${nameOf(pick1._idx)}${pick1.seen}次了，下次一定要抓住它！`);
     }
 
@@ -332,12 +318,71 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   if ((items['shiny-charm']||0) > 0) msgs.push('闪耀护符可以提升遇见闪光宝可梦的几率！');
   if ((items['shiny-charm']||0) >= 2) msgs.push(`手握${items['shiny-charm']}个闪耀护符，随时准备迎接奇迹降临！`);
 
+  // ——— 地区悬赏类 ———
+  const bounty = gameData.bounty;
+  if (bounty && Array.isArray(bounty.rewards)) {
+    // 从今日已到访地区的悬赏目标中随机挑一只未领取的，附上实际出没地区，
+    // 这样即使没见过它，看到文案也知道该去哪里抓
+    const targets = [];
+    for (let i = 0; i < bounty.rewards.length; i++) {
+      if (bounty.visited && !bounty.visited[i]) continue;
+      for (const b of bounty.rewards[i]) {
+        if (b && !b.claimed) {
+          const p = getPokemonByIndex(b.pokemon);
+          if (p) targets.push(p);
+        }
+      }
+    }
+    if (targets.length > 0) {
+      const pick = targets[randInt(0, targets.length - 1)];
+      msgs.push(`「${pick.name}」正在${pick.region}地区等待你的捕捉！`);
+    }
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (bounty.date === todayStr) {
+      let total = 0, claimed = 0;
+      for (const list of bounty.rewards) {
+        for (const b of list) {
+          if (!b) continue;
+          total++;
+          if (b.claimed) claimed++;
+        }
+      }
+      const unclaimed = total - claimed;
+      if (unclaimed > 0) msgs.push(`今日悬赏还有${unclaimed}份糖果奖励没领取，抓到目标就去领！`);
+      else if (total > 0) msgs.push('今日悬赏已全部领取，明天零点又会刷新新目标！');
+    }
+    msgs.push('完成地区悬赏能换来糖果作为奖励。');
+    msgs.push('各个地区的悬赏目标，能获得大量糖果奖励。');
+  } else {
+    msgs.push('地区悬赏每天零点刷新，别忘了去查看目标。');
+  }
+
   // 加入当前地区氛围文案（由 rotateIdleMessage 按间隔插入，此处不移入）
   setIdleMsgs(msgs);
 }
 
 export function rotateIdleMessage() {
   if (phase !== 'idle') return;
+  // 自行车道文案优先级最高（优先于 buff 轮播）：骑行期间只显示骑行相关文案；
+  // 例外是 buff 到期，到期文案由 items.js 直接写入 idleText，不经过本函数
+  if (road.isBike()) {
+    const msgs = [
+      '风声从耳边掠过！',
+      '车轮碾过天桥的缝隙...',
+      '这段路，专心骑行。',
+      '一路生风，向前冲刺！',
+      '天桥在脚下延伸。',
+      '骑行节奏越来越稳。',
+      '高架之上，畅快骑行。',
+      '咔嚓，咔嚓——链条轻响。',
+      '骑到天桥尽头去！',
+      '骑上我心爱的自行车！'
+    ];
+    setIdleMsgIdx((_idleMsgIdx + 1) % msgs.length);
+    $('idleText').textContent = msgs[_idleMsgIdx];
+    return;
+  }
   if (charmBuffActive) {
     const msgs = [
       '✦ 闪耀护符的光芒照亮了天空...',

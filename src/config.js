@@ -98,10 +98,11 @@ export const FISH_TRIGGER_MIN = 5;      // 进入垂钓路段后，预定开始�
 export const FISH_TRIGGER_MAX = 20;     // 进入垂钓路段后，预定开始钓鱼的最长秒数（范围内随机）
 
 // ===== 路段生成 =====
-export const ROAD_WATER_CHANCE = 0.05;     // 新路段为水域（可钓鱼）的概率，其余从陆地池中选取
+export const ROAD_SPECIAL_CHANCE = 0.05;   // 新路段为特殊路段的概率（水域与自行车道在此概率内对半开）
 export const ROAD_WIDTH_MIN = 50;          // prob（随机生成）类路段的最短格数
 export const ROAD_WIDTH_MAX = 200;         // prob（随机生成）类路段的最长格数（范围内均匀随机）
 
 // ===== 路面滚动速度 =====
 export const ROAD_SPEED_WALK = 0.6;   // 走路时瓦片滚动速度
 export const ROAD_SPEED_RUN  = 1.1;   // 跑步时（buff生效）瓦片滚动速度
+export const ROAD_SPEED_BIKE = 2.0;    // 自行车道骑行速度（数值越大滚动越快、里程提升越多）

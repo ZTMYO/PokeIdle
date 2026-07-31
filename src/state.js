@@ -150,10 +150,10 @@ export function anyIncubatorReady() {
 }
 
 // ---------- GPS 导航状态 ----------
-// 当前地区由 GPS 位置决定（默认从丰缘出发）；开启"漫游"后才会有目的地并随行走推进。
+// 当前地区由 GPS 位置决定（默认从丰缘出发）；开启"环国旅行"后才会有目的地并随行走推进。
 export function defaultGpsState() {
   return {
-    roamEnabled: false,            // 漫游开关：关闭时没有目的地，停留在当前地区
+    roamEnabled: true,               // 环国旅行开关：默认开启，自动沿环国路线前往下一地区
     curIdx: 2,                     // 当前地区编号（REGION_CYCLE 下标，2=丰缘）
     destIdx: null,                 // 目的地地区编号；null=无目的地
     path: null,                    // 最短路线（地区编号数组）
@@ -286,7 +286,7 @@ export function calcOffline(save) {
 }
 
 // ---------- 当前地区 ----------
-// 当前地区由 GPS 位置决定：开启漫游并抵达目的地后才会改变；
+// 当前地区由 GPS 位置决定：开启环国旅行并抵达目的地后才会改变；
 // 未开启时一直停留在当前位置（默认从丰缘出发）。
 export function getCurrentRegion() {
   const idx = gameData?.gps?.curIdx ?? 2;

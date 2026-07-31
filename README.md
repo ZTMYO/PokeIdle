@@ -47,3 +47,10 @@ npm run build
 ## 主要素材来源
 
 - 宝可梦 GIF 动画：[play.pokemonshowdown.com](https://play.pokemonshowdown.com/)
+
+## 版权声明
+
+- **Pokémon** 及其所有相关角色、名称、标志、插图与动画，版权均归 **Nintendo / Creatures Inc. / GAME FREAK inc. / The Pokémon Company** 所有。
+- 本项目为粉丝自制的个人挂机游戏，仅用于学习与娱乐交流，**非官方作品，与官方无任何关联**，不用于任何商业用途。
+- 项目使用的宝可梦动画素材来自非官方社区资源（Pokémon Showdown），版权归属其原始权利方，本项目不主张任何所有权。
+- 如涉及侵权，请联系项目作者删除相关内容。

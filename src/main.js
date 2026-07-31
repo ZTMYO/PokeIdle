@@ -1,5 +1,5 @@
 // ===== 口袋挂机 - 入口模块 =====
-import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_WATER_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX } from './config.js';
+import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX } from './config.js';
 import {
   allPokemon, gameData, phase, currentEncounter, currentIsShiny,
   currentEncounterBalls, encounterBallsUsed,
@@ -47,8 +47,9 @@ import * as road from './road.js';
 import * as particles from './particles.js';
 
 let ROAD_PRESETS = null;
-let ROAD_LAND = [];   // 陆地路段池（无垂钓点）
+let ROAD_LAND = [];   // 普通陆地路段池（无垂钓点、非自行车道）
 let ROAD_WATER = [];  // 水域路段池（有垂钓点，可钓鱼）
+let ROAD_BIKE = [];   // 自行车道路段池（不遇敌、不拾取、快速推进里程）
 let _roadIdx = 0;
 let _roadCycleStart = 0;
 
@@ -78,17 +79,24 @@ function loadRoad(idx, useTransition, saved) {
   }
   road.setPlace(p.game.place || '');
   road.setFishingRow(p.game.fishingRow || 0);
+  road.setBike(!!p.game.bike);
   // 刷新页面恢复路段时，若该路段本次循环已钓过则不再强制触发
   onRoadChanged(p.game.fishingRow || 0, { fished: !!saved?.fished });
   road.resetScroll();
   _roadCycleStart = 0;
 }
 
-// 从陆路/水域两个池子中选取下一段路：水域概率由 ROAD_WATER_CHANCE 控制，
-// 选定池子后再随机决定具体是哪一段（两类道路仅外观不同，无其他差异）
+// 依次按 水域/自行车道 → 普通陆地 抽取下一段路：
+// ROAD_SPECIAL_CHANCE 概率出特殊路段，其中水域与自行车道对半开，
+// 目标子池为空时换另一个子池，两个都空则退回普通陆地
 function _pickNextRoad() {
-  const useWater = ROAD_WATER.length > 0 && Math.random() < ROAD_WATER_CHANCE;
-  let pool = useWater ? ROAD_WATER : ROAD_LAND;
+  let pool = ROAD_LAND;
+  if (ROAD_WATER.length + ROAD_BIKE.length > 0 && Math.random() < ROAD_SPECIAL_CHANCE) {
+    const preferWater = Math.random() < 0.5;
+    pool = preferWater
+      ? (ROAD_WATER.length > 0 ? ROAD_WATER : ROAD_BIKE)
+      : (ROAD_BIKE.length > 0 ? ROAD_BIKE : ROAD_WATER);
+  }
   if (pool.length === 0) pool = ROAD_PRESETS.map((_, i) => i); // 目标池为空时退回全量
   if (pool.length === 1) return pool[0];
   let next;
@@ -167,9 +175,9 @@ function onGameTick() {
     }
   }
 
-  // 钓鱼：有垂钓点的路段随机停下钓鱼（钓鱼期间不生成道路道具）
-  tryStartFishing();
-  if (!_fishing) {
+  // 钓鱼：有垂钓点的路段随机停下钓鱼（钓鱼期间不生成道路道具；自行车道上不钓鱼不拾取）
+  if (!road.isBike()) tryStartFishing();
+  if (!_fishing && !road.isBike()) {
     for (const [item, rate] of Object.entries(ITEM_RATES)) {
       const key = `_f_${item}`;
       if (!gameData[key]) gameData[key] = 0;
@@ -288,11 +296,14 @@ async function init() {
     console.error('加载道路数据失败', e);
     ROAD_PRESETS = [];
   }
-  // 构建陆路/水域两个池子（有垂钓点的为水域，可钓鱼）
+  // 构建 自行车道/水域/普通陆地 三个池子（自行车道优先，其次有垂钓点的水域）
   ROAD_LAND = [];
   ROAD_WATER = [];
+  ROAD_BIKE = [];
   ROAD_PRESETS.forEach((p, i) => {
-    (p.game && p.game.fishingRow ? ROAD_WATER : ROAD_LAND).push(i);
+    if (p.game && p.game.bike) ROAD_BIKE.push(i);
+    else if (p.game && p.game.fishingRow) ROAD_WATER.push(i);
+    else ROAD_LAND.push(i);
   });
 
   // 加载路面数据（优先恢复上次道路，兜底第一预设）

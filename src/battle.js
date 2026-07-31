@@ -55,6 +55,11 @@ export function scheduleNextEncounter(delay) {
 export async function tryEncounter() {
   if (phase !== 'idle') return;
   if (_fishing) return; // 钓鱼中不遇敌
+  // 自行车道上不遇敌：本次调度延后，离开自行车道后再遇
+  if (road.isBike()) {
+    scheduleNextEncounter(rand(ENCOUNTER_MIN, ENCOUNTER_MAX) * 1000);
+    return;
+  }
 
   // 无精灵球时不触发遇敌（自动操作模式例外，由自动逻辑处理逃跑）
   if (!gameData.settings?.autoCatch && !hasAnyBall()) {

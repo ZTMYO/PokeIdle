@@ -42,7 +42,7 @@
           <!-- 空闲状态 -->
           <div id="idleView" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
             <div class="idle-text" id="idleText"></div>
-            <div id="walkGif" class="walk-gif brendan-stop"></div>
+            <div id="walkGif" class="walk-gif"></div>
             <div id="roadLayer" class="road-layer"></div>
           </div>
 
@@ -109,6 +109,11 @@
           <div id="tutorialView" style="display:none;">
             <div id="tutorialList"></div>
             <div id="tutorialContent"></div>
+          </div>
+
+          <!-- 版权声明 -->
+          <div id="declarationView" style="display:none;flex-direction:column;overflow-y:auto;padding:6px 8px;">
+            <div id="declarationContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
           <!-- 系统日志 -->
@@ -195,7 +200,7 @@
             <div class="splash-title">口袋挂机</div>
             <div class="splash-subtitle">POKEMON IDLE</div>
             <div class="splash-stage">
-              <img class="splash-hero" src="./character/brendan_front.png" alt="" />
+              <img class="splash-hero" src="./character/brendan-front.png" alt="" />
               <div class="splash-ring" id="splashRing">
                 <img class="splash-item" style="--i:0" src="./items/poke-ball.png" alt="" />
                 <img class="splash-item" style="--i:1" src="./items/ultra-ball.png" alt="" />

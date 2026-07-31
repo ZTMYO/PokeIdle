@@ -299,6 +299,14 @@
       animation: pRun 0.45s steps(1) infinite;
     }
 
+    .preview-brendan.bike {
+      width: 64px;
+      height: 46px;
+      background-image: url('./brendan-bike.png');
+      background-size: 128px 46px;
+      animation: pBike 0.25s steps(1) infinite;
+    }
+
     @keyframes pWalk {
       0% {
         background-position: 0px 0;
@@ -364,6 +372,18 @@
 
       100% {
         background-position: -84px 0;
+      }
+    }
+
+    @keyframes pBike {
+      0%,
+      50% {
+        background-position: 0px 0;
+      }
+
+      50.01%,
+      100% {
+        background-position: -64px 0;
       }
     }
 
@@ -513,6 +533,7 @@
       <option value="2">第2行</option>
       <option value="3">第3行</option>
     </select></label>
+    <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="roadBike" style="width:auto;"> 自行车道</label>
     <button class="btn btn-sm" id="saveBtn">保存</button>
     <button class="btn btn-sm" id="exportBtn">导出</button>
   </div>
@@ -548,6 +569,7 @@
       <div class="preview-controls">
         <button class="btn btn-sm btn-active" id="pvWalk">走</button>
         <button class="btn btn-sm btn-sec" id="pvRun">跑</button>
+        <button class="btn btn-sm btn-sec" id="pvBike">骑</button>
         <div class="psep"></div>
         <button class="btn btn-sm btn-active" id="pvFixed">固定</button>
         <button class="btn btn-sm btn-sec" id="pvProb">概率</button>
@@ -754,6 +776,7 @@
           gameData: item.game,
           place: item.game.place || '',
           fishing: item.game.fishingRow || 0,
+          bike: !!item.game.bike,
           gen: item.type === 'prob'
             ? function () { return genProbGrid(this.gameData.rows, this.w); }
             : function () { return this.gameData.tiles; }
@@ -775,6 +798,7 @@
           $('roadW').value = p.w; $('roadH').value = p.h;
           $('roadPlace').value = p.place;
           $('roadFishing').value = p.fishing;
+          $('roadBike').checked = p.bike;
           $('presetName').value = p.name;
           $('presetType').value = p.gameType;
           W = p.w; H = p.h;
@@ -782,6 +806,7 @@
           data = p.gen();
           rebuild();
           setRenderMode(p.prob ? 'prob' : 'fixed');
+          if (p.bike) setPreview('bike');
         };
         bar.appendChild(b);
       });
@@ -816,6 +841,7 @@
       BRENDAN.className = 'preview-brendan ' + mode;
       $('pvWalk').className = `btn btn-sm ${mode === 'walk' ? 'btn-active' : 'btn-sec'}`;
       $('pvRun').className = `btn btn-sm ${mode === 'run' ? 'btn-active' : 'btn-sec'}`;
+      $('pvBike').className = `btn btn-sm ${mode === 'bike' ? 'btn-active' : 'btn-sec'}`;
     }
 
     function setRenderMode(mode) {
@@ -863,7 +889,7 @@
 
     function loopPreview(now) {
       const cols = +(pvCvs.dataset.cols) || 10;
-      const speed = previewMode === 'run' ? 1.1 : 0.6;
+      const speed = previewMode === 'bike' ? 3.0 : previewMode === 'run' ? 1.1 : 0.6;
       scrollX = (scrollX + speed) % (cols * PV_TILE);
       drawRoad();
       requestAnimationFrame(loopPreview);
@@ -940,6 +966,7 @@
         game = { width: W, height: H, place: $('roadPlace').value || '', tiles };
       }
       if (fishingRow) game.fishingRow = fishingRow;
+      if ($('roadBike').checked) game.bike = true;
 
       $('exportText').value = JSON.stringify({ name, type, editor, game }, null, 2);
     }
@@ -965,6 +992,9 @@
       const fishingRow = +$('roadFishing').value || 0;
       if (fishingRow) item.game.fishingRow = fishingRow;
       else delete item.game.fishingRow;
+      // 同步自行车道标记
+      if ($('roadBike').checked) item.game.bike = true;
+      else delete item.game.bike;
 
       // 同步 tile/rows 数据
       if (item.type === 'prob') {
@@ -1046,6 +1076,7 @@
       $('exportOverlay').addEventListener('click', e => { if (e.target === $('exportOverlay')) closeExport(); });
       $('pvWalk').addEventListener('click', () => setPreview('walk'));
       $('pvRun').addEventListener('click', () => setPreview('run'));
+      $('pvBike').addEventListener('click', () => setPreview('bike'));
       $('pvFixed').addEventListener('click', () => setRenderMode('fixed'));
       $('pvProb').addEventListener('click', () => setRenderMode('prob'));
     }
