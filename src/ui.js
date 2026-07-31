@@ -1,5 +1,5 @@
 // ===== UI 管理 =====
-import { phase, currentEncounter, currentIsShiny, gameData, saveGame } from './state.js';
+import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing } from './state.js';
 import { formatNum, formatTime, getCurrentRegion, anyIncubatorReady, getIncubatorUnlockCost } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN } from './config.js';
 import * as road from './road.js';
@@ -36,9 +36,13 @@ export function showView(id) {
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.view === id);
   });
-  // 回到首页时刷新角色精灵 + 道路尺寸
+  // 回到首页时刷新角色精灵 + 道路尺寸（钓鱼中恢复钓鱼画面而非走路）
   if (id === 'idleView') {
-    setIdleCharacter('walk');
+    if (_fishing) {
+      import('./fishing.js').then(m => m.applyFishingVisual());
+    } else {
+      setIdleCharacter('walk');
+    }
     road.refreshSize();
   }
 

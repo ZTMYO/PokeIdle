@@ -44,6 +44,8 @@ function _resize() {
   if (!_transition) {
     patternWidth = pattern.width * TILE;
   }
+  // canvas.width 赋值会清空画布，暂停状态下 _frame 不会重绘，需立即补画一帧
+  _draw();
 }
 
 function _drawPatternData(offsetX, pd) {
@@ -63,17 +65,13 @@ function _drawPatternData(offsetX, pd) {
   }
 }
 
-function _frame() {
-  if (!active) return;
-
+// 绘制当前一帧（不推进滚动、不调度下一帧）
+function _draw() {
+  if (!canvas || !ctx || !pattern) return;
   ctx.clearRect(0, 0, containerWidth, roadHeight);
 
   if (_transition) {
-    // 过渡中：先递减 remaining，再绘制，确保连续性
-    // 旧道路从当前位置向左滑出一个屏幕宽度
-    // 新道路从容器右边缘滑入到正常位置（offset = 0）
-    _transition.remaining -= speed;
-
+    // 旧道路从当前位置向左滑出一个屏幕宽度，新道路从右缘滑入
     const oldPw = patternWidth;
     const newPw = _transition.patternWidth;
     const cut = Math.max(0, _transition.remaining);
@@ -90,9 +88,11 @@ function _frame() {
     ctx.beginPath();
     ctx.rect(0, 0, cut, roadHeight);
     ctx.clip();
-    const oldCopies = Math.ceil((containerWidth + speed) / oldPw) + 2;
-    for (let i = 0; i < oldCopies; i++) {
-      _drawPatternData(oldOffset + i * oldPw, pattern);
+    if (oldPw > 0) {
+      const oldCopies = Math.ceil((containerWidth + speed) / oldPw) + 2;
+      for (let i = 0; i < oldCopies; i++) {
+        _drawPatternData(oldOffset + i * oldPw, pattern);
+      }
     }
     ctx.restore();
 
@@ -101,24 +101,28 @@ function _frame() {
     ctx.beginPath();
     ctx.rect(cut, 0, containerWidth - cut, roadHeight);
     ctx.clip();
-    const newCopies = Math.ceil((containerWidth + cut + speed) / newPw) + 2;
-    for (let i = 0; i < newCopies; i++) {
-      _drawPatternData(cut + i * newPw, _transition.pattern);
+    if (newPw > 0) {
+      const newCopies = Math.ceil((containerWidth + cut + speed) / newPw) + 2;
+      for (let i = 0; i < newCopies; i++) {
+        _drawPatternData(cut + i * newPw, _transition.pattern);
+      }
     }
-
     ctx.restore();
-
-    if (_transition.remaining <= 0) {
-      // 过渡完成，切到新道路。小数部分移入 _scrollFraction 保持连续
-      pattern = _transition.pattern;
-      patternWidth = newPw;
-      roadHeight = _transition.roadHeight;
-      _scrollFraction += -_transition.remaining;
-      scrollX = Math.floor(_scrollFraction);
-      _scrollFraction -= scrollX;
-      _transition = null;
-      _cycles = 0;
+  } else {
+    if (patternWidth <= 0) return;
+    const copies = Math.ceil(containerWidth / patternWidth) + 1;
+    for (let i = 0; i < copies; i++) {
+      _drawPatternData(-scrollX + i * patternWidth, pattern);
     }
+  }
+}
+
+function _frame() {
+  if (!active) return;
+
+  if (_transition) {
+    // 过渡中：先递减 remaining，再绘制，确保连续性
+    _transition.remaining -= speed;
   } else {
     // 正常渲染：整数步进，消除子像素"半个tile"
     _scrollFraction += speed;
@@ -127,16 +131,24 @@ function _frame() {
       _scrollFraction -= step;
       scrollX += step;
     }
-
-    const copies = Math.ceil(containerWidth / patternWidth) + 1;
-    for (let i = 0; i < copies; i++) {
-      _drawPatternData(-scrollX + i * patternWidth, pattern);
-    }
-
     if (scrollX >= patternWidth) {
       scrollX -= patternWidth;
       _cycles++;
     }
+  }
+
+  _draw();
+
+  if (_transition && _transition.remaining <= 0) {
+    // 过渡完成，切到新道路。小数部分移入 _scrollFraction 保持连续
+    pattern = _transition.pattern;
+    patternWidth = _transition.patternWidth;
+    roadHeight = _transition.roadHeight;
+    _scrollFraction += -_transition.remaining;
+    scrollX = Math.floor(_scrollFraction);
+    _scrollFraction -= scrollX;
+    _transition = null;
+    _cycles = 0;
   }
 
   rafId = requestAnimationFrame(_frame);
@@ -349,3 +361,8 @@ export function refreshSize() { _resize(); }
 let _currentPlace = '';
 export function setPlace(place) { _currentPlace = place || ''; }
 export function getPlace() { return _currentPlace; }
+
+// ---- 垂钓点行号（1/3 表示有垂钓点；钓鱼动画据此选择帧）----
+let _fishingRow = 0;
+export function setFishingRow(row) { _fishingRow = row || 0; }
+export function getFishingRow() { return _fishingRow; }

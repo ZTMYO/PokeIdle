@@ -11,7 +11,7 @@ import {
   _honeyEncounterCount, _charmEncounterCount,
   _autoFleeTimer, _autoFleeBarInterval,
   _catchConfirmStep, _prevView, _pokedexInLogView, _idleMsgIdx,
-  _lastRegionId, gameTick,
+  _lastRegionId, gameTick, _fishing,
   setAllPokemon, setGameData, setPhase, setCurrentEncounter,
   setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls,
   setCatchStreak, setGameTick, setPrevView, setLastRegionId,
@@ -33,6 +33,7 @@ import { spawnItemDrop, activateHoney, activateShinyCharm,
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
   tryEncounter, startAutoFleeTimer, stopAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
+import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
 import { showEncounterLogs, restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showDataView, showSystemLogs, showShopView, showSettingsView,
@@ -53,7 +54,7 @@ function _randomWidth(base) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-function loadRoad(idx, useTransition) {
+function loadRoad(idx, useTransition, saved) {
   const p = ROAD_PRESETS[idx];
   // fixed 类型循环 5 次原图案；prob 类型随机宽度
   const game = p.type === 'fixed'
@@ -67,6 +68,9 @@ function loadRoad(idx, useTransition) {
     else road.load(game);
   }
   road.setPlace(p.game.place || '');
+  road.setFishingRow(p.game.fishingRow || 0);
+  // 刷新页面恢复路段时，若该路段本次循环已钓过则不再强制触发
+  onRoadChanged(p.game.fishingRow || 0, { fished: !!saved?.fished });
   road.resetScroll();
   _roadCycleStart = 0;
 }
@@ -94,6 +98,8 @@ function onBagClick(itemKey) {
     return;
   }
   if (phase !== 'idle') return;
+  // 钓鱼中禁止使用 buff 道具（会与暂停的道路/角色状态冲突）
+  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
   else if (itemKey === 'mystery-egg') {
     setPrevView('idleView');
@@ -119,28 +125,37 @@ function onGameTick() {
 
   if (phase !== 'idle') { updateStats(); return; }
 
-  // 道路轮播：每 2 个完整循环切下一个（过渡中不切）
-  if (!road.isTransitioning()) {
+  // 道路轮播：每 2 个完整循环切下一个（过渡中/钓鱼中不切）
+  if (!road.isTransitioning() && !_fishing) {
     const cyc = road.getCycles();
     if (cyc >= 2 && _roadCycleStart < cyc) {
-      let next;
-      do { next = Math.floor(Math.random() * ROAD_PRESETS.length); } while (next === _roadIdx);
-      _roadIdx = next;
-      _roadCycleStart = cyc;
-      loadRoad(_roadIdx, true);
-      setIdleCharacter('walk');
+      if (ROAD_PRESETS.length > 1) {
+        let next;
+        do { next = Math.floor(Math.random() * ROAD_PRESETS.length); } while (next === _roadIdx);
+        _roadIdx = next;
+        _roadCycleStart = cyc;
+        loadRoad(_roadIdx, true);
+        setIdleCharacter('walk');
+      } else {
+        // 只有一个预设时无法切换，重置计数避免 do/while 死循环卡死
+        _roadCycleStart = cyc;
+      }
     }
   }
 
-  for (const [item, rate] of Object.entries(ITEM_RATES)) {
-    const key = `_f_${item}`;
-    if (!gameData[key]) gameData[key] = 0;
-    gameData[key] += rate;
-    const gained = Math.floor(gameData[key]);
-    if (gained > 0) {
-      gameData[key] -= gained;
-      for (let i = 0; i < gained; i++) {
-        spawnItemDrop(item);
+  // 钓鱼：有垂钓点的路段随机停下钓鱼（钓鱼期间不生成道路道具）
+  tryStartFishing();
+  if (!_fishing) {
+    for (const [item, rate] of Object.entries(ITEM_RATES)) {
+      const key = `_f_${item}`;
+      if (!gameData[key]) gameData[key] = 0;
+      gameData[key] += rate;
+      const gained = Math.floor(gameData[key]);
+      if (gained > 0) {
+        gameData[key] -= gained;
+        for (let i = 0; i < gained; i++) {
+          spawnItemDrop(item);
+        }
       }
     }
   }
@@ -267,17 +282,18 @@ async function init() {
   }
 
   // 加载路面数据（优先恢复上次道路，兜底第一预设）
+  let savedRoad = null;
   try {
     const saved = localStorage.getItem('pokemon_idle_road');
     if (saved) {
-      const rs = JSON.parse(saved);
-      if (rs && typeof rs.roadIdx === 'number' && rs.roadIdx < ROAD_PRESETS.length) {
-        _roadIdx = rs.roadIdx;
+      savedRoad = JSON.parse(saved);
+      if (savedRoad && typeof savedRoad.roadIdx === 'number' && savedRoad.roadIdx < ROAD_PRESETS.length) {
+        _roadIdx = savedRoad.roadIdx;
         _roadCycleStart = 0;
       }
     }
   } catch (_) {}
-  loadRoad(_roadIdx);
+  loadRoad(_roadIdx, false, savedRoad);
 
   // 界面
   updateBackpack();
@@ -472,7 +488,7 @@ async function init() {
       gameData.stats.lastSaveTime = Date.now();
       try { localStorage.setItem('pokemon_idle_save', JSON.stringify(gameData)); } catch (_) {}
     }
-    try { localStorage.setItem('pokemon_idle_road', JSON.stringify({ roadIdx: _roadIdx })); } catch (_) {}
+    try { localStorage.setItem('pokemon_idle_road', JSON.stringify({ roadIdx: _roadIdx, fished: getFishingGuarantee().fished })); } catch (_) {}
   });
 
   // 启动循环

@@ -95,6 +95,9 @@ export function renderSystemLogs() {
         case 'item_use':
           desc = `${log.details.auto ? '[自动] ' : ''}使用了${ITEM_NAMES[log.details.item] || log.details.item}`;
           break;
+        case 'fishing':
+          desc = `钓鱼获得 ${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}`;
+          break;
         case 'shop_purchase':
           desc = `商店兑换${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（消耗${log.details.cost}糖果）`;
           break;
@@ -366,6 +369,7 @@ export function showTutorialView() {
     <b>神秘蛋</b> 1/${Math.round(1/ITEM_RATES['mystery-egg'])}秒 |
     <b>大师球</b> 1/${Math.round(1/ITEM_RATES['master-ball'])}秒 |
     <b>闪耀护符</b> 1/${Math.round(1/ITEM_RATES['shiny-charm'])}秒</span>
+    <p><b>钓鱼</b>：经过有垂钓点的水上路段（如石桥）时会停下钓鱼。每段路<b>只钓一次</b>：等待上钩（6~30 秒）后收获随机道具 <b>1~10</b> 个。</p>
     <p><b>遇敌</b>：拥有精灵球时，每隔 <b>${Math.round(ENCOUNTER_MIN/60)}~${Math.round(ENCOUNTER_MAX/60)} 分钟</b>遇到一只野生宝可梦。</p>
     <p><b>捕捉</b>：丢出精灵球进行捕捉，不同球种捕获率：</p>
     <span class="indent"><b>精灵球</b> <b>${CATCH_RATES['poke-ball']*100}%</b> ｜ <b>高级球</b> <b>${CATCH_RATES['ultra-ball']*100}%</b> ｜ <b>大师球</b> <b>${CATCH_RATES['master-ball']*100}%</b></span>

@@ -154,6 +154,14 @@ body { margin: 0; padding: 0; cursor: default; }
   width: 40px;
   height: 42px;
 }
+/* Brendan 钓鱼（8帧, 32x37/帧 → 2x 显示 64×74；帧由 fishing.js 控制；向下偏移 9px 对齐脚线） */
+.walk-gif.brendan-fishing {
+  width: 64px;
+  height: 74px;
+  background-image: url('./character/brendan-fishing.png');
+  background-size: 512px 74px;
+  transform: translate(-10px, 15px);
+}
 @keyframes brendanWalk {
   0%   { background-position: 0px 0; }
   25%  { background-position: 0px 0; }

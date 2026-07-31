@@ -391,6 +391,44 @@ export function showIdlePickup(itemName, place) {
   }
 }
 
+// ===== 钓鱼轮播文字 =====
+export const FISHING_WAIT_MSGS = [
+  '✦ 水面泛起层层涟漪...',
+  '✦ 鱼竿在轻轻晃动...',
+  '✦ 耐心等待，浮漂微微下沉...',
+  '✦ 水面下传来微弱的动静...',
+  '✦ 波纹一圈圈扩散开去...',
+  '✦ 鱼线绷紧了！再等等...',
+  '✦ 静静垂钓，享受此刻的宁静...',
+  '✦ 浮漂轻轻点动，有东西就在附近...',
+  '✦ 远处水花溅起，今天运气如何呢？',
+  '✦ 握住鱼竿，感受水下的节奏...',
+];
+
+export const FISHING_RESULTS = ['钓到了','钓上来','收获了','拽上来','稳稳收起'];
+
+// 钓鱼等待期间：每 5 秒轮换一条钓鱼文案
+export function showFishingWait() {
+  if (_idleMsgTimer) clearInterval(_idleMsgTimer);
+  setIdleMsgIdx(-1);
+  $('idleText').textContent = FISHING_WAIT_MSGS[0];
+  setIdleMsgTimer(setInterval(() => {
+    setIdleMsgIdx(_idleMsgIdx + 1);
+    $('idleText').textContent = FISHING_WAIT_MSGS[_idleMsgIdx % FISHING_WAIT_MSGS.length];
+  }, 5000));
+}
+
+// 钓鱼收获：结果文案展示 10 秒后自然过渡回普通轮播
+export function showFishingResult(itemName, qty, place) {
+  const loc = place || '在河边';
+  const result = FISHING_RESULTS[randInt(0, FISHING_RESULTS.length - 1)];
+  $('idleText').textContent = `${loc}，${result}${itemName}×${qty}！`;
+  if (_idleMsgTimer) {
+    clearInterval(_idleMsgTimer);
+    setIdleMsgTimer(setInterval(rotateIdleMessage, 10000));
+  }
+}
+
 export function startIdleRotation() {
   if (_idleMsgTimer) clearInterval(_idleMsgTimer);
   setRegionMsgInterval(0);

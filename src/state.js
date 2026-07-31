@@ -39,6 +39,7 @@ export let _itemDropActive = false;
 export let _throwing = false;
 export let _autoCatching = false;
 export let _eggHatching = false;
+export let _fishing = false;
 
 // 空闲消息
 export let _idleMsgs = [];
@@ -89,6 +90,7 @@ export function setThrowing(v) { _throwing = v; }
 export function setCatchConfirmStep(v) { _catchConfirmStep = v; }
 export function setItemDropActive(v) { _itemDropActive = v; }
 export function setEggHatching(v) { _eggHatching = v; }
+export function setFishing(v) { _fishing = v; }
 export function setPokedexInLogView(v) { _pokedexInLogView = v; }
 export function setPokedexSortBy(v) { _pokedexSortBy = v; }
 export function setPokedexSortDir(v) { _pokedexSortDir = v; }
