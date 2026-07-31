@@ -4,7 +4,7 @@ import { ROAD_SPEED_WALK } from './config.js';
 
 const TILE = 24;
 const SRC_TILE = 16;
-const TILESET = './img/terrain-tileset.png';
+const TILESET = './terrain/terrain-tileset.png';
 
 let canvas = null;
 let ctx = null;

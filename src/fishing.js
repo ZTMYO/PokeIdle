@@ -1,6 +1,6 @@
 // ===== 钓鱼系统 =====
 // 进入有垂钓点的路段后停下钓鱼一次：甩竿 → 等待上钩（随机6~30s）→ 上钩抖动 → 收获随机道具×1~10
-import { ITEM_NAMES, ITEM_RATES } from './config.js';
+import { ITEM_NAMES, ITEM_RATES, ITEM_ICONS } from './config.js';
 import { phase, gameData, nextEncounterTimer, honeyBuffActive, charmBuffActive, _itemDropActive, _fishing, gameTick, setFishing, setNextEncounterTimer, saveGame, addSystemLog, randInt } from './state.js';
 import { $, setIdleCharacter, updateBackpack, updateStats } from './ui.js';
 import { showFishingWait, showFishingResult } from './messages.js';
@@ -13,6 +13,63 @@ const FISH_FRAME_W = 64; // 每帧 32px，2x 显示
 // 每个有垂钓点的路段恰好钓一次：进入路段时预定一个应钓鱼的 tick
 let _fishingDueTick = 0;
 let _fishedInSegment = false;
+
+// 钓鱼期间水域上的漂浮物品（DOM 元素列表）
+let _floatItems = [];
+const FLOAT_OPACITY = 0.35;
+
+// 随机摆放一个漂浮物品
+function placeFloatItem(img, layer, rowY, topMin, topMax) {
+  const layerW = layer.clientWidth || 300;
+  img.style.left = Math.floor(Math.random() * layerW) + 'px';
+  img.style.top = Math.floor(rowY + topMin + Math.random() * (topMax - topMin)) + 'px';
+}
+
+// 若隐若现：淡入 → 停留 → 淡出 → 换一个位置重新淡入，循环往复
+function cycleFloatItem(img, layer, rowY, topMin, topMax) {
+  if (!img.isConnected) return;
+  img.style.opacity = String(FLOAT_OPACITY);                 // 淡入
+  const hold = 1500 + Math.random() * 2500;                  // 停留 1.5~4s
+  setTimeout(() => {
+    if (!img.isConnected) return;
+    img.style.opacity = '0';                                 // 淡出
+    setTimeout(() => {
+      if (!img.isConnected) return;
+      placeFloatItem(img, layer, rowY, topMin, topMax);      // 换个位置
+      cycleFloatItem(img, layer, rowY, topMin, topMax);
+    }, 1000);
+  }, hold);
+}
+
+// 在垂钓行随机生成几个淡淡的漂浮物品图标
+function spawnFloatingItems() {
+  const layer = $('roadLayer');
+  const row = road.getFishingRow();
+  if (!layer || !row) return;
+  const rowY = (row - 1) * 24;                     // 该行在路面层内的 y（每行 24px）
+  const topMin = row === 1 ? 0 : 12;               // 第1行(上)图标靠上半，第3行(下)图标靠下半
+  const topMax = row === 1 ? 12 : 24;
+  const icons = Object.keys(ITEM_ICONS);
+  const count = randInt(3, 5);
+  for (let i = 0; i < count; i++) {
+    const img = document.createElement('img');
+    img.className = 'fish-float';
+    img.src = `./items/${ITEM_ICONS[icons[randInt(0, icons.length - 1)]]}`;
+    img.style.opacity = '0';
+    img.style.transition = 'opacity 1s ease';
+    img.style.animationDuration = (4 + Math.random() * 5).toFixed(2) + 's';
+    img.style.animationDelay = (-Math.random() * 5).toFixed(2) + 's';
+    layer.appendChild(img);
+    _floatItems.push(img);
+    placeFloatItem(img, layer, rowY, topMin, topMax);
+    cycleFloatItem(img, layer, rowY, topMin, topMax);
+  }
+}
+
+function clearFloatingItems() {
+  for (const el of _floatItems) el.remove();
+  _floatItems = [];
+}
 
 export function isFishing() { return _fishing; }
 
@@ -53,7 +110,7 @@ export function applyFishingVisual() {
   const base = row >= 3 ? 4 : 0;
   el.className = 'walk-gif brendan-fishing';
   el.style.backgroundImage = 'url("./character/brendan-fishing.png")';
-  el.style.backgroundSize = '512px 74px';
+  el.style.backgroundSize = '640px 74px';
   applyFishingFrame(el, base + 3);
 }
 
@@ -66,6 +123,7 @@ async function startFishing() {
   // 取消预定的遇敌，钓鱼期间不遇敌
   if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
   road.pause();
+  spawnFloatingItems();
 
   // 第3行垂钓点 → 用后4帧（4-7）；第1行 → 用前4帧（0-3）
   const base = row >= 3 ? 4 : 0;
@@ -79,15 +137,19 @@ async function startFishing() {
   }
   if (phase !== 'idle') { abortFishing(); return; }
 
-  // 等待上钩：保持第4帧 + 钓鱼轮播文字（随机 6~30s）
+  // 等待上钩：第4/8帧 ↔ 对应待机帧来回切换（待机动画）+ 钓鱼轮播文字（随机 6~30s）
   const waitMs = randInt(6, 30) * 1000;
   showFishingWait();
-  applyFishingFrame(el, base + 3);
+  const idleFrame = row >= 3 ? 9 : 8;   // 待机帧：第3行→第10帧(索引9)，第1行→第9帧(索引8)
   const startT = Date.now();
+  let idleToggle = 0;
   while (Date.now() - startT < waitMs) {
     if (phase !== 'idle') { abortFishing(); return; }
-    await delay(200);
+    idleToggle = 1 - idleToggle;
+    applyFishingFrame(el, idleToggle ? idleFrame : base + 3);
+    await delay(800);
   }
+  applyFishingFrame(el, base + 3);
 
   // 上钩判定完成：第3/4帧来回抖动（鱼咬钩）
   const tugStart = Date.now();
@@ -126,6 +188,7 @@ function abortFishing() {
 function finishFishing() {
   _fishedInSegment = true;   // 本路段已钓过，本段不再触发
   _fishingDueTick = 0;
+  clearFloatingItems();
   setFishing(false);
   setIdleCharacter('walk');
   road.resume();

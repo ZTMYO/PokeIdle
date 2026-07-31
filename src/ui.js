@@ -177,11 +177,20 @@ export function setIdleCharacter(state, itemKey) {
 
 // ---------- 图片尺寸自适应 ----------
 export function fitPokemonImage(img) {
-  // 保持自然尺寸，不做缩放
+  // 默认保持自然尺寸；若高度超出可见范围则等比压缩到刚好到顶
   if (!img || !img.naturalWidth || !img.naturalHeight) return;
   img.style.width = '';
   img.style.height = '';
   img.style.objectFit = '';
+  const view = img.closest('#encounterView');
+  if (!view || view.clientHeight <= 0) return;
+  // 精灵底部锚在屏幕 42% 高度处，可见上限为剩余 58% 高度
+  const maxH = view.clientHeight * 0.58;
+  if (img.naturalHeight > maxH) {
+    const scale = maxH / img.naturalHeight;
+    img.style.width = Math.floor(img.naturalWidth * scale) + 'px';
+    img.style.height = Math.floor(maxH) + 'px';
+  }
 }
 
 // ---------- 图片加载 ----------

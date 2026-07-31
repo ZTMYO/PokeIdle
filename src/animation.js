@@ -1,4 +1,4 @@
-﻿﻿﻿// ==================== 捕捉动画函数 ====================
+﻿﻿// ==================== 捕捉动画函数 ====================
 import { $, fitPokemonImage } from './ui.js';
 import { currentEncounter, currentIsShiny } from './state.js';
 import { BATTLE_BALLS, FLEE_CHANCE } from './config.js';
@@ -22,7 +22,7 @@ export function animate(duration, fn) {
 function setBallImage(ball, ballType, state) {
   const info = BATTLE_BALLS[ballType];
   if (!info) return;
-  ball.src = `./icons/${state === 'open' ? info.open : info.closed}`;
+  ball.src = `./items/${state === 'open' ? info.open : info.closed}`;
 }
 
 export async function setupCatchAnim(ballType) {
