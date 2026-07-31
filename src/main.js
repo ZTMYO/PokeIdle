@@ -1,4 +1,4 @@
-﻿﻿// ===== 宝可梦挂机 - 入口模块 =====
+// ===== 宝可梦挂机 - 入口模块 =====
 import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES } from './config.js';
 import {
   allPokemon, gameData, phase, currentEncounter, currentIsShiny,
@@ -25,8 +25,9 @@ import {
 import {
   $, showView, updateTextBox, hideTextBox,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
+  renderIncubatorView, updateIncubatorBadge,
 } from './ui.js';
-import { spawnItemDrop, hatchEggFromBag, activateHoney, activateShinyCharm,
+import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
   closeCandyDialog, doCandyExchange } from './items.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
@@ -43,16 +44,30 @@ let ROAD_PRESETS = null;
 let _roadIdx = 0;
 let _roadCycleStart = 0;
 
+function _randomWidth(base) {
+  // 在 base 的 1~2.5 倍间随机，至少 50 格
+  const rawMin = Math.max(50, Math.floor(base));
+  const rawMax = Math.floor(base * 2.5);
+  const min = Math.min(rawMin, rawMax);
+  const max = Math.max(rawMin, rawMax);
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
 function loadRoad(idx, useTransition) {
   const p = ROAD_PRESETS[idx];
+  // fixed 类型循环 5 次原图案；prob 类型随机宽度
+  const game = p.type === 'fixed'
+    ? { ...p.game, width: (p.game.tiles[0]?.length || p.game.width) * 5 }
+    : { ...p.game, width: _randomWidth(p.game.width) };
   if (useTransition) {
-    if (p.type === 'prob') road.transitionToProb(p.game);
-    else road.transitionTo(p.game);
+    if (p.type === 'prob') road.transitionToProb(game);
+    else road.transitionTo(game);
   } else {
-    if (p.type === 'prob') road.loadProb(p.game);
-    else road.load(p.game);
+    if (p.type === 'prob') road.loadProb(game);
+    else road.load(game);
   }
-  road.resetCycleCount();
+  road.setPlace(p.game.place || '');
+  road.resetScroll();
   _roadCycleStart = 0;
 }
 
@@ -80,7 +95,11 @@ function onBagClick(itemKey) {
   }
   if (phase !== 'idle') return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
-  else if (itemKey === 'mystery-egg') { hatchEggFromBag(); }
+  else if (itemKey === 'mystery-egg') {
+    setPrevView('idleView');
+    showView('incubatorView');
+    renderIncubatorView();
+  }
   else if (itemKey === 'shiny-charm') {
     if (honeyBuffActive) return;
     activateShinyCharm();
@@ -102,7 +121,7 @@ function onGameTick() {
 
   // 道路轮播：每 2 个完整循环切下一个（过渡中不切）
   if (!road.isTransitioning()) {
-    const cyc = road.getCycleCount();
+    const cyc = road.getCycles();
     if (cyc >= 2 && _roadCycleStart < cyc) {
       let next;
       do { next = Math.floor(Math.random() * ROAD_PRESETS.length); } while (next === _roadIdx);
@@ -127,6 +146,30 @@ function onGameTick() {
   }
 
   if (gameTick % 5 === 0) { updateBackpack(); updateStats(); }
+
+  // 孵蛋器状态检查（每 tick，先检查再渲染）
+  let incubatorChanged = false;
+  for (const s of (gameData.incubators || [])) {
+    if (s && s.eggIndex != null && !s.hatched) {
+      const elapsed = Date.now() - s.hatchStart;
+      // 检查超时（加 100ms 容差）+ hatchedStart 无效（NaN/负值）兜底
+      if (isNaN(elapsed) || elapsed < 0 || (elapsed + 100) >= s.hatchDuration) {
+        s.hatched = true;
+        incubatorChanged = true;
+      }
+    }
+  }
+  if (incubatorChanged) {
+    updateIncubatorBadge();
+    if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
+  }
+
+  // 孵蛋器定时刷新倒计时（每 tick）
+  if ($('incubatorView')?.style.display === 'flex') {
+    renderIncubatorView();
+  }
+  // badge 同步
+  if (gameTick % 5 === 0) updateIncubatorBadge();
 }
 
 // ---------- 初始化 ----------
@@ -173,6 +216,33 @@ async function init() {
   setLastRegionId(getCurrentRegion().id);
   await saveGame();
 
+  // 修复存档：根据遭遇日志重新计算图鉴数据
+  fixPokedexFromLogs();
+
+  // 调试辅助：DevTools 控制台快速完成所有孵蛋
+  window.__completeAllEggs = () => {
+    gameData.incubators.forEach(s => {
+      if (s && s.eggIndex != null && !s.hatched) {
+        s.hatched = true;
+      }
+    });
+    saveGame();
+    if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
+    updateIncubatorBadge();
+    console.log('所有孵蛋中的蛋已标记为孵化完成');
+  };
+  // DevTools: window.__resetSave() → 完全重置存档（内存+存储）
+  window.__resetSave = () => {
+    setGameData(getDefaultSave());
+    localStorage.removeItem('pokemon_idle_save');
+    localStorage.removeItem('pokemon_idle_road');
+    saveGame().then(() => {
+      updateBackpack();
+      updateStats();
+      console.log('存档已完全重置！请手动删除 Tauri 文件: %APPDATA%\\com.pokemon.idle\\save.json');
+    });
+  };
+
   // 固定窗口
   if (gameData.settings?.windowPinned) {
     try {
@@ -196,8 +266,18 @@ async function init() {
     ROAD_PRESETS = [];
   }
 
-  // 加载路面数据（第一预设）
-  loadRoad(0);
+  // 加载路面数据（优先恢复上次道路，兜底第一预设）
+  try {
+    const saved = localStorage.getItem('pokemon_idle_road');
+    if (saved) {
+      const rs = JSON.parse(saved);
+      if (rs && typeof rs.roadIdx === 'number' && rs.roadIdx < ROAD_PRESETS.length) {
+        _roadIdx = rs.roadIdx;
+        _roadCycleStart = 0;
+      }
+    }
+  } catch (_) {}
+  loadRoad(_roadIdx);
 
   // 界面
   updateBackpack();
@@ -251,15 +331,14 @@ async function init() {
           $('idleText').textContent = '✦ 闪耀护符生效中 ✦';
           setIdleMsgIdx(-1);
           particles.stop();
-          particles.start('rgba(160,210,255,0.5)');
+          particles.start('rgba(180,230,255,1)', 'star');
           startCharmCountdown();
         }
       } else if (sessionState.charmPausedRemaining > 0) {
         setCharmBuffActive(true);
         setCharmPausedRemaining(sessionState.charmPausedRemaining);
         particles.stop();
-        particles.start('rgba(160,210,255,0.5)');
-        // 恢复视觉UI（即使遇敌中，以便战后恢复）
+        particles.start('rgba(180,230,255,1)', 'star');
         $('idleText').textContent = '✦ 闪耀护符生效中 ✦';
         setIdleMsgIdx(-1);
         // 背包显示暂停的剩余秒数 + 遮罩
@@ -287,11 +366,9 @@ async function init() {
         setCurrentIsShiny(!!sessionState.encounter.isShiny);
         setEncounterBallsUsed(sessionState.encounter.ballsUsed || 0);
         setCurrentEncounterBalls(sessionState.encounter.balls || { 'poke-ball': 0, 'ultra-ball': 0, 'master-ball': 0 });
-        // 球已回退到背包，连胜应归零
+        // 连胜应归零，球已从背包扣除（存档已保存），不重复回退
+        // currentEncounterBalls 保留原值以便捕获日志完整记录
         setCatchStreak(0);
-        for (const [ball, count] of Object.entries(currentEncounterBalls)) {
-          if (count > 0) gameData.items[ball] = (gameData.items[ball] || 0) + count;
-        }
         setPhase('encounter');
         showEncounter(poke, true);
         if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
@@ -300,6 +377,8 @@ async function init() {
       }
     }
   }
+  // 孵化器 badge 初始同步（无 session 时也要同步，数据在 gameData 持久存档中）
+  updateIncubatorBadge();
 
   // 事件绑定 — 背包槽
   document.querySelectorAll('.bag-slot').forEach(slot => {
@@ -393,6 +472,7 @@ async function init() {
       gameData.stats.lastSaveTime = Date.now();
       try { localStorage.setItem('pokemon_idle_save', JSON.stringify(gameData)); } catch (_) {}
     }
+    try { localStorage.setItem('pokemon_idle_road', JSON.stringify({ roadIdx: _roadIdx })); } catch (_) {}
   });
 
   // 启动循环
@@ -402,6 +482,57 @@ async function init() {
   setTimeout(() => {
     if (allPokemon.length > 0) scheduleNextEncounter(5000);
   }, 2000);
+}
+
+// 根据遭遇日志重新计算图鉴数据，修复 session 还原导致的多余计数
+function fixPokedexFromLogs() {
+  if (!gameData || !gameData.pokedex) return;
+  const logs = gameData.encounterLogs || {};
+  let changed = false;
+
+  for (const [idxStr, entry] of Object.entries(gameData.pokedex)) {
+    const entryLogs = logs[idxStr];
+    if (!entryLogs || !Array.isArray(entryLogs) || entryLogs.length === 0) {
+      if (entry && (entry.seen > 0 || entry.caught > 0)) {
+        entry.seen = 0;
+        entry.caught = 0;
+        entry.shinySeen = 0;
+        entry.shinyCaught = 0;
+        entry.lastTime = null;
+        changed = true;
+      }
+      continue;
+    }
+
+    // 从日志重新统计
+    let seen = 0, caught = 0, shinySeen = 0, shinyCaught = 0;
+    let lastTime = null;
+    for (const log of entryLogs) {
+      if (!log || typeof log !== 'object') continue;
+      seen++;
+      if (log.shiny) shinySeen++;
+      if (log.result === 'caught') {
+        caught++;
+        if (log.shiny) shinyCaught++;
+      }
+      if (log.time && (!lastTime || log.time > lastTime)) lastTime = log.time;
+    }
+
+    if (entry.seen !== seen || entry.caught !== caught ||
+        entry.shinySeen !== shinySeen || entry.shinyCaught !== shinyCaught) {
+      entry.seen = seen;
+      entry.caught = caught;
+      entry.shinySeen = shinySeen;
+      entry.shinyCaught = shinyCaught;
+      entry.lastTime = lastTime ? new Date(lastTime).toISOString() : null;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    saveGame();
+    console.log('已根据遭遇日志修复图鉴数据');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

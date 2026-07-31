@@ -1,9 +1,9 @@
-﻿import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_ICONS, ITEM_RATES, CATCH_RATES, FLEE_CHANCE, SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView } from './state.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_ICONS, ITEM_RATES, CATCH_RATES, FLEE_CHANCE, SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX } from './config.js';
+import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
-import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
+import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch } from './battle.js';
 
 // ===== 数据统计视图 =====
 export function showDataView() {
@@ -62,6 +62,7 @@ export function showDataView() {
       <div class="stat-section">消耗统计</div>
       <div class="stat-row"><span>精灵球使用</span><span>${stats.totalBallsUsed}</span></div>
       <div class="stat-row"><span>蛋孵化</span><span>${stats.totalEggsHatched}</span></div>
+      <div class="stat-row"><span>蛋闪光</span><span>${stats.totalShinyEggsHatched}</span></div>
       <div class="stat-row"><span>平均球/遇敌</span><span>${totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0'}</span></div>
 
       <div class="stat-section">遇见排行</div>
@@ -332,6 +333,20 @@ export function toggleAutoCatchBall(ballType) {
 export function toggleShinyStop() {
   if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false };
   gameData.settings.shinyStop = !gameData.settings.shinyStop;
+  if (gameData.settings.shinyStop) {
+    gameData.settings.autoCatch = true;
+    // 刚开启闪光暂停 → 立即停下对当前闪光的自动丢球
+    if (currentIsShiny && phase === 'encounter') {
+      setAbortAutoCatch();
+      showView('encounterView');
+      $('fleeBtn').style.display = '';
+    }
+  } else {
+    // 刚关闭闪光暂停 → 如果当前是闪光立即开始捕捉
+    if (currentIsShiny && phase === 'encounter') {
+      import('./battle.js').then(m => m.autoCatch());
+    }
+  }
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
@@ -359,7 +374,8 @@ export function showTutorialView() {
     <p><b>逃跑</b>：丢球后宝可梦有 <b>${FLEE_CHANCE*100}%</b> 概率挣脱逃跑，也可主动点击<b>"逃跑"</b>按钮。</p>
     <p><b>糖果</b>：可兑换各种道具，在商店页面操作。</p>
     <p><b>甜甜蜜</b>：使用后 <b>1 分钟</b>内宝可梦会频繁出现，且稀有宝可梦出现概率提升。效果结束时若一次都没遇到则保底触发一次。可在设置中勾选自动续杯。</p>
-    <p><b>神秘蛋</b>：点击孵化随机获得一只宝可梦（无需丢球）。<b>1/${Math.round(1/SHINY_CHANCE)}</b> 概率出闪光。</p>
+    <p><b>神秘蛋</b>：点击打开<b>孵蛋器</b>，放入空闲槽位开始孵化。孵化时间由宝可梦的<b>体重</b>和<b>稀有度</b>决定（<b>10分钟~8小时</b>）。孵化完成后点击<b>孵化</b>按钮即可获得宝可梦。<b>1/${Math.round(1/SHINY_CHANCE)}</b> 概率出闪光。</p>
+    <p><b>孵蛋器槽位</b>：共 <b>8</b> 个槽位，全部需用<b>糖果</b>解锁，价格递增：100 → 200 → 400 → 800 → 1600 → 3200 → 6400 → 12800。</p>
     <p><b>闪耀护符</b>：价值 <b>${CANDY_EXCHANGE['shiny-charm']} 糖果</b>的珍稀道具。使用后 <b>60 秒</b>内快速遇敌（15~30秒一次），<b>80%</b> 为闪光 / <b>20%</b> 为未捕获品种，且稀有宝可梦出现概率大幅提升。效果结束时若一次都没遇到则保底触发一次。极小概率挂机捡到。</p>
     <p><b>闪光</b>：默认概率 <b>1/${Math.round(1/SHINY_CHANCE)}</b>，捕获后图鉴有特殊标记。使用闪耀护符可大量遇闪。</p>
     <p><b>图鉴详情</b>：点击图鉴条目查看详情。<b>未遇到过</b>显示"???"且不可点击；<b>遇到过未捕获</b>显示基础信息+完整日志；<b>已捕获</b>额外解锁精确数值、种族值条和图鉴描述。</p>

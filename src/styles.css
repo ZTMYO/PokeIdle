@@ -212,12 +212,9 @@ body { margin: 0; padding: 0; cursor: default; }
 .encounter-gif {
   position: absolute;
   left: 50%;
-  top: 30%;
-  width: 100px;
-  height: 100px;
-  object-fit: contain;
+  bottom: 42%;
+  transform: translateX(-50%);
   image-rendering: pixelated;
-  transform: translate(-50%, -50%);
   z-index: 1;
   user-select: none;
   pointer-events: none;
@@ -289,6 +286,19 @@ body { margin: 0; padding: 0; cursor: default; }
   text-align: right;
   white-space: nowrap;
   line-height: 1.4;
+}
+.encounter-new-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ui-color);
+  text-align: right;
+  white-space: nowrap;
+  line-height: 1.4;
+  animation: pulseNew 1.2s ease-in-out infinite;
+}
+@keyframes pulseNew {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* === 底部文字框（GBA 宝可梦风格） === */
@@ -480,6 +490,148 @@ body { margin: 0; padding: 0; cursor: default; }
   line-height: 1.2;
 }
 
+/* === 背包红点 badge === */
+.bag-slot { position: relative; }
+.bag-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  background: #e74c3c;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  z-index: 2;
+  box-shadow: 0 0 2px rgba(0,0,0,0.3);
+}
+
+/* === 孵蛋器 === */
+.incubator-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.04);
+  border-radius: 6px;
+  padding: 5px 4px;
+  min-height: 34px;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.incubator-egg-slot {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(var(--ui-color-rgb),0.25);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.03);
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+.incubator-egg-slot.has-egg {
+  border-color: var(--ui-color);
+  border-width: 1px;
+  border-style: solid;
+  cursor: default;
+}
+.incubator-egg-slot img {
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+}
+.incubator-egg-slot img.shake {
+  animation: incubatorShake 0.8s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+@keyframes incubatorShake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+.incubator-info {
+  flex: 1;
+  min-width: 0;
+}
+.incubator-name {
+  display: inline;
+  font-size: 10px;
+  color: var(--ui-color);
+  font-weight: 600;
+}
+.incubator-progress-wrap {
+  height: 10px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+.incubator-progress-fill {
+  height: 100%;
+  background: var(--ui-color);
+  border-radius: 5px;
+  transition: width 0.3s linear;
+}
+.incubator-progress-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: #fff;
+  font-weight: 700;
+}
+.incubator-hatch-text {
+  display: inline;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  cursor: pointer;
+  padding: 2px 6px;
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  user-select: none;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+.incubator-hatch-text:hover { background: rgba(var(--ui-color-rgb),0.12); }
+.incubator-hatch-text:active { transform: scale(0.92); }
+
+.incubator-empty-text {
+  font-size: 10px;
+  color: var(--ui-color);
+  text-align: center;
+  padding: 16px 0;
+  grid-column: 1 / -1;
+}
+
+/* 锁定槽位 */
+.incubator-row.locked { cursor: default; position: relative; }
+.incubator-row.locked .incubator-hatch-text { margin-left: auto; margin-right: 4px; }
+.incubator-hatch-text.hatched { margin-left: auto; margin-right: 4px; }
+.incubator-lock-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 16px;
+  color: var(--color-muted);
+}
+.incubator-lock-info {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  color: var(--ui-color);
+  line-height: 1.4;
+  font-weight: 600;
+}
+.incubator-lock-cost {
+  font-weight: 700;
+  color: var(--ui-color);
+  font-size: 9px;
+}
+
 .stats-bar {
   display: flex;
   justify-content: space-between;
@@ -618,10 +770,10 @@ body { margin: 0; padding: 0; cursor: default; }
   transform-origin: bottom center;
 }
 @keyframes eggShake {
-  0%, 100% { transform: translate(-50%,-50%) rotate(0deg); }
-  25% { transform: translate(-50%,-50%) rotate(-5deg); }
-  50% { transform: translate(-50%,-50%) rotate(5deg); }
-  75% { transform: translate(-50%,-50%) rotate(-3deg); }
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  25% { transform: translateX(-50%) rotate(-5deg); }
+  50% { transform: translateX(-50%) rotate(5deg); }
+  75% { transform: translateX(-50%) rotate(-3deg); }
 }
 
 /* 孵化出现动画：从蛋中心放大 */
@@ -1025,6 +1177,11 @@ body { margin: 0; padding: 0; cursor: default; }
   0%   { background: rgba(var(--ui-color-rgb),0.25); }
   100% { background: transparent; }
 }
+@keyframes fadeOut {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
 .pokedex-entry.flash {
   animation: searchFlash 1s ease-out 2;
 }
@@ -1071,25 +1228,30 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 11px;
   color: var(--ui-color);
 }
+#incubatorView, #incubatorList { user-select: none; }
+
 #shopView::-webkit-scrollbar,
 #dataView::-webkit-scrollbar,
 #tutorialView::-webkit-scrollbar,
 #settingsView::-webkit-scrollbar,
-#systemLogView::-webkit-scrollbar {
+#systemLogView::-webkit-scrollbar,
+#incubatorView::-webkit-scrollbar {
   width: 4px;
 }
 #shopView::-webkit-scrollbar-track,
 #dataView::-webkit-scrollbar-track,
 #tutorialView::-webkit-scrollbar-track,
 #settingsView::-webkit-scrollbar-track,
-#systemLogView::-webkit-scrollbar-track {
+#systemLogView::-webkit-scrollbar-track,
+#incubatorView::-webkit-scrollbar-track {
   background: transparent;
 }
 #shopView::-webkit-scrollbar-thumb,
 #dataView::-webkit-scrollbar-thumb,
 #tutorialView::-webkit-scrollbar-thumb,
 #settingsView::-webkit-scrollbar-thumb,
-#systemLogView::-webkit-scrollbar-thumb {
+#systemLogView::-webkit-scrollbar-thumb,
+#incubatorView::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb),0.3);
   border-radius: 2px;
 }

@@ -1,6 +1,6 @@
-﻿// ===== UI 管理 =====
-import { phase, currentEncounter, currentIsShiny, _autoCatching, gameData } from './state.js';
-import { formatNum, formatTime, getCurrentRegion } from './state.js';
+// ===== UI 管理 =====
+import { phase, currentEncounter, currentIsShiny, gameData, saveGame } from './state.js';
+import { formatNum, formatTime, getCurrentRegion, anyIncubatorReady, getIncubatorUnlockCost } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN } from './config.js';
 import * as road from './road.js';
 
@@ -12,17 +12,34 @@ export function showView(id) {
   if (id === 'idleView' && phase === 'encounter') {
     id = 'encounterView';
   }
-  const views = ['idleView','pokedexView','encounterView','dataView','shopView','settingsView','tutorialView','systemLogView'];
+  const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
+  const views = ['idleView','pokedexView','encounterView','dataView','shopView','settingsView','tutorialView','systemLogView','incubatorView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
+  // 从非游戏页（图鉴/商店等）切回游戏页时，同步当前遭遇画面
+  // （后台自动捕捉可能已推进到新遭遇，需刷新图片/文案/标签）
+  if (!wasOnGameView && (id === 'idleView' || id === 'encounterView') && phase === 'encounter' && currentEncounter) {
+    setTimeout(() => {
+      import('./battle.js').then(m => {
+        m.renderEncounterScene(currentEncounter);
+        // 若自动捕捉开启且未在运行，回到游戏页时重新接管（闪光暂停时交给用户手动）
+        if (gameData.settings?.autoCatch && !(currentIsShiny && gameData.settings?.shinyStop)) {
+          m.autoCatch();
+        } else if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
+          m.startAutoFleeTimer();
+        }
+      });
+    }, 0);
+  }
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.view === id);
   });
-  // 回到首页时刷新角色精灵
+  // 回到首页时刷新角色精灵 + 道路尺寸
   if (id === 'idleView') {
     setIdleCharacter('walk');
+    road.refreshSize();
   }
 
   if (id !== 'encounterView') {
@@ -37,29 +54,16 @@ export function showView(id) {
       box.style.transform = 'translateY(0)';
     }
     $('fleeBtn').style.display = '';
-    // 加载宝可梦图片
-    const gif = $('encounterGif');
-    if (gif && !gif.getAttribute('src')) {
-      const poke = currentEncounter;
-      const shinySuffix = currentIsShiny ? '_shiny' : '';
-      tryLoadPokemonImage(gif, poke, shinySuffix);
-      updateTextBox(currentIsShiny ? '野生的 闪光' + poke.name + ' 跳出来了！' : '野生的 ' + poke.name + ' 跳出来了！', false);
-      if (currentIsShiny) {
-        tryLoadPokemonImage(gif, poke, shinySuffix).then(() => {
-          import('./animation.js').then(m => setTimeout(m.playShinySparkle, 200));
-        });
-      }
-      if (gameData?.settings?.autoCatch && !_autoCatching) {
-        import('./battle.js').then(m => setTimeout(m.autoCatch, 600));
-      }
-    }
+    // 防止 display:none→flex 导致 CSS animation 重播丢球动画
+    const tc = $('animThrowChar');
+    if (tc) tc.classList.remove('throwing');
   }
   const title = $('appTitle');
   if (id === 'idleView' || id === 'encounterView') {
     title.innerHTML = '宝可梦挂机';
     title.dataset.action = '';
   } else {
-    const names = { pokedexView:'图鉴', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', systemLogView:'系统日志' };
+    const names = { pokedexView:'图鉴', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', systemLogView:'系统日志', incubatorView:'孵蛋器' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -169,22 +173,11 @@ export function setIdleCharacter(state, itemKey) {
 
 // ---------- 图片尺寸自适应 ----------
 export function fitPokemonImage(img) {
+  // 保持自然尺寸，不做缩放
   if (!img || !img.naturalWidth || !img.naturalHeight) return;
-  const nw = img.naturalWidth, nh = img.naturalHeight;
-  const maxSize = 100, minSize = 80;
-  const longSide = Math.max(nw, nh);
-  let displaySize;
-  if (longSide <= 40) displaySize = minSize;
-  else if (longSide >= 200) displaySize = maxSize;
-  else displaySize = minSize + (maxSize - minSize) * ((longSide - 40) / 160);
-  const aspect = nw / nh;
-  if (aspect >= 1) {
-    img.style.width = Math.round(displaySize) + 'px';
-    img.style.height = Math.round(displaySize / aspect) + 'px';
-  } else {
-    img.style.width = Math.round(displaySize * aspect) + 'px';
-    img.style.height = Math.round(displaySize) + 'px';
-  }
+  img.style.width = '';
+  img.style.height = '';
+  img.style.objectFit = '';
 }
 
 // ---------- 图片加载 ----------
@@ -303,4 +296,108 @@ export function updateStats() {
       autoEl.style.display = 'none';
     }
   }
+}
+
+// ---------- 孵蛋器红点 ----------
+let _prevIncubatorReady = false;
+export function updateIncubatorBadge() {
+  const ready = anyIncubatorReady();
+  if (ready !== _prevIncubatorReady) {
+    _prevIncubatorReady = ready;
+    const badge = $('bag-badge-egg');
+    if (badge) badge.style.display = ready ? '' : 'none';
+  }
+}
+
+// ---------- 孵蛋器视图渲染 ----------
+export function renderIncubatorView() {
+  const list = $('incubatorList');
+  if (!list) return;
+  const incubators = gameData.incubators || [];
+  if (!incubators.length) return;
+  const unlocked = gameData.incubatorUnlockedSlots ?? 0;
+  let html = '';
+  for (let i = 0; i < Math.min(incubators.length, 8); i++) {
+    const s = incubators[i];
+    const isUnlocked = i < unlocked;
+    const hasEgg = s && s.eggIndex != null;
+    if (!isUnlocked && !hasEgg) {
+      // 锁定且无蛋 → 显示解锁 UI
+      const cost = getIncubatorUnlockCost(i);
+      const canAfford = (gameData.items['candy'] || 0) >= cost;
+      html += `<div class="incubator-row locked" data-unlock="${i}">
+        <div class="incubator-lock-icon"><img src="./items/candy.png" style="width:18px;height:18px;image-rendering:pixelated;opacity:0.5;" /><span class="incubator-lock-cost">×${cost}</span></div>
+        <span class="incubator-hatch-text" data-unlock="${i}">解锁</span>
+      </div>`;
+      continue;
+    }
+    if (s && s.hatched) {
+      html += `<div class="incubator-row">
+        <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
+        <div class="incubator-info"><div class="incubator-name">蛋</div></div>
+        <span class="incubator-hatch-text hatched" data-slot="${i}">孵化</span>
+      </div>`;
+    } else if (hasEgg) {
+      // 孵化中 → 进度条
+      const elapsed = Date.now() - s.hatchStart;
+      // 兜底：超时、hatchStart 无效（NaN）、hatchDuration 不合法 → 强制标记孵化
+      const elapsedValid = !isNaN(elapsed) && elapsed >= 0;
+      const shouldBeReady = (!elapsedValid || (elapsed >= s.hatchDuration)) && !s.hatched;
+      if (shouldBeReady) {
+        s.hatched = true;
+        saveGame();
+        updateIncubatorBadge();
+      }
+      if (s.hatched) {
+        html += `<div class="incubator-row">
+          <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
+          <div class="incubator-info"><div class="incubator-name">蛋</div></div>
+          <span class="incubator-hatch-text hatched" data-slot="${i}">孵化</span>
+        </div>`;
+        continue;
+      }
+      const pct = Math.min(100, Math.floor(elapsed / s.hatchDuration * 100));const remain = Math.max(0, Math.ceil((s.hatchDuration - elapsed) / 1000));
+      const h = Math.floor(remain / 3600), m = Math.floor((remain % 3600) / 60), sec = remain % 60;
+      const timeStr = h > 0 ? `${h}小时${m}分` : (m > 0 ? `${m}分${sec}秒` : `${sec}秒`);
+      html += `<div class="incubator-row">
+        <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" /></div>
+        <div class="incubator-info">
+          <div class="incubator-name">蛋</div>
+          <div class="incubator-progress-wrap">
+            <div class="incubator-progress-fill" style="width:${pct}%"></div>
+            <div class="incubator-progress-text">${timeStr}</div>
+          </div>
+        </div>
+      </div>`;
+    } else {
+      const canPlace = (gameData.items['mystery-egg'] || 0) > 0;
+      html += `<div class="incubator-row">
+        <div class="incubator-egg-slot" data-empty="${i}" style="${canPlace ? 'cursor:pointer;' : ''}">${canPlace ? '<span style="font-size:14px;color:var(--ui-color);">+</span>' : ''}</div>
+        <div class="incubator-info"><div class="incubator-name">空孵蛋器</div></div>
+      </div>`;
+    }
+  }
+  const anyHasEgg = incubators.some(s => s && s.eggIndex != null);
+  if (!anyHasEgg && !(gameData.items['mystery-egg'] || 0)) {
+    html += `<div class="incubator-empty-text">背包里没有神秘蛋</div>`;
+  }
+  list.innerHTML = html;
+  list.querySelectorAll('.incubator-hatch-text.hatched').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const slot = parseInt(btn.dataset.slot);
+      import('./items.js').then(m => m.hatchFromIncubator(slot));
+    });
+  });
+  list.querySelectorAll('.incubator-egg-slot[data-empty]').forEach(el => {
+    el.addEventListener('click', () => {
+      const slot = parseInt(el.dataset.empty);
+      import('./items.js').then(m => m.placeEggInIncubator(slot));
+    });
+  });
+  list.querySelectorAll('.incubator-hatch-text[data-unlock]').forEach(el => {
+    el.addEventListener('click', () => {
+      const slot = parseInt(el.dataset.unlock);
+      import('./items.js').then(m => m.unlockIncubatorSlot(slot));
+    });
+  });
 }

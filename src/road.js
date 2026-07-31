@@ -21,7 +21,7 @@ let patternWidth = 0;
 
 let _cycles = 0;
 let _prevScrollX = 0;
-
+let _scrollFraction = 0;
 // 过渡状态：新道路从右侧滑入
 let _transition = null; // { tiles, width, height, patternWidth, roadHeight, remaining }
 
@@ -52,6 +52,7 @@ function _drawPatternData(offsetX, pd) {
   if (!tiles || tiles.length === 0) return;
   const rows = tiles.length;
   const cols = tiles[0].length;
+  // 使用 float offsetX 直接绘制，imageSmoothingEnabled=false 下浏览器会 floor 坐标
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const tile = tiles[r][c];
@@ -68,37 +69,64 @@ function _frame() {
   ctx.clearRect(0, 0, containerWidth, roadHeight);
 
   if (_transition) {
-    // 过渡中：只用 remaining 控制滑动，scrollX 保持不变
+    // 过渡中：先递减 remaining，再绘制，确保连续性
     // 旧道路从当前位置向左滑出一个屏幕宽度
     // 新道路从容器右边缘滑入到正常位置（offset = 0）
+    _transition.remaining -= speed;
+
     const oldPw = patternWidth;
     const newPw = _transition.patternWidth;
+    const cut = Math.max(0, _transition.remaining);
 
-    const oldOffset = -scrollX - (containerWidth - _transition.remaining);
+    // 调整 oldOffset 使旧道路的瓦片边界落在 cut 上，消除分界处的半个瓦片
+    // rawOldOffset - cut = -(savedScrollX + savedFraction + containerWidth) 为恒定值
+    // → adjust 整个过渡期间不变 → 不产生跳跃
+    const rawOldOffset = -_transition.savedScrollX - _transition.savedFraction - (containerWidth - cut);
+    const adjust = ((rawOldOffset - cut) % TILE + TILE) % TILE;
+    const oldOffset = rawOldOffset - adjust;
+
+    // 旧道路：clip [0, cut)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, cut, roadHeight);
+    ctx.clip();
     const oldCopies = Math.ceil((containerWidth + speed) / oldPw) + 2;
     for (let i = 0; i < oldCopies; i++) {
       _drawPatternData(oldOffset + i * oldPw, pattern);
     }
+    ctx.restore();
 
-    const newCopies = Math.ceil((containerWidth + _transition.remaining + speed) / newPw) + 2;
+    // 新道路：只在 [cut, containerWidth) 范围内绘制，不侵犯左侧
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cut, 0, containerWidth - cut, roadHeight);
+    ctx.clip();
+    const newCopies = Math.ceil((containerWidth + cut + speed) / newPw) + 2;
     for (let i = 0; i < newCopies; i++) {
-      _drawPatternData(_transition.remaining + i * newPw, _transition.pattern);
+      _drawPatternData(cut + i * newPw, _transition.pattern);
     }
 
-    _transition.remaining -= speed;
+    ctx.restore();
 
     if (_transition.remaining <= 0) {
-      // 过渡完成，切到新道路
+      // 过渡完成，切到新道路。小数部分移入 _scrollFraction 保持连续
       pattern = _transition.pattern;
       patternWidth = newPw;
       roadHeight = _transition.roadHeight;
-      scrollX = 0;
+      _scrollFraction += -_transition.remaining;
+      scrollX = Math.floor(_scrollFraction);
+      _scrollFraction -= scrollX;
       _transition = null;
       _cycles = 0;
     }
   } else {
-    // 正常渲染
-    scrollX += speed;
+    // 正常渲染：整数步进，消除子像素"半个tile"
+    _scrollFraction += speed;
+    const step = Math.floor(_scrollFraction);
+    if (step !== 0) {
+      _scrollFraction -= step;
+      scrollX += step;
+    }
 
     const copies = Math.ceil(containerWidth / patternWidth) + 1;
     for (let i = 0; i < copies; i++) {
@@ -145,13 +173,21 @@ function _optimizeTiling(tiles) {
   });
 }
 
+// 固定预设如果 tiles 比 width 短，循环重复原图案
+function _expandFixedTiles(tiles, targetWidth) {
+  if (!tiles || !tiles[0] || tiles[0].length >= targetWidth) return tiles;
+  const srcLen = tiles[0].length;
+  return tiles.map(row =>
+    Array.from({ length: targetWidth }, (_, i) => ({ ...row[i % srcLen] }))
+  );
+}
+
 export function load(data) {
-  pattern = {
-    width: data.width,
-    height: data.height,
-    tiles: _optimizeTiling(data.tiles),
-  };
-  patternWidth = (pattern.tiles[0]?.length || data.width) * TILE;
+  // 先优化原始 tiles（让首尾一致形成无缝），再展开重复
+  const optimized = _optimizeTiling(data.tiles || []);
+  const tiles = _expandFixedTiles(optimized, data.width);
+  pattern = { width: data.width, height: data.height, tiles };
+  patternWidth = (tiles[0]?.length || data.width) * TILE;
   roadHeight = data.height * TILE;
 }
 
@@ -173,7 +209,8 @@ export function loadProb(probData) {
 
 /** 开始过渡：当前道路滑出，新道路滑入 */
 export function transitionTo(data) {
-  const newTiles = _optimizeTiling(data.tiles);
+  const optimized = _optimizeTiling(data.tiles || []);
+  const newTiles = _expandFixedTiles(optimized, data.width);
   if (!newTiles || newTiles.length === 0) return;
 
   // 如果在过渡中，先完成过渡
@@ -189,6 +226,8 @@ export function transitionTo(data) {
     patternWidth: newPw,
     roadHeight: data.height * TILE,
     remaining: containerWidth,
+    savedScrollX: scrollX,
+    savedFraction: _scrollFraction,
   };
 }
 
@@ -265,6 +304,7 @@ export function stop() {
   }
   scrollX = 0;
   _transition = null;
+  _scrollFraction = 0;
   window.removeEventListener('resize', _resize);
 }
 
@@ -300,11 +340,12 @@ export function isTransitioning() {
   return _transition !== null;
 }
 
-export function getCycleCount() {
-  return _cycles;
-}
+export function getCycles() { return _cycles; }
+export function resetScroll() { scrollX = 0; _cycles = 0; _scrollFraction = 0; }
+/** 视图切回时重新计算 canvas 尺寸 */
+export function refreshSize() { _resize(); }
 
-export function resetCycleCount() {
-  _cycles = 0;
-  _prevScrollX = 0;
-}
+// ---- 道路地点标签（用于道具拾取文案）----
+let _currentPlace = '';
+export function setPlace(place) { _currentPlace = place || ''; }
+export function getPlace() { return _currentPlace; }

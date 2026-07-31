@@ -324,7 +324,7 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   if ((items['candy']||0) > 0) msgs.push(`攒了${items['candy']}颗糖果，去商店看看有什么好东西吧！`);
   if ((items['candy']||0) >= 100) msgs.push(`糖果已经${items['candy']}颗了，兑换一些精灵球如何？`);
   if ((items['sweet-honey']||0) > 0) msgs.push(`甜甜蜜还剩${items['sweet-honey']}瓶，涂上它会更容易遇到宝可梦！`);
-  if ((items['mystery-egg']||0) > 0) msgs.push(`神秘蛋×${items['mystery-egg']}，点击孵化看看是什么宝可梦！`);
+  if ((items['mystery-egg']||0) > 0) msgs.push(`神秘蛋×${items['mystery-egg']}，孵化看看是什么宝可梦！`);
   if ((items['mystery-egg']||0) >= 5) msgs.push(`攒了${items['mystery-egg']}颗蛋了，来一次批量孵化吧！`);
   if ((items['shiny-charm']||0) > 0) msgs.push(`闪耀护符×${items['shiny-charm']}，价值不菲的珍稀道具！`);
   if ((items['shiny-charm']||0) > 0) msgs.push('闪耀护符可以提升遇见闪光宝可梦的几率！');
@@ -338,7 +338,7 @@ export function rotateIdleMessage() {
   if (phase !== 'idle') return;
   if (charmBuffActive) {
     const msgs = [
-      '✦ 闪耀护符的光芒照亮了草丛...',
+      '✦ 闪耀护符的光芒照亮了天空...',
       '✦ 前方似乎有稀有的气息...',
       '✦ 奇迹随时可能发生...',
       '✦ 闪耀护符在微微发烫！',
@@ -379,11 +379,11 @@ export function rotateIdleMessage() {
   }
 }
 
-export function showIdlePickup(itemName) {
-  const place = PICKUP_PLACES[randInt(0, PICKUP_PLACES.length - 1)];
+export function showIdlePickup(itemName, place) {
+  const loc = place || PICKUP_PLACES[randInt(0, PICKUP_PLACES.length - 1)];
   const action = PICKUP_ACTIONS[randInt(0, PICKUP_ACTIONS.length - 1)];
   const result = PICKUP_RESULTS[randInt(0, PICKUP_RESULTS.length - 1)];
-  $('idleText').textContent = `${place}${action}，${result}${itemName}！`;
+  $('idleText').textContent = `${loc}${action}，${result}${itemName}！`;
   // 重置轮播间隔，道具文案展示 10 秒后自然过渡到下一条
   if (_idleMsgTimer) {
     clearInterval(_idleMsgTimer);

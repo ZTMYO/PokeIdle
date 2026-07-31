@@ -97,6 +97,36 @@ export function setCharmExpiryTimer(t) { charmExpiryTimer = t; }
 export function setHoneyCountdownInterval(i) { honeyCountdownInterval = i; }
 export function setCharmCountdownInterval(i) { charmCountdownInterval = i; }
 
+// ---------- 孵化时间计算 ----------
+export function calcHatchDuration(poke) {
+  const w = Math.min((poke.weight || 100) / 5000, 1); // 重量 0~1
+  const r = poke.rarity || 0.5;                       // 稀有度 0~1
+  const factor = Math.min(w * 0.6 + r * 0.4, 1);       // 综合因子 0~1
+  const minTime = 600;                                 // 最短 10 分钟
+  const maxTime = 28800;                               // 最长 8 小时
+  const ratio = maxTime / minTime;                     // 48 倍
+  const time = minTime * Math.pow(ratio, factor);      // 指数增长
+  const randomized = time + (Math.random() - 0.5) * time * 0.4; // ±20%
+  return Math.round(Math.max(minTime, randomized)) * 1000;
+}
+
+// 空孵蛋器
+export function emptyIncubator() {
+  return { eggIndex: null, name: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
+}
+
+// 孵蛋器解锁糖果价格（槽位 0~7，全部需购买，价格递增）
+export function getIncubatorUnlockCost(slotIndex) {
+  const costs = [100, 200, 400, 800, 1600, 3200, 6400, 12800];
+  return costs[slotIndex] ?? 0;
+}
+
+// 是否有任一孵蛋器已孵化
+export function anyIncubatorReady() {
+  if (!gameData) return false;
+  return (gameData.incubators || []).some(s => s && s.hatched);
+}
+
 // ---------- 存档默认值 ----------
 export function getDefaultSave() {
   return {
@@ -104,9 +134,11 @@ export function getDefaultSave() {
     stats: {
       totalPlaySeconds:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
-      totalBallsUsed:0, totalEggsHatched:0,
+      totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0,
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     },
+    incubators: Array.from({length: 8}, () => emptyIncubator()),
+    incubatorUnlockedSlots: 0,
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
@@ -134,6 +166,7 @@ export function cleanSaveData(data) {
 export function ensureStats(stats) {
   if (typeof stats.totalBallsUsed !== 'number') stats.totalBallsUsed = 0;
   if (typeof stats.totalEggsHatched !== 'number') stats.totalEggsHatched = 0;
+  if (typeof stats.totalShinyEggsHatched !== 'number') stats.totalShinyEggsHatched = 0;
   if (!stats.totalItemsEarned) {
     stats.totalItemsEarned = { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 };
   }
@@ -269,6 +302,18 @@ export function ensureGameData(data) {
   }
   if (!data.pokedex) data.pokedex = {};
   if (!data.encounterLogs) data.encounterLogs = {};
+  if (!data.incubators || !Array.isArray(data.incubators) || data.incubators.length !== 8) {
+    data.incubators = Array.from({length: 8}, () => emptyIncubator());
+  } else {
+    data.incubators = data.incubators.map(s => s && typeof s === 'object' ? { ...emptyIncubator(), ...s } : emptyIncubator());
+  }
+  if (typeof data.incubatorUnlockedSlots !== 'number' || data.incubatorUnlockedSlots < 0) {
+    data.incubatorUnlockedSlots = 0;
+  }
+  // 迁移旧存档：之前默认 4 个免费槽，现在全部需解锁
+  if (data.incubatorUnlockedSlots === 4 && data.incubators) {
+    data.incubatorUnlockedSlots = 0;
+  }
   if (!data.settings) data.settings = { ...def.settings };
   if (typeof data.settings.windowPinned !== 'boolean') data.settings.windowPinned = false;
   if (!data.settings.autoCatchBalls) data.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };

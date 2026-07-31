@@ -1,680 +1,1065 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>道路编辑器</title>
-<style>
-:root {
-  --body: #e8dcc0;
-  --panel: #dbcfb0;
-  --bg: #d0c4a4;
-  --screen: #73c5a4;
-  --screen-dark: #4c8d73;
-  --accent: #3a775e;
-  --accent-light: #5a9a7e;
-  --text: #1f1f1f;
-  --text-muted: #7c7c7c;
-  --border: #c4b692;
-  --shadow: #b8a88a;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'Courier New', 'Segoe UI', monospace;
-  background: var(--body); color: var(--text);
-  height: 100vh; display: flex; flex-direction: column;
-  user-select: none; font-size: 13px;
-}
-/* === 标题栏 === */
-.title-bar {
-  height: 36px; display: flex; align-items: center;
-  padding: 0 12px; background: var(--body);
-  border-bottom: 2px solid var(--border); flex-shrink: 0;
-  gap: 8px;
-}
-.title-bar h1 {
-  font-size: 15px; font-weight: 700; color: var(--accent);
-  letter-spacing: 1px;
-}
-.title-bar .info {
-  margin-left: auto; font-size: 11px; color: var(--text-muted);
-}
-/* === 工具栏 === */
-.toolbar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 12px; background: var(--panel);
-  border-bottom: 2px solid var(--border); flex-shrink: 0;
-}
-.toolbar label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-.toolbar input {
-  width: 50px; padding: 2px 4px; background: #fff;
-  border: 2px solid var(--screen-dark); color: var(--text);
-  border-radius: 0; text-align: center;
-  font-family: inherit; font-size: 12px;
-}
-/* === 按钮（GBA 风格） === */
-.btn {
-  padding: 4px 12px; background: var(--accent); border: none;
-  color: #f0f0e0; font-family: inherit; font-size: 11px;
-  font-weight: 700; cursor: pointer; letter-spacing: 0.5px;
-  border-radius: 0; transition: none;
-  border-bottom: 2px solid #1f4f3c;
-}
-.btn:hover { background: var(--accent-light); }
-.btn:active { border-bottom-width: 0; margin-top: 2px; }
-.btn-sm { padding: 2px 8px; font-size: 10px; }
-.btn-sec { background: #c4b692; color: var(--text); border-bottom-color: #a89a7a; }
-.btn-sec:hover { background: #d4c8a8; }
-.btn-active { background: #e94560; border-bottom-color: #b0304a; }
-.btn-active:hover { background: #d04050; }
-/* === 预置模板 === */
-.presets { display: flex; gap: 3px; margin-left: 4px; }
-/* === 主区域：左右分栏 === */
-.main { display: flex; flex: 1; min-height: 0; }
-/* === 左侧：道路编辑 === */
-.editor-area { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.screen-panel {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  background: var(--bg); padding: 12px; overflow: auto; min-height: 0;
-}
-.road-grid {
-  display: grid; gap: 1px; background: var(--screen-dark);
-}
-.road-cell {
-  width: 32px; height: 32px;
-  background-image: url('../src/img/terrain-tileset.png');
-  background-size: 2816px 2208px;
-  image-rendering: pixelated; cursor: pointer;
-  background-color: var(--screen);
-  border: 1px solid rgba(0,0,0,0.08);
-  position: relative;
-}
-.road-cell:hover { border-color: var(--accent) !important; z-index: 1; }
-.road-cell:hover::after {
-  content: attr(data-coord);
-  position: absolute; bottom: 0; right: 1px;
-  font-size: 7px; color: #fff;
-  background: rgba(0,0,0,0.55); padding: 0 2px; line-height: 1;
-}
-/* === 道路控制栏 === */
-.road-controls {
-  display: flex; align-items: center; gap: 6px;
-  margin-top: 10px; flex-wrap: wrap; justify-content: center;
-}
-.road-controls .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-.road-controls .label { font-size: 10px; color: var(--text-muted); }
-/* === 右侧：实时预览面板 === */
-.preview-panel {
-  width: 280px; flex-shrink: 0; display: flex; flex-direction: column;
-  background: var(--panel); border-left: 2px solid var(--border);
-}
-.preview-title {
-  padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--accent);
-  background: var(--body); border-bottom: 1px solid var(--border);
-  text-align: center; letter-spacing: 1px;
-}
-.preview-screen {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  background: transparent; padding: 0;
-}
-.preview-frame {
-  position: relative; overflow: hidden;
-}
-#previewCanvas { display: block; image-rendering: pixelated; }
-/* Brendan 覆盖在 Canvas 上 */
-.preview-brendan {
-  position: absolute; bottom: 28px; left: 30%;
-  image-rendering: pixelated; pointer-events: none; z-index: 10;
-  transform: translateX(-50%);
-}
-.preview-brendan.walk {
-  width: 28px; height: 42px;
-  background-image: url('../src/character/brendan-walk-right.png');
-  background-size: 112px 42px;
-  animation: pWalk 0.6s steps(1) infinite;
-}
-.preview-brendan.run {
-  width: 28px; height: 40px;
-  background-image: url('../src/character/brendan-run-right.png');
-  background-size: 112px 40px;
-  animation: pRun 0.45s steps(1) infinite;
-}
-@keyframes pWalk {
-  0%   { background-position: 0px 0; }
-  25%  { background-position: 0px 0; }
-  25.01% { background-position: -28px 0; }
-  50%  { background-position: -28px 0; }
-  50.01% { background-position: -56px 0; }
-  75%  { background-position: -56px 0; }
-  75.01% { background-position: -84px 0; }
-  100% { background-position: -84px 0; }
-}
-@keyframes pRun {
-  0%   { background-position: 0px 0; }
-  25%  { background-position: 0px 0; }
-  25.01% { background-position: -28px 0; }
-  50%  { background-position: -28px 0; }
-  50.01% { background-position: -56px 0; }
-  75%  { background-position: -56px 0; }
-  75.01% { background-position: -84px 0; }
-  100% { background-position: -84px 0; }
-}
-/* 预览控制栏 */
-.preview-controls {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px; background: var(--body);
-  border-top: 1px solid var(--border); justify-content: center;
-}
-.preview-controls .psep { width: 1px; height: 16px; background: var(--border); }
-/* === 瓦片面板 === */
-.palette-panel {
-  flex-shrink: 0; background: var(--panel);
-  border-top: 2px solid var(--border);
-}
-.palette-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 12px; background: var(--body);
-  border-bottom: 1px solid var(--border);
-}
-.palette-header h2 { font-size: 12px; color: var(--accent); }
-.palette-scroll { overflow: auto; padding: 6px 8px; max-height: 280px; }
-.palette-canvas { image-rendering: pixelated; cursor: crosshair; display: block; }
-/* === 导出弹窗 === */
-.overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,0.5); z-index: 100;
-  align-items: center; justify-content: center;
-}
-.overlay.show { display: flex; }
-.modal {
-  background: var(--body); border: 3px solid var(--screen-dark);
-  border-radius: 8px; padding: 16px;
-  width: 520px; max-width: 90vw; max-height: 80vh;
-  display: flex; flex-direction: column;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-.modal h2 { font-size: 13px; margin-bottom: 8px; color: var(--accent); }
-.modal textarea {
-  flex: 1; min-height: 180px; background: #fff;
-  border: 2px solid var(--border); color: var(--text);
-  font-family: 'Courier New', monospace; font-size: 11px;
-  padding: 8px; border-radius: 0; resize: vertical;
-}
-.modal .btn-row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
-/* 滚动条 */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--panel); }
-::-webkit-scrollbar-thumb { background: var(--border); }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>道路编辑器</title>
+  <style>
+    :root {
+      --body: #e8dcc0;
+      --panel: #dbcfb0;
+      --bg: #d0c4a4;
+      --screen: #73c5a4;
+      --screen-dark: #4c8d73;
+      --accent: #3a775e;
+      --accent-light: #5a9a7e;
+      --text: #1f1f1f;
+      --text-muted: #7c7c7c;
+      --border: #c4b692;
+      --shadow: #b8a88a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Courier New', 'Segoe UI', monospace;
+      background: var(--body);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      font-size: 13px;
+    }
+
+    /* === 标题栏 === */
+    .title-bar {
+      min-height: 36px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 4px 12px;
+      background: var(--body);
+      border-bottom: 2px solid var(--border);
+      flex-shrink: 0;
+      gap: 4px 8px;
+    }
+
+    .title-bar h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    .title-bar .info {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* === 工具栏 === */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--panel);
+      border-bottom: 2px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .toolbar label {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .toolbar input {
+      width: 50px;
+      padding: 2px 4px;
+      background: #fff;
+      border: 2px solid var(--screen-dark);
+      color: var(--text);
+      border-radius: 0;
+      text-align: center;
+      font-family: inherit;
+      font-size: 12px;
+    }
+
+    /* === 按钮（GBA 风格） === */
+    .btn {
+      padding: 4px 12px;
+      background: var(--accent);
+      border: none;
+      color: #f0f0e0;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      border-radius: 0;
+      transition: none;
+      border-bottom: 2px solid #1f4f3c;
+    }
+
+    .btn:hover {
+      background: var(--accent-light);
+    }
+
+    .btn:active {
+      border-bottom-width: 0;
+      margin-top: 2px;
+    }
+
+    .btn-sm {
+      padding: 2px 8px;
+      font-size: 10px;
+    }
+
+    .btn-sec {
+      background: #c4b692;
+      color: var(--text);
+      border-bottom-color: #a89a7a;
+    }
+
+    .btn-sec:hover {
+      background: #d4c8a8;
+    }
+
+    .btn-active {
+      background: #e94560;
+      border-bottom-color: #b0304a;
+    }
+
+    .btn-active:hover {
+      background: #d04050;
+    }
+
+    /* === 预置模板 === */
+    .presets {
+      display: flex;
+      gap: 3px;
+      margin-left: 4px;
+    }
+
+    /* === 主区域：左右分栏 === */
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* === 左侧：道路编辑 === */
+    .editor-area {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .screen-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      padding: 12px;
+      overflow: auto;
+      min-height: 0;
+    }
+
+    .road-grid {
+      display: grid;
+      gap: 1px;
+      background: var(--screen-dark);
+    }
+
+    .road-cell {
+      width: 32px;
+      height: 32px;
+      background-image: url('./terrain-tileset.png');
+      background-size: 2816px 2208px;
+      image-rendering: pixelated;
+      cursor: pointer;
+      background-color: var(--screen);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      position: relative;
+    }
+
+    .road-cell:hover {
+      border-color: var(--accent) !important;
+      z-index: 1;
+    }
+
+    .road-cell:hover::after {
+      content: attr(data-coord);
+      position: absolute;
+      bottom: 0;
+      right: 1px;
+      font-size: 7px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 0 2px;
+      line-height: 1;
+    }
+
+    /* === 道路控制栏 === */
+    .road-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .road-controls .sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    .road-controls .label {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* === 右侧：实时预览面板 === */
+    .preview-panel {
+      width: 280px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border-left: 2px solid var(--border);
+    }
+
+    .preview-title {
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--body);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .preview-screen {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      padding: 0;
+    }
+
+    .preview-frame {
+      position: relative;
+      overflow: hidden;
+    }
+
+    #previewCanvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    /* Brendan 覆盖在 Canvas 上 */
+    .preview-brendan {
+      position: absolute;
+      bottom: 28px;
+      left: 30%;
+      image-rendering: pixelated;
+      pointer-events: none;
+      z-index: 10;
+      transform: translateX(-50%);
+    }
+
+    .preview-brendan.walk {
+      width: 28px;
+      height: 42px;
+      background-image: url('./brendan-walk-right.png');
+      background-size: 112px 42px;
+      animation: pWalk 0.6s steps(1) infinite;
+    }
+
+    .preview-brendan.run {
+      width: 28px;
+      height: 40px;
+      background-image: url('./brendan-run-right.png');
+      background-size: 112px 40px;
+      animation: pRun 0.45s steps(1) infinite;
+    }
+
+    @keyframes pWalk {
+      0% {
+        background-position: 0px 0;
+      }
+
+      25% {
+        background-position: 0px 0;
+      }
+
+      25.01% {
+        background-position: -28px 0;
+      }
+
+      50% {
+        background-position: -28px 0;
+      }
+
+      50.01% {
+        background-position: -56px 0;
+      }
+
+      75% {
+        background-position: -56px 0;
+      }
+
+      75.01% {
+        background-position: -84px 0;
+      }
+
+      100% {
+        background-position: -84px 0;
+      }
+    }
+
+    @keyframes pRun {
+      0% {
+        background-position: 0px 0;
+      }
+
+      25% {
+        background-position: 0px 0;
+      }
+
+      25.01% {
+        background-position: -28px 0;
+      }
+
+      50% {
+        background-position: -28px 0;
+      }
+
+      50.01% {
+        background-position: -56px 0;
+      }
+
+      75% {
+        background-position: -56px 0;
+      }
+
+      75.01% {
+        background-position: -84px 0;
+      }
+
+      100% {
+        background-position: -84px 0;
+      }
+    }
+
+    /* 预览控制栏 */
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--body);
+      border-top: 1px solid var(--border);
+      justify-content: center;
+    }
+
+    .preview-controls .psep {
+      width: 1px;
+      height: 16px;
+      background: var(--border);
+    }
+
+    /* === 瓦片面板 === */
+    .palette-panel {
+      flex-shrink: 0;
+      background: var(--panel);
+      border-top: 2px solid var(--border);
+    }
+
+    .palette-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      background: var(--body);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .palette-header h2 {
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .palette-scroll {
+      overflow: auto;
+      padding: 6px 8px;
+      max-height: 280px;
+    }
+
+    .palette-canvas {
+      image-rendering: pixelated;
+      cursor: crosshair;
+      display: block;
+    }
+
+    /* === 导出弹窗 === */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--body);
+      border: 3px solid var(--screen-dark);
+      border-radius: 8px;
+      padding: 16px;
+      width: 520px;
+      max-width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal h2 {
+      font-size: 13px;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+
+    .modal textarea {
+      flex: 1;
+      min-height: 180px;
+      background: #fff;
+      border: 2px solid var(--border);
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px;
+      border-radius: 0;
+      resize: vertical;
+    }
+
+    .modal .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    /* 滚动条 */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--panel);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="title-bar">
-  <h1>道路编辑器</h1>
-  <span class="presets" id="presetBar"></span>
-  <span class="info" id="statusInfo">点击瓦片选中，拖拽放置到道路</span>
-</div>
+  <div class="title-bar">
+    <h1>道路编辑器</h1>
+    <span class="presets" id="presetBar"></span>
+    <span class="info" id="statusInfo">点击瓦片选中，拖拽放置到道路</span>
+  </div>
 
-<div class="toolbar">
-  <label>列 <input type="number" id="roadW" value="10" min="5" max="100"></label>
-  <label>行 <input type="number" id="roadH" value="3" min="1" max="20"></label>
-  <button class="btn btn-sm" id="exportBtn">导出</button>
-</div>
+  <div class="toolbar">
+    <label>列 <input type="number" id="roadW" value="10" min="5" max="100"></label>
+    <label>行 <input type="number" id="roadH" value="3" min="1" max="20"></label>
+    <label>名称 <input type="text" id="presetName" value="" placeholder="道路名称" style="width:70px;"></label>
+    <label>类型 <select id="presetType" style="font-family:inherit;font-size:12px;">
+      <option value="prob">概率</option>
+      <option value="fixed">固定</option>
+    </select></label>
+    <label>地点 <input type="text" id="roadPlace" value="" placeholder="如: 在草丛里" style="width:80px;"></label>
+    <label>垂钓点 <select id="roadFishing" style="font-family:inherit;font-size:12px;">
+      <option value="0">无</option>
+      <option value="1">第1行</option>
+      <option value="2">第2行</option>
+      <option value="3">第3行</option>
+    </select></label>
+    <button class="btn btn-sm" id="saveBtn">保存</button>
+    <button class="btn btn-sm" id="exportBtn">导出</button>
+  </div>
 
-<div class="main">
+  <div class="main">
 
-  <!-- 左：道路编辑区 -->
-  <div class="editor-area">
-    <div class="screen-panel">
-      <div class="road-grid" id="roadGrid"></div>
-      <div class="road-controls">
-        <span class="label">填充:</span>
-        <button class="btn btn-sm" id="fill1">行1</button>
-        <button class="btn btn-sm" id="fill2">行2</button>
-        <button class="btn btn-sm" id="fill3">行3</button>
-        <div class="sep"></div>
-        <button class="btn btn-sm btn-sec" id="clearBtn">清空</button>
-        <span class="road-status" id="roadStatus" style="font-size:10px;color:var(--text-muted);margin-left:8px;"></span>
+    <!-- 左：道路编辑区 -->
+    <div class="editor-area">
+      <div class="screen-panel">
+        <div class="road-grid" id="roadGrid"></div>
+        <div class="road-controls">
+          <span class="label">填充:</span>
+          <button class="btn btn-sm" id="fill1">行1</button>
+          <button class="btn btn-sm" id="fill2">行2</button>
+          <button class="btn btn-sm" id="fill3">行3</button>
+          <div class="sep"></div>
+          <button class="btn btn-sm btn-sec" id="clearBtn">清空</button>
+          <span class="road-status" id="roadStatus"
+            style="font-size:10px;color:var(--text-muted);margin-left:8px;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：实时预览 -->
+    <div class="preview-panel">
+      <div class="preview-title">实时预览</div>
+      <div class="preview-screen">
+        <div class="preview-frame">
+          <canvas id="previewCanvas"></canvas>
+          <div class="preview-brendan walk" id="brendanPreview"></div>
+        </div>
+      </div>
+      <div class="preview-controls">
+        <button class="btn btn-sm btn-active" id="pvWalk">走</button>
+        <button class="btn btn-sm btn-sec" id="pvRun">跑</button>
+        <div class="psep"></div>
+        <button class="btn btn-sm btn-active" id="pvFixed">固定</button>
+        <button class="btn btn-sm btn-sec" id="pvProb">概率</button>
+        <div class="psep"></div>
+        <span style="font-size:10px;color:var(--text-muted);">道路自动滚动</span>
       </div>
     </div>
   </div>
 
-  <!-- 右：实时预览 -->
-  <div class="preview-panel">
-    <div class="preview-title">实时预览</div>
-    <div class="preview-screen">
-      <div class="preview-frame">
-        <canvas id="previewCanvas"></canvas>
-        <div class="preview-brendan walk" id="brendanPreview"></div>
+  <!-- 底：瓦片面板 -->
+  <div class="palette-panel">
+    <div class="palette-header">
+      <h2>瓦片面板</h2>
+      <span id="selectedTileDisplay" style="color:var(--accent);font-weight:700;"></span>
+    </div>
+    <div class="palette-scroll">
+      <canvas class="palette-canvas" id="paletteCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- 导出弹窗 -->
+  <div class="overlay" id="exportOverlay">
+    <div class="modal">
+      <h2>导出道路数据</h2>
+      <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-weight:600;">
+        道路名称
+        <input type="text" id="exportName" placeholder="输入道路名称..." style="flex:1;padding:3px 6px;font-size:13px;">
+      </label>
+      <textarea id="exportText" readonly placeholder="先输入名称，点击「生成」"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-sm" id="genExportBtn">生成</button>
+        <button class="btn btn-sm" id="copyBtn">复制</button>
+        <button class="btn btn-sm btn-sec" id="closeBtn">关闭</button>
       </div>
     </div>
-    <div class="preview-controls">
-      <button class="btn btn-sm btn-active" id="pvWalk">走</button>
-      <button class="btn btn-sm btn-sec" id="pvRun">跑</button>
-      <div class="psep"></div>
-      <button class="btn btn-sm btn-active" id="pvFixed">固定</button>
-      <button class="btn btn-sm btn-sec" id="pvProb">概率</button>
-      <div class="psep"></div>
-      <span style="font-size:10px;color:var(--text-muted);">道路自动滚动</span>
-    </div>
   </div>
-</div>
 
-<!-- 底：瓦片面板 -->
-<div class="palette-panel">
-  <div class="palette-header">
-    <h2>瓦片面板</h2>
-    <span id="selectedTileDisplay" style="color:var(--accent);font-weight:700;"></span>
-  </div>
-  <div class="palette-scroll">
-    <canvas class="palette-canvas" id="paletteCanvas"></canvas>
-  </div>
-</div>
+  <script type="module">
+    // ==================== 常量 ====================
+    const TILESET = './terrain-tileset.png';
+    const TILE = 32;
+    const PAL_TILE = 16;
+    const PAL_COLS = 88, PAL_ROWS = 69;
 
-<!-- 导出弹窗 -->
-<div class="overlay" id="exportOverlay">
-  <div class="modal">
-    <h2>导出道路数据</h2>
-    <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-weight:600;">
-      道路名称
-      <input type="text" id="exportName" placeholder="输入道路名称..." style="flex:1;padding:3px 6px;font-size:13px;">
-    </label>
-    <textarea id="exportText" readonly placeholder="先输入名称，点击「生成」"></textarea>
-    <div class="btn-row">
-      <button class="btn btn-sm" id="genExportBtn">生成</button>
-      <button class="btn btn-sm" id="copyBtn">复制</button>
-      <button class="btn btn-sm btn-sec" id="closeBtn">关闭</button>
-    </div>
-  </div>
-</div>
+    // ==================== 状态 ====================
+    let sel = null;
+    let data = [];
+    let W = 10, H = 3;
+    let painting = false, paintMode = 'place';
+    let palImg = null;
+    let previewMode = 'walk';
+    let scrollX = 0;
+    let renderMode = 'fixed'; // 'fixed' | 'prob'
+    let probCache = null;     // 概率模式缓存的临时道路数据
 
-<script type="module">
-// ==================== 常量 ====================
-const TILESET = '../src/img/terrain-tileset.png';
-const TILE = 32;
-const PAL_TILE = 16;
-const PAL_COLS = 88, PAL_ROWS = 69;
+    let _presetsData = [];    // 完整预设数据（用于保存）
+    let _currentPresetIdx = -1; // 当前正在编辑的预设索引
+    let _dirHandle = null;    // File System Access 目录句柄
 
-// ==================== 状态 ====================
-let sel = null;
-let data = [];
-let W = 10, H = 3;
-let painting = false, paintMode = 'place';
-let palImg = null;
-let previewMode = 'walk';
-let scrollX = 0;
-let renderMode = 'fixed'; // 'fixed' | 'prob'
-let probCache = null;     // 概率模式缓存的临时道路数据
+    const $ = id => document.getElementById(id);
 
-const $ = id => document.getElementById(id);
+    // ==================== 瓦片面板 ====================
+    const cvs = $('paletteCanvas'), ctx = cvs.getContext('2d');
 
-// ==================== 瓦片面板 ====================
-const cvs = $('paletteCanvas'), ctx = cvs.getContext('2d');
+    function initPalette() {
+      cvs.width = PAL_COLS * PAL_TILE;
+      cvs.height = PAL_ROWS * PAL_TILE;
+      const i = new Image();
+      i.onload = () => { palImg = i; drawPalette(); };
+      i.src = TILESET;
+      cvs.addEventListener('click', e => {
+        const r = Math.floor(e.offsetY / PAL_TILE);
+        const c = Math.floor(e.offsetX / PAL_TILE);
+        if (r >= 0 && r < PAL_ROWS && c >= 0 && c < PAL_COLS) select(c, r);
+      });
+    }
 
-function initPalette() {
-  cvs.width = PAL_COLS * PAL_TILE;
-  cvs.height = PAL_ROWS * PAL_TILE;
-  const i = new Image();
-  i.onload = () => { palImg = i; drawPalette(); };
-  i.src = TILESET;
-  cvs.addEventListener('click', e => {
-    const r = Math.floor(e.offsetY / PAL_TILE);
-    const c = Math.floor(e.offsetX / PAL_TILE);
-    if (r >= 0 && r < PAL_ROWS && c >= 0 && c < PAL_COLS) select(c, r);
-  });
-}
+    function drawPalette() {
+      if (!palImg) return;
+      ctx.drawImage(palImg, 0, 0, cvs.width, cvs.height);
+      if (sel) {
+        ctx.strokeStyle = '#3a775e';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sel.col * PAL_TILE + 1, sel.row * PAL_TILE + 1, PAL_TILE - 2, PAL_TILE - 2);
+      }
+    }
 
-function drawPalette() {
-  if (!palImg) return;
-  ctx.drawImage(palImg, 0, 0, cvs.width, cvs.height);
-  if (sel) {
-    ctx.strokeStyle = '#3a775e';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(sel.col * PAL_TILE + 1, sel.row * PAL_TILE + 1, PAL_TILE - 2, PAL_TILE - 2);
-  }
-}
+    function select(c, r) {
+      sel = { col: c, row: r };
+      $('selectedTileDisplay').textContent = `[${c}, ${r}]`;
+      drawPalette();
+      $('statusInfo').textContent = `已选 [${c},${r}]，拖拽放置到道路`;
+    }
 
-function select(c, r) {
-  sel = { col: c, row: r };
-  $('selectedTileDisplay').textContent = `[${c}, ${r}]`;
-  drawPalette();
-  $('statusInfo').textContent = `已选 [${c},${r}]，拖拽放置到道路`;
-}
-
-// ==================== 道路编辑 ====================
-function getCell(r, c) {
-  return document.querySelector(`.road-cell[data-r="${r}"][data-c="${c}"]`);
-}
-function place(r, c) {
-  if (!sel) return;
-  data[r][c] = { ...sel };
-  const el = getCell(r, c);
-  if (el) {
-    el.style.backgroundPosition = `-${sel.col * TILE}px -${sel.row * TILE}px`;
-    el.classList.add('placed');
-    el.dataset.coord = `${sel.col},${sel.row}`;
-  }
-  cnt();
-  syncPreview();
-}
-function clear(r, c) {
-  data[r][c] = null;
-  const el = getCell(r, c);
-  if (el) { el.style.backgroundPosition = ''; el.classList.remove('placed'); delete el.dataset.coord; }
-  cnt();
-  syncPreview();
-}
-function rebuild() {
-  W = +$('roadW').value || 10;
-  H = +$('roadH').value || 3;
-  while (data.length < H) data.push([]);
-  data.length = H;
-  for (let r = 0; r < H; r++) { data[r].length = W; for (let c = 0; c < W; c++) if (data[r][c] === undefined) data[r][c] = null; }
-  buildGrid();
-  syncPreview();
-}
-
-function buildGrid() {
-  const grid = $('roadGrid');
-  grid.innerHTML = '';
-  grid.style.gridTemplateColumns = `repeat(${W}, 32px)`;
-  grid.style.gridTemplateRows = `repeat(${H}, 32px)`;
-  const f = document.createDocumentFragment();
-  for (let r = 0; r < H; r++) {
-    if (!data[r]) data[r] = [];
-    for (let c = 0; c < W; c++) {
-      const el = document.createElement('div');
-      el.className = 'road-cell';
-      el.dataset.r = r; el.dataset.c = c;
-      const t = data[r][c];
-      if (t) {
-        el.style.backgroundPosition = `-${t.col * TILE}px -${t.row * TILE}px`;
+    // ==================== 道路编辑 ====================
+    function getCell(r, c) {
+      return document.querySelector(`.road-cell[data-r="${r}"][data-c="${c}"]`);
+    }
+    function place(r, c) {
+      if (!sel) return;
+      data[r][c] = { ...sel };
+      const el = getCell(r, c);
+      if (el) {
+        el.style.backgroundPosition = `-${sel.col * TILE}px -${sel.row * TILE}px`;
         el.classList.add('placed');
-        el.dataset.coord = `${t.col},${t.row}`;
+        el.dataset.coord = `${sel.col},${sel.row}`;
       }
-      f.appendChild(el);
+      cnt();
+      syncPreview();
     }
-  }
-  grid.appendChild(f);
-  grid.addEventListener('pointerdown', e => {
-    const el = e.target.closest('.road-cell');
-    if (!el) return;
-    const r = +el.dataset.r, c = +el.dataset.c;
-    if (e.button === 2) { e.preventDefault(); painting = true; paintMode = 'clear'; clear(r, c); }
-    else { painting = true; paintMode = 'place'; place(r, c); }
-  });
-  grid.addEventListener('pointermove', e => {
-    if (!painting) return;
-    const el = e.target.closest('.road-cell');
-    if (!el) return;
-    const r = +el.dataset.r, c = +el.dataset.c;
-    paintMode === 'clear' ? clear(r, c) : place(r, c);
-  });
-  grid.addEventListener('pointerup', () => painting = false);
-  grid.addEventListener('pointerleave', () => painting = false);
-  grid.addEventListener('contextmenu', e => e.preventDefault());
-  cnt();
-}
-
-function clearAll() {
-  if (!confirm('清空所有瓦片？')) return;
-  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) data[r][c] = null;
-  rebuild();
-  syncPreview();
-}
-function fillRow(row) { if (!sel || row >= H) return; for (let c = 0; c < W; c++) place(row, c); }
-function cnt() { $('roadStatus').textContent = `${data.flat().filter(Boolean).length} / ${W * H}`; }
-
-// ==================== 预置（从 road-data.json 加载）====================
-let PRESETS = [];
-
-function genProbGrid(rows, cols) {
-  return rows.map(opts => {
-    const total = opts.reduce((s, o) => s + o.weight, 0);
-    let counts = opts.map(o => ({ o, count: Math.round(o.weight / total * cols) }));
-    let sum = counts.reduce((s, c) => s + c.count, 0);
-    while (sum < cols) { counts[counts.length - 1].count++; sum++; }
-    while (sum > cols) { for (let i = counts.length - 1; i >= 0; i--) { if (counts[i].count > 0) { counts[i].count--; sum--; break; } } }
-    return counts.flatMap(c => Array.from({length: c.count}, () => ({col: c.o.col, row: c.o.row})));
-  });
-}
-
-async function loadPresetsFromJSON() {
-  try {
-    const resp = await fetch('../src/road-data.json');
-    const json = await resp.json();
-    PRESETS = json.map(item => ({
-      name: item.name,
-      w: item.editor.w,
-      h: item.editor.h,
-      prob: item.type === 'prob',
-      gameType: item.type,
-      gameData: item.game,
-      gen: item.type === 'prob'
-        ? function() { return genProbGrid(this.gameData.rows, this.w); }
-        : function() { return this.gameData.tiles; }
-    }));
-  } catch (e) {
-    console.error('加载道路预设失败', e);
-    PRESETS = [];
-  }
-  initPresets();
-}
-
-function initPresets() {
-  const bar = $('presetBar');
-  bar.innerHTML = '';
-  PRESETS.forEach(p => {
-    const b = document.createElement('button');
-    b.className = 'btn btn-sm'; b.textContent = p.name;
-    b.onclick = () => {
-      $('roadW').value = p.w; $('roadH').value = p.h;
-      W = p.w; H = p.h;
-      data = p.gen();
-      rebuild();
-      setRenderMode(p.prob ? 'prob' : 'fixed');
-    };
-    bar.appendChild(b);
-  });
-}
-
-// ==================== 预览：滚动道路 + 小人 ====================
-const pvCvs = $('previewCanvas');
-const pvCtx = pvCvs.getContext('2d');
-const BRENDAN = $('brendanPreview');
-
-const PV_TILE = 24;
-const PV_SRC = 16;
-
-function initPreview() {
-  setPreview('walk');
-  setRenderMode('fixed');
-  syncPreview();
-  requestAnimationFrame(loopPreview);
-}
-
-function syncPreview() {
-  const cols = W || 10;
-  const rows = H || 3;
-  pvCvs.dataset.cols = cols;
-  pvCvs.dataset.rows = rows;
-  // 概率模式下重建缓存
-  if (renderMode === 'prob') rebuildProbCache();
-}
-
-function setPreview(mode) {
-  previewMode = mode;
-  BRENDAN.className = 'preview-brendan ' + mode;
-  $('pvWalk').className = `btn btn-sm ${mode === 'walk' ? 'btn-active' : 'btn-sec'}`;
-  $('pvRun').className = `btn btn-sm ${mode === 'run' ? 'btn-active' : 'btn-sec'}`;
-}
-
-function setRenderMode(mode) {
-  renderMode = mode;
-  $('pvFixed').className = `btn btn-sm ${mode === 'fixed' ? 'btn-active' : 'btn-sec'}`;
-  $('pvProb').className = `btn btn-sm ${mode === 'prob' ? 'btn-active' : 'btn-sec'}`;
-  if (mode === 'prob') rebuildProbCache();
-}
-
-// 从 data 统计每行概率 → 生成临时道路
-function rebuildProbCache() {
-  const cols = W || 10;
-  const rows = H || 3;
-  probCache = [];
-  for (let r = 0; r < rows && r < data.length; r++) {
-    // 统计每行瓦片频率 → 权重
-    const freq = {};
-    for (let c = 0; c < cols; c++) {
-      const t = data[r] && data[r][c];
-      if (t) {
-        const key = `${t.col},${t.row}`;
-        freq[key] = (freq[key] || 0) + 1;
-      }
+    function clear(r, c) {
+      data[r][c] = null;
+      const el = getCell(r, c);
+      if (el) { el.style.backgroundPosition = ''; el.classList.remove('placed'); delete el.dataset.coord; }
+      cnt();
+      syncPreview();
     }
-    const opts = Object.entries(freq).map(([k, count]) => {
-      const [col, row] = k.split(',').map(Number);
-      return { col, row, weight: count };
-    });
-    // 按权重随机生成一行
-    const row = [];
-    const total = opts.reduce((s, o) => s + o.weight, 0);
-    for (let c = 0; c < cols; c++) {
-      if (total <= 0 || opts.length === 0) { row.push(null); continue; }
-      let rnd = Math.random() * total;
-      let picked = opts[opts.length - 1];
-      for (const o of opts) {
-        rnd -= o.weight;
-        if (rnd <= 0) { picked = o; break; }
-      }
-      row.push({ col: picked.col, row: picked.row });
+    function rebuild() {
+      W = +$('roadW').value || 10;
+      H = +$('roadH').value || 3;
+      while (data.length < H) data.push([]);
+      data.length = H;
+      for (let r = 0; r < H; r++) { data[r].length = W; for (let c = 0; c < W; c++) if (data[r][c] === undefined) data[r][c] = null; }
+      buildGrid();
+      syncPreview();
     }
-    probCache.push(row);
-  }
-}
 
-function loopPreview(now) {
-  const cols = +(pvCvs.dataset.cols) || 10;
-  const speed = previewMode === 'run' ? 1.1 : 0.6;
-  scrollX = (scrollX + speed) % (cols * PV_TILE);
-  drawRoad();
-  requestAnimationFrame(loopPreview);
-}
-
-function drawPattern(offsetX) {
-  const cols = +(pvCvs.dataset.cols) || 10;
-  const rows = +(pvCvs.dataset.rows) || 3;
-  const src = renderMode === 'prob' && probCache ? probCache : data;
-  for (let r = 0; r < rows && r < src.length; r++) {
-    const rowData = src[r];
-    if (!rowData) continue;
-    for (let c = 0; c < cols; c++) {
-      const t = rowData[c];
-      if (!t) continue;
-      pvCtx.drawImage(palImg, t.col * PV_SRC, t.row * PV_SRC, PV_SRC, PV_SRC,
-                       offsetX + c * PV_TILE, r * PV_TILE, PV_TILE, PV_TILE);
-    }
-  }
-}
-
-function drawRoad() {
-  if (!palImg) return;
-  const cols = +(pvCvs.dataset.cols) || 10;
-  const rows = +(pvCvs.dataset.rows) || 3;
-  const w = cols * PV_TILE;
-  const h = rows * PV_TILE;
-  const dpr = window.devicePixelRatio || 1;
-  pvCvs.width = w * dpr;
-  pvCvs.height = h * dpr;
-  pvCvs.style.width = w + 'px';
-  pvCvs.style.height = h + 'px';
-  pvCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  pvCtx.imageSmoothingEnabled = false;
-  pvCtx.clearRect(0, 0, w, h);
-  drawPattern(-scrollX);
-  drawPattern(-scrollX + w);
-}
-
-// ==================== 导出 ====================
-function exportData() {
-  const name = $('exportName').value.trim();
-  if (!name) {
-    $('exportName').focus();
-    $('exportName').style.outline = '2px solid #d44';
-    setTimeout(() => $('exportName').style.outline = '', 800);
-    return;
-  }
-  $('exportOverlay').classList.add('show');
-  const type = renderMode === 'prob' ? 'prob' : 'fixed';
-  const editor = { w: W, h: H };
-
-  let game;
-  if (renderMode === 'prob') {
-    const rows = [];
-    for (let r = 0; r < H; r++) {
-      const freq = {};
-      for (let c = 0; c < W; c++) {
-        const t = data[r] && data[r][c];
-        if (t) {
-          const key = `${t.col},${t.row}`;
-          freq[key] = (freq[key] || 0) + 1;
+    function buildGrid() {
+      const grid = $('roadGrid');
+      grid.innerHTML = '';
+      grid.style.gridTemplateColumns = `repeat(${W}, 32px)`;
+      grid.style.gridTemplateRows = `repeat(${H}, 32px)`;
+      const f = document.createDocumentFragment();
+      for (let r = 0; r < H; r++) {
+        if (!data[r]) data[r] = [];
+        for (let c = 0; c < W; c++) {
+          const el = document.createElement('div');
+          el.className = 'road-cell';
+          el.dataset.r = r; el.dataset.c = c;
+          const t = data[r][c];
+          if (t) {
+            el.style.backgroundPosition = `-${t.col * TILE}px -${t.row * TILE}px`;
+            el.classList.add('placed');
+            el.dataset.coord = `${t.col},${t.row}`;
+          }
+          f.appendChild(el);
         }
       }
-      rows.push(Object.entries(freq).map(([k, count]) => {
-        const [col, row] = k.split(',').map(Number);
-        return { col, row, weight: Math.round(count / W * 100) };
-      }));
+      grid.appendChild(f);
+      grid.addEventListener('pointerdown', e => {
+        const el = e.target.closest('.road-cell');
+        if (!el) return;
+        const r = +el.dataset.r, c = +el.dataset.c;
+        if (e.button === 2) { e.preventDefault(); painting = true; paintMode = 'clear'; clear(r, c); }
+        else { painting = true; paintMode = 'place'; place(r, c); }
+      });
+      grid.addEventListener('pointermove', e => {
+        if (!painting) return;
+        const el = e.target.closest('.road-cell');
+        if (!el) return;
+        const r = +el.dataset.r, c = +el.dataset.c;
+        paintMode === 'clear' ? clear(r, c) : place(r, c);
+      });
+      grid.addEventListener('pointerup', () => painting = false);
+      grid.addEventListener('pointerleave', () => painting = false);
+      grid.addEventListener('contextmenu', e => e.preventDefault());
+      cnt();
     }
-    game = { width: W, height: H, rows };
-  } else {
-    const tiles = data.map(r => r.map(t => t ? {col:t.col, row:t.row} : null));
-    game = { width: W, height: H, tiles };
-  }
 
-  $('exportText').value = JSON.stringify({ name, type, editor, game }, null, 2);
-}
-function closeExport() { $('exportOverlay').classList.remove('show'); }
-function copyExport() {
-  $('exportText').select();
-  navigator.clipboard.writeText($('exportText').value).then(() => {
-    $('copyBtn').textContent = '✓'; setTimeout(() => $('copyBtn').textContent = '复制', 1200);
-  });
-}
+    function clearAll() {
+      if (!confirm('清空所有瓦片？')) return;
+      for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) data[r][c] = null;
+      rebuild();
+      syncPreview();
+    }
+    function fillRow(row) { if (!sel || row >= H) return; for (let c = 0; c < W; c++) place(row, c); }
+    function cnt() { $('roadStatus').textContent = `${data.flat().filter(Boolean).length} / ${W * H}`; }
 
-// ==================== 绑定 ====================
-function bind() {
-  $('roadW').addEventListener('change', rebuild);
-  $('roadH').addEventListener('change', rebuild);
-  $('clearBtn').addEventListener('click', clearAll);
-  $('fill1').addEventListener('click', () => fillRow(0));
-  $('fill2').addEventListener('click', () => fillRow(1));
-  $('fill3').addEventListener('click', () => fillRow(2));
-  $('exportBtn').addEventListener('click', () => {
-    $('exportName').value = '';
-    $('exportText').value = '';
-    $('exportOverlay').classList.add('show');
-    setTimeout(() => $('exportName').focus(), 100);
-  });
-  $('genExportBtn').addEventListener('click', exportData);
-  $('copyBtn').addEventListener('click', copyExport);
-  $('closeBtn').addEventListener('click', closeExport);
-  $('exportOverlay').addEventListener('click', e => { if (e.target === $('exportOverlay')) closeExport(); });
-  $('pvWalk').addEventListener('click', () => setPreview('walk'));
-  $('pvRun').addEventListener('click', () => setPreview('run'));
-  $('pvFixed').addEventListener('click', () => setRenderMode('fixed'));
-  $('pvProb').addEventListener('click', () => setRenderMode('prob'));
-}
+    // ==================== 预置（从 road-data.json 加载）====================
+    let PRESETS = [];
 
-// ==================== 启动 ====================
-async function init() {
-  await loadPresetsFromJSON();
-  initPalette();
-  initPreview();
-  bind();
-  rebuild();
-}
-init();
-</script>
+    function genProbGrid(rows, cols) {
+      return rows.map(opts => {
+        const total = opts.reduce((s, o) => s + o.weight, 0);
+        let counts = opts.map(o => ({ o, count: Math.round(o.weight / total * cols) }));
+        let sum = counts.reduce((s, c) => s + c.count, 0);
+        while (sum < cols) { counts[counts.length - 1].count++; sum++; }
+        while (sum > cols) { for (let i = counts.length - 1; i >= 0; i--) { if (counts[i].count > 0) { counts[i].count--; sum--; break; } } }
+        return counts.flatMap(c => Array.from({ length: c.count }, () => ({ col: c.o.col, row: c.o.row })));
+      });
+    }
+
+    async function loadPresetsFromJSON() {
+      try {
+        const resp = await fetch('./road-data.json');
+        _presetsData = await resp.json();
+        PRESETS = _presetsData.map((item, idx) => ({
+          idx,
+          name: item.name,
+          w: item.editor.w,
+          h: item.editor.h,
+          prob: item.type === 'prob',
+          gameType: item.type,
+          gameData: item.game,
+          place: item.game.place || '',
+          fishing: item.game.fishingRow || 0,
+          gen: item.type === 'prob'
+            ? function () { return genProbGrid(this.gameData.rows, this.w); }
+            : function () { return this.gameData.tiles; }
+        }));
+      } catch (e) {
+        console.error('加载道路预设失败', e);
+        PRESETS = [];
+      }
+      initPresets();
+    }
+
+    function initPresets() {
+      const bar = $('presetBar');
+      bar.innerHTML = '';
+      PRESETS.forEach(p => {
+        const b = document.createElement('button');
+        b.className = 'btn btn-sm'; b.textContent = p.name;
+        b.onclick = () => {
+          $('roadW').value = p.w; $('roadH').value = p.h;
+          $('roadPlace').value = p.place;
+          $('roadFishing').value = p.fishing;
+          $('presetName').value = p.name;
+          $('presetType').value = p.gameType;
+          W = p.w; H = p.h;
+          _currentPresetIdx = p.idx;
+          data = p.gen();
+          rebuild();
+          setRenderMode(p.prob ? 'prob' : 'fixed');
+        };
+        bar.appendChild(b);
+      });
+    }
+
+    // ==================== 预览：滚动道路 + 小人 ====================
+    const pvCvs = $('previewCanvas');
+    const pvCtx = pvCvs.getContext('2d');
+    const BRENDAN = $('brendanPreview');
+
+    const PV_TILE = 24;
+    const PV_SRC = 16;
+
+    function initPreview() {
+      setPreview('walk');
+      setRenderMode('fixed');
+      syncPreview();
+      requestAnimationFrame(loopPreview);
+    }
+
+    function syncPreview() {
+      const cols = W || 10;
+      const rows = H || 3;
+      pvCvs.dataset.cols = cols;
+      pvCvs.dataset.rows = rows;
+      // 概率模式下重建缓存
+      if (renderMode === 'prob') rebuildProbCache();
+    }
+
+    function setPreview(mode) {
+      previewMode = mode;
+      BRENDAN.className = 'preview-brendan ' + mode;
+      $('pvWalk').className = `btn btn-sm ${mode === 'walk' ? 'btn-active' : 'btn-sec'}`;
+      $('pvRun').className = `btn btn-sm ${mode === 'run' ? 'btn-active' : 'btn-sec'}`;
+    }
+
+    function setRenderMode(mode) {
+      renderMode = mode;
+      $('pvFixed').className = `btn btn-sm ${mode === 'fixed' ? 'btn-active' : 'btn-sec'}`;
+      $('pvProb').className = `btn btn-sm ${mode === 'prob' ? 'btn-active' : 'btn-sec'}`;
+      if (mode === 'prob') rebuildProbCache();
+    }
+
+    // 从 data 统计每行概率 → 生成临时道路
+    function rebuildProbCache() {
+      const cols = W || 10;
+      const rows = H || 3;
+      probCache = [];
+      for (let r = 0; r < rows && r < data.length; r++) {
+        // 统计每行瓦片频率 → 权重
+        const freq = {};
+        for (let c = 0; c < cols; c++) {
+          const t = data[r] && data[r][c];
+          if (t) {
+            const key = `${t.col},${t.row}`;
+            freq[key] = (freq[key] || 0) + 1;
+          }
+        }
+        const opts = Object.entries(freq).map(([k, count]) => {
+          const [col, row] = k.split(',').map(Number);
+          return { col, row, weight: count };
+        });
+        // 按权重随机生成一行
+        const row = [];
+        const total = opts.reduce((s, o) => s + o.weight, 0);
+        for (let c = 0; c < cols; c++) {
+          if (total <= 0 || opts.length === 0) { row.push(null); continue; }
+          let rnd = Math.random() * total;
+          let picked = opts[opts.length - 1];
+          for (const o of opts) {
+            rnd -= o.weight;
+            if (rnd <= 0) { picked = o; break; }
+          }
+          row.push({ col: picked.col, row: picked.row });
+        }
+        probCache.push(row);
+      }
+    }
+
+    function loopPreview(now) {
+      const cols = +(pvCvs.dataset.cols) || 10;
+      const speed = previewMode === 'run' ? 1.1 : 0.6;
+      scrollX = (scrollX + speed) % (cols * PV_TILE);
+      drawRoad();
+      requestAnimationFrame(loopPreview);
+    }
+
+    function drawPattern(offsetX) {
+      const cols = +(pvCvs.dataset.cols) || 10;
+      const rows = +(pvCvs.dataset.rows) || 3;
+      const src = renderMode === 'prob' && probCache ? probCache : data;
+      for (let r = 0; r < rows && r < src.length; r++) {
+        const rowData = src[r];
+        if (!rowData) continue;
+        for (let c = 0; c < cols; c++) {
+          const t = rowData[c];
+          if (!t) continue;
+          pvCtx.drawImage(palImg, t.col * PV_SRC, t.row * PV_SRC, PV_SRC, PV_SRC,
+            offsetX + c * PV_TILE, r * PV_TILE, PV_TILE, PV_TILE);
+        }
+      }
+    }
+
+    function drawRoad() {
+      if (!palImg) return;
+      const cols = +(pvCvs.dataset.cols) || 10;
+      const rows = +(pvCvs.dataset.rows) || 3;
+      const w = cols * PV_TILE;
+      const h = rows * PV_TILE;
+      const dpr = window.devicePixelRatio || 1;
+      pvCvs.width = w * dpr;
+      pvCvs.height = h * dpr;
+      pvCvs.style.width = w + 'px';
+      pvCvs.style.height = h + 'px';
+      pvCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      pvCtx.imageSmoothingEnabled = false;
+      pvCtx.clearRect(0, 0, w, h);
+      drawPattern(-scrollX);
+      drawPattern(-scrollX + w);
+    }
+
+    // ==================== 导出 ====================
+    function exportData() {
+      const name = $('exportName').value.trim();
+      if (!name) {
+        $('exportName').focus();
+        $('exportName').style.outline = '2px solid #d44';
+        setTimeout(() => $('exportName').style.outline = '', 800);
+        return;
+      }
+      $('exportOverlay').classList.add('show');
+      const type = renderMode === 'prob' ? 'prob' : 'fixed';
+      const editor = { w: W, h: H };
+      const fishingRow = +$('roadFishing').value || 0;
+
+      let game;
+      if (renderMode === 'prob') {
+        const rows = [];
+        for (let r = 0; r < H; r++) {
+          const freq = {};
+          for (let c = 0; c < W; c++) {
+            const t = data[r] && data[r][c];
+            if (t) {
+              const key = `${t.col},${t.row}`;
+              freq[key] = (freq[key] || 0) + 1;
+            }
+          }
+          rows.push(Object.entries(freq).map(([k, count]) => {
+            const [col, row] = k.split(',').map(Number);
+            return { col, row, weight: Math.round(count / W * 100) };
+          }));
+        }
+        game = { width: W, height: H, place: $('roadPlace').value || '', rows };
+      } else {
+        const tiles = data.map(r => r.map(t => t ? { col: t.col, row: t.row } : null));
+        game = { width: W, height: H, place: $('roadPlace').value || '', tiles };
+      }
+      if (fishingRow) game.fishingRow = fishingRow;
+
+      $('exportText').value = JSON.stringify({ name, type, editor, game }, null, 2);
+    }
+    function closeExport() { $('exportOverlay').classList.remove('show'); }
+    function copyExport() {
+      $('exportText').select();
+      navigator.clipboard.writeText($('exportText').value).then(() => {
+        $('copyBtn').textContent = '✓'; setTimeout(() => $('copyBtn').textContent = '复制', 1200);
+      });
+    }
+
+    // ==================== 同步当前预设到数据 ====================
+    function syncCurrentPreset() {
+      if (_currentPresetIdx < 0 || _currentPresetIdx >= _presetsData.length) return false;
+      const item = _presetsData[_currentPresetIdx];
+      item.name = $('presetName').value.trim() || item.name;
+      item.type = $('presetType').value;
+      item.editor = { w: W, h: H };
+      item.game.width = W;
+      item.game.height = H;
+      item.game.place = $('roadPlace').value || '';
+      // 同步垂钓点行数（0 表示无垂钓点）
+      const fishingRow = +$('roadFishing').value || 0;
+      if (fishingRow) item.game.fishingRow = fishingRow;
+      else delete item.game.fishingRow;
+
+      // 同步 tile/rows 数据
+      if (item.type === 'prob') {
+        const rows = [];
+        for (let r = 0; r < H; r++) {
+          const freq = {};
+          for (let c = 0; c < W; c++) {
+            const t = data[r] && data[r][c];
+            if (t) {
+              const key = `${t.col},${t.row}`;
+              freq[key] = (freq[key] || 0) + 1;
+            }
+          }
+          rows.push(Object.entries(freq).map(([k, count]) => {
+            const [col, row] = k.split(',').map(Number);
+            return { col, row, weight: Math.round(count / W * 100) };
+          }));
+        }
+        item.game.rows = rows;
+        delete item.game.tiles;
+      } else {
+        const tiles = data.map(r => r.map(t => t ? { col: t.col, row: t.row } : null));
+        item.game.tiles = tiles;
+        delete item.game.rows;
+      }
+      return true;
+    }
+
+    // ==================== 保存到文件 ====================
+    async function saveToFile() {
+      if (!syncCurrentPreset()) {
+        alert('请先点击预设按钮选择要编辑的道路');
+        return;
+      }
+      if (_presetsData.length === 0) {
+        alert('没有可保存的数据');
+        return;
+      }
+      try {
+        if (!_dirHandle) {
+          _dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        }
+        const fileHandle = await _dirHandle.getFileHandle('road-data.json', { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(_presetsData, null, 2));
+        await writable.close();
+        $('saveBtn').textContent = '✓';
+        setTimeout(() => $('saveBtn').textContent = '保存', 1200);
+      } catch (e) {
+        if (e.name === 'SecurityError' || e.name === 'AbortError') {
+          _dirHandle = null;
+          alert('需要选择 tools 目录才能保存。请点击「保存」后选择 tools 文件夹。');
+        } else {
+          console.error('保存失败', e);
+          alert('保存失败: ' + e.message);
+        }
+      }
+    }
+
+    // ==================== 绑定 ====================
+    function bind() {
+      $('roadW').addEventListener('change', rebuild);
+      $('roadH').addEventListener('change', rebuild);
+      $('clearBtn').addEventListener('click', clearAll);
+      $('fill1').addEventListener('click', () => fillRow(0));
+      $('fill2').addEventListener('click', () => fillRow(1));
+      $('fill3').addEventListener('click', () => fillRow(2));
+      $('saveBtn').addEventListener('click', saveToFile);
+      $('presetType').addEventListener('change', () => setRenderMode($('presetType').value));
+      $('exportBtn').addEventListener('click', () => {
+        $('exportName').value = '';
+        $('exportText').value = '';
+        $('exportOverlay').classList.add('show');
+        setTimeout(() => $('exportName').focus(), 100);
+      });
+      $('genExportBtn').addEventListener('click', exportData);
+      $('copyBtn').addEventListener('click', copyExport);
+      $('closeBtn').addEventListener('click', closeExport);
+      $('exportOverlay').addEventListener('click', e => { if (e.target === $('exportOverlay')) closeExport(); });
+      $('pvWalk').addEventListener('click', () => setPreview('walk'));
+      $('pvRun').addEventListener('click', () => setPreview('run'));
+      $('pvFixed').addEventListener('click', () => setRenderMode('fixed'));
+      $('pvProb').addEventListener('click', () => setRenderMode('prob'));
+    }
+
+    // ==================== 启动 ====================
+    async function init() {
+      await loadPresetsFromJSON();
+      initPalette();
+      initPreview();
+      bind();
+      rebuild();
+    }
+    init();
+  </script>
 </body>
+
 </html>

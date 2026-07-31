@@ -1,5 +1,5 @@
-﻿﻿﻿﻿﻿﻿﻿// ==================== 捕捉动画函数 ====================
-import { $ } from './ui.js';
+﻿﻿﻿// ==================== 捕捉动画函数 ====================
+import { $, fitPokemonImage } from './ui.js';
 import { currentEncounter, currentIsShiny } from './state.js';
 import { BATTLE_BALLS, FLEE_CHANCE } from './config.js';
 
@@ -25,7 +25,7 @@ function setBallImage(ball, ballType, state) {
   ball.src = `./icons/${state === 'open' ? info.open : info.closed}`;
 }
 
-export function setupCatchAnim(ballType) {
+export async function setupCatchAnim(ballType) {
   const stage = $('catchStage');
   const ball = $('animBall');
   const stars = $('animStars');
@@ -41,14 +41,42 @@ export function setupCatchAnim(ballType) {
 
   // 先用 encounterView 获取尺寸（stage 初始 display:none，取不到尺寸）
   const encRect = $('encounterView').getBoundingClientRect();
-  const stageW = encRect.width;
-  const stageH = encRect.height;
+  let stageW = encRect.width;
+  let stageH = encRect.height;
+  if (stageW < 50 || stageH < 50) {
+    const appRect = document.getElementById('app')?.getBoundingClientRect();
+    if (appRect && appRect.width > 50 && appRect.height > 50) {
+      stageW = appRect.width;
+      stageH = appRect.height;
+    } else {
+      stageW = 320;
+      stageH = 400;
+    }
+  }
+
+  // 等待宝可梦图片加载完成，确保获取实际尺寸
+  if (!pkmn.naturalWidth || !pkmn.naturalHeight) {
+    await new Promise(resolve => {
+      const onLoad = () => { fitPokemonImage(pkmn); resolve(); };
+      pkmn.addEventListener('load', onLoad, { once: true });
+      pkmn.addEventListener('error', () => resolve(), { once: true });
+      // 如果在上面的空隙间完成了加载
+      if (pkmn.complete && pkmn.naturalWidth) {
+        pkmn.removeEventListener('load', onLoad);
+        fitPokemonImage(pkmn);
+        resolve();
+      }
+    });
+  } else {
+    fitPokemonImage(pkmn);
+  }
 
   // 宝可梦位置：动态获取图片实际尺寸
   const pkmnW = pkmn.offsetWidth || 100;
   const pkmnH = pkmn.offsetHeight || 100;
   const pkmnOrigX = stageW / 2 - pkmnW / 2;
-  const pkmnOrigY = stageH * 0.3 - pkmnH / 2;
+  // CSS bottom:42% → 图片底部在 stageH * 0.58 处
+  const pkmnOrigY = stageH * 0.58 - pkmnH;
 
   // 把宝可梦从 CSS 居中改为像素定位，供动画操纵
   pkmn.style.position = 'absolute';
@@ -56,6 +84,7 @@ export function setupCatchAnim(ballType) {
   pkmn.style.top = pkmnOrigY + 'px';
   pkmn.style.transform = 'none';
   pkmn.style.opacity = '1';
+  pkmn.style.zIndex = '21';
 
   // 重置球
   ball.className = 'anim-ball';
@@ -81,20 +110,37 @@ export function restoreCatchAnim() {
   pkmn.style.top = '';
   pkmn.style.transform = '';
   pkmn.style.opacity = '';
+  pkmn.style.zIndex = '';
   // 移除丢球角色动画状态（回到默认最后一帧）
   const tc = $('animThrowChar');
   if (tc) { tc.classList.remove('throwing'); }
+  // 清理精灵球残留（可能在上一次捕捉动画后未被清除）
+  const ball = $('animBall');
+  if (ball) {
+    ball.classList.remove('visible');
+    ball.style.cssText = '';
+    ball.style.display = 'none';
+  }
   // 强制重新计算布局，确保样式立即生效
   void pkmn.offsetHeight;
 }
 
-// 闪光出场白色星星粒子特效
-export function playShinySparkle() {
+// 闪光白色星星粒子特效（单次爆发）
+function _sparkleBurst() {
   const view = $('encounterView');
   if (!view) return;
-  const rect = view.getBoundingClientRect();
-  const cx = rect.width / 2;
-  const cy = rect.height * 0.4;
+  const gif = $('encounterGif');
+  let cx, cy;
+  if (gif && gif.offsetWidth > 0 && gif.offsetHeight > 0) {
+    const gifRect = gif.getBoundingClientRect();
+    const viewRect = view.getBoundingClientRect();
+    cx = gifRect.left - viewRect.left + gifRect.width / 2;
+    cy = gifRect.top - viewRect.top + gifRect.height / 2;
+  } else {
+    const rect = view.getBoundingClientRect();
+    cx = rect.width / 2;
+    cy = rect.height * 0.4;
+  }
   const count = 10;
   const particles = [];
   for (let i = 0; i < count; i++) {
@@ -126,6 +172,23 @@ export function playShinySparkle() {
     else particles.forEach(p => p.el.remove());
   }
   requestAnimationFrame(frame);
+}
+
+let _shinySparkleTimer = null;
+
+// 开始循环闪光（间隔 ~3s 爆发一次）
+export function startShinySparkleLoop() {
+  stopShinySparkleLoop();
+  _sparkleBurst();
+  _shinySparkleTimer = setInterval(_sparkleBurst, 3000);
+}
+
+// 停止循环闪光
+export function stopShinySparkleLoop() {
+  if (_shinySparkleTimer) {
+    clearInterval(_shinySparkleTimer);
+    _shinySparkleTimer = null;
+  }
 }
 
 // === 阶段1：抛物线抛球 ===
@@ -296,7 +359,7 @@ async function animCatchSuccess(ball, starsContainer, ballCX, ballCY) {
 
 // === 动画序列编排 ===
 export async function playCatchSequence(ballType, isCaught) {
-  const { stage, ball, ballType: bt, pkmn, stars, msg, stageW, stageH, pkmnOrigX, pkmnOrigY, pkmnW, pkmnH, throwChar } = setupCatchAnim(ballType);
+  const { stage, ball, ballType: bt, pkmn, stars, msg, stageW, stageH, pkmnOrigX, pkmnOrigY, pkmnW, pkmnH, throwChar } = await setupCatchAnim(ballType);
   await delay(50);
 
   // ---- 阶段1：抛球 ----

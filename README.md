@@ -11,7 +11,8 @@
 - **闪光系统** — 极低概率遇见闪光个体，带出场粒子特效
 - **图鉴** — 列表/详情/搜索/筛选/排序，记录每次遭遇与捕获
 - **商店** — 糖果兑换精灵球、甜甜蜜、神秘蛋、闪耀护符
-- **道具** — 甜甜蜜（吸引精灵）、闪耀护符（提升闪光率）、神秘蛋（随机孵化）
+- **道具** — 甜甜蜜（吸引精灵）、闪耀护符（提升闪光率）、神秘蛋（放入孵蛋器等待孵化（10分钟~8小时），孵化后获得随机宝可梦，1/1000概率闪光）
+- **孵蛋器**：最多 8 个槽位（2×4 排列），全部需糖果解锁（100→200→400→800→1600→3200→6400→12800）
 - **存档** — localStorage + Rust 后端双通道保存
 
 ## 截图
@@ -41,7 +42,7 @@ npm run build
 
 构建产物输出到 `src-tauri/target/release/bundle/nsis/`，生成 NSIS 安装包。
 
-## 素材来源
+## 主要素材来源
 
 - 人物行走图：[screensmith.itch.io — Pokemon Style Characters: Townspeople](https://screensmith.itch.io/pokemon-style-characters-townspeople)
 - 宝可梦 GIF 动画：[play.pokemonshowdown.com](https://play.pokemonshowdown.com/)

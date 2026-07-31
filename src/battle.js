@@ -2,7 +2,7 @@
 import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, _catchStreak, nextEncounterTimer, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _honeyEncounterCount, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setCatchStreak, setHoneyBuffActive, setCharmBuffActive, setHoneyEncounterCount, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, fitPokemonImage } from './ui.js';
 import { pickRandomPokemon, pickWeightedPokemon, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown } from './items.js';
-import { delay, playCatchSequence, playShinySparkle } from './animation.js';
+import { delay, playCatchSequence, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { startIdleRotation } from './messages.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
@@ -163,15 +163,40 @@ export function updateAutoFleeBar() {
 export function showEncounter(poke, skipAuto) {
   // 如果在非首页页面（图鉴/商店等），将遇敌挂起不切换视图
   const _onHome = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  // 判断自动模式下是否有可用球
   // 显示视觉画面（仅在首页时切换视图）
   if (_onHome) {
     road.pause();
     showView('encounterView');
-    // 显示逃跑按钮
     $('fleeBtn').style.display = '';
   }
-  // 设置屏幕背景色
+  // 渲染遭遇画面（名字/图片/类型/标签/文案等）
+  const loadPromise = renderEncounterScene(poke);
+
+  // 自动捕捉逻辑（仅在首页时才自动执行）
+  if (!skipAuto) {
+    if (_onHome && gameData.settings?.autoCatch) {
+      // 闪光暂停优先 — 如果开启则不接管，让用户手动处理
+      if (currentIsShiny && gameData.settings?.shinyStop) {
+        showView('encounterView');
+        $('fleeBtn').style.display = '';
+      } else {
+        const waitMs = hasAnyBall() ? 1500 : 2000;
+        setTimeout(async () => {
+          await loadPromise; // 等图片加载完再丢球，避免尺寸错乱
+          autoCatch();
+        }, waitMs);
+      }
+    }
+    // 佛系模式：非自动操作时启动逃跑倒计时
+    if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
+      startAutoFleeTimer();
+    }
+  }
+}
+
+// ===== 渲染遭遇画面（可被回到游戏页时重新调用同步） =====
+export function renderEncounterScene(poke) {
+  const _onHome = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
   $('encounterName').innerHTML = (currentIsShiny
     ? '<span>' + poke.name + '</span><svg viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;color:var(--ui-color);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
     : poke.name);
@@ -180,19 +205,27 @@ export function showEncounter(poke, skipAuto) {
   img.style.width = '';
   img.style.height = '';
   const shinySuffix = currentIsShiny ? '_shiny' : '';
-  // 有视觉画面才加载图片
-  if (_onHome) {
-    tryLoadPokemonImage(img, poke, shinySuffix);
-  }
+  // 有视觉画面才加载图片，保存 Promise 确保图片加载完再丢球
+  const loadPromise = _onHome ? tryLoadPokemonImage(img, poke, shinySuffix) : Promise.resolve(false);
 
   $('encounterTypes').innerHTML = (poke.types||[]).map(t =>
     `<span class="type-badge" style="background:${TYPE_COLORS[t]||'#888'}">${t}</span>`
   ).join('');
-  // 已捕获标记（默认显示，后续区分闪光）
+  // 新发现标记（普通/闪光分开）
+  const newLabel = $('encounterNewLabel');
+  if (newLabel) {
+    const entry = gameData.pokedex[String(poke.index)];
+    // tryEncounter 中 pokedex 已先 seen++ / shinySeen++，所以首次为 1
+    const isNew = !entry
+      ? true
+      : currentIsShiny ? entry.shinySeen === 1 : entry.seen === 1;
+    newLabel.style.display = isNew ? '' : 'none';
+  }
+  // 已捕获标记（普通/闪光分开）
   const havedIcon = $('encounterHavedIcon');
   if (havedIcon) {
     const entry = gameData.pokedex[String(poke.index)];
-    const hasCaught = entry && (entry.caught > 0 || entry.shinyCaught > 0);
+    const hasCaught = entry && (currentIsShiny ? entry.shinyCaught > 0 : entry.caught > 0);
     havedIcon.style.display = hasCaught ? '' : 'none';
   }
   // 右上角捕获率等级 + 稀有度
@@ -218,32 +251,9 @@ export function showEncounter(poke, skipAuto) {
   // 有视觉画面才更新文字
   if (_onHome) {
     updateTextBox(currentIsShiny ? '野生的 闪光' + poke.name + ' 跳出来了！' : '野生的 ' + poke.name + ' 跳出来了！', false);
-    if (currentIsShiny) setTimeout(playShinySparkle, 200);
+    if (currentIsShiny) startShinySparkleLoop();
   }
-
-  // 自动捕捉逻辑（仅在首页时才自动执行）
-  if (!skipAuto) {
-    if (_onHome && gameData.settings?.autoCatch) {
-      if (hasAnyBall()) {
-        // 有球 → 静默自动抛球
-        setTimeout(() => autoCatch(), 500);
-      } else {
-        // 无球 → 展示画面后延迟逃跑（让玩家看到宝可梦）
-        setTimeout(() => autoCatch(), 1200);
-      }
-      // 如果开启了闪光暂停且当前是闪光，则不接管，让用户手动处理
-      if (currentIsShiny && gameData.settings?.shinyStop) {
-        showView('encounterView');
-        $('fleeBtn').style.display = '';
-        tryLoadPokemonImage(img, poke, shinySuffix);
-        updateTextBox('野生的 闪光' + poke.name + ' 跳出来了！', false);
-      }
-    }
-    // 佛系模式：非自动操作时启动逃跑倒计时
-    if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
-      startAutoFleeTimer();
-    }
-  }
+  return loadPromise;
 }
 
 // ===== 丢球 =====
@@ -253,6 +263,7 @@ export async function throwBall(ballType) {
   if ((gameData.items[ballType]||0) <= 0) return;
   setThrowing(true);
   $('fleeBtn')?.classList.add('disabled');
+  if (currentIsShiny) stopShinySparkleLoop();
   try {
     // 更新底部文字显示丢出的球种
     updateTextBox('丢出了' + (ITEM_NAMES[ballType] || ballType) + '！', false);
@@ -262,7 +273,7 @@ export async function throwBall(ballType) {
   gameData.stats.totalBallsUsed++;
   currentEncounterBalls[ballType] = (currentEncounterBalls[ballType] || 0) + 1;
   updateBackpack();
-  addSystemLog('item_use', { item: ballType });
+  addSystemLog('item_use', { item: ballType, auto: _autoCatching });
 
   const catchBonus = Math.min(1 + _catchStreak * 0.15, 2);
   const rate = ballType === 'master-ball' ? 1.0 : (CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) * catchBonus;
@@ -306,7 +317,7 @@ export async function throwBall(ballType) {
       msg = '搞定！' + name + ' 被收服了！';
     }
     if (isOnGameView()) updateTextBox(msg, true);
-    addSystemLog('pokemon_caught', { pokemon: idx, name, shiny: currentIsShiny, ball: ballType });
+    addSystemLog('pokemon_caught', { pokemon: idx, name, shiny: currentIsShiny, ball: ballType, auto: _autoCatching });
     await saveGame();
     updateStats();
     if (gameData.settings?.autoCatch) {
@@ -335,7 +346,7 @@ export async function throwBall(ballType) {
       balls: { ...currentEncounterBalls }
     });
     if (isOnGameView()) updateTextBox('精灵逃走了！', false);
-    addSystemLog('pokemon_escaped', { pokemon: idx, name, shiny: currentIsShiny });
+    addSystemLog('pokemon_escaped', { pokemon: idx, name, shiny: currentIsShiny, auto: _autoCatching });
     await saveGame();
     updateStats();
     await delay(1500);
@@ -347,7 +358,7 @@ export async function throwBall(ballType) {
   setCatchStreak(_catchStreak + 1);
   const m = breakMsgs[anim.shakes] || breakMsgs[1];
   if (isOnGameView()) updateTextBox(m[randInt(0, m.length - 1)], false);
-  } finally { setThrowing(false); $('fleeBtn')?.classList.remove('disabled'); }
+  } finally { setThrowing(false); $('fleeBtn')?.classList.remove('disabled'); if (currentIsShiny && phase === 'encounter') startShinySparkleLoop(); }
   if (phase === 'encounter') startAutoFleeTimer();
 }
 
@@ -357,6 +368,7 @@ export async function fleeEncounter(isAutoFlee) {
   if (_throwing) return;
   if (phase === 'fled') return; // 防重入
   stopAutoFleeTimer();
+  stopShinySparkleLoop();
   setPhase('fled'); // 立即阻止后续丢球
   const idx = String(currentEncounter.index);
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
@@ -384,13 +396,17 @@ export async function fleeEncounter(isAutoFlee) {
 export function goIdle() {
   setPhase('idle');
   stopAutoFleeTimer();
+  stopShinySparkleLoop();
   setCatchConfirmStep(false);
   setCurrentEncounter(null);
   setEncounterBallsUsed(0);
   // 重置 UI 主题色
   document.documentElement.style.removeProperty('--ui-color');
   document.documentElement.style.removeProperty('--ui-color-rgb');
-  showView('idleView');
+  // 仅在游戏页时切换回空闲视图，浏览其他页面（图鉴/商店等）时不打扰
+  if (isOnGameView()) {
+    showView('idleView');
+  }
   updateStats();
   startIdleRotation();
   road.resume();
@@ -451,22 +467,25 @@ export function goIdle() {
 }
 
 // ===== 自动捕捉 =====
+let _abortAutoCatch = false;
+
+export function setAbortAutoCatch() { _abortAutoCatch = true; }
+
 export async function autoCatch() {
   if (_autoCatching || phase !== 'encounter' || !currentEncounter) return;
   if (!gameData.settings?.autoCatch) return;
   setAutoCatching(true);
+  if (currentIsShiny) stopShinySparkleLoop();
+  $('fleeBtn')?.classList.add('disabled');
   try {
 
-  while (phase === 'encounter' && gameData.settings?.autoCatch) {
+  while (phase === 'encounter' && gameData.settings?.autoCatch && !_abortAutoCatch) {
     // 智能选球：根据精灵捕获率决定使用哪种球
     const enabledBalls = gameData.settings?.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
     const availableBalls = ['poke-ball', 'ultra-ball', 'master-ball'].filter(b => enabledBalls[b] !== false && (gameData.items[b]||0) > 0);
     let ballType = null;
     if (availableBalls.length > 0) {
       const cr = currentEncounter.catchRate ?? 1;
-      // 捕获率 <= 0.2: 优先大师球 → 高级球 → 精灵球
-      // 捕获率 0.2~0.5: 优先高级球 → 精灵球 → 大师球
-      // 捕获率 > 0.5: 优先精灵球 → 高级球 → 大师球
       const preferred = cr <= 0.2
         ? ['master-ball', 'ultra-ball', 'poke-ball']
         : cr <= 0.5
@@ -475,13 +494,12 @@ export async function autoCatch() {
       for (const b of preferred) {
         if (availableBalls.includes(b)) { ballType = b; break; }
       }
-      if (!ballType) ballType = availableBalls[0]; // 兜底
+      if (!ballType) ballType = availableBalls[0];
     }
 
     if (!ballType) {
       // 无球 → 先展示遇敌画面再逃跑
       await delay(AUTO_FLEE_NO_BALL_DELAY);
-      // 如果玩家已手动处理（逃跑/关闭），不再重复逃跑
       if (phase !== 'encounter') { setAutoCatching(false); return; }
       setPhase('fled');
       gameData.stats.totalFlees++;
@@ -494,7 +512,6 @@ export async function autoCatch() {
       });
       await saveGame();
       updateStats();
-      // 离开首页不弹出文案
       if ($('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none') {
         updateTextBox('你逃走了！', false);
         await delay(1500);
@@ -514,109 +531,28 @@ export async function autoCatch() {
       break;
     }
 
-    // 消耗球种
-    gameData.items[ballType]--;
-    setEncounterBallsUsed(encounterBallsUsed + 1);
-    gameData.stats.totalBallsUsed++;
-    currentEncounterBalls[ballType] = (currentEncounterBalls[ballType] || 0) + 1;
-    updateBackpack();
-    addSystemLog('item_use', { item: ballType, auto: true });
+    // 委托 throwBall 统一处理丢球逻辑（动画、捕获、逃跑、UI文案等）
+    $('fleeBtn')?.classList.add('disabled');
+    await throwBall(ballType);
 
-    const catchBonus = Math.min(1 + _catchStreak * 0.15, 2);
-    const rate = ballType === 'master-ball' ? 1.0 : (CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) * catchBonus;
-    const isCaught = Math.random() < rate;
-
-    // 播放丢球动画
-    if (isOnGameView()) {
-      updateTextBox('丢出了' + (ITEM_NAMES[ballType] || ballType) + '！', false);
-    }
-    const animResult = await playCatchSequence(ballType, isCaught);
-    const name = currentEncounter.name;
-
-    if (animResult.result === 'caught') {
-      setPhase('caught');
-      $('fleeBtn').style.display = 'none';
-      const idx = String(currentEncounter.index);
-      if (!gameData.pokedex[idx]) {
-        gameData.pokedex[idx] = {
-          name: currentEncounter.name, seen: 1, caught: 0,
-          lastTime: new Date().toISOString(), shinySeen: 0, shinyCaught: 0,
-        };
-      }
-      gameData.pokedex[idx].caught = (gameData.pokedex[idx].caught || 0) + 1;
-      if (currentIsShiny) {
-        gameData.pokedex[idx].shinyCaught++;
-        gameData.stats.totalShinyCaught++;
-      }
-      gameData.stats.totalCatches++;
-      if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-      gameData.encounterLogs[idx].push({
-        time: Date.now(), shiny: currentIsShiny, result: 'caught',
-        balls: { ...currentEncounterBalls }
-      });
-      setCatchStreak(0);
-       await saveGame();
-       updateStats();
-       addSystemLog('pokemon_caught', { pokemon: idx, name, shiny: currentIsShiny, ball: ballType, auto: true });
-      if (gameData.settings?.autoCatch) {
-         // 自动模式：仅在首页显示文案，不然静默回idle
-        if (isOnGameView()) {
-          updateTextBox('收服了 ' + name + '！', false);
-          await delay(300);
-        }
-        if (phase === 'caught') {
-          goIdle();
-        }
-      } else {
-        // 手动模式（捕获时关闭了自动）
-        if (isOnGameView()) {
-          updateTextBox('搞定！' + name + ' 被收服了！', true);
-        } else {
-          goIdle();
-        }
-      }
-      break;
-    }
-
-    if (animResult.result === 'fled') {
-      setPhase('fled');
-      gameData.stats.totalFlees++;
-      const idx = String(currentEncounter.index);
-      if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-      gameData.encounterLogs[idx].push({
-        time: Date.now(), shiny: currentIsShiny, result: 'fled',
-        balls: { ...currentEncounterBalls }
-      });
-      await saveGame();
-      updateStats();
-      addSystemLog('pokemon_escaped', { pokemon: idx, name: currentEncounter.name, shiny: currentIsShiny, auto: true });
-      if (isOnGameView()) {
-        const m = BREAK_MSGS[animResult.shakes] || BREAK_MSGS[1];
-        updateTextBox(m[randInt(0, m.length - 1)], false);
-        await delay(800);
-        updateTextBox('精灵逃走了！', false);
-        await delay(1500);
-        goIdle();
-      } else {
-        await delay(1500);
-        goIdle();
-      }
-      break;
-    }
-
-    // 继续丢球
-    setCatchStreak(_catchStreak + 1);
-    if (isOnGameView()) {
-      const m = BREAK_MSGS[animResult.shakes] || BREAK_MSGS[1];
-      updateTextBox(m[randInt(0, m.length - 1)], false);
+    // 如果仍处于遇敌中（没抓到也没逃跑），加一点延迟继续丢球
+    if (phase === 'encounter') {
       await delay(500);
     }
-    await delay(500);
   }
 
   } catch (e) {
     console.error('autoCatch error:', e);
   } finally {
+    if (_abortAutoCatch) {
+      _abortAutoCatch = false;
+      if (currentIsShiny && phase === 'encounter') {
+        showView('encounterView');
+        $('fleeBtn').style.display = '';
+      }
+    }
+    if (currentIsShiny && phase === 'encounter') startShinySparkleLoop();
+    $('fleeBtn')?.classList.remove('disabled');
     setAutoCatching(false);
   }
 }
