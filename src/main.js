@@ -10,6 +10,7 @@ import {
   honeyExpiryTimer, charmExpiryTimer,
   _honeyEncounterCount, _charmEncounterCount,
   _autoFleeTimer, _autoFleeBarInterval,
+  _autoCatching,
   _catchConfirmStep, _prevView, _pokedexInLogView, _idleMsgIdx,
   _lastRegionId, gameTick, _fishing,
   setAllPokemon, setGameData, setPhase, setCurrentEncounter,
@@ -18,7 +19,7 @@ import {
   setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd,
   setHoneyPausedRemaining, setCharmPausedRemaining,
   setHoneyEncounterCount, setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
-  getDefaultSave, saveGame, cleanSaveData, ensureGameData,
+  getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion,
   hasAnyBall, saveSessionState, rand, randInt, formatNum, formatTime,
   setEncounterMsg,
@@ -26,19 +27,21 @@ import {
 import {
   $, showView, updateTextBox, hideTextBox,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
-  renderIncubatorView, updateIncubatorBadge,
+  renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge,
 } from './ui.js';
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
   closeCandyDialog, doCandyExchange } from './items.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
-  tryEncounter, startAutoFleeTimer, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
+  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
 import { showEncounterLogs, restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
-import { showDataView, showSystemLogs, showShopView, showSettingsView,
+import { showSystemLogs, showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
+import { showPhoneView } from './phone.js';
+import { gpsAddDistance } from './gps.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -118,11 +121,6 @@ function onBagClick(itemKey) {
   // 钓鱼中禁止使用 buff 道具（会与暂停的道路/角色状态冲突）
   if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
-  else if (itemKey === 'mystery-egg') {
-    setPrevView('idleView');
-    showView('incubatorView');
-    renderIncubatorView();
-  }
   else if (itemKey === 'shiny-charm') {
     if (honeyBuffActive) return;
     activateShinyCharm();
@@ -133,6 +131,13 @@ function onBagClick(itemKey) {
 function onGameTick() {
   setGameTick(gameTick + 1);
   gameData.stats.totalPlaySeconds++;
+  // 同步真实行走距离：仅 idle 挂机时道路在滚动，遇敌/战斗/钓鱼不计
+  const walked = road.takeDistance();
+  if (walked > 0) {
+    gameData.stats.walkDistance = (gameData.stats.walkDistance || 0) + walked;
+    // 导航由主角实际移动推进（跑步更快）
+    gpsAddDistance(walked, road.getSpeed() * 60);
+  }
 
   const region = getCurrentRegion();
   if (region.id !== _lastRegionId) {
@@ -194,9 +199,10 @@ function onGameTick() {
     if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
   }
 
-  // 孵蛋器定时刷新倒计时（每 tick）
+  // 孵蛋器倒计时刷新（每 tick）：轻量更新进度条与剩余时间，不重建 DOM，
+  // 避免每秒整页重建导致按钮点击在重建瞬间丢失（要点两下才有反应）
   if ($('incubatorView')?.style.display === 'flex') {
-    renderIncubatorView();
+    updateIncubatorTimers();
   }
   // badge 同步
   if (gameTick % 5 === 0) updateIncubatorBadge();
@@ -215,7 +221,7 @@ async function init() {
     return;
   }
 
-  // 加载存档
+  // 加载存档（localStorage 与 Tauri 文件取较新者）
   let gameDataRaw = null;
   try {
     const candidates = [];
@@ -236,18 +242,11 @@ async function init() {
       gameDataRaw = candidates[0];
     }
   } catch (_) {}
-
-  if (gameDataRaw) {
-    setGameData(cleanSaveData(ensureGameData(gameDataRaw)));
-  } else {
-    setGameData(getDefaultSave());
-  }
+  setGameData(gameDataRaw || getDefaultSave());
+  ensureGpsState(); // 兼容旧存档：补齐 GPS 状态（默认从丰缘出发）
 
   setLastRegionId(getCurrentRegion().id);
   await saveGame();
-
-  // 修复存档：根据遭遇日志重新计算图鉴数据
-  fixPokedexFromLogs();
 
   // 调试辅助：DevTools 控制台快速完成所有孵蛋
   window.__completeAllEggs = () => {
@@ -260,17 +259,6 @@ async function init() {
     if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
     updateIncubatorBadge();
     console.log('所有孵蛋中的蛋已标记为孵化完成');
-  };
-  // DevTools: window.__resetSave() → 完全重置存档（内存+存储）
-  window.__resetSave = () => {
-    setGameData(getDefaultSave());
-    localStorage.removeItem('pokemon_idle_save');
-    localStorage.removeItem('pokemon_idle_road');
-    saveGame().then(() => {
-      updateBackpack();
-      updateStats();
-      console.log('存档已完全重置！请手动删除 Tauri 文件: %APPDATA%\\com.pokemon.idle\\save.json');
-    });
   };
 
   // 固定窗口
@@ -397,7 +385,7 @@ async function init() {
 
     // 恢复战斗状态
     if (sessionState.phase === 'encounter' && sessionState.encounter) {
-      const poke = allPokemon.find(p => p.index === sessionState.encounter.index);
+      const poke = getPokemonByIndex(sessionState.encounter.index);
       if (poke) {
         setCurrentEncounter(poke);
         setCurrentIsShiny(!!sessionState.encounter.isShiny);
@@ -407,10 +395,8 @@ async function init() {
         setPhase('encounter');
         // 恢复自定义遭遇文案（如钓鱼"上钩了"），避免刷新后退化为默认"跳出来了"
         setEncounterMsg(sessionState.encounter.msg || null);
-        showEncounter(poke, true);
-        if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
-          startAutoFleeTimer();
-        }
+        // 不跳过自动操作：恢复遭遇后，自动捕捉/佛系模式由 showEncounter 统一接管
+        showEncounter(poke);
       }
     }
   }
@@ -427,7 +413,8 @@ async function init() {
   const textBoxArrow = $('textBoxArrow');
   if (textBoxArrow) {
     textBoxArrow.addEventListener('click', () => {
-      if (phase === 'caught' && !gameData.settings?.autoCatch) {
+      // 手动捕获（自动捕捉未实际接管，如闪光暂停转手动）→ 询问是否查看图鉴
+      if (phase === 'caught' && !_autoCatching) {
         $('textBoxArrow').style.display = 'none';
         $('textBoxContent').textContent = '是否跳转到图鉴？';
         $('catchConfirmBtns').style.display = 'flex';
@@ -457,9 +444,8 @@ async function init() {
   $('fleeBtn')?.addEventListener('click', () => fleeEncounter(false));
 
   // 导航按钮
-  $('btnPokedex')?.addEventListener('click', showPokedex);
+  $('btnPhone')?.addEventListener('click', showPhoneView);
   $('btnShop')?.addEventListener('click', showShopView);
-  $('btnData')?.addEventListener('click', showDataView);
   $('btnSettings')?.addEventListener('click', showSettingsView);
 
   // 状态栏点击
@@ -545,6 +531,9 @@ function startSplashDrop() {
   const autoStatus = document.getElementById('statAutoStatus');
   const timeEl = document.getElementById('statTime');
   if (!ring || items.length === 0) return;
+  // 启动画面期间禁用标题栏右侧按钮（图鉴/商店/统计/设置/最小化/关闭），动画结束后恢复
+  const controls = document.querySelector('.window-controls');
+  if (controls) controls.classList.add('controls-disabled');
   // 启动期间背包槽位、糖果计数与底部统计栏先隐藏，道具落位时再依次浮现
   slots.forEach(s => s.classList.add('splash-hidden'));
   if (candy) candy.classList.add('splash-hidden');
@@ -598,69 +587,15 @@ function startSplashDrop() {
         const splash = $('splash');
         if (splash) {
           splash.classList.add('hide');
-          setTimeout(() => splash.remove(), 550);
+          setTimeout(() => {
+            splash.remove();
+            // 启动画面结束，恢复标题栏右侧按钮
+            if (controls) controls.classList.remove('controls-disabled');
+          }, 550);
         }
       }, (items.length - 1) * 120 + 550);
     }, 250);
   }, 1000);
-}
-
-// 根据遭遇日志重新计算图鉴数据，修复 session 还原导致的多余计数
-// 会话中正在进行的遭遇（日志尚未写入）会补计 1 次，避免刷新后"新发现"误判
-function fixPokedexFromLogs() {
-  if (!gameData || !gameData.pokedex) return;
-  const logs = gameData.encounterLogs || {};
-  // 会话中正在进行中的遭遇：日志尚未写入，重算时需补计一次 seen
-  let cur = null;
-  try {
-    const raw = localStorage.getItem('pokemon_idle_session');
-    if (raw) {
-      const s = JSON.parse(raw);
-      if (s && s.phase === 'encounter' && s.encounter) {
-        cur = { index: String(s.encounter.index), shiny: !!s.encounter.isShiny, time: s._savedAt || 0 };
-      }
-    }
-  } catch (_) {}
-  let changed = false;
-
-  for (const [idxStr, entry] of Object.entries(gameData.pokedex)) {
-    const entryLogs = logs[idxStr];
-    let seen = 0, caught = 0, shinySeen = 0, shinyCaught = 0;
-    let lastTime = null;
-    if (entryLogs && Array.isArray(entryLogs)) {
-      for (const log of entryLogs) {
-        if (!log || typeof log !== 'object') continue;
-        seen++;
-        if (log.shiny) shinySeen++;
-        if (log.result === 'caught') {
-          caught++;
-          if (log.shiny) shinyCaught++;
-        }
-        if (log.time && (!lastTime || log.time > lastTime)) lastTime = log.time;
-      }
-    }
-    // 当前正在进行的遭遇补计（该次遭遇的日志要等结束才写入）
-    if (cur && cur.index === idxStr) {
-      seen++;
-      if (cur.shiny) shinySeen++;
-      if (cur.time && (!lastTime || cur.time > lastTime)) lastTime = cur.time;
-    }
-
-    if (entry.seen !== seen || entry.caught !== caught ||
-        entry.shinySeen !== shinySeen || entry.shinyCaught !== shinyCaught) {
-      entry.seen = seen;
-      entry.caught = caught;
-      entry.shinySeen = shinySeen;
-      entry.shinyCaught = shinyCaught;
-      entry.lastTime = lastTime ? new Date(lastTime).toISOString() : null;
-      changed = true;
-    }
-  }
-
-  if (changed) {
-    saveGame();
-    console.log('已根据遭遇日志修复图鉴数据');
-  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -1,8 +1,20 @@
 // ===== 游戏状态 + 存档管理 =====
-import { ITEM_RATES, REGION_CYCLE, REGION_DURATION } from './config.js';
+import { ITEM_RATES, REGION_CYCLE, HATCH_TIME_MIN, HATCH_TIME_MAX, HATCH_TIME_SIGMA, ROAD_SPEED_WALK } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
+
+// 宝可梦编号 → 数据对象 索引
+let _pokemonMap = null;
+export function getPokemonByIndex(idx) {
+  if (!_pokemonMap) {
+    _pokemonMap = new Map();
+    for (const p of allPokemon) _pokemonMap.set(String(p.index), p);
+  }
+  return _pokemonMap.get(String(idx)) || null;
+}
+export function setAllPokemon(a) { allPokemon = a; _pokemonMap = null; }
+
 export let gameData = null;
 export let phase = 'idle'; // idle | encounter | caught | fled | eggResult
 export let currentEncounter = null;
@@ -62,7 +74,6 @@ export function setCurrentEncounter(e) { currentEncounter = e; }
 export function setCurrentIsShiny(s) { currentIsShiny = s; }
 export function setEncounterBallsUsed(n) { encounterBallsUsed = n; }
 export function setCurrentEncounterBalls(b) { currentEncounterBalls = b; }
-export function setAllPokemon(a) { allPokemon = a; }
 export function setGameTick(n) { gameTick = n; }
 export function setPrevView(v) { _prevView = v; }
 export function setLastRegionId(id) { _lastRegionId = id; }
@@ -98,21 +109,32 @@ export function setHoneyCountdownInterval(i) { honeyCountdownInterval = i; }
 export function setCharmCountdownInterval(i) { charmCountdownInterval = i; }
 
 // ---------- 孵化时间计算 ----------
+// 体重/稀有度决定正态分布的峰值（对数插值），叠加正态随机后截断到配置区间，
+// 使所有孵化时间都落在 [HATCH_TIME_MIN, HATCH_TIME_MAX] 内且呈钟形分布
 export function calcHatchDuration(poke) {
   const w = Math.min((poke.weight || 100) / 5000, 1); // 重量 0~1
   const r = poke.rarity || 0.5;                       // 稀有度 0~1
-  const factor = Math.min(w * 0.6 + r * 0.4, 1);       // 综合因子 0~1
-  const minTime = 600;                                 // 最短 10 分钟
-  const maxTime = 28800;                               // 最长 8 小时
-  const ratio = maxTime / minTime;                     // 48 倍
-  const time = minTime * Math.pow(ratio, factor);      // 指数增长
-  const randomized = time + (Math.random() - 0.5) * time * 0.4; // ±20%
-  return Math.round(Math.max(minTime, randomized)) * 1000;
+  const factor = Math.min(w * 0.6 + r * 0.4, 1);      // 综合因子 0~1
+  // 分布峰值：轻/常见 → 靠近最短，重/稀有 → 靠近最长
+  const mid = HATCH_TIME_MIN * Math.pow(HATCH_TIME_MAX / HATCH_TIME_MIN, factor);
+  // 标准差相对峰值（而非整段区间）：否则轻/常见宝可梦的分布会大量被截断在最小值整值
+  const sigma = Math.max(60, mid * HATCH_TIME_SIGMA);
+  // 截断正态采样（Box-Muller）：超出配置区间时重新采样而非粗暴截断，
+  // 保证钟形分布，且不会堆积出大量"恰好 30 分钟整"的结果
+  let t = 0;
+  do {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    t = mid + z * sigma;
+  } while (t < HATCH_TIME_MIN || t > HATCH_TIME_MAX);
+  return Math.round(t) * 1000;
 }
 
 // 空孵蛋器
 export function emptyIncubator() {
-  return { eggIndex: null, name: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
+  return { eggIndex: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
 }
 
 // 孵蛋器解锁糖果价格（槽位 0~7，全部需购买，价格递增）
@@ -127,18 +149,50 @@ export function anyIncubatorReady() {
   return (gameData.incubators || []).some(s => s && s.hatched);
 }
 
+// ---------- GPS 导航状态 ----------
+// 当前地区由 GPS 位置决定（默认从丰缘出发）；开启"漫游"后才会有目的地并随行走推进。
+export function defaultGpsState() {
+  return {
+    roamEnabled: false,            // 漫游开关：关闭时没有目的地，停留在当前地区
+    curIdx: 2,                     // 当前地区编号（REGION_CYCLE 下标，2=丰缘）
+    destIdx: null,                 // 目的地地区编号；null=无目的地
+    path: null,                    // 最短路线（地区编号数组）
+    seg: 0,                        // 当前路段下标
+    units: 0,                      // 当前路段距离（单位）
+    totalPx: 0,                    // 当前路段总像素
+    remainPx: 0,                   // 当前路段剩余像素
+    arrived: false,                // 是否已到达目的地
+    arrivedAt: 0,                  // 到达时间戳（停留片刻后自动规划下一站）
+    pxPerSec: ROAD_SPEED_WALK * 60, // 最近一次移动速度（px/秒）
+  };
+}
+
+// 补齐/初始化 GPS 状态（兼容旧存档）
+export function ensureGpsState() {
+  if (!gameData) return;
+  if (!gameData.gps) gameData.gps = defaultGpsState();
+  else {
+    const d = defaultGpsState();
+    for (const k of Object.keys(d)) {
+      if (gameData.gps[k] === undefined) gameData.gps[k] = d[k];
+    }
+  }
+  return gameData.gps;
+}
+
 // ---------- 存档默认值 ----------
 export function getDefaultSave() {
   return {
     items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     stats: {
-      totalPlaySeconds:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
+      totalPlaySeconds:0, walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
       totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0,
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     },
     incubators: Array.from({length: 8}, () => emptyIncubator()),
     incubatorUnlockedSlots: 0,
+    gps: defaultGpsState(),
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
@@ -153,24 +207,6 @@ export function addSystemLog(type, details) {
   if (gameData.systemLogs.length > 50) {
     gameData.systemLogs = gameData.systemLogs.slice(-50);
   }
-}
-
-// ---------- 存档清洗 ----------
-export function cleanSaveData(data) {
-  if (!data.pokedex) return data;
-  if (!data.encounterLogs) data.encounterLogs = {};
-  return data;
-}
-
-// ---------- 存档确保字段 ----------
-export function ensureStats(stats) {
-  if (typeof stats.totalBallsUsed !== 'number') stats.totalBallsUsed = 0;
-  if (typeof stats.totalEggsHatched !== 'number') stats.totalEggsHatched = 0;
-  if (typeof stats.totalShinyEggsHatched !== 'number') stats.totalShinyEggsHatched = 0;
-  if (!stats.totalItemsEarned) {
-    stats.totalItemsEarned = { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 };
-  }
-  return stats;
 }
 
 // ---------- 存档保存 ----------
@@ -240,6 +276,7 @@ export function calcOffline(save) {
   const elapsed = Math.min((now - save.stats.lastSaveTime) / 1000, 86400);
   if (elapsed <= 0) return 0;
   save.stats.totalPlaySeconds += elapsed;
+  // 地区进度只按实际游玩时的行走/跑步距离推进，离线不累计
   for (const [item, rate] of Object.entries(ITEM_RATES)) {
     const gained = Math.floor(rate * elapsed);
     if (gained > 0) save.items[item] += gained;
@@ -248,10 +285,11 @@ export function calcOffline(save) {
 }
 
 // ---------- 当前地区 ----------
+// 当前地区由 GPS 位置决定：开启漫游并抵达目的地后才会改变；
+// 未开启时一直停留在当前位置（默认从丰缘出发）。
 export function getCurrentRegion() {
-  const sec = gameData?.stats?.totalPlaySeconds ?? 0;
-  const regionId = Math.floor(sec / REGION_DURATION) % REGION_CYCLE.length;
-  return { id: regionId, name: REGION_CYCLE[regionId] };
+  const idx = gameData?.gps?.curIdx ?? 2;
+  return { id: idx, name: REGION_CYCLE[idx] || '丰缘' };
 }
 
 // ---------- 是否有可用球 ----------
@@ -280,60 +318,4 @@ export function formatNum(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
   if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
   return String(n);
-}
-
-// ---------- 存档完整性检查 ----------
-export function ensureGameData(data) {
-  const def = getDefaultSave();
-  if (!data.items || typeof data.items !== 'object') data.items = { ...def.items };
-  else {
-    for (const k of Object.keys(def.items)) {
-      if (typeof data.items[k] !== 'number') data.items[k] = 0;
-    }
-  }
-  if (!data.stats || typeof data.stats !== 'object') data.stats = { ...def.stats, lastSaveTime:Date.now() };
-  else {
-    for (const k of Object.keys(def.stats)) {
-      if (k === 'totalItemsEarned') continue;
-      if (typeof data.stats[k] !== 'number') data.stats[k] = def.stats[k];
-    }
-    if (!data.stats.totalItemsEarned || typeof data.stats.totalItemsEarned !== 'object') {
-      data.stats.totalItemsEarned = { ...def.stats.totalItemsEarned };
-    } else {
-      for (const k of Object.keys(def.stats.totalItemsEarned)) {
-        if (typeof data.stats.totalItemsEarned[k] !== 'number') data.stats.totalItemsEarned[k] = 0;
-      }
-    }
-  }
-  if (!data.pokedex) data.pokedex = {};
-  if (!data.encounterLogs) data.encounterLogs = {};
-  if (!data.incubators || !Array.isArray(data.incubators) || data.incubators.length !== 8) {
-    data.incubators = Array.from({length: 8}, () => emptyIncubator());
-  } else {
-    data.incubators = data.incubators.map(s => s && typeof s === 'object' ? { ...emptyIncubator(), ...s } : emptyIncubator());
-  }
-  if (typeof data.incubatorUnlockedSlots !== 'number' || data.incubatorUnlockedSlots < 0) {
-    data.incubatorUnlockedSlots = 0;
-  }
-  // 迁移旧存档：之前默认 4 个免费槽，现在全部需解锁
-  if (data.incubatorUnlockedSlots === 4 && data.incubators) {
-    data.incubatorUnlockedSlots = 0;
-  }
-  if (!data.settings) data.settings = { ...def.settings };
-  if (typeof data.settings.windowPinned !== 'boolean') data.settings.windowPinned = false;
-  if (!data.settings.autoCatchBalls) data.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
-  if (typeof data.settings.shinyStop !== 'boolean') data.settings.shinyStop = false;
-  if (typeof data.settings.autoBuffHoney !== 'boolean') data.settings.autoBuffHoney = false;
-  if (typeof data.settings.autoBuffCharm !== 'boolean') data.settings.autoBuffCharm = false;
-  for (const [idx, logs] of Object.entries(data.encounterLogs)) {
-    if (!Array.isArray(logs)) { delete data.encounterLogs[idx]; continue; }
-    data.encounterLogs[idx] = logs.filter(log => {
-      if (!log || typeof log !== 'object') return false;
-      if (!log.balls || typeof log.balls !== 'object') return false;
-      if (!log.result || !log.time) return false;
-      return true;
-    });
-    if (data.encounterLogs[idx].length === 0) delete data.encounterLogs[idx];
-  }
-  return data;
 }

@@ -13,14 +13,14 @@
     <div class="title-bar" data-tauri-drag-region>
       <div id="appTitle" class="app-title">口袋挂机</div>
       <div class="window-controls">
-        <button class="control-btn window-icon" id="btnPokedex" data-view="pokedexView" aria-label="图鉴" title="图鉴">
-          <svg><use xlink:href="./icons/sprites.svg#icon-book"/></svg>
+        <button class="control-btn window-icon" id="btnPhone" data-view="phoneView" aria-label="手机" title="手机">
+          <svg><use xlink:href="./icons/sprites.svg#icon-phone"/></svg>
         </button>
         <button class="control-btn window-icon" id="btnShop" data-view="shopView" aria-label="商店" title="商店">
           <svg><use xlink:href="./icons/sprites.svg#icon-shop"/></svg>
         </button>
-        <button class="control-btn window-icon" id="btnData" data-view="dataView" aria-label="统计" title="统计">
-          <svg><use xlink:href="./icons/sprites.svg#icon-data"/></svg>
+        <button class="control-btn window-icon" id="btnStation" aria-label="地区驿站" title="地区驿站">
+          <svg><use xlink:href="./icons/sprites.svg#icon-station"/></svg>
         </button>
         <button class="control-btn window-icon" id="btnSettings" data-view="settingsView" aria-label="设置" title="设置">
           <svg><use xlink:href="./icons/sprites.svg#icon-settings"/></svg>
@@ -71,6 +71,20 @@
             <div id="pokedexList"></div>
           </div>
 
+          <!-- 手机主页（主菜单） -->
+          <div id="phoneView" style="display:none;flex-direction:column;overflow:hidden;padding:6px 14px 8px;">
+            <div id="phoneClock" class="phone-clock">
+              <div id="phoneClockDate" class="date"></div>
+              <div id="phoneClockTime" class="time"></div>
+            </div>
+            <div id="phoneContent" style="flex:1;color:var(--ui-color);"></div>
+          </div>
+
+          <!-- GPS 模拟导航 -->
+          <div id="gpsView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 0 0;">
+            <div id="gpsContent" style="flex:1;color:var(--ui-color);"></div>
+          </div>
+
           <!-- 数据统计 -->
           <div id="dataView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;">
             <div id="dataContent" style="flex:1;color:var(--ui-color);line-height:1.8;"></div>
@@ -98,7 +112,7 @@
           </div>
 
           <!-- 遇敌状态 -->
-          <div id="encounterView" style="display:none;position:relative;">
+          <div id="encounterView" style="display:none;">
             <div class="encounter-name" id="encounterName"></div>
             <div class="encounter-types" id="encounterTypes"></div>
             <div class="encounter-right">
@@ -117,7 +131,7 @@
             <!-- 捕捉动画舞台 -->
             <div class="catch-stage" id="catchStage">
               <img id="animBall" class="anim-ball" src="./items/poke-ball.png" alt="精灵球" />
-              <div id="animStars" style="position:absolute;inset:0;pointer-events:none;z-index:4;"></div>
+              <div id="animStars" style="position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:4;"></div>
               <div id="animMsg" class="catch-msg"></div>
             </div>
           </div>
@@ -133,6 +147,15 @@
               <div class="candy-opt" data-cost="100" data-item="mystery-egg">100 糖果 → 神秘蛋</div>
               <div class="candy-opt" data-cost="1000" data-item="shiny-charm">1000 糖果 → 闪耀护符</div>
               <div class="candy-close">关闭</div>
+            </div>
+          </div>
+
+          <!-- 选择目的地弹窗 -->
+          <div id="gpsDialog" class="gps-dialog">
+            <div class="gps-dialog-box">
+              <svg class="gps-dialog-close" viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="./icons/sprites.svg#icon-close"/></svg>
+              <div class="gps-dialog-title">选择目的地</div>
+              <div id="gpsDialogList"></div>
             </div>
           </div>
 
@@ -205,7 +228,6 @@
           <img src="./items/mystery-egg.png" class="bag-icon" alt="神秘蛋" />
           <span class="bag-name">神秘蛋</span>
           <span class="bag-qty" id="bag-mystery-egg">0</span>
-          <span class="bag-badge" id="bag-badge-egg" style="display:none;"></span>
         </div>
         <div class="bag-slot" data-item="sweet-honey">
           <img src="./items/honey.png" class="bag-icon" alt="甜甜蜜" />

@@ -1,5 +1,5 @@
-﻿﻿// ==================== 捕捉动画函数 ====================
-import { $, fitPokemonImage } from './ui.js';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// ==================== 捕捉动画函数 ====================
+import { $, fitPokemonImage, getStageSize } from './ui.js';
 import { currentEncounter, currentIsShiny, encounterBallsUsed } from './state.js';
 import { FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';
 
@@ -46,20 +46,24 @@ export async function setupCatchAnim(ballType) {
   // 重置丢球角色（始终可见，移除丢球动画状态）
   throwChar.classList.remove('throwing');
 
-  // 先用 encounterView 获取尺寸（stage 初始 display:none，取不到尺寸）
-  const encRect = $('encounterView').getBoundingClientRect();
-  let stageW = encRect.width;
-  let stageH = encRect.height;
-  if (stageW < 50 || stageH < 50) {
-    const appRect = document.getElementById('app')?.getBoundingClientRect();
-    if (appRect && appRect.width > 50 && appRect.height > 50) {
-      stageW = appRect.width;
-      stageH = appRect.height;
-    } else {
-      stageW = 320;
-      stageH = 400;
-    }
-  }
+  // 舞台基准：以屏幕内层（screenInner）真实内容区为准（首次布局后缓存，
+  // 避免从设置页等切回瞬间 encounterView/screenInner 布局未稳定取到收缩值，
+  // 曾实测内容区被收缩为 248×211 导致宝可梦/精灵球像素定位整体偏移）。
+  // 这里同时强制 encounterView 与 catchStage 铺满舞台，保证坐标系一致
+  const { w: stageW, h: stageH } = getStageSize();
+  // 强制遭遇视图与动画舞台铺满舞台尺寸（inline 显式定位，不依赖 CSS inset 兼容性），
+  // 使宝可梦/精灵球等绝对定位子元素的定位基准与舞台一致
+  const view = $('encounterView');
+  view.style.position = 'absolute';
+  view.style.left = '0';
+  view.style.top = '0';
+  view.style.width = stageW + 'px';
+  view.style.height = stageH + 'px';
+  stage.style.position = 'absolute';
+  stage.style.left = '0';
+  stage.style.top = '0';
+  stage.style.width = stageW + 'px';
+  stage.style.height = stageH + 'px';
 
   // 等待宝可梦图片加载完成，确保获取实际尺寸
   if (!pkmn.naturalWidth || !pkmn.naturalHeight) {

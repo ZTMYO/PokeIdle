@@ -1,6 +1,6 @@
 // ===== 图鉴模块 =====
 import { ITEM_NAMES } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, _pokedexInLogView, _pokedexSortBy, _pokedexSortDir, pad, randInt, setPrevView, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, _pokedexInLogView, _pokedexSortBy, _pokedexSortDir, pad, randInt, setPrevView, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
 import { $, showView, tryLoadPokemonImage, fitPokemonImage } from './ui.js';
 import { TYPE_COLORS } from './items.js';
 
@@ -62,7 +62,7 @@ export function showEncounterLogs(pokemonIndex) {
   const idx = String(pokemonIndex);
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
   const logs = gameData.encounterLogs[idx];
-  const poke = allPokemon.find(p => String(p.index) === String(pokemonIndex));
+  const poke = getPokemonByIndex(pokemonIndex);
   const caughtEntry = gameData.pokedex[idx];
   const seenCount = caughtEntry?.seen || 0;
   const caughtCount = caughtEntry?.caught || 0;
@@ -358,7 +358,8 @@ export function setupRegionDropdown() {
 
 // ===== 图鉴列表 =====
 export function showPokedex() {
-  setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
+  // 从手机主页进入时，返回应回到手机主页
+  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' ? 'encounterView' : 'idleView'));
   const list = $('pokedexList');
   if (!list) return;
   delete list.dataset.savedHtml;

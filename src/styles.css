@@ -5,7 +5,9 @@
   --color-muted: #7c7c7c;
   --screen-bg: #73c5a4;
   --screen-bg-dark: #4c8d73;
+  --screen-bg-light: #96d0b9;
   --ui-color: #376d56;
+  --ui-color-dark: #24563f;
   --ui-color-rgb: 48, 98, 48;
   --console-body: #e8dcc0;
   --console-border: #c4b692;
@@ -55,6 +57,11 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .window-controls { display: flex; gap: 3px; }
 
+.window-controls.controls-disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 .control-btn {
   width: 24px; height: 24px;
   border: none; background: transparent;
@@ -74,7 +81,7 @@ body { margin: 0; padding: 0; cursor: default; }
 .screen-wrapper {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   padding: 6px 10px;
   min-height: 0;
@@ -83,6 +90,7 @@ body { margin: 0; padding: 0; cursor: default; }
 .screen {
   width: 100%;
   height: 100%;
+  flex-shrink: 0;
   background: var(--screen-bg);
   border-radius: 10px;
   border: 3px solid var(--screen-bg-dark);
@@ -230,7 +238,15 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 
 /* === 遇敌 (屏幕内) === */
+/* 绝对定位铺满屏幕内层（screen-inner 为 position:relative），
+   避免作为 flex 子项被内容收缩（实测曾收缩为 248×211，导致像素定位基准偏小）；
+   用显式 left/top/right/bottom 而非 inset，兼容旧 WebView */
 #encounterView {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
 }
@@ -584,22 +600,6 @@ body { margin: 0; padding: 0; cursor: default; }
   line-height: 1.2;
 }
 
-/* === 背包红点 badge === */
-.bag-slot { position: relative; }
-
-.bag-badge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 7px;
-  height: 7px;
-  background: #e74c3c;
-  border: 1px solid #fff;
-  border-radius: 50%;
-  z-index: 2;
-  box-shadow: 0 0 2px rgba(0,0,0,0.3);
-}
-
 /* === 孵蛋器 === */
 .incubator-row {
   display: flex;
@@ -693,13 +693,13 @@ body { margin: 0; padding: 0; cursor: default; }
 .incubator-hatch-text:hover { background: rgba(var(--ui-color-rgb),0.12); }
 .incubator-hatch-text:active { transform: scale(0.92); }
 
-.incubator-empty-text {
-  font-size: 10px;
-  color: var(--ui-color);
-  text-align: center;
-  padding: 16px 0;
-  grid-column: 1 / -1;
+/* 锁定槽位中非下一个的解锁按钮：灰显禁用 */
+.incubator-hatch-text.disabled {
+  opacity: 0.35;
+  cursor: default;
 }
+.incubator-hatch-text.disabled:hover { background: transparent; }
+.incubator-hatch-text.disabled:active { transform: none; }
 
 /* 锁定槽位 */
 .incubator-row.locked { cursor: default; position: relative; }
@@ -771,7 +771,10 @@ body { margin: 0; padding: 0; cursor: default; }
 /* ==================== 捕捉动画舞台 ==================== */
 .catch-stage {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
   overflow: hidden;
   pointer-events: none;
   z-index: 20;
@@ -1037,6 +1040,291 @@ body { margin: 0; padding: 0; cursor: default; }
   opacity: 0.5;
 }
 .pokedex-close:hover { opacity: 1; }
+
+/* === 手机主页（主菜单） === */
+#phoneView {
+  width: 100%;
+  align-self: stretch;
+  height: 100%;
+}
+.phone-clock {
+  text-align: center;
+  color: var(--ui-color);
+  padding: 2px 0 6px;
+  user-select: none;
+}
+.phone-clock .date {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+.phone-clock .time {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+.phone-apps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 4px;
+  justify-items: center;
+  padding: 4px 2px;
+}
+.phone-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+.phone-app:hover { opacity: 0.85; }
+.phone-app:active { transform: scale(0.92); }
+.phone-app-icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--screen-bg-dark);
+  border-radius: 11px;
+  color: #fff;
+}
+.phone-app-icon svg { width: 24px; height: 24px; display: block; }
+.phone-app-name {
+  font-size: 10px;
+  font-weight: 700;
+}
+/* 孵蛋器应用红点：有蛋孵化完成时点亮 */
+.phone-app-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  background: #e74c3c;
+  border: 1.5px solid var(--screen-bg);
+  border-radius: 50%;
+  z-index: 2;
+}
+
+/* === GPS 模拟导航 === */
+.gps-wrap { padding: 4px 3px 0; display: flex; flex-direction: column; gap: 6px; height: 100%; }
+.gps-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--screen-bg-light);
+  border: 1px solid var(--item-border);
+  border-radius: 6px;
+  padding: 7px 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, filter 0.15s ease;
+}
+.gps-top:hover { filter: brightness(0.95); }
+.gps-from { opacity: 0.65; white-space: nowrap; }
+.gps-arrow { flex-shrink: 0; color: var(--ui-color); }
+.gps-dest { text-align: right; white-space: nowrap; }
+/* 底部导航轴：指针随进度沿轴滑动，带上下浮动动画 */
+.gps-axis {
+  position: relative;
+  height: 26px;
+  margin: 2px 6px 0;
+}
+.gps-axis-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transform: translateY(-50%);
+  background: rgba(var(--ui-color-rgb), 0.15);
+  border-radius: 999px;
+}
+.gps-axis-fill {
+  height: 100%;
+  background: var(--ui-color);
+  border-radius: 999px;
+  transition: width 1s linear;
+}
+.gps-axis-pointer {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--ui-color);
+  animation: gpsPointerBob 0.9s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes gpsPointerBob {
+  0%, 100% { transform: translate(-50%, -50%) translateY(-5px); }
+  50% { transform: translate(-50%, -50%) translateY(-8px); }
+}
+.gps-steps {
+  font-size: 9px;
+  opacity: 0.6;
+  line-height: 1.7;
+  text-align: center;
+}
+.gps-tip {
+  font-size: 10px;
+  opacity: 0.65;
+  text-align: center;
+  padding: 2px 0 1px;
+}
+/* 移动暂停状态提示：遇敌对战 / 钓鱼中 */
+.gps-paused {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--ui-color);
+  line-height: 1.5;
+}
+/* 底部状态框：左侧叉（取消导航），中间路程与时间；贴底全宽（负边距抵消外层 padding） */
+.gps-bottom {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: auto -3px 0;
+  background: var(--screen-bg-light);
+  border: 1px solid var(--item-border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 6px 8px;
+}
+/* 取消按钮绝对定位贴左：图标顶格对齐第一行，退出文字落底对齐第二行（预计到达时间） */
+.gps-bottom-cancel {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  width: 26px;
+  color: var(--ui-color);
+  cursor: pointer;
+  transition: color 0.15s, transform 0.1s;
+}
+.gps-bottom-cancel:hover { color: var(--ui-color-dark); }
+.gps-bottom-cancel:active { transform: scale(0.88); }
+.gps-bottom-cancel svg { margin-top: 3px; }
+.gps-bottom-cancel-text {
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+}
+/* 信息区占满整框宽度，文字居中于整个底栏（不受左侧取消按钮影响） */
+.gps-bottom-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  pointer-events: none;
+}
+.gps-bottom-line1 {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 无目的地时：居中"开始导航"按钮，点击整个底栏打开目的地弹窗，hover 整框变色 */
+.gps-bottom.clickable { cursor: pointer; }
+.gps-bottom.clickable:hover { background: rgba(var(--ui-color-rgb),0.06); }
+.gps-bottom.clickable .gps-bottom-line1 {
+  padding: 4px 16px;
+  border-radius: 999px;
+}
+.gps-bottom-line2 {
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0.55;
+  white-space: nowrap;
+}
+/* 环国旅行开关行 */
+.gps-roam-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 2px 4px;
+}
+.gps-roam-label {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+/* 目的地选择弹窗 */
+.gps-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 99;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.25);
+}
+.gps-dialog.open { display: flex; }
+.gps-dialog-box {
+  position: relative;
+  background: var(--screen-bg-light);
+  border: 2px solid var(--screen-bg-dark);
+  border-radius: 6px;
+  padding: 12px;
+  min-width: 150px;
+}
+#gpsDialogList {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+.gps-dialog-title {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.gps-dialog-opt {
+  padding: 5px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb),0.1);
+  text-align: center;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.gps-dialog-opt:hover { background: rgba(var(--ui-color-rgb),0.25); }
+.gps-dialog-opt:active { transform: scale(0.95); }
+.gps-dialog-opt.disabled { opacity: 0.35; cursor: default; }
+.gps-dialog-opt.disabled:active { transform: none; }
+.gps-dialog-opt.sel { box-shadow: inset 0 0 0 1px var(--ui-color); }
+.gps-dialog-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 14px;
+  height: 14px;
+  color: var(--ui-color);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.gps-dialog-close:hover { opacity: 1; }
+.gps-dest-none { opacity: 0.5; }
 .pokedex-entry {
   display: flex;
   align-items: center;
@@ -1331,7 +1619,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #tutorialView::-webkit-scrollbar,
 #settingsView::-webkit-scrollbar,
 #systemLogView::-webkit-scrollbar,
-#incubatorView::-webkit-scrollbar {
+#incubatorView::-webkit-scrollbar,
+#gpsView::-webkit-scrollbar {
   width: 4px;
 }
 #shopView::-webkit-scrollbar-track,
@@ -1339,7 +1628,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #tutorialView::-webkit-scrollbar-track,
 #settingsView::-webkit-scrollbar-track,
 #systemLogView::-webkit-scrollbar-track,
-#incubatorView::-webkit-scrollbar-track {
+#incubatorView::-webkit-scrollbar-track,
+#gpsView::-webkit-scrollbar-track {
   background: transparent;
 }
 #shopView::-webkit-scrollbar-thumb,
@@ -1347,7 +1637,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #tutorialView::-webkit-scrollbar-thumb,
 #settingsView::-webkit-scrollbar-thumb,
 #systemLogView::-webkit-scrollbar-thumb,
-#incubatorView::-webkit-scrollbar-thumb {
+#incubatorView::-webkit-scrollbar-thumb,
+#gpsView::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb),0.3);
   border-radius: 2px;
 }
@@ -1360,12 +1651,8 @@ body { margin: 0; padding: 0; cursor: default; }
   border: 1px solid rgba(var(--ui-color-rgb),0.15);
   border-radius: 4px;
   background: rgba(255,255,255,0.2);
-  cursor: pointer;
-  transition: background 0.15s;
 }
-.shop-item:hover { background: rgba(var(--ui-color-rgb),0.1); }
-.shop-item:active { transform: scale(0.98); }
-.shop-item.disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+.shop-item.disabled { opacity: 0.35; pointer-events: none; }
 .shop-item-left {
   display: flex;
   align-items: center;
@@ -1398,7 +1685,10 @@ body { margin: 0; padding: 0; cursor: default; }
   border-radius: 3px;
   color: var(--ui-color);
   font-weight: 700;
+  cursor: pointer;
 }
+.shop-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
+.shop-btn:active { transform: scale(0.95); }
 
 /* ===== 设置面板 ===== */
 #settingsView {
@@ -1408,7 +1698,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #settingsView,
 #tutorialView,
 #dataView,
-#shopView {
+#shopView,
+#gpsView {
   align-self: stretch;
   width: 100%;
   height: 100%;
@@ -1568,27 +1859,35 @@ body { margin: 0; padding: 0; cursor: default; }
   font-weight: 700;
 }
 
-.tutorial-btn {
-  margin-top: 8px;
-  padding: 5px 10px;
-  text-align: center;
-  font-family: 'Courier New', monospace;
+/* 重置存档（二次点击确认） */
+.reset-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(var(--ui-color-rgb),0.15);
+}
+.reset-save-label { font-size: 11px; font-weight: 700; }
+.reset-save-btn {
+  font-family: inherit;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-color);
-  cursor: pointer;
   border: 1px solid var(--ui-color);
   border-radius: 4px;
-  transition: background 0.15s;
+  padding: 3px 12px;
+  cursor: pointer;
   user-select: none;
-  width: fit-content;
-  margin-inline: auto;
+  transition: background 0.15s;
 }
-.tutorial-btn:hover {
-  background: rgba(var(--ui-color-rgb),0.1);
-}
-.tutorial-btn:active {
-  transform: scale(0.96);
+.reset-save-btn:hover { background: rgba(var(--ui-color-rgb),0.1); }
+.reset-save-btn:active { transform: scale(0.96); }
+.reset-save-btn.confirm {
+  color: #fff;
+  background: var(--ui-color);
+  border-color: var(--ui-color);
 }
 
 /* === 启动画面=== */

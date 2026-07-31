@@ -1,9 +1,10 @@
 // ===== 道具相关逻辑 =====
 import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST } from './config.js';
-import { phase, gameData, allPokemon, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _honeyEncounterCount, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyEncounterCount, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDuration, getIncubatorUnlockCost } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _honeyEncounterCount, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyEncounterCount, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDuration, getIncubatorUnlockCost } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnGameView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay } from './animation.js';
+import { computeObtainScore } from './scoring.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -194,14 +195,13 @@ export function placeEggInIncubator(slotIndex) {
 
   incubators[slotIndex] = {
     eggIndex: poke.index,
-    name: poke.name,
     hatchStart: Date.now(),
     hatchDuration: duration,
     hatched: false,
     isShiny: eggIsShiny,
   };
 
-  addSystemLog('incubator_place', { slot: slotIndex, pokemon: poke.index, name: poke.name, shiny: eggIsShiny });
+  addSystemLog('incubator_place', { slot: slotIndex, pokemon: poke.index, shiny: eggIsShiny });
   saveGame();
   renderIncubatorView();
 }
@@ -209,7 +209,7 @@ export function placeEggInIncubator(slotIndex) {
 // ---------- 糖果解锁孵蛋器槽位 ----------
 export function unlockIncubatorSlot(slotIndex) {
   const unlocked = gameData.incubatorUnlockedSlots ?? 0;
-  if (slotIndex < unlocked) return; // 已解锁
+  if (slotIndex !== unlocked) return; // 必须按顺序解锁当前槽位（UI 已禁用其他按钮）
   const cost = getIncubatorUnlockCost(slotIndex);
   if ((gameData.items['candy'] || 0) < cost) return;
   gameData.items['candy'] -= cost;
@@ -230,7 +230,7 @@ export async function hatchFromIncubator(slotIndex) {
 
   setEggHatching(true);
 
-  const poke = allPokemon.find(p => p.index === slot.eggIndex);
+  const poke = getPokemonByIndex(slot.eggIndex);
   if (!poke) { setEggHatching(false); return; }
 
   const eggIsShiny = slot.isShiny || false;
@@ -384,9 +384,9 @@ export async function hatchFromIncubator(slotIndex) {
       if (first && first.time) {
         const d = new Date(first.time);
         const pad = n => String(n).padStart(2, '0');
-        tipEl.textContent = `首次收服：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        tipEl.textContent = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       } else {
-        tipEl.textContent = '首次收服：较早前';
+        tipEl.textContent = '首次捕获：较早前';
       }
     }
   }
@@ -397,7 +397,7 @@ export async function hatchFromIncubator(slotIndex) {
   // 更新 Pokedex
   if (!gameData.pokedex[idx]) {
     gameData.pokedex[idx] = {
-      name: poke.name, seen: 0, caught: 0,
+      seen: 0, caught: 0,
       lastTime: null, shinySeen: 0, shinyCaught: 0,
     };
   }
@@ -414,19 +414,25 @@ export async function hatchFromIncubator(slotIndex) {
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
   if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
   gameData.encounterLogs[idx].push({
-    time: Date.now(), shiny: eggIsShiny, result: 'caught', balls: {}
+    time: Date.now(), shiny: eggIsShiny, result: 'caught', balls: {},
+    charmBuff: false, // 闪耀护符不提升孵蛋闪光率（蛋的闪光在放入孵蛋器时已按 1/1000 判定），恒为 false
+    score: computeObtainScore({
+      pokemon: poke, source: 'egg', shiny: eggIsShiny,
+      charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1,
+    }),
   });
 
   // 清空孵蛋器槽位
-  incubators[slotIndex] = { eggIndex: null, name: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
+  incubators[slotIndex] = { eggIndex: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
 
-  addSystemLog('egg_hatch', { pokemon: poke.index, name: poke.name, shiny: eggIsShiny });
+  addSystemLog('egg_hatch', { pokemon: poke.index, shiny: eggIsShiny });
   if (isOnGameView()) updateTextBox(eggIsShiny ? '孵化出闪光的 ' + poke.name + ' 了！' : '孵化成功！获得了 ' + poke.name, true);
 
   await saveGame();
   updateStats();
   updateIncubatorBadge();
 
+  $('animThrowChar').style.display = '';
   setEggHatching(false);
 }
 
@@ -493,27 +499,7 @@ export function activateHoney() {
     tryEncounter();
   }, rand(BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX) * 1000));
   // 甜甜蜜到期
-  setHoneyExpiryTimer(setTimeout(() => {
-    setHoneyBuffActive(false);
-    setHoneyCountdownEnd(0);
-    clearHoneyCountdown();
-    // buff 结束：立即显示"效果渐渐褪去"
-    $('idleText').textContent = '✦ 甜蜜蜜的效果渐渐褪去了';
-    // 自动续杯：立即用新的"生效中"文案刷新上面的结束文案
-    if (gameData.settings?.autoBuffHoney && (gameData.items['sweet-honey']||0) > 0) {
-      setHoneyExpiryTimer(null);
-      activateHoney();
-      return;
-    }
-    // 保底：整个buff期间一次都没遇到
-    if (_honeyEncounterCount === 0 && phase === 'idle') {
-      import('./battle.js').then(m => m.tryEncounter());
-    }
-    setHoneyEncounterCount(0);
-    setIdleCharacter('walk');
-    particles.stop();
-    setHoneyExpiryTimer(null);
-  }, d));
+  setHoneyExpiryTimer(setTimeout(() => handleHoneyExpired(), d));
   updateBackpack();
   startHoneyCountdown();
 }
@@ -548,6 +534,7 @@ export function clearHoneyCountdown() {
 export function activateShinyCharm() {
   if ((gameData.items['shiny-charm']||0) <= 0) return;
   if (charmBuffActive) return;
+  if (honeyBuffActive) return; // 甜甜蜜生效期间不能使用（两个 buff 互斥）
   gameData.items['shiny-charm']--;
   setCharmEncounterCount(0);
   addSystemLog('item_use', { item: 'shiny-charm' });
@@ -573,36 +560,69 @@ export function activateShinyCharm() {
     tryEncounter();
   }, rand(BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX) * 1000));
 
-  // 护符到期
-  setCharmExpiryTimer(setTimeout(() => {
-    setCharmBuffActive(false);
-    setCharmCountdownEnd(0);
-    clearCharmCountdown();
-    // buff 结束：立即显示"效果渐渐褪去"
-    showBuffExpired('charm');
-    // 自动续杯：优先甜甜蜜，立即用新的"生效中"文案刷新上面的结束文案
-    if (gameData.settings?.autoBuffHoney && (gameData.items['sweet-honey']||0) > 0) {
-      setCharmExpiryTimer(null);
-      activateHoney();
-      return;
-    }
-    if (gameData.settings?.autoBuffCharm && (gameData.items['shiny-charm']||0) > 0) {
-      setCharmExpiryTimer(null);
-      activateShinyCharm();
-      return;
-    }
-    // 保底
-    if (_charmEncounterCount === 0 && phase === 'idle') {
-      import('./battle.js').then(m => m.tryEncounter());
-    }
-    setCharmEncounterCount(0);
-    setIdleCharacter('walk');
-    particles.stop();
-    setCharmExpiryTimer(null);
-  }, d));
+  // 护符到期（关闭+文案+自动续杯由公共回调统一处理）
+  setCharmExpiryTimer(setTimeout(() => handleCharmExpired(), d));
 
   updateBackpack();
   startCharmCountdown();
+}
+
+// ===== Buff 到期公共回调 =====
+// 由 activateHoney/activateShinyCharm 的到期定时器调用，
+// 以及 battle.js goIdle 恢复"遭遇中被暂停的 buff 倒计时"时调用，
+// 保证"关闭 buff → 结束文案 → 自动续杯 → 保底遇敌"行为处处一致
+export function handleHoneyExpired() {
+  setHoneyBuffActive(false);
+  setHoneyCountdownEnd(0);
+  clearHoneyCountdown();
+  // buff 结束：立即显示"效果渐渐褪去"
+  $('idleText').textContent = '✦ 甜蜜蜜的效果渐渐褪去了';
+  // 自动续杯：优先续甜甜蜜；不续甜甜蜜时若勾选护符则立即接续（buff 结束后马上判断，不必等遭遇）
+  if (gameData.settings?.autoBuffHoney && (gameData.items['sweet-honey']||0) > 0) {
+    setHoneyExpiryTimer(null);
+    activateHoney();
+    return;
+  }
+  if (gameData.settings?.autoBuffCharm && (gameData.items['shiny-charm']||0) > 0 && !charmBuffActive) {
+    setHoneyExpiryTimer(null);
+    activateShinyCharm();
+    return;
+  }
+  // 保底：整个buff期间一次都没遇到
+  if (_honeyEncounterCount === 0 && phase === 'idle') {
+    import('./battle.js').then(m => m.tryEncounter());
+  }
+  setHoneyEncounterCount(0);
+  setIdleCharacter('walk');
+  particles.stop();
+  setHoneyExpiryTimer(null);
+}
+
+export function handleCharmExpired() {
+  setCharmBuffActive(false);
+  setCharmCountdownEnd(0);
+  clearCharmCountdown();
+  // buff 结束：立即显示"效果渐渐褪去"
+  showBuffExpired('charm');
+  // 自动续杯：优先甜甜蜜，立即用新的"生效中"文案刷新上面的结束文案
+  if (gameData.settings?.autoBuffHoney && (gameData.items['sweet-honey']||0) > 0) {
+    setCharmExpiryTimer(null);
+    activateHoney();
+    return;
+  }
+  if (gameData.settings?.autoBuffCharm && (gameData.items['shiny-charm']||0) > 0) {
+    setCharmExpiryTimer(null);
+    activateShinyCharm();
+    return;
+  }
+  // 保底
+  if (_charmEncounterCount === 0 && phase === 'idle') {
+    import('./battle.js').then(m => m.tryEncounter());
+  }
+  setCharmEncounterCount(0);
+  setIdleCharacter('walk');
+  particles.stop();
+  setCharmExpiryTimer(null);
 }
 
 export function startCharmCountdown() {

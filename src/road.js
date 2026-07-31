@@ -22,6 +22,8 @@ let patternWidth = 0;
 let _cycles = 0;
 let _prevScrollX = 0;
 let _scrollFraction = 0;
+// 累计行走距离（像素）：每帧滚动多少就算走多远；遇敌/钓鱼时道路暂停，不累积
+let _distance = 0;
 // 过渡状态：新道路从右侧滑入
 let _transition = null; // { tiles, width, height, patternWidth, roadHeight, remaining }
 
@@ -119,6 +121,8 @@ function _draw() {
 
 function _frame() {
   if (!active) return;
+
+  _distance += speed; // 行走距离与滚动量同步（过渡滑入同样在前进）
 
   if (_transition) {
     // 过渡中：先递减 remaining，再绘制，确保连续性
@@ -354,6 +358,12 @@ export function isTransitioning() {
 
 export function getCycles() { return _cycles; }
 export function resetScroll() { scrollX = 0; _cycles = 0; _scrollFraction = 0; }
+/** 取走自上次调用以来累计的行走距离（像素），供主循环同步到存档 */
+export function takeDistance() {
+  const d = _distance;
+  _distance = 0;
+  return d;
+}
 /** 视图切回时重新计算 canvas 尺寸 */
 export function refreshSize() { _resize(); }
 

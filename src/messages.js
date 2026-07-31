@@ -1,6 +1,6 @@
 // ===== 闲置轮播消息 + 地区文案 =====
 import { $, showView } from './ui.js';
-import { phase, gameData, allPokemon, charmBuffActive, honeyBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer } from './state.js';
 
 // 对应9个世代大区的氛围文案
 export const regionMsg = {
@@ -147,7 +147,9 @@ export function buildIdleMessages() {
   const total = allPokemon.length;
   const shinySeen = stats.totalShinySeen;
   const shinyCaught = stats.totalShinyCaught;
-  const entries = Object.values(pokedex).filter(e => e.seen > 0);
+  const entries = Object.entries(pokedex).filter(([, e]) => e.seen > 0).map(([idx, e]) => ({ ...e, _idx: idx }));
+  // 编号查名字（存档只存编号，名字从图鉴数据查表）
+  const nameOf = idx => { const p = getPokemonByIndex(idx); return p ? p.name : '#' + idx; };
   const msgs = [];
 
   // ——— 氛围感环境文案 ———
@@ -272,11 +274,11 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   if (entries.length > 0) {
     const pick1 = entries[randInt(0, entries.length - 1)];
     if (pick1.caught > 0) {
-      msgs.push(`还记得初次遇见${pick1.name}的时刻，它是珍贵的伙伴。`);
-      if (pick1.shinyCaught > 0) msgs.push(`你拥有一只闪光${pick1.name}，这般运气十分难得！`);
+      msgs.push(`还记得初次遇见${nameOf(pick1._idx)}的时刻，它是珍贵的伙伴。`);
+      if (pick1.shinyCaught > 0) msgs.push(`你拥有一只闪光${nameOf(pick1._idx)}，这般运气十分难得！`);
     } else {
-      msgs.push(`${pick1.name}仍藏在野外草丛，期待与你的相遇。`);
-      msgs.push(`你遇到过${pick1.name}${pick1.seen}次了，下次一定要抓住它！`);
+      msgs.push(`${nameOf(pick1._idx)}仍藏在野外草丛，期待与你的相遇。`);
+      msgs.push(`你遇到过${nameOf(pick1._idx)}${pick1.seen}次了，下次一定要抓住它！`);
     }
 
     if (entries.length > 3) {
@@ -286,22 +288,22 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
         pick2 = entries[randInt(0, entries.length - 1)];
         tries++;
       }
-      if (pick2 && pick2.caught > 0) msgs.push(`和${pick2.name}一起经历了许多冒险呢。`);
+      if (pick2 && pick2.caught > 0) msgs.push(`和${nameOf(pick2._idx)}一起经历了许多冒险呢。`);
     }
 
     const sorted = [...entries].sort((a, b) => b.seen - a.seen);
     const top = sorted[0];
-    if (top.seen >= 3) msgs.push(`最容易遇到的是${top.name}（${top.seen}次）。`);
+    if (top.seen >= 3) msgs.push(`最容易遇到的是${nameOf(top._idx)}（${top.seen}次）。`);
     if (sorted.length > 1 && sorted[1].seen >= 3) {
-      msgs.push(`第二常见的是${sorted[1].name}（${sorted[1].seen}次）。`);
+      msgs.push(`第二常见的是${nameOf(sorted[1]._idx)}（${sorted[1].seen}次）。`);
     }
-    if (top.seen >= 20) msgs.push(`${top.name}已经见了${top.seen}次了，真有缘分！`);
+    if (top.seen >= 20) msgs.push(`${nameOf(top._idx)}已经见了${top.seen}次了，真有缘分！`);
 
     // 最稀有：被看到但从未捕获的
     const uncaptured = entries.filter(e => e.caught === 0);
     if (uncaptured.length > 0) {
       const rarest = uncaptured.sort((a, b) => b.seen - a.seen)[0];
-      if (rarest.seen >= 2) msgs.push(`${rarest.name}逃走了${rarest.seen}次，下次一定要抓住它！`);
+      if (rarest.seen >= 2) msgs.push(`${nameOf(rarest._idx)}逃走了${rarest.seen}次，下次一定要抓住它！`);
     }
   }
 

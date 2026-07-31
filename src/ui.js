@@ -13,19 +13,22 @@ export function showView(id) {
     id = 'encounterView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','pokedexView','encounterView','dataView','shopView','settingsView','tutorialView','systemLogView','incubatorView'];
+  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','dataView','shopView','settingsView','tutorialView','systemLogView','incubatorView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
+  // 切换视图时关闭可能残留的目的地弹窗
+  $('gpsDialog')?.classList.remove('open');
   // 从非游戏页（图鉴/商店等）切回游戏页时，同步当前遭遇画面
   // （后台自动捕捉可能已推进到新遭遇，需刷新图片/文案/标签）
   if (!wasOnGameView && (id === 'idleView' || id === 'encounterView') && phase === 'encounter' && currentEncounter) {
     setTimeout(() => {
-      import('./battle.js').then(m => {
-        m.renderEncounterScene(currentEncounter);
-        // 若自动捕捉开启且未在运行，回到游戏页时重新接管（闪光暂停时交给用户手动）
+      import('./battle.js').then(async m => {
+        const loadPromise = m.renderEncounterScene(currentEncounter);
+        // 若自动捕捉开启且未在运行，回到游戏页时重新接管
         if (gameData.settings?.autoCatch && !(currentIsShiny && gameData.settings?.shinyStop)) {
+          await loadPromise; // 等图片加载完再丢球，避免尺寸错乱
           m.autoCatch();
         } else if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
           m.startAutoFleeTimer();
@@ -73,6 +76,8 @@ export function showView(id) {
       }
     }
     $('fleeBtn').style.display = '';
+    // 兜底恢复丢球主角背影
+    if (tc) tc.style.display = '';
     // 防止 display:none→flex 导致 CSS animation 重播丢球动画
     if (tc) tc.classList.remove('throwing');
   }
@@ -81,7 +86,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { pokedexView:'图鉴', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', systemLogView:'系统日志', incubatorView:'孵蛋器' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', systemLogView:'系统日志', incubatorView:'孵蛋器' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -190,6 +195,29 @@ export function setIdleCharacter(state, itemKey) {
 }
 
 // ---------- 图片尺寸自适应 ----------
+// 舞台尺寸缓存：窗口固定 320×400，屏幕内容区尺寸恒定。
+// 首次正常布局后缓存，避免从其他页面切回游戏页的瞬间 layout 未稳定时取到收缩值
+let _stageCache = null;
+export function getStageSize() {
+  if (_stageCache && _stageCache.w >= 280 && _stageCache.h >= 250) return _stageCache;
+  const innerRect = $('screenInner')?.getBoundingClientRect();
+  let w = innerRect?.width || 0;
+  let h = innerRect?.height || 0;
+  if (w < 50 || h < 50) {
+    // 兜底：.screen 内容区（去掉 3px 边框）
+    const screenRect = document.querySelector('.screen')?.getBoundingClientRect();
+    w = (screenRect?.width || 0) - 6;
+    h = (screenRect?.height || 0) - 6;
+  }
+  if (w < 50 || h < 50) {
+    // 最后兜底：窗口视口
+    w = window.innerWidth;
+    h = window.innerHeight;
+  }
+  if (w >= 280 && h >= 250) _stageCache = { w, h };
+  return { w, h };
+}
+
 export function fitPokemonImage(img) {
   // 默认保持自然尺寸；若高度超出可见范围则等比压缩到刚好到顶
   if (!img || !img.naturalWidth || !img.naturalHeight) return;
@@ -199,7 +227,9 @@ export function fitPokemonImage(img) {
   const view = img.closest('#encounterView');
   if (!view || view.clientHeight <= 0) return;
   // 精灵底部锚在屏幕 42% 高度处，可见上限为剩余 58% 高度
-  const maxH = view.clientHeight * 0.58;
+  // 用缓存舞台高度而非 view.clientHeight（切回瞬间 view 可能未铺满，导致缩放尺寸错误）
+  const { h: stageH } = getStageSize();
+  const maxH = stageH * 0.58;
   if (img.naturalHeight > maxH) {
     const scale = maxH / img.naturalHeight;
     img.style.width = Math.floor(img.naturalWidth * scale) + 'px';
@@ -326,14 +356,11 @@ export function updateStats() {
 }
 
 // ---------- 孵蛋器红点 ----------
-let _prevIncubatorReady = false;
+// 红点挂在手机主页的"孵蛋器"应用图标上（入口已迁到手机），有蛋孵化完成时点亮。
+// 每次直接设置 display：手机页每次重绘都会重建红点节点，缓存状态会漏刷。
 export function updateIncubatorBadge() {
-  const ready = anyIncubatorReady();
-  if (ready !== _prevIncubatorReady) {
-    _prevIncubatorReady = ready;
-    const badge = $('bag-badge-egg');
-    if (badge) badge.style.display = ready ? '' : 'none';
-  }
+  const badge = $('phone-badge-incubator');
+  if (badge) badge.style.display = anyIncubatorReady() ? '' : 'none';
 }
 
 // ---------- 孵蛋器视图渲染 ----------
@@ -349,12 +376,14 @@ export function renderIncubatorView() {
     const isUnlocked = i < unlocked;
     const hasEgg = s && s.eggIndex != null;
     if (!isUnlocked && !hasEgg) {
-      // 锁定且无蛋 → 显示解锁 UI
+      // 锁定且无蛋 → 解锁按钮：仅下一个待解锁槽位可点击，其余禁用（必须按顺序解锁）
       const cost = getIncubatorUnlockCost(i);
+      const isNext = i === unlocked;
       const canAfford = (gameData.items['candy'] || 0) >= cost;
-      html += `<div class="incubator-row locked" data-unlock="${i}">
+      const disabled = !isNext || !canAfford;
+      html += `<div class="incubator-row locked">
         <div class="incubator-lock-icon"><img src="./items/candy.png" style="width:18px;height:18px;image-rendering:pixelated;opacity:0.5;" /><span class="incubator-lock-cost">×${cost}</span></div>
-        <span class="incubator-hatch-text" data-unlock="${i}">解锁</span>
+        <span class="incubator-hatch-text${disabled ? ' disabled' : ''}" data-unlock="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>解锁</span>
       </div>`;
       continue;
     }
@@ -390,7 +419,7 @@ export function renderIncubatorView() {
         <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" /></div>
         <div class="incubator-info">
           <div class="incubator-name">蛋</div>
-          <div class="incubator-progress-wrap">
+          <div class="incubator-progress-wrap" data-slot="${i}">
             <div class="incubator-progress-fill" style="width:${pct}%"></div>
             <div class="incubator-progress-text">${timeStr}</div>
           </div>
@@ -403,10 +432,6 @@ export function renderIncubatorView() {
         <div class="incubator-info"><div class="incubator-name">空孵蛋器</div></div>
       </div>`;
     }
-  }
-  const anyHasEgg = incubators.some(s => s && s.eggIndex != null);
-  if (!anyHasEgg && !(gameData.items['mystery-egg'] || 0)) {
-    html += `<div class="incubator-empty-text">背包里没有神秘蛋</div>`;
   }
   list.innerHTML = html;
   list.querySelectorAll('.incubator-hatch-text.hatched').forEach(btn => {
@@ -426,5 +451,29 @@ export function renderIncubatorView() {
       const slot = parseInt(el.dataset.unlock);
       import('./items.js').then(m => m.unlockIncubatorSlot(slot));
     });
+  });
+}
+
+// 孵蛋器倒计时轻量刷新：只更新进度条宽度与剩余时间文本，不重建 DOM。
+// 由主循环每 tick 调用（孵蛋器页可见时）。若沿用 renderIncubatorView 每秒整页重建，
+// 点击瞬间恰逢重建会丢失 click（mousedown/mouseup 落在新旧两个节点上），表现为"要点两下才有反应"。
+export function updateIncubatorTimers() {
+  const list = $('incubatorList');
+  if (!list) return;
+  const incubators = gameData.incubators || [];
+  list.querySelectorAll('.incubator-progress-wrap[data-slot]').forEach(wrap => {
+    const i = parseInt(wrap.dataset.slot);
+    const s = incubators[i];
+    if (!s || s.eggIndex == null || s.hatched) return;
+    const elapsed = Date.now() - s.hatchStart;
+    const elapsedValid = !isNaN(elapsed) && elapsed >= 0;
+    const pct = elapsedValid ? Math.min(100, Math.floor(elapsed / s.hatchDuration * 100)) : 0;
+    const remain = elapsedValid ? Math.max(0, Math.ceil((s.hatchDuration - elapsed) / 1000)) : Math.ceil(s.hatchDuration / 1000);
+    const h = Math.floor(remain / 3600), m = Math.floor((remain % 3600) / 60), sec = remain % 60;
+    const timeStr = h > 0 ? `${h}小时${m}分` : (m > 0 ? `${m}分${sec}秒` : `${sec}秒`);
+    const fill = wrap.querySelector('.incubator-progress-fill');
+    const txt = wrap.querySelector('.incubator-progress-text');
+    if (fill) fill.style.width = pct + '%';
+    if (txt) txt.textContent = timeStr;
   });
 }
