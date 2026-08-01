@@ -38,6 +38,11 @@ export let charmExpiryTimer = null;
 export let _honeyEncounterCount = 0;
 export let _charmEncounterCount = 0;
 
+// 树果方块 Buff 状态（混合器产物）
+export let blockBuffActive = false;
+export let blockRecipe = [];          // 配方树果下标（升序、唯一；与宝可梦 foods 完全一致才会被吃掉）
+export let blockStartWalk = 0;        // 方块摆放时的行走累计（px），走满 BLOCK_DISTANCE 米后过期
+
 // UI 状态
 export let _catchConfirmStep = false;
 export let _prevView = 'idleView';
@@ -107,6 +112,9 @@ export function setHoneyExpiryTimer(t) { honeyExpiryTimer = t; }
 export function setCharmExpiryTimer(t) { charmExpiryTimer = t; }
 export function setHoneyCountdownInterval(i) { honeyCountdownInterval = i; }
 export function setCharmCountdownInterval(i) { charmCountdownInterval = i; }
+export function setBlockBuffActive(v) { blockBuffActive = v; window.__blockBuffActive__ = v; }
+export function setBlockRecipe(a) { blockRecipe = a; }
+export function setBlockStartWalk(v) { blockStartWalk = v; }
 
 // ---------- 孵化时间计算 ----------
 // 体重/稀有度决定正态分布的峰值（对数插值），叠加正态随机后截断到配置区间，
@@ -185,7 +193,7 @@ export function getDefaultSave() {
   return {
     items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     stats: {
-      totalPlaySeconds:0, walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
+      totalPlaySeconds:0, playSecondsToday:0, lastPlayDate:'', walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
       totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0,
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
@@ -197,7 +205,7 @@ export function getDefaultSave() {
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
-    settings: { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false },
+    settings: { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' },
   };
 }
 
@@ -239,6 +247,7 @@ export function saveSessionState() {
       charmPausedRemaining,
       _honeyEncounterCount,
       _charmEncounterCount,
+      blockBuffActive,
     };
     if ((phase === 'encounter' || phase === 'caught') && currentEncounter) {
       state.encounter = {
@@ -254,6 +263,15 @@ export function saveSessionState() {
     }
     if (charmBuffActive && charmCountdownEnd > Date.now()) {
       state.charmRemaining = charmCountdownEnd - Date.now();
+    }
+    if (blockBuffActive) {
+      state.blockStartWalk = blockStartWalk;
+      state.blockRecipe = [...blockRecipe];
+    }
+    // 混合器进行中的小游戏/结果快照（中途退出/刷新后恢复，防止刷新重置，由 mixer.js 提供）
+    if (typeof window.__mixerSessionSnapshot__ === 'function') {
+      const mg = window.__mixerSessionSnapshot__();
+      if (mg) state.mixerGame = mg;
     }
     localStorage.setItem(SESSION_KEY, JSON.stringify(state));
   } catch (_) {}
@@ -271,12 +289,39 @@ export function restoreSessionState() {
   return state;
 }
 
+// ---------- 今日挂机时长 ----------
+function todayDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// 累计挂机秒数到"今日时长"（跨天自动清零重计）
+export function addPlaySeconds(save, sec) {
+  if (!save?.stats) return;
+  const ts = todayDateStr();
+  if (save.stats.lastPlayDate !== ts) {
+    save.stats.lastPlayDate = ts;
+    save.stats.playSecondsToday = 0;
+  }
+  save.stats.playSecondsToday = (save.stats.playSecondsToday || 0) + sec;
+}
+
 // ---------- 离线收益计算 ----------
 export function calcOffline(save) {
   const now = Date.now();
   const elapsed = Math.min((now - save.stats.lastSaveTime) / 1000, 86400);
   if (elapsed <= 0) return 0;
   save.stats.totalPlaySeconds += elapsed;
+  // 今日挂机时长：跨天时只累计今天 0 点之后的部分（昨天的离线秒数不计入今天）
+  const ts = todayDateStr();
+  if (save.stats.lastPlayDate !== ts) {
+    save.stats.lastPlayDate = ts;
+    save.stats.playSecondsToday = 0;
+    const midnight = new Date(now).setHours(0, 0, 0, 0);
+    save.stats.playSecondsToday += Math.max(0, Math.min(elapsed, (now - midnight) / 1000));
+  } else {
+    save.stats.playSecondsToday = (save.stats.playSecondsToday || 0) + elapsed;
+  }
   // 地区进度只按实际游玩时的行走/跑步距离推进，离线不累计
   for (const [item, rate] of Object.entries(ITEM_RATES)) {
     const gained = Math.floor(rate * elapsed);

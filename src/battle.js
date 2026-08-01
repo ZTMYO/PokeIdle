@@ -1,7 +1,8 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _honeyEncounterCount, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setHoneyEncounterCount, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg } from './state.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY } from './config.js';
+import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _honeyEncounterCount, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setHoneyEncounterCount, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, fitPokemonImage } from './ui.js';
-import { pickRandomPokemon, pickWeightedPokemon, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS } from './items.js';
+import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS } from './items.js';
+import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { catchBonusFor, computeObtainScore, computeMeetScore } from './scoring.js';
 import { startIdleRotation } from './messages.js';
@@ -47,6 +48,7 @@ let _autoFleePausedRemaining = null;
 export function scheduleNextEncounter(delay) {
   if (nextEncounterTimer) clearTimeout(nextEncounterTimer);
   if (phase !== 'idle') return;
+  // 树果方块：始终按普通间隔遇敌，仅提高目标宝可梦的出现概率
   let d = delay || rand(ENCOUNTER_MIN, ENCOUNTER_MAX) * 1000;
   setNextEncounterTimer(setTimeout(tryEncounter, d));
 }
@@ -100,7 +102,14 @@ export async function tryEncounter() {
 
   // 选择宝可梦：确保 poke 和 currentEncounter 始终指向同一对象
   const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name);
-  if (charmBuffActive && regionPool.length > 0) {
+  // 树果方块：按 BLOCK_TARGET_CHANCE 提高目标宝可梦的出现概率（命中则方块被吃掉 → buff 结束）
+  const blockTarget = (blockBuffActive && blockRecipe.length > 0) ? findBerryTarget(blockRecipe) : null;
+  if (blockTarget && Math.random() < BLOCK_TARGET_CHANCE) {
+    // 高概率直接遇到目标宝可梦
+    poke = blockTarget;
+    setCurrentEncounter(poke);
+    setCurrentIsShiny(Math.random() < SHINY_CHANCE);
+  } else if (charmBuffActive && regionPool.length > 0) {
     const roll = Math.random();
     if (roll < CHARM_SHINY_CHANCE) {
       // CHARM_SHINY_CHANCE: 任意精灵 + 闪光（权重选择，倾向稀有）
@@ -127,6 +136,8 @@ export async function tryEncounter() {
     setCurrentEncounter(poke);
     setCurrentIsShiny(Math.random() < SHINY_CHANCE);
   }
+  // 无论哪条路径，只要选中目标宝可梦（未触发直接命中的情况下恰好抽中），方块即被吃掉
+  if (blockTarget && poke === blockTarget) eatBlock('encounter');
   if (honeyBuffActive) setHoneyEncounterCount(_honeyEncounterCount + 1);
   if (charmBuffActive) setCharmEncounterCount(_charmEncounterCount + 1);
 
@@ -256,10 +267,12 @@ export function showEncounter(poke, opts = {}) {
   if (msg) setEncounterMsg(msg);
   const loadPromise = renderEncounterScene(poke);
 
-  // 自动捕捉逻辑（仅在首页时才自动执行）
+  // 自动捕捉/自动逃跑：无论玩家当前在哪个页面都照常执行。
+  // 后台操作已有 isOnGameView() 分支（不切视图、不弹文案），导航/统计等页面
+  // 遇敌后同样立即自动处理，无需切回战斗页才触发。
   if (!skipAuto) {
-    if (_onHome && gameData.settings?.autoCatch) {
-      // 闪光暂停优先 — 如果开启则不接管，让用户手动处理
+    if (gameData.settings?.autoCatch) {
+      // 闪光暂停优先 — 如果开启则不自动处理，强制切到战斗页让用户手动
       if (currentIsShiny && gameData.settings?.shinyStop) {
         showView('encounterView');
         $('fleeBtn').style.display = '';
@@ -302,8 +315,10 @@ export function renderEncounterScene(poke) {
     img.style.animation = '';
   }
   const shinySuffix = currentIsShiny ? '_shiny' : '';
-  // 有视觉画面才加载图片，保存 Promise 确保图片加载完再丢球
-  const loadPromise = (!_throwing && _onHome) ? tryLoadPokemonImage(img, poke, shinySuffix) : Promise.resolve(false);
+  // 后台（导航/统计等页面）同样加载图片：自动捕捉/逃跑在非首页照常执行丢球动画，
+  // setupCatchAnim 依赖图片加载完成来确定尺寸；若仅首页加载，后台遭遇的 img.src
+  // 为空且 error 早已触发，等待图片的 Promise 会永久挂起 → 丢一球后卡死、切回无图。
+  const loadPromise = !_throwing ? tryLoadPokemonImage(img, poke, shinySuffix) : Promise.resolve(false);
 
   $('encounterTypes').innerHTML = (poke.types||[]).map(t =>
     `<span class="type-badge" style="background:${TYPE_COLORS[t]}">${t}</span>`
@@ -651,19 +666,8 @@ export async function autoCatch() {
       if ($('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none') {
         updateTextBox('你逃走了！', false);
         await delay(1500);
-        goIdle();
-      } else {
-        setPhase('idle');
-        setCurrentEncounter(null);
-        setEncounterBallsUsed(0);
-        document.documentElement.style.removeProperty('--ui-color');
-        document.documentElement.style.removeProperty('--ui-color-rgb');
-        $('screen').style.background = '';
-        $('screen').style.borderColor = '';
-        $('fleeBtn').style.display = 'none';
-        if (nextEncounterTimer) clearTimeout(nextEncounterTimer);
-        scheduleNextEncounter();
       }
+      goIdle();
       break;
     }
 

@@ -3,7 +3,7 @@
 import { ITEM_NAMES, ITEM_RATES, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX } from './config.js';
 import { ITEM_ICONS, clearHoneyCountdown, clearCharmCountdown, startHoneyCountdown, startCharmCountdown } from './items.js';
 import { phase, gameData, nextEncounterTimer, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, _itemDropActive, _fishing, gameTick, allPokemon, getCurrentRegion, setFishing, setNextEncounterTimer, saveGame, addSystemLog, randInt, rand, setHoneyBuffActive, setCharmBuffActive, setHoneyCountdownEnd, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval } from './state.js';
-import { $, setIdleCharacter, updateBackpack, updateStats } from './ui.js';
+import { $, setIdleCharacter, updateBackpack, updateStats, getCharPrefix } from './ui.js';
 import { showFishingWait, showFishingResult, showBuffExpired } from './messages.js';
 import { delay } from './animation.js';
 import { scheduleNextEncounter, startFishingEncounter, tryEncounter } from './battle.js';
@@ -114,8 +114,9 @@ export function applyFishingVisual() {
   if (!el) return;
   const row = road.getFishingRow();
   const base = row >= 3 ? 4 : 0;
-  el.className = 'walk-gif brendan-fishing';
-  el.style.backgroundImage = 'url("./character/brendan-fishing.png")';
+  const prefix = getCharPrefix();
+  el.className = `walk-gif fishing ${prefix}`;
+  el.style.backgroundImage = `url("./character/${prefix}-fishing.png")`;
   el.style.backgroundSize = '640px 74px';
   applyFishingFrame(el, base + 3);
 }

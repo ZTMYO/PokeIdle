@@ -125,7 +125,7 @@ export function gpsAddDistance(px, pxPerSec) {
     g.arrived = false;
     planRoute(g.curIdx, nextStop(g.curIdx));
   }
-  if (!g.destIdx || g.arrived || px <= 0) return;
+  if (g.destIdx == null || g.arrived || px <= 0) return;
   g.pxPerSec = pxPerSec || ROAD_SPEED_WALK * 60;
   g.remainPx = Math.max(0, g.remainPx - px);
   if (g.remainPx <= 0) { advanceSegment(); return; }
@@ -136,12 +136,21 @@ export function gpsAddDistance(px, pxPerSec) {
 export function setRoamEnabled(on) {
   const g = gameData.gps;
   g.roamEnabled = !!on;
-  if (g.roamEnabled && !g.destIdx) {
+  if (g.roamEnabled && g.destIdx == null) {
     planRoute(g.curIdx, nextStop(g.curIdx));
   } else {
     render();
   }
   saveGame();
+}
+
+// 初始化兜底：环国旅行已开启但没有目的地时，自动规划漫游下一站
+// （默认档 roamEnabled=true 但 destIdx=null，进入游戏即自动开始环国之旅）
+export function ensureRoamDest() {
+  const g = gameData?.gps;
+  if (g && g.roamEnabled && g.destIdx == null) {
+    planRoute(g.curIdx, nextStop(g.curIdx));
+  }
 }
 
 // 取消目的地：停止导航回到无目的地状态
@@ -213,9 +222,10 @@ function render() {
         <div class="gps-axis-track"><div class="gps-axis-fill" style="width:${hasDest ? pct : 0}%"></div></div>
         <div class="gps-axis-pointer" style="left:${pct}%;">${PIN_SVG}</div>
       </div>
-      ${hasDest && !arrived ? `<div class="gps-steps">当前:${g.path.slice(g.seg).map(i => REGION_CYCLE[i]).join('->')}</div>` : ''}
-      ${paused ? `<div class="gps-paused">${paused}</div>` : ''}
-      <div class="gps-bottom${hasDest ? '' : ' clickable'}">
+      ${paused
+        ? `<div class="gps-status">${paused}</div>`
+        : hasDest && !arrived ? `<div class="gps-status">当前：${g.path.slice(g.seg).map(i => REGION_CYCLE[i]).join('→')}</div>` : ''}
+      <div class="bottom-dock${hasDest ? '' : ' clickable'}">
         ${hasDest ? `
         <span class="gps-bottom-cancel" id="gpsCancelBtn">
           <svg viewBox="0 0 12 12" width="13" height="13"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
@@ -260,7 +270,7 @@ export function showGpsView() {
     if (sw) { setRoamEnabled(!gameData.gps.roamEnabled); return; }
     const cancel = e.target.closest('#gpsCancelBtn');
     if (cancel) { cancelNavigation(); return; }
-    if (e.target.closest('.gps-bottom.clickable')) { openDestDialog(); return; }
+    if (e.target.closest('.bottom-dock.clickable')) { openDestDialog(); return; }
     if (e.target.closest('#gpsDestBtn')) { openDestDialog(); return; }
   };
   // 弹窗：选择地区 / 关闭 / 点击遮罩关闭

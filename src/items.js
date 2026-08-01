@@ -24,6 +24,34 @@ export const ITEM_ICONS = {
   'sweet-honey': 'honey.png', 'mystery-egg': 'mystery-egg.png', 'shiny-charm': 'shiny-charm.png',
 };
 
+// 树果图标文件名（宝可梦喜欢的食物，位于 src/items/berries/ 目录）
+// 下标与 pokedex.json 的 foods 字段一一对应，游戏内不显示中文名
+export const BERRY_ICONS = ['利木果.png', '樱子果.png', '零余果.png', '苹野果.png', '木子果.png', '茄番果.png', '橙橙果.png', '桃桃果.png', '莓莓果.png', '文柚果.png', '勿花果.png', '异奇果.png'];
+
+// 树果中文名（hover 提示用，键为图标文件名）
+export const BERRY_NAMES = {
+  '利木果.png': '利木果', '樱子果.png': '樱子果', '零余果.png': '零余果', '苹野果.png': '苹野果',
+  '木子果.png': '木子果', '茄番果.png': '茄番果', '橙橙果.png': '橙橙果', '桃桃果.png': '桃桃果',
+  '莓莓果.png': '莓莓果', '文柚果.png': '文柚果', '勿花果.png': '勿花果', '异奇果.png': '异奇果',
+};
+
+// 树果固有色：
+// 用于树果方块按配方树果加权平均混合出最终颜色
+export const BERRY_COLORS = [
+  '#c0d369', // 利木果
+  '#e61b23', // 樱子果
+  '#5b77c7', // 零余果
+  '#e5a12c', // 苹野果
+  '#57a435', // 木子果
+  '#ec3d2f', // 茄番果
+  '#41a1d3', // 橙橙果
+  '#f1a49e', // 桃桃果
+  '#77dbf5', // 莓莓果
+  '#e5e632', // 文柚果
+  '#ed9856', // 勿花果
+  '#6f61ac', // 异奇果
+];
+
 // ---------- 权重随机选精灵 ----------
 // rarityBoost 越高稀有精灵出现概率越大
 // rarity 已在 pokedex.json 中预计算（基于捕获率 + 种族值）
@@ -57,6 +85,20 @@ export function pickRandomPokemon() {
 export function pickAnyPokemon() {
   if (allPokemon.length === 0) return null;
   return allPokemon[randInt(0, allPokemon.length - 1)];
+}
+
+// 树果方块：当前地区中 foods 与配方完全一致的宝可梦
+// 同一地区内 foods 组合唯一（已核验），因此最多命中一只
+export function findBerryTarget(recipe) {
+  if (!Array.isArray(recipe) || recipe.length === 0) return null;
+  const region = getCurrentRegion();
+  const sorted = [...recipe].sort((a, b) => a - b);
+  return allPokemon.find(p =>
+    p.region === region.name &&
+    Array.isArray(p.foods) &&
+    p.foods.length === sorted.length &&
+    sorted.every(s => p.foods.includes(s))
+  ) || null;
 }
 
 // ---------- 道具随路面滚动进入 ----------
@@ -456,6 +498,7 @@ export async function doCandyExchange(itemKey) {
   gameData.items['candy'] -= cost;
   const qty = itemKey === 'sweet-honey' ? 2 : 1;
   gameData.items[itemKey] = (gameData.items[itemKey]||0) + qty;
+  gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey]||0) + qty; // 商店购买也计入道具获得
   addSystemLog('shop_purchase', { item: itemKey, qty, cost });
   updateBackpack(itemKey);
   // 刷新弹窗

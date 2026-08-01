@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// ==================== 捕捉动画函数 ====================
+﻿﻿// ==================== 捕捉动画函数 ====================
 import { $, fitPokemonImage, getStageSize } from './ui.js';
 import { currentEncounter, currentIsShiny, encounterBallsUsed } from './state.js';
 import { FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';
@@ -175,6 +175,13 @@ export function restoreCatchAnim() {
     ball.classList.remove('visible');
     ball.style.cssText = '';
     ball.style.display = 'none';
+    // 捕获成功流程会把球临时移到 encounterView 保持显示；
+    // 若不移回 catchStage，`.catch-stage .anim-ball` 的定位/尺寸样式会失效，
+    // 下次丢球时球失去 absolute 与 40x40 尺寸，变成自然尺寸大图且坐标错乱
+    const stage = $('catchStage');
+    if (stage && ball.parentNode !== stage) {
+      stage.appendChild(ball);
+    }
   }
   // 强制重新计算布局，确保样式立即生效
   void pkmn.offsetHeight;

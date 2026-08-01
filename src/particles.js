@@ -21,7 +21,7 @@ function _resize() {
   canvas.height = h * dpr;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
-  ctx = canvas.getContext('2d');
+  ctx = canvas.getContext('2d',{willReadFrequently:true});
   ctx.scale(dpr, dpr);
   for (const p of particles) {
     p.x = Math.random() * w;

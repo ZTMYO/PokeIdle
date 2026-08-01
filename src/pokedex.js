@@ -1,11 +1,69 @@
 // ===== 图鉴模块 =====
 import { ITEM_NAMES } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, _pokedexInLogView, _pokedexSortBy, _pokedexSortDir, pad, randInt, setPrevView, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
-import { $, showView, tryLoadPokemonImage, fitPokemonImage } from './ui.js';
-import { TYPE_COLORS } from './items.js';
+import { $, showView, tryLoadPokemonImage, tryLoadImage, fitPokemonImage } from './ui.js';
+import { TYPE_COLORS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 
 // 图鉴/统计页的地区筛选选项
 const REGION_OPTIONS = ['全部地区', '关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
+
+// ---------- 自定义树果提示----------
+let _foodTipEl = null;
+let _foodTipInit = false;
+
+function getFoodTipEl() {
+  if (!_foodTipEl) {
+    _foodTipEl = document.createElement('div');
+    _foodTipEl.className = 'food-tooltip';
+    _foodTipEl.style.display = 'none';
+    document.body.appendChild(_foodTipEl);
+  }
+  return _foodTipEl;
+}
+
+function hideFoodTip() {
+  if (_foodTipEl) _foodTipEl.style.display = 'none';
+}
+
+function showFoodTip(text, x, y) {
+  const tip = getFoodTipEl();
+  tip.textContent = text;
+  tip.style.display = '';
+  // 定位：优先右下方，越界时翻转到左/上方
+  const pad = 10;
+  let left = x + 12;
+  let top = y + 14;
+  const tw = tip.offsetWidth;
+  const th = tip.offsetHeight;
+  if (left + tw > window.innerWidth - pad) left = x - tw - 12;
+  if (top + th > window.innerHeight - pad) top = y - th - 10;
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+}
+
+export function setupFoodTooltip() {
+  if (_foodTipInit) return;
+  _foodTipInit = true;
+
+  // 事件委托：任何 .berry-icon 悬停都走这里（日志列表重建后依然生效）
+  document.addEventListener('mouseover', (e) => {
+    const icon = e.target.closest('.berry-icon');
+    if (!icon) { hideFoodTip(); return; }
+    const text = icon.dataset.tip || '';
+    if (!text) { hideFoodTip(); return; }
+    showFoodTip(text, e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (_foodTipEl && _foodTipEl.style.display !== 'none' && e.target.closest('.berry-icon')) {
+      showFoodTip(_foodTipEl.textContent, e.clientX, e.clientY);
+    }
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (!e.target.closest('.berry-icon')) hideFoodTip();
+  });
+  // 滚出/切页时隐藏
+  document.addEventListener('scroll', hideFoodTip, true);
+}
 
 export function formatLogTime(ts) {
   const d = new Date(ts);
@@ -59,6 +117,7 @@ export function describeLogEntry(log) {
 }
 
 export function showEncounterLogs(pokemonIndex) {
+  setupFoodTooltip();
   const idx = String(pokemonIndex);
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
   const logs = gameData.encounterLogs[idx];
@@ -138,6 +197,12 @@ export function showEncounterLogs(pokemonIndex) {
     if (caughtCount > 0 && poke && poke.description) {
       html += `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;">${poke.description}</div>`;
     }
+    // 喜欢的食物（仅捕获后显示）
+    if (caughtCount > 0 && poke && poke.foods && poke.foods.length) {
+      const foodIcons = poke.foods.map(i =>
+        `<img class="berry-icon" data-berry="${i}" data-tip="${BERRY_NAMES[BERRY_ICONS[i]]}" alt="树果${i + 1}" style="width:16px;height:16px;vertical-align:middle;cursor:pointer;" />`).join('');
+      html += `<div style="font-size:10px;line-height:1.6;padding:2px 0 4px;display:flex;align-items:center;"><span style="flex-shrink:0;">爱吃的食物：</span><span style="display:flex;align-items:center;">${foodIcons}</span></div>`;
+    }
   }
 
   const renderLogContent = () => {
@@ -180,6 +245,12 @@ export function showEncounterLogs(pokemonIndex) {
 
   html += renderLogContent();
   list.innerHTML = html;
+
+  // 树果图标走降级链加载（中文文件名直接 <img> 在部分 WebView 下会失败）
+  list.querySelectorAll('.berry-icon').forEach(icon => {
+    const bi = Number(icon.dataset.berry);
+    tryLoadImage(icon, `./items/berries/${BERRY_ICONS[bi]}`);
+  });
 
   // 加载宝可梦素材，点击切换闪光
   const img = $('logPokeImg');

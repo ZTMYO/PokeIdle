@@ -73,7 +73,7 @@ export const PX_PER_METER = 26;
 // ===== 地区悬赏 =====
 export const BOUNTY_PER_REGION = 5;   // 每个地区每天生成的悬赏条数（全国抽样，各地区不重复）
 export const BOUNTY_CANDY_MIN = 30;    // 悬赏最低糖果奖励（最常见宝可梦）
-export const BOUNTY_CANDY_MAX = 1500;    // 悬赏最高糖果奖励（最难捕获宝可梦）
+export const BOUNTY_CANDY_MAX = 500;    // 悬赏最高糖果奖励（最难捕获宝可梦）
 export const BOUNTY_JITTER = 0.25;     // 糖果奖励随机浮动比例（±25%）
 export const BOUNTY_RARE_WEIGHT = 0.7; // 悬赏选角时稀有度权重（权重 = 0.3 + 稀有度 × 该值）
 
@@ -85,6 +85,20 @@ export const AUTO_FLEE_TIMEOUT = 30000;
 
 // 佛系模式：自动操作无球时，展示遇敌画面后逃跑的等待（毫秒）
 export const AUTO_FLEE_NO_BALL_DELAY = 800;
+
+// ===== 混合器小游戏 =====
+export const MIXER_CANDY_COST = 50;        // 开始一次混合消耗的糖果数量
+export const MIXER_ROUNDS = 8;             // 抛出树果的轮数（全部 12 种树果至少各出现一次）
+export const MIXER_BERRIES_PER_ROUND = 4;  // 每轮抛出的树果数量
+export const MIXER_MAX_PICKS = 4;          // 点击收集 4 次后自动结束
+export const MIXER_FALL_DURATION = 2000;   // 单轮树果抛出到落地的时长（毫秒），顶点不悬停、随惯性自然下落
+export const MIXER_REACT_MS = 900;         // 树果落地后仍可点击的反应窗口（毫秒）
+export const MIXER_ROUND_GAP = 600;        // 轮与轮之间的间隔（毫秒）
+export const MIXER_COUNTDOWN_STEP = 800;   // 倒计时 3-2-1 每步时长（毫秒）
+
+// ===== 树果方块（混合器产物） =====
+export const BLOCK_DISTANCE = 1000;       // 树果方块摆放有效期（米）：主角再行走该里程未吃掉则风干失效
+export const BLOCK_TARGET_CHANCE = 0.6;    // 树果方块期间遇敌时，直接遇到目标宝可梦（吃掉方块）的概率
 
 // ===== 钓鱼 =====
 export const FISH_POKEMON_CHANCE = 0.1;   // 每次钓鱼钓到宝可梦的几率（无 buff 时）
@@ -103,6 +117,6 @@ export const ROAD_WIDTH_MIN = 50;          // prob（随机生成）类路段的
 export const ROAD_WIDTH_MAX = 200;         // prob（随机生成）类路段的最长格数（范围内均匀随机）
 
 // ===== 路面滚动速度 =====
-export const ROAD_SPEED_WALK = 0.6;   // 走路时瓦片滚动速度
-export const ROAD_SPEED_RUN  = 1.1;   // 跑步时（buff生效）瓦片滚动速度
+export const ROAD_SPEED_WALK = 0.5;   // 走路时瓦片滚动速度
+export const ROAD_SPEED_RUN  = 1.0;   // 跑步时（buff生效）瓦片滚动速度
 export const ROAD_SPEED_BIKE = 2.0;    // 自行车道骑行速度（数值越大滚动越快、里程提升越多）

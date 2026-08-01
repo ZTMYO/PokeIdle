@@ -16,7 +16,8 @@
   --item-border: rgba(0,0,0,0.08);
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; outline: none !important; }
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none !important; user-select: none; }
+input, textarea { user-select: text; }
 button { -webkit-tap-highlight-color: transparent; user-select: none; }
 button:focus { outline: none !important; box-shadow: none !important; }
 
@@ -136,62 +137,61 @@ body { margin: 0; padding: 0; cursor: default; }
   z-index: 30;
   user-select: none;
 }
-/* Brendan 向右行走 */
-.walk-gif.brendan-walk {
-  width: 28px;
-  background-image: url('./character/brendan-walk-right.png');
-  background-size: 112px 42px;
+/* 角色动画：男女主共用尺寸/动画/位移，仅背景图不同*/
+.walk-gif.walk {
+  width: 32px;
+  height: 44px;
+  background-size: 900% 100%;
   animation: brendanWalk 0.6s steps(1) infinite;
 }
-/* Brendan 跑步（buff 生效时）- 使用专用跑步精灵图 56x20（4帧） */
-.walk-gif.brendan-run {
-  width: 28px;
-  background-image: url('./character/brendan-run-right.png');
-  background-size: 112px 40px;
+.walk-gif.run {
+  width: 32px;
+  height: 42px;
+  background-size: 900% 100%;
   animation: brendanRun 0.45s steps(1) infinite;
 }
-/* Brendan 捡道具（5帧, 20x21/帧 → 2x 显示 40×42；使用 sprite sheet + JS 动画） */
-.walk-gif.brendan-get-item {
-  width: 40px;
-  height: 42px;
-}
-/* Brendan 钓鱼（10帧, 32x37/帧 → 2x 显示 64×74；帧由 fishing.js 控制；向下偏移 9px 对齐脚线） */
-.walk-gif.brendan-fishing {
+.walk-gif.fishing {
   width: 64px;
   height: 74px;
-  background-image: url('./character/brendan-fishing.png');
-  background-size: 640px 74px;
   transform: translate(-10px, 15px);
 }
+/* 男女主仅素材不同：性别类只声明背景图（钓鱼背景图由 fishing.js 按性别内联设置） */
+.walk-gif.brendan.walk { background-image: url('./character/brendan-walk.png'); }
+.walk-gif.may.walk     { background-image: url('./character/may-walk.png'); }
+.walk-gif.brendan.run  { background-image: url('./character/brendan-run.png'); }
+.walk-gif.may.run      { background-image: url('./character/may-run.png'); }
+/* 捡道具（5帧, 32x23/帧 → 2x 显示 64×46；图由 JS 按性别内联切换） */
+.walk-gif.get-item { width: 64px; height: 46px; transform: translateX(-15px); }
 @keyframes brendanWalk {
-  0%   { background-position: 0px 0; }
-  25%  { background-position: 0px 0; }
-  25.01% { background-position: -28px 0; }
-  50%  { background-position: -28px 0; }
-  50.01% { background-position: -56px 0; }
-  75%  { background-position: -56px 0; }
-  75.01% { background-position: -84px 0; }
-  100% { background-position: -84px 0; }
+  0%   { background-position: 0% 0; }
+  25%  { background-position: 0% 0; }
+  25.01% { background-position: 75% 0; }
+  50%  { background-position: 75% 0; }
+  50.01% { background-position: 12.5% 0; }
+  75%  { background-position: 12.5% 0; }
+  75.01% { background-position: 75% 0; }
+  100% { background-position: 75% 0; }
 }
 @keyframes brendanRun {
-  0%   { background-position: 0px 0; }
-  25%  { background-position: 0px 0; }
-  25.01% { background-position: -28px 0; }
-  50%  { background-position: -28px 0; }
-  50.01% { background-position: -56px 0; }
-  75%  { background-position: -56px 0; }
-  75.01% { background-position: -84px 0; }
-  100% { background-position: -84px 0; }
+  0%   { background-position: 0% 0; }
+  25%  { background-position: 0% 0; }
+  25.01% { background-position: 75% 0; }
+  50%  { background-position: 75% 0; }
+  50.01% { background-position: 12.5% 0; }
+  75%  { background-position: 12.5% 0; }
+  75.01% { background-position: 75% 0; }
+  100% { background-position: 75% 0; }
 }
-/* Brendan 骑车（自行车道，2帧动画；translateX 对齐行走脚线） */
-.walk-gif.brendan-bike {
+/* Brendan 骑车 */
+.walk-gif.bike {
   width: 64px;
   height: 46px;
-  background-image: url('./character/brendan-bike.png');
   background-size: 128px 46px;
   transform: translateX(-8px);
   animation: brendanBike 0.25s steps(1) infinite;
 }
+.walk-gif.brendan.bike { background-image: url('./character/brendan-bike.png'); }
+.walk-gif.may.bike     { background-image: url('./character/may-bike.png'); }
 @keyframes brendanBike {
   0%   { background-position: 0px 0; }
   50%  { background-position: 0px 0; }
@@ -360,6 +360,19 @@ body { margin: 0; padding: 0; cursor: default; }
 .encounter-owned-wrap:hover .encounter-tooltip {
   opacity: 1;
   visibility: visible;
+}
+/* 自定义树果提示*/
+.food-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: var(--screen-bg-dark);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 3px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 .encounter-catch-rate {
   font-size: 8px;
@@ -1088,6 +1101,7 @@ body { margin: 0; padding: 0; cursor: default; }
   align-items: center;
   gap: 3px;
   cursor: pointer;
+  user-select: none;
   transition: transform 0.1s ease, opacity 0.15s ease;
   opacity: 0.85;
 }
@@ -1123,8 +1137,374 @@ body { margin: 0; padding: 0; cursor: default; }
   z-index: 2;
 }
 
+/* === 混合器=== */
+.mixer-page-title {
+  flex-shrink: 0;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+  padding: 10px 0 4px;
+}
+/* 通用淡入：动画完成后由 JS 加 show 显示 */
+.mixer-fade {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0.6s;
+}
+.mixer-fade.show { opacity: 1; visibility: visible; }
+
+.mixer-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: none;
+  height: 100%;
+}
+
+.mixer-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  min-height: 0;
+}
+/* 首页演示舞台 */
+.mixer-demo {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+}
+.mixer-demo-cube {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 44px;
+  image-rendering: pixelated;
+  opacity: 0.95;
+  filter: drop-shadow(0 4px 1px rgba(0, 0, 0, 0.4));
+}
+.mixer-demo-berry {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  opacity: 0.95;
+  pointer-events: none;
+}
+.mixer-demo-berry img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+.mixer-cost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 9px;
+}
+.mixer-cost img {
+  width: 12px;
+  height: 12px;
+  image-rendering: pixelated;
+}
+.mixer-empty {
+  font-size: 10px;
+  text-align: center;
+  padding: 12px 0;
+  opacity: 0.6;
+}
+
+/* 配方树果图标 */
+.block-bait-berry {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.block-bait-berry img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* 冷却页：复用结果页布局（标题在 cube 上方、小字在下方、底部按钮），仅方块/计时器为冷却页特有 */
+.mixer-cool { align-items: center; text-align: center; }
+.mixer-cool .bottom-dock { width: 100%; }
+/* 混合器内底部按钮条：统一 min-height，与首页两行 dock 自然高度一致，方块位置不被 UI 影响 */
+.mixer-wrap .bottom-dock { min-height: 42px; }
+/* 方块预览：按配方颜色染色 */
+.mixer-block-visual {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 44px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 1px rgba(0, 0, 0, 0.4));
+}
+/* 冷却页剩余里程：与结果页配方同位置（cube 正上方） */
+.mixer-cool-timer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 84px; /* cube 高 44px 且 bottom:30px，其顶边在 74px，里程从 84px 起留 10px 间距 */
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+  font-family: monospace;
+}
+
+/* 游戏页 */
+#mixerContent {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.mixer-stage {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  cursor: pointer;
+}
+.mixer-falling-berry {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  will-change: transform;
+  z-index: 5;
+}
+.mixer-falling-berry::after {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  right: -12px;
+  bottom: -12px;
+  border-radius: 50%;
+  z-index: 1;
+}
+.mixer-falling-berry img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35));
+}
+.mixer-falling-berry.landed {
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+  z-index: 4;
+}
+.mixer-falling-berry.miss {
+  /* 只淡出；transform 由 inline 定位，动画里动 scale 会覆盖定位 */
+  animation: berryMiss 0.22s ease-in forwards;
+}
+@keyframes berryMiss {
+  to { opacity: 0; }
+}
+
+/* 舞台左上角已收集树果 */
+.mixer-collected {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 130px;
+}
+.mixer-collected-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+  border-radius: 3px;
+  padding: 1px 5px;
+  align-self: flex-start;
+}
+.mixer-collected-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+.mixer-collected-berry {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.mixer-collected-berry img {
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.mixer-collected .mixer-empty { padding: 0; font-size: 9px; }
+
+/* 轮次提示（右上角） */
+.mixer-round {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  z-index: 10;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* 3-2-1 倒计时 */
+.mixer-countdown {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  color: var(--ui-color);
+  margin-bottom: 24px;
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  user-select: none;
+}
+.mixer-countdown.show {
+  animation: countdownPop 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes countdownPop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  25%  { opacity: 1; transform: scale(1.15); }
+  60%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* 结果页 */
+.mixer-result { align-items: center; text-align: center; gap: 6px; justify-content: center; }
+.mixer-result-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+  width: 100%;
+}
+/* 配方树果图标：cube 正上方 */
+.mixer-result-berries {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 84px; /* cube 高 44px 且 bottom:30px，其顶边在 74px，图标从 84px 起留 10px 间距 */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.mixer-result-berries img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+/* 空配方提示（舞台中央） */
+.mixer-result-stage .mixer-empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0;
+}
+/* 小字：cube 正下方 */
+.mixer-result-target {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px; /* cube 底边 30px，小字在其下方 */
+  padding: 0 10px;
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0.6s;
+}
+.mixer-result-target.show { opacity: 0.85; visibility: visible; }
+.mixer-result-actions {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: auto -3px 0; /* 与 bottom-dock 同款贴底按钮条 */
+  flex-shrink: 0;
+  min-height: 42px; /* 与首页两行 bottom-dock 同高，方块位置不受底部条影响 */
+  border: 1px solid var(--item-border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0.6s;
+}
+.mixer-result-actions.show { opacity: 1; visibility: visible; }
+.mixer-result-actions button {
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 8px; /* 与 bottom-dock 同高 */
+  background: var(--screen-bg-light);
+  color: var(--ui-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mixer-result-actions .mixer-action-claim { flex: 1; }
+.mixer-result-actions .mixer-action-claim:hover { filter: brightness(1.05); }
+.mixer-result-actions .mixer-action-giveup {
+  flex-shrink: 0;
+  width: 72px;
+  border-left: 1px solid var(--item-border); /* 与领取按钮分割 */
+  filter: brightness(0.95);
+}
+.mixer-result-actions .mixer-action-giveup:hover { filter: brightness(0.967); }
+
 /* === GPS 模拟导航 === */
-.gps-wrap { padding: 4px 3px 0; display: flex; flex-direction: column; gap: 6px; height: 100%; }
+.gps-wrap { padding: 4px 14px 0; display: flex; flex-direction: column; gap: 10px; height: 100%; user-select: none; }
 .gps-top {
   display: flex;
   align-items: center;
@@ -1177,11 +1557,13 @@ body { margin: 0; padding: 0; cursor: default; }
   0%, 100% { transform: translate(-50%, -50%) translateY(-5px); }
   50% { transform: translate(-50%, -50%) translateY(-8px); }
 }
-.gps-steps {
-  font-size: 9px;
-  opacity: 0.6;
-  line-height: 1.7;
+/* 导航状态区：路径（当前→下一站）与暂停原因互斥显示的居中文案 */
+.gps-status {
+  font-size: 12px;
+  opacity: 0.85;
   text-align: center;
+  line-height: 1.6;
+  padding: 0 4px;
 }
 .gps-tip {
   font-size: 10px;
@@ -1189,26 +1571,31 @@ body { margin: 0; padding: 0; cursor: default; }
   text-align: center;
   padding: 2px 0 1px;
 }
-/* 移动暂停状态提示：遇敌对战 / 钓鱼中 */
-.gps-paused {
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
-  color: var(--ui-color);
-  line-height: 1.5;
-}
-/* 底部状态框：左侧叉（取消导航），中间路程与时间；贴底全宽（负边距抵消外层 padding） */
-.gps-bottom {
+/* 通用贴底按钮条：导航页 / 混合器共用；负 margin 抵消外层 padding 实现全宽贴底 */
+/* 导航页内层 padding 左右 14px，dock 负 margin 同步扩大抵消，保持全宽贴底 */
+.gps-wrap .bottom-dock { margin: auto -14px 0; }
+.bottom-dock {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 2px;
   margin: auto -3px 0;
+  padding: 6px 8px;
   background: var(--screen-bg-light);
   border: 1px solid var(--item-border);
   border-bottom: none;
   border-radius: 6px 6px 0 0;
-  padding: 6px 8px;
+  color: var(--ui-color);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  height: 40px;
+  transition: background 0.15s, transform 0.1s;
 }
+.bottom-dock:hover { filter: brightness(0.95); }
+.bottom-dock:disabled { opacity: 0.45; pointer-events: none; }
 /* 取消按钮绝对定位贴左：图标顶格对齐第一行，退出文字落底对齐第二行（预计到达时间） */
 .gps-bottom-cancel {
   position: absolute;
@@ -1247,10 +1634,8 @@ body { margin: 0; padding: 0; cursor: default; }
   font-weight: 700;
   white-space: nowrap;
 }
-/* 无目的地时：居中"开始导航"按钮，点击整个底栏打开目的地弹窗，hover 整框变色 */
-.gps-bottom.clickable { cursor: pointer; }
-.gps-bottom.clickable:hover { background: rgba(var(--ui-color-rgb),0.06); }
-.gps-bottom.clickable .gps-bottom-line1 {
+/* 无目的地时：居中"开始导航"按钮，点击整个底栏打开目的地弹窗 */
+.bottom-dock.clickable .gps-bottom-line1 {
   padding: 4px 16px;
   border-radius: 999px;
 }
@@ -1282,6 +1667,7 @@ body { margin: 0; padding: 0; cursor: default; }
   align-items: center;
   justify-content: center;
   background: rgba(0,0,0,0.25);
+  user-select: none;
 }
 .gps-dialog.open { display: flex; }
 .gps-dialog-box {
@@ -1341,6 +1727,7 @@ body { margin: 0; padding: 0; cursor: default; }
   padding: 6px 2px;
   display: flex;
   flex-direction: column;
+  user-select: none;
 }
 .bounty-title {
   font-weight: 700;
@@ -1435,6 +1822,8 @@ body { margin: 0; padding: 0; cursor: default; }
 .bounty-claim {
   flex-shrink: 0;
   padding: 3px 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--ui-color-dark);
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
@@ -1444,11 +1833,13 @@ body { margin: 0; padding: 0; cursor: default; }
   transition: filter 0.15s, transform 0.1s;
 }
 .bounty-claim:active { transform: scale(0.95); }
-.bounty-claim:not(.locked):not(.done):hover { filter: brightness(0.9); }
+.bounty-claim:not(.locked):not(.done):not(.pending):hover { filter: brightness(0.9); }
 .bounty-claim.locked,
-.bounty-claim.done {
+.bounty-claim.done,
+.bounty-claim.pending {
   background: rgba(var(--ui-color-rgb), 0.12);
   color: var(--ui-color);
+  border-color: transparent;
   cursor: default;
 }
 .bounty-claim.locked {
@@ -1457,6 +1848,10 @@ body { margin: 0; padding: 0; cursor: default; }
 .bounty-claim.done {
   font-weight: 400;
   opacity: 0.45;
+}
+/* 可领取：已捕获但需到达该地区，保留边框突出显示（区别于未捕获） */
+.bounty-claim.pending {
+  border-color: var(--ui-color-dark);
 }
 .bounty-unknown {
   flex: 1;
@@ -1769,7 +2164,7 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 11px;
   color: var(--ui-color);
 }
-#incubatorView, #incubatorList { user-select: none; }
+#shopView, #incubatorView, #incubatorList { user-select: none; }
 
 #shopView::-webkit-scrollbar,
 #dataView::-webkit-scrollbar,
@@ -1778,7 +2173,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #systemLogView::-webkit-scrollbar,
 #incubatorView::-webkit-scrollbar,
 #gpsView::-webkit-scrollbar,
-#declarationView::-webkit-scrollbar {
+#declarationView::-webkit-scrollbar,
+#mixerView::-webkit-scrollbar {
   width: 4px;
 }
 #shopView::-webkit-scrollbar-track,
@@ -1788,7 +2184,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #systemLogView::-webkit-scrollbar-track,
 #incubatorView::-webkit-scrollbar-track,
 #gpsView::-webkit-scrollbar-track,
-#declarationView::-webkit-scrollbar-track {
+#declarationView::-webkit-scrollbar-track,
+#mixerView::-webkit-scrollbar-track {
   background: transparent;
 }
 #shopView::-webkit-scrollbar-thumb,
@@ -1798,9 +2195,21 @@ body { margin: 0; padding: 0; cursor: default; }
 #systemLogView::-webkit-scrollbar-thumb,
 #incubatorView::-webkit-scrollbar-thumb,
 #gpsView::-webkit-scrollbar-thumb,
-#declarationView::-webkit-scrollbar-thumb {
-  background: rgba(var(--ui-color-rgb),0.3);
+#declarationView::-webkit-scrollbar-thumb,
+#mixerView::-webkit-scrollbar-thumb {
+  background: rgba(var(--ui-color-rgb), 0.3);
   border-radius: 2px;
+}
+#shopView::-webkit-scrollbar-thumb:hover,
+#dataView::-webkit-scrollbar-thumb:hover,
+#tutorialView::-webkit-scrollbar-thumb:hover,
+#settingsView::-webkit-scrollbar-thumb:hover,
+#systemLogView::-webkit-scrollbar-thumb:hover,
+#incubatorView::-webkit-scrollbar-thumb:hover,
+#gpsView::-webkit-scrollbar-thumb:hover,
+#declarationView::-webkit-scrollbar-thumb:hover,
+#mixerView::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--ui-color-rgb), 0.55);
 }
 .shop-item {
   display: flex;
@@ -1860,7 +2269,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #dataView,
 #shopView,
 #gpsView,
-#bountyView {
+#bountyView,
+#mixerView {
   align-self: stretch;
   width: 100%;
   height: 100%;
@@ -2003,6 +2413,12 @@ body { margin: 0; padding: 0; cursor: default; }
   padding: 2px 4px 6px;
   justify-content: center;
 }
+.gender-check-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
 .ball-check {
   font-family: monospace;
   font-size: 10px;
@@ -2103,7 +2519,7 @@ body { margin: 0; padding: 0; cursor: default; }
   justify-content: center;
 }
 .splash-hero {
-  width: 90px;
+  width: 100px;
   object-fit: contain;
   image-rendering: pixelated;
   opacity: 0;

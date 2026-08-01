@@ -3,7 +3,7 @@
 // 按稀有度/捕获难度生成随机糖果奖励。当天内捕获即可领取。
 // 只有今日到访过的地区才显示悬赏内容（离开后仍可查看）；领取奖励必须到达该地区。
 import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, phase, setPrevView, saveGame, addSystemLog, formatTime } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, phase, setPrevView, saveGame, addSystemLog } from './state.js';
 import { $, showView, updateStats } from './ui.js';
 
 // 日期字符串（YYYY-MM-DD，本地时区）
@@ -91,13 +91,6 @@ function caughtOnBountyDay(pokemonIdx, dateStrVal) {
   return logs.some(l => l.result === 'caught' && l.source != null && dateStr(new Date(l.time)) === dateStrVal);
 }
 
-// 距次日 0 点的剩余秒数（刷新倒计时）
-function untilMidnight() {
-  const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  return Math.max(0, Math.round((next - now) / 1000));
-}
-
 // ---------- 渲染 ----------
 const CANDY_IMG = '<img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" />';
 const BACK_ICON = '<svg viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="./icons/sprites.svg#icon-back"/></svg>';
@@ -131,7 +124,8 @@ function renderBounty() {
       const claimed = !!b.claimed;
       const caught = caughtOnBountyDay(b.pokemon, g.date);
       // 领取按钮状态：当前地区已捕获可领取；已领取/未捕获/在其他地区为锁定态
-      const btnCls = claimed ? 'done' : (!caught || !isCur) ? 'locked' : '';
+      // （已捕获但不在当前地区 → pending「可领取」，加边框区别于「未捕获」）
+      const btnCls = claimed ? 'done' : !caught ? 'locked' : !isCur ? 'pending' : '';
       const btnText = claimed ? '已领取' : caught ? (isCur ? '领取' : '可领取') : '未捕获';
       const btnTip = caught && !isCur ? `到达${name}后可领取` : '';
       return `
@@ -147,6 +141,18 @@ function renderBounty() {
     </div>`;
   }
 
+  // 今日统计：已完成 = 已领取；待领取 = 今日已到访地区中已捕获但未领取
+  let claimedCount = 0, pendingCount = 0;
+  for (let i = 0; i < g.rewards.length; i++) {
+    if (!g.visited[i]) continue; // 未到访地区不统计（玩家未知，看不到内容）
+    for (const b of g.rewards[i]) {
+      if (!b) continue;
+      if (b.claimed) claimedCount++;
+      else if (caughtOnBountyDay(b.pokemon, g.date)) pendingCount++;
+    }
+  }
+  const totalCount = REGION_CYCLE.length * BOUNTY_PER_REGION;
+
   content.innerHTML = `
     <div class="bounty-wrap">
       <div class="bounty-title">${name}${isCur ? '（当前）' : ''}-地区悬赏</div>
@@ -156,7 +162,7 @@ function renderBounty() {
         <div class="bounty-page">${body}</div>
         <button class="bounty-arrow next" data-page="next" aria-label="下一个地区">${BACK_ICON}</button>
       </div>
-      <div class="bounty-refresh" id="bountyRefresh">距下次刷新 ${formatTime(untilMidnight())}</div>
+      <div class="bounty-refresh" id="bountyRefresh">今日已完成 ${claimedCount}/${totalCount} · 待领取 ${pendingCount}</div>
     </div>`;
 }
 
@@ -170,6 +176,7 @@ function claimBounty(regionIdx, bi) {
   if (!caughtOnBountyDay(b.pokemon, gameData.bounty.date)) return;
   b.claimed = true;
   gameData.items.candy = (gameData.items.candy || 0) + b.candy;
+  gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + b.candy; // 领取悬赏也计入道具获得
   addSystemLog('bounty_claim', { pokemon: b.pokemon, candy: b.candy });
   saveGame();
   updateStats();
@@ -195,15 +202,4 @@ export function showBountyView() {
     if (!btn) return;
     claimBounty(Number(btn.dataset.region), Number(btn.dataset.bi));
   };
-  // 刷新倒计时：仅在本页打开时每秒更新，离开后自动停止
-  if (showBountyView._timer) clearInterval(showBountyView._timer);
-  showBountyView._timer = setInterval(() => {
-    if ($('bountyView')?.style.display !== 'flex') {
-      clearInterval(showBountyView._timer);
-      showBountyView._timer = null;
-      return;
-    }
-    const el = $('bountyRefresh');
-    if (el) el.textContent = '距下次刷新 ' + formatTime(untilMidnight());
-  }, 1000);
 }

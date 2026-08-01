@@ -19,10 +19,11 @@ import {
   setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd,
   setHoneyPausedRemaining, setCharmPausedRemaining,
   setHoneyEncounterCount, setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
+  setBlockBuffActive, setBlockRecipe, setBlockStartWalk,
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion,
   hasAnyBall, saveSessionState, rand, randInt, formatNum, formatTime,
-  setEncounterMsg,
+  setEncounterMsg, addPlaySeconds,
 } from './state.js';
 import {
   $, showView, updateTextBox, hideTextBox,
@@ -32,6 +33,7 @@ import {
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
   closeCandyDialog, doCandyExchange } from './items.js';
+import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, resumeMixerGame } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
   tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
@@ -41,7 +43,7 @@ import { showEncounterLogs, restorePokedex, setupRegionDropdown,
 import { showSystemLogs, showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView } from './phone.js';
-import { gpsAddDistance } from './gps.js';
+import { gpsAddDistance, ensureRoamDest } from './gps.js';
 import { ensureBounty } from './bounty.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
@@ -140,6 +142,7 @@ function onBagClick(itemKey) {
 function onGameTick() {
   setGameTick(gameTick + 1);
   gameData.stats.totalPlaySeconds++;
+  addPlaySeconds(gameData, 1); // 今日挂机时长（跨天自动清零重计）
   // 同步真实行走距离：仅 idle 挂机时道路在滚动，遇敌/战斗/钓鱼不计
   const walked = road.takeDistance();
   if (walked > 0) {
@@ -256,10 +259,21 @@ async function init() {
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
   ensureGpsState(); // 兼容旧存档：补齐 GPS 状态（默认从丰缘出发）
+  ensureRoamDest(); // 环国旅行默认开启且无目的地时，自动开始导航
   ensureBounty();   // 生成/恢复当日地区悬赏
 
   setLastRegionId(getCurrentRegion().id);
   await saveGame();
+
+  // 调试辅助：DevTools 控制台快速增加糖果
+  window.__addCandy = (n = 1000) => {
+    const amount = Number(n) || 1000;
+    gameData.items['candy'] = (gameData.items['candy'] || 0) + amount;
+    saveGame();
+    updateBackpack('candy');
+    updateStats();
+    console.log('糖果 +' + amount);
+  };
 
   // 调试辅助：DevTools 控制台快速完成所有孵蛋
   window.__completeAllEggs = () => {
@@ -395,6 +409,29 @@ async function init() {
     }
     if (sessionState._honeyEncounterCount) setHoneyEncounterCount(sessionState._honeyEncounterCount);
     if (sessionState._charmEncounterCount) setCharmEncounterCount(sessionState._charmEncounterCount);
+
+    // 恢复树果方块（混合器冷却）：按里程判定（主角再走满 BLOCK_DISTANCE 米失效），重新挂上里程轮询
+    if (sessionState.blockBuffActive) {
+      if (typeof sessionState.blockStartWalk === 'number') {
+        setBlockBuffActive(true);
+        setBlockRecipe(sessionState.blockRecipe || []);
+        setBlockStartWalk(sessionState.blockStartWalk);
+        syncBlockVisual();
+        startBlockCountdown();
+        if ($('idleView').style.display !== 'none') {
+          $('idleText').textContent = '✦ 树果方块已摆放在路旁 ✦';
+          setIdleMsgIdx(-1);
+        }
+      } else {
+        setBlockBuffActive(false);
+        clearBlockCountdown();
+      }
+    }
+
+    // 恢复混合器进行中的小游戏/结果（中途退出/刷新后下次继续，防止刷新重置失误或冷却）
+    if (sessionState.mixerGame) {
+      resumeMixerGame(sessionState.mixerGame);
+    }
 
     // 恢复角色动画（走/跑取决于 buff 状态）
     setIdleCharacter('walk');

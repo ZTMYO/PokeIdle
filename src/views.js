@@ -1,7 +1,7 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView, getIncubatorUnlockCost, setGameData, getDefaultSave, ensureGpsState } from './state.js';
-import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView } from './ui.js';
-import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS } from './items.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, MIXER_CANDY_COST, MIXER_ROUNDS, MIXER_BERRIES_PER_ROUND, MIXER_MAX_PICKS, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView, getIncubatorUnlockCost, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
+import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
+import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch } from './battle.js';
 
@@ -43,17 +43,42 @@ function calcLuckyRating() {
 }
 
 // ===== 数据统计视图 =====
-export function showDataView() {
-  // 从手机主页进入时，返回应回到手机主页
-  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' ? 'encounterView' : 'idleView'));
+
+// 今日统计：从遭遇日志按"今天 0 点后"筛选（孵蛋单独计数，不算遭遇；逃跑只算挣脱，不含主动逃跑）
+// 每次调用重新取当天零点，跨天自动归零
+function calcTodayStats() {
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+  const t = { seen: 0, caught: 0, fled: 0, shinySeen: 0, shinyCaught: 0, hatched: 0, catchRate: '0.0' };
+  for (const arr of Object.values(gameData.encounterLogs || {})) {
+    for (const l of arr) {
+      if (!l || !l.time || l.time < todayStart) continue;
+      if (l.source === 'egg') {
+        t.hatched++;
+        if (l.result === 'caught') { t.caught++; if (l.shiny) t.shinyCaught++; }
+        continue;
+      }
+      t.seen++;
+      if (l.result === 'caught') { t.caught++; if (l.shiny) t.shinyCaught++; }
+      else if (l.result === 'fled' && !l.selfFlee) t.fled++;
+      if (l.shiny) t.shinySeen++;
+    }
+  }
+  t.catchRate = (t.caught + t.fled) > 0 ? (t.caught / (t.caught + t.fled) * 100).toFixed(1) : '0.0';
+  return t;
+}
+
+// 统计页所有动态数值统一刷新（初始渲染与每秒定时器共用）。
+// 统计页打开时游戏仍在后台运行：道路持续滚动累计行走距离、自动捕捉/逃跑推进遭遇、
+// 道具持续拾取、GPS 导航推进地区，因此所有数值都需实时同步。
+// 按 id 更新而非整页重建，避免滚动位置被重置。
+function refreshDataStats() {
   const stats = gameData.stats;
   const pokedex = gameData.pokedex;
 
-  // 基础统计
+  // 累计数据
   let totalSeen = 0;
   let totalCaught = 0;
   let mostSeen = { name: '', count: 0 };
-  let mostBalls = { name: '', count: 0 };
   for (const [pIdx, entry] of Object.entries(pokedex)) {
     totalSeen += entry.seen || 0;
     totalCaught += entry.caught || 0;
@@ -62,68 +87,115 @@ export function showDataView() {
       mostSeen = { name: p ? p.name : '#' + pIdx, count: entry.seen || 0 };
     }
   }
-
   const totalUnique = Object.values(pokedex).filter(e => e.caught > 0).length;
   const totalSpecies = allPokemon.length;
   const pct = totalSpecies > 0 ? (totalUnique / totalSpecies * 100).toFixed(1) : '0.0';
   const catchRate = (totalCaught + stats.totalCatches) > 0
     ? ((stats.totalCatches / (stats.totalCatches + stats.totalFlees)) * 100).toFixed(1)
     : '0.0';
-  const shinyRate = stats.totalShinySeen > 0
-    ? ((stats.totalShinyCaught / stats.totalShinySeen) * 100).toFixed(1)
-    : '0.0';
 
-  // 道具获得统计
-  const earned = stats.totalItemsEarned || {};
-  let earnedHtml = '';
-  for (const [k, v] of Object.entries(earned)) {
-    earnedHtml += `<div class="stat-row">
-      <span>${ITEM_NAMES[k] || k}</span><span>×${v}</span>
-    </div>`;
-  }
-
-  const content = $('dataContent');
-  const rating = calcLuckyRating();
-
-  // 地区：当前地区由 GPS 位置决定；行走距离按真实移动像素累计换算
+  // 冒险进度：当前地区由 GPS 位置决定；行走距离按真实移动像素累计换算
   const region = getCurrentRegion();
-  const walkDist = gameData.stats.walkDistance || 0;
+  const walkDist = stats.walkDistance || 0;
   const walkMeters = Math.round(walkDist / PX_PER_METER);
   const walkText = walkMeters >= 1000 ? (walkMeters / 1000).toFixed(2) + ' 公里' : walkMeters + ' 米';
 
+  // 道具获得统计（后台拾取持续增加）
+  const earned = stats.totalItemsEarned || {};
+
+  // 今日统计（日志时间跨天自动归零）
+  const t = calcTodayStats();
+  const rating = calcLuckyRating();
+
+  $('dataPlayTotal').textContent = formatTime(stats.totalPlaySeconds);
+  $('dataPlayToday').textContent = formatTime(stats.playSecondsToday || 0);
+  $('dataTodaySeen').textContent = t.seen;
+  $('dataTodayCaught').textContent = t.caught;
+  $('dataTodayFled').textContent = t.fled;
+  $('dataTodayRate').textContent = t.catchRate + '%';
+  $('dataTodayShinySeen').textContent = t.shinySeen;
+  $('dataTodayShinyCaught').textContent = t.shinyCaught;
+  $('dataTodayHatched').textContent = t.hatched;
+  $('dataRating').textContent = rating ? rating.name : '暂无评定，先去冒险吧';
+  $('dataTotalSeen').textContent = totalSeen;
+  $('dataTotalCaught').textContent = stats.totalCatches;
+  $('dataTotalFled').textContent = stats.totalFlees;
+  $('dataTotalRate').textContent = catchRate + '%';
+  $('dataTotalShinySeen').textContent = stats.totalShinySeen;
+  $('dataTotalShinyCaught').textContent = stats.totalShinyCaught;
+  $('dataTotalHatched').textContent = stats.totalEggsHatched;
+  $('dataRegion').textContent = region.name;
+  $('dataWalkDist').textContent = walkText;
+  $('dataDexPct').textContent = `${totalUnique}/${totalSpecies} (${pct}%)`;
+  $('dataBallsUsed').textContent = stats.totalBallsUsed;
+  $('dataBallsAvg').textContent = totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0';
+  $('dataMostSeen').textContent = mostSeen.count > 0 ? `${mostSeen.name} (${mostSeen.count}次)` : '暂无';
+  const earnedEl = $('dataEarned');
+  if (earnedEl) {
+    earnedEl.innerHTML = Object.entries(earned).map(([k, v]) =>
+      `<div class="stat-row"><span>${ITEM_NAMES[k] || k}</span><span>×${v}</span></div>`
+    ).join('') || '<div>暂无数据</div>';
+  }
+}
+
+export function showDataView() {
+  // 从手机主页进入时，返回应回到手机主页
+  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' ? 'encounterView' : 'idleView'));
+
+  const content = $('dataContent');
+  // 数值 span 由 refreshDataStats 按 id 填充，避免整页重建导致滚动位置丢失
   content.innerHTML = `
     <div class="stat-inner">
       <div class="stat-section">欧非评定</div>
-      <div class="stat-row"><span>称号</span><span>${rating ? rating.name : '暂无评定，先去冒险吧'}</span></div>
+      <div class="stat-row"><span>称号</span><span id="dataRating"></span></div>
 
-      <div class="stat-section">全局统计</div>
-      <div class="stat-row"><span>当前地区</span><span>${region.name}</span></div>
-      <div class="stat-row"><span>行走距离</span><span>${walkText}</span></div>
-      <div class="stat-row"><span>挂机时长</span><span>${formatTime(stats.totalPlaySeconds)}</span></div>
-      <div class="stat-row"><span>总遭遇</span><span>${totalSeen}</span></div>
-      <div class="stat-row"><span>总捕获</span><span>${stats.totalCatches}</span></div>
-      <div class="stat-row"><span>逃跑数</span><span>${stats.totalFlees}</span></div>
-      <div class="stat-row"><span>捕获率</span><span>${catchRate}%</span></div>
-      <div class="stat-row"><span>图鉴完成度</span><span>${totalUnique}/${totalSpecies} (${pct}%)</span></div>
+      <div class="stat-section">今日数据</div>
+      <div class="stat-row"><span>今日挂机</span><span id="dataPlayToday"></span></div>
+      <div class="stat-row"><span>今日遭遇</span><span id="dataTodaySeen"></span></div>
+      <div class="stat-row"><span>今日捕获</span><span id="dataTodayCaught"></span></div>
+      <div class="stat-row"><span>今日逃跑</span><span id="dataTodayFled"></span></div>
+      <div class="stat-row"><span>今日捕获率</span><span id="dataTodayRate"></span></div>
+      <div class="stat-row"><span>今日闪光遇见</span><span id="dataTodayShinySeen"></span></div>
+      <div class="stat-row"><span>今日闪光捕获</span><span id="dataTodayShinyCaught"></span></div>
+      <div class="stat-row"><span>今日孵化</span><span id="dataTodayHatched"></span></div>
 
-      <div class="stat-section">闪光统计</div>
-      <div class="stat-row"><span>闪光遇见</span><span>${stats.totalShinySeen}</span></div>
-      <div class="stat-row"><span>闪光捕获</span><span>${stats.totalShinyCaught}</span></div>
-      <div class="stat-row"><span>闪光捕获率</span><span>${shinyRate}%</span></div>
+      <div class="stat-section">累计数据</div>
+      <div class="stat-row"><span>挂机时长</span><span id="dataPlayTotal"></span></div>
+      <div class="stat-row"><span>总遭遇</span><span id="dataTotalSeen"></span></div>
+      <div class="stat-row"><span>总捕获</span><span id="dataTotalCaught"></span></div>
+      <div class="stat-row"><span>逃跑数</span><span id="dataTotalFled"></span></div>
+      <div class="stat-row"><span>捕获率</span><span id="dataTotalRate"></span></div>
+      <div class="stat-row"><span>闪光遇见</span><span id="dataTotalShinySeen"></span></div>
+      <div class="stat-row"><span>闪光捕获</span><span id="dataTotalShinyCaught"></span></div>
+      <div class="stat-row"><span>蛋孵化</span><span id="dataTotalHatched"></span></div>
+
+      <div class="stat-section">冒险进度</div>
+      <div class="stat-row"><span>当前地区</span><span id="dataRegion"></span></div>
+      <div class="stat-row"><span>行走距离</span><span id="dataWalkDist"></span></div>
+      <div class="stat-row"><span>图鉴完成度</span><span id="dataDexPct"></span></div>
 
       <div class="stat-section">消耗统计</div>
-      <div class="stat-row"><span>精灵球使用</span><span>${stats.totalBallsUsed}</span></div>
-      <div class="stat-row"><span>蛋孵化</span><span>${stats.totalEggsHatched}</span></div>
-      <div class="stat-row"><span>蛋闪光</span><span>${stats.totalShinyEggsHatched}</span></div>
-      <div class="stat-row"><span>平均球/遇敌</span><span>${totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0'}</span></div>
+      <div class="stat-row"><span>精灵球使用</span><span id="dataBallsUsed"></span></div>
+      <div class="stat-row"><span>平均球/遇敌</span><span id="dataBallsAvg"></span></div>
 
       <div class="stat-section">遇见排行</div>
-      <div class="stat-row"><span>遇见最多</span><span>${mostSeen.name} (${mostSeen.count}次)</span></div>
+      <div class="stat-row"><span>遇见最多</span><span id="dataMostSeen"></span></div>
 
       <div class="stat-section">道具累计获得</div>
-      ${earnedHtml || '<div>暂无数据</div>'}
+      <div id="dataEarned"></div>
     </div>
   `;
+  // 初始填充 + 每秒实时刷新全部动态值；离开统计页后定时器自动停止
+  refreshDataStats();
+  if (showDataView._timer) clearInterval(showDataView._timer);
+  showDataView._timer = setInterval(() => {
+    if ($('dataView')?.style.display === 'none') {
+      clearInterval(showDataView._timer);
+      showDataView._timer = null;
+      return;
+    }
+    refreshDataStats();
+  }, 1000);
   showView('dataView');
 }
 
@@ -261,6 +333,7 @@ export function renderSettings(container, s) {
   const shinyStop = s.shinyStop || false;
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
+  const gender = s.gender || 'brendan';
   container.innerHTML = `
     <div style="padding:6px 8px;">
       <div class="auto-catch-row">
@@ -303,6 +376,13 @@ export function renderSettings(container, s) {
           <div class="toggle-knob"></div>
         </div>
       </div>
+      <div class="auto-catch-row">
+        <div class="auto-catch-label">角色</div>
+        <div class="gender-check-row">
+          <span class="ball-check ${gender === 'brendan' ? 'on' : ''}" id="genderBrendan">${gender === 'brendan' ? '☑' : '☐'}小悠</span>
+          <span class="ball-check ${gender === 'may' ? 'on' : ''}" id="genderMay">${gender === 'may' ? '☑' : '☐'}小遥</span>
+        </div>
+      </div>
       <div class="reset-save-row">
         <span class="reset-save-label">重置存档</span>
         <span class="reset-save-btn" id="resetSaveBtn">重置</span>
@@ -316,6 +396,8 @@ export function renderSettings(container, s) {
     </div>
   `;
   container.querySelector('#toggleAutoCatch')?.addEventListener('click', toggleAutoCatch);
+  container.querySelector('#genderBrendan')?.addEventListener('click', () => toggleGender('brendan'));
+  container.querySelector('#genderMay')?.addEventListener('click', () => toggleGender('may'));
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
   container.querySelector('#toggleShinyStop')?.addEventListener('click', toggleShinyStop);
@@ -466,6 +548,19 @@ export function toggleShinyStop() {
   saveGame();
 }
 
+export function toggleGender(g) {
+  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
+  gameData.settings.gender = g;
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+  // 立即刷新角色画面：走路/跑步/骑车/捡道具 + 遇敌页丢球背影；钓鱼中恢复钓鱼画面
+  applyCharSprites();
+  if (_fishing) {
+    import('./fishing.js').then(m => m.applyFishingVisual());
+  }
+}
+
 // ===== 教程视图 =====
 // 左侧导航列表 + 右侧详情文案（数值实时引用 config，随配置变动保持同步）
 
@@ -519,7 +614,7 @@ const TUTORIAL_SECTIONS = [
     title: '图鉴',
     html: `<p>在<b>手机</b>页面打开<b>图鉴</b>应用，支持<b>搜索</b>（输入名称快速检索）与<b>地区筛选</b>。点击表头可按相应字段<b>排序</b>，再次点击同一表头切换升/降序。</p>`
       + `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据（详见「统计」章节）。</p>`
-      + `<p>点击条目查看详情：<b>未遇到过</b>显示"？？？"且不可点击；<b>遇到过未捕获</b>显示基础信息+完整日志；<b>已捕获</b>额外解锁精确数值、种族值条和图鉴描述。</p>`
+      + `<p>点击条目查看详情：<b>未遇到过</b>显示"？？？"且不可点击；<b>遇到过未捕获</b>显示基础信息+完整日志；<b>已捕获</b>额外解锁精确数值、种族值条、图鉴描述与<b>喜爱的食物</b>（用食物可精准定位该地区的这只宝可梦）。</p>`
   },
   {
     title: '统计',
@@ -614,6 +709,13 @@ const TUTORIAL_SECTIONS = [
       + `<p>钓到道具时的种类概率（按掉率权重占比）：</p>`
       + tutorialTable(FISH_ITEM_ROWS, ['道具', '概率'], [52, 'auto'])
       + `<p>增益加成：护符期间钓到的宝可梦更容易<b>闪光</b>；等待上钩时间<b>不计入</b>增益时长。</p>`,
+  },
+  {
+    title: '树果混合',
+    html: `<p>在<b>手机</b>主页打开<b>混合器</b>，消耗 <b>${MIXER_CANDY_COST}</b> 糖果开始小游戏：倒计时 3-2-1 后，树果会抛向空中再落到地面，共 <b>${MIXER_ROUNDS}</b> 轮、每轮 <b>${MIXER_BERRIES_PER_ROUND}</b> 颗（覆盖全部 ${BERRY_ICONS.length} 种树果），在树果飞行时<b>点击</b>即可收集。</p>`
+      + `<p>收集 <b>${MIXER_MAX_PICKS}</b> 颗树果后自动结束，它们组成<b>配方</b>做成树果方块。<b>按行走里程计时</b>：主角再行走 <b>${BLOCK_DISTANCE}</b> 米没被吃掉则风干失效（停下不走不消耗），期间<b>不改变正常遇敌节奏</b>，但每次遇敌都有 <b>${Math.round(BLOCK_TARGET_CHANCE * 100)}%</b> 的概率直接遇到当前地区最喜欢吃这个配方的宝可梦（图鉴里的"喜爱的食物"即配方），被它吃掉方块后 buff 结束。</p>`
+      + `<p>若该配方在当前地区没有宝可梦爱吃则<b>无效.</b></p>`
+      + `<p>收集相同的树果不会改变配方。</p>`,
   },
   {
     title: '自动操作',

@@ -13,7 +13,7 @@ export function showView(id) {
     id = 'encounterView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView'];
+  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
@@ -86,7 +86,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', mixerView:'混合器' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -135,28 +135,40 @@ function isBuffActive() {
 }
 
 export function applyCharSprites() {
+  const prefix = getCharPrefix();
+  // 遇敌页丢球角色背影 + 启动页主角 也随性别切换
+  const backImg = document.querySelector('#animThrowChar .anim-throw-char-img');
+  if (backImg) backImg.src = `./character/${prefix}-back.png`;
+  const hero = document.querySelector('.splash-hero');
+  if (hero) hero.src = `./character/${prefix}-front.png`;
   setIdleCharacter('walk');
 }
 
-// 各道具对应的精灵图列 x 偏移（sprite sheet: brendan-get-all.png）
-const GET_ITEM_X = {
-  'poke-ball': 0,    'ultra-ball': -40,   'master-ball': -80,
-  'candy': -120,     'shiny-charm': -160,
-  'mystery-egg': -200, 'sweet-honey': -240,
+// 当前角色前缀（按设置里的性别）：'brendan' 或 'may'
+export function getCharPrefix() {
+  return gameData.settings?.gender === 'may' ? 'may' : 'brendan';
+}
+
+// 各道具对应的精灵图行 y 偏移（sprite sheet: brendan-get-all.png，7行横排、每行5帧、帧宽32px）
+// 图片以 2x 放大显示（行高 46 = 23*2），故偏移按 46 递增
+const GET_ITEM_Y = {
+  'poke-ball': 0,     'ultra-ball': -46,   'master-ball': -92,
+  'candy': -138,      'shiny-charm': -184,
+  'mystery-egg': -230, 'sweet-honey': -276,
 };
 
 let _getItemRaf = null;
 
-function startGetItemAnim(el, xOffset) {
+function startGetItemAnim(el, yOffset) {
   if (_getItemRaf) { cancelAnimationFrame(_getItemRaf); _getItemRaf = null; }
-  const frames = 5;
-  const frameH = 42;
+  const frames = 5;   // 每行 5 帧（帧宽 32px）
+  const frameW = 64;  // 2x 显示 → 每帧 64px
   const dur = 800;
   const startT = performance.now();
   function frame(now) {
     const t = Math.min((now - startT) / dur, 1);
     const idx = Math.min(Math.floor(t * frames), frames - 1);
-    el.style.backgroundPosition = `${xOffset}px ${-idx * frameH}px`;
+    el.style.backgroundPosition = `${-idx * frameW}px ${yOffset}px`;
     if (t < 1) {
       _getItemRaf = requestAnimationFrame(frame);
     }
@@ -173,25 +185,27 @@ export function setIdleCharacter(state, itemKey) {
   el.style.backgroundSize = '';
   el.style.backgroundPosition = '';
   if (state === 'get-item') {
-    el.classList.add('brendan-get-item');
-    if (itemKey && GET_ITEM_X[itemKey] !== undefined) {
-      // 使用 sprite sheet + JS 动画（每种道具不同列）
-      el.style.backgroundImage = 'url("./character/brendan-get-all.png")';
-      el.style.backgroundSize = '280px 210px';
-      startGetItemAnim(el, GET_ITEM_X[itemKey]);
+    el.classList.add('get-item');
+    if (itemKey && GET_ITEM_Y[itemKey] !== undefined) {
+      // 使用 sprite sheet + JS 动画（每种道具不同行）
+      el.style.backgroundImage = `url("./character/${getCharPrefix()}-get-all.png")`;
+      el.style.backgroundSize = '320px 322px';
+      startGetItemAnim(el, GET_ITEM_Y[itemKey]);
     }
   } else {
-    // walk → 自行车道优先（骑行动画），否则根据 buff 状态决定走还是跑
+    // 状态类（walk/run/bike）+ 性别类（brendan/may）：
+    // CSS 尺寸/动画按状态共享，背景图按性别一行声明
     if (road.isBike()) {
-      el.classList.add('brendan-bike');
+      el.classList.add('bike');
       road.setSpeed(ROAD_SPEED_BIKE);
     } else if (isBuffActive()) {
-      el.classList.add('brendan-run');
+      el.classList.add('run');
       road.setSpeed(ROAD_SPEED_RUN);
     } else {
-      el.classList.add('brendan-walk');
+      el.classList.add('walk');
       road.setSpeed(ROAD_SPEED_WALK);
     }
+    el.classList.add(getCharPrefix());
   }
 }
 
@@ -225,10 +239,11 @@ export function fitPokemonImage(img) {
   img.style.width = '';
   img.style.height = '';
   img.style.objectFit = '';
-  const view = img.closest('#encounterView');
-  if (!view || view.clientHeight <= 0) return;
+  // 只对遭遇页内的宝可梦图片做适配
+  if (!img.closest('#encounterView')) return;
   // 精灵底部锚在屏幕 42% 高度处，可见上限为剩余 58% 高度
-  // 用缓存舞台高度而非 view.clientHeight（切回瞬间 view 可能未铺满，导致缩放尺寸错误）
+  // 用缓存舞台高度做基准（后台战斗时 encounterView 隐藏 clientHeight 为 0，
+  // 也照常适配，保证切回页面时尺寸正确；切回瞬间 view 未铺满也不会缩错）
   const { h: stageH } = getStageSize();
   const maxH = stageH * 0.58;
   if (img.naturalHeight > maxH) {
@@ -239,57 +254,60 @@ export function fitPokemonImage(img) {
 }
 
 // ---------- 图片加载 ----------
+// 通用图片加载：裸路径 → encodeURI → fetch blob → Tauri 直读 base64 逐级兜底。
+// 中文/特殊字符文件名在部分 WebView 环境下直接 <img> 请求会失败，必须走降级链。
+export function tryLoadImage(img, relPath) {
+  return new Promise(resolve => {
+    const ext = (relPath.split('.').pop() || 'png').toLowerCase();
+    const doRaw = () => new Promise(r => {
+      img.onload = () => { img.onerror = null; r(true); };
+      img.onerror = () => r(false);
+      img.src = relPath;
+    });
+    const doEncoded = () => new Promise(r => {
+      img.onload = () => { img.onerror = null; r(true); };
+      img.onerror = () => r(false);
+      img.src = encodeURI(relPath);
+    });
+    const doFetch = () => fetch(encodeURI(relPath)).then(r => {
+      if (!r.ok) return false;
+      return r.blob().then(blob => {
+        const url = URL.createObjectURL(blob);
+        return new Promise(r => {
+          img.onload = () => { URL.revokeObjectURL(url); r(true); };
+          img.onerror = () => { URL.revokeObjectURL(url); r(false); };
+          img.src = url;
+        });
+      });
+    }).catch(() => false);
+    const doTauri = () => {
+      if (!window.__TAURI__?.core?.invoke) return Promise.resolve(false);
+      const fp = relPath.replace(/^\.\//, '');
+      return window.__TAURI__.core.invoke('read_gif_base64', { path: fp })
+        .then(b64 => new Promise(r => {
+          img.onload = () => r(true);
+          img.onerror = () => r(false);
+          img.src = `data:image/${ext};base64,${b64}`;
+        }))
+        .catch(() => false);
+    };
+    doRaw().then(ok => ok ? resolve(true) : doEncoded()).then(ok => {
+      if (ok) { resolve(true); return; }
+      doFetch().then(ok => ok ? resolve(true) : doTauri()).then(resolve).catch(() => resolve(false));
+    }).catch(() => resolve(false));
+  });
+}
+
 export function tryLoadPokemonImage(img, poke, suffix) {
   const idx = String(poke.index);
   const name = poke.name;
   const primaryExt = poke.image?.endsWith('.png') ? 'png' : 'gif';
   const fallbackExt = primaryExt === 'png' ? 'gif' : 'png';
-
   function tryLoad(ext) {
     const ip = `./pokemon-data/images/${idx}-${name}${suffix}.${ext}`;
-    return new Promise(resolve => {
-      const doRaw = () => new Promise(r => {
-        img.onload = () => { img.onerror = null; fitPokemonImage(img); r(true); };
-        img.onerror = () => r(false);
-        img.src = ip;
-      });
-      const doEncoded = () => new Promise(r => {
-        img.onload = () => { img.onerror = null; fitPokemonImage(img); r(true); };
-        img.onerror = () => r(false);
-        img.src = encodeURI(ip);
-      });
-      const doFetch = () => fetch(encodeURI(ip)).then(r => {
-        if (!r.ok) return false;
-        return r.blob().then(blob => {
-          const url = URL.createObjectURL(blob);
-          return new Promise(r => {
-            img.onload = () => { URL.revokeObjectURL(url); fitPokemonImage(img); r(true); };
-            img.onerror = () => { URL.revokeObjectURL(url); r(false); };
-            img.src = url;
-          });
-        });
-      }).catch(() => false);
-      const doTauri = () => {
-        if (!window.__TAURI__?.core?.invoke) return Promise.resolve(false);
-        const fp = `pokemon-data/images/${idx}-${name}${suffix}.${ext}`;
-        return window.__TAURI__.core.invoke('read_gif_base64', { path: fp })
-          .then(b64 => new Promise(r => {
-            img.onload = () => { fitPokemonImage(img); r(true); };
-            img.onerror = () => r(false);
-            img.src = `data:image/${ext};base64,${b64}`;
-          }))
-          .catch(() => false);
-      };
-      doRaw().then(ok => ok ? resolve(true) : doEncoded()).then(ok => {
-        if (ok) { resolve(true); return; }
-        doFetch().then(ok => ok ? resolve(true) : doTauri()).then(resolve).catch(() => resolve(false));
-      }).catch(() => resolve(false));
-    });
+    return tryLoadImage(img, ip).then(ok => { if (ok) fitPokemonImage(img); return ok; });
   }
-  return tryLoad(primaryExt).then(ok => {
-    if (ok) return true;
-    return tryLoad(fallbackExt);
-  });
+  return tryLoad(primaryExt).then(ok => ok ? true : tryLoad(fallbackExt));
 }
 
 // ---------- 背包更新 ----------

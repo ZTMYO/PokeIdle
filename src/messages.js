@@ -1,6 +1,6 @@
 // ===== 闲置轮播消息 + 地区文案 =====
 import { $, showView } from './ui.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer } from './state.js';
 import * as road from './road.js';
 
 // 对应9个世代大区的氛围文案
@@ -390,6 +390,17 @@ export function rotateIdleMessage() {
       '✦ 奇迹随时可能发生...',
       '✦ 闪耀护符在微微发烫！',
       '✦ 直觉告诉你，好东西要来了...',
+    ];
+    setIdleMsgIdx((_idleMsgIdx + 1) % msgs.length);
+    $('idleText').textContent = msgs[_idleMsgIdx];
+    return;
+  }
+  if (blockBuffActive) {
+    const msgs = [
+      '✦ 树果方块的香气随风飘散...',
+      '✦ 似乎有宝可梦被树果方块吸引过来了！',
+      '✦ 树果方块散发着诱人的果香...',
+      '✦ 好像有宝可梦在靠近...',
     ];
     setIdleMsgIdx((_idleMsgIdx + 1) % msgs.length);
     $('idleText').textContent = msgs[_idleMsgIdx];

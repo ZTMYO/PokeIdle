@@ -44,6 +44,8 @@
             <div class="idle-text" id="idleText"></div>
             <div id="walkGif" class="walk-gif"></div>
             <div id="roadLayer" class="road-layer"></div>
+            <!-- 树果方块（混合器产物，摆放在游戏画面中央等待被吃掉） -->
+            <div id="blockBait" class="block-bait" style="display:none;"></div>
           </div>
 
           <div id="pokedexView" style="display:none;flex-direction:column;">
@@ -177,6 +179,11 @@
           <!-- 孵蛋器页面 -->
           <div id="incubatorView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;width:100%;">
             <div id="incubatorList" style="flex:1;color:var(--ui-color);display:grid;grid-template-columns:1fr 1fr;gap:5px;align-content:start;"></div>
+          </div>
+
+          <!-- 混合器页面（小游戏，无滚动条） -->
+          <div id="mixerView" style="display:none;flex-direction:column;overflow:hidden;padding:0;">
+            <div id="mixerContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
         </div>
