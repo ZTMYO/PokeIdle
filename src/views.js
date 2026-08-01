@@ -267,7 +267,7 @@ export function renderSystemLogs() {
 }
 
 export function showSystemLogs() {
-  setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
+  setPrevView('phoneView');
   showView('systemLogView');
   const sv = $('systemLogView');
   if (sv) sv.scrollTop = 0;
@@ -434,9 +434,9 @@ export function renderSettings(container, s) {
 
 // 重置存档：清空本地存档并开新档
 export function resetSave() {
-  try { localStorage.removeItem('pokemon_idle_save'); } catch (_) {}
-  try { localStorage.removeItem('pokemon_idle_road'); } catch (_) {}
-  try { localStorage.removeItem('pokemon_idle_session'); } catch (_) {}
+  try { localStorage.removeItem('pokemon_idle_save'); } catch (_) { }
+  try { localStorage.removeItem('pokemon_idle_road'); } catch (_) { }
+  try { localStorage.removeItem('pokemon_idle_session'); } catch (_) { }
   setGameData(getDefaultSave());
   ensureGpsState();
   saveGame();
@@ -622,14 +622,15 @@ const TUTORIAL_SECTIONS = [
       + `<p>包含<b>欧非评定</b>（按每次遭遇的稀有度与捕获运气综合评价出称号）、<b>全局统计</b>（挂机时长、遭遇/捕获/逃跑数、捕获率、图鉴完成度）、<b>闪光统计</b>、<b>消耗统计</b>、<b>遇见排行</b>与<b>道具累计获得</b>。</p>`,
   },
   {
-    title: '导航',
-    html: `<p>在<b>手机</b>页面打开<b>导航</b>应用：选择目的地即可<b>手动导航</b>；开启<b>环国旅行</b>后，抵达后会自动沿<b>环国路线</b>（合众→关都→卡洛斯→城都→阿罗拉→丰缘→伽勒尔→神奥→帕底亚→合众…循环）前往下一站。</p>`
-      + `<p>进度由<b>主角实际移动</b>驱动——跑步更快，遇敌或钓鱼时暂停；未设目的地时主角在当前地区活动。</p>`,
+    title: '地区',
+    html: `<p>进入游戏后从<b>丰缘</b>出发，共 ${REGION_CYCLE.length} 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同，<b>导航途中遭遇</b>同样按<b>当前位置</b>判定地区：每段路<b>前半程</b>算出发地区、<b>后半程</b>算目标地区</p>`
+      + `<p>在<b>导航</b>应用中<b>选择目的地</b>或开启<b>漫游</b>即可前往其他地区：按距离矩阵规划<b>最短路线</b>，真实行走抵达后即身处该地区，此时导航结束。</p>`
   },
   {
-    title: '地区',
-    html: `<p>进入游戏后从<b>丰缘</b>出发，共 ${REGION_CYCLE.length} 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同。</p>`
-      + `<p>在<b>导航</b>应用中<b>选择目的地</b>或开启<b>环国旅行</b>即可前往其他地区：按距离矩阵规划<b>最短路线</b>，真实行走抵达后进入下一地区。</p>`
+    title: '导航',
+    html: `<p>在<b>手机</b>页面打开<b>导航</b>应用：选择目的地即可<b>手动导航</b>；开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→关都→卡洛斯→城都→阿罗拉→丰缘→伽勒尔→神奥→帕底亚→合众…循环）选择下一站。</p>`
+      + `<p>到达目的地后<b>导航结束</b>，目的地恢复"未设置"（漫游保持开启，下次进入游戏或重新开关时才会再选下一站）。</p>`
+      + `<p>进度由<b>主角实际移动</b>驱动——跑步更快，遇敌或钓鱼时暂停；未设目的地时主角在当前地区活动。</p>`,
   },
   {
     title: '悬赏',
@@ -732,7 +733,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '系统日志',
-    html: `<p>记录最近的活动（获得道具、遇敌、捕捉等），点击右下角<b>挂机时间</b>即可查看。</p>`,
+    html: `<p>记录最近的活动（获得道具、遇敌、捕捉等），在<b>手机</b>页面打开<b>日志</b>应用即可查看。</p>`,
   },
   {
     title: '宝可梦难度',

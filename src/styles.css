@@ -759,8 +759,6 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .stats-bar span:first-child { cursor: pointer; }
 .stats-bar span:first-child:hover { opacity: 0.7; color: #306230; }
-.stats-bar span:last-child { cursor: pointer; }
-.stats-bar span:last-child:hover { opacity: 0.7; color: #306230; }
 
 .stat-auto-status { display: inline-flex; align-items: center; gap: 4px; }
 .stat-auto-bar-wrap {
@@ -1504,72 +1502,76 @@ body { margin: 0; padding: 0; cursor: default; }
 .mixer-result-actions .mixer-action-giveup:hover { filter: brightness(0.967); }
 
 /* === GPS 模拟导航 === */
-.gps-wrap { padding: 4px 14px 0; display: flex; flex-direction: column; gap: 10px; height: 100%; user-select: none; }
-.gps-top {
+.gps-wrap { padding: 4px 14px 0; display: flex; flex-direction: column; gap: 0; height: 100%; user-select: none; }
+.gps-minimap {
+  position: relative;
+  margin: 0 -14px;
+  width: calc(100% + 28px);
+  aspect-ratio: 320 / 176;
+}
+.gps-minimap-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.gps-map-edge {
+  stroke: rgba(var(--ui-color-rgb), 0.18);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.gps-map-edge.active {
+  stroke: var(--ui-color);
+  stroke-width: 4;
+}
+.gps-map-node circle {
+  fill: var(--screen-bg-light);
+  stroke: var(--ui-color);
+  stroke-width: 1.5;
+}
+.gps-map-node text {
+  fill: var(--ui-color);
+  font-size: 10px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--screen-bg-light);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+.gps-map-node.current circle,
+.gps-map-node.dest circle {
+  fill: var(--ui-color);
+  stroke: var(--ui-color-dark);
+}
+.gps-map-marker {
+  fill: var(--ui-color);
+  stroke: var(--screen-bg-light);
+  stroke-width: 2;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.18));
+}
+/* 漫游开关行：位于地图与底部信息栏之间的空隙区，靠左显示 */
+.gps-roam-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 2px 4px;
+}
+.gps-roam-label {
   font-size: 11px;
   font-weight: 700;
-  background: var(--screen-bg-light);
-  border: 1px solid var(--item-border);
-  border-radius: 6px;
-  padding: 7px 8px;
-  cursor: pointer;
-  transition: background 0.15s ease, filter 0.15s ease;
-}
-.gps-top:hover { filter: brightness(0.95); }
-.gps-from { opacity: 0.65; white-space: nowrap; }
-.gps-arrow { flex-shrink: 0; color: var(--ui-color); }
-.gps-dest { text-align: right; white-space: nowrap; }
-/* 底部导航轴：指针随进度沿轴滑动，带上下浮动动画 */
-.gps-axis {
-  position: relative;
-  height: 26px;
-  margin: 2px 6px 0;
-}
-.gps-axis-track {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 3px;
-  transform: translateY(-50%);
-  background: rgba(var(--ui-color-rgb), 0.15);
-  border-radius: 999px;
-}
-.gps-axis-fill {
-  height: 100%;
-  background: var(--ui-color);
-  border-radius: 999px;
-  transition: width 1s linear;
-}
-.gps-axis-pointer {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--ui-color);
-  animation: gpsPointerBob 0.9s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes gpsPointerBob {
-  0%, 100% { transform: translate(-50%, -50%) translateY(-5px); }
-  50% { transform: translate(-50%, -50%) translateY(-8px); }
-}
-/* 导航状态区：路径（当前→下一站）与暂停原因互斥显示的居中文案 */
-.gps-status {
-  font-size: 12px;
   opacity: 0.85;
-  text-align: center;
-  line-height: 1.6;
-  padding: 0 4px;
 }
-.gps-tip {
+/* 暂停提示：漫游开关右侧，移动暂停原因 */
+.gps-roam-paused {
   font-size: 10px;
-  opacity: 0.65;
-  text-align: center;
-  padding: 2px 0 1px;
+  font-weight: 700;
+  color: var(--ui-color);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  text-align: right;
 }
 /* 通用贴底按钮条：导航页 / 混合器共用；负 margin 抵消外层 padding 实现全宽贴底 */
 /* 导航页内层 padding 左右 14px，dock 负 margin 同步扩大抵消，保持全宽贴底 */
@@ -1634,93 +1636,12 @@ body { margin: 0; padding: 0; cursor: default; }
   font-weight: 700;
   white-space: nowrap;
 }
-/* 无目的地时：居中"开始导航"按钮，点击整个底栏打开目的地弹窗 */
-.bottom-dock.clickable .gps-bottom-line1 {
-  padding: 4px 16px;
-  border-radius: 999px;
-}
 .gps-bottom-line2 {
   font-size: 9px;
   font-weight: 700;
   opacity: 0.55;
   white-space: nowrap;
 }
-/* 环国旅行开关行 */
-.gps-roam-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 2px 4px;
-}
-.gps-roam-label {
-  font-size: 11px;
-  font-weight: 700;
-  opacity: 0.85;
-}
-/* 目的地选择弹窗 */
-.gps-dialog {
-  position: absolute;
-  inset: 0;
-  z-index: 99;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.25);
-  user-select: none;
-}
-.gps-dialog.open { display: flex; }
-.gps-dialog-box {
-  position: relative;
-  background: var(--screen-bg-light);
-  border: 2px solid var(--screen-bg-dark);
-  border-radius: 6px;
-  padding: 12px;
-  min-width: 150px;
-}
-#gpsDialogList {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
-}
-.gps-dialog-title {
-  font-family: monospace;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--ui-color);
-  text-align: center;
-  margin-bottom: 8px;
-}
-.gps-dialog-opt {
-  padding: 5px 8px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: monospace;
-  font-size: 12px;
-  color: var(--ui-color);
-  background: rgba(var(--ui-color-rgb),0.1);
-  text-align: center;
-  white-space: nowrap;
-  transition: background 0.12s;
-}
-.gps-dialog-opt:hover { background: rgba(var(--ui-color-rgb),0.25); }
-.gps-dialog-opt:active { transform: scale(0.95); }
-.gps-dialog-opt.disabled { opacity: 0.35; cursor: default; }
-.gps-dialog-opt.disabled:active { transform: none; }
-.gps-dialog-opt.sel { box-shadow: inset 0 0 0 1px var(--ui-color); }
-.gps-dialog-close {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 14px;
-  height: 14px;
-  color: var(--ui-color);
-  opacity: 0.6;
-  cursor: pointer;
-  transition: opacity 0.12s;
-}
-.gps-dialog-close:hover { opacity: 1; }
-.gps-dest-none { opacity: 0.5; }
 
 /* ===== 地区悬赏 ===== */
 .bounty-wrap {
@@ -1821,12 +1742,14 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .bounty-claim {
   flex-shrink: 0;
-  padding: 3px 10px;
+  width: 44px;
+  padding: 3px 0;
   box-sizing: border-box;
   border: 1px solid var(--ui-color-dark);
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
+  text-align: center;
   background: var(--ui-color);
   color: var(--screen-bg);
   cursor: pointer;

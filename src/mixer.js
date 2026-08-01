@@ -381,6 +381,7 @@ function tintBlockVisual() {
 
 function cooldownHtml() {
   const target = findBerryTarget(blockRecipe);
+  const targetCaught = !!(target && (gameData.pokedex?.[String(target.index)]?.caught || 0) > 0);
   // 与首页/结果页统一：标题顶部居中，方块底部中央；剩余里程在结果页配方同位置（cube 上方），小字在方块下方
   return `
     <div class="mixer-wrap mixer-cool">
@@ -389,7 +390,7 @@ function cooldownHtml() {
         <img class="mixer-block-visual" id="mixerBlockVisual" src="./items/cube.png" alt="树果方块" />
         <div class="mixer-cool-timer" id="mixerCoolTimer">剩余 ${blockMetersRemaining()} 米</div>
         <div class="mixer-result-target show">
-          ${target ? '当地有宝可梦喜欢吃这个配方，将被吸引！' : '当地没有宝可梦喜欢吃这个配方！'}
+          ${targetCaught ? '当地有宝可梦喜欢吃这个配方，将被吸引！' : '当地没有宝可梦喜欢吃这个配方！'}
         </div>
       </div>
       <button class="bottom-dock" id="mixerCancelBtn">取消使用</button>
@@ -665,6 +666,8 @@ function showResult() {
   if (!el) return;
   const recipe = [..._collected].sort((a, b) => a - b);
   const target = findBerryTarget(recipe);
+  // 只有图鉴中成功捕获过目标宝可梦才算"有宝可梦吃"；命中但未捕获 → 视为没有，不允许领取
+  const targetCaught = !!(target && (gameData.pokedex?.[String(target.index)]?.caught || 0) > 0);
   // 三页统一：标题顶部居中（动画后淡入），方块底部中央，小字在方块下方
   const reveal = recipe.length > 0 ? '' : ' show'; // 无动画（空配方）时直接显示
   el.innerHTML = `
@@ -675,7 +678,7 @@ function showResult() {
           ? `<div class="mixer-result-berries mixer-fade" id="mixerResultBerries">${berryImgsHtml(recipe)}</div>`
           : '<div class="mixer-empty">没有收集到任何树果</div>'}
         <div class="mixer-result-target${reveal}" id="mixerResultTarget">
-          ${target
+          ${target && targetCaught
             ? '当地有宝可梦喜欢吃这个配方，将被吸引！'
             : recipe.length === 0
               ? '没有收集到树果，无法制作树果方块'

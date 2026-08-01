@@ -20,7 +20,7 @@ import {
   setHoneyPausedRemaining, setCharmPausedRemaining,
   setHoneyEncounterCount, setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
   setBlockBuffActive, setBlockRecipe, setBlockStartWalk,
-  getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState,
+  getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion,
   hasAnyBall, saveSessionState, rand, randInt, formatNum, formatTime,
   setEncounterMsg, addPlaySeconds,
@@ -40,10 +40,10 @@ import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
 import { showEncounterLogs, restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
-import { showSystemLogs, showShopView, showSettingsView,
+import { showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView } from './phone.js';
-import { gpsAddDistance, ensureRoamDest } from './gps.js';
+import { gpsAddDistance, ensureRoamDest, showGpsView } from './gps.js';
 import { ensureBounty } from './bounty.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
@@ -262,7 +262,7 @@ async function init() {
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
   ensureGpsState(); // 兼容旧存档：补齐 GPS 状态（默认从丰缘出发）
-  ensureRoamDest(); // 环国旅行默认开启且无目的地时，自动开始导航
+  ensureRoamDest(); // 漫游默认开启且无目的地时，自动开始导航
   ensureBounty();   // 生成/恢复当日地区悬赏
 
   setLastRegionId(getCurrentRegion().id);
@@ -289,6 +289,18 @@ async function init() {
     if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
     updateIncubatorBadge();
     console.log('所有孵蛋中的蛋已标记为孵化完成');
+  };
+
+  // 调试辅助：DevTools 控制台清空当前 GPS 状态，恢复为默认丰缘
+  window.__resetGps = async () => {
+    gameData.gps = defaultGpsState();
+    ensureGpsState();
+    ensureRoamDest();
+    setLastRegionId(getCurrentRegion().id);
+    await saveGame();
+    updateStats();
+    if ($('gpsView')?.style.display === 'flex') showGpsView();
+    console.log('GPS 已重置为默认丰缘');
   };
 
   // 固定窗口
@@ -507,7 +519,6 @@ async function init() {
 
   // 状态栏点击
   $('statProgress')?.addEventListener('click', showShopView);
-  $('statTime')?.addEventListener('click', showSystemLogs);
   $('appTitle')?.addEventListener('click', () => {
     if ($('appTitle').dataset.action === 'back') goBack();
   });

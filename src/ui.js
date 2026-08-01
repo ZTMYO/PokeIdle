@@ -1,6 +1,6 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing } from './state.js';
-import { formatNum, formatTime, getCurrentRegion, anyIncubatorReady, getIncubatorUnlockCost } from './state.js';
+import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE } from './config.js';
 import * as road from './road.js';
 
@@ -18,8 +18,6 @@ export function showView(id) {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
-  // 切换视图时关闭可能残留的目的地弹窗
-  $('gpsDialog')?.classList.remove('open');
   // 从非游戏页（图鉴/商店等）切回游戏页时，同步当前遭遇画面
   // （后台自动捕捉可能已推进到新遭遇，需刷新图片/文案/标签）
   if (!wasOnGameView && (id === 'idleView' || id === 'encounterView') && phase === 'encounter' && currentEncounter) {
@@ -348,7 +346,15 @@ let _prevBagCounts = {};
 export function updateStats() {
   const candy = gameData.items['candy'] || 0;
   $('statProgress').innerHTML = `<img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(candy)}`;
-  $('statTime').textContent = `${getCurrentRegion().name} ${formatTime(gameData.stats.totalPlaySeconds)}`;
+  // 右下角状态：直接显示当前地点（在路段上显示 路段编号（所属地区），否则显示地区名）。
+  // 是否在路段上按物理位置（path 进度）判断，不依赖是否有目的地——取消导航停在半路时仍显示路段名
+  const g = gameData?.gps;
+  const region = getCurrentRegion();
+  const onRoad = !!(g && g.path && g.path.length >= 2 && g.seg < g.path.length - 1 && g.totalPx > 0);
+  const road = onRoad ? getCurrentRoadInfo() : null;
+  $('statTime').textContent = road
+    ? `${road.num}#道路（${road.name}）`
+    : region.name;
   const autoEl = $('statAutoStatus');
   const autoText = $('statAutoText');
   const autoBar = $('statAutoBar');

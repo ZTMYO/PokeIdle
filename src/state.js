@@ -158,20 +158,19 @@ export function anyIncubatorReady() {
 }
 
 // ---------- GPS 导航状态 ----------
-// 当前地区由 GPS 位置决定（默认从丰缘出发）；开启"环国旅行"后才会有目的地并随行走推进。
+// 当前地区由 GPS 位置决定（默认从丰缘出发）；开启"漫游"后才会有目的地并随行走推进。
 export function defaultGpsState() {
   return {
-    roamEnabled: true,               // 环国旅行开关：默认开启，自动沿环国路线前往下一地区
-    curIdx: 2,                     // 当前地区编号（REGION_CYCLE 下标，2=丰缘）
-    destIdx: null,                 // 目的地地区编号；null=无目的地
-    path: null,                    // 最短路线（地区编号数组）
-    seg: 0,                        // 当前路段下标
-    units: 0,                      // 当前路段距离（单位）
-    totalPx: 0,                    // 当前路段总像素
-    remainPx: 0,                   // 当前路段剩余像素
-    arrived: false,                // 是否已到达目的地
-    arrivedAt: 0,                  // 到达时间戳（停留片刻后自动规划下一站）
+    roamEnabled: true,               // 漫游开关：默认开启，自动沿环国路线前往下一地区
+    curIdx: 2,                      // 当前地区编号（REGION_CYCLE 下标，2=丰缘）
+    destIdx: null,                  // 目的地地区编号；null=无目的地
+    path: null,                     // 最短路线（地区编号数组）
+    seg: 0,                         // 当前路段下标
+    units: 0,                       // 当前路段距离（单位）
+    totalPx: 0,                     // 当前路段总像素
+    remainPx: 0,                    // 当前路段剩余像素
     pxPerSec: ROAD_SPEED_WALK * 60, // 最近一次移动速度（px/秒）
+    position: null,                 // 显式位置快照：存档里清楚写明当前在地区还是在道路上
   };
 }
 
@@ -185,6 +184,7 @@ export function ensureGpsState() {
       if (gameData.gps[k] === undefined) gameData.gps[k] = d[k];
     }
   }
+  syncGpsPosition();
   return gameData.gps;
 }
 
@@ -222,6 +222,7 @@ export function addSystemLog(type, details) {
 export async function saveGame() {
   if (!gameData) return;
   gameData.stats.lastSaveTime = Date.now();
+  syncGpsPosition();
   const s = JSON.stringify(gameData);
   if (window.__TAURI__?.core?.invoke) {
     try { await window.__TAURI__.core.invoke('save_game_data', { data: s }); } catch (_) {}
@@ -331,11 +332,115 @@ export function calcOffline(save) {
 }
 
 // ---------- 当前地区 ----------
-// 当前地区由 GPS 位置决定：开启环国旅行并抵达目的地后才会改变；
-// 未开启时一直停留在当前位置（默认从丰缘出发）。
+// 当前地区由 GPS 位置决定：在途时按物理位置（路段进度）划分归属——
+// 走到路段中点的前半程归出发端，后半程归目标端；这样 A→B 与 B→A 在同一位置时归属相同，
+// 刷怪/钓鱼/悬赏都按"当前位置所在的地区"而非"出发地区"计算，避免方向性矛盾。
 export function getCurrentRegion() {
-  const idx = gameData?.gps?.curIdx ?? 2;
+  const g = gameData?.gps;
+  // 在途：有路径且当前段有长度 → 按物理位置折算归属地区
+  if (g && g.path && g.path.length >= 2 && g.totalPx > 0) {
+    const a = g.path[g.seg];
+    const b = g.path[g.seg + 1];
+    if (a != null && b != null && a !== b) {
+      // 段内已走比例 [0,1)：A→B 正算，B→A 反向折算成从 A 端量起的物理坐标
+      let p = 1 - (g.remainPx || 0) / g.totalPx;
+      if (a > b) p = 1 - p;
+      const idx = p < 0.5 ? Math.min(a, b) : Math.max(a, b);
+      return { id: idx, name: REGION_CYCLE[idx] || '丰缘' };
+    }
+  }
+  const idx = g?.curIdx ?? 2;
   return { id: idx, name: REGION_CYCLE[idx] || '丰缘' };
+}
+
+// ---------- 路段分段编号 ----------
+// 与地图可视化（map.html）一致：每条路（i<j 顺序）拆成前后两段、各自独立编号 1#~24#，
+// 前半段归出发地区、后半段归目标地区；走过半程即切到后半段编号。
+// 距离矩阵由 gps.js 在模块加载时注册（避免在 state.js 里重复维护一份矩阵）。
+let _distMatrix = null;
+export function setDistMatrix(m) { _distMatrix = m; }
+let _segBase = null;
+function segBase() {
+  if (!_segBase && _distMatrix) {
+    const t = {};
+    let n = 1;
+    for (let i = 0; i < _distMatrix.length; i++) {
+      for (let j = i + 1; j < _distMatrix.length; j++) {
+        const d = _distMatrix[i][j];
+        if (d > 0 && d !== 999) { t[`${i}-${j}`] = n; n += 2; }
+      }
+    }
+    _segBase = t;
+  }
+  return _segBase;
+}
+
+// 当前正在走的路段：返回 { num, name }（num = 该段独立编号，name = 所属地区）；不在途中返回 null
+export function getCurrentRoadInfo() {
+  const g = gameData?.gps;
+  const t = segBase();
+  if (!g || !t || !g.path || g.path.length < 2) return null;
+  const a = g.path[g.seg], b = g.path[g.seg + 1];
+  if (a == null || b == null || a === b) return null;
+  const min = Math.min(a, b), max = Math.max(a, b);
+  const base = t[`${min}-${max}`];
+  if (base == null) return null;
+  const pa = g.totalPx > 0 ? 1 - (g.remainPx || 0) / g.totalPx : 0; // 从出发端量起的段内进度
+  const firstHalf = pa < 0.5;
+  // 编号：出发端为小号地区时前半段 = base，否则 = base + 1
+  const num = firstHalf === (a === min) ? base : base + 1;
+  return { num, name: REGION_CYCLE[firstHalf ? a : b] };
+}
+
+// 当前 GPS 位置快照：给存档一个直观、稳定的“我现在在哪”描述，
+// 便于读档恢复时确认位置，也方便后续排查导航问题。
+export function getGpsPositionSnapshot() {
+  const g = gameData?.gps;
+  if (!g) return null;
+  const region = getCurrentRegion();
+  const road = getCurrentRoadInfo();
+  const hasRoad = !!(road && g.path && g.path.length >= 2 && g.seg < g.path.length - 1 && g.totalPx > 0);
+  const base = {
+    type: hasRoad ? 'road' : 'region',
+    regionId: region.id,
+    regionName: region.name,
+    destIdx: g.destIdx ?? null,
+    destName: g.destIdx != null ? (REGION_CYCLE[g.destIdx] || null) : null,
+  };
+  if (!hasRoad) {
+    const nodeIdx = g.curIdx ?? region.id;
+    return {
+      ...base,
+      nodeIdx,
+      nodeName: REGION_CYCLE[nodeIdx] || region.name,
+      label: REGION_CYCLE[nodeIdx] || region.name,
+    };
+  }
+  const fromIdx = g.path[g.seg];
+  const toIdx = g.path[g.seg + 1];
+  const progress = g.totalPx > 0 ? Math.max(0, Math.min(1, 1 - (g.remainPx || 0) / g.totalPx)) : 0;
+  const progressPct = Math.round(progress * 1000) / 10;
+  return {
+    ...base,
+    roadNum: road.num,
+    roadName: road.name,
+    fromIdx,
+    fromName: REGION_CYCLE[fromIdx] || '',
+    toIdx,
+    toName: REGION_CYCLE[toIdx] || '',
+    progress: Number(progress.toFixed(4)),
+    progressPct,
+    remainPx: Math.round(g.remainPx || 0),
+    totalPx: Math.round(g.totalPx || 0),
+    label: `${road.num}#道路（${road.name}） ${REGION_CYCLE[fromIdx] || ''}→${REGION_CYCLE[toIdx] || ''} ${progressPct}%`,
+  };
+}
+
+export function syncGpsPosition() {
+  const g = gameData?.gps;
+  if (!g) return null;
+  g.position = getGpsPositionSnapshot();
+  return g.position;
 }
 
 // ---------- 是否有可用球 ----------

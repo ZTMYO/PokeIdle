@@ -155,7 +155,7 @@ function renderBounty() {
 
   content.innerHTML = `
     <div class="bounty-wrap">
-      <div class="bounty-title">${name}${isCur ? '（当前）' : ''}-地区悬赏</div>
+      <div class="bounty-title">${name}${isCur ? '（当前）' : ''}</div>
       <div class="bounty-head">${head}</div>
       <div class="bounty-pager">
         <button class="bounty-arrow prev" data-page="prev" aria-label="上一个地区">${BACK_ICON}</button>

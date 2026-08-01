@@ -26,7 +26,7 @@ async function buildFrames(prefix) {
   const canvas = document.createElement('canvas');
   canvas.width = TRAY_SIZE;
   canvas.height = TRAY_SIZE;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.imageSmoothingQuality = 'high';
   return imgs.map(img => {
     const h = TRAY_SIZE - 4;

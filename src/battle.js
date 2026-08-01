@@ -103,8 +103,10 @@ export async function tryEncounter() {
   // 选择宝可梦：确保 poke 和 currentEncounter 始终指向同一对象
   const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name);
   // 树果方块：按 BLOCK_TARGET_CHANCE 提高目标宝可梦的出现概率（命中则方块被吃掉 → buff 结束）
+  // 只有图鉴中成功捕获过的目标才具备吸引力；未捕获时等同没有宝可梦吃，方块仅走里程
   const blockTarget = (blockBuffActive && blockRecipe.length > 0) ? findBerryTarget(blockRecipe) : null;
-  if (blockTarget && Math.random() < BLOCK_TARGET_CHANCE) {
+  const blockTargetCaught = !!blockTarget && (gameData.pokedex?.[String(blockTarget.index)]?.caught || 0) > 0;
+  if (blockTargetCaught && Math.random() < BLOCK_TARGET_CHANCE) {
     // 高概率直接遇到目标宝可梦
     poke = blockTarget;
     setCurrentEncounter(poke);
@@ -137,7 +139,8 @@ export async function tryEncounter() {
     setCurrentIsShiny(Math.random() < SHINY_CHANCE);
   }
   // 无论哪条路径，只要选中目标宝可梦（未触发直接命中的情况下恰好抽中），方块即被吃掉
-  if (blockTarget && poke === blockTarget) eatBlock('encounter');
+  // 未捕获的目标不算：抽中仅普通遇敌，方块继续走里程
+  if (blockTargetCaught && poke === blockTarget) eatBlock('encounter');
   if (honeyBuffActive) setHoneyEncounterCount(_honeyEncounterCount + 1);
   if (charmBuffActive) setCharmEncounterCount(_charmEncounterCount + 1);
 

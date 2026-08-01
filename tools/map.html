@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>地区地图</title>
+<style>
+  :root {
+    --body: #e8dcc0;
+    --panel: #dbcfb0;
+    --bg: #d0c4a4;
+    --screen: #73c5a4;
+    --screen-dark: #4c8d73;
+    --accent: #3a775e;
+    --accent-light: #5a9a7e;
+    --text: #1f1f1f;
+    --text-muted: #7c7c7c;
+    --border: #c4b692;
+    --shadow: #b8a88a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', monospace;
+    background: var(--body);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+    font-size: 13px;
+  }
+
+  /* === 标题栏 === */
+  .title-bar {
+    min-height: 36px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 4px 12px;
+    background: var(--body);
+    border-bottom: 2px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .title-bar h1 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .title-bar .info {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* === 画布区 === */
+  .screen-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    min-height: 0;
+  }
+
+  .screen-panel svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  svg text { user-select: none; }
+
+  .edge-line { cursor: pointer; transition: opacity .15s; }
+  .edge-line.hl { stroke-width: 4; opacity: 1; }
+  .edge-line.dim { opacity: 0.12; }
+</style>
+</head>
+<body>
+  <div class="title-bar">
+    <h1>地区地图</h1>
+    <span class="info">12 条路各分前后两段独立编号（1#~24#）：前半段属出发地区、后半段属目标地区</span>
+  </div>
+  <div class="screen-panel">
+    <svg id="map" width="1000" height="700" viewBox="0 0 1000 700" font-family="'Segoe UI','PingFang SC','Microsoft YaHei',monospace"></svg>
+  </div>
+  <script>
+    // 与 gps.js 保持一致：0关都 1城都 2丰缘 3神奥 4合众 5卡洛斯 6阿罗拉 7伽勒尔 8帕底亚
+    const REGIONS = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
+    // 各地区按宝可梦作品代表色：关都红(初代) / 城都金(金银) / 丰缘绿(绿宝石) / 神奥钻蓝(钻石) /
+    // 合众灰(黑白) / 卡洛斯粉(X/Y) / 阿罗拉橙(太阳) / 伽勒尔靛蓝(剑盾) / 帕底亚紫罗兰(绯红/紫罗兰)
+    const COLORS = ['#E3350D', '#F6C700', '#3DAE5B', '#4FC3F7', '#757575', '#F06292', '#FF9800', '#5C6BC0', '#AB47BC'];
+    // 浅色底的节点编号用深色文字保证可读（城都金/神奥蓝/合众灰/卡洛斯粉/阿罗拉橙）
+    const LIGHT_NODES = [1, 3, 4, 5, 6];
+    const NO_EDGE = 999;
+    const MATRIX = [
+      [0, 1, 3, 999, 6, 6, 999, 999, 999],
+      [1, 0, 3, 3, 999, 6, 6, 999, 999],
+      [3, 3, 0, 999, 999, 999, 6, 6, 999],
+      [999, 3, 999, 0, 999, 999, 999, 6, 6],
+      [6, 999, 999, 999, 0, -1, -1, -1, -1],
+      [6, 6, 999, 999, -1, 0, -1, -1, -1],
+      [999, 6, 6, 999, -1, -1, 0, -1, -1],
+      [999, 999, 6, 6, -1, -1, -1, 0, -1],
+      [999, 999, 999, 6, -1, -1, -1, -1, 0],
+    ];
+    // 节点坐标：按宝可梦世界观的地理方位摆放，间距放宽避免文字重叠——
+    // 日本列岛四区（神奥·北海道 / 城都·关西 / 关都·关东 / 丰缘·九州）在右下，
+    // 合众·北美在左上，伽勒尔·英国 / 卡洛斯·法国 / 帕底亚·西班牙在欧洲，阿罗拉·夏威夷在太平洋中部
+    const POS = {
+      0: [800, 470], 1: [660, 435], 2: [600, 615], 3: [800, 300],
+      4: [165, 205], 5: [640, 120], 6: [330, 440], 7: [400, 85], 8: [845, 160],
+    };
+    const CENTER = [520, 340]; // 地图中心，用于把外围地区的道路向外弯曲
+    const svg = document.getElementById('map');
+    const NS = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs) => {
+      const n = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
+      return n;
+    };
+
+    // 计算一条边的几何：整条边的路径、分界点（t=0.5）与任意 t 处的坐标
+    // 核心-核心（日本列岛内）用直线；核心-外围 用二次贝塞尔，
+    // 控制点取「边中点沿该外围地区的外法线方向」偏移，跨海航线向外错开
+    function edgeGeom(a, b) {
+      const pa = POS[a], pb = POS[b];
+      const m = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2];
+      const bothCore = a < 4 && b < 4;
+      let cx, cy;
+      if (bothCore) {
+        cx = m[0]; cy = m[1];
+      } else {
+        const outer = a < 4 ? b : a;
+        let vx = POS[outer][0] - CENTER[0], vy = POS[outer][1] - CENTER[1];
+        const len = Math.hypot(vx, vy);
+        if (len < 1) { vx = 0; vy = 1; } else { vx /= len; vy /= len; }
+        cx = m[0] + vx * 42; cy = m[1] + vy * 42;
+      }
+      const at = t => {
+        const u = 1 - t;
+        return [
+          u * u * pa[0] + 2 * u * t * cx + t * t * pb[0],
+          u * u * pa[1] + 2 * u * t * cy + t * t * pb[1],
+        ];
+      };
+      return { split: at(0.5), at, ctrl: [cx, cy] };
+    }
+
+    // 全部有效边（i<j 顺序稳定）：每条路拆成前后两段，各自独立编号 1#~24#
+    // 前半段归出发地区、后半段归目标地区（与游戏内的分段编号完全一致）
+    const segments = [];
+    let segNum = 1;
+    for (let i = 0; i < 9; i++) {
+      for (let j = i + 1; j < 9; j++) {
+        const d = MATRIX[i][j];
+        if (d > 0 && d !== NO_EDGE) {
+          const [ax, ay] = POS[i], [bx, by] = POS[j];
+          const g = edgeGeom(i, j);
+          const [cx, cy] = g.ctrl, [sx, sy] = g.split;
+          const m1 = g.at(0.25), m2 = g.at(0.75); // 前后两段各自的中点（编号文字位置）
+          segments.push(
+            { num: segNum++, a: i, b: j, from: i, half: 0, split: [sx, sy],
+              d: `M ${ax} ${ay} Q ${(ax + cx) / 2} ${(ay + cy) / 2} ${sx} ${sy}`,
+              lx: m1[0], ly: m1[1] },
+            { num: segNum++, a: i, b: j, from: j, half: 1, split: [sx, sy],
+              d: `M ${sx} ${sy} Q ${(cx + bx) / 2} ${(cy + by) / 2} ${bx} ${by}`,
+              lx: m2[0], ly: m2[1] }
+          );
+        }
+      }
+    }
+
+    // 画分段线 + 编号（前半段名字在线上面、后半段在线下面，错开避免并排挤压）
+    // 同时按边（min-max）分组记录路径与路名元素，供 hover 高亮使用
+    const edgeGroups = new Map();
+    segments.forEach(s => {
+      const path = el('path', {
+        d: s.d, stroke: COLORS[s.from], 'stroke-width': 2.5, 'stroke-linecap': 'round',
+        fill: 'none', opacity: 0.55, class: 'edge-line'
+      });
+      svg.appendChild(path);
+      const t = el('text', {
+        x: s.lx, y: s.ly + (s.half === 0 ? -11 : 18),
+        'text-anchor': 'middle', 'font-size': 10, fill: '#2b3a45',
+        style: 'paint-order:stroke;stroke:#d0c4a4;stroke-width:3px;'
+      });
+      t.textContent = `${s.num}#道路（${REGIONS[s.from]}）`;
+      svg.appendChild(t);
+      const key = `${Math.min(s.a, s.b)}-${Math.max(s.a, s.b)}`;
+      if (!edgeGroups.has(key)) edgeGroups.set(key, { a: s.a, b: s.b, halves: [] });
+      edgeGroups.get(key).halves.push({ path, label: t, from: s.from });
+    });
+
+    // 分界点（菱形，白边）
+    const splits = [...new Set(segments.map(s => `${s.split[0]},${s.split[1]}`))];
+    splits.forEach(k => {
+      const [x, y] = k.split(',').map(Number);
+      svg.appendChild(el('rect', {
+        x: x - 4.5, y: y - 4.5, width: 9, height: 9,
+        fill: '#fff', stroke: '#1f1f1f', 'stroke-width': 1.5, transform: `rotate(45 ${x} ${y})`
+      }));
+    });
+
+    // 地区节点（实心圆 + 名称标签），整组可 hover
+    const nodeGroupEls = [];
+    REGIONS.forEach((name, i) => {
+      const [x, y] = POS[i];
+      const g = el('g', { style: 'cursor:pointer' });
+      g.appendChild(el('circle', { cx: x, cy: y, r: 15, fill: COLORS[i], stroke: '#fff', 'stroke-width': 2 }));
+      const n = el('text', {
+        x: x, y: y + 4.5, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700,
+        fill: LIGHT_NODES.includes(i) ? '#1f1f1f' : '#fff'
+      });
+      n.textContent = String(i);
+      g.appendChild(n);
+      const l = el('text', {
+        x: x + 24, y: y + 4.5, 'text-anchor': 'start', 'font-size': 12.5, 'font-weight': 700, fill: '#1f1f1f',
+        style: 'paint-order:stroke;stroke:#d0c4a4;stroke-width:3px;'
+      });
+      l.textContent = name;
+      g.appendChild(l);
+      svg.appendChild(g);
+      nodeGroupEls[i] = g;
+    });
+
+    // ---- 交互 ----
+    // 清除所有高亮
+    function clearHover() {
+      edgeGroups.forEach(eg => {
+        eg.halves.forEach(h => {
+          h.path.classList.remove('hl');
+          h.path.classList.remove('dim');
+          h.label.setAttribute('font-weight', 400);
+        });
+      });
+    }
+    // hover 节点：加粗该地区名下的各半段路（相邻边中属于该地区的半段），其余半段变淡
+    nodeGroupEls.forEach((g, i) => {
+      g.addEventListener('mouseenter', () => {
+        edgeGroups.forEach(eg => {
+          eg.halves.forEach(h => {
+            const hit = h.from === i; // 半段归属地区 = 被 hover 的地区
+            h.path.classList.toggle('hl', hit);
+            h.path.classList.toggle('dim', !hit);
+            h.label.setAttribute('font-weight', hit ? 700 : 400);
+          });
+        });
+      });
+      g.addEventListener('mouseleave', clearHover);
+    });
+    // hover 半段边：只加粗该半段 + 该半段的路名
+    edgeGroups.forEach(eg => {
+      eg.halves.forEach(h => {
+        h.path.addEventListener('mouseenter', () => {
+          h.path.classList.add('hl');
+          h.label.setAttribute('font-weight', 700);
+        });
+        h.path.addEventListener('mouseleave', clearHover);
+      });
+    });
+  </script>
+</body>
+</html>
