@@ -1,10 +1,36 @@
 mod game_data;
 mod window_manager;
 
+use std::sync::Mutex;
+use tauri::image::Image;
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+// ===== 托盘走路动画 =====
+// 前端一次性传入动画帧（RGBA 字节），后台线程按帧率循环切换托盘图标
+#[derive(Default)]
+struct TrayFrames(Mutex<Vec<Image<'static>>>);
+
+#[derive(serde::Deserialize)]
+struct TrayFrameData {
+    rgba: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+#[tauri::command]
+fn set_tray_frames(state: tauri::State<'_, TrayFrames>, frames: Vec<TrayFrameData>) {
+    let mut list = state.0.lock().unwrap();
+    list.clear();
+    for f in frames {
+        if f.width == 0 || f.height == 0 || f.rgba.len() != (f.width * f.height * 4) as usize {
+            continue;
+        }
+        list.push(Image::new_owned(f.rgba, f.width, f.height));
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -126,6 +152,29 @@ pub fn run() {
                     .build(&handle)?;
             }
 
+            // 托盘走路动画：后台线程每 150ms 切一帧，帧数据由前端通过 set_tray_frames 传入
+            app.manage(TrayFrames::default());
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let mut idx = 0usize;
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_millis(150));
+                        let tray_frames = handle.state::<TrayFrames>();
+                        let frames = tray_frames.0.lock().unwrap();
+                        if frames.is_empty() {
+                            continue;
+                        }
+                        let frame = frames[idx % frames.len()].clone();
+                        drop(frames);
+                        if let Some(tray) = handle.tray_by_id("tray") {
+                            let _ = tray.set_icon(Some(frame));
+                        }
+                        idx += 1;
+                    }
+                });
+            }
+
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
@@ -144,6 +193,7 @@ pub fn run() {
             game_data::save_game_data,
             game_data::load_game_data,
             game_data::read_gif_base64,
+            set_tray_frames,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

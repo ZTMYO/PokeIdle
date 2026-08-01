@@ -227,6 +227,9 @@ function onGameTick() {
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
 
+  // 系统托盘走路动画（异步加载，失败不影响主流程）
+  import('./tray.js').then(m => m.startTrayAnimation()).catch(() => {});
+
   // 加载宝可梦数据
   try {
     const resp = await fetch('./pokemon-data/pokedex.json');
