@@ -806,7 +806,7 @@
           data = p.gen();
           rebuild();
           setRenderMode(p.prob ? 'prob' : 'fixed');
-          if (p.bike) setPreview('bike');
+          setPreview(p.bike ? 'bike' : 'walk');
         };
         bar.appendChild(b);
       });

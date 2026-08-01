@@ -86,19 +86,17 @@ export const AUTO_FLEE_TIMEOUT = 30000;
 // 佛系模式：自动操作无球时，展示遇敌画面后逃跑的等待（毫秒）
 export const AUTO_FLEE_NO_BALL_DELAY = 800;
 
-// ===== 混合器小游戏 =====
-export const MIXER_CANDY_COST = 50;        // 开始一次混合消耗的糖果数量
-export const MIXER_ROUNDS = 8;             // 抛出树果的轮数（全部 12 种树果至少各出现一次）
-export const MIXER_BERRIES_PER_ROUND = 4;  // 每轮抛出的树果数量
-export const MIXER_MAX_PICKS = 4;          // 点击收集 4 次后自动结束
-export const MIXER_FALL_DURATION = 2000;   // 单轮树果抛出到落地的时长（毫秒），顶点不悬停、随惯性自然下落
-export const MIXER_REACT_MS = 900;         // 树果落地后仍可点击的反应窗口（毫秒）
-export const MIXER_ROUND_GAP = 600;        // 轮与轮之间的间隔（毫秒）
-export const MIXER_COUNTDOWN_STEP = 800;   // 倒计时 3-2-1 每步时长（毫秒）
-
 // ===== 树果方块（混合器产物） =====
 export const BLOCK_DISTANCE = 1000;       // 树果方块摆放有效期（米）：主角再行走该里程未吃掉则风干失效
-export const BLOCK_TARGET_CHANCE = 0.6;    // 树果方块期间遇敌时，直接遇到目标宝可梦（吃掉方块）的概率
+export const BLOCK_TARGET_CHANCE = 0.6;    // 兜底概率：旧存档无品质记录时，树果方块遇敌直接遇到目标宝可梦的概率
+// 品质 → 遇敌直接命中目标宝可梦的概率（由混合小游戏成绩决定，替代固定概率）
+export const BLOCK_QUALITY = {
+  perfect: { label: '完美', chance: 0.95 },
+  great:   { label: '优秀', chance: 0.85 },
+  good:    { label: '良好', chance: 0.70 },
+  fair:    { label: '一般', chance: 0.50 },
+  poor:    { label: '劣质', chance: 0.25 },
+};
 
 // ===== 钓鱼 =====
 export const FISH_POKEMON_CHANCE = 0.1;   // 每次钓鱼钓到宝可梦的几率（无 buff 时）
@@ -115,6 +113,7 @@ export const FISH_TRIGGER_MAX = 20;     // 进入垂钓路段后，预定开始�
 export const ROAD_SPECIAL_CHANCE = 0.05;   // 新路段为特殊路段的概率（水域与自行车道在此概率内对半开）
 export const ROAD_WIDTH_MIN = 50;          // prob（随机生成）类路段的最短格数
 export const ROAD_WIDTH_MAX = 200;         // prob（随机生成）类路段的最长格数（范围内均匀随机）
+export const ROAD_SWITCH_CYCLES = 2;       // 每个场景滚动满多少个完整循环后切换下一个场景
 
 // ===== 路面滚动速度 =====
 export const ROAD_SPEED_WALK = 0.5;   // 走路时瓦片滚动速度

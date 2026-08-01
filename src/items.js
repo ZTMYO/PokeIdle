@@ -24,15 +24,15 @@ export const ITEM_ICONS = {
   'sweet-honey': 'honey.png', 'mystery-egg': 'mystery-egg.png', 'shiny-charm': 'shiny-charm.png',
 };
 
-// 树果图标文件名（宝可梦喜欢的食物，位于 src/items/berries/ 目录）
-// 下标与 pokedex.json 的 foods 字段一一对应，游戏内不显示中文名
-export const BERRY_ICONS = ['利木果.png', '樱子果.png', '零余果.png', '苹野果.png', '木子果.png', '茄番果.png', '橙橙果.png', '桃桃果.png', '莓莓果.png', '文柚果.png', '勿花果.png', '异奇果.png'];
+// 树果图标文件名（宝可梦喜欢的食物，位于 src/items/berries/ 与 src/items/berry-trees/ 目录）
+// 下标与 pokedex.json 的 foods 字段一一对应
+export const BERRY_ICONS = ['aspear.png', 'cheri.png', 'chesto.png', 'leppa.png', 'lum.png', 'tamato.png', 'oran.png', 'pecha.png', 'rawst.png', 'sitrus.png', 'figy.png', 'wiki.png'];
 
 // 树果中文名（hover 提示用，键为图标文件名）
 export const BERRY_NAMES = {
-  '利木果.png': '利木果', '樱子果.png': '樱子果', '零余果.png': '零余果', '苹野果.png': '苹野果',
-  '木子果.png': '木子果', '茄番果.png': '茄番果', '橙橙果.png': '橙橙果', '桃桃果.png': '桃桃果',
-  '莓莓果.png': '莓莓果', '文柚果.png': '文柚果', '勿花果.png': '勿花果', '异奇果.png': '异奇果',
+  'aspear.png': '利木果', 'cheri.png': '樱子果', 'chesto.png': '零余果', 'leppa.png': '苹野果',
+  'lum.png': '木子果', 'tamato.png': '茄番果', 'oran.png': '橙橙果', 'pecha.png': '桃桃果',
+  'rawst.png': '莓莓果', 'sitrus.png': '文柚果', 'figy.png': '勿花果', 'wiki.png': '异奇果',
 };
 
 // 树果固有色：

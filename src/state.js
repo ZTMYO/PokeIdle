@@ -42,6 +42,8 @@ export let _charmEncounterCount = 0;
 export let blockBuffActive = false;
 export let blockRecipe = [];          // 配方树果下标（升序、唯一；与宝可梦 foods 完全一致才会被吃掉）
 export let blockStartWalk = 0;        // 方块摆放时的行走累计（px），走满 BLOCK_DISTANCE 米后过期
+export let blockQuality = 'good';     // 方块品质（完美/优秀/良好/一般/劣质），决定命中目标概率
+export let qteState = null;           // 树果混合 QTE 进行中状态快照（退出重连后接着进度玩，不给重置机会）
 
 // UI 状态
 export let _catchConfirmStep = false;
@@ -115,6 +117,8 @@ export function setCharmCountdownInterval(i) { charmCountdownInterval = i; }
 export function setBlockBuffActive(v) { blockBuffActive = v; window.__blockBuffActive__ = v; }
 export function setBlockRecipe(a) { blockRecipe = a; }
 export function setBlockStartWalk(v) { blockStartWalk = v; }
+export function setBlockQuality(k) { blockQuality = k || 'good'; }
+export function setQteState(s) { qteState = s || null; }
 
 // ---------- 孵化时间计算 ----------
 // 体重/稀有度决定正态分布的峰值（对数插值），叠加正态随机后截断到配置区间，
@@ -201,6 +205,7 @@ export function getDefaultSave() {
     incubators: Array.from({length: 8}, () => emptyIncubator()),
     incubatorUnlockedSlots: 0,
     gps: defaultGpsState(),
+    berryFarm: { plots: Array(3).fill(null), stock: {} }, // 树果农场：3 块田地 + 收获库存（键为树果下标）
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     pokedex: {},
     encounterLogs: {},
@@ -268,12 +273,9 @@ export function saveSessionState() {
     if (blockBuffActive) {
       state.blockStartWalk = blockStartWalk;
       state.blockRecipe = [...blockRecipe];
+      state.blockQuality = blockQuality;
     }
-    // 混合器进行中的小游戏/结果快照（中途退出/刷新后恢复，防止刷新重置，由 mixer.js 提供）
-    if (typeof window.__mixerSessionSnapshot__ === 'function') {
-      const mg = window.__mixerSessionSnapshot__();
-      if (mg) state.mixerGame = mg;
-    }
+    if (qteState) state.qteState = qteState;
     localStorage.setItem(SESSION_KEY, JSON.stringify(state));
   } catch (_) {}
 }

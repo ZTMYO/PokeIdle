@@ -7,6 +7,7 @@ const APPS = [
   { id: 'gps',  icon: 'icon-gps',  name: '导航' },
   { id: 'book', icon: 'icon-book', name: '图鉴' },
   { id: 'incubator', icon: 'icon-egg', name: '孵蛋器' },
+  { id: 'berry', icon: 'icon-tree', name: '树果农场' },
   { id: 'mixer', icon: 'icon-mixer', name: '混合器' },
   { id: 'data', icon: 'icon-data', name: '统计' },
   { id: 'log', icon: 'icon-log', name: '日志' },
@@ -64,6 +65,7 @@ export function showPhoneView() {
     else if (id === 'book') import('./pokedex.js').then(m => m.showPokedex());
     else if (id === 'incubator') showIncubatorView();
     else if (id === 'mixer') import('./mixer.js').then(m => m.showMixerView());
+    else if (id === 'berry') import('./berry.js').then(m => m.showBerryView());
     else if (id === 'log') import('./views.js').then(m => m.showSystemLogs());
     else if (id === 'tutorial') import('./views.js').then(m => m.showTutorialView());
   };

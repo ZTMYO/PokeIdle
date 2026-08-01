@@ -41,7 +41,7 @@ const PIN_SVG = `<svg viewBox="0 0 24 24" width="20" height="20">
 const MAP_VIEWBOX = '0 12 320 176';
 const MAP_POS = {
   0: [247, 138], 1: [205, 125], 2: [186, 179], 3: [247, 87],
-  4: [52, 59], 5: [198, 32], 6: [102, 126], 7: [124, 21], 8: [261, 44],
+  4: [58, 45], 5: [198, 32], 6: [102, 126], 7: [124, 21], 8: [261, 44],
 };
 
 function mapEdgeList() {
@@ -111,8 +111,10 @@ function buildMiniMap(g) {
     const [x, y] = MAP_POS[i];
     const isCur = !currentRoad && i === markerIdx;
     const isDest = g.destIdx === i;
-    const dx = x < 120 ? 10 : -10;
-    const anchor = x < 120 ? 'start' : 'end';
+    // 文字方向：默认按 x 分半（左半边靠右、右半边靠左）；
+    const right = (x < 120 || i === 0 || i === 3) && i !== 4 && i !== 6;
+    const dx = right ? 10 : -10;
+    const anchor = right ? 'start' : 'end';
     return `
       <g class="gps-map-node${isCur ? ' current' : ''}${isDest ? ' dest' : ''}" data-region="${i}" style="cursor:pointer">
         <circle cx="${x}" cy="${y}" r="${isCur ? 6 : 5}"></circle>
@@ -393,7 +395,6 @@ function render() {
 
   el.innerHTML = `
     <div class="gps-wrap">
-      ${buildMiniMap(g)}
       <div class="gps-roam-row">
         <span class="gps-roam-label">漫游</span>
         <div class="toggle-switch" id="gpsRoamToggle">
@@ -404,6 +405,7 @@ function render() {
           ? `<span class="gps-roam-paused">${paused}</span>`
           : roamHint ? `<span class="gps-roam-paused">${roamHint}</span>` : ''}
       </div>
+      ${buildMiniMap(g)}
       <div class="bottom-dock">
         ${hasDest ? `
         <span class="gps-bottom-cancel" id="gpsCancelBtn">

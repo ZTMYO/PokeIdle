@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, MIXER_CANDY_COST, MIXER_ROUNDS, MIXER_BERRIES_PER_ROUND, MIXER_MAX_PICKS, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView, getIncubatorUnlockCost, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS } from './items.js';
@@ -594,6 +594,13 @@ function rarityWeightBoost(boost) {
 
 const TUTORIAL_SECTIONS = [
   {
+    title: '序章',
+    html: `<p>你是在<b>丰缘</b>长大的训练家，早已帮助<b>小田卷博士</b>完成了丰缘地区的图鉴，身经百战，是这片地区公认的冠军级训练家。</p>`
+      + `<p>然而世界远比丰缘辽阔——<b>九大地区</b>（关都、城都、丰缘、神奥、合众、卡洛斯、阿罗拉、伽勒尔、帕底亚）早已打通陆路，各地的宝可梦正等着被收录进更完整的图鉴。</p>`
+      + `<p>出发之前，小田卷博士将一部<b>手机</b>交到你手中：图鉴、统计、导航、树果农场……里面的应用足以支撑一场全新的旅行。</p>`
+      + `<p>你背起行囊再次出发。前方的每一条道路、每一次遭遇，都将写下属于你的冒险故事。</p>`,
+  },
+  {
     title: '目标',
     html: `<p>挂机收集道具，捕捉宝可梦，完成全图鉴！</p>`,
   },
@@ -614,7 +621,7 @@ const TUTORIAL_SECTIONS = [
     title: '图鉴',
     html: `<p>在<b>手机</b>页面打开<b>图鉴</b>应用，支持<b>搜索</b>（输入名称快速检索）与<b>地区筛选</b>。点击表头可按相应字段<b>排序</b>，再次点击同一表头切换升/降序。</p>`
       + `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据（详见「统计」章节）。</p>`
-      + `<p>点击条目查看详情：<b>未遇到过</b>显示"？？？"且不可点击；<b>遇到过未捕获</b>显示基础信息+完整日志；<b>已捕获</b>额外解锁精确数值、种族值条、图鉴描述与<b>喜爱的食物</b>（用食物可精准定位该地区的这只宝可梦）。</p>`
+      + `<p>点击条目查看详情：<b>未遇到过</b>显示"？？？"且不可点击；<b>遇到过未捕获</b>显示基础信息+完整日志；<b>已捕获</b>额外解锁精确数值、种族值条、图鉴描述与喜爱的食物。</p>`
   },
   {
     title: '统计',
@@ -623,14 +630,13 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '地区',
-    html: `<p>进入游戏后从<b>丰缘</b>出发，共 ${REGION_CYCLE.length} 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同，<b>导航途中遭遇</b>同样按<b>当前位置</b>判定地区：每段路<b>前半程</b>算出发地区、<b>后半程</b>算目标地区</p>`
-      + `<p>在<b>导航</b>应用中<b>选择目的地</b>或开启<b>漫游</b>即可前往其他地区：按距离矩阵规划<b>最短路线</b>，真实行走抵达后即身处该地区，此时导航结束。</p>`
+    html: `<p>游戏共 ${REGION_CYCLE.length} 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同：对于地区之间的路段，每段路<b>前半程</b>算出发地区、<b>后半程</b>算目标地区</p>`
   },
   {
     title: '导航',
     html: `<p>在<b>手机</b>页面打开<b>导航</b>应用：选择目的地即可<b>手动导航</b>；开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→关都→卡洛斯→城都→阿罗拉→丰缘→伽勒尔→神奥→帕底亚→合众…循环）选择下一站。</p>`
-      + `<p>到达目的地后<b>导航结束</b>，目的地恢复"未设置"（漫游保持开启，下次进入游戏或重新开关时才会再选下一站）。</p>`
-      + `<p>进度由<b>主角实际移动</b>驱动——跑步更快，遇敌或钓鱼时暂停；未设目的地时主角在当前地区活动。</p>`,
+      + `<p>到达目的地后<b>导航结束</b>，（若开启漫游，会自动选择下一站；）。</p>`
+      + `<p>进度由<b>主角实际移动</b>驱动——跑步更快，遇敌或钓鱼时暂停；</p>`,
   },
   {
     title: '悬赏',
@@ -639,10 +645,10 @@ const TUTORIAL_SECTIONS = [
       + `<p>悬赏每日刷新、生成后当天不变，未领取不累积。</p>`,
   },
   {
-    title: '道路',
-    html: `<p>挂机时路段会自动轮换，每 <b>2</b> 个完整循环切换到下一段路。</p>`
-      + `<p>生成下一段路时，有 <b>${Math.round(ROAD_SPECIAL_CHANCE * 100)}%</b> 的概率是特殊路段（可钓鱼的水域或自行车道，各占一半概率），其余 <b>${Math.round((1 - ROAD_SPECIAL_CHANCE) * 100)}%</b> 为普通陆地路段。</p>`
-      + `<p>水域路段有垂钓点（详见「钓鱼」章节）；自行车道快速推进里程，但不触发遭遇与道具拾取。</p>`,
+    title: '场景',
+    html: `<p>挂机时场景会自动轮换：每段场景的<b>长度随机生成</b>，整段滚动 <b>${ROAD_SWITCH_CYCLES}</b> 遍后切换到下一个随机场景。</p>`
+      + `<p>生成下一个场景时，有 <b>${Math.round(ROAD_SPECIAL_CHANCE * 100)}%</b> 的概率是特殊场景（可钓鱼的水域或自行车道，各占一半概率），其余 <b>${Math.round((1 - ROAD_SPECIAL_CHANCE) * 100)}%</b> 为普通场景。</p>`
+      + `<p>水域场景有垂钓点（详见「钓鱼」章节）；自行车道快速推进里程，但不触发遭遇与道具拾取。</p>`,
   },
   {
     title: '捕捉',
@@ -712,11 +718,30 @@ const TUTORIAL_SECTIONS = [
       + `<p>增益加成：护符期间钓到的宝可梦更容易<b>闪光</b>；等待上钩时间<b>不计入</b>增益时长。</p>`,
   },
   {
-    title: '树果混合',
-    html: `<p>在<b>手机</b>主页打开<b>混合器</b>，消耗 <b>${MIXER_CANDY_COST}</b> 糖果开始小游戏：倒计时 3-2-1 后，树果会抛向空中再落到地面，共 <b>${MIXER_ROUNDS}</b> 轮、每轮 <b>${MIXER_BERRIES_PER_ROUND}</b> 颗（覆盖全部 ${BERRY_ICONS.length} 种树果），在树果飞行时<b>点击</b>即可收集。</p>`
-      + `<p>收集 <b>${MIXER_MAX_PICKS}</b> 颗树果后自动结束，它们组成<b>配方</b>做成树果方块。<b>按行走里程计时</b>：主角再行走 <b>${BLOCK_DISTANCE}</b> 米没被吃掉则风干失效（停下不走不消耗），期间<b>不改变正常遇敌节奏</b>，但每次遇敌都有 <b>${Math.round(BLOCK_TARGET_CHANCE * 100)}%</b> 的概率直接遇到当前地区最喜欢吃这个配方的宝可梦（图鉴里的"喜爱的食物"即配方），被它吃掉方块后 buff 结束。</p>`
-      + `<p>若该配方在当前地区没有宝可梦爱吃则<b>无效.</b></p>`
-      + `<p>收集相同的树果不会改变配方。</p>`,
+    title: '树果',
+    html: `<p>树果是<b>树果农场</b>收获的作物，也是<b>树果混合器</b>的唯一原料，更是<b>宝可梦爱吃的食物</b>。</p>`
+      + `<p><b>获取</b>：种下种子、浇水养护，成熟后收获（详见「树果农场」章节）。</p>`
+      + `<p><b>用途</b>：作为配方制成<b>树果方块</b>（详见「树果方块」章节），或<b>出售</b>换糖果。</p>`,
+  },
+  {
+    title: '农场',
+    html: `<p>在<b>手机</b>主页打开<b>树果农场</b>，点击<b>空地</b>种下树果种子（消耗 <b>10 糖果</b>）。</p>`
+      + `<p>刚种下<b>湿度为 0</b>，点击<b>浇水</b>才会生长；湿度随时间下降，<b>归 0 停止生长</b>，需及时补浇。</p>`
+      + `<p>历经<b>刚种下→发芽→成长→开花结果</b>后成熟（每棵 <b>30~60 分钟</b>随机），点击<b>收获</b>得 <b>2~4</b> 颗树果。</p>`
+      + `<p>收获的树果存入<b>库存</b>（点田地<b>左上角库存箱</b>查看）；库存的树果<b>不能当种子</b>，种地只能另买新种子。</p>`
+      + `<p>树果可以<b>出售</b>换糖果：点田地<b>右上角告示牌</b>查看<b>每日需求</b>（每天刷新，需求越多报酬越高）；也可以作为<b>树果混合器</b>的原料（详见「混合器」章节）。</p>`,
+  },
+  {
+    title: '混合器',
+    html: `<p>在<b>手机</b>主页打开<b>混合器</b>，从<b>农场库存</b>选 <b>1~4</b> 颗树果作为<b>配方</b>，确认后消耗它们制成<b>树果方块</b>（效果详见「树果方块」章节）。</p>`
+      + `<p><b>混合小游戏</b>：确认后进入<b>转盘 QTE</b>——内指针旋转，内圈色带顶部有一段<b>双色三截</b>的弧（中间<b>完美</b>、两侧<b>良好</b>），在内指针扫过色带中央的瞬间按下按钮，共 5 轮、速度渐快；按五轮总分评定方块品质（${Object.values(BLOCK_QUALITY).map(q => q.label).join(' / ')}）。</p>`,
+  },
+  {
+    title: '树果方块',
+    html: `<p><b>树果方块</b>是<b>混合器</b>的产物：用配方树果制成，用于吸引特定的宝可梦。</p>`
+      + `<p><b>品质决定效果</b>：品质越高，遇敌时直接遇到目标宝可梦的概率越高（${Object.values(BLOCK_QUALITY).map(q => `${q.label} ${Math.round(q.chance * 100)}%`).join(' / ')}）。</p>`
+      + `<p><b>按行走里程计时</b>：主角再走 <b>${BLOCK_DISTANCE}</b> 米没被吃掉则风干失效（停下不走不消耗），期间<b>不改变正常遇敌节奏</b>。</p>`
+      + `<p>配方在当前地区没有宝可梦爱吃则<b>无效</b>；对于已收服的宝可梦，可以在图鉴查看它爱吃的食物（配方）。</p>`,
   },
   {
     title: '自动操作',

@@ -13,7 +13,7 @@ export function showView(id) {
     id = 'encounterView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView'];
+  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
@@ -84,7 +84,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', mixerView:'混合器' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', mixerView:'混合器', berryView:'树果农场' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -151,8 +151,8 @@ export function getCharPrefix() {
 // 图片以 2x 放大显示（行高 46 = 23*2），故偏移按 46 递增
 const GET_ITEM_Y = {
   'poke-ball': 0,     'ultra-ball': -46,   'master-ball': -92,
-  'candy': -138,      'shiny-charm': -184,
-  'mystery-egg': -230, 'sweet-honey': -276,
+  'mystery-egg': -138,      'sweet-honey': -184,
+  'shiny-charm': -230, 'candy': -276,
 };
 
 let _getItemRaf = null;

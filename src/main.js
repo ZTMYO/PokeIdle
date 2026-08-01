@@ -1,5 +1,5 @@
 // ===== 口袋挂机 - 入口模块 =====
-import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX } from './config.js';
+import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES } from './config.js';
 import {
   allPokemon, gameData, phase, currentEncounter, currentIsShiny,
   currentEncounterBalls, encounterBallsUsed,
@@ -19,7 +19,7 @@ import {
   setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd,
   setHoneyPausedRemaining, setCharmPausedRemaining,
   setHoneyEncounterCount, setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
-  setBlockBuffActive, setBlockRecipe, setBlockStartWalk,
+  setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState,
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion,
   hasAnyBall, saveSessionState, rand, randInt, formatNum, formatTime,
@@ -33,7 +33,7 @@ import {
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
   closeCandyDialog, doCandyExchange } from './items.js';
-import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, resumeMixerGame } from './mixer.js';
+import { syncBlockVisual, startBlockCountdown, clearBlockCountdown } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
   tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
@@ -45,6 +45,7 @@ import { showShopView, showSettingsView,
 import { showPhoneView } from './phone.js';
 import { gpsAddDistance, ensureRoamDest, showGpsView } from './gps.js';
 import { ensureBounty } from './bounty.js';
+import { debugBerryFarm } from './berry.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -162,10 +163,10 @@ function onGameTick() {
 
   if (phase !== 'idle') { updateStats(); return; }
 
-  // 道路轮播：每 2 个完整循环切下一个（过渡中/钓鱼中不切）
+  // 道路轮播：每 ROAD_SWITCH_CYCLES 个完整循环切下一个（过渡中/钓鱼中不切）
   if (!road.isTransitioning() && !_fishing) {
     const cyc = road.getCycles();
-    if (cyc >= 2 && _roadCycleStart < cyc) {
+    if (cyc >= ROAD_SWITCH_CYCLES && _roadCycleStart < cyc) {
       if (ROAD_PRESETS.length > 1) {
         _roadIdx = _pickNextRoad();
         _roadCycleStart = cyc;
@@ -303,6 +304,9 @@ async function init() {
     console.log('GPS 已重置为默认丰缘');
   };
 
+  // 调试辅助：DevTools 控制台操作树果农场（一键成熟 / 重生日需求）
+  window.__berryDebug = debugBerryFarm();
+
   // 固定窗口
   if (gameData.settings?.windowPinned) {
     try {
@@ -431,6 +435,7 @@ async function init() {
         setBlockBuffActive(true);
         setBlockRecipe(sessionState.blockRecipe || []);
         setBlockStartWalk(sessionState.blockStartWalk);
+        setBlockQuality(sessionState.blockQuality);
         syncBlockVisual();
         startBlockCountdown();
         if ($('idleView').style.display !== 'none') {
@@ -443,10 +448,8 @@ async function init() {
       }
     }
 
-    // 恢复混合器进行中的小游戏/结果（中途退出/刷新后下次继续，防止刷新重置失误或冷却）
-    if (sessionState.mixerGame) {
-      resumeMixerGame(sessionState.mixerGame);
-    }
+    // 恢复树果混合 QTE 进行中状态：重连后直接接着进度玩（不给重置机会）
+    if (sessionState.qteState) setQteState(sessionState.qteState);
 
     // 恢复角色动画（走/跑取决于 buff 状态）
     setIdleCharacter('walk');
@@ -517,8 +520,9 @@ async function init() {
   $('btnSettings')?.addEventListener('click', showSettingsView);
   $('btnStation')?.addEventListener('click', () => import('./bounty.js').then(m => m.showBountyView()));
 
-  // 状态栏点击
+  // 状态栏点击：糖果→商店，当前位置→导航
   $('statProgress')?.addEventListener('click', showShopView);
+  $('statTime')?.addEventListener('click', showGpsView);
   $('appTitle')?.addEventListener('click', () => {
     if ($('appTitle').dataset.action === 'back') goBack();
   });

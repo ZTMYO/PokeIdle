@@ -753,12 +753,12 @@ body { margin: 0; padding: 0; cursor: default; }
   justify-content: space-between;
   padding: 4px 8px 0;
   font-size: 9px;
-  color: #306230;
+  color: var(--ui-color);
   opacity: 0.7;
   user-select: none;
 }
-.stats-bar span:first-child { cursor: pointer; }
-.stats-bar span:first-child:hover { opacity: 0.7; color: #306230; }
+.stats-bar span:first-child, .stats-bar span:last-child { cursor: pointer; }
+.stats-bar span:first-child:hover, .stats-bar span:last-child:hover { color: var(--ui-color-dark); }
 
 .stat-auto-status { display: inline-flex; align-items: center; gap: 4px; }
 .stat-auto-bar-wrap {
@@ -829,20 +829,20 @@ body { margin: 0; padding: 0; cursor: default; }
   width: 64px;
   height: 256px;
   image-rendering: pixelated;
-  margin-top: -192px; /* 默认第4帧（最后一帧） */
+  margin-top: -192px;
 }
 .anim-throw-char.throwing .anim-throw-char-img {
   animation: throwPose 0.6s forwards;
   margin-top: 0;
 }
 @keyframes throwPose {
-  0%     { margin-top: 0; }        /* 帧1 */
+  0%     { margin-top: 0; }
   24.99% { margin-top: 0; }
-  25%    { margin-top: -64px; }    /* 帧2 */
+  25%    { margin-top: -64px; }
   49.99% { margin-top: -64px; }
-  50%    { margin-top: -128px; }   /* 帧3 */
+  50%    { margin-top: -128px; }
   74.99% { margin-top: -128px; }
-  75%    { margin-top: -192px; }   /* 帧4 */
+  75%    { margin-top: -192px; }
   100%   { margin-top: -192px; }
 }
 
@@ -1135,6 +1135,326 @@ body { margin: 0; padding: 0; cursor: default; }
   z-index: 2;
 }
 
+/* === 树果农场 === */
+.berry-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+/* 田地：terrain tileset 绘制的 10×9 瓦片地块（24px/瓦片 → 240×216，两行耕地），树果精灵图绝对定位在上层 */
+.berry-field {
+  position: relative;
+  width: 240px;
+  height: 214px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.berry-field-canvas {
+  display: block;
+  width: 240px;
+  height: 216px;
+  /* 顶部 2px 越出容器被裁 */
+  margin-top: -2px;
+  image-rendering: pixelated;
+}
+.berry-plot {
+  position: absolute;
+  display: flex;
+  /* 底对齐：幼苗（32px）与树果（64px）都锚在田地底部，处于同一地面线 */
+  align-items: flex-end;
+  justify-content: center;
+  cursor: pointer;
+}
+.berry-plot.stage-ripe { cursor: grab; }
+.berry-plot.stage-ripe:active { cursor: grabbing; }
+.berry-plot:active { transform: scale(0.96); }
+.berry-plot-add {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  opacity: 0.55;
+}
+.berry-frame {
+  width: 32px;
+  height: 32px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+@keyframes berry-frames {
+  from { background-position: var(--bfrom, 0) 0; }
+  to   { background-position: var(--bto, 0) 0; }
+}
+/* 顶部生长进度条：悬停植物时显示当前生长时间点 */
+.berry-progress {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  z-index: 6;
+  pointer-events: none;
+}
+.berry-progress-track {
+  width: 100%;
+  height: 5px;
+  background: var(--screen-bg-light);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--screen-bg-dark);
+}
+.berry-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--screen-bg-dark);
+  border-radius: 3px;
+  transition: width 1s linear;
+}
+.berry-progress-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  white-space: nowrap;
+}
+.berry-progress-state { text-align: left; }
+.berry-progress-time  { text-align: center; }
+.berry-progress-right { text-align: right; }
+
+/* 浇水动画：喷壶在树头上方，向左倾斜一下后淡出 */
+.berry-spray {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 4px);
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  pointer-events: none;
+  image-rendering: pixelated;
+  z-index: 7;
+  animation: berry-spray 0.8s ease-out forwards;
+}
+@keyframes berry-spray {
+  0%   { opacity: 0; transform: translate(-50%, 6px) rotate(0deg); }
+  20%  { opacity: 1; transform: translate(-50%, 0)   rotate(-14deg); }
+  55%  { opacity: 1; transform: translate(-50%, -2px) rotate(-20deg); }
+  100% { opacity: 0; transform: translate(-50%, -6px) rotate(-30deg); }
+}
+
+/* 浇水水滴粒子：从喷壶处撒落到植物上，随机横向偏移 */
+.berry-drop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  border-radius: 50%;
+  background: #9fd8f5;
+  pointer-events: none;
+  image-rendering: pixelated;
+  z-index: 7;
+  animation: berry-drop 0.65s ease-out var(--delay, 0s) forwards;
+}
+@keyframes berry-drop {
+  0%   { opacity: 0; transform: translate(calc(-50% - 6px), 4px) translate(0, 0); }
+  15%  { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(calc(-50% - 6px), 20px) translate(var(--dx, 0), 0); }
+}
+
+/* 选种子：底部吸底面板，选项水平一行 */
+.berry-picker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  transform: none;
+  z-index: 11;
+  background: var(--console-body);
+  border-radius: 8px 8px 0 0;
+  color: var(--color-text);
+  padding:4px 4px 4px 0;
+  border: 2px solid var(--screen-bg-dark);
+  animation: berry-picker-up 0.22s ease-out;
+}
+@keyframes berry-picker-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.berry-picker-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0 0;
+}
+.berry-picker-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ui-color-dark);
+}
+.berry-picker-x {
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 3px;
+  color: var(--ui-color);
+  cursor: pointer;
+}
+.berry-picker-x:hover { opacity: 0.7; }
+.berry-picker-x:active { opacity: 0.5; }
+.berry-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+.berry-pick-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.berry-pick-opt:active { transform: scale(0.94); }
+.berry-pick-opt img {
+  width: 26px;
+  height: 26px;
+  image-rendering: pixelated;
+}
+
+.berry-picker-note {
+  padding: 3px 6px 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  text-align: center;
+}
+.berry-pick-opt.no-candy {
+  opacity: 0.35;
+  cursor: default;
+}
+.berry-pick-opt.no-candy:active { transform: none; }
+
+/* === 田地角落图标（库存箱 / 告示牌） === */
+.berry-box-sign {
+  position: absolute;
+  top: 40px;
+  left: 15px;
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  cursor: pointer;
+  z-index: 8;
+}
+.berry-box-sign:active { transform: scale(0.92); }
+.berry-board-sign {
+  position: absolute;
+  top: 35px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  cursor: pointer;
+  z-index: 8;
+}
+.berry-board-sign:active { transform: scale(0.92); }
+
+.berry-board {
+  max-height: 55%;
+  overflow-y: auto;
+}
+.board-stock {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+  padding: 2px 6px 4px;
+}
+.board-stock-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.board-stock-item img {
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+}
+.board-stock-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  line-height: 1;
+}
+.board-demand {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.board-demand img {
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+}
+.board-demand.claimed img,
+.board-demand.claimed .board-demand-name,
+.board-demand.claimed .board-demand-qty,
+.board-demand.claimed .board-demand-candy {
+  opacity: 0.5;
+}
+.board-demand.claimed .board-demand-name,
+.board-demand.claimed .board-demand-qty,
+.board-demand.claimed .board-demand-candy {
+  text-decoration: line-through;
+}
+.board-demand-name { width: 44px; }
+.board-demand-qty { flex: 1; font-size: 10px; color: var(--ui-color); font-weight: 700; }
+.board-demand-candy { white-space: nowrap; font-size: 9px; color: var(--ui-color); }
+.board-trade {
+  min-width: 52px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  padding: 2px 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.board-trade:hover { background: rgba(var(--ui-color-rgb), 0.12); }
+/* 锁定（库存不足）/已兑换按钮不响应点击缩放效果 */
+.board-trade:not(.locked):not(.done):active { transform: scale(0.94); }
+.board-trade.locked {
+  opacity: 0.4;
+  cursor: default;
+}
+.board-trade.locked:hover { background: none; }
+.board-trade.done {
+  opacity: 0.4;
+  cursor: default;
+  border-style: dashed;
+}
+.board-trade.done:hover { background: none; }
+
 /* === 混合器=== */
 .mixer-page-title {
   flex-shrink: 0;
@@ -1202,6 +1522,70 @@ body { margin: 0; padding: 0; cursor: default; }
   image-rendering: pixelated;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
 }
+/* 配方选择（页内联） */
+.mixer-pick-item {
+  position: relative;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--item-border);
+  border-radius: 6px;
+  padding: 3px 1px 2px;
+}
+.mixer-pick-item.no-stock {
+  opacity: 0.4;
+  cursor: default;
+}
+.mixer-pick-item.selected {
+  border-color: var(--ui-color);
+  background: rgba(255, 255, 255, 0.25);
+}
+/* 已选树果图标行：网格下方一行展示当前配方 */
+.mixer-pick-chosen {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 6px;
+}
+.mixer-pick-chosen img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+/* 混合小游戏（QTE 转盘） */
+.mixer-qte-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mixer-qte-canvas {
+  width: 180px;
+  height: 180px;
+  margin-top: 12px;
+}
+/* 底部按钮：普通按压按钮（进度显示在转盘外圈） */
+.mixer-qte-btn {
+  flex-shrink: 0;
+  margin: 0 auto;
+  width: 150px;
+  padding: 10px 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ui-color-dark);
+  background: var(--screen-bg-light);
+  border: 1px solid var(--item-border);
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: filter 0.15s, transform 0.1s;
+}
+.mixer-qte-btn:hover { filter: brightness(1.05); }
+.mixer-qte-btn:active { transform: scale(0.95); }
 .mixer-cost {
   display: flex;
   align-items: center;
@@ -1257,13 +1641,30 @@ body { margin: 0; padding: 0; cursor: default; }
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 84px; /* cube 高 44px 且 bottom:30px，其顶边在 74px，里程从 84px 起留 10px 间距 */
+  /* cube 高 44px 且 bottom:30px，其顶边在 74px，里程从 84px 起留 10px 间距 */
+  bottom: 84px;
   text-align: center;
   font-size: 12px;
   font-weight: 700;
   color: var(--ui-color-dark);
   font-family: monospace;
 }
+.mixer-cool-quality {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1.2;
+}
+.mixer-cool-quality.perfect { color: #c54444; }
+.mixer-cool-quality.great   { color: #cca544; }
+.mixer-cool-quality.good    { color: #29b952; }
+.mixer-cool-quality.fair    { color: #2980b9; }
+.mixer-cool-quality.poor    { color: #7f8c8d; }
 
 /* 游戏页 */
 #mixerContent {
@@ -1412,6 +1813,16 @@ body { margin: 0; padding: 0; cursor: default; }
 
 /* 结果页 */
 .mixer-result { align-items: center; text-align: center; gap: 6px; justify-content: center; }
+.mixer-result .mixer-page-title {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.mixer-result .mixer-page-title.show { opacity: 1; }
+.mixer-result-title .perfect { color: #c54444; }
+.mixer-result-title .great   { color: #cca544; }
+.mixer-result-title .good    { color: #29b952; }
+.mixer-result-title .fair    { color: #2980b9; }
+.mixer-result-title .poor    { color: #7f8c8d; }
 .mixer-result-stage {
   flex: 1;
   min-height: 0;
@@ -1425,13 +1836,18 @@ body { margin: 0; padding: 0; cursor: default; }
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 84px; /* cube 高 44px 且 bottom:30px，其顶边在 74px，图标从 84px 起留 10px 间距 */
+  /* cube 高 44px 且 bottom:30px，其顶边在 74px，图标从 84px 起留 10px 间距 */
+  bottom: 84px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0.6s;
 }
+.mixer-result-berries.show { opacity: 1; visibility: visible; }
 .mixer-result-berries img {
   width: 26px;
   height: 26px;
@@ -1452,7 +1868,8 @@ body { margin: 0; padding: 0; cursor: default; }
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 2px; /* cube 底边 30px，小字在其下方 */
+  /* cube 底边 30px，小字在其下方 */
+  bottom: 2px;
   padding: 0 10px;
   font-size: 10px;
   line-height: 1.5;
@@ -1466,9 +1883,9 @@ body { margin: 0; padding: 0; cursor: default; }
   display: flex;
   align-items: stretch;
   width: 100%;
-  margin: auto -3px 0; /* 与 bottom-dock 同款贴底按钮条 */
+  margin: auto 0 0;
   flex-shrink: 0;
-  min-height: 42px; /* 与首页两行 bottom-dock 同高，方块位置不受底部条影响 */
+  min-height: 42px;
   border: 1px solid var(--item-border);
   border-bottom: none;
   border-radius: 6px 6px 0 0;
@@ -1484,7 +1901,8 @@ body { margin: 0; padding: 0; cursor: default; }
   font-weight: 700;
   cursor: pointer;
   user-select: none;
-  padding: 6px 8px; /* 与 bottom-dock 同高 */
+  /* 与 bottom-dock 同高 */
+  padding: 6px 8px;
   background: var(--screen-bg-light);
   color: var(--ui-color);
   display: flex;
@@ -1496,7 +1914,8 @@ body { margin: 0; padding: 0; cursor: default; }
 .mixer-result-actions .mixer-action-giveup {
   flex-shrink: 0;
   width: 72px;
-  border-left: 1px solid var(--item-border); /* 与领取按钮分割 */
+  /* 与领取按钮分割 */
+  border-left: 1px solid var(--item-border);
   filter: brightness(0.95);
 }
 .mixer-result-actions .mixer-action-giveup:hover { filter: brightness(0.967); }
@@ -1688,7 +2107,8 @@ body { margin: 0; padding: 0; cursor: default; }
   transition: opacity 0.15s, transform 0.1s;
 }
 .bounty-arrow svg { display: block; }
-.bounty-arrow.next svg { transform: scaleX(-1); } /* back 图标水平翻转即右箭头 */
+/* back 图标水平翻转即右箭头 */
+.bounty-arrow.next svg { transform: scaleX(-1); }
 .bounty-arrow:hover { opacity: 0.6; }
 .bounty-arrow:active { transform: scale(0.9); }
 .bounty-page {
@@ -1743,7 +2163,7 @@ body { margin: 0; padding: 0; cursor: default; }
 .bounty-claim {
   flex-shrink: 0;
   width: 44px;
-  padding: 3px 0;
+  padding: 2px 0;
   box-sizing: border-box;
   border: 1px solid var(--ui-color-dark);
   border-radius: 999px;
@@ -2097,7 +2517,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #incubatorView::-webkit-scrollbar,
 #gpsView::-webkit-scrollbar,
 #declarationView::-webkit-scrollbar,
-#mixerView::-webkit-scrollbar {
+#mixerView::-webkit-scrollbar,
+#berryView::-webkit-scrollbar {
   width: 4px;
 }
 #shopView::-webkit-scrollbar-track,
@@ -2108,7 +2529,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #incubatorView::-webkit-scrollbar-track,
 #gpsView::-webkit-scrollbar-track,
 #declarationView::-webkit-scrollbar-track,
-#mixerView::-webkit-scrollbar-track {
+#mixerView::-webkit-scrollbar-track,
+#berryView::-webkit-scrollbar-track {
   background: transparent;
 }
 #shopView::-webkit-scrollbar-thumb,
@@ -2119,7 +2541,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #incubatorView::-webkit-scrollbar-thumb,
 #gpsView::-webkit-scrollbar-thumb,
 #declarationView::-webkit-scrollbar-thumb,
-#mixerView::-webkit-scrollbar-thumb {
+#mixerView::-webkit-scrollbar-thumb,
+#berryView::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb), 0.3);
   border-radius: 2px;
 }
@@ -2131,7 +2554,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #incubatorView::-webkit-scrollbar-thumb:hover,
 #gpsView::-webkit-scrollbar-thumb:hover,
 #declarationView::-webkit-scrollbar-thumb:hover,
-#mixerView::-webkit-scrollbar-thumb:hover {
+#mixerView::-webkit-scrollbar-thumb:hover,
+#berryView::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--ui-color-rgb), 0.55);
 }
 .shop-item {
@@ -2193,7 +2617,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #shopView,
 #gpsView,
 #bountyView,
-#mixerView {
+#mixerView,
+#berryView {
   align-self: stretch;
   width: 100%;
   height: 100%;
@@ -2453,7 +2878,8 @@ body { margin: 0; padding: 0; cursor: default; }
   --r: min(86px, 22vh);
   position: absolute;
   inset: 0;
-  z-index: 1; /* 道具层在主角之上，收缩叠放时不被遮挡 */
+  /* 道具层在主角之上，收缩叠放时不被遮挡 */
+  z-index: 1;
   pointer-events: none;
   animation: splash-spin 1.5s linear both;
   user-select: none;
