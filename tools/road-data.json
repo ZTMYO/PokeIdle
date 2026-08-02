@@ -39,48 +39,53 @@
     "name": "草地2",
     "type": "prob",
     "editor": {
-      "w": 10,
+      "w": 20,
       "h": 3
     },
     "game": {
-      "width": 10,
+      "width": 20,
       "height": 3,
       "place": "在草丛里",
       "rows": [
         [
           {
-            "col": 2,
+            "col": 10,
+            "row": 0,
+            "weight": 45
+          },
+          {
+            "col": 1,
+            "row": 0,
+            "weight": 55
+          }
+        ],
+        [
+          {
+            "col": 1,
             "row": 0,
             "weight": 100
           }
         ],
         [
           {
-            "col": 1,
-            "row": 0,
-            "weight": 90
-          },
-          {
-            "col": 3,
-            "row": 0,
-            "weight": 10
-          }
-        ],
-        [
-          {
             "col": 5,
             "row": 1,
-            "weight": 40
+            "weight": 20
           },
           {
             "col": 4,
             "row": 0,
-            "weight": 10
+            "weight": 20
+          },
+          {
+            "col": 3,
+            "row": 0,
+            "weight": 5
           },
           {
             "col": 1,
             "row": 0,
-            "weight": 50
+            "weight": 55
           }
         ]
       ]

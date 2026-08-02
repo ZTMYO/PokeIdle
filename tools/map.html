@@ -85,39 +85,18 @@
 <body>
   <div class="title-bar">
     <h1>地区地图</h1>
-    <span class="info">12 条路各分前后两段独立编号（1#~24#）：前半段属出发地区、后半段属目标地区</span>
   </div>
   <div class="screen-panel">
     <svg id="map" width="1000" height="700" viewBox="0 0 1000 700" font-family="'Segoe UI','PingFang SC','Microsoft YaHei',monospace"></svg>
   </div>
   <script>
-    // 与 gps.js 保持一致：0关都 1城都 2丰缘 3神奥 4合众 5卡洛斯 6阿罗拉 7伽勒尔 8帕底亚
     const REGIONS = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
-    // 各地区按宝可梦作品代表色：关都红(初代) / 城都金(金银) / 丰缘绿(绿宝石) / 神奥钻蓝(钻石) /
-    // 合众灰(黑白) / 卡洛斯粉(X/Y) / 阿罗拉橙(太阳) / 伽勒尔靛蓝(剑盾) / 帕底亚紫罗兰(绯红/紫罗兰)
     const COLORS = ['#E3350D', '#F6C700', '#3DAE5B', '#4FC3F7', '#757575', '#F06292', '#FF9800', '#5C6BC0', '#AB47BC'];
-    // 浅色底的节点编号用深色文字保证可读（城都金/神奥蓝/合众灰/卡洛斯粉/阿罗拉橙）
     const LIGHT_NODES = [1, 3, 4, 5, 6];
-    const NO_EDGE = 999;
-    const MATRIX = [
-      [0, 1, 3, 999, 6, 6, 999, 999, 999],
-      [1, 0, 3, 3, 999, 6, 6, 999, 999],
-      [3, 3, 0, 999, 999, 999, 6, 6, 999],
-      [999, 3, 999, 0, 999, 999, 999, 6, 6],
-      [6, 999, 999, 999, 0, -1, -1, -1, -1],
-      [6, 6, 999, 999, -1, 0, -1, -1, -1],
-      [999, 6, 6, 999, -1, -1, 0, -1, -1],
-      [999, 999, 6, 6, -1, -1, -1, 0, -1],
-      [999, 999, 999, 6, -1, -1, -1, -1, 0],
-    ];
-    // 节点坐标：按宝可梦世界观的地理方位摆放，间距放宽避免文字重叠——
-    // 日本列岛四区（神奥·北海道 / 城都·关西 / 关都·关东 / 丰缘·九州）在右下，
-    // 合众·北美在左上，伽勒尔·英国 / 卡洛斯·法国 / 帕底亚·西班牙在欧洲，阿罗拉·夏威夷在太平洋中部
     const POS = {
-      0: [800, 470], 1: [660, 435], 2: [600, 615], 3: [800, 300],
-      4: [165, 205], 5: [640, 120], 6: [330, 440], 7: [400, 85], 8: [845, 160],
+      0: [821, 299], 1: [762, 361], 2: [689, 484], 3: [845, 169],
+      4: [165, 311], 5: [388, 202], 6: [424, 615], 7: [370, 85], 8: [365, 316],
     };
-    const CENTER = [520, 340]; // 地图中心，用于把外围地区的道路向外弯曲
     const svg = document.getElementById('map');
     const NS = 'http://www.w3.org/2000/svg';
     const el = (tag, attrs) => {
@@ -126,59 +105,70 @@
       return n;
     };
 
-    // 计算一条边的几何：整条边的路径、分界点（t=0.5）与任意 t 处的坐标
-    // 核心-核心（日本列岛内）用直线；核心-外围 用二次贝塞尔，
-    // 控制点取「边中点沿该外围地区的外法线方向」偏移，跨海航线向外错开
-    function edgeGeom(a, b) {
-      const pa = POS[a], pb = POS[b];
-      const m = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2];
-      const bothCore = a < 4 && b < 4;
-      let cx, cy;
-      if (bothCore) {
-        cx = m[0]; cy = m[1];
-      } else {
-        const outer = a < 4 ? b : a;
-        let vx = POS[outer][0] - CENTER[0], vy = POS[outer][1] - CENTER[1];
-        const len = Math.hypot(vx, vy);
-        if (len < 1) { vx = 0; vy = 1; } else { vx /= len; vy /= len; }
-        cx = m[0] + vx * 42; cy = m[1] + vy * 42;
-      }
-      const at = t => {
-        const u = 1 - t;
-        return [
-          u * u * pa[0] + 2 * u * t * cx + t * t * pb[0],
-          u * u * pa[1] + 2 * u * t * cy + t * t * pb[1],
-        ];
+    const delaunay = (pts) => {
+      const minX = Math.min(...pts.map(p => p[0])), maxX = Math.max(...pts.map(p => p[0]));
+      const minY = Math.min(...pts.map(p => p[1])), maxY = Math.max(...pts.map(p => p[1]));
+      const d = Math.max(maxX - minX, maxY - minY) * 20;
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+      const sup = [[cx - d, cy - d], [cx + d, cy - d], [cx, cy + d]];
+      const circum = (a, b, c) => {
+        const ax = a[0], ay = a[1], bx = b[0], by = b[1], cx = c[0], cy = c[1];
+        const D = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+        if (Math.abs(D) < 1e-9) return [Infinity, Infinity, Infinity];
+        const a2 = ax * ax + ay * ay, b2 = bx * bx + by * by, c2 = cx * cx + cy * cy;
+        const ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / D;
+        const uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / D;
+        return [ux, uy, (ux - ax) ** 2 + (uy - ay) ** 2];
       };
-      return { split: at(0.5), at, ctrl: [cx, cy] };
-    }
-
-    // 全部有效边（i<j 顺序稳定）：每条路拆成前后两段，各自独立编号 1#~24#
-    // 前半段归出发地区、后半段归目标地区（与游戏内的分段编号完全一致）
-    const segments = [];
-    let segNum = 1;
-    for (let i = 0; i < 9; i++) {
-      for (let j = i + 1; j < 9; j++) {
-        const d = MATRIX[i][j];
-        if (d > 0 && d !== NO_EDGE) {
-          const [ax, ay] = POS[i], [bx, by] = POS[j];
-          const g = edgeGeom(i, j);
-          const [cx, cy] = g.ctrl, [sx, sy] = g.split;
-          const m1 = g.at(0.25), m2 = g.at(0.75); // 前后两段各自的中点（编号文字位置）
-          segments.push(
-            { num: segNum++, a: i, b: j, from: i, half: 0, split: [sx, sy],
-              d: `M ${ax} ${ay} Q ${(ax + cx) / 2} ${(ay + cy) / 2} ${sx} ${sy}`,
-              lx: m1[0], ly: m1[1] },
-            { num: segNum++, a: i, b: j, from: j, half: 1, split: [sx, sy],
-              d: `M ${sx} ${sy} Q ${(cx + bx) / 2} ${(cy + by) / 2} ${bx} ${by}`,
-              lx: m2[0], ly: m2[1] }
-          );
+      let tris = [[sup[0], sup[1], sup[2]]];
+      for (const p of pts) {
+        const bad = tris.filter(t => {
+          const [ux, uy, r2] = circum(t[0], t[1], t[2]);
+          return (p[0] - ux) ** 2 + (p[1] - uy) ** 2 <= r2;
+        });
+        const poly = [];
+        for (const t of bad) {
+          for (let k = 0; k < 3; k++) {
+            const e = [t[k], t[(k + 1) % 3]];
+            const shared = bad.some(t2 => t2 !== t && t2.includes(e[0]) && t2.includes(e[1]));
+            if (!shared) poly.push(e);
+          }
+        }
+        tris = tris.filter(t => !bad.includes(t));
+        for (const e of poly) tris.push([e[0], e[1], p]);
+      }
+      const edges = new Set();
+      for (const t of tris) {
+        if (t.some(v => sup.includes(v))) continue;
+        for (let k = 0; k < 3; k++) {
+          const a = pts.indexOf(t[k]), b = pts.indexOf(t[(k + 1) % 3]);
+          if (a < b) edges.add(`${a}-${b}`);
         }
       }
+      return [...edges].map(s => s.split('-').map(Number));
+    };
+
+    // 每条路拆成前后两段，各自独立编号：前半段归出发地区、后半段归目标地区
+    // Delaunay 生成的丰缘-关都、城都-神奥 为原作水路/不直连，剔除不画；
+    // 关都-神奥 为原作直连陆路（Delaunay 未生成），手动补上。
+    const segments = [];
+    let segNum = 1;
+    const rawEdges = delaunay([0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => POS[i]))
+      .filter(([a, b]) => !(a === 0 && b === 2) && !(a === 1 && b === 3));
+    if (!rawEdges.some(([a, b]) => a === 0 && b === 3)) rawEdges.push([0, 3]);
+    for (const [a, b] of rawEdges) {
+      const [ax, ay] = POS[a], [bx, by] = POS[b];
+      const mx = (ax + bx) / 2, my = (ay + by) / 2;
+      segments.push(
+        { num: segNum++, a, b, from: a, half: 0,
+          d: `M ${ax} ${ay} L ${mx} ${my}`,
+          lx: ax + (mx - ax) * 0.5, ly: ay + (my - ay) * 0.5 },
+        { num: segNum++, a, b, from: b, half: 1,
+          d: `M ${mx} ${my} L ${bx} ${by}`,
+          lx: mx + (bx - mx) * 0.5, ly: my + (by - my) * 0.5 }
+      );
     }
 
-    // 画分段线 + 编号（前半段名字在线上面、后半段在线下面，错开避免并排挤压）
-    // 同时按边（min-max）分组记录路径与路名元素，供 hover 高亮使用
     const edgeGroups = new Map();
     segments.forEach(s => {
       const path = el('path', {
@@ -199,7 +189,7 @@
     });
 
     // 分界点（菱形，白边）
-    const splits = [...new Set(segments.map(s => `${s.split[0]},${s.split[1]}`))];
+    const splits = [...new Set(segments.map(s => `${(POS[s.a][0] + POS[s.b][0]) / 2},${(POS[s.a][1] + POS[s.b][1]) / 2}`))];
     splits.forEach(k => {
       const [x, y] = k.split(',').map(Number);
       svg.appendChild(el('rect', {

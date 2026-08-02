@@ -1,7 +1,7 @@
 // ===== 游戏常量配置 =====
 
-// 道具概率权重（行走掉落 & 钓鱼收获共用）：
-// 每秒累计一次该概率，达到 1 时掉落 1 个道具
+export const START_CANDY = 200; // 新存档启动资金
+// 道具概率权重（行走掉落 & 钓鱼共用）
 export const ITEM_RATES = {
   'poke-ball':   1 / 90,   // 精灵球
   'ultra-ball':  1 / 220,  // 高级球
@@ -19,12 +19,12 @@ export const ITEM_NAMES = {
   'sweet-honey': '甜甜蜜', 'mystery-egg': '神秘蛋', 'shiny-charm': '闪耀护符',
 };
 
-// 精灵球基础捕获率（最终 = 基础率 × 宝可梦 catchRate × 丢球加成；加成仅在逃跑率拉满后每球 +10%，见 battle.js）
+// 精灵球基础捕获率（最终 = 基础率 × 宝可梦 catchRate × 丢球加成）
 export const CATCH_RATES = {
   'poke-ball': 0.30, 'ultra-ball': 0.70, 'master-ball': 1.00,
 };
 
-// 逃跑率上限后丢球的捕获加成
+// 逃跑率拉满后每多丢一球的捕获加成
 export const CATCH_BONUS_INC = 0.10;
 
 // 糖果商店兑换价格
@@ -33,8 +33,7 @@ export const CANDY_EXCHANGE = {
   'sweet-honey': 15, 'mystery-egg': 100, 'shiny-charm': 1000,
 };
 
-// 丢球挣脱后宝可梦逃跑的概率
-// 逃跑率随丢球次数递增：第 1 球为基础 FLEE_CHANCE，之后每多丢一球 +FLEE_CHANCE_INC，最高不超过 FLEE_CHANCE_MAX
+// 丢球挣脱后宝可梦逃跑的概率（随丢球次数递增，上限 FLEE_CHANCE_MAX）
 export const FLEE_CHANCE = 0.05;     // 第 1 球挣脱后的逃跑概率
 export const FLEE_CHANCE_INC = 0.05; // 每多丢一球额外增加的逃跑概率
 export const FLEE_CHANCE_MAX = 0.5; // 逃跑概率上限
@@ -43,82 +42,89 @@ export const FLEE_CHANCE_MAX = 0.5; // 逃跑概率上限
 export const ENCOUNTER_MIN = 120;
 export const ENCOUNTER_MAX = 240;
 
-// 甜甜蜜 / 闪耀护符：增益持续时间（秒）
-export const BUFF_DURATION = 60;
-// 甜甜蜜 / 闪耀护符：增益期间的快速遇敌间隔（秒，范围内随机）
-export const BUFF_ENCOUNTER_MIN = 15;
-export const BUFF_ENCOUNTER_MAX = 30;
-// 甜甜蜜 / 闪耀护符：稀有度加成权重（越高极稀有出现概率越大，见 items.js pickWeightedPokemon）
-export const HONEY_RARITY_BOOST = 0.5;
-export const CHARM_RARITY_BOOST = 0.7;
+// 甜甜蜜 / 闪耀护符增益
+export const BUFF_DURATION = 60;      // 持续时间（秒）
+export const BUFF_ENCOUNTER_MIN = 15; // 增益期间遇敌间隔下限（秒）
+export const BUFF_ENCOUNTER_MAX = 30; // 增益期间遇敌间隔上限（秒）
+export const HONEY_RARITY_BOOST = 0.5; // 甜甜蜜稀有度加成权重
+export const CHARM_RARITY_BOOST = 0.7; // 闪耀护符稀有度加成权重
 
-// 野生/钓鱼/孵蛋的基础闪光概率
-export const SHINY_CHANCE = 1 / 1000;
-// 闪耀护符生效时，遇敌/钓鱼出宝可梦的闪光概率
-export const CHARM_SHINY_CHANCE = 0.8;
+// 闪光概率
+export const SHINY_CHANCE = 1 / 1000;  // 野生/钓鱼/孵蛋基础闪光概率
+export const CHARM_SHINY_CHANCE = 0.8; // 闪耀护符生效时的遇敌/钓鱼闪光概率
 
 // ===== 孵蛋 =====
-// 神秘蛋孵化里程（米）：体重/稀有度决定分布峰值（正态分布的 mid），
-// 叠加相对峰值的正态随机（标准差 = mid × HATCH_DIST_SIGMA），超出 [MIN, MAX] 时重新采样（截断正态）
-export const HATCH_DIST_MIN = 2000;   // 最短孵化里程（米，2 公里）
-export const HATCH_DIST_MAX = 30000;  // 最长孵化里程（米，30 公里）
-export const HATCH_DIST_SIGMA = 0.2;  // 正态分布宽度系数（标准差 = mid × 该系数，0~1）
+// 孵化里程（米）：按宝可梦体重/稀有度定分布峰值，截断正态随机
+export const HATCH_DIST_MIN = 2000;   // 最短（2 公里）
+export const HATCH_DIST_MAX = 30000;  // 最长（30 公里）
+export const HATCH_DIST_SIGMA = 0.2;  // 分布宽度系数（标准差 = 峰值 × 系数）
 
-// 地区列表（下标 0~8，也是 GPS 距离矩阵的索引：0关都 1城都 2丰缘 3神奥 4合众 5卡洛斯 6阿罗拉 7伽勒尔 8帕底亚）
+// 地区列表（下标 0~8，也是 GPS 距离矩阵索引）
 export const REGION_CYCLE = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
 
-// 像素 ↔ 米换算（用于统计行走距离展示；26px ≈ 1m，约为步行速度 0.6px/帧 × 60fps ≈ 5km/h）
+// 像素 ↔ 米换算（统计行走距离用）
 export const PX_PER_METER = 26;
 
 // ===== 地区悬赏 =====
-export const BOUNTY_PER_REGION = 5;   // 每个地区每天生成的悬赏条数（全国抽样，各地区不重复）
-export const BOUNTY_CANDY_MIN = 30;    // 悬赏最低糖果奖励（最常见宝可梦）
-export const BOUNTY_CANDY_MAX = 500;    // 悬赏最高糖果奖励（最难捕获宝可梦）
-export const BOUNTY_JITTER = 0.25;     // 糖果奖励随机浮动比例（±25%）
-export const BOUNTY_RARE_WEIGHT = 0.7; // 悬赏选角时稀有度权重（权重 = 0.3 + 稀有度 × 该值）
+export const BOUNTY_PER_REGION = 5;   // 每地区每日悬赏条数
+export const BOUNTY_CANDY_MIN = 30;    // 最低糖果奖励
+export const BOUNTY_CANDY_MAX = 500;    // 最高糖果奖励
+export const BOUNTY_JITTER = 0.25;     // 糖果奖励随机浮动（±25%）
+export const BOUNTY_RARE_WEIGHT = 0.7; // 选角稀有度权重
 
 // ---- 交换 ----
-export const TRADE_COUNT = 6;          // 每波同时上架的交换 offer 数量
-export const TRADE_REFRESH_MS = 10 * 60 * 1000; // 每十分钟刷新一波
+export const TRADE_COUNT = 6;          // 每波上架的交换 offer 数量
+export const TRADE_REFRESH_MS = 10 * 60 * 1000; // 刷新间隔（10 分钟）
 export const TRADE_NATURE_CHANCE = 0.4; // NPC 指定「想要宝可梦」性格的概率
 export const TRADE_IV_CHANCE = 0.35;    // NPC 指定某一项个体值下限的概率
-export const TRADE_IV_MIN = 24;         // 指定个体值下限的最低值（24~31 随机取）
-export const TRADE_SHINY_CHANCE = 1 / 40; // NPC 愿意给出闪光宝可梦的概率
-export const TRADE_IV_SUM_MIN = 100;    // 给出的宝可梦个体值总和低于该值 → 补强 1~2 项到 31
+export const TRADE_IV_MIN = 24;         // 指定个体值下限的最低值（24~31）
+export const TRADE_SHINY_CHANCE = 1 / 40; // NPC 给出闪光宝可梦的概率
+export const TRADE_IV_SUM_MIN = 100;    // 个体值总和过低时补强 1~2 项到 31
 
 // 自动存档间隔（秒）
 export const SAVE_INTERVAL = 30;
 
 // 佛系模式：遇敌后自动逃跑的倒计时（毫秒）
 export const AUTO_FLEE_TIMEOUT = 30000;
-
-// 佛系模式：自动操作无球时，展示遇敌画面后逃跑的等待（毫秒）
+// 无球时展示遇敌画面后逃跑的等待（毫秒）
 export const AUTO_FLEE_NO_BALL_DELAY = 800;
 
 // ===== 树果农场 =====
 export const FARM_PLOT_COUNT = 6;          // 田地数量
 export const FARM_MATURE_MIN = 30 * 60 * 1000; // 成熟总时长下限（毫秒）
-export const FARM_MATURE_MAX = 60 * 60 * 1000; // 成熟总时长上限（毫秒，同批不会同时成熟）
-// 各阶段占成熟总时长的累计比例：刚种下 / 发芽 / 成长 / 开花结果
+export const FARM_MATURE_MAX = 60 * 60 * 1000; // 成熟总时长上限（毫秒）
+// 各阶段占成熟时长的累计比例：刚种下/发芽/成长/开花结果
 export const FARM_STAGE_DIRT = 2 / 30;
 export const FARM_STAGE_SPROUT = 8 / 30;
 export const FARM_STAGE_GROW = 18 / 30;
-// 湿度：浇水回满，降到 0 停止生长（满湿度可撑 10 分钟）
+// 湿度：浇水回满，归 0 停止生长（满湿度可撑 10 分钟）
 export const FARM_MAX_WATER = 100;
 export const FARM_WATER_DROP = 100 / (10 * 60); // 每秒下降点数
-// 种植消耗糖果 + 告示牌树果委托（兑换糖果）
+// 种植消耗糖果 + 告示牌树果委托
 export const FARM_PLANT_COST = 10;
-export const FARM_BOARD_DEMANDS = 3;   // 告示牌树果委托条数
-export const FARM_BOARD_QTY_MIN = 3;   // 单条需求的最少树果数
-export const FARM_BOARD_QTY_MAX = 10;   // 单条需求的最多树果数
-export const FARM_CANDY_PER_BERRY = 8; // 每颗树果兑换的糖果数
+export const FARM_BOARD_DEMANDS = 5;   // 委托条数
+export const FARM_BOARD_QTY_MIN = 3;   // 单条需求最少树果数
+export const FARM_BOARD_QTY_MAX = 10;   // 单条需求最多树果数
+// 「大量需求」：需求量远超单轮产量，需专门种植较久
+export const FARM_BOARD_BIG_QTY_MIN = 25;
+export const FARM_BOARD_BIG_QTY_MAX = 45;
+export const FARM_CANDY_PER_BERRY = 8; // 每颗树果兑换糖果数
 export const FARM_HARVEST_MIN = 2;   // 收获最少树果数
 export const FARM_HARVEST_MAX = 5;   // 收获最多树果数
 
+// ===== 招募帮手 =====
+export const FARM_HELPER_COST = 50;               // 招募帮手消耗糖果
+export const FARM_HELPER_DURATION = 60 * 60 * 1000; // 服务时长（1 小时）
+export const FARM_HELPER_COOLDOWN = 10 * 60 * 1000; // 服务结束后的冷却（10 分钟）
+export const FARM_HELPER_WORK_MIN = 4;            // 单次劳作间隔下限（秒）
+export const FARM_HELPER_WORK_MAX = 8;           // 单次劳作间隔上限（秒）
+export const FARM_HELPER_PATROL_PAUSE_MIN = 800;  // 巡逻站定下限（毫秒）
+export const FARM_HELPER_PATROL_PAUSE_MAX = 1800; // 巡逻站定上限（毫秒）
+
 // ===== 树果方块（混合器产物） =====
-export const BLOCK_DISTANCE = 1000;       // 树果方块摆放有效期（米）：主角再行走该里程未吃掉则风干失效
-export const BLOCK_TARGET_CHANCE = 0.6;    // 兜底概率：旧存档无品质记录时，树果方块遇敌直接遇到目标宝可梦的概率
-// 品质 → 遇敌直接命中目标宝可梦的概率（由混合小游戏成绩决定，替代固定概率）
+export const BLOCK_DISTANCE = 1000;    // 有效期（米）：再走该里程未吃掉则风干失效
+export const BLOCK_TARGET_CHANCE = 0.6; // 无品质记录时的兜底命中概率
+// 品质 → 遇敌直接命中目标宝可梦的概率
 export const BLOCK_QUALITY = {
   perfect: { label: '完美', chance: 0.95 },
   great:   { label: '优秀', chance: 0.85 },
@@ -128,23 +134,23 @@ export const BLOCK_QUALITY = {
 };
 
 // ===== 钓鱼 =====
-export const FISH_POKEMON_CHANCE = 0.1;   // 每次钓鱼钓到宝可梦的几率（无 buff 时）
-export const FISH_BUFF_POKEMON_CHANCE = 0.5; // 甜甜蜜/闪耀护符生效期间，每次钓鱼钓到宝可梦的几率
-export const FISH_RARE_RATE = 0.6;      // 钓到宝可梦时，极稀有所占比例（其余为当地水系，含双属性）
+export const FISH_POKEMON_CHANCE = 0.1;   // 每次钓鱼钓到宝可梦的几率
+export const FISH_BUFF_POKEMON_CHANCE = 0.5; // 增益期间钓到宝可梦的几率
+export const FISH_RARE_RATE = 0.6;      // 钓到宝可梦时极稀有所占比例
 export const FISH_WAIT_MIN = 6;         // 等待上钩最短秒数
-export const FISH_WAIT_MAX = 30;        // 等待上钩最长秒数（范围内随机）
+export const FISH_WAIT_MAX = 30;        // 等待上钩最长秒数
 export const FISH_QTY_MIN = 1;          // 钓到道具最少数量
-export const FISH_QTY_MAX = 10;         // 钓到道具最多数量（范围内随机）
-export const FISH_TRIGGER_MIN = 5;      // 进入垂钓路段后，预定开始钓鱼的最短秒数
-export const FISH_TRIGGER_MAX = 20;     // 进入垂钓路段后，预定开始钓鱼的最长秒数（范围内随机）
+export const FISH_QTY_MAX = 10;         // 钓到道具最多数量
+export const FISH_TRIGGER_MIN = 5;      // 进入垂钓路段后预定开始钓鱼的最短秒数
+export const FISH_TRIGGER_MAX = 20;     // 预定开始钓鱼的最长秒数
 
 // ===== 路段生成 =====
-export const ROAD_SPECIAL_CHANCE = 0.05;   // 新路段为特殊路段的概率（水域与自行车道在此概率内对半开）
-export const ROAD_WIDTH_MIN = 50;          // prob（随机生成）类路段的最短格数
-export const ROAD_WIDTH_MAX = 200;         // prob（随机生成）类路段的最长格数（范围内均匀随机）
-export const ROAD_SWITCH_CYCLES = 2;       // 每个场景滚动满多少个完整循环后切换下一个场景
+export const ROAD_SPECIAL_CHANCE = 0.05;   // 特殊路段概率（水域与自行车道对半）
+export const ROAD_WIDTH_MIN = 50;          // 随机路段最短格数
+export const ROAD_WIDTH_MAX = 200;         // 随机路段最长格数
+export const ROAD_SWITCH_CYCLES = 2;       // 滚动满几个循环后切换场景
 
 // ===== 路面滚动速度 =====
-export const ROAD_SPEED_WALK = 0.5;   // 走路时瓦片滚动速度
-export const ROAD_SPEED_RUN  = 1.0;   // 跑步时（buff生效）瓦片滚动速度
-export const ROAD_SPEED_BIKE = 2.0;    // 自行车道骑行速度（数值越大滚动越快、里程提升越多）
+export const ROAD_SPEED_WALK = 0.5;   // 走路
+export const ROAD_SPEED_RUN  = 1.0;   // 跑步（增益生效时）
+export const ROAD_SPEED_BIKE = 2.0;    // 自行车道骑行

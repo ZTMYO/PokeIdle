@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
   <link rel="stylesheet" href="styles.css" />
@@ -7,6 +8,7 @@
   <title>口袋挂机</title>
   <script type="module" src="./main.js" defer></script>
 </head>
+
 <body>
   <div class="console">
     <!-- 标题栏 -->
@@ -14,29 +16,41 @@
       <div id="appTitle" class="app-title">口袋挂机</div>
       <div class="window-controls">
         <button class="control-btn window-icon" id="btnPhone" data-view="phoneView" aria-label="手机" title="手机">
-          <svg><use xlink:href="./icons/sprites.svg#icon-phone"/></svg>
+          <svg>
+            <use xlink:href="./icons/sprites.svg#icon-phone" />
+          </svg>
           <span class="title-bar-badge" id="title-badge-phone" style="display:none;"></span>
         </button>
         <button class="control-btn window-icon" id="btnStation" data-view="bountyView" aria-label="地区悬赏" title="地区悬赏">
-          <svg><use xlink:href="./icons/sprites.svg#icon-station"/></svg>
+          <svg>
+            <use xlink:href="./icons/sprites.svg#icon-station" />
+          </svg>
           <span class="title-bar-badge" id="title-badge-bounty" style="display:none;"></span>
-        </button>        
+        </button>
         <button class="control-btn window-icon" id="btnShop" data-view="shopView" aria-label="商店" title="商店">
-          <svg><use xlink:href="./icons/sprites.svg#icon-shop"/></svg>
+          <svg>
+            <use xlink:href="./icons/sprites.svg#icon-shop" />
+          </svg>
         </button>
         <button class="control-btn window-icon" id="btnSettings" data-view="settingsView" aria-label="设置" title="设置">
-          <svg><use xlink:href="./icons/sprites.svg#icon-settings"/></svg>
+          <svg>
+            <use xlink:href="./icons/sprites.svg#icon-settings" />
+          </svg>
         </button>
         <button class="control-btn minimize" aria-label="最小化" title="最小化">
-          <svg><use xlink:href="./icons/sprites.svg#icon-minus"/></svg>
+          <svg>
+            <use xlink:href="./icons/sprites.svg#icon-minus" />
+          </svg>
         </button>
         <button class="control-btn close" aria-label="关闭" title="关闭">
-          <svg><use xlink:href="./icons/sprites.svg#icon-close"></use></svg>
+          <svg>
+            <use xlink:href="./icons/sprites.svg#icon-close"></use>
+          </svg>
         </button>
       </div>
     </div>
 
-    <!-- 掌机屏幕 -->
+    <!-- 内容视口 -->
     <div class="screen-wrapper">
       <div class="screen" id="screen">
         <div class="screen-inner" id="screenInner">
@@ -46,8 +60,6 @@
             <div class="idle-text" id="idleText"></div>
             <div id="walkGif" class="walk-gif"></div>
             <div id="roadLayer" class="road-layer"></div>
-            <!-- 树果方块（混合器产物，摆放在游戏画面中央等待被吃掉） -->
-            <div id="blockBait" class="block-bait" style="display:none;"></div>
           </div>
 
           <div id="pokedexView" style="display:none;flex-direction:column;">
@@ -55,14 +67,19 @@
             <div class="pokedex-search">
               <div class="pokedex-search-row">
                 <div class="pokedex-search-input-wrap">
-                  <input id="pokedexSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" />
+                  <input id="pokedexSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母"
+                    autocomplete="off" />
                   <button class="pokedex-search-clear" id="pokedexSearchClear" style="display:none;" aria-label="清空搜索">
-                    <svg><use xlink:href="./icons/sprites.svg#icon-close"/></svg>
+                    <svg>
+                      <use xlink:href="./icons/sprites.svg#icon-close" />
+                    </svg>
                   </button>
                 </div>
                 <div id="pokedexRegionFilter" class="pokedex-region-select" tabindex="0">
                   <span id="pokedexRegionLabel">全部地区</span>
-                  <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+                  <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+                    <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+                  </svg>
                   <div id="pokedexRegionDropdown" class="region-dropdown" style="display:none;"></div>
                 </div>
               </div>
@@ -95,7 +112,8 @@
           </div>
 
           <!-- 地区悬赏 -->
-          <div id="bountyView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;position:relative;">
+          <div id="bountyView"
+            style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;position:relative;">
             <div id="bountyContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
@@ -136,7 +154,9 @@
             <div class="encounter-types" id="encounterTypes"></div>
             <div class="encounter-right">
               <span id="encounterOwnedWrap" class="encounter-owned-wrap" style="display:none;">
-                <svg id="encounterOwnedIcon" class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="./icons/sprites.svg#icon-owned"/></svg>
+                <svg id="encounterOwnedIcon" class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18">
+                  <use xlink:href="./icons/sprites.svg#icon-owned" />
+                </svg>
                 <span class="encounter-tooltip" id="encounterOwnedTip"></span>
               </span>
               <div id="encounterCatchRate" class="encounter-catch-rate"></div>
@@ -150,7 +170,8 @@
             <!-- 捕捉动画舞台 -->
             <div class="catch-stage" id="catchStage">
               <img id="animBall" class="anim-ball" src="./items/poke-ball.png" alt="精灵球" />
-              <div id="animStars" style="position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:4;"></div>
+              <div id="animStars"
+                style="position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:4;"></div>
               <div id="animMsg" class="catch-msg"></div>
             </div>
           </div>
@@ -171,12 +192,16 @@
 
           <!-- 捕捉成功（仅蛋孵化用） -->
           <div id="caughtView" style="display:none;">
-            <div id="caughtInfo" style="font-family:'Courier New',monospace;font-size:11px;color:var(--ui-color);font-weight:700;"></div>
+            <div id="caughtInfo"
+              style="font-family:'Courier New',monospace;font-size:11px;color:var(--ui-color);font-weight:700;"></div>
           </div>
 
           <!-- 孵蛋器页面 -->
-          <div id="incubatorView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;width:100%;">
-            <div id="incubatorList" style="flex:1;color:var(--ui-color);display:grid;grid-template-columns:1fr 1fr;gap:5px;align-content:start;"></div>
+          <div id="incubatorView"
+            style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;width:100%;">
+            <div id="incubatorList"
+              style="flex:1;color:var(--ui-color);display:grid;grid-template-columns:1fr 1fr;gap:5px;align-content:start;">
+            </div>
           </div>
 
           <!-- 宝可梦仓库 -->
@@ -185,14 +210,19 @@
             <div class="pokedex-search">
               <div class="pokedex-search-row">
                 <div class="pokedex-search-input-wrap">
-                  <input id="rosterSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" />
+                  <input id="rosterSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母"
+                    autocomplete="off" />
                   <button class="pokedex-search-clear" id="rosterSearchClear" style="display:none;" aria-label="清空搜索">
-                    <svg><use xlink:href="./icons/sprites.svg#icon-close"/></svg>
+                    <svg>
+                      <use xlink:href="./icons/sprites.svg#icon-close" />
+                    </svg>
                   </button>
                 </div>
                 <div id="rosterFilter" class="pokedex-region-select" tabindex="0">
                   <span id="rosterFilterLabel">全部</span>
-                  <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+                  <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+                    <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+                  </svg>
                   <div id="rosterFilterDropdown" class="region-dropdown" style="display:none;"></div>
                 </div>
               </div>
@@ -229,7 +259,9 @@
             <!-- 交换获得：右上角精简信息（已捕获图标/新发现/稀有度），复用遇敌页样式 -->
             <div class="encounter-right" id="goodbyeRight" style="display:none;">
               <span class="encounter-owned-wrap" style="display:none;">
-                <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="./icons/sprites.svg#icon-owned"/></svg>
+                <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18">
+                  <use xlink:href="./icons/sprites.svg#icon-owned" />
+                </svg>
                 <span class="encounter-tooltip"></span>
               </span>
               <div class="encounter-catch-rate"></div>
@@ -238,7 +270,9 @@
             <div class="goodbye-box">
               <div class="goodbye-box-text"></div>
               <div class="goodbye-box-arrow" data-goodbye-arrow style="display:none;">
-                <svg viewBox="0 0 12 8" width="14" height="10"><path d="M1,2 L11,2 L6,8 Z" fill="#306230"/></svg>
+                <svg viewBox="0 0 12 8" width="14" height="10">
+                  <path d="M1,2 L11,2 L6,8 Z" fill="#306230" />
+                </svg>
               </div>
               <div class="goodbye-box-btns">
                 <span class="catch-confirm-btn" data-goodbye-ok>确认</span>
@@ -253,7 +287,9 @@
         <div id="textBox" class="text-box" style="transform:translateY(100%);">
           <div id="textBoxContent" class="text-box-content"></div>
           <div id="textBoxArrow" class="text-box-arrow" style="display:none;">
-            <svg viewBox="0 0 12 8" width="14" height="10"><path d="M1,2 L11,2 L6,8 Z" fill="#306230"/></svg>
+            <svg viewBox="0 0 12 8" width="14" height="10">
+              <path d="M1,2 L11,2 L6,8 Z" fill="#306230" />
+            </svg>
           </div>
           <div id="catchConfirmBtns" class="catch-confirm-btns" style="display:none;">
             <span id="confirmYes" class="catch-confirm-btn">确定</span>
@@ -319,11 +355,14 @@
         </div>
       </div>
       <div class="stats-bar">
-        <span id="statProgress"><img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> 0</span>
-        <span id="statAutoStatus" class="stat-auto-status"><span id="statAutoText"></span><span class="stat-auto-bar-wrap"><span id="statAutoBar" class="stat-auto-bar-fill"></span></span></span>
+        <span id="statProgress"><img src="./items/candy.png"
+            style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> 0</span>
+        <span id="statAutoStatus" class="stat-auto-status"><span id="statAutoText"></span><span
+            class="stat-auto-bar-wrap"><span id="statAutoBar" class="stat-auto-bar-fill"></span></span></span>
         <span id="statTime">丰缘</span>
       </div>
     </div>
   </div>
 </body>
+
 </html>

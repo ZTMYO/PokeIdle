@@ -11,39 +11,43 @@ import { isFishing } from './fishing.js';
 import * as road from './road.js';
 
 // 地区距离矩阵（下标与 REGION_CYCLE 一致：0关都 1城都 2丰缘 3神奥 4合众 5卡洛斯 6阿罗拉 7伽勒尔 8帕底亚）
-// 已按最佳路线简化：只保留漫游环线（4-0-5-1-6-2-7-3-8）的外围边 + 核心主干（0-1/0-2/1-2/1-3），
-// 共 12 条边；任意两地仍可通过环线到达，导航始终走最短路。999 = 无直达边；-1 = 完全不可通行。
+// 陆路全通：按地图可视化的 Delaunay 网络连成 14 条直达边（无交叉、全连通；
+// 丰缘-关都、城都-神奥 为原作水路/不直连，已剔除；关都-神奥 为原作直连陆路，手动补上）。
+// 距离值 = map.html 各边图上长度等比换算（最短边 关都-城都 = 1 单位；1 单位 = 10 分钟走路）。
+// 999 = 无直达边（可绕行）。
 const DIST_MATRIX = [
-  [0, 1, 3, 999, 6, 6, 999, 999, 999],
-  [1, 0, 3, 3, 999, 6, 6, 999, 999],
-  [3, 3, 0, 999, 999, 999, 6, 6, 999],
-  [999, 3, 999, 0, 999, 999, 999, 6, 6],
-  [6, 999, 999, 999, 0, -1, -1, -1, -1],
-  [6, 6, 999, 999, -1, 0, -1, -1, -1],
-  [999, 6, 6, 999, -1, -1, 0, -1, -1],
-  [999, 999, 6, 6, -1, -1, -1, 0, -1],
-  [999, 999, 999, 6, -1, -1, -1, -1, 0],
+  [0, 1, 999, 1.5, 999, 999, 999, 999, 999],
+  [1, 0, 1.7, 999, 999, 4.7, 999, 999, 4.7],
+  [999, 1.7, 0, 999, 999, 999, 3.5, 999, 4.3],
+  [1.5, 999, 999, 0, 999, 5.4, 999, 999, 999],
+  [999, 999, 999, 999, 0, 2.9, 999, 3.6, 2.3],
+  [999, 4.7, 999, 5.4, 2.9, 0, 999, 1.4, 1.4],
+  [999, 999, 3.5, 999, 999, 999, 0, 999, 3.6],
+  [999, 999, 999, 999, 3.6, 1.4, 999, 0, 999],
+  [999, 4.7, 4.3, 999, 2.3, 1.4, 3.6, 999, 0],
 ];
-setDistMatrix(DIST_MATRIX); // 注册矩阵给 state.js 计算路段分段编号（1#~24#）
+setDistMatrix(DIST_MATRIX); // 注册矩阵给 state.js 计算路段分段编号（1#~28#）
 const MIN_PER_UNIT = 10; // 1 单位 = 10 分钟走路
 const NO_EDGE = 999;     // 无直达边（可能经由其他地区绕行）
 // 1 单位对应的真实移动像素 = 走路速度(px/帧)×60帧/秒×60秒×10分钟
 const PX_PER_UNIT = ROAD_SPEED_WALK * 60 * 60 * MIN_PER_UNIT;
 
-// 漫游路线：一条经过全部 9 个地区的固定路线，按距离矩阵的直达边连接成环
-// （合众→关都→卡洛斯→城都→阿罗拉→丰缘→伽勒尔→神奥→帕底亚→合众…），
-// 漫游开启后沿该路线依次前往下一地区，走完一轮继续循环。
-const ROAM_ROUTE = [4, 0, 5, 1, 6, 2, 7, 3, 8];
+// 漫游路线：一条经过全部 9 个地区的固定路线（合众→帕底亚→阿罗拉→丰缘→关都→城都→神奥→卡洛斯→伽勒尔→合众…），
+// 相邻地区若无直达边则按最短路绕行（如丰缘→关都经城都），走完一轮继续循环。
+const ROAM_ROUTE = [4, 8, 6, 2, 0, 1, 3, 5, 7];
 
 const PIN_SVG = `<svg viewBox="0 0 24 24" width="20" height="20">
   <path d="M12 1.5a7 7 0 0 0-7 7c0 4.6 5.4 12.1 6.2 13.2a0.9 0.9 0 0 0 1.5 0c0.9-1.1 6.3-8.6 6.3-13.2a7 7 0 0 0-7-7z" fill="currentColor"/>
   <circle cx="12" cy="8.5" r="2.4" fill="var(--console-body)"/>
 </svg>`;
 const MAP_VIEWBOX = '0 12 320 176';
-const MARKER_ANGLE_FIX = 6;
 const MAP_POS = {
-  0: [247, 138], 1: [205, 125], 2: [186, 179], 3: [247, 87],
-  4: [58, 45], 5: [198, 32], 6: [102, 126], 7: [124, 21], 8: [261, 44],
+  0: [263, 87], 1: [244, 103], 2: [220, 134], 3: [270, 54],
+  4: [53, 90], 5: [124, 63], 6: [136, 167], 7: [118, 33], 8: [117, 91],
+};
+const MAP_LABEL = {
+  0: 'right', 1: 'right', 2: 'right', 3: 'right', 4: 'left',
+  5: 'tr', 6: 'left', 7: 'left', 8: 'bl',
 };
 
 function mapEdgeList() {
@@ -114,7 +118,9 @@ function buildMiniMap(g) {
   let markerAngle = 0;
   if (segTarget != null) {
     const [dxp, dyp] = MAP_POS[segTarget];
-    markerAngle = Math.atan2(dxp - markerX, dyp - markerY) * 180 / Math.PI - MARKER_ANGLE_FIX;
+    // 指针默认尖端朝下（南），SVG rotate 正角为顺时针；
+    // 令尖端指向目标方向：atan2(-Δx, Δy)（屏幕 y 轴向下）
+    markerAngle = Math.atan2(-(dxp - markerX), dyp - markerY) * 180 / Math.PI;
   }
   const markerUsable = segTarget != null && isFinite(markerAngle);
 
@@ -122,14 +128,15 @@ function buildMiniMap(g) {
     const [x, y] = MAP_POS[i];
     const isCur = !currentRoad && i === markerIdx;
     const isDest = g.destIdx === i;
-    // 文字方向：默认按 x 分半（左半边靠右、右半边靠左）；
-    const right = (x < 120 || i === 0 || i === 3) && i !== 4 && i !== 6;
-    const dx = right ? 10 : -10;
-    const anchor = right ? 'start' : 'end';
+    // 标签方位按 MAP_LABEL 配置：水平一侧或 右上(tr)/左下(bl)
+    const pos = MAP_LABEL[i] || 'right';
+    const dx = pos === 'right' || pos === 'tr' ? 10 : -10;
+    const dy = pos === 'bl' ? 14 : pos === 'tr' ? -5 : 3.5;
+    const anchor = pos === 'right' || pos === 'tr' ? 'start' : 'end';
     return `
       <g class="gps-map-node${isCur ? ' current' : ''}${isDest ? ' dest' : ''}" data-region="${i}" style="cursor:pointer">
         <circle cx="${x}" cy="${y}" r="${isCur ? 6 : 5}"></circle>
-        <text x="${x + dx}" y="${y + 3.5}" text-anchor="${anchor}">${name}</text>
+        <text x="${x + dx}" y="${y + dy}" text-anchor="${anchor}">${name}</text>
       </g>`;
   }).join('');
 

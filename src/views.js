@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_COST, FARM_HELPER_DURATION, FARM_HELPER_COOLDOWN, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, setPrevView, getIncubatorUnlockCost, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS } from './items.js';
@@ -464,8 +464,14 @@ export function resetSave() {
   location.reload();
 }
 
+// 确保设置存在（旧存档可能缺 settings 或 autoCatchBalls）
+function ensureSettings() {
+  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
+  if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
+}
+
 export function toggleAutoBuffHoney() {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false };
+  ensureSettings();
   gameData.settings.autoBuffHoney = !gameData.settings.autoBuffHoney;
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
@@ -477,7 +483,7 @@ export function toggleAutoBuffHoney() {
 }
 
 export function toggleAutoBuffCharm() {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false };
+  ensureSettings();
   gameData.settings.autoBuffCharm = !gameData.settings.autoBuffCharm;
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
@@ -489,7 +495,7 @@ export function toggleAutoBuffCharm() {
 }
 
 export function toggleAutoCatch() {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false };
+  ensureSettings();
   gameData.settings.autoCatch = !gameData.settings.autoCatch;
   if (gameData.settings.autoCatch) {
     gameData.settings.autoFlee = false;
@@ -507,7 +513,7 @@ export function toggleAutoCatch() {
 }
 
 export function toggleAutoFlee() {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false };
+  ensureSettings();
   gameData.settings.autoFlee = !gameData.settings.autoFlee;
   if (gameData.settings.autoFlee) gameData.settings.autoCatch = false;
   const container = $('settingsContent');
@@ -521,7 +527,7 @@ export function toggleAutoFlee() {
 }
 
 function toggleWindowPinned() {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false };
+  ensureSettings();
   gameData.settings.windowPinned = !gameData.settings.windowPinned;
   const pinned = gameData.settings.windowPinned;
   // 调用 Tauri API 固定/取消固定窗口
@@ -539,8 +545,7 @@ function toggleWindowPinned() {
 }
 
 export function toggleAutoCatchBall(ballType) {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false };
-  if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
+  ensureSettings();
   gameData.settings.autoCatchBalls[ballType] = !(gameData.settings.autoCatchBalls[ballType] !== false);
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
@@ -548,7 +553,7 @@ export function toggleAutoCatchBall(ballType) {
 }
 
 export function toggleShinyStop() {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false };
+  ensureSettings();
   gameData.settings.shinyStop = !gameData.settings.shinyStop;
   if (gameData.settings.shinyStop) {
     gameData.settings.autoCatch = true;
@@ -570,7 +575,7 @@ export function toggleShinyStop() {
 }
 
 export function toggleGender(g) {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
+  ensureSettings();
   gameData.settings.gender = g;
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
@@ -656,7 +661,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '导航',
-    html: `<p>在<b>手机</b>页面打开<b>导航</b>应用：选择目的地即可<b>手动导航</b>；开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→关都→卡洛斯→城都→阿罗拉→丰缘→伽勒尔→神奥→帕底亚→合众…循环）选择下一站。</p>`
+    html: `<p>在<b>手机</b>页面打开<b>导航</b>应用：选择目的地即可<b>手动导航</b>；开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→帕底亚→阿罗拉→丰缘→关都→城都→神奥→卡洛斯→伽勒尔→合众…循环）选择下一站。</p>`
       + `<p>到达目的地后<b>导航结束</b>（若开启漫游，会自动选择下一站）。</p>`
       + `<p>进度由<b>主角实际移动</b>驱动——跑步更快，遇敌或钓鱼时暂停（详见「钓鱼」章节）。</p>`,
   },
@@ -757,7 +762,8 @@ const TUTORIAL_SECTIONS = [
       + `<p>刚种下<b>湿度为 0</b>，点击<b>浇水</b>才会生长；湿度随时间下降（每 <b>${Math.round(1 / FARM_WATER_DROP)} 秒</b>降 1 点，满湿度可撑 <b>${Math.round(FARM_MAX_WATER / FARM_WATER_DROP / 60)} 分钟</b>），<b>归 0 停止生长</b>，需及时补浇。</p>`
       + `<p>历经<b>刚种下→发芽→成长→开花结果</b>后成熟（每棵 <b>${Math.round(FARM_MATURE_MIN / 60000)}~${Math.round(FARM_MATURE_MAX / 60000)} 分钟</b>随机），点击<b>收获</b>得 <b>${FARM_HARVEST_MIN}~${FARM_HARVEST_MAX}</b> 颗树果。</p>`
       + `<p>收获的树果存入<b>库存</b>（点田地<b>左上角库存箱</b>查看）；库存的树果<b>不能当种子</b>，种地只能另买新种子。</p>`
-      + `<p>树果可以<b>出售</b>换糖果：点田地<b>右上角告示牌</b>查看<b>树果委托</b>（每天刷新，需求越多报酬越高）；也可以作为<b>树果混合器</b>的原料（详见「混合器」章节）。</p>`,
+      + `<p>树果可以<b>出售</b>换糖果：点田地<b>右上角告示牌</b>查看<b>树果委托</b>（每天刷新 ${FARM_BOARD_DEMANDS} 条，其中第 1 条为<b>大量需求</b> ${FARM_BOARD_BIG_QTY_MIN}~${FARM_BOARD_BIG_QTY_MAX} 颗，需专门种植较久；需求越多报酬越高）；也可以作为<b>树果混合器</b>的原料（详见「混合器」章节）。</p>`
+      + `<p><b>招募帮手</b>：在告示牌面板花 <b>${FARM_HELPER_COST} 糖果</b>可招募帮手 <b>${Math.round(FARM_HELPER_DURATION / 60000)} 分钟</b>。帮手会在果园游走，按随机节奏劳作：<b>优先收获</b>成熟树果、给<b>干涸</b>的树果浇水、在<b>空地</b>播种（开启「自动种植」后，每颗种子同样扣 <b>${FARM_PLANT_COST} 糖果</b>）。服务仅<b>在线</b>期间计时，结束后进入 <b>${Math.round(FARM_HELPER_COOLDOWN / 60000)} 分钟冷却</b>（帮手显示「休息中」，冷却结束才能再次招募）。</p>`,
   },  
   {
     title: '宝可梦',

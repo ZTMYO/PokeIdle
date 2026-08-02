@@ -528,12 +528,6 @@ body { margin: 0; padding: 0; cursor: default; }
 .catch-confirm-btn:hover { background: rgba(48,98,48,0.15); }
 .catch-confirm-btn:active { transform: scale(0.92); }
 
-/* 捕捉反馈文字（已废弃，保留兼容） */
-.catch-feedback { display: none !important; }
-
-/* === 捕捉成功 / 逃跑（已废弃，保留兼容） */
-.result-view, .result-icon, .result-text, .result-sub, .continue-sm { display: none !important; }
-
 /* === 神秘蛋 === */
 .egg-container {
   display: flex;
@@ -1189,6 +1183,16 @@ body { margin: 0; padding: 0; cursor: default; }
   margin-top: -2px;
   image-rendering: pixelated;
 }
+/* 调试叠加层：只在本机 ?berrydebug=1 时由 JS 插入，画出碰撞盒与路线 */
+.berry-debug {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  height: 216px;
+  pointer-events: none;
+  z-index: 12;
+}
 .berry-plot {
   position: absolute;
   display: flex;
@@ -1200,6 +1204,9 @@ body { margin: 0; padding: 0; cursor: default; }
 .berry-plot.stage-ripe { cursor: grab; }
 .berry-plot.stage-ripe:active { cursor: grabbing; }
 .berry-plot:active { transform: scale(0.96); }
+/* 层级：整体压缩到对话框（.berry-picker z-index:11）之下，保持"越靠下越在上层"——
+   树果在渲染时内联 z（上行 7 / 下行 9），帮手 z 由 helperZ 分段（树行前 10 / 树行与过道 8）；
+   因此帮手穿过两排树之间的过道时会被下行（近处）树遮住，回到底部时则遮住所有树 */
 .berry-plot-add {
   font-size: 24px;
   font-weight: 700;
@@ -1295,6 +1302,17 @@ body { margin: 0; padding: 0; cursor: default; }
   0%   { opacity: 0; transform: translate(calc(-50% - 6px), 4px) translate(0, 0); }
   15%  { opacity: 0.9; }
   100% { opacity: 0; transform: translate(calc(-50% - 6px), 20px) translate(var(--dx, 0), 0); }
+}
+
+/* 收获动效：树果图标从树冠飞向左上角库存箱；起点/终点由 JS 内联 left/top 指定，transition 过渡 */
+.berry-fly {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  pointer-events: none;
+  image-rendering: pixelated;
+  z-index: 10;
 }
 
 /* 选种子：底部吸底面板，选项水平一行 */
@@ -1401,9 +1419,34 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .berry-board-sign:active { transform: scale(0.92); }
 
+/* 告示牌弹窗：整体增高，分区内部滚动，避免委托条数翻倍后溢出 */
 .berry-board {
-  max-height: 55%;
+  max-height: 82%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.berry-board-sections {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  padding-bottom: 4px;
+}
+.berry-board-sections::-webkit-scrollbar { width: 6px; }
+.berry-board-sections::-webkit-scrollbar-track { background: transparent; }
+.berry-board-sections::-webkit-scrollbar-thumb {
+  background: rgba(var(--ui-color-rgb), 0.25);
+  border-radius: 3px;
+}
+.berry-board-sections::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.4); }
+.berry-board-section-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ui-color-dark);
+  padding: 3px 6px 2px;
+  border-bottom: 1px dashed rgba(var(--ui-color-rgb), 0.35);
+  margin: 2px 0 2px;
 }
 .board-stock {
   display: grid;
@@ -1486,6 +1529,161 @@ body { margin: 0; padding: 0; cursor: default; }
   border-style: dashed;
 }
 .board-trade.done:hover { background: none; }
+
+/* === 招募帮手面板（告示牌第二分区） === */
+.berry-helper-panel { padding: 3px 6px 6px; }
+.helper-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.helper-avatar {
+  width: 34px;
+  height: 34px;
+  image-rendering: pixelated;
+}
+.helper-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.helper-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+.helper-desc {
+  font-size: 9px;
+  color: var(--ui-color);
+}
+.helper-remain {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ui-color-dark);
+  white-space: nowrap;
+}
+/* 休息冷却状态：头像去饱和 + 整体弱化，状态文字用「休息中」 */
+.berry-helper-panel.resting { opacity: 0.75; }
+.berry-helper-panel.resting .helper-avatar { filter: grayscale(1); }
+.berry-helper-panel.resting .helper-desc { color: var(--color-muted); }
+.berry-helper-panel.resting .helper-remain { color: var(--color-muted); }
+.helper-rest-note {
+  flex: 1;
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.helper-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+.helper-foot .ball-check {
+  white-space: nowrap;
+  font-size: 9px;
+  margin-left: auto; /* 固定贴到面板右下角 */
+}
+.helper-foot .ball-check.on {
+  font-weight: 400; /* 自动种植选框不加粗（全局 .ball-check.on 的加粗仅用于设置页） */
+}
+.helper-note {
+  flex: 1;
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--ui-color);
+}
+.helper-cost {
+  flex: 1;
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--ui-color);
+}
+.helper-hire {
+  min-width: 52px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  padding: 3px 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.helper-hire:hover { background: rgba(var(--ui-color-rgb), 0.12); }
+.helper-hire:not(.locked):active { transform: scale(0.94); }
+.helper-hire.locked { opacity: 0.4; cursor: default; }
+.helper-hire.locked:hover { background: none; }
+
+/* === 果园帮手角色（异性主角） === */
+/* 待机游走：walk 素材 900% 横向拉伸，复用主界面步行帧动画 */
+.berry-helper {
+  position: absolute;
+  z-index: 9;
+  width: 32px;
+  height: 44px;
+  bottom: 10px;
+  left: 104px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transition: left 0.55s linear, bottom 0.55s linear;
+}
+.berry-helper.walk {
+  background-size: 900% 100%;
+  animation: brendanWalk 0.6s steps(1) infinite;
+}
+.berry-helper.flip { transform: scaleX(-1); }
+/* 站立：walk 素材第 7 帧（侧面静止，翻转朝左），不原地踏步 */
+.berry-helper.stand {
+  background-size: 900% 100%;
+  background-position: 75% 0;
+  animation: none;
+}
+/* 走向田地：面朝上（背对视角），用 walk 素材第 2/3 帧（上走） */
+.berry-helper.walk-up {
+  background-size: 900% 100%;
+  animation: helperWalkUp 0.6s step-end infinite;
+}
+/* 走回底部：面朝下（正对视角），用 walk 素材第 4/5 帧（下走） */
+.berry-helper.walk-down {
+  background-size: 900% 100%;
+  animation: helperWalkDown 0.6s step-end infinite;
+}
+/* 浇水：water 素材（32px 宽、2 帧）2x 显示为 64px，帧宽 32px，动画切换到第 2 帧 */
+.berry-helper.water {
+  width: 32px;
+  height: 42px;
+  background-image: var(--helper-water);
+  background-size: 64px 42px;
+  transform: none;
+  animation: helperWaterOnce 0.8s step-end forwards;
+}
+/* 播种：走到植物前，用 walk 素材第 8 帧（面朝上静止） */
+.berry-helper.plant {
+  background-size: 900% 100%;
+  background-position: 87.5% 0;
+  animation: none;
+}
+@keyframes helperWalkUp {
+  0%   { background-position: 25% 0; }
+  50%  { background-position: 37.5% 0; }
+  100% { background-position: 25% 0; }
+}
+@keyframes helperWalkDown {
+  0%   { background-position: 50% 0; }
+  50%  { background-position: 62.5% 0; }
+  100% { background-position: 50% 0; }
+}
+@keyframes helperWaterOnce {
+  0%, 49.9%  { background-position: 0 0; }
+  50%, 100%  { background-position: -32px 0; }
+}
 
 /* === 混合器=== */
 .mixer-page-title {
@@ -2860,7 +3058,7 @@ body { margin: 0; padding: 0; cursor: default; }
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 8px;
   padding: 5px 0;
   border-top: 1px solid rgba(var(--ui-color-rgb),0.15);
 }

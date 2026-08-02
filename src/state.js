@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -121,18 +121,14 @@ export function setBlockQuality(k) { blockQuality = k || 'good'; }
 export function setQteState(s) { qteState = s || null; }
 
 // ---------- 孵化里程计算 ----------
-// 体重/稀有度决定正态分布的峰值（对数插值），叠加正态随机后截断到配置区间，
-// 使所有孵化里程都落在 [HATCH_DIST_MIN, HATCH_DIST_MAX] 内且呈钟形分布
+// 按体重/稀有度定分布峰值，截断正态采样（Box-Muller），落在配置区间内
 export function calcHatchDistance(poke) {
   const w = Math.min((poke.weight || 100) / 5000, 1); // 重量 0~1
   const r = poke.rarity || 0.5;                       // 稀有度 0~1
   const factor = Math.min(w * 0.6 + r * 0.4, 1);      // 综合因子 0~1
-  // 分布峰值：轻/常见 → 靠近最短，重/稀有 → 靠近最长
+  // 峰值：轻/常见 → 最短，重/稀有 → 最长
   const mid = HATCH_DIST_MIN * Math.pow(HATCH_DIST_MAX / HATCH_DIST_MIN, factor);
-  // 标准差相对峰值（而非整段区间）：否则轻/常见宝可梦的分布会大量被截断在最小值整值
   const sigma = Math.max(20, mid * HATCH_DIST_SIGMA);
-  // 截断正态采样（Box-Muller）：超出配置区间时重新采样而非粗暴截断，
-  // 保证钟形分布，且不会堆积出大量"恰好 2 公里整"的结果
   let d = 0;
   do {
     let u = 0, v = 0;
@@ -161,15 +157,6 @@ export function anyIncubatorReady() {
   return (gameData.incubators || []).some(s => s && s.hatched);
 }
 
-// 旧版时间制孵蛋迁移：hatchDuration 为毫秒（远超里程制像素上限）→ 直接标记已孵化
-export function migrateIncubators() {
-  for (const s of gameData?.incubators || []) {
-    if (s && s.eggIndex != null && !s.hatched && s.hatchDuration > HATCH_DIST_MAX * PX_PER_METER) {
-      s.hatched = true;
-    }
-  }
-}
-
 // ---------- GPS 导航状态 ----------
 // 当前地区由 GPS 位置决定（默认从丰缘出发）；开启"漫游"后才会有目的地并随行走推进。
 export function defaultGpsState() {
@@ -187,7 +174,7 @@ export function defaultGpsState() {
   };
 }
 
-// 补齐/初始化 GPS 状态（兼容旧存档）
+// 初始化/补齐 GPS 状态
 export function ensureGpsState() {
   if (!gameData) return;
   if (!gameData.gps) gameData.gps = defaultGpsState();
@@ -204,7 +191,7 @@ export function ensureGpsState() {
 // ---------- 存档默认值 ----------
 export function getDefaultSave() {
   return {
-    items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
+    items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     stats: {
       totalPlaySeconds:0, playSecondsToday:0, lastPlayDate:'', walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
@@ -224,16 +211,14 @@ export function getDefaultSave() {
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
-    settings: { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' },
+    settings: { autoCatch: false, autoFlee: true, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' },
   };
 }
 
 // ---------- 宝可梦仓库 ----------
 // 每只捕获/孵化的宝可梦 = 一个独立条目：{ id, species, shiny, ivs, nature, source, obtainedAt, inRoster }
-// 六围个体值 0~31（最大值 31×6=186），新获得时随机生成，后续交配系统以此为基础
-// 性格取自 POKEMON_NATURES 的 key（25 种，含提升/降低能力）
 
-// 随机生成六围个体值
+// 随机生成六围个体值（0~31）
 export function rollIvs() {
   return {
     hp: randInt(0, 31), atk: randInt(0, 31), def: randInt(0, 31),
@@ -242,38 +227,18 @@ export function rollIvs() {
 }
 
 // ---------- 性格 ----------
-// 25 种性格：{ key, cn, en, up, down }，up/down 为提升/降低的能力键（hp/atk/def/spa/spd/spe），无增减为 null
+// 25 种性格：key（存档用）→ 中文名（展示用）
 export const POKEMON_NATURES = [
-  { key: 'hardy',   cn: '勤奋', en: 'Hardy',   up: null, down: null },
-  { key: 'lonely',  cn: '怕寂寞', en: 'Lonely',  up: 'atk', down: 'def' },
-  { key: 'adamant', cn: '固执', en: 'Adamant', up: 'atk', down: 'spa' },
-  { key: 'naughty', cn: '顽皮', en: 'Naughty', up: 'atk', down: 'spd' },
-  { key: 'brave',   cn: '勇敢', en: 'Brave',   up: 'atk', down: 'spe' },
-  { key: 'bold',    cn: '大胆', en: 'Bold',    up: 'def', down: 'atk' },
-  { key: 'docile',  cn: '坦率', en: 'Docile',  up: null, down: null },
-  { key: 'impish',  cn: '淘气', en: 'Impish',  up: 'def', down: 'spa' },
-  { key: 'lax',     cn: '乐天', en: 'Lax',     up: 'def', down: 'spd' },
-  { key: 'relaxed', cn: '悠闲', en: 'Relaxed', up: 'def', down: 'spe' },
-  { key: 'modest',  cn: '内敛', en: 'Modest',  up: 'spa', down: 'atk' },
-  { key: 'mild',    cn: '慢吞吞', en: 'Mild',   up: 'spa', down: 'def' },
-  { key: 'bashful', cn: '害羞', en: 'Bashful', up: null, down: null },
-  { key: 'rash',    cn: '马虎', en: 'Rash',    up: 'spa', down: 'spd' },
-  { key: 'quiet',   cn: '冷静', en: 'Quiet',   up: 'spa', down: 'spe' },
-  { key: 'calm',    cn: '温和', en: 'Calm',    up: 'spd', down: 'atk' },
-  { key: 'gentle',  cn: '温顺', en: 'Gentle',  up: 'spd', down: 'def' },
-  { key: 'careful', cn: '慎重', en: 'Careful', up: 'spd', down: 'spa' },
-  { key: 'quirky',  cn: '浮躁', en: 'Quirky',  up: null, down: null },
-  { key: 'sassy',   cn: '自大', en: 'Sassy',   up: 'spd', down: 'spe' },
-  { key: 'timid',   cn: '胆小', en: 'Timid',   up: 'spe', down: 'atk' },
-  { key: 'hasty',   cn: '急躁', en: 'Hasty',   up: 'spe', down: 'def' },
-  { key: 'jolly',   cn: '爽朗', en: 'Jolly',   up: 'spe', down: 'spa' },
-  { key: 'naive',   cn: '天真', en: 'Naive',   up: 'spe', down: 'spd' },
-  { key: 'serious', cn: '认真', en: 'Serious', up: null, down: null },
+  ['hardy','勤奋'], ['lonely','怕寂寞'], ['adamant','固执'], ['naughty','顽皮'], ['brave','勇敢'],
+  ['bold','大胆'], ['docile','坦率'], ['impish','淘气'], ['lax','乐天'], ['relaxed','悠闲'],
+  ['modest','内敛'], ['mild','慢吞吞'], ['bashful','害羞'], ['rash','马虎'], ['quiet','冷静'],
+  ['calm','温和'], ['gentle','温顺'], ['careful','慎重'], ['quirky','浮躁'], ['sassy','自大'],
+  ['timid','胆小'], ['hasty','急躁'], ['jolly','爽朗'], ['naive','天真'], ['serious','认真'],
 ];
-const _natureMap = new Map(POKEMON_NATURES.map(n => [n.key, n]));
-export function getNature(key) { return _natureMap.get(key) || null; }
+const _natureMap = new Map(POKEMON_NATURES);
+export function getNature(key) { return _natureMap.has(key) ? { cn: _natureMap.get(key) } : null; }
 // 随机 roll 一个性格 key
-export function rollNature() { return POKEMON_NATURES[randInt(0, POKEMON_NATURES.length - 1)].key; }
+export function rollNature() { return POKEMON_NATURES[randInt(0, POKEMON_NATURES.length - 1)][0]; }
 
 // 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
 export function addRosterEntry({ species, shiny = false, source = 'normal' }) {
@@ -435,9 +400,7 @@ export function calcOffline(save) {
 }
 
 // ---------- 当前地区 ----------
-// 当前地区由 GPS 位置决定：在途时按物理位置（路段进度）划分归属——
-// 走到路段中点的前半程归出发端，后半程归目标端；这样 A→B 与 B→A 在同一位置时归属相同，
-// 刷怪/钓鱼/悬赏都按"当前位置所在的地区"而非"出发地区"计算，避免方向性矛盾。
+// 在途时按路段进度分归属：前半程归出发端、后半程归目标端，避免方向性矛盾
 export function getCurrentRegion() {
   const g = gameData?.gps;
   // 在途：有路径且当前段有长度 → 按物理位置折算归属地区
@@ -457,9 +420,7 @@ export function getCurrentRegion() {
 }
 
 // ---------- 路段分段编号 ----------
-// 与地图可视化（map.html）一致：每条路（i<j 顺序）拆成前后两段、各自独立编号 1#~24#，
-// 前半段归出发地区、后半段归目标地区；走过半程即切到后半段编号。
-// 距离矩阵由 gps.js 在模块加载时注册（避免在 state.js 里重复维护一份矩阵）。
+// 每条路拆成前后两段独立编号（与 map.html 一致）；距离矩阵由 gps.js 注册
 let _distMatrix = null;
 export function setDistMatrix(m) { _distMatrix = m; }
 let _segBase = null;
@@ -495,8 +456,7 @@ export function getCurrentRoadInfo() {
   return { num, name: REGION_CYCLE[firstHalf ? a : b] };
 }
 
-// 当前 GPS 位置快照：给存档一个直观、稳定的“我现在在哪”描述，
-// 便于读档恢复时确认位置，也方便后续排查导航问题。
+// 当前 GPS 位置快照（存档记录“我在哪”，读档后用于确认位置）
 export function getGpsPositionSnapshot() {
   const g = gameData?.gps;
   if (!g) return null;

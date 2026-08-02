@@ -22,7 +22,7 @@ import {
   setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState,
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
-  hasAnyBall, saveSessionState, rand, randInt, formatNum, migrateIncubators,
+  hasAnyBall, saveSessionState, rand, randInt, formatNum,
   setEncounterMsg, addPlaySeconds,
 } from './state.js';
 import { computeObtainScore } from './scoring.js';
@@ -39,6 +39,7 @@ import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
   tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
+import { helperTick, refreshBerryView } from './berry.js';
 import { restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex } from './roster.js';
@@ -160,6 +161,8 @@ function onGameTick() {
   setGameTick(gameTick + 1);
   gameData.stats.totalPlaySeconds++;
   addPlaySeconds(gameData, 1); // 今日挂机时长（跨天自动清零重计）
+  // 招募帮手：在线秒数递减（离线不递减，天然离线暂停），到期终止并刷新农场页
+  helperTick();
   // 同步真实行走距离：仅 idle 挂机时道路在滚动，遇敌/战斗/钓鱼不计
   const walked = road.takeDistance();
   if (walked > 0) {
@@ -285,8 +288,7 @@ async function init() {
     }
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
-  migrateIncubators(); // 旧版时间制孵蛋 → 已孵化
-  ensureGpsState(); // 兼容旧存档：补齐 GPS 状态（默认从丰缘出发）
+  ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
   ensureRoamDest(); // 漫游默认开启且无目的地时，自动开始导航
   ensureBounty();   // 生成/恢复当日地区悬赏
   updateBountyBadge(); // 初始化标题栏悬赏红点
@@ -316,6 +318,22 @@ async function init() {
     if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
     updateIncubatorBadge();
     console.log('所有孵蛋中的蛋已标记为孵化完成');
+  };
+
+  // 调试辅助：DevTools 控制台一键让树果农场所有已种植地块成熟（window.__matureBerries()）
+  window.__matureBerries = () => {
+    const f = gameData.berryFarm;
+    if (!f || !Array.isArray(f.plots)) { console.warn('__matureBerries: 尚未开启树果农场'); return; }
+    let n = 0;
+    f.plots.forEach(p => {
+      if (!p) return;
+      p.grownMs = p.totalMs || 30 * 60 * 1000; // 生长进度直接拉满，进入「可收获」
+      n++;
+    });
+    if (!n) { console.warn('__matureBerries: 农场没有已种植的树果'); return; }
+    saveGame();
+    refreshBerryView();
+    console.log(`__matureBerries: ${n} 棵树果已成熟，可以收获了`);
   };
 
   // 调试辅助：DevTools 控制台清空当前 GPS 状态，恢复为默认丰缘
