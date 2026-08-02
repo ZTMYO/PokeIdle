@@ -45,7 +45,6 @@ import { showShopView, showSettingsView,
 import { showPhoneView } from './phone.js';
 import { gpsAddDistance, ensureRoamDest, showGpsView } from './gps.js';
 import { ensureBounty } from './bounty.js';
-import { debugBerryFarm } from './berry.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -304,9 +303,6 @@ async function init() {
     console.log('GPS 已重置为默认丰缘');
   };
 
-  // 调试辅助：DevTools 控制台操作树果农场（一键成熟 / 重生日需求）
-  window.__berryDebug = debugBerryFarm();
-
   // 固定窗口
   if (gameData.settings?.windowPinned) {
     try {
@@ -515,14 +511,29 @@ async function init() {
   $('fleeBtn')?.addEventListener('click', () => fleeEncounter(false));
 
   // 导航按钮
-  $('btnPhone')?.addEventListener('click', showPhoneView);
-  $('btnShop')?.addEventListener('click', showShopView);
-  $('btnSettings')?.addEventListener('click', showSettingsView);
-  $('btnStation')?.addEventListener('click', () => import('./bounty.js').then(m => m.showBountyView()));
+  // header 图标：当前页面体系内（图标高亮）再次点击 → 直接返回首页挂机页；否则打开对应页面
+  const bindHeaderIcon = (btn, open) => {
+    btn?.addEventListener('click', () => {
+      if (btn.classList.contains('active')) {
+        setPrevView('idleView');
+        showView('idleView');
+      } else {
+        open();
+      }
+    });
+  };
+  bindHeaderIcon($('btnPhone'), showPhoneView);
+  bindHeaderIcon($('btnShop'), showShopView);
+  bindHeaderIcon($('btnSettings'), showSettingsView);
+  bindHeaderIcon($('btnStation'), () => import('./bounty.js').then(m => m.showBountyView()));
 
   // 状态栏点击：糖果→商店，当前位置→导航
   $('statProgress')?.addEventListener('click', showShopView);
-  $('statTime')?.addEventListener('click', showGpsView);
+  // 右下角状态栏：点击进入导航，返回回主界面
+  $('statTime')?.addEventListener('click', () => {
+    setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
+    showGpsView();
+  });
   $('appTitle')?.addEventListener('click', () => {
     if ($('appTitle').dataset.action === 'back') goBack();
   });
@@ -541,6 +552,32 @@ async function init() {
     if (dlg?.classList.contains('open') && !e.target.closest('.candy-box')) {
       closeCandyDialog();
     }
+  });
+
+  // 标题栏拖拽窗口：覆盖 title-bar 全部区域（含 appTitle 与返回图标），排除窗口控制按钮。
+  // Tauri 的 data-tauri-drag-region 只对 mousedown 目标自身带属性的元素生效，
+  // 子元素（appTitle、SVG 图标）上无法拖拽，故统一在此处理。
+  // 拖动超过阈值才启动拖拽，原地点击（如返回按钮）不启动，click 正常触发。
+  document.querySelector('.title-bar')?.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest?.('.control-btn')) return;
+    const sx = e.screenX, sy = e.screenY;
+    const onMove = ev => {
+      if (Math.hypot(ev.screenX - sx, ev.screenY - sy) < 4) return;
+      cleanup();
+      try {
+        const tw = window.__TAURI__?.window;
+        if (tw?.getCurrentWindow) tw.getCurrentWindow().startDragging();
+        else if (tw?.appWindow?.startDragging) tw.appWindow.startDragging();
+      } catch (_) {}
+    };
+    const onUp = () => cleanup();
+    const cleanup = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   });
 
   // 窗口控制

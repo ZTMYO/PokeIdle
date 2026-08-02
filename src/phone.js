@@ -60,7 +60,7 @@ export function showPhoneView() {
     const app = e.target.closest('.phone-app');
     if (!app) return;
     const id = app.dataset.app;
-    if (id === 'gps') import('./gps.js').then(m => m.showGpsView());
+    if (id === 'gps') import('./gps.js').then(m => { setPrevView('phoneView'); m.showGpsView(); });
     else if (id === 'data') import('./views.js').then(m => m.showDataView());
     else if (id === 'book') import('./pokedex.js').then(m => m.showPokedex());
     else if (id === 'incubator') showIncubatorView();

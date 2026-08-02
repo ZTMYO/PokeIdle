@@ -200,6 +200,8 @@ export function getDefaultSave() {
       totalPlaySeconds:0, playSecondsToday:0, lastPlayDate:'', walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
       totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0,
+      totalBlockMade:0, totalPlantings:0, totalHarvests:0, totalBerriesHarvested:0, totalBoardTrades:0,
+      totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     },
     incubators: Array.from({length: 8}, () => emptyIncubator()),

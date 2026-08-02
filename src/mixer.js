@@ -52,7 +52,16 @@ export function showMixerView() {
 function render() {
   const el = $('mixerContent');
   if (!el) return;
-  if (!_qteActive && qteState) restoreQte(); // 重连恢复 QTE 进度
+  if (!_qteActive && qteState) {
+    if (qteState.phase === 'result') {
+      // 重连恢复：回到混合结果/领取页（未领取前不清状态）
+      _lastRecipe = Array.isArray(qteState.recipe) ? qteState.recipe : [];
+      _qteQuality = qteState.quality || 'good';
+      showResult();
+      return;
+    }
+    restoreQte(); // 重连恢复 QTE 进度
+  }
   if (_qteActive) {
     // 小游戏进行中：重建页面继续
     el.innerHTML = qteHtml();
@@ -489,14 +498,14 @@ function loadBerryImgs(scope) {
 }
 
 // ---------- 混合小游戏（QTE 转盘） ----------
-// 页面：上半转盘 + 底部按钮
+// 页面：上半转盘 + 底部吸底按钮
 function qteHtml() {
   return `
     <div class="mixer-wrap mixer-qte">
       <div class="mixer-qte-stage">
         <canvas class="mixer-qte-canvas" id="mixerQteCanvas"></canvas>
       </div>
-      <button class="mixer-qte-btn" id="mixerQteBtn">按下！</button>
+      <button class="bottom-dock" id="mixerQteBtn">按下！</button>
     </div>`;
 }
 
@@ -604,7 +613,7 @@ function endQteGame() {
   while (_qteScore.length < QTE_ROUNDS) _qteScore.push('poor');
   _qteQuality = calcQuality(_qteScore);
   addSystemLog('mixer', { action: 'qte', score: [..._qteScore], quality: _qteQuality });
-  setQteState(null);
+  setQteState({ phase: 'result', recipe: [..._lastRecipe], quality: _qteQuality }); // 结果页未领取前可恢复
   saveSessionState();
   showResult();
 }
@@ -754,7 +763,7 @@ function showResult() {
       </div>
     </div>`;
   $('mixerClaimBtn')?.addEventListener('click', claimBlock);
-  $('mixerGiveUpBtn')?.addEventListener('click', () => render());
+  $('mixerGiveUpBtn')?.addEventListener('click', () => { setQteState(null); render(); });
   loadBerryImgs(el);
   // 混合动画：配方树果从屏幕外飞入 cube，全部到达后染色并淡入结果内容
   const stage = $('mixerResultStage');
@@ -794,6 +803,8 @@ function claimBlock() {
     setIdleMsgIdx(-1);
   }
   addSystemLog('mixer', { action: 'claim', recipe });
+  gameData.stats.totalBlockMade = (gameData.stats.totalBlockMade || 0) + 1;
+  setQteState(null); // 已领取，清除结果状态
   saveGame();
   render();
 }

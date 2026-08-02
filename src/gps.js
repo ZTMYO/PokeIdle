@@ -5,7 +5,7 @@
 // 没有目的地时，定位图标在水平轴中央原地上下浮动。
 // 推进由主角实际移动驱动（gpsAddDistance），遇敌/钓鱼时道路暂停、导航也随之暂停。
 import { $, showView } from './ui.js';
-import { gameData, phase, setPrevView, saveGame, setDistMatrix, getCurrentRoadInfo } from './state.js';
+import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo } from './state.js';
 import { REGION_CYCLE, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
 import { isFishing } from './fishing.js';
 
@@ -421,8 +421,6 @@ function render() {
 }
 
 export function showGpsView() {
-  // 从手机主页进入时返回手机，否则回图鉴
-  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : 'pokedexView');
   render();
   showView('gpsView');
   // 事件委托：漫游开关 + 点击地图节点选择目的地 / 取消导航

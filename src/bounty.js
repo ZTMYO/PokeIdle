@@ -85,10 +85,10 @@ export function ensureBounty() {
   if (cur >= 0 && cur < g.visited.length) g.visited[cur] = true;
 }
 
-// 悬赏日期当天是否捕获过该宝可梦（野生/钓鱼捕获才算，孵蛋获得不算）
+// 悬赏日期当天是否捕获过该宝可梦（野生/钓鱼捕获、孵蛋获得都算）
 function caughtOnBountyDay(pokemonIdx, dateStrVal) {
   const logs = (gameData.encounterLogs || {})[String(pokemonIdx)] || [];
-  return logs.some(l => l.result === 'caught' && l.source != null && dateStr(new Date(l.time)) === dateStrVal);
+  return logs.some(l => l.result === 'caught' && dateStr(new Date(l.time)) === dateStrVal);
 }
 
 // ---------- 渲染 ----------
@@ -177,6 +177,14 @@ function claimBounty(regionIdx, bi) {
   b.claimed = true;
   gameData.items.candy = (gameData.items.candy || 0) + b.candy;
   gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + b.candy; // 领取悬赏也计入道具获得
+  gameData.stats.totalBountyClaims = (gameData.stats.totalBountyClaims || 0) + 1;
+  gameData.stats.totalBountyCandy = (gameData.stats.totalBountyCandy || 0) + b.candy;
+  // 今日完成数：跨天自动清零
+  if (gameData.stats.lastBountyDate !== dateStr()) {
+    gameData.stats.lastBountyDate = dateStr();
+    gameData.stats.bountyClaimsToday = 0;
+  }
+  gameData.stats.bountyClaimsToday = (gameData.stats.bountyClaimsToday || 0) + 1;
   addSystemLog('bounty_claim', { pokemon: b.pokemon, candy: b.candy });
   saveGame();
   updateStats();

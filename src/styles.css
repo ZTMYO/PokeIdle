@@ -503,7 +503,6 @@ body { margin: 0; padding: 0; cursor: default; }
   align-items: center;
 }
 .catch-confirm-btn {
-  font-family: monospace;
   font-size: 10px;
   font-weight: 700;
   color: #306230;
@@ -546,7 +545,6 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 
 .egg-text {
-  font-family: monospace;
   font-size: 10px;
   color: var(--ui-color);
   font-weight: 700;
@@ -782,7 +780,6 @@ body { margin: 0; padding: 0; cursor: default; }
 
 /* === 加载失败 === */
 .load-error {
-  font-family: monospace;
   font-size: 10px;
   color: #8b3a3a;
 }
@@ -933,7 +930,6 @@ body { margin: 0; padding: 0; cursor: default; }
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  font-family: monospace;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-color);
@@ -988,7 +984,6 @@ body { margin: 0; padding: 0; cursor: default; }
   min-width: 140px;
 }
 .candy-title {
-  font-family: monospace;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-color);
@@ -1000,7 +995,6 @@ body { margin: 0; padding: 0; cursor: default; }
   margin-bottom: 3px;
   border-radius: 3px;
   cursor: pointer;
-  font-family: monospace;
   font-size: 9px;
   color: var(--ui-color);
   background: rgba(var(--ui-color-rgb),0.1);
@@ -1015,7 +1009,6 @@ body { margin: 0; padding: 0; cursor: default; }
   margin-top: 6px;
   padding: 3px;
   text-align: center;
-  font-family: monospace;
   font-size: 9px;
   color: var(--ui-color);
   opacity: 0.6;
@@ -1028,7 +1021,6 @@ body { margin: 0; padding: 0; cursor: default; }
   width: 100%;
   align-self: stretch;
   height: 100%;
-  font-family: monospace;
   font-size: 11px;
   color: var(--ui-color);
   user-select: none;
@@ -1087,7 +1079,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .phone-apps {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px 4px;
   justify-items: center;
   padding: 4px 2px;
@@ -1097,7 +1089,7 @@ body { margin: 0; padding: 0; cursor: default; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   cursor: pointer;
   user-select: none;
   transition: transform 0.1s ease, opacity 0.15s ease;
@@ -1107,18 +1099,17 @@ body { margin: 0; padding: 0; cursor: default; }
 .phone-app:active { transform: scale(0.92); }
 .phone-app-icon {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--screen-bg-dark);
-  border-radius: 11px;
+  border-radius: 9px;
   color: #fff;
 }
-.phone-app-icon svg { width: 24px; height: 24px; display: block; }
+.phone-app-icon svg { width: 22px; height: 22px; display: block; }
 .phone-app-name {
-  font-family: monospace;
   font-size: 10px;
   font-weight: 700;
 }
@@ -1247,17 +1238,18 @@ body { margin: 0; padding: 0; cursor: default; }
   100% { opacity: 0; transform: translate(-50%, -6px) rotate(-30deg); }
 }
 
-/* 浇水水滴粒子：从喷壶处撒落到植物上，随机横向偏移 */
+/* 浇水水滴粒子：正方形像素水滴，从喷壶处撒落到植物上，随机横向偏移 */
 .berry-drop {
   position: absolute;
   left: 50%;
   bottom: calc(100% + 2px);
-  border-radius: 50%;
+  border-radius: 0;
   background: #9fd8f5;
+  box-shadow: 1px 0 0 #7ab8d8, 0 1px 0 #7ab8d8, 0 0 0 1px #7ab8d8; /* 像素描边，贴近 GBA 风格 */
   pointer-events: none;
   image-rendering: pixelated;
   z-index: 7;
-  animation: berry-drop 0.65s ease-out var(--delay, 0s) forwards;
+  animation: berry-drop 0.65s steps(5, end) var(--delay, 0s) forwards;
 }
 @keyframes berry-drop {
   0%   { opacity: 0; transform: translate(calc(-50% - 6px), 4px) translate(0, 0); }
@@ -1568,24 +1560,6 @@ body { margin: 0; padding: 0; cursor: default; }
   height: 180px;
   margin-top: 12px;
 }
-/* 底部按钮：普通按压按钮（进度显示在转盘外圈） */
-.mixer-qte-btn {
-  flex-shrink: 0;
-  margin: 0 auto;
-  width: 150px;
-  padding: 10px 0;
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--ui-color-dark);
-  background: var(--screen-bg-light);
-  border: 1px solid var(--item-border);
-  border-radius: 8px;
-  cursor: pointer;
-  user-select: none;
-  transition: filter 0.15s, transform 0.1s;
-}
-.mixer-qte-btn:hover { filter: brightness(1.05); }
-.mixer-qte-btn:active { transform: scale(0.95); }
 .mixer-cost {
   display: flex;
   align-items: center;
@@ -1647,7 +1621,6 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 12px;
   font-weight: 700;
   color: var(--ui-color-dark);
-  font-family: monospace;
 }
 .mixer-cool-quality {
   position: absolute;
@@ -1661,8 +1634,8 @@ body { margin: 0; padding: 0; cursor: default; }
   line-height: 1.2;
 }
 .mixer-cool-quality.perfect { color: #c54444; }
-.mixer-cool-quality.great   { color: #cca544; }
-.mixer-cool-quality.good    { color: #29b952; }
+.mixer-cool-quality.great   { color: #ccba44; }
+.mixer-cool-quality.good    { color: #346c44; }
 .mixer-cool-quality.fair    { color: #2980b9; }
 .mixer-cool-quality.poor    { color: #7f8c8d; }
 
@@ -2497,13 +2470,11 @@ body { margin: 0; padding: 0; cursor: default; }
 .pokedex-stat {
   width: 28px;
   text-align: right;
-  font-family: monospace;
 }
 
 /* ===== 商店/数据视图 ===== */
 #shopView, #dataView, #tutorialView {
   height: 100%;
-  font-family: monospace;
   font-size: 11px;
   color: var(--ui-color);
 }
@@ -2666,7 +2637,6 @@ body { margin: 0; padding: 0; cursor: default; }
   overflow-y: auto;
   padding: 2px 3px 2px 0;
   border-right: 1px solid rgba(var(--ui-color-rgb),0.15);
-  font-family: monospace;
   font-size: 10px;
   color: var(--ui-color);
   user-select: none;
@@ -2696,7 +2666,6 @@ body { margin: 0; padding: 0; cursor: default; }
   min-width: 0;
   overflow-y: auto;
   padding: 3px 6px;
-  font-family: monospace;
   font-size: 11px;
   line-height: 1.7;
   color: var(--ui-color);
@@ -2717,7 +2686,6 @@ body { margin: 0; padding: 0; cursor: default; }
   padding: 5px 4px;
 }
 .auto-catch-label {
-  font-family: monospace;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-color);
@@ -2768,7 +2736,6 @@ body { margin: 0; padding: 0; cursor: default; }
   align-items: center;
 }
 .ball-check {
-  font-family: monospace;
   font-size: 10px;
   color: var(--ui-color);
   cursor: pointer;
@@ -2848,7 +2815,6 @@ body { margin: 0; padding: 0; cursor: default; }
   user-select: none;
 }
 .splash-subtitle {
-  font-family: monospace;
   font-size: 10px;
   letter-spacing: 6px;
   text-indent: 6px;

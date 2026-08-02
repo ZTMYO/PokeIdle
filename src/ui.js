@@ -34,8 +34,11 @@ export function showView(id) {
       });
     }, 0);
   }
+  // 手机体系页面：手机主页及其应用子页统一高亮手机图标
+  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','berryView','mixerView','dataView','systemLogView','tutorialView']);
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.view === id);
+    const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
+    btn.classList.toggle('active', on);
   });
   // 回到首页时刷新角色精灵 + 道路尺寸（钓鱼中恢复钓鱼画面而非走路）
   if (id === 'idleView') {

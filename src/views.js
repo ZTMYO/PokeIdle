@@ -129,6 +129,14 @@ function refreshDataStats() {
   $('dataDexPct').textContent = `${totalUnique}/${totalSpecies} (${pct}%)`;
   $('dataBallsUsed').textContent = stats.totalBallsUsed;
   $('dataBallsAvg').textContent = totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0';
+  $('dataBlockMade').textContent = stats.totalBlockMade || 0;
+  $('dataPlantings').textContent = stats.totalPlantings || 0;
+  $('dataHarvests').textContent = stats.totalHarvests || 0;
+  $('dataBerriesHarvested').textContent = stats.totalBerriesHarvested || 0;
+  $('dataBoardTrades').textContent = stats.totalBoardTrades || 0;
+  $('dataBountyClaims').textContent = stats.totalBountyClaims || 0;
+  $('dataBountyToday').textContent = stats.bountyClaimsToday || 0;
+  $('dataBountyCandy').textContent = stats.totalBountyCandy || 0;
   $('dataMostSeen').textContent = mostSeen.count > 0 ? `${mostSeen.name} (${mostSeen.count}次)` : '暂无';
   const earnedEl = $('dataEarned');
   if (earnedEl) {
@@ -177,6 +185,18 @@ export function showDataView() {
       <div class="stat-section">消耗统计</div>
       <div class="stat-row"><span>精灵球使用</span><span id="dataBallsUsed"></span></div>
       <div class="stat-row"><span>平均球/遇敌</span><span id="dataBallsAvg"></span></div>
+
+      <div class="stat-section">农场与合成</div>
+      <div class="stat-row"><span>合成树果方块</span><span id="dataBlockMade"></span></div>
+      <div class="stat-row"><span>种植次数</span><span id="dataPlantings"></span></div>
+      <div class="stat-row"><span>收获次数</span><span id="dataHarvests"></span></div>
+      <div class="stat-row"><span>收获树果</span><span id="dataBerriesHarvested"></span></div>
+      <div class="stat-row"><span>完成需求</span><span id="dataBoardTrades"></span></div>
+
+      <div class="stat-section">地区悬赏</div>
+      <div class="stat-row"><span>累计完成悬赏</span><span id="dataBountyClaims"></span></div>
+      <div class="stat-row"><span>今日完成悬赏</span><span id="dataBountyToday"></span></div>
+      <div class="stat-row"><span>悬赏糖果</span><span id="dataBountyCandy"></span></div>
 
       <div class="stat-section">遇见排行</div>
       <div class="stat-row"><span>遇见最多</span><span id="dataMostSeen"></span></div>
@@ -596,8 +616,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '序章',
     html: `<p>你是在<b>丰缘</b>长大的训练家，早已帮助<b>小田卷博士</b>完成了丰缘地区的图鉴，身经百战，是这片地区公认的冠军级训练家。</p>`
-      + `<p>然而世界远比丰缘辽阔——<b>九大地区</b>（关都、城都、丰缘、神奥、合众、卡洛斯、阿罗拉、伽勒尔、帕底亚）早已打通陆路，各地的宝可梦正等着被收录进更完整的图鉴。</p>`
-      + `<p>出发之前，小田卷博士将一部<b>手机</b>交到你手中：图鉴、统计、导航、树果农场……里面的应用足以支撑一场全新的旅行。</p>`
+      + `<p>然而世界远比丰缘辽阔——如今<b>九大地区</b>（关都、城都、丰缘、神奥、合众、卡洛斯、阿罗拉、伽勒尔、帕底亚）早已打通陆路，各地的宝可梦正等着被收录进更完整的图鉴。</p>`
+      + `<p>出发之前，小田卷博士将一部<b>手机</b>交到你手中：导航、图鉴、孵蛋器、混合器、树果农场……里面的应用足以支撑一场全新的旅行。</p>`
       + `<p>你背起行囊再次出发。前方的每一条道路、每一次遭遇，都将写下属于你的冒险故事。</p>`,
   },
   {
@@ -615,7 +635,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '手机',
-    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用，也可以查看当前系统时间。</p>`
+    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（导航、图鉴、孵蛋器、混合器、树果农场……），也可以查看当前系统时间。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
@@ -671,7 +691,7 @@ const TUTORIAL_SECTIONS = [
 
   {
     title: '糖果',
-    html: `<p>糖果是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托获得，用于解锁孵蛋器槽位，也可在<b>商店</b>兑换道具（详见「商店」章节）。</p>`,
+    html: `<p>糖果是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托获得，能在手机里虚拟存储，用于解锁孵蛋器槽位、农场购买种子，也可在<b>商店</b>兑换道具（详见「商店」章节）。</p>`,
   },
   {
     title: '商店',
@@ -681,7 +701,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '增益',
-    html: `<p>甜甜蜜与闪耀护符都是 <b>${BUFF_DURATION} 秒</b>增益，使用后主角进入跑步姿态。</p>`
+    html: `<p>甜甜蜜与闪耀护符都是 <b>${BUFF_DURATION} 秒</b>增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)} 分钟</b>缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>；效果结束时若一次都没遇到则<b>保底</b>触发一次。</p>`
       + `<p>倒计时仅在挂机等待时消耗，<b>遇敌/钓鱼</b>期间暂停。</p>`
       + tutorialTable([
@@ -734,7 +754,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '混合器',
     html: `<p>在<b>手机</b>主页打开<b>混合器</b>，从<b>农场库存</b>选 <b>1~4</b> 颗树果作为<b>配方</b>，确认后消耗它们制成<b>树果方块</b>（效果详见「树果方块」章节）。</p>`
-      + `<p><b>混合小游戏</b>：确认后进入<b>转盘 QTE</b>——内指针旋转，内圈色带顶部有一段<b>双色三截</b>的弧（中间<b>完美</b>、两侧<b>良好</b>），在内指针扫过色带中央的瞬间按下按钮，共 5 轮、速度渐快；按五轮总分评定方块品质（${Object.values(BLOCK_QUALITY).map(q => q.label).join(' / ')}）。</p>`,
+      + `<p><b>开始混合</b>：确认后进入<b>转盘 QTE</b>——内指针旋转，内圈顶部有一段色带（中间<b>完美</b>、两侧<b>良好</b>），在内指针扫过色带中央的瞬间按下按钮，共 5 轮、速度渐快；按五轮总分评定方块品质（${Object.values(BLOCK_QUALITY).map(q => q.label).join(' / ')}）。</p>`,
   },
   {
     title: '树果方块',
