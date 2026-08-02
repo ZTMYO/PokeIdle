@@ -924,6 +924,7 @@ body { margin: 0; padding: 0; cursor: default; }
   line-height: 1;
   filter: drop-shadow(0 0 3px rgba(255,255,255,0.9));
 }
+.shiny-sparkle.sm::after { font-size: 6px; }
 
 .catch-msg {
   position: absolute;
@@ -1017,7 +1018,7 @@ body { margin: 0; padding: 0; cursor: default; }
 .candy-close:hover { opacity: 1; }
 
 /* ===== 图鉴列表 ===== */
-#pokedexView {
+#pokedexView, #rosterView {
   width: 100%;
   align-self: stretch;
   height: 100%;
@@ -2165,7 +2166,7 @@ body { margin: 0; padding: 0; cursor: default; }
   font-weight: 400;
   opacity: 0.45;
 }
-/* 可领取：已捕获但需到达该地区，保留边框突出显示（区别于未捕获） */
+/* 可提交：已捕获但需到达该地区，保留边框突出显示（区别于未捕获） */
 .bounty-claim.pending {
   border-color: var(--ui-color-dark);
 }
@@ -2489,7 +2490,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #gpsView::-webkit-scrollbar,
 #declarationView::-webkit-scrollbar,
 #mixerView::-webkit-scrollbar,
-#berryView::-webkit-scrollbar {
+#berryView::-webkit-scrollbar,
+#rosterList::-webkit-scrollbar {
   width: 4px;
 }
 #shopView::-webkit-scrollbar-track,
@@ -2501,7 +2503,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #gpsView::-webkit-scrollbar-track,
 #declarationView::-webkit-scrollbar-track,
 #mixerView::-webkit-scrollbar-track,
-#berryView::-webkit-scrollbar-track {
+#berryView::-webkit-scrollbar-track,
+#rosterList::-webkit-scrollbar-track {
   background: transparent;
 }
 #shopView::-webkit-scrollbar-thumb,
@@ -2513,7 +2516,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #gpsView::-webkit-scrollbar-thumb,
 #declarationView::-webkit-scrollbar-thumb,
 #mixerView::-webkit-scrollbar-thumb,
-#berryView::-webkit-scrollbar-thumb {
+#berryView::-webkit-scrollbar-thumb,
+#rosterList::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb), 0.3);
   border-radius: 2px;
 }
@@ -2526,7 +2530,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #gpsView::-webkit-scrollbar-thumb:hover,
 #declarationView::-webkit-scrollbar-thumb:hover,
 #mixerView::-webkit-scrollbar-thumb:hover,
-#berryView::-webkit-scrollbar-thumb:hover {
+#berryView::-webkit-scrollbar-thumb:hover,
+#rosterList::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--ui-color-rgb), 0.55);
 }
 .shop-item {
@@ -2887,3 +2892,255 @@ body { margin: 0; padding: 0; cursor: default; }
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* === 宝可梦仓库 === */
+.roster-empty {
+  padding: 24px 4px;
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.5;
+}
+.roster-shiny { color: inherit; }
+
+/* 列表复用图鉴样式（.pokedex-entry/.pokedex-header/.pokedex-idx/.pokedex-name/.pokedex-star），
+   仅图标/个体值/来源列按内容放宽列宽 */
+#rosterList {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+#rosterView .pokedex-name {
+  flex: 0 0 60px;
+  max-width: none;
+}
+.roster-header, .roster-row { gap: 2px; }
+/* 仓库的闪光星标列更窄，避免图标与编号之间空出太多 */
+.roster-header .pokedex-star, .roster-row .pokedex-star { width: 10px; }
+.roster-icon {
+  width: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.roster-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+/* 行高固定，保证各行高度一致 */
+.roster-row { height: 30px; }
+.roster-iv {
+  width: 34px;
+  flex-shrink: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.roster-src {
+  width: 40px;
+  flex-shrink: 0;
+  text-align: right;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 个体详情 */
+.roster-detail-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 6px 8px;
+}
+.roster-detail-head .poke-img-grid {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+.roster-detail-head .poke-img-grid img {
+  max-width: 60px;
+  max-height: 60px;
+}
+.roster-detail-block {
+  border-top: 1px solid rgba(var(--ui-color-rgb),0.1);
+  padding: 8px 10px;
+}
+.roster-detail-title {
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.roster-iv-flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.roster-hex {
+  width: 90px;
+  height: 90px;
+  flex-shrink: 0;
+  display: block;
+}
+.roster-iv-bars { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.roster-iv-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+}
+.roster-iv-item > span:first-child { width: 26px; flex-shrink: 0; }
+.roster-iv-item > span:last-child {
+  width: 18px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.roster-iv-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(var(--ui-color-rgb),0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.roster-iv-fill {
+  height: 100%;
+  background: var(--ui-color);
+  border-radius: 2px;
+}
+
+/* 悬赏提交列表 */
+.roster-trade-empty { padding: 12px 8px; text-align: center; font-size: 11px; opacity: 0.6; }
+
+/* 悬赏提交列表：复用仓库行样式，行右侧为提交按钮 */
+/* 容器复刻仓库页观感（内边距/字号/颜色），否则在无样式的 #bountyContent 里会贴边且字体偏大 */
+.bounty-trade-list {
+  padding: 0 6px 4px;
+  font-size: 11px;
+  color: var(--ui-color);
+}
+.bounty-trade-list .pokedex-name { flex: 0 0 60px; max-width: none; }
+.bounty-trade-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 2px 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.bounty-trade-back {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.bounty-trade-back:hover { opacity: 1; }
+.bounty-trade-list .pokedex-star {
+  width: 8px;
+  padding-right: 0;
+  text-align: center;
+  font-size: 8px;
+}
+.bounty-trade-btn-col {
+  width: 44px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 700;
+}
+.bounty-trade-btn {
+  display: block;
+  margin-left: auto;
+  font-family: inherit;
+  line-height: 1;
+  font-size: 10px;
+  font-weight: 700;
+  color: #306230;
+  padding: 2px 8px;
+  border: 1px solid #306230;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.bounty-trade-btn:hover { background: rgba(48,98,48,0.15); }
+.bounty-trade-btn:active { transform: scale(0.92); }
+
+/* === 告别场景（放生 / 提交悬赏复用）：全屏独立场景，图标锚点与遭遇页一致 === */
+#goodbyeView {
+  display: none;
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 55;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--screen-bg);
+  overflow: hidden;
+}
+.goodbye-scene-img {
+  position: absolute;
+  left: 50%;
+  bottom: 42%;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  animation: goodbyeIn 0.3s ease-out both;
+}
+.goodbye-scene-img.leaving {
+  animation: goodbyeShrink 1.2s cubic-bezier(0.45, 0, 1, 1) both;
+  animation-delay: 0.15s;
+}
+@keyframes goodbyeIn {
+  from { transform: translateX(-50%) scale(0.6); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+@keyframes goodbyeShrink {
+  from { opacity: 1; transform: translateX(-50%) scale(1); }
+  to   { opacity: 0; transform: translateX(-50%) scale(0.5); }
+}
+/* 底部文字框（询问确认 / 再见文案）——与战斗页 .text-box 同款排布：左文案 + 右下角按钮 */
+.goodbye-box {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 52px;
+  background: var(--console-body);
+  border-top: 2px solid var(--console-border);
+  display: flex;
+  align-items: center;
+}
+.goodbye-box-text {
+  flex: 1;
+  padding: 8px 10px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #306230;
+  line-height: 1.4;
+}
+.goodbye-box-btns {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* 个体详情页放生按钮 */
+.roster-release {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  padding: 2px 8px;
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.roster-release:hover { background: rgba(var(--ui-color-rgb),0.12); }
+.roster-release:active { transform: scale(0.92); }

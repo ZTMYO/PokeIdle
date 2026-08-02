@@ -207,13 +207,79 @@ export function getDefaultSave() {
     incubators: Array.from({length: 8}, () => emptyIncubator()),
     incubatorUnlockedSlots: 0,
     gps: defaultGpsState(),
-    berryFarm: { plots: Array(3).fill(null), stock: {} }, // 树果农场：3 块田地 + 收获库存（键为树果下标）
+    berryFarm: { plots: Array(6).fill(null), stock: {} }, // 树果农场：6 块田地 + 收获库存（键为树果下标）
+    roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
     settings: { autoCatch: false, autoFlee: false, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' },
   };
+}
+
+// ---------- 宝可梦仓库 ----------
+// 每只捕获/孵化的宝可梦 = 一个独立条目：{ id, species, shiny, ivs, nature, source, obtainedAt, inRoster }
+// 六围个体值 0~31（最大值 31×6=186），新获得时随机生成，后续交配系统以此为基础
+// 性格取自 POKEMON_NATURES 的 key（25 种，含提升/降低能力）
+
+// 随机生成六围个体值
+export function rollIvs() {
+  return {
+    hp: randInt(0, 31), atk: randInt(0, 31), def: randInt(0, 31),
+    spa: randInt(0, 31), spd: randInt(0, 31), spe: randInt(0, 31),
+  };
+}
+
+// ---------- 性格 ----------
+// 25 种性格：{ key, cn, en, up, down }，up/down 为提升/降低的能力键（hp/atk/def/spa/spd/spe），无增减为 null
+export const POKEMON_NATURES = [
+  { key: 'hardy',   cn: '勤奋', en: 'Hardy',   up: null, down: null },
+  { key: 'lonely',  cn: '怕寂寞', en: 'Lonely',  up: 'atk', down: 'def' },
+  { key: 'adamant', cn: '固执', en: 'Adamant', up: 'atk', down: 'spa' },
+  { key: 'naughty', cn: '顽皮', en: 'Naughty', up: 'atk', down: 'spd' },
+  { key: 'brave',   cn: '勇敢', en: 'Brave',   up: 'atk', down: 'spe' },
+  { key: 'bold',    cn: '大胆', en: 'Bold',    up: 'def', down: 'atk' },
+  { key: 'docile',  cn: '坦率', en: 'Docile',  up: null, down: null },
+  { key: 'impish',  cn: '淘气', en: 'Impish',  up: 'def', down: 'spa' },
+  { key: 'lax',     cn: '乐天', en: 'Lax',     up: 'def', down: 'spd' },
+  { key: 'relaxed', cn: '悠闲', en: 'Relaxed', up: 'def', down: 'spe' },
+  { key: 'modest',  cn: '内敛', en: 'Modest',  up: 'spa', down: 'atk' },
+  { key: 'mild',    cn: '慢吞吞', en: 'Mild',   up: 'spa', down: 'def' },
+  { key: 'bashful', cn: '害羞', en: 'Bashful', up: null, down: null },
+  { key: 'rash',    cn: '马虎', en: 'Rash',    up: 'spa', down: 'spd' },
+  { key: 'quiet',   cn: '冷静', en: 'Quiet',   up: 'spa', down: 'spe' },
+  { key: 'calm',    cn: '温和', en: 'Calm',    up: 'spd', down: 'atk' },
+  { key: 'gentle',  cn: '温顺', en: 'Gentle',  up: 'spd', down: 'def' },
+  { key: 'careful', cn: '慎重', en: 'Careful', up: 'spd', down: 'spa' },
+  { key: 'quirky',  cn: '浮躁', en: 'Quirky',  up: null, down: null },
+  { key: 'sassy',   cn: '自大', en: 'Sassy',   up: 'spd', down: 'spe' },
+  { key: 'timid',   cn: '胆小', en: 'Timid',   up: 'spe', down: 'atk' },
+  { key: 'hasty',   cn: '急躁', en: 'Hasty',   up: 'spe', down: 'def' },
+  { key: 'jolly',   cn: '爽朗', en: 'Jolly',   up: 'spe', down: 'spa' },
+  { key: 'naive',   cn: '天真', en: 'Naive',   up: 'spe', down: 'spd' },
+  { key: 'serious', cn: '认真', en: 'Serious', up: null, down: null },
+];
+const _natureMap = new Map(POKEMON_NATURES.map(n => [n.key, n]));
+export function getNature(key) { return _natureMap.get(key) || null; }
+// 随机 roll 一个性格 key
+export function rollNature() { return POKEMON_NATURES[randInt(0, POKEMON_NATURES.length - 1)].key; }
+
+// 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
+export function addRosterEntry({ species, shiny = false, source = 'normal' }) {
+  if (!gameData) return null;
+  if (!Array.isArray(gameData.roster)) gameData.roster = [];
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    species,
+    shiny: !!shiny,
+    ivs: rollIvs(),
+    nature: rollNature(),
+    source,
+    obtainedAt: Date.now(),
+    inRoster: true,
+  };
+  gameData.roster.push(entry);
+  return entry;
 }
 
 // ---------- 系统日志 ----------

@@ -21,10 +21,11 @@ import {
   setHoneyEncounterCount, setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
   setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState,
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
-  restoreSessionState, calcOffline, addSystemLog, getCurrentRegion,
+  restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry,
   hasAnyBall, saveSessionState, rand, randInt, formatNum, formatTime,
   setEncounterMsg, addPlaySeconds,
 } from './state.js';
+import { computeObtainScore } from './scoring.js';
 import {
   $, showView, updateTextBox, hideTextBox,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
@@ -40,6 +41,7 @@ import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
 import { showEncounterLogs, restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
+import { showRosterView, isRosterInDetail, restoreRosterList } from './roster.js';
 import { showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView } from './phone.js';
@@ -109,6 +111,7 @@ function _pickNextRoad() {
 // ---------- 返回按钮 ----------
 function goBack() {
   if (_pokedexInLogView) { restorePokedex(); return; }
+  if (isRosterInDetail()) { restoreRosterList(); return; }
   showView(_prevView);
   setPrevView('idleView');
 }
@@ -302,6 +305,48 @@ async function init() {
     if ($('gpsView')?.style.display === 'flex') showGpsView();
     console.log('GPS 已重置为默认丰缘');
   };
+
+  // 调试：按宝可梦编号直接写入一只 6V 孵蛋宝可梦（如 window.__addPoke(25) 写入皮卡丘）
+  // __addShinyPoke 相同，但为蛋闪
+  async function addDebugPoke(idx, shiny) {
+    const poke = getPokemonByIndex(String(idx).padStart(4, '0'));
+    if (!poke) { console.warn(`__addPoke: 未找到编号 ${idx}`); return null; }
+    const entry = addRosterEntry({ species: poke.index, source: 'egg', shiny });
+    if (entry) entry.ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
+    // 同步解锁图鉴（与孵蛋流程一致）
+    const pdx = String(poke.index);
+    if (!gameData.pokedex[pdx]) {
+      gameData.pokedex[pdx] = { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0 };
+    }
+    gameData.pokedex[pdx].seen++;
+    gameData.pokedex[pdx].caught = (gameData.pokedex[pdx].caught || 0) + 1;
+    gameData.pokedex[pdx].lastTime = new Date().toISOString();
+    if (shiny) {
+      gameData.pokedex[pdx].shinyCaught = (gameData.pokedex[pdx].shinyCaught || 0) + 1;
+      gameData.stats.totalShinyCaught++;
+      gameData.stats.totalShinyEggsHatched++;
+    }
+    gameData.stats.totalCatches++;
+    gameData.stats.totalEggsHatched++;
+    // 配套写一条「孵蛋获得」遭遇日志，详情页的日志行才有内容
+    if (!gameData.encounterLogs) gameData.encounterLogs = {};
+    if (!gameData.encounterLogs[poke.index]) gameData.encounterLogs[poke.index] = [];
+    gameData.encounterLogs[poke.index].push({
+      time: Date.now(),
+      shiny,
+      result: 'caught',
+      balls: {},
+      charmBuff: false,
+      score: computeObtainScore({ pokemon: poke, source: 'egg', shiny, charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1 }),
+    });
+    await saveGame();
+    if (isRosterInDetail()) restoreRosterList();
+    else if ($('rosterView')?.style.display === 'flex') showRosterView();
+    console.log(`__addPoke: 已添加 6V ${shiny ? '闪光 ' : ''}${poke.name}（${shiny ? '蛋闪' : '孵蛋'}）`);
+    return entry;
+  }
+  window.__addPoke = idx => addDebugPoke(idx, false);
+  window.__addShinyPoke = idx => addDebugPoke(idx, true);
 
   // 固定窗口
   if (gameData.settings?.windowPinned) {

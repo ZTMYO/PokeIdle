@@ -1,5 +1,5 @@
-﻿﻿// ==================== 捕捉动画函数 ====================
-import { $, fitPokemonImage, getStageSize } from './ui.js';
+// ==================== 捕捉动画函数 ====================
+import { $, fitPokemonImage, getStageSize, tryLoadPokemonImage } from './ui.js';
 import { currentEncounter, currentIsShiny, encounterBallsUsed } from './state.js';
 import { FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';
 
@@ -187,17 +187,19 @@ export function restoreCatchAnim() {
   void pkmn.offsetHeight;
 }
 
-// 闪光白色星星粒子特效（单次爆发）
-function _sparkleBurst() {
-  const view = $('encounterView');
-  if (!view) return;
-  const gif = $('encounterGif');
+// 闪光星星粒子单次爆发：围绕 view 内 target 元素中心
+// opts: { cls: 额外类名, scale: 粒子尺寸与飞行距离倍率 }
+function _sparkleBurst(view, target, opts) {
+  if (!view || view.style.display === 'none') return;
+  const scale = opts?.scale || 1;
+  const cls = opts?.cls || '';
+  // 以 target 中心为爆发点；target 不可见时退回 view 上部
   let cx, cy;
-  if (gif && gif.offsetWidth > 0 && gif.offsetHeight > 0) {
-    const gifRect = gif.getBoundingClientRect();
-    const viewRect = view.getBoundingClientRect();
-    cx = gifRect.left - viewRect.left + gifRect.width / 2;
-    cy = gifRect.top - viewRect.top + gifRect.height / 2;
+  if (target && target.offsetWidth > 0 && target.offsetHeight > 0) {
+    const tr = target.getBoundingClientRect();
+    const vr = view.getBoundingClientRect();
+    cx = tr.left - vr.left + tr.width / 2;
+    cy = tr.top - vr.top + tr.height / 2;
   } else {
     const rect = view.getBoundingClientRect();
     cx = rect.width / 2;
@@ -207,12 +209,12 @@ function _sparkleBurst() {
   const particles = [];
   for (let i = 0; i < count; i++) {
     const el = document.createElement('div');
-    el.className = 'shiny-sparkle';
+    el.className = 'shiny-sparkle' + (cls ? ' ' + cls : '');
     el.style.left = cx + 'px';
     el.style.top = cy + 'px';
     view.appendChild(el);
     const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.4;
-    const dist = 25 + Math.random() * 40;
+    const dist = (25 + Math.random() * 40) * scale;
     particles.push({ el, dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, delay: Math.random() * 0.12 });
   }
   const startT = performance.now();
@@ -241,8 +243,15 @@ let _shinySparkleTimer = null;
 // 开始循环闪光（间隔 ~3s 爆发一次）
 export function startShinySparkleLoop() {
   stopShinySparkleLoop();
-  _sparkleBurst();
-  _shinySparkleTimer = setInterval(_sparkleBurst, 3000);
+  _sparkleBurst($('encounterView'), $('encounterGif'));
+  _shinySparkleTimer = setInterval(() => _sparkleBurst($('encounterView'), $('encounterGif')), 3000);
+}
+
+// 指定 view 内围绕 target 循环闪光（供个体详情页等复用）
+export function startShinySparkleOn(view, target, opts) {
+  stopShinySparkleLoop();
+  _sparkleBurst(view, target, opts);
+  _shinySparkleTimer = setInterval(() => _sparkleBurst(view, target, opts), 3000);
 }
 
 // 停止循环闪光
@@ -251,6 +260,43 @@ export function stopShinySparkleLoop() {
     clearInterval(_shinySparkleTimer);
     _shinySparkleTimer = null;
   }
+}
+
+// 告别场景（放生 / 提交悬赏复用）：确认框询问，确认后播放图标缩小动画并显示「再见！xxx」
+export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false }) {    
+  const view = $('goodbyeView');
+  if (!poke || !view) { onConfirm && onConfirm(); return; }
+  if (view._busy) return;
+  view._busy = true;
+  const img = view.querySelector('.goodbye-scene-img');
+  const textEl = view.querySelector('.goodbye-box-text');
+  const okBtn = view.querySelector('[data-goodbye-ok]');
+  const cancelBtn = view.querySelector('[data-goodbye-cancel]');
+  // 重置场景：移除 leaving 重播入场动画、清空旧图
+  img.classList.remove('leaving');
+  img.src = '';
+  // 先显示场景再加载图片：隐藏状态下中文路径直接加载会失败（WebView2）
+  textEl.textContent = prompt; 
+  okBtn.style.display = '';
+  cancelBtn.style.display = '';
+  view.style.display = 'flex';
+  // 后缀必须显式传入，否则文件名会拼入 undefined 导致加载失败
+  tryLoadPokemonImage(img, poke, shiny ? '_shiny' : '');
+
+  const finish = (ok) => {
+    view.style.display = 'none';
+    view._busy = false;
+    ok ? onConfirm && onConfirm() : onCancel && onCancel();
+  };
+  okBtn.onclick = () => {
+    // 确认：图标缩小淡出 + 文案「再见！xxx」
+    textEl.textContent = `再见！${poke.name}`;
+    okBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+    img.classList.add('leaving');
+    setTimeout(() => finish(true), 1600);
+  };
+  cancelBtn.onclick = () => finish(false);
 }
 
 // === 阶段1：抛物线抛球 ===

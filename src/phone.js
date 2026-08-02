@@ -6,6 +6,7 @@ import { phase, setPrevView } from './state.js';
 const APPS = [
   { id: 'gps',  icon: 'icon-gps',  name: '导航' },
   { id: 'book', icon: 'icon-book', name: '图鉴' },
+  { id: 'roster', icon: 'icon-owned', name: '宝可梦' },
   { id: 'incubator', icon: 'icon-egg', name: '孵蛋器' },
   { id: 'berry', icon: 'icon-tree', name: '树果农场' },
   { id: 'mixer', icon: 'icon-mixer', name: '混合器' },
@@ -64,6 +65,7 @@ export function showPhoneView() {
     else if (id === 'data') import('./views.js').then(m => m.showDataView());
     else if (id === 'book') import('./pokedex.js').then(m => m.showPokedex());
     else if (id === 'incubator') showIncubatorView();
+    else if (id === 'roster') import('./roster.js').then(m => m.showRosterView());
     else if (id === 'mixer') import('./mixer.js').then(m => m.showMixerView());
     else if (id === 'berry') import('./berry.js').then(m => m.showBerryView());
     else if (id === 'log') import('./views.js').then(m => m.showSystemLogs());

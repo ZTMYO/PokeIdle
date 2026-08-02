@@ -321,7 +321,7 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   // ——— 地区悬赏类 ———
   const bounty = gameData.bounty;
   if (bounty && Array.isArray(bounty.rewards)) {
-    // 从今日已到访地区的悬赏目标中随机挑一只未领取的，附上实际出没地区，
+    // 从今日已到访地区的悬赏目标中随机挑一只未提交的，附上实际出没地区，
     // 这样即使没见过它，看到文案也知道该去哪里抓
     const targets = [];
     for (let i = 0; i < bounty.rewards.length; i++) {
@@ -349,8 +349,8 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
         }
       }
       const unclaimed = total - claimed;
-      if (unclaimed > 0) msgs.push(`今日悬赏还有${unclaimed}份糖果奖励没领取，抓到目标就去领！`);
-      else if (total > 0) msgs.push('今日悬赏已全部领取，明天零点又会刷新新目标！');
+      if (unclaimed > 0) msgs.push(`今日悬赏还有${unclaimed}份糖果奖励没提交，抓到目标就去提交！`);
+      else if (total > 0) msgs.push('今日悬赏已全部提交，明天零点又会刷新新目标！');
     }
     msgs.push('完成地区悬赏能换来糖果作为奖励。');
     msgs.push('各个地区的悬赏目标，能获得大量糖果奖励。');

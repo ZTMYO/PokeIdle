@@ -13,7 +13,7 @@ export function showView(id) {
     id = 'encounterView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView'];
+  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
@@ -35,7 +35,7 @@ export function showView(id) {
     }, 0);
   }
   // 手机体系页面：手机主页及其应用子页统一高亮手机图标
-  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','berryView','mixerView','dataView','systemLogView','tutorialView']);
+  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','berryView','mixerView','dataView','systemLogView','tutorialView','rosterView']);
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
     btn.classList.toggle('active', on);
@@ -87,7 +87,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', mixerView:'混合器', berryView:'树果农场' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', mixerView:'混合器', berryView:'树果农场', rosterView:'宝可梦' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -257,16 +257,31 @@ export function fitPokemonImage(img) {
 // ---------- 图片加载 ----------
 // 通用图片加载：裸路径 → encodeURI → fetch blob → Tauri 直读 base64 逐级兜底。
 // 中文/特殊字符文件名在部分 WebView 环境下直接 <img> 请求会失败，必须走降级链。
+// 加载成功后缓存最终 src：列表重建（切换筛选/搜索/排序）时同步复用，避免图标闪烁空白。
+const _imgCache = new Map(); // relPath → 可复用的最终 src
+function _cacheSet(key, val) {
+  _imgCache.set(key, val);
+  if (_imgCache.size > 800) _imgCache.delete(_imgCache.keys().next().value); // 超限淘汰最早插入的
+}
 export function tryLoadImage(img, relPath) {
+  const hit = _imgCache.get(relPath);
+  if (hit) {
+    return new Promise(resolve => {
+      img.onload = () => { img.onerror = null; resolve(true); };
+      img.onerror = () => { _imgCache.delete(relPath); resolve(false); };
+      img.src = hit;
+      if (img.complete) resolve(true);
+    });
+  }
   return new Promise(resolve => {
     const ext = (relPath.split('.').pop() || 'png').toLowerCase();
     const doRaw = () => new Promise(r => {
-      img.onload = () => { img.onerror = null; r(true); };
+      img.onload = () => { img.onerror = null; _cacheSet(relPath, relPath); r(true); };
       img.onerror = () => r(false);
       img.src = relPath;
     });
     const doEncoded = () => new Promise(r => {
-      img.onload = () => { img.onerror = null; r(true); };
+      img.onload = () => { img.onerror = null; _cacheSet(relPath, encodeURI(relPath)); r(true); };
       img.onerror = () => r(false);
       img.src = encodeURI(relPath);
     });
@@ -274,9 +289,13 @@ export function tryLoadImage(img, relPath) {
       if (!r.ok) return false;
       return r.blob().then(blob => {
         const url = URL.createObjectURL(blob);
+        // 缓存 blob URL 供复用；替换该路径上一次的 blob URL 时先释放旧的，避免泄漏
+        const prev = _imgCache.get(relPath);
+        if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+        _cacheSet(relPath, url);
         return new Promise(r => {
-          img.onload = () => { URL.revokeObjectURL(url); r(true); };
-          img.onerror = () => { URL.revokeObjectURL(url); r(false); };
+          img.onload = () => r(true);
+          img.onerror = () => { URL.revokeObjectURL(url); if (_imgCache.get(relPath) === url) _imgCache.delete(relPath); r(false); };
           img.src = url;
         });
       });
@@ -286,7 +305,7 @@ export function tryLoadImage(img, relPath) {
       const fp = relPath.replace(/^\.\//, '');
       return window.__TAURI__.core.invoke('read_gif_base64', { path: fp })
         .then(b64 => new Promise(r => {
-          img.onload = () => r(true);
+          img.onload = () => { _cacheSet(relPath, `data:image/${ext};base64,${b64}`); r(true); };
           img.onerror = () => r(false);
           img.src = `data:image/${ext};base64,${b64}`;
         }))

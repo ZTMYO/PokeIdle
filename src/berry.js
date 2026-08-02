@@ -62,7 +62,12 @@ let _picking = null; // 正在选种子的田地下标
 function ensureBerryFarm() {
   if (!gameData.berryFarm) gameData.berryFarm = { plots: Array(PLOT_COUNT).fill(null), stock: {} };
   const f = gameData.berryFarm;
-  if (!f.plots) f.plots = Array(PLOT_COUNT).fill(null);
+  // 兼容旧存档：3 块田地的存档补足到 6 块，已种的树保留
+  if (!Array.isArray(f.plots) || f.plots.length !== PLOT_COUNT) {
+    const arr = Array(PLOT_COUNT).fill(null);
+    (f.plots || []).forEach((p, i) => { if (i < PLOT_COUNT) arr[i] = p; });
+    f.plots = arr;
+  }
   if (!f.stock) f.stock = {};
   return f;
 }
