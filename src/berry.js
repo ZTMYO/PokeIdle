@@ -5,24 +5,25 @@ import { $, showView, tryLoadImage } from './ui.js';
 import { phase, gameData, setPrevView, saveGame, randInt } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { setupFoodTooltip } from './pokedex.js';
+// 农场数值配置（成熟时长/湿度/种植消耗/告示牌需求/兑换糖果等，见 config.js「树果农场」区块）
+import {
+  FARM_PLOT_COUNT as PLOT_COUNT,
+  FARM_MATURE_MIN as MATURE_MIN,
+  FARM_MATURE_MAX as MATURE_MAX,
+  FARM_STAGE_DIRT as STAGE_DIRT,
+  FARM_STAGE_SPROUT as STAGE_SPROUT,
+  FARM_STAGE_GROW as STAGE_GROW,
+  FARM_MAX_WATER as MAX_WATER,
+  FARM_WATER_DROP as WATER_DROP,
+  FARM_PLANT_COST as PLANT_COST,
+  FARM_BOARD_DEMANDS as BOARD_DEMANDS,
+  FARM_BOARD_QTY_MIN as BOARD_QTY_MIN,
+  FARM_BOARD_QTY_MAX as BOARD_QTY_MAX,
+  FARM_CANDY_PER_BERRY as CANDY_PER_BERRY,
+  FARM_HARVEST_MIN as HARVEST_MIN,
+  FARM_HARVEST_MAX as HARVEST_MAX,
+} from './config.js';
 
-const PLOT_COUNT = 6;
-// 成熟总时长 30~60 分钟随机（同批不会同时成熟）
-const MATURE_MIN = 30 * 60 * 1000;
-const MATURE_MAX = 60 * 60 * 1000;
-// 各阶段占成熟总时长的累计比例：刚种下 / 发芽 / 成长 / 开花结果
-const STAGE_DIRT   = 2 / 30;
-const STAGE_SPROUT = 8 / 30;
-const STAGE_GROW   = 18 / 30;
-// 湿度：浇水回满，降到 0 停止生长
-const MAX_WATER = 100;
-const WATER_DROP = 100 / (10 * 60); // 每秒下降点数（满湿度可撑 10 分钟）
-// 种植消耗糖果 + 告示牌每日需求（兑换糖果）
-const PLANT_COST = 10;
-const BOARD_DEMANDS = 3;
-const BOARD_QTY_MIN = 3;
-const BOARD_QTY_MAX = 6;
-const CANDY_PER_BERRY = 8;
 const CANDY_ICON = '<img src="./items/candy.png" style="width:12px;height:12px;vertical-align:-2px;image-rendering:pixelated;" />';
 
 // 帧宽 16px → 显示 32px；树果动画表 6 帧（96×32），帧序 0-1 成长 / 2-3 开花结果 / 4-5 成熟
@@ -72,7 +73,7 @@ function ensureBerryFarm() {
   return f;
 }
 
-// 日期字符串（YYYY-MM-DD），用于每日需求刷新判断
+// 日期字符串（YYYY-MM-DD），用于树果委托刷新判断
 function dateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -133,16 +134,33 @@ function stageOf(plot) {
   return { key: 'ripe', label: '可收获', img: TREE_DIR + BERRY_ICONS[plot.type], cols: BERRY_COLS, frame: 4, count: 2, fh: 64, remain: 0 };
 }
 
-// 生成动画表元素的背景样式，多帧通过 steps() 循环
-function frameStyle(st) {
+// 树果状态变化（浇水/收获/种植）后通知手机主页即时刷新红点，不必等 5 秒轮询
+function notifyBerryChanged() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('berry-farm-changed'));
+}
+
+// 是否有干涸的树果（手机主页红点）：已种树、未成熟、湿度耗尽，需要浇水
+export function hasDryBerries() {
+  const f = gameData?.berryFarm;
+  if (!f || !Array.isArray(f.plots)) return false;
+  return f.plots.some(p => p && stageOf(p).key !== 'ripe' && plotState(p).water <= 0);
+}
+
+// 生成动画表元素的背景样式，多帧通过 steps() 循环；dry 时停在第一帧不播动画（干涸无活力）
+function frameStyle(st, dry) {
   const bgW = st.cols * FRAME_W;
   const fromX = -(st.frame * FRAME_W);
   let base = `width:${FRAME_W}px;height:${st.fh}px;background-image:url('${encodeURI(st.img)}');background-size:${bgW}px ${st.fh}px;background-position:${fromX}px 0;`;
   // 发芽幼苗缩小显示，底边保持对齐地面，整体上移 2px
   if (st.scale) base += `transform:scale(${st.scale}) translateY(-2px);transform-origin:center bottom;`;
-  if (st.count <= 1) return base;
+  if (st.count <= 1 || dry) return base;
   const toX = fromX - st.count * FRAME_W;
   return `${base}--bfrom:${fromX}px;--bto:${toX}px;animation:berry-frames 0.9s steps(${st.count}, end) infinite;`;
+}
+
+// 需要浇水（未成熟且湿度耗尽）：果树失去活力
+function isDry(p) {
+  return !!p && stageOf(p).key !== 'ripe' && plotState(p).water <= 0;
 }
 
 function fmtRemain(ms) {
@@ -179,7 +197,7 @@ function render() {
       <div class="berry-field">
         <canvas class="berry-field-canvas"></canvas>
         <img class="berry-box-sign berry-icon" src="${TREE_DIR}box.png" data-tip="库存" alt="库存" />
-        <img class="berry-board-sign berry-icon" src="${TREE_DIR}board.png" data-tip="今日需求" alt="今日需求" />
+        <img class="berry-board-sign berry-icon" src="${TREE_DIR}board.png" data-tip="告示牌" alt="告示牌" />
         ${f.plots.map((p, i) => plotHtml(p, i)).join('')}
       </div>
     </div>
@@ -227,7 +245,7 @@ function plotHtml(p, i) {
   const st = stageOf(p);
   return `
     <div class="berry-plot stage-${st.key}${st.key === 'ripe' ? ' ripe' : ''}" data-plot="${i}" style="${pos}">
-      <div class="berry-frame berry-icon" data-img="${st.img}" data-stage="${st.key}" data-tip="${plotTip(p)}" style="${frameStyle(st)}"></div>
+      <div class="berry-frame berry-icon" data-img="${st.img}" data-stage="${st.key}" data-tip="${plotTip(p)}" style="${frameStyle(st, isDry(p))}"></div>
     </div>`;
 }
 
@@ -264,12 +282,15 @@ function bindEvents(el) {
   });
   el.querySelectorAll('.berry-plot').forEach(plotEl => {
     plotEl.addEventListener('click', e => {
+      e.stopPropagation(); // 不触发空白关闭
+      closePicker();
+      closeBoard();
+      closeStock();
       const i = Number(plotEl.dataset.plot);
       const p = ensureBerryFarm().plots[i];
       if (!p) openPicker(i);
       else if (stageOf(p).key === 'ripe') harvest(i);
       else waterPlot(i);
-      e.stopPropagation(); // 不触发空白关闭
     });
     plotEl.addEventListener('mouseenter', () => {
       const i = Number(plotEl.dataset.plot);
@@ -343,6 +364,7 @@ function openPicker(i) {
       ensureBerryFarm().plots[idx] = { type, grownMs: 0, water: 0, waterAt: Date.now(), totalMs: randInt(MATURE_MIN, MATURE_MAX) };
       saveGame();
       render();
+      notifyBerryChanged();
     });
   });
   host.querySelectorAll('[data-pick-close]').forEach(btn => {
@@ -407,7 +429,7 @@ function boardHtml() {
   return `
     <div class="berry-picker berry-board">
       <div class="berry-picker-head">
-        <span class="berry-picker-title">今日需求</span>
+        <span class="berry-picker-title">树果委托</span>
         <div class="berry-picker-x" data-board-close>✕</div>
       </div>
       <div class="board-demands">${demands}</div>
@@ -422,7 +444,10 @@ function openBoard() {
   host.querySelectorAll('img[data-src]').forEach(im => tryLoadImage(im, im.dataset.src));
   host.querySelectorAll('[data-board-close]').forEach(btn => btn.addEventListener('click', closeBoard));
   host.querySelectorAll('.board-trade:not(.locked):not(.done)').forEach(btn => {
-    btn.addEventListener('click', () => tradeBoard(Number(btn.dataset.di)));
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      tradeBoard(Number(btn.dataset.di));
+    });
   });
 }
 
@@ -502,23 +527,27 @@ function refreshBoard() {
     demandsEl.innerHTML = f.board.demands.map((d, k) => boardDemandHtml(d, k, stock)).join('');
     demandsEl.querySelectorAll('img[data-src]').forEach(im => tryLoadImage(im, im.dataset.src));
     demandsEl.querySelectorAll('.board-trade:not(.locked):not(.done)').forEach(btn => {
-      btn.addEventListener('click', () => tradeBoard(Number(btn.dataset.di)));
+      btn.addEventListener('click', e => {
+        e.stopPropagation(); 
+        tradeBoard(Number(btn.dataset.di));
+      });
     });
   }
 }
 
-// 收获成熟树果：得到 2~4 颗存入库存，田地清空
+// 收获成熟树果：得到 2~5 颗存入库存（数量范围见 config FARM_HARVEST_MIN/MAX），田地清空
 function harvest(i) {
   const f = ensureBerryFarm();
   const p = f.plots[i];
   if (!p || stageOf(p).key !== 'ripe') return;
-  const qty = 2 + randInt(0, 3);
+  const qty = randInt(HARVEST_MIN, HARVEST_MAX);
   gameData.stats.totalHarvests = (gameData.stats.totalHarvests || 0) + 1;
   gameData.stats.totalBerriesHarvested = (gameData.stats.totalBerriesHarvested || 0) + qty;
   f.stock[p.type] = (f.stock[p.type] || 0) + qty;
   f.plots[i] = null;
   saveGame();
   render();
+  notifyBerryChanged();
 }
 
 // 浇水：先沉淀已生长时间再浇满湿度，避免 waterAt 重置导致进度回退
@@ -531,6 +560,7 @@ function waterPlot(i) {
   saveGame();
   spawnSpray(i);
   if (_hoverPlot === i) updateProgress();
+  notifyBerryChanged();
 }
 
 // 浇水动画：喷壶贴图淡出，同时撒落水滴粒子
@@ -570,12 +600,13 @@ function startTimer() {
       const st = stageOf(p);
       const want = `berry-plot stage-${st.key}${st.key === 'ripe' ? ' ripe' : ''}`;
       if (plotEl.className !== want) plotEl.className = want;
-      // 阶段切换（含同图帧表的成长/结果/成熟）时刷新帧样式
       const frame = plotEl.querySelector('.berry-frame');
-      if (frame && frame.dataset.stage !== st.key) {
+      const dry = isDry(p);
+      if (frame && (frame.dataset.stage !== st.key || frame.dataset.dry !== String(dry))) {
         frame.dataset.stage = st.key;
+        frame.dataset.dry = String(dry);
         frame.dataset.img = st.img;
-        frame.setAttribute('style', frameStyle(st));
+        frame.setAttribute('style', frameStyle(st, dry));
       }
       // 悬停时同步刷新顶部进度条
       if (_hoverPlot === i) updateProgress();

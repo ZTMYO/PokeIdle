@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_TIME_MIN, HATCH_TIME_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, formatTime, pad, randInt, setPrevView, getIncubatorUnlockCost, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS } from './items.js';
@@ -140,7 +140,10 @@ function refreshDataStats() {
   $('dataMostSeen').textContent = mostSeen.count > 0 ? `${mostSeen.name} (${mostSeen.count}次)` : '暂无';
   const earnedEl = $('dataEarned');
   if (earnedEl) {
-    earnedEl.innerHTML = Object.entries(earned).map(([k, v]) =>
+    // 糖果置顶，其余保持原顺序
+    const entries = Object.entries(earned);
+    const rows = entries.filter(([k]) => k === 'candy').concat(entries.filter(([k]) => k !== 'candy'));
+    earnedEl.innerHTML = rows.map(([k, v]) =>
       `<div class="stat-row"><span>${ITEM_NAMES[k] || k}</span><span>×${v}</span></div>`
     ).join('') || '<div>暂无数据</div>';
   }
@@ -635,7 +638,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '手机',
-    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（导航、图鉴、孵蛋器、混合器、树果农场……），也可以查看当前系统时间。科学的力量真伟大！</p>`
+    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（导航、图鉴、孵蛋器、混合器、树果农场、交换……），也可以查看当前系统时间。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
@@ -662,8 +665,13 @@ const TUTORIAL_SECTIONS = [
   {
     title: '悬赏',
     html: `<p>每个地区每天<b>0 点</b>刷新<b>${BOUNTY_PER_REGION} 条地区悬赏</b>：指定宝可梦来自<b>全国图鉴</b>（可能不在该地区出没），悬赏糖果奖励 <b>${BOUNTY_CANDY_MIN}~${BOUNTY_CANDY_MAX} 颗</b>，越难捕获奖励越高。</p>`
-      + `<p><b>今日到访过</b>的地区才能看到悬赏内容；仓库中拥有指定宝可梦即可<b>提交</b>（交出一只在仓个体），但<b>提交必须到达对应地区</b>。</p>`
-      + `<p>悬赏每日刷新、生成后当天不变，未提交不累积。</p>`,
+      + `<p><b>今日到访过</b>的地区才能看到悬赏内容；仓库中拥有指定宝可梦即可<b>提交</b>，但<b>提交必须到达对应地区</b>。</p>`
+      + `<p>标题右侧的<b>纸飞机图标</b>可将该地区设为<b>导航</b>目的地：自动跳到导航页并规划路线。</p>`
+  },
+  {
+    title: '交换',
+    html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出<b>想要的宝可梦</b>与<b>愿意给的宝可梦</b>有<b>${TRADE_SHINY_CHANCE * 100}%</b>的概率给出闪光宝可梦。</p>`
+      + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「交换」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`,
   },
   {
     title: '场景',
@@ -703,7 +711,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '增益',
     html: `<p>甜甜蜜与闪耀护符都是 <b>${BUFF_DURATION} 秒</b>增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
-      + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)} 分钟</b>缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>；效果结束时若一次都没遇到则<b>保底</b>触发一次。</p>`
+      + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)} 分钟</b>缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>。</p>`
       + `<p>倒计时仅在挂机等待时消耗，<b>遇敌/钓鱼</b>期间暂停。</p>`
       + tutorialTable([
         ['生效', `<b>${BUFF_DURATION} 秒</b>`, `<b>${BUFF_DURATION} 秒</b>`],
@@ -746,11 +754,11 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '农场',
-    html: `<p>在<b>手机</b>主页打开<b>树果农场</b>，点击<b>空地</b>种下树果种子（消耗 <b>10 糖果</b>）。</p>`
-      + `<p>刚种下<b>湿度为 0</b>，点击<b>浇水</b>才会生长；湿度随时间下降，<b>归 0 停止生长</b>，需及时补浇。</p>`
-      + `<p>历经<b>刚种下→发芽→成长→开花结果</b>后成熟（每棵 <b>30~60 分钟</b>随机），点击<b>收获</b>得 <b>2~4</b> 颗树果。</p>`
+    html: `<p>在<b>手机</b>主页打开<b>树果农场</b>，点击<b>空地</b>种下树果种子（消耗 <b>${FARM_PLANT_COST} 糖果</b>）。</p>`
+      + `<p>刚种下<b>湿度为 0</b>，点击<b>浇水</b>才会生长；湿度随时间下降（每 <b>${Math.round(1 / FARM_WATER_DROP)} 秒</b>降 1 点，满湿度可撑 <b>${Math.round(FARM_MAX_WATER / FARM_WATER_DROP / 60)} 分钟</b>），<b>归 0 停止生长</b>，需及时补浇。</p>`
+      + `<p>历经<b>刚种下→发芽→成长→开花结果</b>后成熟（每棵 <b>${Math.round(FARM_MATURE_MIN / 60000)}~${Math.round(FARM_MATURE_MAX / 60000)} 分钟</b>随机），点击<b>收获</b>得 <b>${FARM_HARVEST_MIN}~${FARM_HARVEST_MAX}</b> 颗树果。</p>`
       + `<p>收获的树果存入<b>库存</b>（点田地<b>左上角库存箱</b>查看）；库存的树果<b>不能当种子</b>，种地只能另买新种子。</p>`
-      + `<p>树果可以<b>出售</b>换糖果：点田地<b>右上角告示牌</b>查看<b>每日需求</b>（每天刷新，需求越多报酬越高）；也可以作为<b>树果混合器</b>的原料（详见「混合器」章节）。</p>`,
+      + `<p>树果可以<b>出售</b>换糖果：点田地<b>右上角告示牌</b>查看<b>树果委托</b>（每天刷新，需求越多报酬越高）；也可以作为<b>树果混合器</b>的原料（详见「混合器」章节）。</p>`,
   },  
   {
     title: '宝可梦',
@@ -770,7 +778,8 @@ const TUTORIAL_SECTIONS = [
     html: `<p><b>树果方块</b>是<b>混合器</b>的产物：用配方树果制成，用于吸引特定的宝可梦。</p>`
       + `<p><b>品质决定效果</b>：品质越高，遇敌时直接遇到目标宝可梦的概率越高（${Object.values(BLOCK_QUALITY).map(q => `${q.label} ${Math.round(q.chance * 100)}%`).join(' / ')}）。</p>`
       + `<p><b>按行走里程计时</b>：主角再走 <b>${BLOCK_DISTANCE}</b> 米没被吃掉则风干失效（停下不走不消耗），期间<b>不改变正常遇敌节奏</b>。</p>`
-      + `<p>配方在当前地区没有宝可梦爱吃则<b>无效</b>；对于已收服的宝可梦，可以在图鉴查看它爱吃的食物（配方）。</p>`,
+      + `<p>配方在当前地区没有宝可梦爱吃则<b>无效</b>；对于已收服的宝可梦，可以在图鉴查看它爱吃的食物（配方）。</p>`
+      + `<p><b>注意</b>：方块<b>命中</b>目标的那次遇敌，闪光按默认 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 判定，<b>不享受闪耀护符</b>加成；</p>`,
   },
   {
     title: '自动操作',

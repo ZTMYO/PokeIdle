@@ -1,6 +1,6 @@
 // ===== 道具相关逻辑 =====
 import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _honeyEncounterCount, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyEncounterCount, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDuration, getIncubatorUnlockCost, addRosterEntry } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _honeyEncounterCount, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyEncounterCount, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDuration, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnGameView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay } from './animation.js';
@@ -308,7 +308,9 @@ export async function hatchFromIncubator(slotIndex) {
 
   setCurrentEncounter(poke);
   showView('encounterView');
+  // 孵蛋展示期间隐藏遭遇专属 UI（主角背影/逃跑按钮），结束后恢复由下一次遇敌的 showView 负责
   $('animThrowChar').style.display = 'none';
+  $('fleeBtn').style.display = 'none';
   // 清除可能的精灵球/动画残留
   const strayBall = $('animBall');
   if (strayBall) { strayBall.classList.remove('visible'); strayBall.style.cssText = ''; strayBall.style.display = 'none'; }
@@ -402,12 +404,9 @@ export async function hatchFromIncubator(slotIndex) {
   // 动画完成后清除内联 transform，恢复 CSS 类的 translateX(-50%)
   img.style.transform = '';
 
-  $('encounterName').innerHTML = eggIsShiny
-    ? '<span>' + poke.name + '</span><svg viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;color:var(--ui-color);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
-    : poke.name;
-  $('encounterTypes').innerHTML = (poke.types||[]).map(t =>
-    `<span class="type-badge" style="background:${TYPE_COLORS[t]||'#888'}">${t}</span>`
-  ).join('');
+  // 孵化结果采用精简显示：不展示左上角名字/属性，只保留右上角获得信息
+  $('encounterName').style.display = 'none';
+  $('encounterTypes').style.display = 'none';
   // 新发现标记（普通/闪光分开）
   const existingEntry = gameData.pokedex[idx];
   const isNewDiscovery = !existingEntry
@@ -432,6 +431,8 @@ export async function hatchFromIncubator(slotIndex) {
       }
     }
   }
+  // 稀有度文字（孵化结果不展示捕获率）
+  $('encounterCatchRate').innerHTML = '稀有度 ' + rarityLabel(poke.rarity ?? 0.5);
 
   // ★ 以下数据操作移到动画完成后、saveGame 之前
   // 这样如果在动画期间关闭游戏，孵蛋器槽位仍保留（hatched=true），重进后可重新孵化
@@ -465,7 +466,8 @@ export async function hatchFromIncubator(slotIndex) {
   });
 
   // 入仓库（带随机个体值，来源记为孵蛋）
-  addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
+  const entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
+  setLastObtainedEntryId(entry.id);
 
   // 清空孵蛋器槽位
   incubators[slotIndex] = { eggIndex: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
@@ -477,7 +479,7 @@ export async function hatchFromIncubator(slotIndex) {
   updateStats();
   updateIncubatorBadge();
 
-  $('animThrowChar').style.display = '';
+  // 孵化结果不恢复主角背影（精简显示）；下一次遇敌时 showView 会重新显示
   setEggHatching(false);
 }
 

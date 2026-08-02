@@ -15,12 +15,14 @@
       <div class="window-controls">
         <button class="control-btn window-icon" id="btnPhone" data-view="phoneView" aria-label="手机" title="手机">
           <svg><use xlink:href="./icons/sprites.svg#icon-phone"/></svg>
-        </button>
-        <button class="control-btn window-icon" id="btnShop" data-view="shopView" aria-label="商店" title="商店">
-          <svg><use xlink:href="./icons/sprites.svg#icon-shop"/></svg>
+          <span class="title-bar-badge" id="title-badge-phone" style="display:none;"></span>
         </button>
         <button class="control-btn window-icon" id="btnStation" data-view="bountyView" aria-label="地区悬赏" title="地区悬赏">
           <svg><use xlink:href="./icons/sprites.svg#icon-station"/></svg>
+          <span class="title-bar-badge" id="title-badge-bounty" style="display:none;"></span>
+        </button>        
+        <button class="control-btn window-icon" id="btnShop" data-view="shopView" aria-label="商店" title="商店">
+          <svg><use xlink:href="./icons/sprites.svg#icon-shop"/></svg>
         </button>
         <button class="control-btn window-icon" id="btnSettings" data-view="settingsView" aria-label="设置" title="设置">
           <svg><use xlink:href="./icons/sprites.svg#icon-settings"/></svg>
@@ -52,7 +54,12 @@
             <div class="pokedex-progress" id="pokedexProgress"></div>
             <div class="pokedex-search">
               <div class="pokedex-search-row">
-                <input id="pokedexSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" />
+                <div class="pokedex-search-input-wrap">
+                  <input id="pokedexSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" />
+                  <button class="pokedex-search-clear" id="pokedexSearchClear" style="display:none;" aria-label="清空搜索">
+                    <svg><use xlink:href="./icons/sprites.svg#icon-close"/></svg>
+                  </button>
+                </div>
                 <div id="pokedexRegionFilter" class="pokedex-region-select" tabindex="0">
                   <span id="pokedexRegionLabel">全部地区</span>
                   <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
@@ -70,7 +77,7 @@
               <span class="pokedex-stat" data-sort="shinySeen">闪遇</span>
               <span class="pokedex-stat" data-sort="shinyCaught">闪捕</span>
             </div>
-            <div id="pokedexList"></div>
+            <div id="pokedexList" class="list-scroll"></div>
           </div>
 
           <!-- 手机主页（主菜单） -->
@@ -177,7 +184,12 @@
             <div class="pokedex-progress" id="rosterProgress"></div>
             <div class="pokedex-search">
               <div class="pokedex-search-row">
-                <input id="rosterSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" />
+                <div class="pokedex-search-input-wrap">
+                  <input id="rosterSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" />
+                  <button class="pokedex-search-clear" id="rosterSearchClear" style="display:none;" aria-label="清空搜索">
+                    <svg><use xlink:href="./icons/sprites.svg#icon-close"/></svg>
+                  </button>
+                </div>
                 <div id="rosterFilter" class="pokedex-region-select" tabindex="0">
                   <span id="rosterFilterLabel">全部</span>
                   <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
@@ -193,7 +205,12 @@
               <span class="roster-iv" data-sort="iv">个体值</span>
               <span class="roster-src" data-sort="source">来源</span>
             </div>
-            <div id="rosterList"></div>
+            <div id="rosterList" class="list-scroll"></div>
+          </div>
+
+          <!-- 交换（宝可梦交换） -->
+          <div id="tradeView" class="list-scroll" style="display:none;flex-direction:column;overflow-y:auto;">
+            <div id="tradeContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
           <!-- 混合器页面（小游戏，无滚动条） -->
@@ -209,8 +226,20 @@
           <!-- 放生/提交告别场景（全屏独立场景，底部文字框询问确认） -->
           <div id="goodbyeView">
             <img class="goodbye-scene-img" alt="" />
+            <!-- 交换获得：右上角精简信息（已捕获图标/新发现/稀有度），复用遇敌页样式 -->
+            <div class="encounter-right" id="goodbyeRight" style="display:none;">
+              <span class="encounter-owned-wrap" style="display:none;">
+                <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="./icons/sprites.svg#icon-owned"/></svg>
+                <span class="encounter-tooltip"></span>
+              </span>
+              <div class="encounter-catch-rate"></div>
+              <div class="encounter-new-label">新发现！</div>
+            </div>
             <div class="goodbye-box">
               <div class="goodbye-box-text"></div>
+              <div class="goodbye-box-arrow" data-goodbye-arrow style="display:none;">
+                <svg viewBox="0 0 12 8" width="14" height="10"><path d="M1,2 L11,2 L6,8 Z" fill="#306230"/></svg>
+              </div>
               <div class="goodbye-box-btns">
                 <span class="catch-confirm-btn" data-goodbye-ok>确认</span>
                 <span class="catch-confirm-btn" data-goodbye-cancel>取消</span>

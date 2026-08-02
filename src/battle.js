@@ -1,5 +1,5 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _honeyEncounterCount, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setHoneyEncounterCount, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry } from './state.js';
+import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _honeyEncounterCount, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setHoneyEncounterCount, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, fitPokemonImage } from './ui.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS } from './items.js';
 import { eatBlock } from './mixer.js';
@@ -35,7 +35,8 @@ const BREAK_MSGS = {
     '就差最后一下了！',
     '可惜！明明就差一点了！',
     '几乎要成功了！',
-    '太可惜了！就差那么一下！'
+    '太可惜了！就差那么一下！',
+    '我去！这都没抓到！'
   ]
 };
 
@@ -219,6 +220,9 @@ export function stopAutoFleeTimer() {
     bar.style.width = '100%';
     bar.style.display = 'none';
     if (bar.parentElement) bar.parentElement.style.display = 'none';
+    // 互斥恢复：进度条隐藏时「佛系模式」文字重新显示
+    const text = $('statAutoText');
+    if (text) text.style.display = '';
   }
 }
 
@@ -250,6 +254,9 @@ export function updateAutoFleeBar() {
     bar.style.width = pct + '%';
     bar.style.display = 'block';
     if (bar.parentElement) bar.parentElement.style.display = 'inline-block';
+    // 与「佛系模式」文字互斥：倒计时期间只显示进度条
+    const text = $('statAutoText');
+    if (text) text.style.display = 'none';
   }
 }
 
@@ -302,6 +309,7 @@ export function renderEncounterScene(poke) {
   $('encounterName').innerHTML = (currentIsShiny
     ? '<span>' + poke.name + '</span><svg viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;color:var(--ui-color);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
     : poke.name);
+  $('encounterName').style.display = '';
   const img = $('encounterGif');
   // 丢球/判定动画进行中（宝可梦在球里）：跳过图片重置与重新加载，
   // 否则会把球里正在摇晃判定的宝可梦又显示出来
@@ -328,6 +336,7 @@ export function renderEncounterScene(poke) {
   $('encounterTypes').innerHTML = (poke.types||[]).map(t =>
     `<span class="type-badge" style="background:${TYPE_COLORS[t]}">${t}</span>`
   ).join('');
+  $('encounterTypes').style.display = '';
   // 新发现标记（普通/闪光分开）
   const newLabel = $('encounterNewLabel');
   if (newLabel) {
@@ -458,13 +467,12 @@ export async function throwBall(ballType) {
       msg = '搞定！' + name + ' 被收服了！';
     }
     // 入仓库（带随机个体值）
-    addRosterEntry({ species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource });
+    const entry = addRosterEntry({ species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource });
+    setLastObtainedEntryId(entry.id);
     if (isOnGameView()) updateTextBox(msg, true);
     addSystemLog('pokemon_caught', { pokemon: idx, shiny: currentIsShiny, ball: ballType, auto: _autoCatching });
     await saveGame();
     updateStats();
-    // 仅当自动捕捉循环真正接管时，捕获后直接回挂机；
-    // 闪光暂停转手动等场景保留手动捕获后的交互（点箭头询问是否查看图鉴）
     if (_autoCatching) {
       await delay(300);
       goIdle();

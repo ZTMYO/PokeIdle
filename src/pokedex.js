@@ -83,6 +83,8 @@ export function describeLogEntry(log) {
   if (ballTypes.length === 0) {
     if (log.manual !== undefined) {
       desc = '你直接逃跑了';
+    } else if (log.source === 'trade') {
+      desc = log.gave ? `用${log.gave}交换而来` : '通过交换获得';
     } else if (log.result === 'caught') {
       desc = '通过孵化获得';
     } else {
@@ -212,19 +214,21 @@ export function showEncounterLogs(pokemonIndex) {
     const sorted = [...logs].sort((a, b) => b.time - a.time);
     let content = '<div style="padding:0 4px;">';
     for (const log of sorted) {
-      const isHatch = log.result === 'caught' && Object.values(log.balls).every(v => v === 0);
+      // 孵化与交换都不消耗球（balls 为空对象），需排除交换来源避免误判为孵化
+      const isHatch = log.result === 'caught' && log.source !== 'trade' && Object.values(log.balls).every(v => v === 0);
       let label;
       if (isHatch) {
         label = '☆ 孵化获得';
       } else if (log.result === 'caught') {
-        label = log.source === 'fishing' ? '☆ 钓鱼捕获' : '☆ 捕获成功';
+        label = log.source === 'fishing' ? '☆ 钓鱼捕获' : (log.source === 'trade' ? (log.npcName ? `和${log.npcName}交换获得` : '☆ 交换获得') : '☆ 捕获成功');
       } else if (log.manual !== undefined) {
         label = log.source === 'fishing' ? '钓鱼遭遇后逃跑' : '主动逃跑';
       } else {
         label = log.source === 'fishing' ? '钓鱼遭遇后逃脱' : '精灵逃跑';
       }
       const typeLabel = (() => {
-        if (isHatch) return '';
+        // 孵化与交换都不消耗球：不标注「未丢球」
+        if (isHatch || log.source === 'trade') return '';
         const cnt = Object.values(log.balls).filter(v => v > 0).length;
         if (cnt <= 1) {
           const bt = Object.entries(log.balls).find(([,v]) => v > 0);
@@ -322,11 +326,19 @@ export function matchPinyinPartial(query, pinyin) {
 export function setupPokedexSearch() {
   const input = $('pokedexSearchInput');
   const dropdown = $('pokedexSearchDropdown');
+  const clearBtn = $('pokedexSearchClear');
   if (!input || !dropdown) return;
+
+  // 清空按钮只在有输入时显示
+  const syncClear = () => {
+    if (clearBtn) clearBtn.style.display = input.value.trim() ? '' : 'none';
+  };
+  syncClear();
 
   let hideTimer = null;
 
   input.addEventListener('input', () => {
+    syncClear();
     const q = input.value.trim();
     if (!q) { dropdown.style.display = 'none'; return; }
 
@@ -368,6 +380,7 @@ export function setupPokedexSearch() {
         }
         input.value = '';
         dropdown.style.display = 'none';
+        syncClear();
       });
     });
   });
@@ -381,6 +394,16 @@ export function setupPokedexSearch() {
       dropdown.style.display = '';
     }
   });
+
+  // 清空按钮：清空输入并收起下拉
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      dropdown.style.display = 'none';
+      syncClear();
+      input.focus();
+    });
+  }
 }
 
 // 地区筛选自定义下拉（原为 IIFE，现改为可导出的函数）

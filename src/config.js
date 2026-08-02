@@ -77,6 +77,15 @@ export const BOUNTY_CANDY_MAX = 500;    // 悬赏最高糖果奖励（最难捕�
 export const BOUNTY_JITTER = 0.25;     // 糖果奖励随机浮动比例（±25%）
 export const BOUNTY_RARE_WEIGHT = 0.7; // 悬赏选角时稀有度权重（权重 = 0.3 + 稀有度 × 该值）
 
+// ---- 交换 ----
+export const TRADE_COUNT = 6;          // 每波同时上架的交换 offer 数量
+export const TRADE_REFRESH_MS = 10 * 60 * 1000; // 每十分钟刷新一波
+export const TRADE_NATURE_CHANCE = 0.4; // NPC 指定「想要宝可梦」性格的概率
+export const TRADE_IV_CHANCE = 0.35;    // NPC 指定某一项个体值下限的概率
+export const TRADE_IV_MIN = 24;         // 指定个体值下限的最低值（24~31 随机取）
+export const TRADE_SHINY_CHANCE = 1 / 40; // NPC 愿意给出闪光宝可梦的概率
+export const TRADE_IV_SUM_MIN = 100;    // 给出的宝可梦个体值总和低于该值 → 补强 1~2 项到 31
+
 // 自动存档间隔（秒）
 export const SAVE_INTERVAL = 30;
 
@@ -85,6 +94,26 @@ export const AUTO_FLEE_TIMEOUT = 30000;
 
 // 佛系模式：自动操作无球时，展示遇敌画面后逃跑的等待（毫秒）
 export const AUTO_FLEE_NO_BALL_DELAY = 800;
+
+// ===== 树果农场 =====
+export const FARM_PLOT_COUNT = 6;          // 田地数量
+export const FARM_MATURE_MIN = 30 * 60 * 1000; // 成熟总时长下限（毫秒）
+export const FARM_MATURE_MAX = 60 * 60 * 1000; // 成熟总时长上限（毫秒，同批不会同时成熟）
+// 各阶段占成熟总时长的累计比例：刚种下 / 发芽 / 成长 / 开花结果
+export const FARM_STAGE_DIRT = 2 / 30;
+export const FARM_STAGE_SPROUT = 8 / 30;
+export const FARM_STAGE_GROW = 18 / 30;
+// 湿度：浇水回满，降到 0 停止生长（满湿度可撑 10 分钟）
+export const FARM_MAX_WATER = 100;
+export const FARM_WATER_DROP = 100 / (10 * 60); // 每秒下降点数
+// 种植消耗糖果 + 告示牌树果委托（兑换糖果）
+export const FARM_PLANT_COST = 10;
+export const FARM_BOARD_DEMANDS = 3;   // 告示牌树果委托条数
+export const FARM_BOARD_QTY_MIN = 3;   // 单条需求的最少树果数
+export const FARM_BOARD_QTY_MAX = 10;   // 单条需求的最多树果数
+export const FARM_CANDY_PER_BERRY = 8; // 每颗树果兑换的糖果数
+export const FARM_HARVEST_MIN = 2;   // 收获最少树果数
+export const FARM_HARVEST_MAX = 5;   // 收获最多树果数
 
 // ===== 树果方块（混合器产物） =====
 export const BLOCK_DISTANCE = 1000;       // 树果方块摆放有效期（米）：主角再行走该里程未吃掉则风干失效

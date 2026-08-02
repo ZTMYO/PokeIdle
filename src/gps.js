@@ -358,6 +358,15 @@ export function cancelNavigation() {
   saveGame();
 }
 
+// 外部入口：自动规划前往指定地区的路线（地区悬赏页「前往」按钮）
+export function navigateToRegion(toIdx) {
+  const idx = Number(toIdx);
+  const g = gameData?.gps;
+  if (!g || !Number.isInteger(idx)) return;
+  planRoute(idx);
+  saveGame();
+}
+
 // ---------- 单页渲染 ----------
 function render() {
   const g = gameData.gps;

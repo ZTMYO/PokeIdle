@@ -202,6 +202,7 @@ export function getDefaultSave() {
       totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0,
       totalBlockMade:0, totalPlantings:0, totalHarvests:0, totalBerriesHarvested:0, totalBoardTrades:0,
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
+      totalTrades:0,
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     },
     incubators: Array.from({length: 8}, () => emptyIncubator()),
@@ -210,6 +211,7 @@ export function getDefaultSave() {
     berryFarm: { plots: Array(6).fill(null), stock: {} }, // 树果农场：6 块田地 + 收获库存（键为树果下标）
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
+    trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
@@ -279,8 +281,24 @@ export function addRosterEntry({ species, shiny = false, source = 'normal' }) {
     inRoster: true,
   };
   gameData.roster.push(entry);
+  // 通知依赖仓库变化的界面（如交换页实时刷新按钮可用状态）
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('roster-changed'));
   return entry;
 }
+
+// 稀有度文字等级（捕获率/获得结果展示共用）
+export function rarityLabel(rarity) {
+  if (rarity <= 0.2) return '常见';
+  if (rarity <= 0.4) return '一般';
+  if (rarity <= 0.6) return '稀有';
+  if (rarity <= 0.8) return '罕见';
+  return '极稀有';
+}
+
+// 最近一次获得的宝可梦在仓库中的个体 id（捕获/孵蛋后“查看详情”跳转用）
+let _lastObtainedEntryId = null;
+export function getLastObtainedEntryId() { return _lastObtainedEntryId; }
+export function setLastObtainedEntryId(id) { _lastObtainedEntryId = id; }
 
 // ---------- 系统日志 ----------
 export function addSystemLog(type, details) {

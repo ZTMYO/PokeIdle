@@ -8,7 +8,7 @@ import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 
 // 获得来源 → 中文
-const SOURCE_NAMES = { normal: '野生', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜' };
+const SOURCE_NAMES = { normal: '野生', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
 // 筛选下拉选项：全部 / 闪光 / 各来源（甜甜蜜不参与筛选）
 const FILTER_OPTIONS = [['', '全部'], ['shiny', '闪光'], ...Object.entries(SOURCE_NAMES).filter(([k]) => k !== 'honey')];
 // 六围个体值明细（键 → 显示名）
@@ -20,7 +20,7 @@ function natureText(key) {
   return n ? n.cn : '未知';
 }
 
-// 六维个体值 → 六边形雷达图（顶点自顶部起顺时针排列，满值 31 对应外圈）
+// 六维个体值 → 六边形雷达图
 function ivHexagon(p) {
   const cx = 50, cy = 50, r = 34;
   const pt = (i, ratio) => {
@@ -60,8 +60,9 @@ let _sortBy = 'time';  // 当前排序列：time | name | iv | source
 let _sortDir = -1;     // 1 升序 / -1 降序
 let _filter = '';      // 来源/闪光筛选（''=全部）
 let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
+let _detailFromView = null; // 详情跳转来源（捕获/孵蛋后“查看详情”进入时记录，返回列表后再返回时优先回来源）
 
-// 个体值总和（六围 0~31，最大 186）
+// 个体值总和
 function ivSum(p) {
   if (!p.ivs) return 0;
   return p.ivs.hp + p.ivs.atk + p.ivs.def + p.ivs.spa + p.ivs.spd + p.ivs.spe;
@@ -139,10 +140,10 @@ function renderList() {
     const poke = getPokemonByIndex(img.dataset.icon);
     if (poke?.icon) tryLoadImage(img, poke.icon);
   });
-  // 点击行 → 详情
+  // 点击行 → 详情（从列表进入时清除"查看详情来源"，返回走回列表）
   list.onclick = (e) => {
     const row = e.target.closest('.roster-row');
-    if (row) showRosterDetail(row.dataset.rid);
+    if (row) { _detailFromView = null; showRosterDetail(row.dataset.rid); }
   };
   // 表头排序指示符
   const header = document.querySelector('.roster-header');
@@ -172,7 +173,25 @@ function rowHtml(p) {
 function setupSearch() {
   const input = $('rosterSearchInput');
   if (!input) return;
-  input.oninput = () => { if (!_detailId) renderList(); };
+  const clearBtn = $('rosterSearchClear');
+  // 清空按钮只在有输入时显示
+  const syncClear = () => {
+    if (clearBtn) clearBtn.style.display = input.value.trim() ? '' : 'none';
+  };
+  syncClear();
+  input.oninput = () => {
+    if (!_detailId) renderList();
+    syncClear();
+  };
+  // 清空按钮：清空输入并恢复完整列表
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      if (!_detailId) renderList();
+      syncClear();
+      input.focus();
+    });
+  }
 }
 
 function setupFilter() {
@@ -234,7 +253,8 @@ function showRosterDetail(id) {
   _detailId = id;
   const rootEl = $('rosterView');
   if (!rootEl) return;
-  $('rosterList').scrollTop = 0;
+  const listEl = $('rosterList');
+  if (listEl) { listEl.dataset.savedScroll = listEl.scrollTop; listEl.scrollTop = 0; } // 记住列表位置，详情从顶部开始
   // 隐藏搜索框、表头和进度（与图鉴详情一致）
   rootEl.querySelector('.pokedex-search').style.display = 'none';
   rootEl.querySelector('.roster-header').style.display = 'none';
@@ -339,10 +359,38 @@ export function restoreRosterList() {
   const prog = $('rosterProgress');
   if (prog) prog.style.display = '';
   showRosterView();
+  // 从“获得宝可梦→查看详情”进入时，返回列表后再返回优先回到来源页（孵蛋器/游戏页）
+  if (_detailFromView) { setPrevView(_detailFromView); _detailFromView = null; }
+  // 恢复进入详情前的列表滚动位置
+  const list = $('rosterList');
+  if (list) requestAnimationFrame(() => { list.scrollTop = Number(list.dataset.savedScroll || 0); });
 }
 
 export function isRosterInDetail() {
   return _detailId != null;
+}
+
+// 是否通过"获得宝可梦→查看详情"进入的详情页（返回时应直接回来源页而非仓库列表）
+export function isRosterDetailFromObtain() {
+  return _detailFromView != null;
+}
+
+// 从"获得宝可梦→查看详情"进入的详情页按返回：清理详情状态，直接回来源页
+export function leaveRosterDetailToSource() {
+  stopShinySparkleLoop();
+  if (_detailId == null) return;
+  _detailId = null;
+  const rootEl = $('rosterView');
+  if (rootEl) {
+    rootEl.querySelector('.pokedex-search').style.display = '';
+    rootEl.querySelector('.roster-header').style.display = '';
+  }
+  const prog = $('rosterProgress');
+  if (prog) prog.style.display = '';
+  const target = _detailFromView || 'idleView';
+  _detailFromView = null;
+  showView(target);
+  setPrevView('idleView');
 }
 
 // ---------- 页面入口 ----------
@@ -358,4 +406,12 @@ export function showRosterView() {
   }
   renderList();
   showView('rosterView');
+}
+
+// 从“获得宝可梦→查看详情”进入仓库个体详情（捕获/孵蛋/交换成功后的确认跳转）
+// fromView：从该页面离开后，详情返回列表时再返回优先回到这里
+export function showRosterDetailById(id, fromView) {
+  _detailFromView = fromView || 'idleView';
+  showRosterView();    // 先渲染并显示仓库列表
+  showRosterDetail(id); // 再进入该个体的详情
 }

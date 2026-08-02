@@ -78,6 +78,19 @@ body { margin: 0; padding: 0; cursor: default; }
 .control-btn.window-icon.active { opacity: 1; background: rgba(0,0,0,0.12); }
 .control-btn svg { width: 15px; height: 15px; display: block; }
 
+/* 标题栏应用入口红点 */
+.control-btn.window-icon { position: relative; }
+.title-bar-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  background: #e74c3c;
+  border-radius: 50%;
+  z-index: 2;
+}
+
 /* === 屏幕区域 (上半) === */
 .screen-wrapper {
   flex: 1;
@@ -747,8 +760,9 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 
 .stats-bar {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   padding: 4px 8px 0;
   font-size: 9px;
   color: var(--ui-color);
@@ -757,6 +771,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .stats-bar span:first-child, .stats-bar span:last-child { cursor: pointer; }
 .stats-bar span:first-child:hover, .stats-bar span:last-child:hover { color: var(--ui-color-dark); }
+.stats-bar span:last-child { text-align: right; }
 
 .stat-auto-status { display: inline-flex; align-items: center; gap: 4px; }
 .stat-auto-bar-wrap {
@@ -1114,7 +1129,7 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 10px;
   font-weight: 700;
 }
-/* 孵蛋器应用红点：有蛋孵化完成时点亮 */
+/* 手机主页应用红点：孵蛋完成 / 有可交换宝可梦 / 有干涸树果时点亮 */
 .phone-app-badge {
   position: absolute;
   top: -2px;
@@ -2046,8 +2061,31 @@ body { margin: 0; padding: 0; cursor: default; }
 .bounty-title {
   font-weight: 700;
   font-size: 12px;
-  text-align: center;
+}
+/* 标题行：地区名 + 导航图标，整体居中 */
+.bounty-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   margin-bottom: 3px;
+}
+.bounty-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--ui-color);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.bounty-go svg { display: block; fill: currentColor; }
+.bounty-go:active { opacity: 0.6; transform: translateY(1px); }
+.bounty-go:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .bounty-head {
   font-size: 9px;
@@ -2219,15 +2257,23 @@ body { margin: 0; padding: 0; cursor: default; }
   z-index: 1;
 }
 
-#pokedexList {
+/* 列表/详情滚动容器共用类：撑满剩余高度并纵向滚动 */
+.list-scroll {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+/* 图鉴/仓库列表的父容器自带 6px 右内边距，用负外边距抵消，让滚动条紧贴屏幕右缘 */
+#pokedexList.list-scroll,
+#rosterList.list-scroll {
+  margin-right: -6px;
+  padding-right: 2px;
 }
 .pokedex-header [data-sort] {
   cursor: pointer;
   user-select: none;
   position: relative;
+  white-space: nowrap; /* 防止窄列中"文字+排序箭头"被断行 */
 }
 .pokedex-header [data-sort]:hover {
   opacity: 1;
@@ -2293,10 +2339,15 @@ body { margin: 0; padding: 0; cursor: default; }
   gap: 4px;
   align-items: center;
 }
-.pokedex-search-input {
+.pokedex-search-input-wrap {
+  position: relative;
   flex: 1;
+  min-width: 0;
+}
+.pokedex-search-input {
+  width: 100%;
   box-sizing: border-box;
-  padding: 2px 6px;
+  padding: 2px 18px 2px 6px;
   font-size: 10px;
   border: 1px solid rgba(var(--ui-color-rgb),0.25);
   border-radius: 3px;
@@ -2312,6 +2363,24 @@ body { margin: 0; padding: 0; cursor: default; }
   border-color: rgba(var(--ui-color-rgb),0.5);
   background: rgba(255,255,255,0.3);
 }
+.pokedex-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgba(var(--ui-color-rgb),0.45);
+  cursor: pointer;
+}
+.pokedex-search-clear:hover { color: var(--ui-color); }
+.pokedex-search-clear svg { width: 10px; height: 10px; display: block; }
 .pokedex-region-select {
   position: relative;
   display: flex;
@@ -2491,7 +2560,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #declarationView::-webkit-scrollbar,
 #mixerView::-webkit-scrollbar,
 #berryView::-webkit-scrollbar,
-#rosterList::-webkit-scrollbar {
+#rosterList::-webkit-scrollbar,
+#tradeView::-webkit-scrollbar {
   width: 4px;
 }
 #shopView::-webkit-scrollbar-track,
@@ -2504,7 +2574,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #declarationView::-webkit-scrollbar-track,
 #mixerView::-webkit-scrollbar-track,
 #berryView::-webkit-scrollbar-track,
-#rosterList::-webkit-scrollbar-track {
+#rosterList::-webkit-scrollbar-track,
+#tradeView::-webkit-scrollbar-track {
   background: transparent;
 }
 #shopView::-webkit-scrollbar-thumb,
@@ -2517,7 +2588,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #declarationView::-webkit-scrollbar-thumb,
 #mixerView::-webkit-scrollbar-thumb,
 #berryView::-webkit-scrollbar-thumb,
-#rosterList::-webkit-scrollbar-thumb {
+#rosterList::-webkit-scrollbar-thumb,
+#tradeView::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb), 0.3);
   border-radius: 2px;
 }
@@ -2531,7 +2603,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #declarationView::-webkit-scrollbar-thumb:hover,
 #mixerView::-webkit-scrollbar-thumb:hover,
 #berryView::-webkit-scrollbar-thumb:hover,
-#rosterList::-webkit-scrollbar-thumb:hover {
+#rosterList::-webkit-scrollbar-thumb:hover,
+#tradeView::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--ui-color-rgb), 0.55);
 }
 .shop-item {
@@ -2594,7 +2667,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #gpsView,
 #bountyView,
 #mixerView,
-#berryView {
+#berryView,
+#tradeView {
   align-self: stretch;
   width: 100%;
   height: 100%;
@@ -2903,12 +2977,7 @@ body { margin: 0; padding: 0; cursor: default; }
 .roster-shiny { color: inherit; }
 
 /* 列表复用图鉴样式（.pokedex-entry/.pokedex-header/.pokedex-idx/.pokedex-name/.pokedex-star），
-   仅图标/个体值/来源列按内容放宽列宽 */
-#rosterList {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
+   仅图标/个体值/来源列按内容放宽列宽；滚动容器用共用类 .list-scroll */
 #rosterView .pokedex-name {
   flex: 0 0 60px;
   max-width: none;
@@ -3042,6 +3111,26 @@ body { margin: 0; padding: 0; cursor: default; }
   text-align: center;
   font-size: 8px;
 }
+/* 交换/悬赏提交列表：个体值列用 flex:1 吸收剩余宽度，把性格/按钮列固定到右缘，
+   表头与各行列位置一致，避免按内容宽度错位 */
+.bounty-trade-list .roster-ivs {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+/* NPC 有该项个体值需求时高亮 */
+.bounty-trade-list .roster-iv-hl {
+  font-weight: 700;
+  color: var(--ui-color);
+}
+.bounty-trade-list .roster-nature {
+  width: 44px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 10px;
+}
 .bounty-trade-btn-col {
   width: 44px;
   flex-shrink: 0;
@@ -3049,15 +3138,31 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 10px;
   font-weight: 700;
 }
+/* 交换/悬赏提交列表表头：三个列文字统一样式（10px 粗体、不淡化）
+   （gap 与行一致保证各列完全对齐；个体值列 flex:1 后表头不会显得拥挤） */
+.bounty-trade-list .pokedex-header.roster-header {
+  gap: 2px;
+  padding: 2px 0 3px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.bounty-trade-list .pokedex-header .roster-ivs,
+.bounty-trade-list .pokedex-header .roster-nature,
+.bounty-trade-list .pokedex-header .bounty-trade-btn-col {
+  font-size: inherit;
+  font-weight: inherit;
+  opacity: 1;
+}
 .bounty-trade-btn {
   display: block;
   margin-left: auto;
+  margin-right: 4px;
   font-family: inherit;
   line-height: 1;
   font-size: 10px;
   font-weight: 700;
   color: #306230;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border: 1px solid #306230;
   border-radius: 3px;
   background: transparent;
@@ -3066,6 +3171,133 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .bounty-trade-btn:hover { background: rgba(48,98,48,0.15); }
 .bounty-trade-btn:active { transform: scale(0.92); }
+
+/* === 交换广场 === */
+#tradeView { padding: 0 6px 4px; }
+/* 顶部刷新倒计时 */
+#tradeRefreshTip {
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 2px 6px;
+  opacity: 0.8;
+}
+.trade-list {
+  display: flex;
+  flex-direction: column;
+}
+/* 每条需求一条，仅用分隔线隔开 */
+.trade-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 2px;
+  border-bottom: 1px solid rgba(48, 98, 48, 0.15);
+}
+.trade-row:last-child { border-bottom: none; }
+.trade-row.traded { opacity: 0.5; }
+/* 主行：NPC 图 + 给出图标 + 需求文字 + 交换按钮 */
+.trade-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* NPC 首帧拼图：13列×2行，每格 16×21（已裁顶部留白、底部对齐）；background-size 为 2x（416×84），位置由 JS 内联计算 */
+.npc-sprite {
+  width: 32px;
+  height: 42px;
+  background-repeat: no-repeat;
+  background-image: url('./character/npcs.png');
+  background-size: 416px 84px;
+  image-rendering: pixelated;
+}
+/* 底部一小行：NPC 名 / 给出宝可梦名（闪光带星标），都靠左 */
+.trade-footer {
+  padding-left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 9px;
+  opacity: 0.85;
+}
+.trade-npc-name {
+  white-space: nowrap;
+}
+.trade-give-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 60%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.trade-shiny {
+  flex-shrink: 0;
+  color: var(--ui-color);
+}
+/* 需求文字（可换行，字号稍大） */
+.trade-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+/* 给出宝可梦入口：小图标，点击进入详情页 */
+.trade-give {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: background 0.15s;
+  transform: translateY(5px);
+  animation: pokeJump 0.5s steps(1, end) infinite;
+  animation-delay: 0.3s;
+}
+@keyframes pokeJump {
+  0%, 55%  { transform: translateY(5px); }
+  58%      { transform: translateY(1px); }
+  68%      { transform: translateY(1px); }
+  71%      { transform: translateY(5px); }
+  100%     { transform: translateY(5px); }
+}
+.trade-give-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.trade-btn {
+  flex-shrink: 0;
+  font-family: inherit;
+  line-height: 1;
+  font-size: 10px;
+  font-weight: 700;
+  color: #306230;
+  padding: 5px 8px;
+  border: 1px solid #306230;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.trade-btn:hover { background: rgba(48, 98, 48, 0.15); }
+.trade-btn:active { transform: scale(0.92); }
+.trade-btn.locked { opacity: 0.4; cursor: default; }
+.trade-btn.done { opacity: 0.4; cursor: default; }
+.trade-empty {
+  padding: 24px 0;
+  text-align: center;
+  opacity: 0.6;
+}
 
 /* === 告别场景（放生 / 提交悬赏复用）：全屏独立场景，图标锚点与遭遇页一致 === */
 #goodbyeView {
@@ -3101,6 +3333,14 @@ body { margin: 0; padding: 0; cursor: default; }
   from { opacity: 1; transform: translateX(-50%) scale(1); }
   to   { opacity: 0; transform: translateX(-50%) scale(0.5); }
 }
+/* 交换获得：收到的宝可梦从小放大入场（与抓捕成功同款节奏） */
+.goodbye-scene-img.arrive {
+  animation: tradeArrive 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes tradeArrive {
+  from { transform: translateX(-50%) scale(0.25); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1); opacity: 1; }
+}
 /* 底部文字框（询问确认 / 再见文案）——与战斗页 .text-box 同款排布：左文案 + 右下角按钮 */
 .goodbye-box {
   position: absolute;
@@ -3128,6 +3368,18 @@ body { margin: 0; padding: 0; cursor: default; }
   gap: 4px;
   align-items: center;
 }
+/* 交换获得提示：底部倒三角箭头（与抓捕成功同款），点击进入下一步 */
+.goodbye-box-arrow {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 2px;
+}
+.goodbye-box-arrow:active { transform: translateY(1px); }
 
 /* 个体详情页放生按钮 */
 .roster-release {

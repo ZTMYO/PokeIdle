@@ -1,6 +1,6 @@
 // ==================== 捕捉动画函数 ====================
 import { $, fitPokemonImage, getStageSize, tryLoadPokemonImage } from './ui.js';
-import { currentEncounter, currentIsShiny, encounterBallsUsed } from './state.js';
+import { currentEncounter, currentIsShiny, encounterBallsUsed, gameData, rarityLabel } from './state.js';
 import { FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';
 
 // 精灵球捕捉动画用的图片（位于 src/items/）
@@ -82,9 +82,12 @@ export async function setupCatchAnim(ballType) {
     fitPokemonImage(pkmn);
   }
 
-  // 宝可梦位置：动态获取图片实际尺寸
-  const pkmnW = pkmn.offsetWidth || 100;
-  const pkmnH = pkmn.offsetHeight || 100;
+  // 宝可梦位置：动态获取图片实际尺寸。
+  // 优先用适配后的内联宽高（fitPokemonImage 已写）或自然尺寸，再退到 offsetWidth；
+  // 后台自动捕捉时 encounterView 处于 display:none，offsetWidth 恒为 0，落到 100 兜底
+  // 会让像素定位与真实渲染尺寸不符，挣脱/摇晃动画中精灵整体偏移
+  const pkmnW = parseFloat(pkmn.style.width) || pkmn.naturalWidth || pkmn.offsetWidth || 100;
+  const pkmnH = parseFloat(pkmn.style.height) || pkmn.naturalHeight || pkmn.offsetHeight || 100;
   const pkmnOrigX = stageW / 2 - pkmnW / 2;
   // CSS bottom:42% → 图片底部在 stageH * 0.58 处
   const pkmnOrigY = stageH * 0.58 - pkmnH;
@@ -272,8 +275,13 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
   const textEl = view.querySelector('.goodbye-box-text');
   const okBtn = view.querySelector('[data-goodbye-ok]');
   const cancelBtn = view.querySelector('[data-goodbye-cancel]');
-  // 重置场景：移除 leaving 重播入场动画、清空旧图
+  const arrow = view.querySelector('[data-goodbye-arrow]');
+  // 重置场景：移除 leaving/arrive 重播入场动画、清空旧图、还原按钮文案、隐藏箭头
   img.classList.remove('leaving');
+  img.classList.remove('arrive');
+  okBtn.textContent = '确认';
+  cancelBtn.textContent = '取消';
+  if (arrow) arrow.style.display = 'none';
   img.src = '';
   // 先显示场景再加载图片：隐藏状态下中文路径直接加载会失败（WebView2）
   textEl.textContent = prompt; 
@@ -297,6 +305,72 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
     setTimeout(() => finish(true), 1600);
   };
   cancelBtn.onclick = () => finish(false);
+}
+
+// 交换第二阶段：收到的宝可梦从小放大显示，右上角精简信息（已捕获/新发现/稀有度），
+// 底部文案分两步询问是否查看仓库详情（与抓捕成功一致：展示 → 点继续 → 询问）
+export function showTradeReceive({ poke, shiny = false, isNew = false, wasOwned = false, onYes, onClose }) {
+  const view = $('goodbyeView');
+  if (!view || view._busy || !poke) { onClose && onClose(); return; }
+  view._busy = true;
+  const img = view.querySelector('.goodbye-scene-img');
+  const textEl = view.querySelector('.goodbye-box-text');
+  const okBtn = view.querySelector('[data-goodbye-ok]');
+  const cancelBtn = view.querySelector('[data-goodbye-cancel]');
+  const arrow = view.querySelector('[data-goodbye-arrow]');
+  const right = view.querySelector('#goodbyeRight');
+  // 重置场景：移除 leaving、重播从小放大入场动画、清空旧图、隐藏按钮
+  img.classList.remove('leaving');
+  img.classList.add('arrive');
+  img.src = '';
+  textEl.textContent = '';
+  view.style.display = 'flex';
+  // 右上角精简信息：已捕获图标（按交换前判定）/ 新发现 / 稀有度
+  if (right) {
+    const ownedWrap = right.querySelector('.encounter-owned-wrap');
+    const tipEl = right.querySelector('.encounter-tooltip');
+    const rarityEl = right.querySelector('.encounter-catch-rate');
+    const newLabel = right.querySelector('.encounter-new-label');
+    right.style.display = '';
+    if (ownedWrap) ownedWrap.style.display = wasOwned ? '' : 'none';
+    if (tipEl) {
+      const logs = (gameData.encounterLogs || {})[String(poke.index)] || [];
+      const first = logs.find(l => l.result === 'caught' && !!l.shiny === shiny);
+      if (first && first.time) {
+        const d = new Date(first.time);
+        const pad = n => String(n).padStart(2, '0');
+        tipEl.textContent = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } else {
+        tipEl.textContent = '首次捕获：较早前';
+      }
+    }
+    if (rarityEl) rarityEl.textContent = '稀有度 ' + rarityLabel(poke.rarity ?? 0.5);
+    if (newLabel) newLabel.style.display = isNew ? '' : 'none';
+  }
+  // 后缀必须显式传入，否则文件名会拼入 undefined 导致加载失败
+  tryLoadPokemonImage(img, poke, shiny ? '_shiny' : '');
+  // 第一步：展示获得的宝可梦 + 底部倒三角箭头（与抓捕成功同款），点击进入下一步
+  textEl.textContent = `交换获得 ${poke.name}！`;
+  okBtn.style.display = 'none';
+  cancelBtn.style.display = 'none';
+  arrow.style.display = 'flex';
+  arrow.onclick = () => {
+    // 第二步：询问是否查看仓库详情
+    textEl.textContent = '是否查看该宝可梦的详情？';
+    arrow.style.display = 'none';
+    okBtn.textContent = '确定';
+    cancelBtn.textContent = '取消';
+    okBtn.style.display = '';
+    cancelBtn.style.display = '';
+    const close = () => {
+      img.classList.remove('arrive');
+      view.style.display = 'none';
+      view._busy = false;
+      if (right) right.style.display = 'none';
+    };
+    okBtn.onclick = () => { close(); onYes && onYes(); };
+    cancelBtn.onclick = () => { close(); onClose && onClose(); };
+  };
 }
 
 // === 阶段1：抛物线抛球 ===
@@ -421,10 +495,7 @@ async function animBreakFree(ball, ballType, pkmn, ballCX, ballCY, pkmnOrigX, pk
   });
   ball.style.display = 'none';
 
-  // 4. 恢复像素定位
   pkmn.style.transform = 'none';
-  pkmn.style.left = pkmnOrigX + 'px';
-  pkmn.style.top = pkmnOrigY + 'px';
 }
 
 // === 分支2：捕捉成功 — 锁球反馈 + 黄色星星 + 球消失 ===

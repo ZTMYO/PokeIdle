@@ -21,7 +21,7 @@ import {
   setHoneyEncounterCount, setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
   setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState,
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
-  restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry,
+  restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
   hasAnyBall, saveSessionState, rand, randInt, formatNum, formatTime,
   setEncounterMsg, addPlaySeconds,
 } from './state.js';
@@ -39,14 +39,15 @@ import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
   tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
-import { showEncounterLogs, restorePokedex, setupRegionDropdown,
+import { restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
-import { showRosterView, isRosterInDetail, restoreRosterList } from './roster.js';
+import { showRosterView, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList } from './roster.js';
+import { isTradeInDetail, restoreTradeList } from './trade.js';
 import { showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
-import { showPhoneView } from './phone.js';
+import { showPhoneView, updateTradeBadge, updateBerryBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, ensureRoamDest, showGpsView } from './gps.js';
-import { ensureBounty } from './bounty.js';
+import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -111,9 +112,19 @@ function _pickNextRoad() {
 // ---------- 返回按钮 ----------
 function goBack() {
   if (_pokedexInLogView) { restorePokedex(); return; }
-  if (isRosterInDetail()) { restoreRosterList(); return; }
-  showView(_prevView);
+  if (isRosterInDetail()) {
+    if (isRosterDetailFromObtain()) { leaveRosterDetailToSource(); }
+    else { restoreRosterList(); }
+    return;
+  }
+  if (isTradeInDetail()) { restoreTradeList(); return; }
+  // 悬赏提交列表：标题栏返回先回悬赏列表
+  if (isBountyInTrade()) { restoreBountyList(); return; }
+  const target = _prevView;
+  showView(target);
   setPrevView('idleView');
+  // 返回手机主页时兜底同步红点（showView 不重建页面，避免漏刷新）
+  if (target === 'phoneView') { updateTradeBadge(); updateBerryBadge(); updatePhoneBadge(); }
 }
 
 // ---------- 背包点击 ----------
@@ -214,6 +225,7 @@ function onGameTick() {
   }
   if (incubatorChanged) {
     updateIncubatorBadge();
+    updatePhoneBadge(); // 孵蛋完成也同步手机图标红点
     if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
   }
 
@@ -223,7 +235,13 @@ function onGameTick() {
     updateIncubatorTimers();
   }
   // badge 同步
-  if (gameTick % 5 === 0) updateIncubatorBadge();
+  if (gameTick % 5 === 0) {
+    updateIncubatorBadge();
+    updateTradeBadge();
+    updateBerryBadge();
+    updateBountyBadge();
+    updatePhoneBadge();
+  }
 }
 
 // ---------- 初始化 ----------
@@ -267,6 +285,8 @@ async function init() {
   ensureGpsState(); // 兼容旧存档：补齐 GPS 状态（默认从丰缘出发）
   ensureRoamDest(); // 漫游默认开启且无目的地时，自动开始导航
   ensureBounty();   // 生成/恢复当日地区悬赏
+  updateBountyBadge(); // 初始化标题栏悬赏红点
+  updatePhoneBadge(); // 初始化标题栏手机聚合红点
 
   setLastRegionId(getCurrentRegion().id);
   await saveGame();
@@ -514,6 +534,7 @@ async function init() {
   }
   // 孵化器 badge 初始同步（无 session 时也要同步，数据在 gameData 持久存档中）
   updateIncubatorBadge();
+  updatePhoneBadge(); // 手机图标聚合红点（孵蛋/交换/树果）
 
   // 事件绑定 — 背包槽
   document.querySelectorAll('.bag-slot').forEach(slot => {
@@ -525,10 +546,15 @@ async function init() {
   const textBoxArrow = $('textBoxArrow');
   if (textBoxArrow) {
     textBoxArrow.addEventListener('click', () => {
-      // 手动捕获（自动捕捉未实际接管，如闪光暂停转手动）→ 询问是否查看图鉴
+      // 手动捕获（自动捕捉未实际接管，如闪光暂停转手动）→ 询问是否查看仓库详情
       if (phase === 'caught' && !_autoCatching) {
         $('textBoxArrow').style.display = 'none';
-        $('textBoxContent').textContent = '是否跳转到图鉴？';
+        $('textBoxContent').textContent = '是否查看该宝可梦的详情？';
+        $('catchConfirmBtns').style.display = 'flex';
+      } else if (phase === 'eggResult') {
+        // 孵蛋成功（精简显示）→ 询问是否查看仓库详情
+        $('textBoxArrow').style.display = 'none';
+        $('textBoxContent').textContent = '是否查看该宝可梦的详情？';
         $('catchConfirmBtns').style.display = 'flex';
       } else {
         setCatchConfirmStep(false);
@@ -537,14 +563,15 @@ async function init() {
     });
   }
 
-  // 捕捉确认
+  // 捕捉/孵蛋确认（查看仓库个体详情，非图鉴）
   $('confirmYes')?.addEventListener('click', () => {
     $('catchConfirmBtns').style.display = 'none';
     setCatchConfirmStep(false);
-    const idx = currentEncounter.index;
+    const entryId = getLastObtainedEntryId();
     goIdle();
-    showEncounterLogs(idx);
-    showView('pokedexView');
+    if (entryId) {
+      import('./roster.js').then(m => m.showRosterDetailById(entryId, 'idleView'));
+    }
   });
   $('confirmNo')?.addEventListener('click', () => {
     $('catchConfirmBtns').style.display = 'none';

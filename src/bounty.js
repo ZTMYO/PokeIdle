@@ -4,7 +4,7 @@
 // 仓库中拥有该宝可梦（在仓个体）即可提交（交出一只个体）。
 // 只有今日到访过的地区才显示悬赏内容（离开后仍可查看）；提交必须到达该地区。
 import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, phase, setPrevView, saveGame, addSystemLog } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, getNature, getCurrentRegion, phase, setPrevView, saveGame, addSystemLog } from './state.js';
 import { $, showView, updateStats, tryLoadImage } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
 
@@ -92,9 +92,27 @@ function hasInRoster(pokemonIdx) {
   return (gameData.roster || []).some(p => String(p.species) === idx && p.inRoster);
 }
 
+// 标题栏悬赏入口红点：当前地区是否有可提交的悬赏（未提交且仓库有该个体）
+export function hasRedeemableBounty() {
+  ensureBounty();
+  const g = gameData.bounty;
+  if (!g || !Array.isArray(g.rewards)) return false;
+  const rewards = g.rewards[getCurrentRegion().id];
+  if (!Array.isArray(rewards)) return false;
+  return rewards.some(b => b && !b.claimed && hasInRoster(b.pokemon));
+}
+
+// 刷新标题栏悬赏入口红点（提交/换地区/仓库变化后调用）
+export function updateBountyBadge() {
+  const badge = $('title-badge-bounty');
+  if (badge) badge.style.display = hasRedeemableBounty() ? '' : 'none';
+}
+
 // ---------- 渲染 ----------
 const CANDY_IMG = '<img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" />';
 const BACK_ICON = '<svg viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="./icons/sprites.svg#icon-back"/></svg>';
+// 标题右侧导航图标（纸飞机样式），fill 跟随主题色
+const GO_ICON = '<svg viewBox="0 0 1024 1024" width="13" height="13" aria-hidden="true"><path d="M123.92 555.9a32 32 0 0 1-14.82-60.38l719.19-374.9a32 32 0 0 1 29.59 56.76l-719.2 374.89a31.87 31.87 0 0 1-14.76 3.63z"/><path d="M608.6 957.7a32 32 0 0 1-30.6-41.27l234.64-776.34a32 32 0 0 1 61.26 18.52L639.22 935a32 32 0 0 1-30.62 22.7zM505.92 580.44c-0.68 0-1.36 0-2.05-0.07l-381.46-24.12a32 32 0 1 1 4-63.88l381.5 24.13a32 32 0 0 1-2 63.94z"/><path d="M608.14 957.32a32 32 0 0 1-30.87-23.63L475 556.82a32 32 0 1 1 61.77-16.76L639 916.93a32 32 0 0 1-22.51 39.26 31.61 31.61 0 0 1-8.35 1.13z"/></svg>';
 // 当前翻页所在地区索引（打开页面时默认定位到当前地区）
 let _pageIdx = 2;
 
@@ -112,6 +130,7 @@ function renderBounty() {
   const name = REGION_CYCLE[i];
   const visited = !!g.visited[i];
   const isCur = i === cur.id;
+  // 导航图标：已在当前地区时不显示（标题也不标注"当前"）
 
   let body;
   if (!visited) {
@@ -158,7 +177,10 @@ function renderBounty() {
 
   content.innerHTML = `
     <div class="bounty-wrap">
-      <div class="bounty-title">${name}${isCur ? '（当前）' : ''}</div>
+      <div class="bounty-title-row">
+        <span class="bounty-title">${name}</span>
+        ${isCur ? '' : `<button class="bounty-go" data-bounty-go aria-label="前往${name}" title="前往${name}">${GO_ICON}</button>`}
+      </div>
       <div class="bounty-head">${head}</div>
       <div class="bounty-pager">
         <button class="bounty-arrow prev" data-page="prev" aria-label="上一个地区">${BACK_ICON}</button>
@@ -200,11 +222,22 @@ function doClaimBounty(regionIdx, bi) {
   addSystemLog('bounty_claim', { pokemon: b.pokemon, candy: b.candy });
   saveGame();
   updateStats();
+  updateBountyBadge(); // 当前地区无剩余可提交时熄灭红点
   renderBounty();
 }
 
 // ---------- 提交列表（类似仓库列表） ----------
 let _tradeMode = null; // 正在提交的悬赏：{ regionIdx, bi }，非 null 时悬赏页显示提交列表
+
+// 是否处于提交列表子页（标题栏返回时先回悬赏列表）
+export function isBountyInTrade() {
+  return _tradeMode != null;
+}
+// 退出提交列表，返回悬赏列表
+export function restoreBountyList() {
+  _tradeMode = null;
+  renderBounty();
+}
 
 // 渲染提交列表：复用仓库行样式，每行右侧为「提交」按钮
 function renderBountyTrade(content, regionIdx, bi) {
@@ -215,30 +248,27 @@ function renderBountyTrade(content, regionIdx, bi) {
   const rows = candidates.length === 0
     ? '<div class="roster-trade-empty">仓库中没有该宝可梦，无法提交</div>'
     : candidates.map((p, i) => {
-        const sum = p.ivs ? p.ivs.hp + p.ivs.atk + p.ivs.def + p.ivs.spa + p.ivs.spd + p.ivs.spe : 0;
+        const ivsText = p.ivs ? ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].map(k => p.ivs[k] || 0).join('/') : '';
         const icon = poke?.icon ? '<img class="roster-icon-img" data-trade-icon alt="" />' : '';
         return `
         <div class="pokedex-entry roster-row bounty-trade-row">
           <span class="roster-icon">${icon}</span>
           <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
-          <span class="pokedex-idx">#${String(p.species)}</span>
-          <span class="pokedex-name">${poke ? poke.name : '#' + String(p.species)}</span>
-          <span class="roster-iv">${sum}</span>
+          <span class="roster-ivs">${ivsText}</span>
+          <span class="roster-nature">${getNature(p.nature).cn}</span>
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">提交</button></span>
         </div>`;
       }).join('');
   content.innerHTML = `
     <div class="bounty-trade-list">
       <div class="bounty-trade-head">
-        <span data-trade-back class="bounty-trade-back">${BACK_ICON}</span>
         <span>提交 ${pokeName}</span>
       </div>
       <div class="pokedex-header roster-header">
         <span class="roster-icon"></span>
         <span class="pokedex-star"></span>
-        <span class="pokedex-idx">#</span>
-        <span class="pokedex-name">名称</span>
-        <span class="roster-iv">个体值</span>
+        <span class="roster-ivs">个体值</span>
+        <span class="roster-nature">性格</span>
         <span class="bounty-trade-btn-col">提交</span>
       </div>
       ${rows}
@@ -288,13 +318,8 @@ export function showBountyView() {
   showView('bountyView');
   const content = $('bountyContent');
   content.onclick = (e) => {
-    // 提交列表模式：只响应返回与行内「提交」
+    // 提交列表模式：只响应行内「提交」（返回走标题栏 back）
     if (_tradeMode) {
-      if (e.target.closest('[data-trade-back]')) {
-        _tradeMode = null;
-        renderBounty();
-        return;
-      }
       const btn = e.target.closest('[data-trade-submit]');
       if (btn) { submitTrade(btn.dataset.tradeSubmit); return; }
       return;
@@ -307,8 +332,24 @@ export function showBountyView() {
       renderBounty();
       return;
     }
+    // 「前往」：跳转导航页并自动规划前往当前展示地区
+    const go = e.target.closest('.bounty-go');
+    if (go) {
+      if (go.disabled) return;
+      setPrevView('bountyView'); // 返回键回到悬赏页
+      import('./gps.js').then(m => { m.navigateToRegion(_pageIdx); m.showGpsView(); });
+      return;
+    }
     const btn = e.target.closest('.bounty-claim:not(.locked):not(.done)');
     if (!btn) return;
     claimBounty(Number(btn.dataset.region), Number(btn.dataset.bi));
   };
 }
+
+// 后台新增宝可梦（捕获/孵化/交换）时，悬赏页若可见则实时刷新按钮/列表状态；同时刷新标题栏红点
+window.addEventListener('roster-changed', () => {
+  updateBountyBadge();
+  const tv = $('bountyView');
+  if (!tv || tv.style.display !== 'flex') return;
+  renderBounty();
+});
