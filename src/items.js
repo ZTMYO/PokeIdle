@@ -507,6 +507,7 @@ export async function doCandyExchange(itemKey) {
   gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey]||0) + qty; // 商店购买也计入道具获得
   addSystemLog('shop_purchase', { item: itemKey, qty, cost });
   updateBackpack(itemKey);
+  updateStats(); // 同步底部糖果数量（statProgress），避免延迟到下次挂机 tick 才刷新
   // 刷新弹窗
   const dlg = $('candyDialog');
   if (dlg?.classList.contains('open')) openCandyDialog();

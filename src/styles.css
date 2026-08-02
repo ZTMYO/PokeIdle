@@ -3083,12 +3083,12 @@ body { margin: 0; padding: 0; cursor: default; }
   border-color: var(--ui-color);
 }
 
-/* === 启动画面=== */
+/* === 启动画面 === */
 #splash {
   position: absolute;
   inset: 0;
   z-index: 10000;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   background: var(--screen-bg);
@@ -3177,6 +3177,14 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 /* 启动期间背包槽位隐藏，道具落位时依次浮现 */
 .splash-hidden { opacity: 0 !important; }
+/* 开场剧情结束后进入 splash：底部背包栏由透明淡入，避免 boot-no-ui 移除时瞬间闪现 */
+.backpack-bar.splash-reveal {
+  animation: backpack-bar-in 0.5s ease;
+}
+@keyframes backpack-bar-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .bag-slot--pop { animation: bag-pop 0.45s ease forwards; }
 @keyframes bag-pop {
   from { opacity: 0; transform: scale(0.4); }
@@ -3621,3 +3629,112 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .roster-release:hover { background: rgba(var(--ui-color-rgb),0.12); }
 .roster-release:active { transform: scale(0.92); }
+
+/* === 开场剧情 === */
+#introView {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--screen-bg);
+  overflow: hidden;
+}
+.intro-stage {
+  position: absolute;
+  inset: 0;
+}
+/* 选角后的 tile 场景画布：铺在底部，角色站其上 */
+#introSceneCanvas {
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+/* 主角：walk 像素小人（16px 帧 → 1.5x），停靠左侧面向小田卷 */
+.intro-player-wrap {
+  position: absolute;
+  left: 25%;
+  bottom: 24%;
+  margin-left: -12px;
+}
+.intro-player {
+  width: 24px;
+  height: 33px;
+  background: url('./character/brendan-walk.png') 75% 0 no-repeat;
+  background-size: 900% 100%;
+  image-rendering: pixelated;
+}
+/* 小田卷：birch-walk.png（16px 帧 → 1.5x），停靠右侧，镜像后面向左侧主角 */
+.intro-birch-wrap {
+  position: absolute;
+  left: 74%;
+  bottom: 24%;
+  margin-left: -12px;
+}
+.intro-birch {
+  width: 24px;
+  height: 31px;
+  background: url('./character/birch-walk.png') 75% 0 no-repeat;
+  background-size: 900% 100%;
+  transform: scaleX(-1);
+  image-rendering: pixelated;
+}
+.intro-player-wrap,
+.intro-birch-wrap { opacity: 0; z-index: 2; }
+/* 角色选择：角色直接贴在背景草地上，无容器框 */
+.intro-title {
+  font-family: monospace;
+  position: absolute;
+  top: 10%;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--ui-color-dark);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  user-select: none;
+}
+.intro-pick-btn {
+  position: absolute;
+  bottom: 26%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.intro-pick-btn[data-gender="brendan"] { left: calc(25% - 60px); }
+.intro-pick-btn[data-gender="may"] { right: calc(25% - 60px); }
+.intro-pick-btn img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transition: transform 0.15s;
+}
+.intro-pick-btn:hover img { transform: translateY(-4px); }
+.intro-pick-btn:active img { transform: scale(0.92); }
+.intro-pick-btn span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+}
+/* 剧情结束后的开机过渡：screen-wrapper 从底部向上收缩为正方形（顶部固定、底边上移），随后恢复 UI 进入 splash */
+.screen-wrapper.boot-collapse {
+  transition: height 0.9s cubic-bezier(0.45, 0, 0.2, 1);
+}
+/* 开场剧情期间隐藏全部 UI：底部背包/统计栏与顶部 4 个应用入口按钮（保留最小化/关闭），结束后随开机动画浮现 */
+body.boot-no-ui .backpack-bar { display: none; }
+body.boot-no-ui .control-btn.window-icon { display: none; }

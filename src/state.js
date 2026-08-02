@@ -211,7 +211,8 @@ export function getDefaultSave() {
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
-    settings: { autoCatch: false, autoFlee: true, windowPinned: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' },
+    introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）
+    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' },
   };
 }
 

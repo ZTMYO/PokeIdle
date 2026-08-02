@@ -196,7 +196,7 @@ export function showBerryView() {
   startTimer();
 }
 
-// 外部刷新：同步手机主页红点，农场页可见时直接重绘
+// 外部刷新（调试辅助/联动）：同步手机主页红点，农场页可见时直接按最新数据重绘
 export function refreshBerryView() {
   notifyBerryChanged();
   if ($('berryView')?.style.display === 'none') return;

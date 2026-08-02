@@ -40,6 +40,7 @@ import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
 import { helperTick, refreshBerryView } from './berry.js';
+import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex } from './roster.js';
@@ -56,6 +57,7 @@ let ROAD_PRESETS = null;
 let ROAD_LAND = [];   // 普通陆地路段池（无垂钓点、非自行车道）
 let ROAD_WATER = [];  // 水域路段池（有垂钓点，可钓鱼）
 let ROAD_BIKE = [];   // 自行车道路段池（不遇敌、不拾取、快速推进里程）
+window.__introActive = false; // 开场剧情进行中（gate 挂机推进，拦截箭头/确认点击）
 let _roadIdx = 0;
 let _roadCycleStart = 0;
 
@@ -158,6 +160,7 @@ function onBagClick(itemKey) {
 
 // ---------- 游戏 Tick ----------
 function onGameTick() {
+  if (window.__introActive) return; // 开场剧情期间不推进挂机
   setGameTick(gameTick + 1);
   gameData.stats.totalPlaySeconds++;
   addPlaySeconds(gameData, 1); // 今日挂机时长（跨天自动清零重计）
@@ -437,13 +440,39 @@ async function init() {
   updateBackpack();
   updateStats();
   applyCharSprites();
-  startIdleRotation();
-  showView('idleView');
-  road.start();
 
-  // 恢复会话状态
-  const sessionState = restoreSessionState();
-  if (sessionState) {
+  // 旧存档无 introDone 字段 → 视为已完成开场，跳过剧情
+  if (gameData.introDone === undefined) gameData.introDone = true;
+
+  // 首次进入：先播开场剧情（选角色 → 与小田卷碰面 → 确认开始），完成前不启动挂机，中途退出需重来
+  if (gameData.introDone !== true) {
+    // 剧情期间隐藏底部背包/统计栏与顶部应用按钮（纯剧情画面）；最小化/关闭保持可用
+    document.body.classList.add('boot-no-ui');
+    window.__introActive = true;
+    startIntro(() => {
+      window.__introActive = false;
+      gameData.introDone = true;
+      // 底部背包/统计栏与顶部按钮的恢复由 startSplashDrop 统一处理（splash 显示后淡入，避免闪现）
+      saveGame().then(() => { beginGameplay(); startSplashDrop(); });
+    });
+  } else {
+    beginGameplay();
+    startSplashDrop();
+  }
+
+  // 主游戏流程：显示挂机界面、恢复会话、启动循环与遇敌调度
+  function beginGameplay() {
+    // 开场已结束，恢复标题栏按钮（开场期间保持禁用防止切走）
+    const controls = document.querySelector('.window-controls');
+    if (controls) controls.classList.remove('controls-disabled');
+
+    startIdleRotation();
+    showView('idleView');
+    road.start();
+
+    // 恢复会话状态
+    const sessionState = restoreSessionState();
+    if (sessionState) {
     const willEncounter = sessionState.phase === 'encounter' && sessionState.encounter;
 
     // 恢复 Buff 状态（遇敌中不启动倒计时）
@@ -555,6 +584,16 @@ async function init() {
   updateIncubatorBadge();
   updatePhoneBadge(); // 手机图标聚合红点（孵蛋/交换/树果）
 
+  // 启动循环与遇敌调度（开场期间 onGameTick 已被 gate 拦截，此处仅正常启动一次）
+  setInterval(onGameTick, 1000);
+  setInterval(() => saveGame(), SAVE_INTERVAL * 1000);
+
+  setTimeout(() => {
+    // 当前处于未钓过的垂钓路段时，不预排遇敌：让钓鱼流程先走（钓完/进战斗后由钓鱼逻辑统一调度）
+    if (allPokemon.length > 0 && !(road.getFishingRow() && !getFishingGuarantee().fished)) scheduleNextEncounter(5000);
+  }, 2000);
+  }
+
   // 事件绑定 — 背包槽
   document.querySelectorAll('.bag-slot').forEach(slot => {
     const item = slot.dataset.item;
@@ -565,6 +604,8 @@ async function init() {
   const textBoxArrow = $('textBoxArrow');
   if (textBoxArrow) {
     textBoxArrow.addEventListener('click', () => {
+      // 开场剧情中：箭头推进台词
+      if (window.__introActive) { advanceIntro(); return; }
       // 手动捕获（自动捕捉未实际接管，如闪光暂停转手动）→ 询问是否查看仓库详情
       if (phase === 'caught' && !_autoCatching) {
         $('textBoxArrow').style.display = 'none';
@@ -584,6 +625,8 @@ async function init() {
 
   // 捕捉/孵蛋确认（查看仓库个体详情，非图鉴）
   $('confirmYes')?.addEventListener('click', () => {
+    // 开场剧情中：点击确定开始游戏
+    if (window.__introActive) { confirmIntro(); return; }
     $('catchConfirmBtns').style.display = 'none';
     setCatchConfirmStep(false);
     const entryId = getLastObtainedEntryId();
@@ -697,18 +740,6 @@ async function init() {
     }
     try { localStorage.setItem('pokemon_idle_road', JSON.stringify({ roadIdx: _roadIdx, fished: getFishingGuarantee().fished })); } catch (_) {}
   });
-
-  // 启动循环
-  setInterval(onGameTick, 1000);
-  setInterval(() => saveGame(), SAVE_INTERVAL * 1000);
-
-  setTimeout(() => {
-    // 当前处于未钓过的垂钓路段时，不预排遇敌：让钓鱼流程先走（钓完/进战斗后由钓鱼逻辑统一调度）
-    if (allPokemon.length > 0 && !(road.getFishingRow() && !getFishingGuarantee().fished)) scheduleNextEncounter(5000);
-  }, 2000);
-
-  // 启动画面：旋转结束后图标依次飞向背包槽位/糖果计数实际位置，最后一个道具（糖果）落位完成后自动淡出移除
-  startSplashDrop();
 }
 
 // 启动画面落位：旋转结束后道具依次飞向各自对应的背包槽位/糖果计数
@@ -723,14 +754,17 @@ const SPLASH_DROP = [
   { dx: -200, dy: 290 }, // 糖果 → 左下角糖果计数
 ];
 
-function startSplashDrop() {
+// 开机落位动画：道具环旋转结束后依次飞向背包槽位/糖果计数实际位置，最后一个道具（糖果）落位完成后淡出并回调
+function startSplashDrop(onDone) {
+  const splash = $('splash');
   const ring = document.getElementById('splashRing');
   const items = [...document.querySelectorAll('.splash-item')];
   const slots = [...document.querySelectorAll('.bag-slot')];
   const candy = document.getElementById('statProgress');
   const autoStatus = document.getElementById('statAutoStatus');
   const timeEl = document.getElementById('statTime');
-  if (!ring || items.length === 0) return;
+  if (!splash || !ring || items.length === 0) { onDone?.(); return; }
+  splash.style.display = 'flex';
   // 启动画面期间禁用标题栏右侧按钮（图鉴/商店/统计/设置/最小化/关闭），动画结束后恢复
   const controls = document.querySelector('.window-controls');
   if (controls) controls.classList.add('controls-disabled');
@@ -739,6 +773,20 @@ function startSplashDrop() {
   if (candy) candy.classList.add('splash-hidden');
   if (autoStatus) autoStatus.classList.add('splash-hidden');
   if (timeEl) timeEl.classList.add('splash-hidden');
+  // 开场剧情结束后恢复布局：splash 已显示，此时释放 screen-wrapper 的收缩高度（避免屏幕在 splash 出现前跳回原高度闪现）
+  const sw = document.querySelector('.screen-wrapper');
+  if (sw) {
+    sw.classList.remove('boot-collapse');
+    sw.style.flex = '';
+    sw.style.height = '';
+    sw.style.transition = '';
+  }
+  // 底部背包/统计栏与顶部按钮统一恢复：splash 已显示且槽位已隐藏，背包栏整体淡入，避免瞬间闪现
+  if (document.body.classList.contains('boot-no-ui')) {
+    document.body.classList.remove('boot-no-ui');
+    const bar = document.querySelector('.backpack-bar');
+    if (bar) bar.classList.add('splash-reveal');
+  }
   setTimeout(() => {
     ring.style.animation = 'none';
     items.forEach(el => {
@@ -789,9 +837,12 @@ function startSplashDrop() {
           splash.classList.add('hide');
           setTimeout(() => {
             splash.remove();
-            // 启动画面结束，恢复标题栏右侧按钮
-            if (controls) controls.classList.remove('controls-disabled');
+            // 开场剧情期间保持禁用标题栏按钮（防止切走无法返回），开场结束由 beginGameplay 恢复
+            if (controls && !window.__introActive) controls.classList.remove('controls-disabled');
+            onDone?.();
           }, 550);
+        } else {
+          onDone?.();
         }
       }, (items.length - 1) * 120 + 550);
     }, 250);

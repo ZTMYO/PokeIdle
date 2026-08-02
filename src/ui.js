@@ -13,7 +13,7 @@ export function showView(id) {
     id = 'encounterView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','tradeView'];
+  const views = ['idleView','introView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','tradeView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
@@ -83,7 +83,7 @@ export function showView(id) {
     if (tc) tc.classList.remove('throwing');
   }
   const title = $('appTitle');
-  if (id === 'idleView' || id === 'encounterView') {
+  if (id === 'idleView' || id === 'encounterView' || id === 'introView') {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
