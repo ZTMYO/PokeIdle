@@ -1,6 +1,8 @@
 // ===== 树果农场 =====
 // 6 块田地，按真实时间生长：点击浇水回满湿度，成熟后收获。
-// 生长进度按 Date.now() 折算，随存档持久化（gameData.berryFarm），离线持续推进。
+// 生长/湿度按 Date.now() 折算并随存档持久化（gameData.berryFarm）；
+// 离线时 calcOffline 会把 waterAt 基准后移，等效离线暂停（不生长、不干涸），
+// 告示牌每日需求仍按日期刷新（0 点刷新项）。
 import { $, showView, tryLoadImage } from './ui.js';
 import { phase, gameData, setPrevView, saveGame, randInt } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
@@ -109,7 +111,7 @@ function ensureBoard() {
   return updateDailyDemands(ensureBerryFarm());
 }
 
-// 湿度/生长折算：全部由 Date.now() 折算，离线期间同样正确，无需在计时器里累加
+// 湿度/生长折算：全部由 Date.now() 折算；离线时 waterAt 已被 calcOffline 后移，故离线暂停
 function plotState(p) {
   const since = Date.now() - p.waterAt;
   const dropMs = (p.water / WATER_DROP) * 1000;

@@ -229,7 +229,7 @@ function offerCard(o) {
 
   // 需求连成一句话：想要性格 怕寂寞 ，攻击 ≥ 26 的皮卡丘（性格与数值前后带空格）
   const wantParts = [
-    o.want.nature ? `性格 ${getNature(o.want.nature).cn} ` : '',
+    o.want.nature ? `性格 ${(getNature(o.want.nature) || { cn: '—' }).cn} ` : '',
     o.want.iv ? `${IV_LABELS[o.want.iv.stat]} ≥ ${o.want.iv.min} ` : '',
   ].filter(Boolean);
   const wantText = '想要' + (wantParts.length ? wantParts.join('，') + '的' : '') + wantPoke.name;
@@ -312,7 +312,7 @@ function renderGiveDetail(content, offerId) {
           ${(givePoke.types || []).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t] || '#888'}">${t}</span>`).join('')}
         </div>
         <div style="font-size:10px;opacity:0.7;line-height:1.5;">
-          <div>性格：${getNature(o.give.nature).cn}</div>
+          <div>性格：${(getNature(o.give.nature) || { cn: '—' }).cn}</div>
         </div>
       </div>
     </div>
@@ -342,11 +342,11 @@ function renderSelect(content, offerId) {
           return k === ivStat ? `<b class="roster-iv-hl">${v}</b>` : String(v);
         }).join('/') : '';
         return `
-        <div class="pokedex-entry roster-row bounty-trade-row">
+        <div class="pokedex-entry roster-row bounty-trade-row" data-trade-view="${p.id}">
           <span class="roster-icon"><img class="roster-icon-img" data-trade-icon="${p.id}" alt="" /></span>
           <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
           <span class="roster-ivs">${ivsText}</span>
-          <span class="roster-nature">${getNature(p.nature).cn}</span>
+          <span class="roster-nature">${(getNature(p.nature) || { cn: '—' }).cn}</span>
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">交换</button></span>
         </div>`;
       }).join('');
@@ -411,6 +411,14 @@ function doTrade(offerId, rid) {
       }
       gameData.stats.totalCatches = (gameData.stats.totalCatches || 0) + 1;
       gameData.stats.totalTrades = (gameData.stats.totalTrades || 0) + 1;
+      // 今日交换数：跨天自动清零
+      const td = new Date();
+      const ds = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}-${String(td.getDate()).padStart(2, '0')}`;
+      if (gameData.stats.lastTradeDate !== ds) {
+        gameData.stats.lastTradeDate = ds;
+        gameData.stats.tradesToday = 0;
+      }
+      gameData.stats.tradesToday = (gameData.stats.tradesToday || 0) + 1;
       if (!gameData.encounterLogs) gameData.encounterLogs = {};
       if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
       gameData.encounterLogs[idx].push({
@@ -491,6 +499,17 @@ document.addEventListener('click', e => {
   const submitBtn = e.target.closest('[data-trade-submit]');
   if (submitBtn) {
     doTrade(_tradeMode, submitBtn.dataset.tradeSubmit);
+    return;
+  }
+  // 点击候选个体行：进入仓库个体详情（第三层），返回时恢复选择列表
+  const viewRow = e.target.closest('[data-trade-view]');
+  if (viewRow && _tradeMode) {
+    pauseTradeRefresh(); // 详情期间同样冻结刷新倒计时
+    import('./roster.js').then(m => m.showRosterDetailFromList(viewRow.dataset.tradeView, () => {
+      resumeTradeRefresh(); // 返回选择列表：恢复刷新倒计时
+      showView('tradeView');
+      renderTrade();
+    }));
     return;
   }
   const giveBtn = e.target.closest('[data-give-detail]');

@@ -1,7 +1,7 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing } from './state.js';
 import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost } from './state.js';
-import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE } from './config.js';
+import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
 import * as road from './road.js';
 
 // DOM 快捷获取
@@ -128,11 +128,9 @@ export function isOnGameView() {
 }
 
 // ---------- 角色系统 ----------
-// 是否处于 buff 生效状态（影响跑步动画）
+// 是否处于 buff 生效状态（影响跑步动画）——buff 生效期间无论在哪页都按跑步速度移动
 function isBuffActive() {
-  // 动态导入避免循环依赖
-  const s = document.querySelector('#idleView')?.style?.display;
-  return s !== 'none' && (window.__honeyBuffActive__ || window.__charmBuffActive__);
+  return !!(window.__honeyBuffActive__ || window.__charmBuffActive__);
 }
 
 export function applyCharSprites() {
@@ -207,6 +205,10 @@ export function setIdleCharacter(state, itemKey) {
       road.setSpeed(ROAD_SPEED_WALK);
     }
     el.classList.add(getCharPrefix());
+  }
+  // 主角移速变化（buff 激活/到期、道路切换）后，导航页若可见立即按新速度刷新预计时间
+  if ($('gpsView')?.style.display === 'flex') {
+    import('./gps.js').then(m => m.refreshGpsRender());
   }
 }
 
@@ -417,6 +419,8 @@ export function renderIncubatorView() {
   const incubators = gameData.incubators || [];
   if (!incubators.length) return;
   const unlocked = gameData.incubatorUnlockedSlots ?? 0;
+  const hatchBtnHtml = (i, disabled) => `<span class="incubator-hatch-text hatched${disabled ? ' disabled' : ''}" data-slot="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>孵化</span>`;
+  const inBattle = phase !== 'idle'; // 战斗/捕捉/孵蛋动画期间禁用孵化按钮
   let html = '';
   for (let i = 0; i < Math.min(incubators.length, 8); i++) {
     const s = incubators[i];
@@ -438,14 +442,14 @@ export function renderIncubatorView() {
       html += `<div class="incubator-row">
         <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
         <div class="incubator-info"><div class="incubator-name">蛋</div></div>
-        <span class="incubator-hatch-text hatched" data-slot="${i}">孵化</span>
+        ${hatchBtnHtml(i, inBattle)}
       </div>`;
     } else if (hasEgg) {
       // 孵化中 → 进度条
-      const elapsed = Date.now() - s.hatchStart;
-      // 兜底：超时、hatchStart 无效（NaN）、hatchDuration 不合法 → 强制标记孵化
-      const elapsedValid = !isNaN(elapsed) && elapsed >= 0;
-      const shouldBeReady = (!elapsedValid || (elapsed >= s.hatchDuration)) && !s.hatched;
+      const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
+      // 兜底：里程达标、hatchStart 无效（NaN）、hatchDuration 不合法 → 强制标记孵化
+      const usedValid = !isNaN(used) && used >= 0;
+      const shouldBeReady = (!usedValid || (used >= s.hatchDuration)) && !s.hatched;
       if (shouldBeReady) {
         s.hatched = true;
         saveGame();
@@ -455,20 +459,19 @@ export function renderIncubatorView() {
         html += `<div class="incubator-row">
           <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
           <div class="incubator-info"><div class="incubator-name">蛋</div></div>
-          <span class="incubator-hatch-text hatched" data-slot="${i}">孵化</span>
+          ${hatchBtnHtml(i, inBattle)}
         </div>`;
         continue;
       }
-      const pct = Math.min(100, Math.floor(elapsed / s.hatchDuration * 100));const remain = Math.max(0, Math.ceil((s.hatchDuration - elapsed) / 1000));
-      const h = Math.floor(remain / 3600), m = Math.floor((remain % 3600) / 60), sec = remain % 60;
-      const timeStr = h > 0 ? `${h}小时${m}分` : (m > 0 ? `${m}分${sec}秒` : `${sec}秒`);
+      const pct = Math.min(100, Math.floor(used / s.hatchDuration * 100));const remain = Math.max(0, Math.ceil((s.hatchDuration - used) / PX_PER_METER));
+      const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
       html += `<div class="incubator-row">
         <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" /></div>
         <div class="incubator-info">
           <div class="incubator-name">蛋</div>
           <div class="incubator-progress-wrap" data-slot="${i}">
             <div class="incubator-progress-fill" style="width:${pct}%"></div>
-            <div class="incubator-progress-text">${timeStr}</div>
+            <div class="incubator-progress-text">还需 ${distStr}</div>
           </div>
         </div>
       </div>`;
@@ -501,7 +504,7 @@ export function renderIncubatorView() {
   });
 }
 
-// 孵蛋器倒计时轻量刷新：只更新进度条宽度与剩余时间文本，不重建 DOM。
+// 孵蛋器里程轻量刷新：只更新进度条宽度与剩余里程文本，不重建 DOM。
 // 由主循环每 tick 调用（孵蛋器页可见时）。若沿用 renderIncubatorView 每秒整页重建，
 // 点击瞬间恰逢重建会丢失 click（mousedown/mouseup 落在新旧两个节点上），表现为"要点两下才有反应"。
 export function updateIncubatorTimers() {
@@ -512,15 +515,14 @@ export function updateIncubatorTimers() {
     const i = parseInt(wrap.dataset.slot);
     const s = incubators[i];
     if (!s || s.eggIndex == null || s.hatched) return;
-    const elapsed = Date.now() - s.hatchStart;
-    const elapsedValid = !isNaN(elapsed) && elapsed >= 0;
-    const pct = elapsedValid ? Math.min(100, Math.floor(elapsed / s.hatchDuration * 100)) : 0;
-    const remain = elapsedValid ? Math.max(0, Math.ceil((s.hatchDuration - elapsed) / 1000)) : Math.ceil(s.hatchDuration / 1000);
-    const h = Math.floor(remain / 3600), m = Math.floor((remain % 3600) / 60), sec = remain % 60;
-    const timeStr = h > 0 ? `${h}小时${m}分` : (m > 0 ? `${m}分${sec}秒` : `${sec}秒`);
+    const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
+    const usedValid = !isNaN(used) && used >= 0;
+    const pct = usedValid ? Math.min(100, Math.floor(used / s.hatchDuration * 100)) : 0;
+    const remain = usedValid ? Math.max(0, Math.ceil((s.hatchDuration - used) / PX_PER_METER)) : Math.ceil(s.hatchDuration / PX_PER_METER);
+    const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
     const fill = wrap.querySelector('.incubator-progress-fill');
     const txt = wrap.querySelector('.incubator-progress-text');
     if (fill) fill.style.width = pct + '%';
-    if (txt) txt.textContent = timeStr;
+    if (txt) txt.textContent = `还需 ${distStr}`;
   });
 }

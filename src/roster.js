@@ -2,7 +2,7 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, tryLoadImage, tryLoadPokemonImage } from './ui.js';
-import { phase, gameData, getPokemonByIndex, getNature, setPrevView, saveGame } from './state.js';
+import { phase, gameData, getPokemonByIndex, getNature, setPrevView, saveGame, setPokedexInLogView } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
@@ -61,6 +61,8 @@ let _sortDir = -1;     // 1 升序 / -1 降序
 let _filter = '';      // 来源/闪光筛选（''=全部）
 let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
 let _detailFromView = null; // 详情跳转来源（捕获/孵蛋后“查看详情”进入时记录，返回列表后再返回时优先回来源）
+let _detailReturnFn = null; // 从悬赏提交/交换选择列表进入详情时注册的返回回调（返回时恢复来源列表）
+let _detailJumpedToPokedex = false; // 详情页跳转图鉴中（返回键应先回详情页，再按来源返回）
 
 // 个体值总和
 function ivSum(p) {
@@ -145,8 +147,8 @@ function renderList() {
     const row = e.target.closest('.roster-row');
     if (row) { _detailFromView = null; showRosterDetail(row.dataset.rid); }
   };
-  // 表头排序指示符
-  const header = document.querySelector('.roster-header');
+  // 表头排序指示符（限定仓库视图，避免匹配到悬赏/交换列表的同名表头）
+  const header = $('rosterView')?.querySelector('.roster-header');
   if (header) {
     header.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
     const cur = header.querySelector(`[data-sort="${_sortBy}"]`);
@@ -231,9 +233,9 @@ function setupFilter() {
   });
 }
 
-// 表头点击排序
+// 表头点击排序（限定仓库视图，避免绑定到悬赏/交换列表的同名表头）
 function setupHeaderSort() {
-  const header = document.querySelector('.roster-header');
+  const header = $('rosterView')?.querySelector('.roster-header');
   if (!header) return;
   header.onclick = (e) => {
     const span = e.target.closest('[data-sort]');
@@ -269,7 +271,10 @@ function showRosterDetail(id) {
   list.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
       <span>${name}${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
-      <button class="roster-release" data-release>放生</button>
+      <div style="display:flex;flex-direction:row;align-items:flex-end;gap:2px;">
+        <button class="roster-release" data-pokedex title="查看图鉴">图鉴</button>
+        <button class="roster-release" data-release>放生</button>
+      </div>
     </div>
     <div class="roster-detail-head">
       <div class="poke-img-grid"><img id="rosterDetailImg" class="poke-img-in-grid" alt="" /></div>
@@ -310,6 +315,15 @@ function showRosterDetail(id) {
   }
   // 右上角放生：移除个体并播放告别动画
   list.querySelector('[data-release]')?.addEventListener('click', () => releasePokemon(id));
+  // 图鉴：跳转到该宝可梦的图鉴详情页（第 4 层子页），返回键先回详情页
+  list.querySelector('[data-pokedex]')?.addEventListener('click', () => {
+    stopShinySparkleLoop();
+    _detailJumpedToPokedex = true;
+    import('./pokedex.js').then(m => {
+      m.showEncounterLogs(p.species);
+      showView('pokedexView');
+    });
+  });
 }
 
 // 放生：确认后移除个体、播告别动画，结束后返回列表
@@ -350,6 +364,9 @@ function latestLogLine(idx) {
 export function restoreRosterList() {
   stopShinySparkleLoop();
   if (_detailId == null) return;
+  _detailJumpedToPokedex = false;
+  // 从悬赏提交/交换选择列表进入的详情：返回直接恢复来源列表
+  if (_detailReturnFn) { leaveRosterDetailToList(); return; }
   _detailId = null;
   const rootEl = $('rosterView');
   if (rootEl) {
@@ -380,6 +397,8 @@ export function leaveRosterDetailToSource() {
   stopShinySparkleLoop();
   if (_detailId == null) return;
   _detailId = null;
+  _detailReturnFn = null;
+  _detailJumpedToPokedex = false;
   const rootEl = $('rosterView');
   if (rootEl) {
     rootEl.querySelector('.pokedex-search').style.display = '';
@@ -414,4 +433,59 @@ export function showRosterDetailById(id, fromView) {
   _detailFromView = fromView || 'idleView';
   showRosterView();    // 先渲染并显示仓库列表
   showRosterDetail(id); // 再进入该个体的详情
+}
+
+// 从悬赏提交/交换选择列表进入个体详情（第三层）
+// returnFn：详情页按返回时执行，负责切回来源视图并恢复其子页状态
+export function showRosterDetailFromList(id, returnFn) {
+  _detailFromView = null;
+  _detailReturnFn = typeof returnFn === 'function' ? returnFn : null;
+  showRosterView();    // 先渲染并显示仓库列表
+  showRosterDetail(id); // 再进入该个体的详情
+}
+
+// 是否从悬赏提交/交换选择列表进入的详情页（返回时应直接恢复来源列表）
+export function isRosterDetailFromList() {
+  return _detailReturnFn != null;
+}
+
+// 从悬赏提交/交换选择列表进入的详情页按返回：清理详情状态，恢复来源列表
+export function leaveRosterDetailToList() {
+  stopShinySparkleLoop();
+  if (_detailId == null) return;
+  _detailId = null;
+  _detailJumpedToPokedex = false;
+  const rootEl = $('rosterView');
+  if (rootEl) {
+    rootEl.querySelector('.pokedex-search').style.display = '';
+    rootEl.querySelector('.roster-header').style.display = '';
+  }
+  const prog = $('rosterProgress');
+  if (prog) prog.style.display = '';
+  const fn = _detailReturnFn;
+  _detailReturnFn = null;
+  showView('idleView'); // 先隐藏仓库详情页，由来源列表自行显示
+  if (fn) fn();
+}
+
+// 详情页跳转图鉴中：仅在图鉴页可见时生效（返回键应回到详情页）
+export function isRosterDetailJumpedToPokedex() {
+  return _detailJumpedToPokedex && $('pokedexView')?.style.display !== 'none';
+}
+
+// 从图鉴返回仓库详情页（图鉴页按返回 → 回到详情页，再按返回走原详情返回逻辑）
+export function returnRosterDetailFromPokedex() {
+  _detailJumpedToPokedex = false;
+  // 恢复图鉴列表状态：清除日志视图标志，恢复搜索框/表头/进度显示（无需重建列表）
+  setPokedexInLogView(false);
+  const s = document.querySelector('.pokedex-search');
+  if (s) s.style.display = '';
+  const h = document.querySelector('.pokedex-header');
+  if (h) h.style.display = '';
+  const prog = $('pokedexProgress');
+  if (prog) prog.style.display = '';
+  stopShinySparkleLoop();
+  if (_detailId == null) return;
+  showView('rosterView');
+  showRosterDetail(_detailId);
 }

@@ -251,11 +251,11 @@ function renderBountyTrade(content, regionIdx, bi) {
         const ivsText = p.ivs ? ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].map(k => p.ivs[k] || 0).join('/') : '';
         const icon = poke?.icon ? '<img class="roster-icon-img" data-trade-icon alt="" />' : '';
         return `
-        <div class="pokedex-entry roster-row bounty-trade-row">
+        <div class="pokedex-entry roster-row bounty-trade-row" data-trade-view="${p.id}">
           <span class="roster-icon">${icon}</span>
           <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
           <span class="roster-ivs">${ivsText}</span>
-          <span class="roster-nature">${getNature(p.nature).cn}</span>
+          <span class="roster-nature">${(getNature(p.nature) || { cn: '—' }).cn}</span>
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">提交</button></span>
         </div>`;
       }).join('');
@@ -318,10 +318,17 @@ export function showBountyView() {
   showView('bountyView');
   const content = $('bountyContent');
   content.onclick = (e) => {
-    // 提交列表模式：只响应行内「提交」（返回走标题栏 back）
+    // 提交列表模式：行内「提交」按钮执行交换；点击行进入仓库个体详情（返回恢复本列表）
     if (_tradeMode) {
       const btn = e.target.closest('[data-trade-submit]');
       if (btn) { submitTrade(btn.dataset.tradeSubmit); return; }
+      const row = e.target.closest('[data-trade-view]');
+      if (row) {
+        import('./roster.js').then(m => m.showRosterDetailFromList(row.dataset.tradeView, () => {
+          showView('bountyView');
+          renderBounty();
+        }));
+      }
       return;
     }
     const arrow = e.target.closest('.bounty-arrow');

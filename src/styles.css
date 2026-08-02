@@ -979,6 +979,30 @@ body { margin: 0; padding: 0; cursor: default; }
 .stat-row span:last-child {
   font-weight: 600;
 }
+.stat-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+.stat-table th,
+.stat-table td {
+  padding: 1px 4px;
+  text-align: right;
+  font-size: 11px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.22);
+}
+.stat-table th:first-child,
+.stat-table td:first-child {
+  text-align: left;
+}
+.stat-table th {
+  font-weight: 600;
+  font-size: 10px;
+  background: rgba(var(--ui-color-rgb), 0.08);
+}
+.stat-table td:last-child {
+  font-weight: 600;
+}
 
 /* ===== 糖果兑换弹窗 ===== */
 .candy-dialog {
@@ -3171,6 +3195,9 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .bounty-trade-btn:hover { background: rgba(48,98,48,0.15); }
 .bounty-trade-btn:active { transform: scale(0.92); }
+/* 悬赏提交/交换选择列表行：点击进入仓库个体详情 */
+.bounty-trade-row[data-trade-view] { cursor: pointer; }
+.bounty-trade-row[data-trade-view]:hover { background: rgba(255,255,255,0.22); }
 
 /* === 交换广场 === */
 #tradeView { padding: 0 6px 4px; }

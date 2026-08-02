@@ -8,6 +8,7 @@ import { $, showView } from './ui.js';
 import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo } from './state.js';
 import { REGION_CYCLE, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
 import { isFishing } from './fishing.js';
+import * as road from './road.js';
 
 // 地区距离矩阵（下标与 REGION_CYCLE 一致：0关都 1城都 2丰缘 3神奥 4合众 5卡洛斯 6阿罗拉 7伽勒尔 8帕底亚）
 // 已按最佳路线简化：只保留漫游环线（4-0-5-1-6-2-7-3-8）的外围边 + 核心主干（0-1/0-2/1-2/1-3），
@@ -39,6 +40,7 @@ const PIN_SVG = `<svg viewBox="0 0 24 24" width="20" height="20">
   <circle cx="12" cy="8.5" r="2.4" fill="var(--console-body)"/>
 </svg>`;
 const MAP_VIEWBOX = '0 12 320 176';
+const MARKER_ANGLE_FIX = 6;
 const MAP_POS = {
   0: [247, 138], 1: [205, 125], 2: [186, 179], 3: [247, 87],
   4: [58, 45], 5: [198, 32], 6: [102, 126], 7: [124, 21], 8: [261, 44],
@@ -107,6 +109,15 @@ function buildMiniMap(g) {
     return `<line class="gps-map-edge${isActive ? ' active' : ''}" x1="${MAP_POS[a][0]}" y1="${MAP_POS[a][1]}" x2="${MAP_POS[b][0]}" y2="${MAP_POS[b][1]}"></line>`;
   }).join('');
 
+  const hasDest = g.destIdx != null;
+  const segTarget = hasDest && hasActiveSegment(g) ? g.path[g.seg + 1] : null;
+  let markerAngle = 0;
+  if (segTarget != null) {
+    const [dxp, dyp] = MAP_POS[segTarget];
+    markerAngle = Math.atan2(dxp - markerX, dyp - markerY) * 180 / Math.PI - MARKER_ANGLE_FIX;
+  }
+  const markerUsable = segTarget != null && isFinite(markerAngle);
+
   const nodeSvg = REGION_CYCLE.map((name, i) => {
     const [x, y] = MAP_POS[i];
     const isCur = !currentRoad && i === markerIdx;
@@ -127,8 +138,10 @@ function buildMiniMap(g) {
       <svg viewBox="${MAP_VIEWBOX}" class="gps-minimap-svg" aria-hidden="true">
         ${edgeSvg}
         ${nodeSvg}
-        <g class="gps-map-marker" transform="translate(${markerX} ${markerY})">
-          <circle cx="0" cy="0" r="3.2"></circle>
+        <g class="gps-map-marker" transform="translate(${markerX} ${markerY})${markerUsable ? ` rotate(${markerAngle}) scale(0.35) translate(-20 -15)` : ''}">
+          ${markerUsable
+            ? `<path d="M19.9785 8.35385C21.8358 8.35385 23.6171 9.09168 24.9304 10.405C26.2437 11.7183 26.9815 13.4996 26.9815 15.3569C26.9815 17.2143 26.2437 18.9955 24.9304 20.3089C23.6171 21.6222 21.8358 22.36 19.9785 22.36C18.1211 22.36 16.3399 21.6222 15.0265 20.3089C13.7132 18.9955 12.9754 17.2143 12.9754 15.3569C12.9754 13.4996 13.7132 11.7183 15.0265 10.405C16.3399 9.09168 18.1211 8.35385 19.9785 8.35385ZM35.3415 15.36C35.3415 12.9683 34.7829 10.6096 33.7105 8.47173C32.638 6.33391 31.0812 4.47602 29.164 3.04599C27.2469 1.61597 25.0223 0.653312 22.6675 0.234685C20.3126 -0.183942 17.8926 -0.0469785 15.6 0.634669C13.3074 1.31632 11.2057 2.52382 9.46212 4.16102C7.71855 5.79823 6.38132 7.81991 5.5569 10.0651C4.73248 12.3103 4.44366 14.7169 4.71342 17.0934C4.98319 19.4699 5.8041 21.7506 7.11077 23.7539L18.6031 39.0769C18.7307 39.3329 18.9271 39.5483 19.1703 39.6988C19.4136 39.8494 19.694 39.9291 19.98 39.9291C20.2661 39.9291 20.5464 39.8494 20.7897 39.6988C21.0329 39.5483 21.2293 39.3329 21.3569 39.0769L32.8708 23.7539C34.4215 21.3354 35.3415 18.4615 35.3415 15.36Z" fill="#96D0B9"></path><path d="M20 23C24.4183 23 28 19.4183 28 15C28 10.5817 24.4183 7 20 7C15.5817 7 12 10.5817 12 15C12 19.4183 15.5817 23 20 23Z" fill="#376D56"></path>`
+            : `<circle cx="0" cy="0" r="3.2"></circle>`}
         </g>
       </svg>
     </div>`;
@@ -380,8 +393,9 @@ function render() {
       remainPxTotal += DIST_MATRIX[g.path[i]][g.path[i + 1]] * PX_PER_UNIT;
     }
   }
-  // 剩余真实时间：按当前移动速度（走路/跑步）估算
-  const pxPerMin = (g.pxPerSec || ROAD_SPEED_WALK * 60) * 60;
+  // 剩余真实时间：按主角当前移速（走路/跑步/骑车）实时估算，buff 生效即按跑步速度重算
+  const pxPerSec = road.getSpeed() * 60;
+  const pxPerMin = pxPerSec * 60;
   const remainMin = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerMin)) : 0;
   // 剩余距离换算公里
   const remainKm = hasDest ? Math.max(0, remainPxTotal / PX_PER_METER / 1000) : 0;
@@ -427,6 +441,11 @@ function render() {
         </span>
       </div>
     </div>`;
+}
+
+// 主角移速变化（buff 激活/到期、道路切换）后由 ui.js 调用，立即按新速度重算预计时间
+export function refreshGpsRender() {
+  if ($('gpsView')?.style.display === 'flex') render();
 }
 
 export function showGpsView() {

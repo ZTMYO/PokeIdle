@@ -22,7 +22,7 @@ import {
   setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState,
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
-  hasAnyBall, saveSessionState, rand, randInt, formatNum, formatTime,
+  hasAnyBall, saveSessionState, rand, randInt, formatNum, migrateIncubators,
   setEncounterMsg, addPlaySeconds,
 } from './state.js';
 import { computeObtainScore } from './scoring.js';
@@ -41,7 +41,7 @@ import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
 import { restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
-import { showRosterView, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList } from './roster.js';
+import { showRosterView, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex } from './roster.js';
 import { isTradeInDetail, restoreTradeList } from './trade.js';
 import { showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
@@ -111,9 +111,12 @@ function _pickNextRoad() {
 
 // ---------- 返回按钮 ----------
 function goBack() {
+  // 详情页跳转图鉴（第 4 层子页）：返回先回详情页，再按详情返回逻辑走
+  if (isRosterDetailJumpedToPokedex()) { returnRosterDetailFromPokedex(); return; }
   if (_pokedexInLogView) { restorePokedex(); return; }
   if (isRosterInDetail()) {
-    if (isRosterDetailFromObtain()) { leaveRosterDetailToSource(); }
+    if (isRosterDetailFromList()) { leaveRosterDetailToList(); }
+    else if (isRosterDetailFromObtain()) { leaveRosterDetailToSource(); }
     else { restoreRosterList(); }
     return;
   }
@@ -130,11 +133,11 @@ function goBack() {
 // ---------- 背包点击 ----------
 function onBagClick(itemKey) {
   if (phase === 'encounter') {
-    // 自动模式下未勾选任何精灵球（自动逃跑）时禁止手动丢球
+    // 自动捕捉开启但勾选球种均无库存（自动逃跑中）：禁止手动丢球，与状态栏【自动逃跑中】判定一致
     if (gameData.settings?.autoCatch) {
       const balls = gameData.settings?.autoCatchBalls || {};
-      const hasEnabled = ['poke-ball','ultra-ball','master-ball'].some(b => balls[b] !== false);
-      if (!hasEnabled) return;
+      const hasStock = ['poke-ball', 'ultra-ball', 'master-ball'].some(b => balls[b] !== false && (gameData.items[b] || 0) > 0);
+      if (!hasStock) return;
     }
     if (CATCH_RATES[itemKey] && (gameData.items[itemKey]||0) > 0) {
       pauseAutoFleeTimer();
@@ -215,9 +218,9 @@ function onGameTick() {
   let incubatorChanged = false;
   for (const s of (gameData.incubators || [])) {
     if (s && s.eggIndex != null && !s.hatched) {
-      const elapsed = Date.now() - s.hatchStart;
-      // 检查超时（加 100ms 容差）+ hatchedStart 无效（NaN/负值）兜底
-      if (isNaN(elapsed) || elapsed < 0 || (elapsed + 100) >= s.hatchDuration) {
+      const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
+      // 检查里程达标（加 100px 容差）+ hatchStart 无效（NaN/负值）兜底
+      if (isNaN(used) || used < 0 || (used + 100) >= s.hatchDuration) {
         s.hatched = true;
         incubatorChanged = true;
       }
@@ -229,7 +232,7 @@ function onGameTick() {
     if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
   }
 
-  // 孵蛋器倒计时刷新（每 tick）：轻量更新进度条与剩余时间，不重建 DOM，
+  // 孵蛋器里程刷新（每 tick）：轻量更新进度条与剩余里程，不重建 DOM，
   // 避免每秒整页重建导致按钮点击在重建瞬间丢失（要点两下才有反应）
   if ($('incubatorView')?.style.display === 'flex') {
     updateIncubatorTimers();
@@ -282,6 +285,7 @@ async function init() {
     }
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
+  migrateIncubators(); // 旧版时间制孵蛋 → 已孵化
   ensureGpsState(); // 兼容旧存档：补齐 GPS 状态（默认从丰缘出发）
   ensureRoamDest(); // 漫游默认开启且无目的地时，自动开始导航
   ensureBounty();   // 生成/恢复当日地区悬赏
@@ -377,11 +381,8 @@ async function init() {
     } catch (_) {}
   }
 
-  // 离线收益
-  const off = calcOffline(gameData);
-  if (off > 0) {
-    $('statProgress').innerHTML = `<img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> 离线 ${formatTime(off)}`;
-  }
+  // 离线处理：仅推进 0 点刷新的内容（今日时长/告示牌），孵蛋、树果、交换广场暂停
+  if (calcOffline(gameData) > 0) await saveGame();
 
   // 加载道路预设数据
   try {

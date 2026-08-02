@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { ITEM_RATES, REGION_CYCLE, HATCH_TIME_MIN, HATCH_TIME_MAX, HATCH_TIME_SIGMA, ROAD_SPEED_WALK } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -120,28 +120,28 @@ export function setBlockStartWalk(v) { blockStartWalk = v; }
 export function setBlockQuality(k) { blockQuality = k || 'good'; }
 export function setQteState(s) { qteState = s || null; }
 
-// ---------- 孵化时间计算 ----------
+// ---------- 孵化里程计算 ----------
 // 体重/稀有度决定正态分布的峰值（对数插值），叠加正态随机后截断到配置区间，
-// 使所有孵化时间都落在 [HATCH_TIME_MIN, HATCH_TIME_MAX] 内且呈钟形分布
-export function calcHatchDuration(poke) {
+// 使所有孵化里程都落在 [HATCH_DIST_MIN, HATCH_DIST_MAX] 内且呈钟形分布
+export function calcHatchDistance(poke) {
   const w = Math.min((poke.weight || 100) / 5000, 1); // 重量 0~1
   const r = poke.rarity || 0.5;                       // 稀有度 0~1
   const factor = Math.min(w * 0.6 + r * 0.4, 1);      // 综合因子 0~1
   // 分布峰值：轻/常见 → 靠近最短，重/稀有 → 靠近最长
-  const mid = HATCH_TIME_MIN * Math.pow(HATCH_TIME_MAX / HATCH_TIME_MIN, factor);
+  const mid = HATCH_DIST_MIN * Math.pow(HATCH_DIST_MAX / HATCH_DIST_MIN, factor);
   // 标准差相对峰值（而非整段区间）：否则轻/常见宝可梦的分布会大量被截断在最小值整值
-  const sigma = Math.max(60, mid * HATCH_TIME_SIGMA);
+  const sigma = Math.max(20, mid * HATCH_DIST_SIGMA);
   // 截断正态采样（Box-Muller）：超出配置区间时重新采样而非粗暴截断，
-  // 保证钟形分布，且不会堆积出大量"恰好 30 分钟整"的结果
-  let t = 0;
+  // 保证钟形分布，且不会堆积出大量"恰好 2 公里整"的结果
+  let d = 0;
   do {
     let u = 0, v = 0;
     while (u === 0) u = Math.random();
     while (v === 0) v = Math.random();
     const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-    t = mid + z * sigma;
-  } while (t < HATCH_TIME_MIN || t > HATCH_TIME_MAX);
-  return Math.round(t) * 1000;
+    d = mid + z * sigma;
+  } while (d < HATCH_DIST_MIN || d > HATCH_DIST_MAX);
+  return Math.round(d);
 }
 
 // 空孵蛋器
@@ -159,6 +159,15 @@ export function getIncubatorUnlockCost(slotIndex) {
 export function anyIncubatorReady() {
   if (!gameData) return false;
   return (gameData.incubators || []).some(s => s && s.hatched);
+}
+
+// 旧版时间制孵蛋迁移：hatchDuration 为毫秒（远超里程制像素上限）→ 直接标记已孵化
+export function migrateIncubators() {
+  for (const s of gameData?.incubators || []) {
+    if (s && s.eggIndex != null && !s.hatched && s.hatchDuration > HATCH_DIST_MAX * PX_PER_METER) {
+      s.hatched = true;
+    }
+  }
 }
 
 // ---------- GPS 导航状态 ----------
@@ -202,7 +211,7 @@ export function getDefaultSave() {
       totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0,
       totalBlockMade:0, totalPlantings:0, totalHarvests:0, totalBerriesHarvested:0, totalBoardTrades:0,
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
-      totalTrades:0,
+      totalTrades:0, tradesToday:0, lastTradeDate:'',
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     },
     incubators: Array.from({length: 8}, () => emptyIncubator()),
@@ -395,7 +404,7 @@ export function addPlaySeconds(save, sec) {
   save.stats.playSecondsToday = (save.stats.playSecondsToday || 0) + sec;
 }
 
-// ---------- 离线收益计算 ----------
+// ---------- 离线处理：仅推进 0 点刷新的内容，其余机制保持存档原样 ----------
 export function calcOffline(save) {
   const now = Date.now();
   const elapsed = Math.min((now - save.stats.lastSaveTime) / 1000, 86400);
@@ -411,10 +420,16 @@ export function calcOffline(save) {
   } else {
     save.stats.playSecondsToday = (save.stats.playSecondsToday || 0) + elapsed;
   }
-  // 地区进度只按实际游玩时的行走/跑步距离推进，离线不累计
-  for (const [item, rate] of Object.entries(ITEM_RATES)) {
-    const gained = Math.floor(rate * elapsed);
-    if (gained > 0) save.items[item] += gained;
+  // 离线暂停：把依赖真实时间推进的机制时间基准整体后移，等价于离线期间不走表。
+  // 孵蛋已改为里程制（离线不走路，天然暂停），无需处理
+  const ms = Math.floor(elapsed * 1000);
+  if (ms > 0) {
+    // 树果农场：离线不生长、不干涸（告示牌每日需求属 0 点刷新，仍由 berry.js 按日期刷新）
+    for (const p of save.berryFarm?.plots || []) {
+      if (p && p.waterAt) p.waterAt += ms;
+    }
+    // 交换广场：刷新倒计时只按在线时间累计，离线不刷新
+    if (save.trades?.refreshedAt) save.trades.refreshedAt += ms;
   }
   return elapsed;
 }

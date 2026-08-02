@@ -1,6 +1,6 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _honeyEncounterCount, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyEncounterCount, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDuration, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId } from './state.js';
+import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _honeyEncounterCount, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyEncounterCount, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnGameView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay } from './animation.js';
@@ -233,12 +233,12 @@ export function placeEggInIncubator(slotIndex) {
   if (!poke) return;
 
   const eggIsShiny = Math.random() < SHINY_CHANCE;
-  const duration = calcHatchDuration(poke);
+  const distance = calcHatchDistance(poke);
 
   incubators[slotIndex] = {
     eggIndex: poke.index,
-    hatchStart: Date.now(),
-    hatchDuration: duration,
+    hatchStart: gameData.stats?.walkDistance || 0, // 放蛋时累计行走像素，行走增量达标即孵化
+    hatchDuration: distance * PX_PER_METER,
     hatched: false,
     isShiny: eggIsShiny,
   };
@@ -265,6 +265,7 @@ export function unlockIncubatorSlot(slotIndex) {
 // ---------- 从孵蛋器取出孵化 ----------
 export async function hatchFromIncubator(slotIndex) {
   if (_eggHatching) return;
+  if (phase !== 'idle') return; // 战斗/捕捉/孵蛋动画期间禁止孵化（孵蛋动画期间不会遇敌）
   const incubators = gameData.incubators;
   if (!incubators || !incubators[slotIndex]) return;
   const slot = incubators[slotIndex];

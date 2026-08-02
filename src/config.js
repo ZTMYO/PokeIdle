@@ -58,11 +58,11 @@ export const SHINY_CHANCE = 1 / 1000;
 export const CHARM_SHINY_CHANCE = 0.8;
 
 // ===== 孵蛋 =====
-// 神秘蛋孵化时间（秒）：体重/稀有度决定分布峰值（正态分布的 mid），
-// 叠加相对峰值的正态随机（标准差 = mid × HATCH_TIME_SIGMA），超出 [MIN, MAX] 时重新采样（截断正态）
-export const HATCH_TIME_MIN = 1800;   // 最短孵化时间（秒，30 分钟）
-export const HATCH_TIME_MAX = 28800;  // 最长孵化时间（秒，8 小时）
-export const HATCH_TIME_SIGMA = 0.2;  // 正态分布宽度系数（标准差 = mid × 该系数，0~1）
+// 神秘蛋孵化里程（米）：体重/稀有度决定分布峰值（正态分布的 mid），
+// 叠加相对峰值的正态随机（标准差 = mid × HATCH_DIST_SIGMA），超出 [MIN, MAX] 时重新采样（截断正态）
+export const HATCH_DIST_MIN = 2000;   // 最短孵化里程（米，2 公里）
+export const HATCH_DIST_MAX = 30000;  // 最长孵化里程（米，30 公里）
+export const HATCH_DIST_SIGMA = 0.2;  // 正态分布宽度系数（标准差 = mid × 该系数，0~1）
 
 // 地区列表（下标 0~8，也是 GPS 距离矩阵的索引：0关都 1城都 2丰缘 3神奥 4合众 5卡洛斯 6阿罗拉 7伽勒尔 8帕底亚）
 export const REGION_CYCLE = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
