@@ -356,18 +356,6 @@ export function setRoamEnabled(on) {
   saveGame();
 }
 
-// 初始化兜底：漫游已开启且没有目的地时，自动沿固定漫游路线选择下一站
-// （默认档 roamEnabled=true 但 destIdx=null，进入游戏即自动开始环国之旅；到达后导航结束，
-//   下次进入游戏会再次自动选择下一站）
-export function ensureRoamDest() {
-  const g = gameData?.gps;
-  if (!g || !g.roamEnabled) return;
-  if (g.destIdx == null) {
-    // 无目的地：直接按当前位置规划（若保留有取消导航遗留的路段，planRoute 会按物理位置续接）
-    planRoute(nextStop(g.curIdx));
-  }
-}
-
 // 取消目的地：停止导航，原地停在当前点
 // 保留当前路段进度作为物理位置（不清 path），只清除目的地——位置不丢，下次导航从当前点继续，不会瞬移
 export function cancelNavigation() {

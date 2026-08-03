@@ -1,11 +1,12 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _honeyEncounterCount, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setHoneyEncounterCount, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId } from './state.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';
+import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, fitPokemonImage } from './ui.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { catchBonusFor, computeObtainScore, computeMeetScore } from './scoring.js';
 import { startIdleRotation } from './messages.js';
+import { playBattle, endBattle, playVictory, consumeShowCardOnEncounterEnd, showRegionNowPlaying } from './audio.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -62,6 +63,15 @@ export async function tryEncounter() {
   if (road.isBike()) {
     scheduleNextEncounter(rand(ENCOUNTER_MIN, ENCOUNTER_MAX) * 1000);
     return;
+  }
+
+  // 垂钓路段钓鱼触发前的等待窗口内不遇敌：本次调度延后，开始钓鱼后由 _fishing 守卫接管
+  if (road.getFishingRow()) {
+    const { isFishingPending } = await import('./fishing.js');
+    if (isFishingPending()) {
+      scheduleNextEncounter(rand(ENCOUNTER_MIN, ENCOUNTER_MAX) * 1000);
+      return;
+    }
   }
 
   // 无精灵球时不触发遇敌（自动操作模式例外，由自动逻辑处理逃跑）
@@ -144,7 +154,6 @@ export async function tryEncounter() {
   // 无论哪条路径，只要选中目标宝可梦（未触发直接命中的情况下恰好抽中），方块即被吃掉
   // 未捕获的目标不算：抽中仅普通遇敌，方块继续走里程
   if (blockTargetCaught && poke === blockTarget) eatBlock('encounter');
-  if (honeyBuffActive) setHoneyEncounterCount(_honeyEncounterCount + 1);
   if (charmBuffActive) setCharmEncounterCount(_charmEncounterCount + 1);
 
   beginEncounter(poke);
@@ -262,14 +271,16 @@ export function updateAutoFleeBar() {
 
 // ===== 显示遇敌 =====
 export function showEncounter(poke, opts = {}) {
+  playBattle(); // 进入战斗 → 切换为战斗曲（覆盖地区曲）
   // 兼容旧调用 showEncounter(poke, true)：第二个参数传 true 表示跳过自动操作
   const skipAuto = opts === true || !!opts.skipAuto;
   const msg = opts && typeof opts === 'object' ? (opts.message || null) : null;
   // 如果在非首页页面（图鉴/商店等），将遇敌挂起不切换视图
   const _onHome = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
+  // 进入战斗道路必须暂停（后台遇敌同样暂停），结束由 goIdle 统一恢复
+  road.pause();
   // 显示视觉画面（仅在首页时切换视图；入场"文案顶起主角"动画由 showView 统一处理）
   if (_onHome) {
-    road.pause();
     showView('encounterView');
     $('fleeBtn').style.display = '';
   }
@@ -411,113 +422,127 @@ export async function throwBall(ballType) {
     // 更新底部文字显示丢出的球种
     updateTextBox('丢出了' + (ITEM_NAMES[ballType] || ballType) + '！', false);
 
-  gameData.items[ballType]--;
-  setEncounterBallsUsed(encounterBallsUsed + 1);
-  gameData.stats.totalBallsUsed++;
-  currentEncounterBalls[ballType] = (currentEncounterBalls[ballType] || 0) + 1;
-  updateBackpack();
-  addSystemLog('item_use', { item: ballType, auto: _autoCatching });
+    gameData.items[ballType]--;
+    setEncounterBallsUsed(encounterBallsUsed + 1);
+    gameData.stats.totalBallsUsed++;
+    currentEncounterBalls[ballType] = (currentEncounterBalls[ballType] || 0) + 1;
+    updateBackpack();
+    addSystemLog('item_use', { item: ballType, auto: _autoCatching });
 
-  // 捕获加成：逃跑率拉满（50%）后，每多丢一球 +10%，上限 2 倍 —— 能撑过逃跑率上限的奖励
-  const catchBonus = catchBonusFor(encounterBallsUsed);
-  const rate = ballType === 'master-ball' ? 1.0 : (CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) * catchBonus;
-  const isCaught = Math.random() < rate;
+    // 捕获加成：逃跑率拉满（50%）后，每多丢一球 +10%，上限 2 倍 —— 能撑过逃跑率上限的奖励
+    const catchBonus = catchBonusFor(encounterBallsUsed);
+    const rate = ballType === 'master-ball' ? 1.0 : (CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) * catchBonus;
+    const isCaught = Math.random() < rate;
 
-  // 播放完整动画
-  const anim = await playCatchSequence(ballType, isCaught);
-  const name = currentEncounter.name;
-
-  if (anim.result === 'caught') {
-    setPhase('caught');
-    $('fleeBtn').style.display = 'none';
+    // 丢球瞬间生成全部判定（挣脱轮数 / 是否逃跑）并立即落库：动画只做展示，刷新/重启不丢数据
+    let breakRound = 0;
+    let willFlee = false;
+    if (!isCaught) {
+      breakRound = Math.random() < 0.3 ? 0 : (Math.random() < 0.4 ? 1 : (Math.random() < 0.6 ? 2 : 3));
+      const fleeChance = Math.min(FLEE_CHANCE + (encounterBallsUsed - 1) * FLEE_CHANCE_INC, FLEE_CHANCE_MAX);
+      willFlee = Math.random() < fleeChance;
+    }
+    const outcome = isCaught ? 'caught' : willFlee ? 'fled' : 'continue';
+    const name = currentEncounter.name;
     const idx = String(currentEncounter.index);
-    if (!gameData.pokedex[idx]) {
-      gameData.pokedex[idx] = {
-        seen: 1, caught: 0,
-        lastTime: new Date().toISOString(), shinySeen: 0, shinyCaught: 0,
-      };
+
+    // 立即落库判定（动画播放前）
+    if (outcome === 'caught') {
+      setPhase('caught');
+      $('fleeBtn').style.display = 'none';
+      if (!gameData.pokedex[idx]) {
+        gameData.pokedex[idx] = {
+          seen: 1, caught: 0,
+          lastTime: new Date().toISOString(), shinySeen: 0, shinyCaught: 0,
+        };
+      }
+      gameData.pokedex[idx].caught = (gameData.pokedex[idx].caught || 0) + 1;
+      if (currentIsShiny) {
+        gameData.pokedex[idx].shinyCaught++;
+        gameData.stats.totalShinyCaught++;
+      }
+      gameData.stats.totalCatches++;
+      // 记录遭遇日志
+      if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
+      gameData.encounterLogs[idx].push({
+        time: Date.now(), shiny: currentIsShiny, result: 'caught',
+        balls: { ...currentEncounterBalls }, source: _encounterSource,
+        charmBuff: charmBuffActive, // 该遭遇是否处于闪耀护符 buff（影响闪光率评分）
+        score: computeObtainScore({
+          pokemon: currentEncounter, source: _encounterSource, shiny: currentIsShiny,
+          charmBuff: charmBuffActive, honeyBuff: honeyBuffActive,
+          balls: currentEncounterBalls, finalRate: rate,
+        }),
+      });
+      // 入仓库（带随机个体值）
+      const entry = addRosterEntry({ species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource });
+      setLastObtainedEntryId(entry.id);
+      addSystemLog('pokemon_caught', { pokemon: idx, shiny: currentIsShiny, ball: ballType, auto: _autoCatching });
+    } else if (outcome === 'fled') {
+      setPhase('fled'); // 立即阻止再次丢球/逃跑
+      $('fleeBtn').style.display = 'none';
+      // 记录遭遇日志
+      gameData.stats.totalFlees++;
+      if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
+      gameData.encounterLogs[idx].push({
+        time: Date.now(), shiny: currentIsShiny, result: 'fled',
+        balls: { ...currentEncounterBalls }, source: _encounterSource,
+        charmBuff: charmBuffActive,
+        // 未获得宝可梦：score 记"相遇欧气分"（遇到稀有本身也值得加分，无 buff 更高）
+        score: computeMeetScore({
+          pokemon: currentEncounter, source: _encounterSource, shiny: currentIsShiny,
+          charmBuff: charmBuffActive, honeyBuff: honeyBuffActive,
+        }),
+      });
+      addSystemLog('pokemon_escaped', { pokemon: idx, shiny: currentIsShiny, auto: _autoCatching });
     }
-    gameData.pokedex[idx].caught = (gameData.pokedex[idx].caught || 0) + 1;
-    if (currentIsShiny) {
-      gameData.pokedex[idx].shinyCaught++;
-      gameData.stats.totalShinyCaught++;
+    await saveGame(); // 立即存档：扣球 + 判定结果
+
+    // 播放完整动画（结果已定，纯展示）
+    const anim = await playCatchSequence(ballType, outcome, breakRound);
+
+    if (outcome === 'caught') {
+      playVictory(); // 抓捕成功 → 胜利音效
+      // 捕获文案（离开遇敌页则不弹出）
+      let msg;
+      if (currentIsShiny) {
+        msg = '闪闪发光的 ' + name + ' 被捕获了！';
+      } else if (anim.master) {
+        msg = Math.random() < 0.5
+          ? '大师球完美锁住了 ' + name + '！'
+          : '大师球发挥奇效，顺利捕获 ' + name + '！';
+      } else {
+        msg = '搞定！' + name + ' 被收服了！';
+      }
+      if (isOnGameView()) updateTextBox(msg, true);
+      updateStats();
+      if (_autoCatching) {
+        await delay(300);
+        goIdle();
+      }
+      return;
     }
-    gameData.stats.totalCatches++;
-    // 记录遭遇日志
-    if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-    gameData.encounterLogs[idx].push({
-      time: Date.now(), shiny: currentIsShiny, result: 'caught',
-      balls: { ...currentEncounterBalls }, source: _encounterSource,
-      charmBuff: charmBuffActive, // 该遭遇是否处于闪耀护符 buff（影响闪光率评分）
-      score: computeObtainScore({
-        pokemon: currentEncounter, source: _encounterSource, shiny: currentIsShiny,
-        charmBuff: charmBuffActive, honeyBuff: honeyBuffActive,
-        balls: currentEncounterBalls, finalRate: rate,
-      }),
-    });
-    // 捕获文案（离开遇敌页则不弹出）
-    let msg;
-    if (currentIsShiny) {
-      msg = '闪闪发光的 ' + name + ' 被捕获了！';
-    } else if (anim.master) {
-      msg = Math.random() < 0.5
-        ? '大师球完美锁住了 ' + name + '！'
-        : '大师球发挥奇效，顺利捕获 ' + name + '！';
-    } else {
-      msg = '搞定！' + name + ' 被收服了！';
-    }
-    // 入仓库（带随机个体值）
-    const entry = addRosterEntry({ species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource });
-    setLastObtainedEntryId(entry.id);
-    if (isOnGameView()) updateTextBox(msg, true);
-    addSystemLog('pokemon_caught', { pokemon: idx, shiny: currentIsShiny, ball: ballType, auto: _autoCatching });
-    await saveGame();
-    updateStats();
-    if (_autoCatching) {
+
+    // 挣脱/逃跑 通用文案
+    const breakMsgs = BREAK_MSGS;
+
+    if (outcome === 'fled') {
+      // 先显示挣脱文案（离开遇敌页则不弹）
+      const m = breakMsgs[breakRound] || breakMsgs[1];
+      if (isOnGameView()) updateTextBox(m[randInt(0, m.length - 1)], false);
+      await delay(800); // 停顿期间禁止丢球（phase='fled'已阻止丢球）
+      if (isOnGameView()) updateTextBox('精灵逃走了！', false);
+      updateStats();
+      // 宝可梦水平翻转并向右下平移出屏
+      if (isOnGameView()) await playFleeAnim();
       await delay(300);
       goIdle();
+      return;
     }
-    return;
-  }
 
-  // 挣脱/逃跑 通用文案
-  const breakMsgs = BREAK_MSGS;
-
-  if (anim.result === 'fled') {
-    setPhase('fled'); // 立即阻止再次丢球/逃跑
-    $('fleeBtn').style.display = 'none';
-    // 先显示挣脱文案（离开遇敌页则不弹）
-    const m = breakMsgs[anim.shakes] || breakMsgs[1];
+    // 没抓住 → 继续丢球（摇晃文案，离开遇敌页则不弹）
+    const m = breakMsgs[breakRound] || breakMsgs[1];
     if (isOnGameView()) updateTextBox(m[randInt(0, m.length - 1)], false);
-    await delay(800); // 停顿期间禁止丢球（phase='fled'已阻止丢球）
-    // 记录遭遇日志
-    gameData.stats.totalFlees++;
-    const idx = String(currentEncounter.index);
-    if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-    gameData.encounterLogs[idx].push({
-      time: Date.now(), shiny: currentIsShiny, result: 'fled',
-      balls: { ...currentEncounterBalls }, source: _encounterSource,
-      charmBuff: charmBuffActive,
-      // 未获得宝可梦：score 记"相遇欧气分"（遇到稀有本身也值得加分，无 buff 更高）
-      score: computeMeetScore({
-        pokemon: currentEncounter, source: _encounterSource, shiny: currentIsShiny,
-        charmBuff: charmBuffActive, honeyBuff: honeyBuffActive,
-      }),
-    });
-    if (isOnGameView()) updateTextBox('精灵逃走了！', false);
-    addSystemLog('pokemon_escaped', { pokemon: idx, shiny: currentIsShiny, auto: _autoCatching });
-    await saveGame();
-    updateStats();
-    // 宝可梦水平翻转并向右下平移出屏的逃跑动画
-    if (isOnGameView()) await playFleeAnim();
-    await delay(300);
-    goIdle();
-    return;
-  }
-
-  // 没抓住 → 继续丢球（摇晃文案，离开遇敌页则不弹）
-  const m = breakMsgs[anim.shakes] || breakMsgs[1];
-  if (isOnGameView()) updateTextBox(m[randInt(0, m.length - 1)], false);
   } finally { setThrowing(false); $('fleeBtn')?.classList.remove('disabled'); if (currentIsShiny && phase === 'encounter') startShinySparkleLoop(); }
   // 丢球动画结束，进度条重置满格重新计时（丢球时重置）
   if (phase === 'encounter') resetAutoFleeTimer();
@@ -566,6 +591,9 @@ export async function fleeEncounter(isAutoFlee) {
 // ===== 返回空闲状态 =====
 export function goIdle() {
   setPhase('idle');
+  endBattle(); // 战斗结束 → 停止战斗曲，恢复地区曲
+  // 启动即遭遇时 splash 后没弹过歌曲卡：地区曲恢复后补弹一次（仅一次）
+  if (consumeShowCardOnEncounterEnd()) showRegionNowPlaying();
   stopAutoFleeTimer();
   stopShinySparkleLoop();
   setCatchConfirmStep(false);
@@ -605,7 +633,7 @@ export function goIdle() {
     setHoneyPausedRemaining(0);
     // 快速遇敌
     setNextEncounterTimer(setTimeout(tryEncounter, rand(15, 30) * 1000));
-    // 甜甜蜜到期：走统一公共回调（关闭+文案+自动续杯+保底），与激活时的到期行为一致
+    // 甜甜蜜到期：走统一公共回调（关闭+文案+自动续杯），与激活时的到期行为一致
     setHoneyExpiryTimer(setTimeout(handleHoneyExpired, d));
     startHoneyCountdown();
   } else {

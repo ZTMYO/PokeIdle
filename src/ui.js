@@ -7,10 +7,56 @@ import * as road from './road.js';
 // DOM 快捷获取
 export const $ = id => document.getElementById(id);
 
+// ---------- 切歌提示 ----------
+let _npInT = null;
+let _npOutT = null;
+function setRoll(container, text) {
+  if (!container) return;
+  let inner = container.firstElementChild;
+  if (!inner) { inner = document.createElement('span'); container.appendChild(inner); }
+  inner.textContent = text;
+  const overflow = inner.scrollWidth > container.clientWidth;
+  container.classList.toggle('scrolling', overflow);
+  if (overflow) {
+    container.style.setProperty('--marquee', (container.clientWidth - inner.scrollWidth) + 'px');
+    inner.style.animation = 'none';
+    void inner.offsetWidth;
+    inner.style.animation = '';
+  }
+}
+export function showNowPlaying(title, artist) {
+  const el = $('nowPlaying');
+  if (!el) return;
+  const idle = $('idleView');
+  if (!idle || idle.style.display !== 'flex') return;
+  const t = el.querySelector('.now-playing-title');
+  const a = el.querySelector('.now-playing-artist');
+  clearTimeout(_npInT);
+  clearTimeout(_npOutT);
+  el.classList.remove('np-in', 'np-out');
+  el.style.display = 'flex';
+  void el.offsetWidth;
+  setRoll(t, title);
+  setRoll(a, artist || '');
+  void el.offsetWidth; // 重启动画
+  el.classList.add('np-in');
+  _npInT = setTimeout(() => {
+    el.classList.remove('np-in');
+    el.classList.add('np-out');
+    _npOutT = setTimeout(() => {
+      el.style.display = 'none';
+      el.classList.remove('np-out');
+    }, 650);
+  }, 2800);
+}
+
 // ---------- 视图切换 ----------
 export function showView(id) {
   if (id === 'idleView' && phase === 'encounter') {
     id = 'encounterView';
+  }
+  if (id === 'encounterView' && phase === 'idle') {
+    id = 'idleView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
   const views = ['idleView','introView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','tradeView'];
@@ -18,13 +64,10 @@ export function showView(id) {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
-  // 从非游戏页（图鉴/商店等）切回游戏页时，同步当前遭遇画面
-  // （后台自动捕捉可能已推进到新遭遇，需刷新图片/文案/标签）
   if (!wasOnGameView && (id === 'idleView' || id === 'encounterView') && phase === 'encounter' && currentEncounter) {
     setTimeout(() => {
       import('./battle.js').then(async m => {
         const loadPromise = m.renderEncounterScene(currentEncounter);
-        // 若自动捕捉开启且未在运行，回到游戏页时重新接管
         if (gameData.settings?.autoCatch && !(currentIsShiny && gameData.settings?.shinyStop)) {
           await loadPromise; // 等图片加载完再丢球，避免尺寸错乱
           m.autoCatch();
@@ -34,13 +77,11 @@ export function showView(id) {
       });
     }, 0);
   }
-  // 手机体系页面：手机主页及其应用子页统一高亮手机图标
   const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','berryView','mixerView','dataView','systemLogView','tutorialView','rosterView','tradeView']);
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
     btn.classList.toggle('active', on);
   });
-  // 回到首页时刷新角色精灵 + 道路尺寸（钓鱼中恢复钓鱼画面而非走路）
   if (id === 'idleView') {
     if (_fishing) {
       import('./fishing.js').then(m => m.applyFishingVisual());
@@ -56,7 +97,6 @@ export function showView(id) {
     const box = $('textBox');
     const tc = $('animThrowChar');
     if (box && !box.classList.contains('show')) {
-      // 遇敌页入场：文字框与主角背影同步慢速升起（文案把主角"顶起"）
       const screen = $('screen');
       if (screen) {
         screen.classList.add('encounter-intro');
@@ -67,7 +107,6 @@ export function showView(id) {
       void box.offsetHeight;
       box.classList.add('show');
       box.style.transform = 'translateY(0)';
-      // 主角背影从底部随文案一起升起
       if (tc) {
         tc.style.transition = 'none';
         tc.style.bottom = '0';
@@ -77,9 +116,7 @@ export function showView(id) {
       }
     }
     $('fleeBtn').style.display = '';
-    // 兜底恢复丢球主角背影
     if (tc) tc.style.display = '';
-    // 防止 display:none→flex 导致 CSS animation 重播丢球动画
     if (tc) tc.classList.remove('throwing');
   }
   const title = $('appTitle');
@@ -94,8 +131,6 @@ export function showView(id) {
 }
 
 // ---------- 底部文字框 ----------
-// ★ 核心修复：updateTextBox 自带 isOnGameView 保护
-// 调用方不再需要手动检查，一处修复处处生效
 export function updateTextBox(text, showArrow) {
   if (!isOnGameView()) return;
   const box = $('textBox');
@@ -128,14 +163,12 @@ export function isOnGameView() {
 }
 
 // ---------- 角色系统 ----------
-// 是否处于 buff 生效状态（影响跑步动画）——buff 生效期间无论在哪页都按跑步速度移动
 function isBuffActive() {
   return !!(window.__honeyBuffActive__ || window.__charmBuffActive__);
 }
 
 export function applyCharSprites() {
   const prefix = getCharPrefix();
-  // 遇敌页丢球角色背影 + 启动页主角 也随性别切换
   const backImg = document.querySelector('#animThrowChar .anim-throw-char-img');
   if (backImg) backImg.src = `./character/${prefix}-back.png`;
   const hero = document.querySelector('.splash-hero');
@@ -148,8 +181,6 @@ export function getCharPrefix() {
   return gameData.settings?.gender === 'may' ? 'may' : 'brendan';
 }
 
-// 各道具对应的精灵图行 y 偏移（sprite sheet: brendan-get-all.png，7行横排、每行5帧、帧宽32px）
-// 图片以 2x 放大显示（行高 46 = 23*2），故偏移按 46 递增
 const GET_ITEM_Y = {
   'poke-ball': 0,     'ultra-ball': -46,   'master-ball': -92,
   'mystery-egg': -138,      'sweet-honey': -184,
@@ -160,8 +191,8 @@ let _getItemRaf = null;
 
 function startGetItemAnim(el, yOffset) {
   if (_getItemRaf) { cancelAnimationFrame(_getItemRaf); _getItemRaf = null; }
-  const frames = 5;   // 每行 5 帧（帧宽 32px）
-  const frameW = 64;  // 2x 显示 → 每帧 64px
+  const frames = 5;
+  const frameW = 64;
   const dur = 800;
   const startT = performance.now();
   function frame(now) {
@@ -178,7 +209,6 @@ function startGetItemAnim(el, yOffset) {
 export function setIdleCharacter(state, itemKey) {
   const el = $('walkGif');
   if (!el) return;
-  // 清除所有类和 get-item 遗留的内联样式
   el.className = 'walk-gif';
   el.style.backgroundImage = '';
   el.style.backgroundSize = '';
@@ -186,14 +216,11 @@ export function setIdleCharacter(state, itemKey) {
   if (state === 'get-item') {
     el.classList.add('get-item');
     if (itemKey && GET_ITEM_Y[itemKey] !== undefined) {
-      // 使用 sprite sheet + JS 动画（每种道具不同行）
       el.style.backgroundImage = `url("./character/${getCharPrefix()}-get-all.png")`;
       el.style.backgroundSize = '320px 322px';
       startGetItemAnim(el, GET_ITEM_Y[itemKey]);
     }
   } else {
-    // 状态类（walk/run/bike）+ 性别类（brendan/may）：
-    // CSS 尺寸/动画按状态共享，背景图按性别一行声明
     if (road.isBike()) {
       el.classList.add('bike');
       road.setSpeed(ROAD_SPEED_BIKE);
@@ -206,15 +233,12 @@ export function setIdleCharacter(state, itemKey) {
     }
     el.classList.add(getCharPrefix());
   }
-  // 主角移速变化（buff 激活/到期、道路切换）后，导航页若可见立即按新速度刷新预计时间
   if ($('gpsView')?.style.display === 'flex') {
     import('./gps.js').then(m => m.refreshGpsRender());
   }
 }
 
 // ---------- 图片尺寸自适应 ----------
-// 舞台尺寸缓存：窗口固定 320×400，屏幕内容区尺寸恒定。
-// 首次正常布局后缓存，避免从其他页面切回游戏页的瞬间 layout 未稳定时取到收缩值
 let _stageCache = null;
 export function getStageSize() {
   if (_stageCache && _stageCache.w >= 280 && _stageCache.h >= 250) return _stageCache;
@@ -222,13 +246,11 @@ export function getStageSize() {
   let w = innerRect?.width || 0;
   let h = innerRect?.height || 0;
   if (w < 50 || h < 50) {
-    // 兜底：.screen 内容区（去掉 3px 边框）
     const screenRect = document.querySelector('.screen')?.getBoundingClientRect();
     w = (screenRect?.width || 0) - 6;
     h = (screenRect?.height || 0) - 6;
   }
   if (w < 50 || h < 50) {
-    // 最后兜底：窗口视口
     w = window.innerWidth;
     h = window.innerHeight;
   }
@@ -237,16 +259,11 @@ export function getStageSize() {
 }
 
 export function fitPokemonImage(img) {
-  // 默认保持自然尺寸；若高度超出可见范围则等比压缩到刚好到顶
   if (!img || !img.naturalWidth || !img.naturalHeight) return;
   img.style.width = '';
   img.style.height = '';
   img.style.objectFit = '';
-  // 只对遭遇页内的宝可梦图片做适配
   if (!img.closest('#encounterView')) return;
-  // 精灵底部锚在屏幕 42% 高度处，可见上限为剩余 58% 高度
-  // 用缓存舞台高度做基准（后台战斗时 encounterView 隐藏 clientHeight 为 0，
-  // 也照常适配，保证切回页面时尺寸正确；切回瞬间 view 未铺满也不会缩错）
   const { h: stageH } = getStageSize();
   const maxH = stageH * 0.58;
   if (img.naturalHeight > maxH) {
@@ -257,10 +274,7 @@ export function fitPokemonImage(img) {
 }
 
 // ---------- 图片加载 ----------
-// 通用图片加载：裸路径 → encodeURI → fetch blob → Tauri 直读 base64 逐级兜底。
-// 中文/特殊字符文件名在部分 WebView 环境下直接 <img> 请求会失败，必须走降级链。
-// 加载成功后缓存最终 src：列表重建（切换筛选/搜索/排序）时同步复用，避免图标闪烁空白。
-const _imgCache = new Map(); // relPath → 可复用的最终 src
+const _imgCache = new Map();
 function _cacheSet(key, val) {
   _imgCache.set(key, val);
   if (_imgCache.size > 800) _imgCache.delete(_imgCache.keys().next().value); // 超限淘汰最早插入的
@@ -291,7 +305,6 @@ export function tryLoadImage(img, relPath) {
       if (!r.ok) return false;
       return r.blob().then(blob => {
         const url = URL.createObjectURL(blob);
-        // 缓存 blob URL 供复用；替换该路径上一次的 blob URL 时先释放旧的，避免泄漏
         const prev = _imgCache.get(relPath);
         if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
         _cacheSet(relPath, url);
@@ -370,8 +383,6 @@ let _prevBagCounts = {};
 export function updateStats() {
   const candy = gameData.items['candy'] || 0;
   $('statProgress').innerHTML = `<img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(candy)}`;
-  // 右下角状态：直接显示当前地点（在路段上显示 路段编号（所属地区），否则显示地区名）。
-  // 是否在路段上按物理位置（path 进度）判断，不依赖是否有目的地——取消导航停在半路时仍显示路段名
   const g = gameData?.gps;
   const region = getCurrentRegion();
   const onRoad = !!(g && g.path && g.path.length >= 2 && g.seg < g.path.length - 1 && g.totalPx > 0);
@@ -405,8 +416,6 @@ export function updateStats() {
 }
 
 // ---------- 孵蛋器红点 ----------
-// 红点挂在手机主页的"孵蛋器"应用图标上（入口已迁到手机），有蛋孵化完成时点亮。
-// 每次直接设置 display：手机页每次重绘都会重建红点节点，缓存状态会漏刷。
 export function updateIncubatorBadge() {
   const badge = $('phone-badge-incubator');
   if (badge) badge.style.display = anyIncubatorReady() ? '' : 'none';
@@ -420,14 +429,13 @@ export function renderIncubatorView() {
   if (!incubators.length) return;
   const unlocked = gameData.incubatorUnlockedSlots ?? 0;
   const hatchBtnHtml = (i, disabled) => `<span class="incubator-hatch-text hatched${disabled ? ' disabled' : ''}" data-slot="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>孵化</span>`;
-  const inBattle = phase !== 'idle'; // 战斗/捕捉/孵蛋动画期间禁用孵化按钮
+  const inBattle = phase !== 'idle';
   let html = '';
   for (let i = 0; i < Math.min(incubators.length, 8); i++) {
     const s = incubators[i];
     const isUnlocked = i < unlocked;
     const hasEgg = s && s.eggIndex != null;
     if (!isUnlocked && !hasEgg) {
-      // 锁定且无蛋 → 解锁按钮：仅下一个待解锁槽位可点击，其余禁用（必须按顺序解锁）
       const cost = getIncubatorUnlockCost(i);
       const isNext = i === unlocked;
       const canAfford = (gameData.items['candy'] || 0) >= cost;
@@ -445,9 +453,7 @@ export function renderIncubatorView() {
         ${hatchBtnHtml(i, inBattle)}
       </div>`;
     } else if (hasEgg) {
-      // 孵化中 → 进度条
       const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
-      // 兜底：里程达标、hatchStart 无效（NaN）、hatchDuration 不合法 → 强制标记孵化
       const usedValid = !isNaN(used) && used >= 0;
       const shouldBeReady = (!usedValid || (used >= s.hatchDuration)) && !s.hatched;
       if (shouldBeReady) {
@@ -504,19 +510,24 @@ export function renderIncubatorView() {
   });
 }
 
-// 孵蛋器里程轻量刷新：只更新进度条宽度与剩余里程文本，不重建 DOM。
-// 由主循环每 tick 调用（孵蛋器页可见时）。若沿用 renderIncubatorView 每秒整页重建，
-// 点击瞬间恰逢重建会丢失 click（mousedown/mouseup 落在新旧两个节点上），表现为"要点两下才有反应"。
 export function updateIncubatorTimers() {
   const list = $('incubatorList');
   if (!list) return;
   const incubators = gameData.incubators || [];
+  let changed = false;
   list.querySelectorAll('.incubator-progress-wrap[data-slot]').forEach(wrap => {
     const i = parseInt(wrap.dataset.slot);
     const s = incubators[i];
-    if (!s || s.eggIndex == null || s.hatched) return;
+    if (!s || s.eggIndex == null) return;
+    if (s.hatched) { changed = true; return; }
     const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
     const usedValid = !isNaN(used) && used >= 0;
+    if (!usedValid || (used + 100) >= s.hatchDuration) {
+      s.hatched = true;
+      saveGame();
+      changed = true;
+      return;
+    }
     const pct = usedValid ? Math.min(100, Math.floor(used / s.hatchDuration * 100)) : 0;
     const remain = usedValid ? Math.max(0, Math.ceil((s.hatchDuration - used) / PX_PER_METER)) : Math.ceil(s.hatchDuration / PX_PER_METER);
     const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
@@ -525,4 +536,8 @@ export function updateIncubatorTimers() {
     if (fill) fill.style.width = pct + '%';
     if (txt) txt.textContent = `还需 ${distStr}`;
   });
+  if (changed) {
+    updateIncubatorBadge();
+    renderIncubatorView();
+  }
 }

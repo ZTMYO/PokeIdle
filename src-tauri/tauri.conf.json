@@ -21,7 +21,8 @@
         "visible": true,
         "dragDropEnabled": true,
         "focusable": true,
-        "maximizable": false
+        "maximizable": false,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required"
       }
     ],
     "security": {

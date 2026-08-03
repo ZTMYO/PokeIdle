@@ -1,7 +1,7 @@
 // ===== 游戏常量配置 =====
 
 export const START_CANDY = 200; // 新存档启动资金
-// 道具概率权重（行走掉落 & 钓鱼共用）
+// 道具概率权重
 export const ITEM_RATES = {
   'poke-ball':   1 / 90,   // 精灵球
   'ultra-ball':  1 / 220,  // 高级球
@@ -54,12 +54,11 @@ export const SHINY_CHANCE = 1 / 1000;  // 野生/钓鱼/孵蛋基础闪光概率
 export const CHARM_SHINY_CHANCE = 0.8; // 闪耀护符生效时的遇敌/钓鱼闪光概率
 
 // ===== 孵蛋 =====
-// 孵化里程（米）：按宝可梦体重/稀有度定分布峰值，截断正态随机
 export const HATCH_DIST_MIN = 2000;   // 最短（2 公里）
 export const HATCH_DIST_MAX = 30000;  // 最长（30 公里）
 export const HATCH_DIST_SIGMA = 0.2;  // 分布宽度系数（标准差 = 峰值 × 系数）
 
-// 地区列表（下标 0~8，也是 GPS 距离矩阵索引）
+// 地区列表
 export const REGION_CYCLE = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
 
 // 像素 ↔ 米换算（统计行走距离用）
@@ -113,11 +112,13 @@ export const FARM_HARVEST_MIN = 2;   // 收获最少树果数
 export const FARM_HARVEST_MAX = 5;   // 收获最多树果数
 
 // ===== 招募帮手 =====
-export const FARM_HELPER_COST = 50;               // 招募帮手消耗糖果
-export const FARM_HELPER_DURATION = 60 * 60 * 1000; // 服务时长（1 小时）
-export const FARM_HELPER_COOLDOWN = 10 * 60 * 1000; // 服务结束后的冷却（10 分钟）
-export const FARM_HELPER_WORK_MIN = 4;            // 单次劳作间隔下限（秒）
-export const FARM_HELPER_WORK_MAX = 8;           // 单次劳作间隔上限（秒）
+export const FARM_HELPER_WORK_STAGE = 60; // 单阶段工作时长（分钟）
+export const FARM_HELPER_REST = 10;       // 阶段间休息时长（分钟）
+export const FARM_HELPER_STAGE_COST = 50; // 第 1 阶段价格（糖果）
+export const FARM_HELPER_STAGE_INC = 10;  // 每阶段单价递增量（糖果）
+
+export const FARM_HELPER_WORK_MIN = 4;         // 单次劳作间隔下限（秒）
+export const FARM_HELPER_WORK_MAX = 8;         // 单次劳作间隔上限（秒）
 export const FARM_HELPER_PATROL_PAUSE_MIN = 800;  // 巡逻站定下限（毫秒）
 export const FARM_HELPER_PATROL_PAUSE_MAX = 1800; // 巡逻站定上限（毫秒）
 

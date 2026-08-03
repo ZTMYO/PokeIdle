@@ -3,20 +3,21 @@
 // 开场完成前不保存 introDone，中途退出下次进入需重新播放
 import { $, showView, applyCharSprites } from './ui.js';
 import { gameData } from './state.js';
+import { playIntro } from './audio.js';
 
 // 故事背景以及小田卷的台词
 const SCRIPT = [
   "距离那场丰缘的冒险，已然过了许多年。",
   "好久不见，老朋友，我是小田卷博士。",
-  "想当初多亏了你，丰缘的宝可梦图鉴才圆满收官。",
+  "当初多亏了你，丰缘的图鉴才圆满收官。",
   "可整个宝可梦世界，远比丰缘更加辽阔。",
-  "如今九大地区的通路全部连通，跨地区出行不再困难，",
-  "这为收集完整的宝可梦图鉴创造了绝佳条件！",
+  "如今九大地区已连通，跨地区不再困难，",
+  "这为收集宝可梦全图鉴创造了绝佳条件！",
   "再次开启旅行如何？昔日的冠军。",
   "考虑到你要辗转各地长途旅行，",
   "我准备了一台特制手机送给你。",
-  "既能导航、查阅图鉴，还能管理宝可梦队伍。",
-  "手机内置帮助APP，随时可以查看使用教程。",
+  "既能导航、查阅图鉴，还能管理宝可梦。",
+  "内置帮助APP，随时可以查看使用教程。",
 ];
 const ASK_LINE = '准备好了吗？这就出发吧！';
 const PHONE_LINE = SCRIPT.findIndex(l => l.includes('特制手机')) + 1;
@@ -123,7 +124,7 @@ export function startIntro(onDone) {
     btn.addEventListener('click', () => chooseGender(btn.dataset.gender));
   });
   showView('introView');
-  showIntroText('欢迎来到宝可梦的世界！选择你的角色。');
+  showIntroText('欢迎来到宝可梦的世界！选择你的角色。', false, true);
 }
 
 function chooseGender(g) {
@@ -131,9 +132,10 @@ function chooseGender(g) {
   applyCharSprites();
   $('introPlayer').style.backgroundImage = `url('./character/${g}-walk.png')`;
   document.querySelectorAll('.intro-title, .intro-pick-btn').forEach(el => { el.style.display = 'none'; });
+  playIntro(); // 选完主角进入剧情 → 未白镇开场曲起播（首次进入无 splash，剧情即起播）
   _step = 1;
   renderTileScene();
-  showIntroText(SCRIPT[0], false);
+  showIntroText(SCRIPT[0], false, true);
   playerEnter();
 }
 
@@ -185,12 +187,12 @@ function enterScene() {
   }, 1150);
 }
 
-function showIntroText(text, done) {
+function showIntroText(text, done, instant) {
   const box = $('textBox');
   $('textBoxContent').textContent = '';
   $('textBoxArrow').style.display = 'none';
   if (box.classList.contains('show')) {
-    startType(text, done);
+    startType(text, done, instant);
     return;
   }
   box.style.display = 'flex';
@@ -198,18 +200,26 @@ function showIntroText(text, done) {
   void box.offsetHeight;
   box.classList.add('show');
   box.style.transform = 'translateY(0)';
-  startType(text, done);
+  startType(text, done, instant);
 }
 
 let _typeTimer = null; // 打字机定时器
 let _typeFull = null;  // 当前打字中的完整文案 { text, done }
 
-// 打字机逐字显示，全部打完才显示继续箭头
-function startType(text, done) {
+// 打字机逐字显示，全部打完才显示继续箭头；instant=true 时整句直接显示（不逐字）
+function startType(text, done, instant) {
   if (_typeTimer) clearInterval(_typeTimer);
   const content = $('textBoxContent');
   _typeFull = { text, done };
   content.textContent = '';
+  if (instant) {
+    content.textContent = text;
+    _typeTimer = null;
+    _typeFull = null;
+    if (done === true) $('textBoxArrow').style.display = 'flex';
+    else if (typeof done === 'function') done();
+    return;
+  }
   let i = 0;
   _typeTimer = setInterval(() => {
     i++;
@@ -313,6 +323,8 @@ export async function confirmIntro() {
     return;
   }
   hideIntroText();
+  // 恢复游戏内确认按钮的默认文本与布局（intro 期间被改成「准备好了」/「好！」）
+  $('confirmYes').textContent = '确定';
   $('confirmNo').style.display = '';
   $('catchConfirmBtns').style.display = 'none';
   const done = _onDone;

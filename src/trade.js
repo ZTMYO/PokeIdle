@@ -8,6 +8,7 @@ import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './u
 import { showGoodbyeConfirm, showTradeReceive } from './animation.js';
 import { computeObtainScore } from './scoring.js';
 import { TYPE_COLORS } from './items.js';
+import { playCongratulation } from './audio.js';
 
 // ---------- NPC ----------
 // 图源 src/character/npc 的 9 帧行走图（等宽 16px），同名角色共用名字
@@ -395,6 +396,7 @@ function doTrade(offerId, rid) {
       if (ri >= 0) arr.splice(ri, 1);
       const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade' });
       if (entry) { entry.ivs = o.give.ivs; entry.nature = o.give.nature; setLastObtainedEntryId(entry.id); }
+      playCongratulation(); // 交换获得宝可梦 → 祝贺音效
       // 记录交换前的图鉴状态（右上角「已捕获/新发现」按交换前判定，与孵蛋一致）
       const idx = o.give.species;
       const beforePdx = gameData.pokedex[idx];

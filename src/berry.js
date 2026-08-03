@@ -1,7 +1,7 @@
 // ===== 树果农场 =====
 // 6 块田地按真实时间生长；生长/湿度由 Date.now() 折算并随存档持久化（gameData.berryFarm）
-import { $, showView, tryLoadImage, getCharPrefix } from './ui.js';
-import { phase, gameData, setPrevView, saveGame, randInt, addSystemLog } from './state.js';
+import { $, showView, tryLoadImage, getCharPrefix, updateStats } from './ui.js';
+import { phase, gameData, setPrevView, saveGame, randInt } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { setupFoodTooltip } from './pokedex.js';
 import {
@@ -22,9 +22,10 @@ import {
   FARM_CANDY_PER_BERRY as CANDY_PER_BERRY,
   FARM_HARVEST_MIN as HARVEST_MIN,
   FARM_HARVEST_MAX as HARVEST_MAX,
-  FARM_HELPER_COST as HELPER_COST,
-  FARM_HELPER_DURATION as HELPER_DURATION,
-  FARM_HELPER_COOLDOWN as HELPER_COOLDOWN,
+  FARM_HELPER_STAGE_COST as HELPER_STAGE_COST,
+  FARM_HELPER_STAGE_INC as HELPER_STAGE_INC,
+  FARM_HELPER_WORK_STAGE as HELPER_WORK_STAGE,
+  FARM_HELPER_REST as HELPER_REST,
   FARM_HELPER_WORK_MIN as HELPER_WORK_MIN,
   FARM_HELPER_WORK_MAX as HELPER_WORK_MAX,
   FARM_HELPER_PATROL_PAUSE_MIN as PATROL_PAUSE_MIN,
@@ -80,6 +81,12 @@ const MIN_LEG_MS = 240;
 const TREE_Z = [7, 9];
 function helperZ(ty) {
   return ty < PLOT_BOTTOM[1] ? 10 : 8;
+}
+
+// 帮手雇佣总价：按阶段单价累进
+function HELPER_COST_OF(stages) {
+  const n = Math.max(1, Math.floor(stages));
+  return HELPER_STAGE_COST * n + (HELPER_STAGE_INC * n * (n - 1)) / 2;
 }
 
 let _timer = null;
@@ -257,6 +264,14 @@ function plotTip(p) {
   return BERRY_NAMES[BERRY_ICONS[p.type]] || '树果';
 }
 
+function updatePlotDom(i) {
+  const plotEl = $('berryContent')?.querySelector(`.berry-plot[data-plot="${i}"]`);
+  if (!plotEl) return;
+  plotEl.outerHTML = plotHtml(ensureBerryFarm().plots[i], i);
+  const newEl = $('berryContent')?.querySelector(`.berry-plot[data-plot="${i}"]`);
+  if (newEl) bindPlot(newEl);
+}
+
 function plotHtml(p, i) {
   const row = Math.floor(i / 3);
   const pos = `left:${PLOT_LEFT[i % 3]}px;bottom:${PLOT_BOTTOM[row]}px;`;
@@ -392,7 +407,8 @@ function openPicker(i) {
       gameData.stats.totalPlantings = (gameData.stats.totalPlantings || 0) + 1;
       ensureBerryFarm().plots[idx] = { type, grownMs: 0, water: 0, waterAt: Date.now(), totalMs: randInt(MATURE_MIN, MATURE_MAX) };
       saveGame();
-      render();
+      updatePlotDom(idx);
+      updateStats(); // 同步底部糖果数量（种植扣费）
       notifyBerryChanged();
     });
   });
@@ -447,37 +463,90 @@ function stockHtml(stock) {
     </div>`).join('');
 }
 
+// ---------- 招募帮手（连续工作档位 + 阶段休息） ----------
+const HELPER_WORK_STAGE_MS = HELPER_WORK_STAGE * 60 * 1000; // 单阶段工作时长（毫秒）
+const HELPER_REST_MS = HELPER_REST * 60 * 1000;             // 阶段间休息时长（毫秒）
+let _hireStages = 1; // 默认招募 1 个阶段（1 小时），UI 用 ＋/－ 无上限增减
+
+function planLabel(minutes) {
+  return minutes % 60 === 0 ? `${minutes / 60}小时` : `${minutes}分钟`;
+}
+
 function helperPanelHtml() {
   const active = isHelperActive();
   const resting = isHelperResting();
-  const canAfford = (gameData.items.candy || 0) >= HELPER_COST;
-  const remainStr = active ? fmtRemain(helperRemainingMs()) : resting ? fmtRemain(helperCooldownMs()) : '';
+  const canAfford = (gameData.items.candy || 0) >= HELPER_COST_OF(_hireStages);
   const autoPlant = !!ensureBerryFarm().autoPlant;
   const stateClass = active ? ' active' : resting ? ' resting' : '';
+  // 状态文案与剩余：工作中显示总剩余；期内休息显示「休息 + 阶段剩余」并附带总剩余；服务结束后冷却显示休息剩余
+  let desc = '', remain = '';
+  if (active && resting) {
+    desc = '小憩中';
+    remain = `休息 ${fmtRemain(helperRestRemainingMs())} · 共 ${fmtRemain(helperRemainingMs())}`;
+  } else if (active) {
+    desc = '正在照看果园';
+    remain = '剩余 ' + fmtRemain(helperRemainingMs());
+  } else if (resting) {
+    desc = '休息中';
+    remain = '休息 ' + fmtRemain(helperRestRemainingMs());
+  } else {
+    desc = '空闲中';
+  }
+  // 头像栏右侧操作区：空闲时显示「− 时长 ＋」；工作中/休息中显示「收工」按钮
+  const headRight = active
+    ? '<span class="helper-stop" data-helper-stop>收工</span>'
+    : resting
+      ? ''
+      : `<span class="helper-stepbar">
+          <span class="helper-stage">${planLabel(_hireStages * HELPER_WORK_STAGE)}</span>
+          <span class="helper-step-col">
+            <span class="helper-step" data-plan-inc>＋</span>
+            <span class="helper-step${_hireStages <= 1 ? ' disabled' : ''}" data-plan-dec>−</span>
+          </span>
+        </span>`;
+  // 底部行：空闲时左下角为糖果价格、右侧为招募按钮；工作中/休息中显示剩余时间
+  const bar = active
+    ? `<span class="helper-remain">${remain}</span>
+       <span class="ball-check${autoPlant ? ' on' : ''}" id="toggleAutoPlant">${autoPlant ? '☑' : '☐'}自动种植</span>`
+    : resting
+      ? `<span class="helper-remain">${remain}</span>`
+      : `<span class="helper-cost">${CANDY_ICON}${HELPER_COST_OF(_hireStages)}</span>
+         <span class="helper-hire${canAfford ? '' : ' locked'}" data-hire>招募</span>`;
   return `
     <div class="berry-helper-panel${stateClass}">
       <div class="helper-head">
         <img class="helper-avatar" src="./character/${helperSpritePrefix()}-front.png" alt="" />
         <div class="helper-meta">
           <div class="helper-name">${helperName()}</div>
-          <div class="helper-desc">${active ? '正在照看果园' : resting ? '休息中' : '空闲中'}</div>
+          <div class="helper-desc">${desc}</div>
         </div>
-        ${(active || resting) ? `<span class="helper-remain">${active ? '剩余' : '冷却'} ${remainStr}</span>` : ''}
+        ${headRight}
       </div>
-      <div class="helper-foot">
-        ${active
-          ? `
-            ${autoPlant ? `<span class="helper-note">帮手会随机种植树果（每颗种子 ${CANDY_ICON}${PLANT_COST}）</span>` : ''}
-            <span class="ball-check${autoPlant ? ' on' : ''}" id="toggleAutoPlant">${autoPlant ? '☑' : '☐'}自动种植</span>`
-          : resting
-            ? `<span class="helper-rest-note">帮手累了，休息中</span>`
-            : `<span class="helper-cost">${CANDY_ICON}${HELPER_COST}</span>
-               <span class="helper-hire${canAfford ? '' : ' locked'}" data-hire>招募</span>`}
-      </div>
+      <div class="helper-hirebar">${bar}</div>
     </div>`;
 }
 
 function bindHelperPanel(scope) {
+  scope.querySelectorAll('[data-plan-inc]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      _hireStages++;
+      refreshHelperPanel();
+    });
+  });
+  scope.querySelectorAll('[data-plan-dec]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (_hireStages > 1) _hireStages--;
+      refreshHelperPanel();
+    });
+  });
+  scope.querySelectorAll('[data-helper-stop]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      endHelperNow(); // 立即收工：清角色、恢复空闲可招募
+    });
+  });
   scope.querySelectorAll('[data-hire]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -511,8 +580,15 @@ function updateHelperTimer() {
   if (!host || host.style.display === 'none') return;
   const rem = host.querySelector('.helper-remain');
   if (!rem) return;
-  if (isHelperActive()) rem.textContent = '剩余 ' + fmtRemain(helperRemainingMs());
-  else if (isHelperResting()) rem.textContent = '冷却 ' + fmtRemain(helperCooldownMs());
+  const h = gameData?.berryFarm?.helper;
+  if (!h) return;
+  if (h.remainingMs > 0) {
+    rem.textContent = h.restingMs > 0
+      ? `休息 ${fmtRemain(h.restingMs)} · 共 ${fmtRemain(h.remainingMs)}`
+      : '剩余 ' + fmtRemain(h.remainingMs);
+  } else if (h.restingMs > 0) {
+    rem.textContent = '休息 ' + fmtRemain(h.restingMs);
+  }
 }
 
 function boardHtml() {
@@ -522,7 +598,8 @@ function boardHtml() {
   const stock = f.stock || {};
   const demands = b.demands
     .map((d, k) => ({ d, k }))
-    .sort((a, b) => (a.d.big ? 1 : 0) - (b.d.big ? 1 : 0))
+    // 按奖励（糖果数）从小到大排：需求小的在上，大量需求（奖励最高）沉底
+    .sort((a, b) => a.d.candy - b.d.candy)
     .map(({ d, k }) => boardDemandHtml(d, k, stock)).join('');
   return `
     <div class="berry-picker berry-board">
@@ -531,13 +608,13 @@ function boardHtml() {
         <div class="berry-picker-x" data-board-close>✕</div>
       </div>
       <div class="berry-board-sections">
-        <div class="berry-board-section">
-          <div class="berry-board-section-title">树果委托</div>
-          <div class="board-demands">${demands}</div>
-        </div>
         <div class="berry-board-section berry-board-section-helper">
           <div class="berry-board-section-title">招募帮手</div>
           ${helperPanelHtml()}
+        </div>
+        <div class="berry-board-section">
+          <div class="berry-board-section-title">树果委托</div>
+          <div class="board-demands">${demands}</div>
         </div>
       </div>
     </div>`;
@@ -737,6 +814,11 @@ function spawnHarvestFly(i, type, qty) {
 }
 
 // ---------- 招募帮手系统 ----------
+// 帮手状态（gameData.berryFarm.helper）：
+//   remainingMs      连续工作时间总剩余（仅工作阶段递减，休息不计入，归 0 即帮手下班离场）
+//   stageRemainingMs 当前工作阶段剩余（归 0 且总时长未用完 → 进入阶段休息）
+//   restingMs        阶段休息剩余（> 0 表示休息中；归 0 后恢复下一工作阶段）
+// 旧存档兼容：{ remainingMs, cooldownMs } 会在 helperTick 首次运行时迁移为新结构
 const _helper = {
   nextWorkAt: 0,
   wanderTimer: null,
@@ -754,32 +836,55 @@ function helperName() {
   return helperSpritePrefix() === 'brendan' ? '小悠' : '小遥';
 }
 
+// 连续工作期内（含阶段休息）都算「工作中」：帮手在场
 function isHelperActive() {
   const h = gameData?.berryFarm?.helper;
   return !!h && h.remainingMs > 0;
 }
 
-// 服务结束后的冷却期：帮手休息中，不可招募
+// 休息中：期内阶段休息（remainingMs > 0）或服务结束后的尾休息（旧冷却迁移）
 function isHelperResting() {
   const h = gameData?.berryFarm?.helper;
-  return !!h && h.remainingMs <= 0 && (h.cooldownMs || 0) > 0;
+  return !!h && (h.restingMs || 0) > 0;
 }
 
 function helperRemainingMs() {
-  return isHelperActive() ? gameData.berryFarm.helper.remainingMs : 0;
+  const h = gameData?.berryFarm?.helper;
+  return h && h.remainingMs > 0 ? h.remainingMs : 0;
 }
 
-function helperCooldownMs() {
-  return isHelperResting() ? gameData.berryFarm.helper.cooldownMs : 0;
+function helperRestRemainingMs() {
+  const h = gameData?.berryFarm?.helper;
+  return h && (h.restingMs || 0) > 0 ? h.restingMs : 0;
+}
+
+// 旧存档结构迁移：无 stageRemainingMs 字段说明是旧版 { remainingMs, cooldownMs }
+function migrateHelperShape(h) {
+  if (h.stageRemainingMs !== undefined) return;
+  if (h.remainingMs > 0) {
+    // 旧版工作中：直接进入工作阶段
+    h.stageRemainingMs = Math.min(h.remainingMs, HELPER_WORK_STAGE_MS);
+    h.restingMs = 0;
+  } else {
+    // 旧版服务结束后的冷却：转入尾休息形态（结束后清空、可重新招募）
+    h.stageRemainingMs = 0;
+    h.restingMs = h.cooldownMs || HELPER_REST_MS;
+  }
+  delete h.cooldownMs;
 }
 
 function recruitHelper() {
   const f = ensureBerryFarm();
   if (isHelperActive() || isHelperResting()) return;
-  if ((gameData.items.candy || 0) < HELPER_COST) return;
-  gameData.items.candy -= HELPER_COST;
-  f.helper = { remainingMs: HELPER_DURATION };
-  addSystemLog('berry_helper', { cost: HELPER_COST, duration: HELPER_DURATION });
+  const cost = HELPER_COST_OF(_hireStages);
+  if ((gameData.items.candy || 0) < cost) return;
+  gameData.items.candy -= cost;
+  f.helper = {
+    remainingMs: _hireStages * HELPER_WORK_STAGE_MS,
+    stageRemainingMs: HELPER_WORK_STAGE_MS,
+    restingMs: 0,
+  };
+  _helper.nextWorkAt = 0;
   saveGame();
   notifyBerryChanged();
   if ($('berryView')?.style.display !== 'none') {
@@ -788,36 +893,86 @@ function recruitHelper() {
   }
 }
 
+// 外部调用（调试/管理）：无论工作中、阶段休息中还是尾休息中都立即结束帮手服务，
+// 清理角色与残留定时器并恢复「空闲可招募」；无进行中的服务时返回 false
+export function endHelperNow() {
+  const f = gameData?.berryFarm;
+  if (!f || !f.helper) return false;
+  f.helper = null;
+  _helper.nextWorkAt = 0;
+  removeHelperChar(); // 清角色与残留动画定时器
+  saveGame();
+  notifyBerryChanged();
+  if ($('berryView')?.style.display !== 'none') refreshHelperPanel();
+  return true;
+}
+
 export function helperTick() {
   const f = gameData?.berryFarm;
   if (!f || !f.helper) return;
   const viewOpen = $('berryView')?.style.display !== 'none';
-  if (f.helper.remainingMs > 0) {
-    f.helper.remainingMs = Math.max(0, (f.helper.remainingMs || 0) - 1000);
-    if (f.helper.remainingMs <= 0) {
-      // 服务结束，进入冷却（帮手离场）
-      f.helper.cooldownMs = HELPER_COOLDOWN;
-      saveGame();
-      notifyBerryChanged();
-      if (viewOpen) {
-        removeHelperChar();
-        refreshHelperPanel();
+  const h = f.helper;
+  migrateHelperShape(h);
+
+  if (h.remainingMs > 0) {
+    if (h.restingMs > 0) {
+      // 阶段休息中：只走休息计时，不做劳作（休息不计入连续工作时间）
+      h.restingMs = Math.max(0, (h.restingMs || 0) - 1000);
+      if (h.restingMs <= 0) {
+        // 休息结束，进入下一工作阶段
+        h.stageRemainingMs = HELPER_WORK_STAGE_MS;
+        _helper.nextWorkAt = 0;
+        if (viewOpen) refreshHelperPanel();
       }
-    } else if (viewOpen) {
-      updateHelperTimer();
+    } else {
+      // 工作阶段中：总时长与阶段计时同步递减并驱动劳作
+      h.remainingMs = Math.max(0, (h.remainingMs || 0) - 1000);
+      h.stageRemainingMs = Math.max(0, (h.stageRemainingMs || 0) - 1000);
+      if (h.stageRemainingMs <= 0) {
+        // 本阶段工作结束：总时长仍有剩余则休息，否则直接下班离场
+        h.restingMs = HELPER_REST_MS;
+        _helper.nextWorkAt = 0;
+        if (viewOpen) refreshHelperPanel();
+      } else {
+        if (!_helper.nextWorkAt) _helper.nextWorkAt = Date.now() + randInt(HELPER_WORK_MIN, HELPER_WORK_MAX) * 1000;
+        if (Date.now() >= _helper.nextWorkAt) {
+          _helper.nextWorkAt = Date.now() + randInt(HELPER_WORK_MIN, HELPER_WORK_MAX) * 1000;
+          helperWork();
+        }
+      }
+      if (h.remainingMs <= 0) {
+        // 连续工作时间用完，帮手下班离场，恢复可招募
+        f.helper = null;
+        _helper.nextWorkAt = 0;
+        saveGame();
+        notifyBerryChanged();
+        // 无论页面是否可见都清理角色与动画（hidden 下移除无影响，下次进入由 render 重建）
+        removeHelperChar();
+        if (viewOpen) refreshHelperPanel();
+        return;
+      }
     }
-  } else if ((f.helper.cooldownMs || 0) > 0) {
-    f.helper.cooldownMs = Math.max(0, (f.helper.cooldownMs || 0) - 1000);
-    if (f.helper.cooldownMs <= 0) {
-      // 冷却结束，清空状态，恢复可招募
+    if (viewOpen) updateHelperTimer();
+    return;
+  }
+
+  // 总时长已用尽的尾休息（旧冷却迁移）：结束后清空、恢复可招募
+  if (h.restingMs > 0) {
+    h.restingMs = Math.max(0, (h.restingMs || 0) - 1000);
+    if (h.restingMs <= 0) {
       f.helper = null;
+      _helper.nextWorkAt = 0;
       saveGame();
       notifyBerryChanged();
       if (viewOpen) refreshHelperPanel();
     } else if (viewOpen) {
       updateHelperTimer();
     }
+    return;
   }
+
+  // 兜底：残留但无剩余时长的状态直接清空
+  f.helper = null;
 }
 
 // 帮手单次劳作，从随机起点扫描：
@@ -825,24 +980,23 @@ export function helperTick() {
 function helperWork() {
   const f = ensureBerryFarm();
   if (!isHelperActive()) return;
-  // 上一个劳作任务还在进行（走路/动作中）时不打断，避免半路转向另一个作物造成“突然加速”观感；
-  // 等 finishHelperWork 移除 working 后，由下一次触发再接新任务
+  // 动作链进行中不重复触发；后台（角色 DOM 不存在）时跳过检查直接干活
   const helper = document.getElementById('berryHelper');
-  if (!helper || helper.classList.contains('working')) return;
+  if (helper?.classList.contains('working')) return;
   const autoPlant = !!f.autoPlant;
   const n = f.plots.length;
   const start = randInt(0, n - 1);
   for (let k = 0; k < n; k++) {
     const i = (start + k) % n;
     if (f.plots[i] && stageOf(f.plots[i]).key === 'ripe') {
-      moveHelperTo(i, 'plant', () => helperHarvest(i));
+      helperTask(i, 'plant', () => helperHarvest(i));
       return;
     }
   }
   for (let k = 0; k < n; k++) {
     const i = (start + k) % n;
     if (f.plots[i] && isDry(f.plots[i])) {
-      moveHelperTo(i, 'water', () => helperWater(i));
+      helperTask(i, 'water', () => helperWater(i));
       return;
     }
   }
@@ -850,10 +1004,22 @@ function helperWork() {
     for (let k = 0; k < n; k++) {
       const i = (start + k) % n;
       if (!f.plots[i]) {
-        moveHelperTo(i, 'plant', () => helperPlant(i), () => helperWater(i));
+        helperTask(i, 'plant', () => helperPlant(i), () => helperWater(i));
         return;
       }
     }
+  }
+}
+
+// 执行单次劳作：农场页可见且帮手角色在场时走走路动画，否则后台直接完成
+// （页面隐藏/未渲染时同样收获、浇水、种植，自动种植不依赖页面是否打开）
+function helperTask(i, action, doWork, waterAfter) {
+  const el = document.getElementById('berryHelper');
+  if (el && el.isConnected && $('berryView')?.style.display !== 'none') {
+    moveHelperTo(i, action, doWork, waterAfter);
+  } else {
+    doWork();
+    if (waterAfter) waterAfter();
   }
 }
 
@@ -877,12 +1043,8 @@ function helperPlant(i) {
   gameData.stats.totalPlantings = (gameData.stats.totalPlantings || 0) + 1;
   f.plots[i] = { type, grownMs: 0, water: 0, waterAt: Date.now(), totalMs: randInt(MATURE_MIN, MATURE_MAX) };
   saveGame();
-  const plotEl = $('berryContent')?.querySelector(`.berry-plot[data-plot="${i}"]`);
-  if (plotEl) {
-    plotEl.outerHTML = plotHtml(f.plots[i], i);
-    const newEl = $('berryContent')?.querySelector(`.berry-plot[data-plot="${i}"]`);
-    if (newEl) bindPlot(newEl);
-  }
+  updatePlotDom(i);
+  updateStats(); // 同步底部糖果数量（自动种植扣费）
   notifyBerryChanged();
 }
 
@@ -1157,16 +1319,8 @@ function startTimer() {
   _timer = setInterval(() => {
     if ($('berryView')?.style.display === 'none') { clearInterval(_timer); _timer = null; return; }
     const f = ensureBerryFarm();
-    if (isHelperActive()) {
-      if (!_helper.nextWorkAt) _helper.nextWorkAt = Date.now() + randInt(HELPER_WORK_MIN, HELPER_WORK_MAX) * 1000;
-      if (Date.now() >= _helper.nextWorkAt) {
-        _helper.nextWorkAt = Date.now() + randInt(HELPER_WORK_MIN, HELPER_WORK_MAX) * 1000;
-        helperWork();
-      }
-      if (_hoverPlot != null) updateProgress();
-    } else {
-      _helper.nextWorkAt = 0;
-    }
+    // 帮手劳作由全局 helperTick 驱动（与页面无关），此处只做页面内的阶段/湿度/进度刷新
+    if (_hoverPlot != null) updateProgress();
     f.plots.forEach((p, i) => {
       if (!p) return;
       const plotEl = $('berryContent')?.querySelector(`.berry-plot[data-plot="${i}"]`);

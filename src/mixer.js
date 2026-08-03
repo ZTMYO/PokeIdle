@@ -5,6 +5,7 @@ import { $, showView, tryLoadImage } from './ui.js';
 import { phase, gameData, blockBuffActive, blockRecipe, blockStartWalk, blockQuality, qteState, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, saveSessionState, setIdleMsgIdx, setPrevView, addSystemLog, saveGame, randInt } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES, BERRY_COLORS, findBerryTarget } from './items.js';
 import { BLOCK_DISTANCE, PX_PER_METER, BLOCK_QUALITY } from './config.js';
+import { playObtained } from './audio.js';
 
 // 制作一个树果方块最多消耗的树果颗数（每种 1 颗）
 const RECIPE_MAX = 4;
@@ -770,6 +771,7 @@ function showResult() {
   const cube = $('mixerResultCube');
   const reveal = () => {
     el.querySelectorAll('.mixer-page-title, .mixer-result-berries, .mixer-result-target, .mixer-result-actions').forEach(n => n.classList.add('show'));
+    playObtained(); // 方块动画结束、结果 UI 出现 → 获得音效
   };
   if (stage && cube && recipe.length > 0) {
     flyBerriesBatch(stage, cube, recipe, () => {

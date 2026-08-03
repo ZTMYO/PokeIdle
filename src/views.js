@@ -1,9 +1,10 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_COST, FARM_HELPER_DURATION, FARM_HELPER_COOLDOWN, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, setPrevView, getIncubatorUnlockCost, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, setPrevView, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch } from './battle.js';
+import { setVolume, setBattleMusic, setMusicEnabled, playBattle, endBattle } from './audio.js';
 
 // ===== 欧气综合评定 =====
 // 每场遭遇的欧气分（捕获用获得分 score，宝可梦挣脱逃跑用相遇分）取平均，映射到 9 档称号。
@@ -276,6 +277,9 @@ export function renderSystemLogs() {
       case 'bounty_claim':
         desc = `完成地区悬赏，获得糖果 ×${log.details.candy}`;
         break;
+      case 'berry_helper':
+        desc = `招募了树果帮手`;
+        break;
       default:
         desc = `未知事件 (${log.type})`;
     }
@@ -355,6 +359,9 @@ export function renderSettings(container, s) {
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
   const gender = s.gender || 'brendan';
+  const musicVolume = s.musicVolume ?? 0.6;
+  const musicEnabled = s.musicEnabled !== false;
+  const battleMusic = s.battleMusic !== false;
   container.innerHTML = `
     <div style="padding:6px 8px;">
       <div class="auto-catch-row">
@@ -398,6 +405,28 @@ export function renderSettings(container, s) {
         </div>
       </div>
       <div class="auto-catch-row">
+        <div class="auto-catch-label">音乐</div>
+        <div class="toggle-switch" id="toggleMusicEnabled">
+          <div class="toggle-track ${musicEnabled ? 'on' : ''}"></div>
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+      ${musicEnabled ? `
+      <div class="auto-catch-row" style="padding-left:8px;">
+        <div class="auto-catch-label">音乐音量</div>
+        <div class="volume-row">
+          <input type="range" class="volume-slider" id="musicVolumeSlider" min="0" max="1" step="0.05" value="${musicVolume}" />
+        </div>
+      </div>
+      <div class="auto-catch-row" style="padding-left:8px;">
+        <div class="auto-catch-label">战斗音乐</div>
+        <div class="toggle-switch" id="toggleBattleMusic">
+          <div class="toggle-track ${battleMusic ? 'on' : ''}"></div>
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+      ` : ''}
+      <div class="auto-catch-row">
         <div class="auto-catch-label">角色</div>
         <div class="gender-check-row">
           <span class="ball-check ${gender === 'brendan' ? 'on' : ''}" id="genderBrendan">${gender === 'brendan' ? '☑' : '☐'}小悠</span>
@@ -417,10 +446,12 @@ export function renderSettings(container, s) {
     </div>
   `;
   container.querySelector('#toggleAutoCatch')?.addEventListener('click', toggleAutoCatch);
+  container.querySelector('#toggleMusicEnabled')?.addEventListener('click', toggleMusicEnabled);
   container.querySelector('#genderBrendan')?.addEventListener('click', () => toggleGender('brendan'));
   container.querySelector('#genderMay')?.addEventListener('click', () => toggleGender('may'));
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
+  container.querySelector('#toggleBattleMusic')?.addEventListener('click', toggleBattleMusic);
   container.querySelector('#toggleShinyStop')?.addEventListener('click', toggleShinyStop);
   // 重置存档：二次点击确认，防误触
   container.querySelector('#resetSaveBtn')?.addEventListener('click', (e) => {
@@ -439,6 +470,14 @@ export function renderSettings(container, s) {
   });
   container.querySelector('#toggleBuffHoney')?.addEventListener('click', toggleAutoBuffHoney);
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);
+  const volSlider = container.querySelector('#musicVolumeSlider');
+  volSlider?.addEventListener('input', (e) => {
+    const v = Number(e.target.value);
+    e.target.style.setProperty('--volume-fill', v * 100 + '%'); // appearance:none 后原生填充失效，用 CSS 变量画轨道进度
+    setMusicVolume(v);
+  });
+  // 初始填充与当前音量一致
+  if (volSlider) volSlider.style.setProperty('--volume-fill', (Number(volSlider.value) * 100) + '%');
   container.querySelectorAll('.ball-check[data-ball]').forEach(el => {
     el.addEventListener('click', () => toggleAutoCatchBall(el.dataset.ball));
   });
@@ -454,13 +493,13 @@ export function renderSettings(container, s) {
 }
 
 // 重置存档：清空本地存档并开新档
-export function resetSave() {
+export async function resetSave() {
   try { localStorage.removeItem('pokemon_idle_save'); } catch (_) { }
   try { localStorage.removeItem('pokemon_idle_road'); } catch (_) { }
   try { localStorage.removeItem('pokemon_idle_session'); } catch (_) { }
   setGameData(getDefaultSave());
   ensureGpsState();
-  saveGame();
+  await saveGame();
   location.reload();
 }
 
@@ -468,6 +507,27 @@ export function resetSave() {
 function ensureSettings() {
   if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
   if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
+  if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
+  if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
+}
+
+// 音乐总开关：关闭时暂停所有背景音乐（地区曲/覆盖曲），音效不受影响；重开恢复播放
+export function toggleMusicEnabled() {
+  ensureSettings();
+  gameData.settings.musicEnabled = !(gameData.settings.musicEnabled !== false);
+  setMusicEnabled(gameData.settings.musicEnabled);
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
+
+// 音乐音量：滑条实时调节（0 ~ 100%）
+function setMusicVolume(v) {
+  ensureSettings();
+  v = Math.max(0, Math.min(1, Number(v) || 0));
+  gameData.settings.musicVolume = v;
+  setVolume(v);
+  saveGame();
 }
 
 export function toggleAutoBuffHoney() {
@@ -544,6 +604,21 @@ function toggleWindowPinned() {
   saveGame();
 }
 
+// 战斗音乐开关：关闭后战斗保持地区曲
+function toggleBattleMusic() {
+  ensureSettings();
+  gameData.settings.battleMusic = !(gameData.settings.battleMusic !== false);
+  setBattleMusic(gameData.settings.battleMusic);
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+  // 战斗中即时生效：开启切入战斗曲，关闭恢复地区曲
+  if (phase === 'encounter') {
+    if (gameData.settings.battleMusic) playBattle();
+    else endBattle();
+  }
+}
+
 export function toggleAutoCatchBall(ballType) {
   ensureSettings();
   gameData.settings.autoCatchBalls[ballType] = !(gameData.settings.autoCatchBalls[ballType] !== false);
@@ -609,7 +684,7 @@ const FISH_ITEM_ROWS = (() => {
   const total = Object.values(ITEM_RATES).reduce((a, b) => a + b, 0);
   return Object.entries(ITEM_RATES)
     .sort((a, b) => b[1] - a[1])
-    .map(([k, rate]) => [ITEM_NAMES[k], `<b>${Math.round((rate / total) * 100)}%</b>`]);
+    .map(([k, rate]) => [ITEM_NAMES[k], `<b>${Math.round((rate / total) * 100)}</b>%`]);
 })();
 
 // 极稀有（稀有度≈1）出现权重相对无 buff 的倍率（公式与 items.js pickWeightedPokemon 一致）
@@ -621,9 +696,9 @@ function rarityWeightBoost(boost) {
 const TUTORIAL_SECTIONS = [
   {
     title: '序章',
-    html: `<p>你是在<b>丰缘</b>长大的训练家，早已帮助<b>小田卷博士</b>完成了丰缘地区的图鉴，身经百战，是这片地区公认的冠军级训练家。</p>`
-      + `<p>然而世界远比丰缘辽阔——如今<b>九大地区</b>（关都、城都、丰缘、神奥、合众、卡洛斯、阿罗拉、伽勒尔、帕底亚）早已打通陆路，各地的宝可梦正等着被收录进更完整的图鉴。</p>`
-      + `<p>出发之前，小田卷博士将一部<b>手机</b>交到你手中：导航、图鉴、孵蛋器、混合器、树果农场……里面的应用足以支撑一场全新的旅行。</p>`
+    html: `<p>你是在丰缘长大的训练家，早已帮助小田卷博士完成了丰缘地区的图鉴，身经百战，是这片地区公认的冠军级训练家。</p>`
+      + `<p>然而世界远比丰缘辽阔——如今九大地区（关都、城都、丰缘、神奥、合众、卡洛斯、阿罗拉、伽勒尔、帕底亚）早已打通陆路，各地的宝可梦正等着被收录进更完整的图鉴。</p>`
+      + `<p>出发之前，小田卷博士将一部<b>手机</b>交到你手中：<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>树果农场</b>……里面的应用足以支撑一场全新的旅行。</p>`
       + `<p>你背起行囊再次出发。前方的每一条道路、每一次遭遇，都将写下属于你的冒险故事。</p>`,
   },
   {
@@ -636,168 +711,171 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '遭遇',
-    html: `<p>拥有精灵球时，每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)} 分钟</b>遇到一只野生宝可梦。</p>`
-      + `<p><b>没有精灵球时不触发遇敌</b>。</p>`,
+    html: `<p>拥有精灵球时，每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只野生宝可梦。</p>`
+      + `<p>没有<b>精灵球</b>时不触发遇敌。</p>`,
   },
   {
     title: '手机',
-    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（导航、图鉴、孵蛋器、混合器、树果农场、交换……），也可以查看当前系统时间。科学的力量真伟大！</p>`
+    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>树果农场</b>、<b>交换</b>……），也可以查看当前系统时间。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
-    html: `<p>在<b>手机</b>页面打开<b>图鉴</b>应用，支持<b>搜索</b>（输入名称快速检索）与<b>地区筛选</b>。点击表头可按相应字段<b>排序</b>，再次点击同一表头切换升/降序。</p>`
-      + `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据（详见「统计」章节）。</p>`
-      + `<p>点击条目查看详情：<b>未遇到过</b>显示"？？？"且不可点击；<b>遇到过未捕获</b>显示基础信息+完整日志；<b>已捕获</b>额外解锁精确数值、种族值条、图鉴描述与爱吃的食物。</p>`
+    html: `<p>在<b>手机</b>页面打开<b>图鉴</b>应用，支持<b>搜索</b>（输入名称快速检索）与地区筛选。点击表头可按相应字段排序，再次点击同一表头切换升/降序。</p>`
+      + `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据（详见「<b>统计</b>」章节）。</p>`
+      + `<p>点击条目查看详情：未遇到过显示"？？？"且不可点击；遇到过未捕获显示基础信息+完整日志；已捕获额外解锁精确数值、种族值条、图鉴描述与爱吃的食物。</p>`
   },
 
   {
     title: '统计',
-    html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按每次遭遇的稀有度与捕获运气综合评价称号；<b>数据总览</b>以表格统一展示<b>今日</b>与<b>累计</b>的挂机时长、遭遇、捕获、逃跑、捕获率、闪光遇见/捕获、孵化与交换，每秒自动刷新。</p>`
+    html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按每次遭遇的稀有度与捕获运气综合评价称号；数据总览以表格统一展示今日与累计的挂机时长、遭遇、捕获、逃跑、捕获率、闪光遇见/捕获、孵化与交换，每秒自动刷新。</p>`
       + `<p>其余板块按类别汇总：冒险进度（当前地区、行走距离、图鉴完成度）、消耗统计（精灵球使用与均耗）、农场与合成、地区悬赏与道具累计获得。</p>`,
   },
   {
     title: '地区',
-    html: `<p>游戏共 ${REGION_CYCLE.length} 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同：对于地区之间的道路，每段路<b>前半程</b>算出发地区、<b>后半程</b>算目标地区。</p>`
+    html: `<p>游戏共 <b>${REGION_CYCLE.length}</b> 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同：对于地区之间的道路，每段路<b>前半程</b>算出发地区、<b>后半程</b>算目标地区。</p>`
   },
   {
     title: '导航',
-    html: `<p>在<b>手机</b>页面打开<b>导航</b>应用：选择目的地即可<b>手动导航</b>；开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→帕底亚→阿罗拉→丰缘→关都→城都→神奥→卡洛斯→伽勒尔→合众…循环）选择下一站。</p>`
-      + `<p>到达目的地后<b>导航结束</b>（若开启漫游，会自动选择下一站）。</p>`
-      + `<p>进度由<b>主角实际移动</b>驱动——跑步更快，遇敌或钓鱼时暂停（详见「钓鱼」章节）。</p>`,
+    html: `<p>在<b>手机</b>页面打开<b>导航</b>应用：选择目的地即可手动导航；开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→帕底亚→阿罗拉→丰缘→关都→城都→神奥→卡洛斯→伽勒尔→合众…循环）选择下一站。</p>`
+      + `<p>到达目的地后导航结束（若开启<b>漫游</b>，会自动选择下一站）。</p>`
+      + `<p>进度由主角实际移动驱动——跑步更快，遇敌或钓鱼时暂停（详见「<b>钓鱼</b>」章节）。</p>`,
   },
   {
     title: '悬赏',
-    html: `<p>每个地区每天<b>0 点</b>刷新<b>${BOUNTY_PER_REGION} 条地区悬赏</b>：指定宝可梦来自<b>全国图鉴</b>（可能不在该地区出没），悬赏糖果奖励 <b>${BOUNTY_CANDY_MIN}~${BOUNTY_CANDY_MAX} 颗</b>，越难捕获奖励越高。</p>`
-      + `<p><b>今日到访过</b>的地区才能看到悬赏内容；仓库中拥有指定宝可梦即可<b>提交</b>，但<b>提交必须到达对应地区</b>。</p>`
-      + `<p>标题右侧的<b>纸飞机图标</b>可将该地区设为<b>导航</b>目的地：自动跳到导航页并规划路线。</p>`
+    html: `<p>每个地区每天<b>0</b> 点刷新<b>${BOUNTY_PER_REGION}</b> 条<b>地区悬赏</b>：指定宝可梦来自全国图鉴（可能不在该地区出没），悬赏糖果奖励 <b>${BOUNTY_CANDY_MIN}~${BOUNTY_CANDY_MAX}</b> 颗，越难捕获奖励越高。</p>`
+      + `<p>今日到访过的地区才能看到悬赏内容；仓库中拥有指定宝可梦即可提交，但提交必须到达对应地区。</p>`
+      + `<p>标题右侧的纸飞机图标可将该地区设为<b>导航</b>目的地：自动跳到导航页并规划路线。</p>`
   },
   {
     title: '交换',
-    html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出<b>想要的宝可梦</b>与<b>愿意给的宝可梦</b>有<b>${TRADE_SHINY_CHANCE * 100}%</b>的概率给出闪光宝可梦。</p>`
-      + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「交换」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`,
+    html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出想要的宝可梦与愿意给的宝可梦，有 <b>${TRADE_SHINY_CHANCE * 100}</b>% 的概率给出闪光宝可梦。</p>`
+      + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「<b>交换</b>」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`,
   },
   {
     title: '场景',
-    html: `<p>挂机时场景会自动轮换：每段场景的<b>长度随机生成</b>，整段滚动 <b>${ROAD_SWITCH_CYCLES}</b> 遍后切换到下一个随机场景。</p>`
-      + `<p>生成下一个场景时，有 <b>${Math.round(ROAD_SPECIAL_CHANCE * 100)}%</b> 的概率是特殊场景（可钓鱼的水域或自行车道，各占一半概率），其余 <b>${Math.round((1 - ROAD_SPECIAL_CHANCE) * 100)}%</b> 为普通场景。</p>`
-      + `<p>水域场景有垂钓点（详见「钓鱼」章节）；自行车道快速推进里程，但不触发遭遇与道具拾取。</p>`,
+    html: `<p>挂机时场景会自动轮换：每段场景的长度随机生成，整段滚动 <b>${ROAD_SWITCH_CYCLES}</b> 遍后切换到下一个随机场景。</p>`
+      + `<p>生成下一个场景时，有 <b>${Math.round(ROAD_SPECIAL_CHANCE * 100)}</b>% 的概率是<b>特殊场景</b>（可钓鱼的水域或自行车道，各占一半概率），其余 <b>${Math.round((1 - ROAD_SPECIAL_CHANCE) * 100)}</b>% 为普通场景。</p>`
+      + `<p>水域场景有<b>垂钓点</b>（详见「<b>钓鱼</b>」章节）；<b>自行车道</b>快速推进里程，但不触发遭遇与道具拾取。</p>`,
   },
   {
     title: '捕捉',
     html: `<p>丢出精灵球进行捕捉，不同球种捕获率：</p>`
       + tutorialTable([
-        ['精灵球', `<b>${CATCH_RATES['poke-ball'] * 100}%</b>`],
-        ['高级球', `<b>${CATCH_RATES['ultra-ball'] * 100}%</b>`],
-        ['大师球', `<b>${CATCH_RATES['master-ball'] * 100}%</b>`],
+        ['精灵球', `<b>${CATCH_RATES['poke-ball'] * 100}</b>%`],
+        ['高级球', `<b>${CATCH_RATES['ultra-ball'] * 100}</b>%`],
+        ['大师球', `<b>${CATCH_RATES['master-ball'] * 100}</b>%`],
       ], ['球种', '捕获率'], [48, 'auto'])
-      + `<p>每一次捕捉失败后宝可梦都有几率挣脱逃跑（首球 <b>${FLEE_CHANCE * 100}%</b>，每多丢一球 <b>+${FLEE_CHANCE_INC * 100}%</b>，上限 <b>${FLEE_CHANCE_MAX * 100}%</b>）。</p>`
-      + `<p>当逃跑率达到上限后，每多丢一球捕获率 <b>+${Math.round(CATCH_BONUS_INC * 100)}%</b>，无上限。</p>`
-      + `<p>也可主动点击<b>"逃跑"</b>按钮逃离宝可梦。</p>`,
+      + `<p>每一次捕捉失败后宝可梦都有几率<b>挣脱逃跑</b>（首球 <b>${FLEE_CHANCE * 100}</b>%，每多丢一球 <b>+${FLEE_CHANCE_INC * 100}</b>%，上限 <b>${FLEE_CHANCE_MAX * 100}</b>%）。</p>`
+      + `<p>当逃跑率达到上限后，每多丢一球捕获率 <b>+${Math.round(CATCH_BONUS_INC * 100)}</b>%，无上限。</p>`
+      + `<p>也可主动点击"逃跑"按钮逃离宝可梦。</p>`,
   },
   {
     title: '闪光',
-    html: `<p>闪光宝可梦是<b>稀有变种</b>（配色不同），默认出现概率 <b>1/${Math.round(1 / SHINY_CHANCE)}</b>。</p>`
-      + `<p>捕获后图鉴有<b>特殊标记</b>，并计入<b>闪光统计</b>。</p>`
-      + `<p>使用<b>闪耀护符</b>可大幅提升遇闪概率（详见「增益」章节）。</p>`,
+    html: `<p><b>闪光宝可梦</b>是稀有变种（配色不同），默认出现概率 <b>1/${Math.round(1 / SHINY_CHANCE)}</b>。</p>`
+      + `<p>捕获后图鉴有特殊标记，并计入闪光统计。</p>`
+      + `<p>使用<b>闪耀护符</b>可大幅提升遇闪概率（详见「<b>增益</b>」章节）。</p>`,
   },
 
   {
     title: '糖果',
-    html: `<p>糖果是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托获得，能在手机里虚拟存储，用于解锁孵蛋器槽位、农场购买种子，也可在<b>商店</b>兑换道具（详见「商店」章节）。</p>`,
+    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`,
   },
   {
     title: '商店',
-    html: `<p>商店消耗<b>糖果</b>兑换道具，糖果通过<b>挂机自动掉落</b>获得。</p>`
+    html: `<p><b>商店</b>消耗<b>糖果</b>兑换道具，糖果通过挂机自动掉落获得。</p>`
       + `<p>兑换价格（糖果）：</p>`
-      + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost} 糖果</b>`]), ['道具', '价格'], [52, 'auto']),
+      + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto']),
   },
   {
     title: '增益',
-    html: `<p>甜甜蜜与闪耀护符都是 <b>${BUFF_DURATION} 秒</b>增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
-      + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)} 分钟</b>缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>。</p>`
-      + `<p>倒计时仅在挂机等待时消耗，<b>遇敌/钓鱼</b>期间暂停。</p>`
+    html: `<p><b>甜甜蜜</b>与<b>闪耀护符</b>都是 <b>${BUFF_DURATION}</b> 秒增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
+      + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
+      + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`
       + tutorialTable([
-        ['生效', `<b>${BUFF_DURATION} 秒</b>`, `<b>${BUFF_DURATION} 秒</b>`],
-        ['遇敌', `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>`, `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX} 秒</b>`],
+        ['生效', `<b>${BUFF_DURATION}</b> 秒`, `<b>${BUFF_DURATION}</b> 秒`],
+        ['遇敌', `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒`, `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒`],
         ['稀有', `极稀有出现权重 ×<b>${rarityWeightBoost(HONEY_RARITY_BOOST)}</b>`, `极稀有出现权重 ×<b>${rarityWeightBoost(CHARM_RARITY_BOOST)}</b>`],
-        ['闪光', '无加成', `<b>${Math.round(CHARM_SHINY_CHANCE * 100)}%</b> 闪光、<b>${Math.round((1 - CHARM_SHINY_CHANCE) * 100)}%</b> 未收录宝可梦`],
-        ['钓鱼', `钓到宝可梦概率提升至 <b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}%</b>`, `钓到宝可梦概率提升至 <b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}%</b>，闪光率 <b>${Math.round(CHARM_SHINY_CHANCE * 100)}%</b>`],
+        ['闪光', '无加成', `<b>${Math.round(CHARM_SHINY_CHANCE * 100)}</b>% 闪光、<b>${Math.round((1 - CHARM_SHINY_CHANCE) * 100)}</b>% 未收录宝可梦`],
+        ['钓鱼', `钓到宝可梦概率提升至 <b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}</b>%`, `钓到宝可梦概率提升至 <b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}</b>%，闪光率 <b>${Math.round(CHARM_SHINY_CHANCE * 100)}</b>%`],
       ], ['特性', '甜甜蜜', '闪耀护符'], [32, '40%', 'auto']),
   },
   {
     title: '孵蛋',
-    html: `<p>在<b>手机</b>主页打开<b>孵蛋器</b>应用，将背包里的<b>神秘蛋</b>放入空闲槽位开始孵化。</p>`
-      + `<p>孵化里程由宝可梦的<b>体重</b>和<b>稀有度</b>决定（<b>${HATCH_DIST_MIN / 1000}~${HATCH_DIST_MAX / 1000} 公里</b>）。</p>`
-      + `<p>主角<b>行走</b>累计到所需里程即孵化完成——停下不走不推进，<b>跑步/骑车</b>走得更快。</p>`
-      + `<p>孵化完成后点击<b>孵化</b>按钮即可获得宝可梦，结果<b>完全随机</b>，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`
-      + `<p>槽位解锁价格（糖果）：</p>`
-      + tutorialTable(Array.from({ length: 8 }, (_, i) => [`槽位 <b>${i + 1}</b>`, `<b>${getIncubatorUnlockCost(i)} 糖果</b>`]), ['槽位', '价格'], [56, 'auto']),
+    html: `<p>在<b>手机</b>主页打开<b>孵蛋器</b>应用，将背包里的<b>神秘蛋</b>放入空闲槽位开始<b>孵化</b>。</p>`
+      + `<p>孵化里程由宝可梦的体重和稀有度决定（<b>${HATCH_DIST_MIN / 1000}~${HATCH_DIST_MAX / 1000}</b> 公里）。</p>`
+      + `<p>主角行走累计到所需里程即孵化完成——停下不走不推进，跑步/骑车走得更快。</p>`
+      + `<p>孵化完成后点击孵化按钮即可获得宝可梦，结果完全随机，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`,
   },
   {
     title: '钓鱼',
-    html: `<p>经过有垂钓点的水域场景（如石桥）时会停下钓鱼。每段场景<b>只钓一次</b>：进入场景 <b>${FISH_TRIGGER_MIN}~${FISH_TRIGGER_MAX} 秒</b>后开始，等待上钩（<b>${FISH_WAIT_MIN}~${FISH_WAIT_MAX} 秒</b>）后收获随机道具 <b>${FISH_QTY_MIN}~${FISH_QTY_MAX}</b> 个。</p>`
+    html: `<p>经过有<b>垂钓点</b>的水域场景（如石桥）时会停下<b>钓鱼</b>。每段场景只钓一次：进入场景 <b>${FISH_TRIGGER_MIN}~${FISH_TRIGGER_MAX}</b> 秒后开始，等待上钩（<b>${FISH_WAIT_MIN}~${FISH_WAIT_MAX}</b> 秒）后收获随机道具 <b>${FISH_QTY_MIN}~${FISH_QTY_MAX}</b> 个。</p>`
       + `<p>钓到宝可梦的概率：</p>`
       + tutorialTable([
-        ['无增益时', `<b>${Math.round(FISH_POKEMON_CHANCE * 100)}%</b>`],
-        ['增益期间', `<b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}%</b>`],
+        ['无增益时', `<b>${Math.round(FISH_POKEMON_CHANCE * 100)}</b>%`],
+        ['增益期间', `<b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}</b>%`],
       ], ['情况', '概率'], [80, 'auto'])
       + `<p>钓到宝可梦的种类：</p>`
       + tutorialTable([
-        ['极稀有宝可梦', `<b>${Math.round(FISH_RARE_RATE * 100)}%</b>`],
-        ['水系宝可梦', `<b>${Math.round((1 - FISH_RARE_RATE) * 100)}%</b>`],
+        ['极稀有宝可梦', `<b>${Math.round(FISH_RARE_RATE * 100)}</b>%`],
+        ['水系宝可梦', `<b>${Math.round((1 - FISH_RARE_RATE) * 100)}</b>%`],
       ], ['种类', '占比'], [80, 'auto'])
       + `<p>钓到道具时的种类概率（按掉率权重占比）：</p>`
       + tutorialTable(FISH_ITEM_ROWS, ['道具', '概率'], [52, 'auto'])
-      + `<p>增益加成：护符期间钓到的宝可梦更容易<b>闪光</b>；等待上钩时间<b>不计入</b>增益时长。</p>`,
+      + `<p>增益加成：护符期间钓到的宝可梦更容易<b>闪光</b>；等待上钩时间不计入增益时长。</p>`,
   },
   {
     title: '树果',
-    html: `<p>树果是<b>树果农场</b>收获的作物，也是<b>树果混合器</b>的唯一原料，更是<b>宝可梦爱吃的食物</b>。</p>`
-      + `<p><b>获取</b>：种下种子、浇水养护，成熟后收获（详见「农场」章节）。</p>`
-      + `<p><b>用途</b>：作为配方制成<b>树果方块</b>（详见「树果方块」章节），或<b>出售</b>换糖果。</p>`,
+    html: `<p><b>树果</b>是<b>树果农场</b>收获的作物，也是<b>树果混合器</b>的唯一原料，更是宝可梦爱吃的食物。</p>`
+      + `<p>获取：种下种子、浇水养护，成熟后收获（详见「<b>农场</b>」章节）。</p>`
+      + `<p>用途：作为配方制成<b>树果方块</b>（详见「<b>树果方块</b>」章节），或出售换糖果。</p>`,
   },
   {
     title: '农场',
-    html: `<p>在<b>手机</b>主页打开<b>树果农场</b>，点击<b>空地</b>种下树果种子（消耗 <b>${FARM_PLANT_COST} 糖果</b>）。</p>`
-      + `<p>刚种下<b>湿度为 0</b>，点击<b>浇水</b>才会生长；湿度随时间下降（每 <b>${Math.round(1 / FARM_WATER_DROP)} 秒</b>降 1 点，满湿度可撑 <b>${Math.round(FARM_MAX_WATER / FARM_WATER_DROP / 60)} 分钟</b>），<b>归 0 停止生长</b>，需及时补浇。</p>`
-      + `<p>历经<b>刚种下→发芽→成长→开花结果</b>后成熟（每棵 <b>${Math.round(FARM_MATURE_MIN / 60000)}~${Math.round(FARM_MATURE_MAX / 60000)} 分钟</b>随机），点击<b>收获</b>得 <b>${FARM_HARVEST_MIN}~${FARM_HARVEST_MAX}</b> 颗树果。</p>`
-      + `<p>收获的树果存入<b>库存</b>（点田地<b>左上角库存箱</b>查看）；库存的树果<b>不能当种子</b>，种地只能另买新种子。</p>`
-      + `<p>树果可以<b>出售</b>换糖果：点田地<b>右上角告示牌</b>查看<b>树果委托</b>（每天刷新 ${FARM_BOARD_DEMANDS} 条，其中第 1 条为<b>大量需求</b> ${FARM_BOARD_BIG_QTY_MIN}~${FARM_BOARD_BIG_QTY_MAX} 颗，需专门种植较久；需求越多报酬越高）；也可以作为<b>树果混合器</b>的原料（详见「混合器」章节）。</p>`
-      + `<p><b>招募帮手</b>：在告示牌面板花 <b>${FARM_HELPER_COST} 糖果</b>可招募帮手 <b>${Math.round(FARM_HELPER_DURATION / 60000)} 分钟</b>。帮手会在果园游走，按随机节奏劳作：<b>优先收获</b>成熟树果、给<b>干涸</b>的树果浇水、在<b>空地</b>播种（开启「自动种植」后，每颗种子同样扣 <b>${FARM_PLANT_COST} 糖果</b>）。服务仅<b>在线</b>期间计时，结束后进入 <b>${Math.round(FARM_HELPER_COOLDOWN / 60000)} 分钟冷却</b>（帮手显示「休息中」，冷却结束才能再次招募）。</p>`,
+    html: `<p>在<b>手机</b>主页打开<b>树果农场</b>，点击空地种下树果种子（消耗 <b>${FARM_PLANT_COST}</b> 糖果）。</p>`
+      + `<p>刚种下<b>湿度</b>为 <b>0</b>，点击<b>浇水</b>才会生长；湿度随时间下降（每 <b>${Math.round(1 / FARM_WATER_DROP)}</b> 秒降 <b>1</b> 点，满湿度可撑 <b>${Math.round(FARM_MAX_WATER / FARM_WATER_DROP / 60)}</b> 分钟），归 <b>0</b> 停止生长，需及时补浇。</p>`
+      + `<p>历经刚种下→发芽→成长→开花结果后成熟（每棵 <b>${Math.round(FARM_MATURE_MIN / 60000)}~${Math.round(FARM_MATURE_MAX / 60000)}</b> 分钟随机），点击收获得 <b>${FARM_HARVEST_MIN}~${FARM_HARVEST_MAX}</b> 颗树果。</p>`
+      + `<p>收获的树果存入库存（点田地左上角库存箱查看）；库存的树果不能当种子，种地只能另买新种子。</p>`
+      + `<p>树果可以出售换糖果：点田地右上角告示牌查看树果委托（每天刷新 <b>${FARM_BOARD_DEMANDS}</b> 条，其中第 <b>1</b> 条为大量需求 <b>${FARM_BOARD_BIG_QTY_MIN}~${FARM_BOARD_BIG_QTY_MAX}</b> 颗，需专门种植较久；需求越多报酬越高）。</p>`,
   },  
   {
     title: '宝可梦',
-    html: `<p>在<b>手机</b>页面打开<b>宝可梦</b>应用查看宝可梦仓库：每只捕获/孵化的宝可梦都是<b>独立个体</b>，支持搜索、来源筛选与表头排序。</p>`
-      + `<p>每只个体带有随机<b>个体值</b>（HP/攻击/防御/特攻/特防/速度，各 0~31）与随机<b>性格</b>（共 25 种）。</p>`
+    html: `<p>在<b>手机</b>页面打开<b>宝可梦</b>应用查看宝可梦仓库：每只捕获/孵化的宝可梦都是独立个体，支持搜索、来源筛选与表头排序。</p>`
+      + `<p>每只个体带有随机<b>个体值</b>（HP/攻击/防御/特攻/特防/速度，各 <b>0~31</b>）与随机<b>性格</b>（共 <b>25</b> 种）。</p>`
       + `<p>点击个体列表项即可查看详情。</p>`
       + `<p>详情页右上角的<b>放生</b>按钮可移除该个体（确认后不可恢复）。</p>`
-      + `<p>个体可用来<b>提交地区悬赏</b>——提交后该宝可梦会从仓库中移除（详见「悬赏」章节）。</p>`,
+      + `<p>个体可用来提交地区悬赏——提交后该宝可梦会从仓库中移除（详见「<b>悬赏</b>」章节）。</p>`,
   },
   {
     title: '混合器',
-    html: `<p>在<b>手机</b>主页打开<b>混合器</b>，从<b>农场库存</b>选 <b>1~4</b> 颗树果作为<b>配方</b>，确认后消耗它们制成<b>树果方块</b>（效果详见「树果方块」章节）。</p>`
-      + `<p><b>开始混合</b>：确认后进入<b>转盘 QTE</b>——内指针旋转，内圈顶部有一段色带（中间<b>完美</b>、两侧<b>良好</b>），在内指针扫过色带中央的瞬间按下按钮，共 5 轮、速度渐快；按五轮总分评定方块品质（${Object.values(BLOCK_QUALITY).map(q => q.label).join(' / ')}）。</p>`,
+    html: `<p>在<b>手机</b>主页打开<b>混合器</b>，从农场库存选 <b>1~4</b> 颗树果作为<b>配方</b>，确认后消耗它们制成<b>树果方块</b>（效果详见「<b>树果方块</b>」章节）。</p>`
+      + `<p>开始混合：确认后进入<b>转盘 QTE</b>——内指针旋转，内圈顶部有一段色带（中间完美、两侧良好），在内指针扫过色带中央的瞬间按下按钮，共 <b>5</b> 轮、速度渐快；按五轮总分评定方块品质（${Object.values(BLOCK_QUALITY).map(q => q.label).join(' / ')}）。</p>`,
   },
   {
     title: '树果方块',
     html: `<p><b>树果方块</b>是<b>混合器</b>的产物：用配方树果制成，用于吸引特定的宝可梦。</p>`
-      + `<p><b>品质决定效果</b>：品质越高，遇敌时直接遇到目标宝可梦的概率越高（${Object.values(BLOCK_QUALITY).map(q => `${q.label} ${Math.round(q.chance * 100)}%`).join(' / ')}）。</p>`
-      + `<p><b>按行走里程计时</b>：主角再走 <b>${BLOCK_DISTANCE}</b> 米没被吃掉则风干失效（停下不走不消耗），期间<b>不改变正常遇敌节奏</b>。</p>`
-      + `<p>配方在当前地区没有宝可梦爱吃则<b>无效</b>；对于已收服的宝可梦，可以在图鉴查看它爱吃的食物（配方）。</p>`
-      + `<p><b>注意</b>：方块<b>命中</b>目标的那次遇敌，闪光按默认 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 判定，<b>不享受闪耀护符</b>加成；</p>`,
+      + `<p><b>品质</b>决定效果：品质越高，遇敌时直接遇到目标宝可梦的概率越高（${Object.values(BLOCK_QUALITY).map(q => `${q.label} <b>${Math.round(q.chance * 100)}</b>%`).join(' / ')}）。</p>`
+      + `<p>按行走里程计时：主角再走 <b>${BLOCK_DISTANCE}</b> 米没被吃掉则风干失效（停下不走不消耗），期间不改变正常遇敌节奏。</p>`
+      + `<p>配方在当前地区没有宝可梦爱吃则无效；对于已收服的宝可梦，可以在图鉴查看它爱吃的食物（配方）。</p>`
+      + `<p>注意：方块命中目标的那次遇敌，闪光按默认 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 判定，不享受闪耀护符加成；</p>`,
+  },
+  {
+    title: '招募帮手',
+    html: `<p>点田地右上角<b>告示牌</b>可在弹出的面板中花费糖果招募<b>帮手</b>，可设置连续工作时间段（每阶段 <b>${FARM_HELPER_WORK_STAGE}</b> 分钟），价格按阶段累进。</p>`
+      + `<p>帮手自动劳作：优先收获成熟树果、给干涸树果浇水、在空地播种（「自动种植」开启后自动扣种子钱）。</p>`
+      + `<p>帮手每工作 <b>${FARM_HELPER_WORK_STAGE}</b> 分钟休息 <b>${FARM_HELPER_REST}</b> 分钟再继续；</p>`,
   },
   {
     title: '自动操作',
-    html: `<p>开启后遇敌<b>自动处理</b>：</p>`
-      + `<p><b>勾选球种</b>：自动捕获（会根据捕获率智能选择勾选的球种）。</p>`
-      + `<p><b>不勾选任何球种</b>：自动逃跑（期间禁止手动丢球）。</p>`
-      + `<p><b>勾选增益道具</b>：增益结束后自动续杯（同时勾选优先甜甜蜜）。</p>`
-      + `<p><b>开启闪光暂停</b>：闪光出现时不自动操作。</p>`,
+    html: `<p>开启后遇敌自动处理：</p>`
+      + `<p>勾选球种：<b>自动捕获</b>（会根据捕获率智能选择勾选的球种）。</p>`
+      + `<p>不勾选任何球种：<b>自动逃跑</b>（期间禁止手动丢球）。</p>`
+      + `<p>勾选增益道具：增益结束后自动<b>续杯</b>（同时勾选优先甜甜蜜）。</p>`
+      + `<p>开启<b>闪光暂停</b>：闪光出现时不自动操作。</p>`,
   },
   {
     title: '佛系模式',
-    html: `<p>与自动操作互斥，开启后遇敌不自动处理。</p>`
-      + `<p><b>${AUTO_FLEE_TIMEOUT / 1000} 秒</b>内未操作则宝可梦自行逃跑，不会卡住进度，适合挂后台偶尔手动抓两把的场合。</p>`,
+    html: `<p>与<b>自动操作</b>互斥，开启后遇敌不自动处理。</p>`
+      + `<p><b>${AUTO_FLEE_TIMEOUT / 1000}</b> 秒内未操作则宝可梦自行逃跑，不会卡住进度，适合挂后台偶尔手动抓两把的场合。</p>`,
   },
   {
     title: '系统日志',
@@ -805,9 +883,9 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '宝可梦难度',
-    html: `<p>不同宝可梦基础捕获难度不同（极低~高）。</p>`
-      + `<p>每只宝可梦还有<b>稀有度</b>（常见/一般/稀有/罕见/极稀有），由<b>捕获率</b>和<b>种族值总和</b>共同决定，越稀有的宝可梦出现概率越低。</p>`
-      + `<p>在<b>甜甜蜜</b>和<b>闪耀护符</b>期间，稀有精灵的出现概率会大幅提升（详见「增益」章节）。</p>`,
+    html: `<p>不同宝可梦基础<b>捕获难度</b>不同（极低~高）。</p>`
+      + `<p>每只宝可梦还有<b>稀有度</b>（常见/一般/稀有/罕见/极稀有），由捕获率和种族值总和共同决定，越稀有的宝可梦出现概率越低。</p>`
+      + `<p>在甜甜蜜和闪耀护符期间，稀有精灵的出现概率会大幅提升（详见「<b>增益</b>」章节）。</p>`,
   },
 ];
 
@@ -830,6 +908,10 @@ export function showTutorialView() {
     if (!item) return;
     render(Number(item.dataset.i));
   };
+  list.onwheel = e => {
+    e.preventDefault();
+    list.scrollTop += e.deltaY * 0.35;
+  };
   render(0);
   showView('tutorialView');
 }
@@ -847,7 +929,7 @@ export function showDeclarationView() {
       <p style="margin:6px 0;"><b>作者</b>：@ZTMYO</p>
       <p style="margin:6px 0;"><b>项目地址</b>：<span id="declarationLink" style="text-decoration:underline;cursor:pointer;">github.com/ZTMYO/PokeIdle</span></p>
       <p style="margin:12px 0 4px;padding-top:8px;border-top:1px dashed rgba(var(--ui-color-rgb),0.2);"><b>版权声明</b></p>
-      <p style="margin:4px 0;">宝可梦（Pokémon）及其相关角色、名称、标志、插图与动画，版权均归 Nintendo / Creatures Inc. / GAME FREAK inc. / The Pokémon Company 所有。</p>
+      <p style="margin:4px 0;">宝可梦（Pokémon）及其相关角色、名称、标志、音乐、插图与动画，版权均归 Nintendo / Creatures Inc. / GAME FREAK inc. / The Pokémon Company 所有。</p>
       <p style="margin:4px 0;">本项目为个人学习与娱乐交流的粉丝作品，<b>非官方游戏，与官方无任何关联</b>，不用于任何商业用途。</p>
       <p style="margin:4px 0;">项目使用的宝可梦动画素材来自非官方社区资源（Pokémon Showdown），版权归属其原始权利方，本项目不主张任何所有权。</p>
       <p style="margin:4px 0;">如涉及侵权，请联系作者删除相关内容。</p>

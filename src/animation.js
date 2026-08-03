@@ -1,7 +1,6 @@
 // ==================== 捕捉动画函数 ====================
 import { $, fitPokemonImage, getStageSize, tryLoadPokemonImage } from './ui.js';
-import { currentEncounter, currentIsShiny, encounterBallsUsed, gameData, rarityLabel } from './state.js';
-import { FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';
+import { gameData, rarityLabel } from './state.js';
 
 // 精灵球捕捉动画用的图片（位于 src/items/）
 const BATTLE_BALLS = {
@@ -537,7 +536,7 @@ async function animCatchSuccess(ball, starsContainer, ballCX, ballCY) {
 }
 
 // === 动画序列编排 ===
-export async function playCatchSequence(ballType, isCaught) {
+export async function playCatchSequence(ballType, outcome, breakRound) {
   const { stage, ball, ballType: bt, pkmn, stars, msg, stageW, stageH, pkmnOrigX, pkmnOrigY, pkmnW, pkmnH, throwChar } = await setupCatchAnim(ballType);
   await delay(50);
 
@@ -556,8 +555,8 @@ export async function playCatchSequence(ballType, isCaught) {
   const groundY = stageH * 0.38; // 统一降落点（上移）
   await animFallAndBounce(ball, bt, ballCY, groundY);
 
-  // ---- 阶段4：摇晃判定 ----
-  if (isCaught) {
+  // ---- 阶段4：摇晃判定（结果已由调用方 throwBall 提前判定，这里只做展示）----
+  if (outcome === 'caught') {
     // 大师球 100% 捕获，跳过摇晃
     if (ballType === 'master-ball') {
       await delay(200);
@@ -588,9 +587,7 @@ export async function playCatchSequence(ballType, isCaught) {
     return { result: 'caught', shakes: 3, master: false };
   }
 
-  // 捕获失败：0~3 轮摇晃后挣脱
-  const breakRound = Math.random() < 0.3 ? 0 : (Math.random() < 0.4 ? 1 : (Math.random() < 0.6 ? 2 : 3));
-
+  // 捕获失败：breakRound 已由调用方（throwBall 丢球瞬间）随机生成
   for (let r = 1; r <= breakRound; r++) {
     await animShakeRound(ball, r % 2 === 0 ? -1 : 1);
     if (r < breakRound) await delay(350);
@@ -608,8 +605,7 @@ export async function playCatchSequence(ballType, isCaught) {
   stage.classList.remove('active');
   restoreCatchAnim();
 
-  // 逃跑概率随丢球次数递增（encounterBallsUsed 为本次丢球后的计数）
-  const fleeChance = Math.min(FLEE_CHANCE + (encounterBallsUsed - 1) * FLEE_CHANCE_INC, FLEE_CHANCE_MAX);
-  if (Math.random() < fleeChance) return { result: 'fled', shakes: breakRound };
+  // 是否逃跑也已由调用方提前判定
+  if (outcome === 'fled') return { result: 'fled', shakes: breakRound };
   return { result: 'continue', shakes: breakRound };
 }

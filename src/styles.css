@@ -78,6 +78,18 @@ body { margin: 0; padding: 0; cursor: default; }
 .control-btn.window-icon.active { opacity: 1; background: rgba(0,0,0,0.12); }
 .control-btn svg { width: 15px; height: 15px; display: block; }
 
+/* 开场静音提示：静音按钮左侧的引导文案（仅开场显示，点击静音后消失） */
+.intro-mute-hint {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.35);
+  margin-right: 4px;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
 /* 标题栏应用入口红点 */
 .control-btn.window-icon { position: relative; }
 .title-bar-badge {
@@ -136,6 +148,71 @@ body { margin: 0; padding: 0; cursor: default; }
   padding: 8px 20px;
   text-align: center;
   margin-bottom: 100px;
+}
+
+/* 切歌提示：歌曲名从左淡淡滑入，停留后向左划回 */
+.now-playing {
+  position: absolute;
+  top: 4px;
+  left: 10px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateX(-140%);
+  pointer-events: none;
+}
+.now-playing.np-in { animation: npSlideIn 0.6s ease forwards; }
+.now-playing.np-out { animation: npSlideOut 0.6s ease forwards; }
+@keyframes npSlideIn {
+  from { opacity: 0; transform: translateX(-140%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes npSlideOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-140%); }
+}
+.now-playing-icon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  color: #fff;
+}
+.now-playing-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.now-playing-title {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.now-playing-artist {
+  font-size: 8px;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.75);
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.now-playing-title > span, .now-playing-artist > span {
+  display: inline-block;
+  white-space: nowrap;
+  padding-right: 8px;
+}
+.now-playing-title.scrolling > span, .now-playing-artist.scrolling > span {
+  animation: marquee 8s linear infinite;
 }
 
 .walk-gif {
@@ -1097,12 +1174,14 @@ body { margin: 0; padding: 0; cursor: default; }
   color: var(--ui-color);
   padding: 2px 0 6px;
   user-select: none;
+  transition: padding 0.3s ease;
 }
 .phone-clock .date {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
   opacity: 0.8;
+  transition: font-size 0.3s ease;
 }
 .phone-clock .time {
   font-size: 22px;
@@ -1110,13 +1189,76 @@ body { margin: 0; padding: 0; cursor: default; }
   letter-spacing: 2px;
   line-height: 1.25;
   font-variant-numeric: tabular-nums;
+  transition: font-size 0.3s ease, line-height 0.3s ease;
 }
+/* 有音乐时压缩时间区域（上挤），app 图标位置保持不动 */
+#phoneView.has-music .phone-clock { padding: 0 0 2px; }
+#phoneView.has-music .phone-clock .date { font-size: 9px; }
+#phoneView.has-music .phone-clock .time { font-size: 17px; line-height: 1.2; }
 .phone-apps {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px 4px;
   justify-items: center;
-  padding: 4px 2px;
+  padding: 6px 2px 4px;
+  margin-top: 4px;
+}
+
+/* 手机主页：时间下方当前地区音乐 */
+.phone-music {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  gap: 5px;
+  padding: 0 0 2px;
+  color: var(--ui-color);
+  font-size: 11px;
+  opacity: 0.7;
+  user-select: none;
+}
+.phone-music-title {
+  max-width: 100px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: left;
+}
+.phone-music-title > span {
+  display: inline-block;
+  white-space: nowrap;
+  padding-right: 10px;
+}
+/* 歌名超出宽度时滚动显示（先停 1.2s，再滚到末尾停 1.2s，回到开头） */
+.phone-music-title.scrolling > span {
+  animation: marquee 8s linear infinite;
+}
+@keyframes marquee {
+  0%, 15%   { transform: translateX(0); }
+  55%, 85%  { transform: translateX(var(--marquee, -60px)); }
+  100%      { transform: translateX(0); }
+}
+/* 波形：三条小柱，地区曲发声时跳动，暂停/静音时静止 */
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+}
+.eq i {
+  width: 2px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 1px;
+  animation: eqJump 0.8s ease-in-out infinite;
+  animation-play-state: paused;
+}
+.eq.on i { animation-play-state: running; }
+.eq i:nth-child(2) { animation-delay: 0.2s; }
+.eq i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes eqJump {
+  0%, 100% { height: 3px; }
+  50% { height: 10px; }
 }
 .phone-app {
   position: relative;
@@ -1560,7 +1702,6 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .helper-remain {
   font-size: 10px;
-  font-weight: 800;
   color: var(--ui-color-dark);
   white-space: nowrap;
 }
@@ -1569,35 +1710,64 @@ body { margin: 0; padding: 0; cursor: default; }
 .berry-helper-panel.resting .helper-avatar { filter: grayscale(1); }
 .berry-helper-panel.resting .helper-desc { color: var(--color-muted); }
 .berry-helper-panel.resting .helper-remain { color: var(--color-muted); }
-.helper-rest-note {
-  flex: 1;
-  font-size: 9px;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
-.helper-foot {
+/* 招募/状态行：空闲态为「− 时长 ＋ 价格 招募」，服务中/休息中为剩余时间，同一位置紧凑布局 */
+.helper-hirebar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin-top: 5px;
+  min-height: 22px;
 }
-.helper-foot .ball-check {
+.helper-hirebar .helper-remain { flex: 1; }
+.helper-hirebar .ball-check {
   white-space: nowrap;
-  font-size: 9px;
-  margin-left: auto; /* 固定贴到面板右下角 */
+  font-size: 11px;
+  line-height: 1.5;
+  margin-left: auto; /* 固定贴到右侧 */
 }
-.helper-foot .ball-check.on {
+.helper-hirebar .ball-check.on {
   font-weight: 400; /* 自动种植选框不加粗（全局 .ball-check.on 的加粗仅用于设置页） */
 }
-.helper-note {
-  flex: 1;
-  font-size: 9px;
+/* 头像栏右侧的加减号+ 时长 */
+.helper-stepbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.helper-step-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.helper-step {
+  width: 15px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--ui-color);
+  border: 1px solid var(--ui-color);
+  border-radius: 2px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.helper-step:hover { background: rgba(var(--ui-color-rgb), 0.12); }
+.helper-step.disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.helper-step.disabled:hover { background: none; }
+.helper-stage {
+  min-width: 24px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
   line-height: 1.5;
   color: var(--ui-color);
 }
 .helper-cost {
-  flex: 1;
+  flex: 1; /* 左下角糖果价格，把招募按钮推到右侧 */
   font-size: 9px;
   line-height: 1.5;
   color: var(--ui-color);
@@ -1619,6 +1789,22 @@ body { margin: 0; padding: 0; cursor: default; }
 .helper-hire:not(.locked):active { transform: scale(0.94); }
 .helper-hire.locked { opacity: 0.4; cursor: default; }
 .helper-hire.locked:hover { background: none; }
+/* 收工按钮：开始工作后显示在头像栏右侧，点击立即结束服务 */
+.helper-stop {
+  min-width: 44px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  padding: 2px 5px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.helper-stop:hover { background: rgba(var(--ui-color-rgb), 0.12); }
+.helper-stop:active { transform: scale(0.94); }
 
 /* === 果园帮手角色（异性主角） === */
 /* 待机游走：walk 素材 900% 横向拉伸，复用主界面步行帧动画 */
@@ -3035,6 +3221,42 @@ body { margin: 0; padding: 0; cursor: default; }
   gap: 4px;
   justify-content: center;
   align-items: center;
+}
+.volume-row {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 110px;
+}
+.volume-slider {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 3px;
+  -webkit-appearance: none;
+  appearance: none; 
+  cursor: pointer;
+  outline: none;
+  background:
+    radial-gradient(circle at var(--volume-fill, 60%) 50%, var(--ui-color) 3px, transparent 3.5px),
+    linear-gradient(90deg, var(--ui-color) var(--volume-fill, 60%), rgba(var(--ui-color-rgb), 0.2) var(--volume-fill, 60%));
+}
+/* 白色小圆点 thumb */
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+}
+.volume-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
 }
 .ball-check {
   font-size: 10px;

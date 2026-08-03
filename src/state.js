@@ -35,7 +35,6 @@ export let charmCountdownEnd = 0;
 export let charmCountdownInterval = null;
 export let charmPausedRemaining = 0;
 export let charmExpiryTimer = null;
-export let _honeyEncounterCount = 0;
 export let _charmEncounterCount = 0;
 
 // 树果方块 Buff 状态（混合器产物）
@@ -90,7 +89,6 @@ export function setCharmBuffActive(v) { charmBuffActive = v; window.__charmBuffA
 export function setCharmCountdownEnd(t) { charmCountdownEnd = t; }
 export function setHoneyPausedRemaining(v) { honeyPausedRemaining = v; }
 export function setCharmPausedRemaining(v) { charmPausedRemaining = v; }
-export function setHoneyEncounterCount(n) { _honeyEncounterCount = n; }
 export function setCharmEncounterCount(n) { _charmEncounterCount = n; }
 export function setIdleMsgIdx(n) { _idleMsgIdx = n; }
 export function setIdleMsgs(a) { _idleMsgs = a; }
@@ -161,7 +159,7 @@ export function anyIncubatorReady() {
 // 当前地区由 GPS 位置决定（默认从丰缘出发）；开启"漫游"后才会有目的地并随行走推进。
 export function defaultGpsState() {
   return {
-    roamEnabled: true,               // 漫游开关：默认开启，自动沿环国路线前往下一地区
+    roamEnabled: false,              // 漫游开关：默认关闭，需在导航页手动开启后自动沿环国路线前进
     curIdx: 2,                      // 当前地区编号（REGION_CYCLE 下标，2=丰缘）
     destIdx: null,                  // 目的地地区编号；null=无目的地
     path: null,                     // 最短路线（地区编号数组）
@@ -212,7 +210,7 @@ export function getDefaultSave() {
     encounterLogs: {},
     systemLogs: [],
     introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）
-    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' },
+    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
   };
 }
 
@@ -312,7 +310,6 @@ export function saveSessionState() {
       honeyPausedRemaining,
       charmBuffActive,
       charmPausedRemaining,
-      _honeyEncounterCount,
       _charmEncounterCount,
       blockBuffActive,
     };

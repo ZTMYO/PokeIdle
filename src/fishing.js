@@ -75,16 +75,14 @@ function clearFloatingItems() {
 
 export function isFishing() { return _fishing; }
 
+// 垂钓路段的等待窗口（进入路段后、开始钓鱼前）：窗口内不触发普通遇敌
+export function isFishingPending() { return gameTick < _fishingDueTick; }
+
 // 路段切换时调用：若该路段有垂钓点，预定 5~15 秒后触发一次钓鱼
 // opts.fished 为 true 表示该路段本次循环已钓过（刷新页面后恢复），不再触发
 export function onRoadChanged(fishingRow, opts = {}) {
   _fishedInSegment = !!opts.fished;
   _fishingDueTick = _fishedInSegment ? 0 : (fishingRow ? gameTick + randInt(FISH_TRIGGER_MIN, FISH_TRIGGER_MAX) : 0);
-  // 即将在垂钓路段钓鱼：取消预定遇敌，避免在等待钓鱼的窗口期先触发普通遇敌（表现为"没钓鱼就直接进遭遇"）
-  if (fishingRow && !_fishedInSegment && nextEncounterTimer) {
-    clearTimeout(nextEncounterTimer);
-    setNextEncounterTimer(null);
-  }
 }
 
 // 供存档使用：当前路段是否已钓过（随 pokemon_idle_road 持久化）
@@ -212,8 +210,8 @@ function finishFishing(silent = false) {
   _fishingDueTick = 0;
   clearFloatingItems();
   setFishing(false);
-  setIdleCharacter('walk');
-  road.resume();
+  // 战斗中道路保持暂停（由 goIdle 统一恢复）
+  if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
   if (!silent) {
     // 有 buff 被暂停 → 恢复倒计时（由 buff 接管后续遇敌调度）；否则正常安排下次遇敌
     if (!resumeBuffCountdown()) scheduleNextEncounter();

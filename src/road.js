@@ -26,6 +26,8 @@ let _scrollFraction = 0;
 let _distance = 0;
 // 过渡状态：新道路从右侧滑入
 let _transition = null; // { tiles, width, height, patternWidth, roadHeight, remaining }
+// 过渡中新道路滑到角色脚下时回调（切换骑行/行走）
+let _transitionCharCb = null;
 
 function _resize() {
   if (!canvas || !pattern) return;
@@ -127,6 +129,11 @@ function _frame() {
   if (_transition) {
     // 过渡中：先递减 remaining，再绘制，确保连续性
     _transition.remaining -= speed;
+    // 新道路滑到角色脚下（30% 屏宽）即触发回调：自行车道骑到头才下车
+    if (!_transition.charFired && _transition.remaining <= _transition.charX) {
+      _transition.charFired = true;
+      _transitionCharCb?.();
+    }
   } else {
     // 正常渲染：整数步进，消除子像素"半个tile"
     _scrollFraction += speed;
@@ -242,6 +249,8 @@ export function transitionTo(data) {
     patternWidth: newPw,
     roadHeight: data.height * TILE,
     remaining: containerWidth,
+    charX: Math.round(containerWidth * 0.3),
+    charFired: false,
     savedScrollX: scrollX,
     savedFraction: _scrollFraction,
   };
@@ -355,6 +364,9 @@ export function isActive() {
 export function isTransitioning() {
   return _transition !== null;
 }
+
+/** 注册过渡中"新道路到达角色脚下"回调（自行车道骑到头切换骑行/行走） */
+export function onTransitionCharReach(cb) { _transitionCharCb = cb; }
 
 export function getCycles() { return _cycles; }
 export function resetScroll() { scrollX = 0; _cycles = 0; _scrollFraction = 0; }

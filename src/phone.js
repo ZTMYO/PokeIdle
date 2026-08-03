@@ -4,6 +4,7 @@ import { $, showView, renderIncubatorView, updateIncubatorBadge } from './ui.js'
 import { phase, setPrevView, anyIncubatorReady } from './state.js';
 import { hasTradableOffers, ensureTrades } from './trade.js';
 import { hasDryBerries } from './berry.js';
+import { getNowPlaying } from './audio.js';
 
 const APPS = [
   { id: 'gps',  icon: 'icon-gps',  name: '导航' },
@@ -65,9 +66,38 @@ function startClock() {
     const dateEl = $('phoneClockDate');
     if (dateEl) dateEl.textContent = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 星期${week}`;
     timeEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    updatePhoneMusic();
   };
   tick();
   setInterval(tick, 1000);
+}
+
+// 时间下方显示当前地区音乐：标题变化才写 DOM，波形仅在地区曲实际发声时跳动
+function updatePhoneMusic() {
+  const el = $('phoneMusic');
+  if (!el) return;
+  const info = getNowPlaying();
+  const pv = $('phoneView');
+  // 未在播放（音乐关闭/静音/音量 0/战斗中等）时隐藏 label，波形与标题同步
+  if (!info.title || !info.playing) {
+    el.style.display = 'none';
+    if (pv) pv.classList.remove('has-music');
+    return;
+  }
+  el.style.display = 'flex';
+  // 有音乐时压缩时间区域（上挤），app 图标位置保持不动
+  if (pv) pv.classList.add('has-music');
+  const titleEl = $('phoneMusicTitle');
+  if (titleEl && titleEl.textContent !== info.title) titleEl.textContent = info.title;
+  // 歌名超出容器宽度时启动滚动动画，滚动距离按实际溢出量计算
+  const wrap = $('phoneMusicTitleWrap');
+  if (wrap && titleEl) {
+    const overflow = titleEl.scrollWidth > wrap.clientWidth;
+    wrap.classList.toggle('scrolling', overflow);
+    if (overflow) wrap.style.setProperty('--marquee', (wrap.clientWidth - titleEl.scrollWidth) + 'px');
+  }
+  const eq = $('phoneMusicEq');
+  if (eq) eq.classList.toggle('on', info.playing);
 }
 
 export function showPhoneView() {

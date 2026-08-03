@@ -8,7 +8,7 @@ import {
   honeyPausedRemaining, charmPausedRemaining,
   honeyCountdownInterval, charmCountdownInterval,
   honeyExpiryTimer, charmExpiryTimer,
-  _honeyEncounterCount, _charmEncounterCount,
+  _charmEncounterCount,
   _autoFleeTimer, _autoFleeBarInterval,
   _autoCatching,
   _catchConfirmStep, _prevView, _pokedexInLogView, _idleMsgIdx,
@@ -18,7 +18,7 @@ import {
   setGameTick, setPrevView, setLastRegionId,
   setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd,
   setHoneyPausedRemaining, setCharmPausedRemaining,
-  setHoneyEncounterCount, setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
+  setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
   setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState,
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
@@ -48,7 +48,8 @@ import { isTradeInDetail, restoreTradeList } from './trade.js';
 import { showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updatePhoneBadge } from './phone.js';
-import { gpsAddDistance, ensureRoamDest, showGpsView } from './gps.js';
+import { gpsAddDistance, showGpsView } from './gps.js';
+import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMuted, isMuted, setMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
@@ -60,6 +61,7 @@ let ROAD_BIKE = [];   // 自行车道路段池（不遇敌、不拾取、快速�
 window.__introActive = false; // 开场剧情进行中（gate 挂机推进，拦截箭头/确认点击）
 let _roadIdx = 0;
 let _roadCycleStart = 0;
+let _pendingBike = null; // 过渡加载时暂存新路段的骑行状态，待过渡完成后应用
 
 function _randomWidth() {
   // prob（随机生成）道路长度在 [ROAD_WIDTH_MIN, ROAD_WIDTH_MAX] 间均匀随机
@@ -87,12 +89,32 @@ function loadRoad(idx, useTransition, saved) {
   }
   road.setPlace(p.game.place || '');
   road.setFishingRow(p.game.fishingRow || 0);
-  road.setBike(!!p.game.bike);
+  // 过渡加载时暂存新路段的骑行状态：过渡期间保持当前骑行/行走状态，
+  // 等旧路段完全滑出后再切换，避免自行车道还没骑到头就提前结束骑行
+  if (useTransition) {
+    _pendingBike = !!p.game.bike;
+  } else {
+    _pendingBike = null;
+    road.setBike(!!p.game.bike);
+    // 骑行音乐：自行车道播放骑行曲，离开后恢复地区曲
+    if (road.isBike()) playCycling();
+    else endCycling();
+  }
   // 刷新页面恢复路段时，若该路段本次循环已钓过则不再强制触发
   onRoadChanged(p.game.fishingRow || 0, { fished: !!saved?.fished });
   road.resetScroll();
   _roadCycleStart = 0;
 }
+
+// 过渡中新道路滑到角色脚下即切换骑行/行走，自行车道骑到头才下车
+road.onTransitionCharReach(() => {
+  if (_pendingBike === null) return;
+  road.setBike(_pendingBike);
+  _pendingBike = null;
+  if (road.isBike()) playCycling();
+  else endCycling();
+  setIdleCharacter('walk');
+});
 
 // 依次按 水域/自行车道 → 普通陆地 抽取下一段路：
 // ROAD_SPECIAL_CHANCE 概率出特殊路段，其中水域与自行车道对半开，
@@ -178,12 +200,22 @@ function onGameTick() {
   if (region.id !== _lastRegionId) {
     setLastRegionId(region.id);
     addSystemLog('region_change', { region: region.name });
+    playRegion(region.name); // 跨越地区边界 → 切换对应地区歌单
   }
 
   // 地区悬赏：跨过 0 点自动刷新（日期变化时重新生成，当天保持不变）
   ensureBounty();
 
   if (phase !== 'idle') { updateStats(); return; }
+
+  // 过渡完成：应用新路段的骑行状态（骑行/行走与骑行音乐一起切换）
+  if (_pendingBike !== null && !road.isTransitioning()) {
+    road.setBike(_pendingBike);
+    _pendingBike = null;
+    if (road.isBike()) playCycling();
+    else endCycling();
+    setIdleCharacter('walk');
+  }
 
   // 道路轮播：每 ROAD_SWITCH_CYCLES 个完整循环切下一个（过渡中/钓鱼中不切）
   if (!road.isTransitioning() && !_fishing) {
@@ -201,9 +233,10 @@ function onGameTick() {
     }
   }
 
-  // 钓鱼：有垂钓点的路段随机停下钓鱼（钓鱼期间不生成道路道具；自行车道上不钓鱼不拾取）
+  // 钓鱼：有垂钓点的路段随机停下钓鱼（钓鱼期间不生成道路道具；自行车道上不钓鱼不拾取，
+  // 过渡到自行车道期间也停止生成，避免遗留道具在骑行开始后滑过）
   if (!road.isBike()) tryStartFishing();
-  if (!_fishing && !road.isBike()) {
+  if (!_fishing && !road.isBike() && _pendingBike !== true) {
     for (const [item, rate] of Object.entries(ITEM_RATES)) {
       const key = `_f_${item}`;
       if (!gameData[key]) gameData[key] = 0;
@@ -253,6 +286,29 @@ function onGameTick() {
   }
 }
 
+// ---------- 开场剧情静音开关（顶栏按钮，仅开场显示） ----------
+function syncIntroMuteIcon() {
+  const btn = document.getElementById('btnIntroMute');
+  const on = document.getElementById('introMuteIconOn');
+  const off = document.getElementById('introMuteIconOff');
+  const muted = isMuted();
+  if (on) on.style.display = muted ? 'none' : '';
+  if (off) off.style.display = muted ? '' : 'none';
+  if (btn) { btn.title = muted ? '取消静音' : '静音'; btn.setAttribute('aria-label', btn.title); }
+}
+
+function onIntroMuteClick() {
+  const muted = !isMuted();
+  setMuted(muted);
+  if (!gameData.settings) gameData.settings = {};
+  gameData.settings.muted = muted;
+  saveGame();
+  syncIntroMuteIcon();
+  // 玩家点击过静音开关：引导文案不再显示
+  const hint = document.getElementById('introMuteHint');
+  if (hint) hint.style.display = 'none';
+}
+
 // ---------- 初始化 ----------
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
@@ -292,7 +348,10 @@ async function init() {
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
-  ensureRoamDest(); // 漫游默认开启且无目的地时，自动开始导航
+  initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
+  setMuted(!!gameData.settings?.muted); // 开场静音开关：沿用上次状态
+  setMusicEnabled(gameData.settings?.musicEnabled !== false); // 音乐开关：沿用上次状态
+  setBattleMusic(gameData.settings?.battleMusic !== false); // 战斗音乐开关：沿用上次状态
   ensureBounty();   // 生成/恢复当日地区悬赏
   updateBountyBadge(); // 初始化标题栏悬赏红点
   updatePhoneBadge(); // 初始化标题栏手机聚合红点
@@ -304,6 +363,8 @@ async function init() {
   window.__addCandy = (n = 1000) => {
     const amount = Number(n) || 1000;
     gameData.items['candy'] = (gameData.items['candy'] || 0) + amount;
+    gameData.stats.totalItemsEarned = gameData.stats.totalItemsEarned || {};
+    gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + amount;
     saveGame();
     updateBackpack('candy');
     updateStats();
@@ -343,7 +404,6 @@ async function init() {
   window.__resetGps = async () => {
     gameData.gps = defaultGpsState();
     ensureGpsState();
-    ensureRoamDest();
     setLastRegionId(getCurrentRegion().id);
     await saveGame();
     updateStats();
@@ -422,18 +482,20 @@ async function init() {
     else ROAD_LAND.push(i);
   });
 
-  // 加载路面数据（优先恢复上次道路，兜底第一预设）
+  // 加载路面数据：新存档固定第一段路（草地预设），老存档恢复上次道路
   let savedRoad = null;
-  try {
-    const saved = localStorage.getItem('pokemon_idle_road');
-    if (saved) {
-      savedRoad = JSON.parse(saved);
-      if (savedRoad && typeof savedRoad.roadIdx === 'number' && savedRoad.roadIdx < ROAD_PRESETS.length) {
-        _roadIdx = savedRoad.roadIdx;
-        _roadCycleStart = 0;
+  if (gameDataRaw) {
+    try {
+      const saved = localStorage.getItem('pokemon_idle_road');
+      if (saved) {
+        savedRoad = JSON.parse(saved);
+        if (savedRoad && typeof savedRoad.roadIdx === 'number' && savedRoad.roadIdx < ROAD_PRESETS.length) {
+          _roadIdx = savedRoad.roadIdx;
+          _roadCycleStart = 0;
+        }
       }
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
   loadRoad(_roadIdx, false, savedRoad);
 
   // 界面
@@ -449,18 +511,35 @@ async function init() {
     // 剧情期间隐藏底部背包/统计栏与顶部应用按钮（纯剧情画面）；最小化/关闭保持可用
     document.body.classList.add('boot-no-ui');
     window.__introActive = true;
+    // 开场剧情顶栏静音开关（仅开场显示，位于最小化按钮左侧）
+    syncIntroMuteIcon();
+    const muteBtn = document.getElementById('btnIntroMute');
+    if (muteBtn) {
+      muteBtn.style.display = 'flex';
+      muteBtn.addEventListener('click', onIntroMuteClick);
+    }
+    // 静音引导文案：与按钮一同显示在左侧，点击静音后消失
+    const muteHint = document.getElementById('introMuteHint');
+    if (muteHint) muteHint.style.display = 'flex';
     startIntro(() => {
       window.__introActive = false;
       gameData.introDone = true;
+      // 开场结束：静音开关与引导文案随开场一起隐藏
+      const btn = document.getElementById('btnIntroMute');
+      if (btn) btn.style.display = 'none';
+      const hint = document.getElementById('introMuteHint');
+      if (hint) hint.style.display = 'none';
       // 底部背包/统计栏与顶部按钮的恢复由 startSplashDrop 统一处理（splash 显示后淡入，避免闪现）
-      saveGame().then(() => { beginGameplay(); startSplashDrop(); });
+      // 首次 splash（开场剧情结束后的首个开机动画）不静音：未白镇开场曲顺势延续
+      saveGame().then(() => { beginGameplay(); startSplashDrop(null, false); });
     });
   } else {
     beginGameplay();
-    startSplashDrop();
+    startSplashDrop(() => playRegion(getCurrentRegion().name));
   }
 
   // 主游戏流程：显示挂机界面、恢复会话、启动循环与遇敌调度
+  // 背景音乐在 splash 落位动画结束后统一启动（startSplashDrop 的 onDone 回调），避免音乐盖过开机动画
   function beginGameplay() {
     // 开场已结束，恢复标题栏按钮（开场期间保持禁用防止切走）
     const controls = document.querySelector('.window-controls');
@@ -535,7 +614,6 @@ async function init() {
         clearCharmCountdown();
       }
     }
-    if (sessionState._honeyEncounterCount) setHoneyEncounterCount(sessionState._honeyEncounterCount);
     if (sessionState._charmEncounterCount) setCharmEncounterCount(sessionState._charmEncounterCount);
 
     // 恢复树果方块（混合器冷却）：按里程判定（主角再走满 BLOCK_DISTANCE 米失效），重新挂上里程轮询
@@ -577,6 +655,8 @@ async function init() {
         setEncounterMsg(sessionState.encounter.msg || null);
         // 不跳过自动操作：恢复遭遇后，自动捕捉/佛系模式由 showEncounter 统一接管
         showEncounter(poke);
+        // 启动即遭遇：splash 后 playRegion 被覆盖曲压住不弹歌曲卡，等这场遭遇结束再补弹
+        setShowCardOnEncounterEnd(true);
       }
     }
   }
@@ -627,6 +707,7 @@ async function init() {
   $('confirmYes')?.addEventListener('click', () => {
     // 开场剧情中：点击确定开始游戏
     if (window.__introActive) { confirmIntro(); return; }
+    stopVictory(); // 交互完图鉴对话框 → 停止胜利音效
     $('catchConfirmBtns').style.display = 'none';
     setCatchConfirmStep(false);
     const entryId = getLastObtainedEntryId();
@@ -636,6 +717,7 @@ async function init() {
     }
   });
   $('confirmNo')?.addEventListener('click', () => {
+    stopVictory(); // 交互完图鉴对话框 → 停止胜利音效
     $('catchConfirmBtns').style.display = 'none';
     setCatchConfirmStep(false);
     goIdle();
@@ -755,7 +837,8 @@ const SPLASH_DROP = [
 ];
 
 // 开机落位动画：道具环旋转结束后依次飞向背包槽位/糖果计数实际位置，最后一个道具（糖果）落位完成后淡出并回调
-function startSplashDrop(onDone) {
+// silent=true 时 splash 动画期间禁声（老玩家启动），首次 splash（开场剧情后）silent=false 让开场曲延续
+function startSplashDrop(onDone, silent = true) {
   const splash = $('splash');
   const ring = document.getElementById('splashRing');
   const items = [...document.querySelectorAll('.splash-item')];
@@ -764,6 +847,7 @@ function startSplashDrop(onDone) {
   const autoStatus = document.getElementById('statAutoStatus');
   const timeEl = document.getElementById('statTime');
   if (!splash || !ring || items.length === 0) { onDone?.(); return; }
+  if (silent) setSplashLocked(true);
   splash.style.display = 'flex';
   // 启动画面期间禁用标题栏右侧按钮（图鉴/商店/统计/设置/最小化/关闭），动画结束后恢复
   const controls = document.querySelector('.window-controls');
@@ -839,9 +923,11 @@ function startSplashDrop(onDone) {
             splash.remove();
             // 开场剧情期间保持禁用标题栏按钮（防止切走无法返回），开场结束由 beginGameplay 恢复
             if (controls && !window.__introActive) controls.classList.remove('controls-disabled');
+            if (silent) setSplashLocked(false);
             onDone?.();
           }, 550);
         } else {
+          if (silent) setSplashLocked(false);
           onDone?.();
         }
       }, (items.length - 1) * 120 + 550);
