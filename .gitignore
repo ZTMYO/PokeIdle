@@ -31,6 +31,10 @@ src-tauri/Cargo.lock
 # Tauri build output
 src-tauri/release/
 
+# Web build (web/)：构建产物与安装包不入库
+web/dist.zip
+web/public/downloads/
+
 # OS generated files
 Thumbs.db
 ehthumbs.db

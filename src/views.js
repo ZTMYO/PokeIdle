@@ -5,6 +5,7 @@ import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_I
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch } from './battle.js';
 import { setVolume, setBattleMusic, setMusicEnabled, playBattle, endBattle } from './audio.js';
+import { renderAchievements, refreshAchievements } from './achievements.js';
 
 // ===== 欧气综合评定 =====
 // 每场遭遇的欧气分（捕获用获得分 score，宝可梦挣脱逃跑用相遇分）取平均，映射到 9 档称号。
@@ -112,43 +113,43 @@ function refreshDataStats() {
 
   $('dataPlayTotal').textContent = fmtPlayTime(stats.totalPlaySeconds);
   $('dataPlayToday').textContent = fmtPlayTime(stats.playSecondsToday || 0);
-  $('dataTodaySeen').textContent = t.seen;
-  $('dataTodayCaught').textContent = t.caught;
-  $('dataTodayFled').textContent = t.fled;
+  $('dataTodaySeen').textContent = formatNum(t.seen);
+  $('dataTodayCaught').textContent = formatNum(t.caught);
+  $('dataTodayFled').textContent = formatNum(t.fled);
   $('dataTodayRate').textContent = t.catchRate + '%';
-  $('dataTodayShinySeen').textContent = t.shinySeen;
-  $('dataTodayShinyCaught').textContent = t.shinyCaught;
-  $('dataTodayHatched').textContent = t.hatched;
-  $('dataTradesToday').textContent = stats.tradesToday || 0;
+  $('dataTodayShinySeen').textContent = formatNum(t.shinySeen);
+  $('dataTodayShinyCaught').textContent = formatNum(t.shinyCaught);
+  $('dataTodayHatched').textContent = formatNum(t.hatched);
+  $('dataTradesToday').textContent = formatNum(stats.tradesToday || 0);
   $('dataRating').textContent = rating ? rating.name : '暂无评定，先去冒险吧';
-  $('dataTotalSeen').textContent = totalSeen;
-  $('dataTotalCaught').textContent = stats.totalCatches;
-  $('dataTotalFled').textContent = stats.totalFlees;
+  $('dataTotalSeen').textContent = formatNum(totalSeen);
+  $('dataTotalCaught').textContent = formatNum(stats.totalCatches);
+  $('dataTotalFled').textContent = formatNum(stats.totalFlees);
   $('dataTotalRate').textContent = catchRate + '%';
-  $('dataTotalShinySeen').textContent = stats.totalShinySeen;
-  $('dataTotalShinyCaught').textContent = stats.totalShinyCaught;
-  $('dataTotalHatched').textContent = stats.totalEggsHatched;
-  $('dataTradesTotal').textContent = stats.totalTrades || 0;
+  $('dataTotalShinySeen').textContent = formatNum(stats.totalShinySeen);
+  $('dataTotalShinyCaught').textContent = formatNum(stats.totalShinyCaught);
+  $('dataTotalHatched').textContent = formatNum(stats.totalEggsHatched);
+  $('dataTradesTotal').textContent = formatNum(stats.totalTrades || 0);
   $('dataRegion').textContent = region.name;
   $('dataWalkDist').textContent = walkText;
-  $('dataDexPct').textContent = `${totalUnique}/${totalSpecies} (${pct}%)`;
-  $('dataBallsUsed').textContent = stats.totalBallsUsed;
+  $('dataDexPct').textContent = `${formatNum(totalUnique)}/${formatNum(totalSpecies)} (${pct}%)`;
+  $('dataBallsUsed').textContent = formatNum(stats.totalBallsUsed);
   $('dataBallsAvg').textContent = totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0';
-  $('dataBlockMade').textContent = stats.totalBlockMade || 0;
-  $('dataPlantings').textContent = stats.totalPlantings || 0;
-  $('dataHarvests').textContent = stats.totalHarvests || 0;
-  $('dataBerriesHarvested').textContent = stats.totalBerriesHarvested || 0;
-  $('dataBoardTrades').textContent = stats.totalBoardTrades || 0;
-  $('dataBountyClaims').textContent = stats.totalBountyClaims || 0;
-  $('dataBountyToday').textContent = stats.bountyClaimsToday || 0;
-  $('dataBountyCandy').textContent = stats.totalBountyCandy || 0;
+  $('dataBlockMade').textContent = formatNum(stats.totalBlockMade || 0);
+  $('dataPlantings').textContent = formatNum(stats.totalPlantings || 0);
+  $('dataHarvests').textContent = formatNum(stats.totalHarvests || 0);
+  $('dataBerriesHarvested').textContent = formatNum(stats.totalBerriesHarvested || 0);
+  $('dataBoardTrades').textContent = formatNum(stats.totalBoardTrades || 0);
+  $('dataBountyClaims').textContent = formatNum(stats.totalBountyClaims || 0);
+  $('dataBountyToday').textContent = formatNum(stats.bountyClaimsToday || 0);
+  $('dataBountyCandy').textContent = formatNum(stats.totalBountyCandy || 0);
   const earnedEl = $('dataEarned');
   if (earnedEl) {
     // 糖果置顶，其余保持原顺序
     const entries = Object.entries(earned);
     const rows = entries.filter(([k]) => k === 'candy').concat(entries.filter(([k]) => k !== 'candy'));
     earnedEl.innerHTML = rows.map(([k, v]) =>
-      `<div class="stat-row"><span>${ITEM_NAMES[k] || k}</span><span>×${v}</span></div>`
+      `<div class="stat-row"><span>${ITEM_NAMES[k] || k}</span><span>×${formatNum(v)}</span></div>`
     ).join('') || '<div>暂无数据</div>';
   }
 }
@@ -205,8 +206,11 @@ export function showDataView() {
 
       <div class="stat-section">道具累计获得</div>
       <div id="dataEarned"></div>
+
+      <div id="achievementList"></div>
     </div>
   `;
+  renderAchievements();
   // 初始填充 + 每秒实时刷新全部动态值；离开统计页后定时器自动停止
   refreshDataStats();
   if (showDataView._timer) clearInterval(showDataView._timer);
@@ -217,6 +221,7 @@ export function showDataView() {
       return;
     }
     refreshDataStats();
+    refreshAchievements();
   }, 1000);
   showView('dataView');
 }
@@ -728,7 +733,13 @@ const TUTORIAL_SECTIONS = [
   {
     title: '统计',
     html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按每次遭遇的稀有度与捕获运气综合评价称号；数据总览以表格统一展示今日与累计的挂机时长、遭遇、捕获、逃跑、捕获率、闪光遇见/捕获、孵化与交换，每秒自动刷新。</p>`
-      + `<p>其余板块按类别汇总：冒险进度（当前地区、行走距离、图鉴完成度）、消耗统计（精灵球使用与均耗）、农场与合成、地区悬赏与道具累计获得。</p>`,
+      + `<p>其余板块按类别汇总：冒险进度（当前地区、行走距离、图鉴完成度）、消耗统计（精灵球使用与均耗）、农场与合成、地区悬赏与道具累计获得。</p>`
+      + `<p>页面最下方是<b>成就奖励</b>板块：每项累计统计达成等级即可领取糖果（详见「<b>成就</b>」章节）。</p>`,
+  },
+  {
+    title: '成就',
+    html: `<p>在<b>统计</b>页最下方的<b>成就奖励</b>板块领取：每项累计统计达标<b>一级</b>即可领一次糖果。</p>`
+      + `<p>等级按 <b>1-2-5</b> 规整序列无限递进，未领的等级会一直累计；除「图鉴收藏家」到上限完结外，其余成就等级<b>无限</b>。</p>`,
   },
   {
     title: '地区',
@@ -886,6 +897,14 @@ const TUTORIAL_SECTIONS = [
     html: `<p>不同宝可梦基础<b>捕获难度</b>不同（极低~高）。</p>`
       + `<p>每只宝可梦还有<b>稀有度</b>（常见/一般/稀有/罕见/极稀有），由捕获率和种族值总和共同决定，越稀有的宝可梦出现概率越低。</p>`
       + `<p>在甜甜蜜和闪耀护符期间，稀有精灵的出现概率会大幅提升（详见「<b>增益</b>」章节）。</p>`,
+  },
+  {
+    title: '状态栏图标',
+    html: `<p>把窗口<b>最小化</b>后主角依然在挂机冒险。Windows 任务栏右下角（系统托盘）会出现<b>口袋挂机</b>图标。</p>`
+      + `<p>点击图标可以收起游戏窗口，再次点击弹出。</p>`
+      + `<p>Windows 默认会把不常用的图标收进「<b>显示隐藏的图标</b>」弹层里：点开它找到口袋挂机图标，<b>按住拖到外面的任务栏</b>即可固定显示，游戏状态一眼可见。</p>`
+      + `<p>鼠标<b>悬停</b>在图标上会弹出多行状态提示：地点、主角动作、操作模式、农场、悬赏、交换、可孵化等信息一目了然；</p>`
+      + `<p>图标还会动：角色前进、钓鱼、可孵化、遭遇、可浇水时各有对应提示动画；</p>`,
   },
 ];
 

@@ -1,4 +1,6 @@
 // ===== 口袋挂机 - 入口模块 =====
+// 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
+document.addEventListener('contextmenu', e => e.preventDefault());
 import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES } from './config.js';
 import {
   allPokemon, gameData, phase, currentEncounter, currentIsShiny,
@@ -316,6 +318,14 @@ async function init() {
   // 系统托盘走路动画（异步加载，失败不影响主流程）
   import('./tray.js').then(m => m.startTrayAnimation()).catch(() => {});
 
+  document.addEventListener('wheel', e => {
+    const dv = document.getElementById('dataView');
+    if (dv && dv.style.display !== 'none' && dv.contains(e.target)) {
+      e.preventDefault();
+      dv.scrollTop += e.deltaY * 0.4;
+    }
+  }, { passive: false });
+
   // 加载宝可梦数据
   try {
     const resp = await fetch('./pokemon-data/pokedex.json');
@@ -348,6 +358,7 @@ async function init() {
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
+  if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
   initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
   setMuted(!!gameData.settings?.muted); // 开场静音开关：沿用上次状态
   setMusicEnabled(gameData.settings?.musicEnabled !== false); // 音乐开关：沿用上次状态

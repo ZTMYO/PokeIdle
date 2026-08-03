@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>口袋挂机</title>
+  <meta name="description" content="基于 Tauri v2 的桌面挂机游戏：九大地区陆路打通、挂机遇敌、自动拾取、全图鉴收集。导航 / 捕捉 / 孵蛋 / 树果农场 / 交换 / 悬赏，一机搞定。" />
+  <link rel="icon" type="image/png" href="./favicon.png" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+
+  <!-- ============ 顶栏 ============ -->
+  <div class="topbar">
+    <div class="topbar-inner">
+      <a class="logo" href="#top">
+        <img src="./favicon.png" alt="" />
+        <b>口袋挂机</b>
+        <span>POKEMON IDLE</span>
+      </a>
+      <!-- 像素主角：顶栏中间轨道来回行走（不覆盖左右 UI） -->
+      <div class="pv-track"><div class="pv-walk" id="pvBrendan"></div></div>
+      <nav>
+        <a class="topbar-gh" href="https://github.com/ZTMYO/PokeIdle" target="_blank" rel="noopener" title="GitHub" aria-label="GitHub"><svg class="gh-icon"><use href="./sprites.svg#icon-github" /></svg></a>
+      </nav>
+    </div>
+  </div>
+
+  <!-- ============ HERO ============ -->
+  <header class="hero" id="top">
+    <div class="hero-inner">
+
+      <div class="device" aria-hidden="true">
+        <!-- 标题栏（复刻游戏内 .title-bar） -->
+        <div class="title-bar">
+          <span class="app-title">口袋挂机</span>
+          <div class="window-controls">
+            <button class="control-btn window-icon" aria-label="手机"><svg><use href="./sprites.svg#icon-phone" /></svg></button>
+            <button class="control-btn window-icon" aria-label="地区悬赏"><svg><use href="./sprites.svg#icon-station" /></svg></button>
+            <button class="control-btn window-icon" aria-label="商店"><svg><use href="./sprites.svg#icon-shop" /></svg></button>
+            <button class="control-btn window-icon" aria-label="设置"><svg><use href="./sprites.svg#icon-settings" /></svg></button>
+            <button class="control-btn" aria-label="最小化"><svg><use href="./sprites.svg#icon-minus" /></svg></button>
+            <button class="control-btn" aria-label="关闭"><svg><use href="./sprites.svg#icon-close" /></svg></button>
+          </div>
+        </div>
+
+        <!-- 屏幕 -->
+        <div class="screen-wrapper">
+          <div class="screen">
+
+            <!-- 遭遇画面（复刻游戏内 #encounterView） -->
+            <div class="enc show" id="enc">
+              <!-- 左上角：名字 + 属性 -->
+              <div class="enc-name" id="encName"></div>
+              <div class="enc-types" id="encTypes"></div>
+              <!-- 右上角：捕获率 / 稀有度 / 新发现 -->
+              <div class="enc-right">
+                <div class="enc-cr" id="encCr"></div>
+                <div class="enc-new" id="encNew">新发现！</div>
+              </div>
+              <!-- 宝可梦 -->
+              <img class="enc-gif" id="encGif" alt="" />
+              <!-- 丢球角色（左下角，复刻 .anim-throw-char） -->
+              <div class="enc-throw" id="encThrow">
+                <img class="enc-throw-img" src="./character/brendan-back.png" alt="" />
+              </div>
+              <!-- 捕捉动画舞台 -->
+              <div class="enc-stage" id="encStage">
+                <img class="enc-ball" id="encBall" src="./items/ball-00.png" alt="" />
+                <div class="enc-stars" id="encStars"></div>
+              </div>
+              <!-- GBA 文字框（复刻游戏内 .text-box） -->
+              <div class="text-box"><p class="text-box-content" id="encMsg">野生的宝可梦出现了！</p></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 背包栏（复刻游戏内 .backpack-bar） -->
+        <div class="backpack-bar">
+          <div class="backpack-items">
+            <div class="bag-slot ball-slot" data-ball="poke" title="点击丢球捕捉"><img src="./items/poke-ball.png" class="bag-icon" alt="精灵球" /><span class="bag-name">精灵球</span><span class="bag-qty">∞</span></div>
+            <div class="bag-slot ball-slot" data-ball="ultra" title="点击丢球捕捉"><img src="./items/ultra-ball.png" class="bag-icon" alt="高级球" /><span class="bag-name">高级球</span><span class="bag-qty">∞</span></div>
+            <div class="bag-slot ball-slot" data-ball="master" title="点击丢球捕捉"><img src="./items/master-ball.png" class="bag-icon" alt="大师球" /><span class="bag-name">大师球</span><span class="bag-qty">∞</span></div>
+            <div class="bag-slot disabled"><img src="./items/mystery-egg.png" class="bag-icon" alt="神秘蛋" /><span class="bag-name">神秘蛋</span><span class="bag-qty">0</span></div>
+            <div class="bag-slot disabled"><img src="./items/honey.png" class="bag-icon" alt="甜甜蜜" /><span class="bag-name">甜甜蜜</span><span class="bag-qty">0</span></div>
+            <div class="bag-slot disabled"><img src="./items/shiny-charm.png" class="bag-icon" alt="闪耀护符" /><span class="bag-name">闪耀护符</span><span class="bag-qty">0</span></div>
+          </div>
+          <div class="stats-bar">
+            <span class="sb-candy"><img src="./items/candy.png" alt="" />128</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-text">
+        <h1>口袋挂机</h1>
+        <div class="ht-sub">POKEMON IDLE</div>
+        <p class="ht-desc">基于 Tauri 构建桌面放置游戏，冒险挂机，集齐 1025 只宝可梦全图鉴。</p>
+       <div class="ht-actions">
+            <a class="btn btn-primary btn-big" href="#" id="downloadLink">下载 Windows 版</a>
+          </div>
+          <p class="ht-smart">
+            Windows 打开安装包时若弹出 <b>SmartScreen</b> 提示<br />
+            这是未签名程序的正常提示。打开前请先 <b>「保留」</b><br/>
+            再点删除按钮右侧的<b>下箭头</b>展开，选 <b>「仍然保留」</b>
+          </p>
+        <div class="ht-meta">v1.0.0 · Windows x64 · 约 385 MB · 安装即玩</div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ============ 数据条 ============ -->
+  <div class="stats">
+    <div class="stat"><b>9</b><span>大地区</span></div>
+    <div class="stat"><b>24</b><span>段道路</span></div>
+    <div class="stat"><b>1025</b><span>全图鉴</span></div>
+    <div class="stat"><b>1/1000</b><span>闪光概率</span></div>
+    <div class="stat"><b>46</b><span>首 BGM</span></div>
+  </div>
+
+  <main class="page">
+
+    <!-- ============ 玩法特色 ============ -->
+    <section class="section" id="features">
+      <h2 class="section-title"><i></i>玩法特色</h2>
+      <div class="cards">
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-phone" /></svg></div><h3>手机系统</h3><p>一个手机搞定全部：导航、图鉴、仓库、交换、孵蛋器、农场，沉浸式体验。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-gps" /></svg></div><h3>智能导航</h3><p>拟真导航系统，指定目的地自动规划路线，环国漫游一路畅通。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-book" /></svg></div><h3>全图鉴</h3><p>1025 只宝可梦全收录，搜索、排序一应俱全，轻松查询，一目了然。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-egg" /></svg></div><h3>孵蛋器</h3><p>挂机孵化神秘蛋，有概率出闪，随机孵化带来惊喜感。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-tree" /></svg></div><h3>树果农场</h3><p>种植、浇水、收获一气呵成，还能招募帮手自动打理。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-mixer" /></svg></div><h3>树果混合器</h3><p>把树果按配方混合吸引特定宝可梦，方便快速刷取。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-trade" /></svg></div><h3>交换广场</h3><p>和npc训练家交换，获得新个体，补全图鉴更快一步。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-station" /></svg></div><h3>地区悬赏</h3><p>到各地区接取悬赏任务，提交指定宝可梦，换取丰厚奖励。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-star" /></svg></div><h3>轻松抓闪</h3><p>遇见闪光个体的概率大幅提升，搭配闪耀护符，圆一个闪光收藏梦。</p></div>
+        <div class="card"><div class="card-icon"><svg><use href="./sprites.svg#icon-data" /></svg></div><h3>欧非评定</h3><p>捕捉、孵蛋、交换全程记录你的欧气，非酋欧皇一目了然。</p></div>
+      </div>
+    </section>
+
+    <!-- ============ 九大地区 ============ -->
+    <section class="section" id="regions">
+      <h2 class="section-title"><i></i>九大地区</h2>
+      <p class="section-note">《宝可梦》历代九个地区散落各地，彼此隔绝。在本作中，一条环国陆路将关都、城都、丰缘、神奥、合众、卡洛斯、阿罗拉、伽勒尔与帕底亚九大地区首尾相连——从丰缘出发，沿路前行即可一路穿越各个地区，见到不同生态下的野生宝可梦。</p>
+      <div class="map-frame">
+        <svg id="regionMap" viewBox="110 70 790 570" font-family="'Segoe UI','PingFang SC','Microsoft YaHei',monospace" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </section>
+
+    <!-- ============ 树果农场 ============ -->
+    <section class="section" id="farm">
+      <h2 class="section-title"><i></i>树果农场</h2>
+      <p class="section-note">种植，浇水，成熟的树果在田地里轻轻摇摆，等待收获。</p>
+      <div class="farm">
+        <!-- 女主角：随机移动走过去浇水 -->
+        <div class="farm-helper walk" id="farmHelper"></div>
+        <div class="farm-item sprout"><div class="farm-berry" style="background-image:url('/items/berry-trees/sprout.png')"></div></div>
+        <div class="farm-item"><div class="farm-berry" style="background-image:url('/items/berry-trees/cheri.png')"></div></div>
+        <div class="farm-item"><div class="farm-berry" style="background-image:url('/items/berry-trees/pecha.png')"></div></div>
+        <div class="farm-item"><div class="farm-berry" style="background-image:url('/items/berry-trees/oran.png')"></div></div>
+        <div class="farm-item"><div class="farm-berry" style="background-image:url('/items/berry-trees/lum.png')"></div></div>
+        <div class="farm-item"><div class="farm-berry" style="background-image:url('/items/berry-trees/sitrus.png')"></div></div>
+        <div class="farm-item"><div class="farm-berry" style="background-image:url('/items/berry-trees/figy.png')"></div></div>
+      </div>
+    </section>
+
+    <!-- ============ 全图鉴滚动 ============ -->
+    <section class="section" id="marquee">
+      <h2 class="section-title"><i></i>1025 只全图鉴</h2>
+      <div class="marquee m1"><div class="marquee-track" id="mq1"></div></div>
+      <div class="marquee m2"><div class="marquee-track reverse" id="mq2"></div></div>
+    </section>
+  </main>
+
+  <!-- ============ 页脚 ============ -->
+  <footer class="footer">
+    <p>《口袋挂机》是粉丝自制的个人挂机游戏，仅用于学习与娱乐交流，<b>非官方作品，与官方无任何关联</b>，不用于任何商业用途。</p>
+    <p>宝可梦形象、立绘、图标、原声 BGM、专有名称、世界观设定等官方 IP 素材，著作权归 <b>Nintendo / Creatures Inc. / GAME FREAK inc. / The Pokémon Company</b> 所有；项目动画素材来自非官方社区资源，版权归属原始权利方，本项目不主张任何所有权。</p>
+    <p>源代码以 <b>MIT License</b> 开源（衍生代码不可商用售卖）；原创美术与文案遵循 <b>CC BY-NC-ND 4.0</b>。</p>
+    <div class="footer-copyright">© 2026 口袋挂机 Made with <span class="heart"><svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="6361" width="14" height="14"><path d="M95.2 600.8l361.4 337.4c15 14 34.8 21.8 55.4 21.8s40.4-7.8 55.4-21.8l361.4-337.4c60.8-56.6 95.2-136 95.2-219v-11.6c0-139.8-101-259-238.8-282-91.2-15.2-184 14.6-249.2 79.8l-24 24-24-24c-65.2-65.2-158-95-249.2-79.8C101 111.2 0 230.4 0 370.2v11.6c0 83 34.4 162.4 95.2 219z" p-id="6362" fill="#f2687b"></path></svg></span> by <a href="https://github.com/ZTMYO/PokeIdle" target="_blank" rel="noopener">@ZTMYO</a></div>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

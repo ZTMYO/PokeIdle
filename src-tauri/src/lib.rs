@@ -20,6 +20,18 @@ struct TrayFrameData {
     height: u32,
 }
 
+// 托盘悬停提示文本：前端每秒推送一次（含 \n 换行，Windows 原生 tooltip 渲染成多行）
+#[derive(Default)]
+struct TrayStatus(Mutex<String>);
+
+#[tauri::command]
+fn set_tray_status(app: tauri::AppHandle, state: tauri::State<'_, TrayStatus>, text: String) {
+    *state.0.lock().unwrap() = text.clone();
+    if let Some(tray) = app.tray_by_id("tray") {
+        let _ = tray.set_tooltip(Some(text));
+    }
+}
+
 #[tauri::command]
 fn set_tray_frames(state: tauri::State<'_, TrayFrames>, frames: Vec<TrayFrameData>) {
     let mut list = state.0.lock().unwrap();
@@ -154,6 +166,7 @@ pub fn run() {
 
             // 托盘走路动画：后台线程每 150ms 切一帧，帧数据由前端通过 set_tray_frames 传入
             app.manage(TrayFrames::default());
+            app.manage(TrayStatus::default());
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -194,6 +207,7 @@ pub fn run() {
             game_data::load_game_data,
             game_data::read_gif_base64,
             set_tray_frames,
+            set_tray_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

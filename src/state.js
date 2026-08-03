@@ -209,6 +209,7 @@ export function getDefaultSave() {
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
+    achievements: {}, // 成就进度：{ 成就id: 已领取档位数 }，由 achievements.js 管理
     introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）
     settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
   };
@@ -526,8 +527,15 @@ export function formatTime(sec) {
   const s = Math.floor(sec % 60);
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
+// 大数值缩写：1000→1K、1234→1.2K、1000000→1M、1000000000→1B（小数位去掉多余的 .0）
+function shortNum(v) {
+  const r = Math.round(v * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
 export function formatNum(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  n = Number(n) || 0;
+  if (n >= 1000000000) return shortNum(n / 1000000000) + 'B';
+  if (n >= 1000000) return shortNum(n / 1000000) + 'M';
+  if (n >= 1000) return shortNum(n / 1000) + 'K';
   return String(n);
 }

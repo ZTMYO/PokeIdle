@@ -1,0 +1,838 @@
+
+:root {
+  --color-text: #1f1f1f;
+  --color-muted: #7c7c7c;
+  --screen-bg: #73c5a4;
+  --screen-bg-dark: #4c8d73;
+  --screen-bg-light: #96d0b9;
+  --ui-color: #376d56;
+  --ui-color-dark: #24563f;
+  --ui-color-darker: #1d4937;
+  --console-body: #e8dcc0;
+  --console-border: #c4b692;
+  --console-edge: #b3a27f;
+  --mono: "Courier New", ui-monospace, "SFMono-Regular", monospace;
+  --frame-dark: var(--ui-color-darker);
+  --frame-light: var(--screen-bg-light);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  user-select: none;
+  background: var(--console-body);
+  color: var(--color-text);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+img, canvas, svg { image-rendering: pixelated; display: block; }
+a { text-decoration: none; color: inherit; }
+
+/* ---------------- 按钮 ---------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border: 3px solid var(--ui-color-darker);
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background .12s, color .12s, transform .06s;
+  user-select: none;
+}
+.btn:active { transform: translateY(3px); }
+
+.btn-primary { background: var(--ui-color); color: #eafff4; }
+.btn-primary:hover { background: var(--ui-color-dark); }
+
+.btn-ghost { background: var(--screen-bg-light); color: var(--ui-color-dark); }
+.btn-ghost:hover { background: var(--ui-color); color: #eafff4; }
+
+.btn-big { font-size: 17px; padding: 15px 28px; }
+.btn-small { font-size: 12px; padding: 8px 14px; }
+
+.blink { animation: blink 1.2s steps(1) infinite; }
+
+/* ============================================================
+   顶栏
+   ============================================================ */
+.topbar {
+  background: var(--console-body);
+  border-bottom: 3px solid var(--ui-color-darker);
+}
+.topbar-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 10px 20px 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  position: relative; /* 主角定位上下文 */
+}
+.logo { display: flex; align-items: center; gap: 10px; position: relative; z-index: 1;margin-bottom: 10px; }
+.logo img { width: 26px; height: 26px; }
+.logo b { font-size: 16px; letter-spacing: 2px; color: var(--ui-color-darker); }
+.logo span {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--color-muted);
+  border-left: 2px solid var(--console-border);
+  padding-left: 10px;
+}
+/* 主角行走轨道：透明限制区域，只占中间，不覆盖两侧 UI */
+.pv-track {
+  flex: 1;
+  max-width: 380px;
+  height: 42px;
+  position: relative;
+  margin: 0 auto;
+  pointer-events: none;
+}
+nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: relative; z-index: 1; }
+.topbar-gh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--ui-color-dark);
+  transition: opacity .15s;
+}
+.topbar-gh:hover { opacity: .7; }
+.gh-icon { width: 50px; height: 50px; display: block; fill: currentColor;margin-bottom: 10px; }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  background: var(--console-body);
+  border-bottom: 3px solid var(--ui-color-darker);
+}
+.hero-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 44px 20px 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 60px;
+  flex-wrap: wrap;
+}
+
+/* ---------- 游戏窗口（复刻游戏内掌机界面，宽度对齐 tauri 320×400） ---------- */
+.device {
+  width: 320px;
+  max-width: 100%;
+  background: var(--console-body);
+  border: 3px solid var(--console-edge);
+  border-radius: 18px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* 标题栏 */
+.title-bar {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px 0 12px;
+}
+.app-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-text);
+  opacity: 0.8;
+  letter-spacing: 1px;
+}
+.window-controls { display: flex; gap: 3px; }
+.control-btn {
+  width: 24px; height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-muted);
+  transition: background .15s;
+}
+.control-btn:hover { background: rgba(0,0,0,0.08); }
+.control-btn svg { width: 15px; height: 15px; fill: currentColor; }
+.control-btn.window-icon { opacity: 0.7; }
+
+/* 屏幕区域 */
+.screen-wrapper { padding: 6px 10px; }
+.screen {
+  position: relative;
+  height: 280px;
+  background: var(--screen-bg);
+  border-radius: 10px;
+  border: 3px solid var(--screen-bg-dark);
+  overflow: hidden;
+}
+
+/* 遭遇画面（复刻游戏内 #encounterView） */
+.enc {
+  position: absolute;
+  inset: 0;
+}
+
+/* GBA 文字框（复刻游戏内 .text-box） */
+.text-box {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--console-body);
+  border-top: 2px solid var(--console-border);
+  z-index: 50;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.text-box-content {
+  flex: 1;
+  padding: 8px 10px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #306230;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 左上角：名字 + 属性（复刻 .encounter-name / .encounter-types） */
+.enc-name {
+  position: absolute;
+  top: 6px; left: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-color);
+  z-index: 2;
+  animation: encFlyTL .8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.enc-types {
+  position: absolute;
+  top: 28px; left: 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+  animation: encFlyTL .8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+}
+@keyframes encFlyTL {
+  from { transform: translate(-48px, -28px); }
+  to   { transform: translate(0, 0); }
+}
+
+/* 右上角：捕获率 / 稀有度 / 新发现（复刻 .encounter-right） */
+.enc-right {
+  position: absolute;
+  top: 6px; right: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  z-index: 2;
+  animation: encFlyTR .8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes encFlyTR {
+  from { transform: translate(48px, -28px); }
+  to   { transform: translate(0, 0); }
+}
+.enc-cr {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--ui-color);
+  text-align: right;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.enc-new {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ui-color);
+  text-align: right;
+  white-space: nowrap;
+  line-height: 1.4;
+  animation: pulseNew 1.2s ease-in-out infinite;
+}
+@keyframes pulseNew {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* 宝可梦（复刻 .encounter-gif） */
+.enc-gif {
+  position: absolute;
+  left: 50%;
+  bottom: 42%;
+  transform: translateX(-50%);
+  max-width: 120px;
+  max-height: 120px;
+  image-rendering: pixelated;
+  z-index: 1;
+  pointer-events: none;
+}
+@keyframes encGrow {
+  from { transform: translateX(-50%) scale(0.6); }
+  to   { transform: translateX(-50%) scale(1); }
+}
+
+/* 丢球角色（复刻 .anim-throw-char，brendan-back 4 帧投掷姿势） */
+.enc-throw {
+  position: absolute;
+  bottom: 52px; left: 0;
+  width: 64px; height: 64px;
+  overflow: hidden;
+  z-index: 25;
+  pointer-events: none;
+  user-select: none;
+}
+.enc-throw-img {
+  display: block;
+  width: 64px; height: 256px;
+  image-rendering: pixelated;
+  margin-top: -192px;
+}
+.enc-throw.throwing .enc-throw-img {
+  animation: throwPose 0.6s forwards;
+  margin-top: 0;
+}
+@keyframes throwPose {
+  0%     { margin-top: 0; }
+  24.99% { margin-top: 0; }
+  25%    { margin-top: -64px; }
+  49.99% { margin-top: -64px; }
+  50%    { margin-top: -128px; }
+  74.99% { margin-top: -128px; }
+  75%    { margin-top: -192px; }
+  100%   { margin-top: -192px; }
+}
+
+/* 捕捉舞台（复刻 .catch-stage） */
+.enc-stage {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 20;
+}
+.enc-ball {
+  position: absolute;
+  width: 40px; height: 40px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  opacity: 0;
+}
+.enc-ball.visible { opacity: 1; }
+@keyframes ballSwingRight {
+  0%   { transform: rotate(0deg); }
+  30%  { transform: rotate(22deg); }
+  55%  { transform: rotate(-5deg); }
+  80%  { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes ballSwingLeft {
+  0%   { transform: rotate(0deg); }
+  30%  { transform: rotate(-22deg); }
+  55%  { transform: rotate(5deg); }
+  80%  { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
+.enc-stars { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; }
+.star-particle {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+.star-particle::after {
+  content: '✦';
+  font-size: 14px;
+  color: #ffd700;
+  display: block;
+  line-height: 1;
+}
+
+/* 背包栏（复刻游戏内 .backpack-bar） */
+.backpack-bar {
+  border-top: 2px solid var(--console-border);
+  padding: 6px 10px 8px;
+}
+.backpack-items { display: flex; gap: 3px; }
+.bag-slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 2px 1px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
+}
+/* 可丢球的球槽 */
+.ball-slot { cursor: pointer; transition: background .12s, transform .06s; }
+.ball-slot:hover { background: rgba(0, 0, 0, 0.09); }
+.ball-slot:active { transform: translateY(2px); }
+.bag-slot.disabled { opacity: 0.45; cursor: default; }
+.bag-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.bag-name { font-size: 7px; color: var(--color-muted); }
+.bag-qty {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+.stats-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 4px 2px 0;
+  font-size: 9px;
+  color: var(--ui-color);
+  opacity: 0.7;
+}
+.stats-bar span:last-child { text-align: right; }
+.sb-candy { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; }
+.sb-candy img { width: 14px; height: 14px; image-rendering: pixelated; }
+
+/* ---------- 标题文字 ---------- */
+.hero-text { flex: 1 1 340px; max-width: 520px; text-align: left; }
+.hero-text h1 {
+  margin-top: 16px;
+  font-size: 52px;
+  letter-spacing: 12px;
+  line-height: 1.1;
+  color: var(--ui-color-darker);
+}
+.ht-sub {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 10px;
+  color: var(--ui-color);
+}
+.ht-desc { margin-top: 18px; font-size: 14px; color: #46534c; line-height: 2; }
+.ht-actions { margin-top: 26px; display: flex; gap: 12px; flex-wrap: wrap; }
+.ht-meta {
+  margin-top: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--color-muted);
+}
+.ht-smart {
+  margin-top: 12px;
+  max-width: 420px;
+  font-size: 10px;
+  line-height: 1.8;
+  color: var(--color-muted);
+}
+.ht-smart b { color: var(--ui-color);opacity: 0.8; }
+
+/* ============================================================
+   数据条
+   ============================================================ */
+.stats {
+  display: flex;
+  justify-content: center;
+  background: var(--ui-color-dark);
+  border-bottom: 4px solid var(--ui-color-darker);
+  max-width: 900px;
+  margin: 0 auto;
+  border-radius: 0 0 14px 14px;
+}
+.stat {
+  flex: 1;
+  padding: 8px 2px;
+  text-align: center;
+  color: #eafff4;
+  border-right: 2px solid var(--ui-color-darker);
+}
+.stat:last-child { border-right: none; }
+.stat b {
+  display: block;
+  font-family: var(--mono);
+  font-size: 25px;
+}
+.stat span { font-size: 14px; color: #b9dfca; }
+
+/* ============================================================
+   页面主体 / 区块
+   ============================================================ */
+.page { padding: 0 0 70px; }
+
+.section {
+  margin: 70px auto 0;
+  max-width: 1120px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 22px;
+  letter-spacing: 4px;
+  color: var(--ui-color-darker);
+  padding-bottom: 10px;
+  border-bottom: 3px solid var(--ui-color);
+}
+.section-title i {
+  width: 12px; height: 12px;
+  background: var(--ui-color);
+  border: 2px solid var(--ui-color-darker);
+}
+
+.section-note { margin-top: 12px; color: var(--color-muted); font-size: 13px; }
+
+/* ---------- 特色卡片 ---------- */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 20px;
+}
+.card {
+  background: var(--screen-bg-light);
+  border: 3px solid var(--screen-bg-dark);
+  border-radius: 12px;
+  padding: 12px 12px;
+  transition: transform .15s, background .15s;
+}
+.card:hover { transform: translateY(-3px); background: var(--screen-bg); }
+.card-icon {
+  width: 36px; height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-color);
+  border: 2px solid var(--ui-color-darker);
+  border-radius: 8px;
+  color: #eafff4;
+}
+.card-icon svg { width: 18px; height: 18px; fill: currentColor; }
+.card h3 { margin-top: 8px; font-size: 13px; letter-spacing: 1px; color: var(--ui-color-darker); }
+.card p { margin-top: 4px; font-size: 11px; color: #3f6a58; line-height: 1.55; }
+
+/* ---------- 全图鉴滚动 ---------- */
+.marquee {
+  margin-top: 24px;
+  overflow: hidden;
+  padding: 4px 0;
+}
+.marquee.m2 { margin-top: 12px; }
+.marquee-track {
+  display: flex;
+  gap: 14px;
+  width: max-content;
+  animation: marquee 40s linear infinite;
+}
+.marquee-track.reverse { animation-direction: reverse; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+.m-item {
+  flex-shrink: 0;
+  width: 74px; height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--screen-bg-light);
+  border: 3px solid var(--screen-bg-dark);
+  border-radius: 12px;
+  transition: background .12s, transform .12s;
+  cursor: pointer;
+}
+.m-item:hover { background: var(--screen-bg); transform: translateY(-3px); }
+.m-item img { width: 58px; height: 58px; object-fit: contain; }
+
+/* 全图鉴滚动条：铺满页面全宽（标题仍与正文对齐） */
+#marquee { max-width: none; padding-left: 0; padding-right: 0; }
+#marquee .section-title {
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 20px;
+  padding-right: 20px;
+  border-bottom: none;
+  background-image: linear-gradient(var(--ui-color), var(--ui-color));
+  background-repeat: no-repeat;
+  background-size: calc(100% - 40px) 3px;
+  background-position: 20px 100%;
+}
+
+/* ---------- 九大地区地图（无容器边框与背景） ---------- */
+#regions .section-note { text-align: center; max-width: 560px; margin: 12px auto 0; }
+.map-frame {
+  margin: 26px auto 0;
+  max-width: 660px;
+}
+#regionMap { width: 100%; height: auto; display: block; }
+#regionMap .edge-line { cursor: pointer; transition: opacity .15s; }
+#regionMap .edge-line.hl { stroke-width: 4.5; opacity: 1; }
+#regionMap .edge-line.dim { opacity: .1; }
+
+/* ---------- 像素主角：顶栏中间轨道来回行走（透明限制区域） ---------- */
+.pv-walk {
+  position: absolute;
+  bottom: 0;
+  left: 4%;
+  width: 28px;
+  height: 42px;
+  background-image: url('/character/brendan-walk-right.png');
+  background-repeat: no-repeat;
+  background-size: 112px 42px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 0;
+  animation: pMove 8s linear infinite, pWalk 0.6s steps(1) infinite;
+}
+/* 主角在屏幕内来回行走，折返处瞬时镜像翻转（2D 精灵图直接 scaleX 翻转，不插值） */
+@keyframes pMove {
+  0%   { left: 4%; transform: scaleX(1); }
+  44.9% { left: calc(100% - 34px); transform: scaleX(1); }
+  45.1% { left: calc(100% - 34px); transform: scaleX(-1); }
+  94.9% { left: 4%; transform: scaleX(-1); }
+  95.1% { left: 4%; transform: scaleX(1); }
+  100% { left: 4%; transform: scaleX(1); }
+}
+@keyframes pWalk {
+  0%, 25%      { background-position: 0px 0; }
+  25.01%, 50%  { background-position: -28px 0; }
+  50.01%, 75%  { background-position: -56px 0; }
+  75.01%, 100% { background-position: -84px 0; }
+}
+
+/* ---------- 树果农场（帧动画） ---------- */
+.farm {
+  position: relative; /* 女主角定位上下文 */
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 26px;
+}
+/* 女主角（复刻游戏 .berry-helper）：may-walk 9 帧（16px 帧 → 2x 32px），移动用 transition，帧动画 brendanWalk 帧序 */
+.farm-helper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 42px;
+  background-repeat: no-repeat;
+  background-image: url('/character/may-walk.png');
+  background-size: 900% 100%; /* 9 帧横排，2x：288x42 */
+  background-position: 0 0;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 9;
+  transition: left .55s linear, top .55s linear;
+}
+.farm-helper.walk {
+  animation: helperWalk .6s steps(1) infinite;
+}
+.farm-helper.flip { transform: scaleX(-1); }
+/* 站定：walk 素材第 7 帧（侧面静止） */
+.farm-helper.stand {
+  background-position: 75% 0;
+  animation: none;
+}
+/* 走到树前：第 8 帧（面朝上静止） */
+.farm-helper.plant {
+  background-position: 87.5% 0;
+  animation: none;
+}
+/* 浇水：may-water 素材（32px 宽、2 帧）2x 显示 64px，动画切到第 2 帧 */
+.farm-helper.water {
+  background-image: url('/character/may-water.png');
+  background-size: 64px 42px;
+  background-position: 0 0;
+  transform: none;
+  animation: helperWaterOnce .8s step-end forwards;
+}
+@keyframes helperWalk {
+  0%   { background-position: 0% 0; }
+  25%  { background-position: 0% 0; }
+  25.01% { background-position: 12.5% 0; }
+  50%  { background-position: 12.5% 0; }
+  50.01% { background-position: 75% 0; }
+  75%  { background-position: 75% 0; }
+  75.01% { background-position: 12.5% 0; }
+  100% { background-position: 12.5% 0; }
+}
+@keyframes helperWaterOnce {
+  0%, 49.9% { background-position: 0 0; }
+  50%, 100% { background-position: -32px 0; }
+}
+
+/* 浇水动画（复刻游戏 .berry-spray / .berry-drop）：喷壶在树头上方倾斜后淡出，水滴撒落 */
+.farm-berry { position: relative; } /* 喷壶/水滴定位上下文（树容器） */
+.berry-spray {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 4px);
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  pointer-events: none;
+  image-rendering: pixelated;
+  z-index: 7;
+  animation: berry-spray .8s ease-out forwards;
+}
+@keyframes berry-spray {
+  0%   { opacity: 0; transform: translate(-50%, 6px) rotate(0deg); }
+  20%  { opacity: 1; transform: translate(-50%, 0)   rotate(-14deg); }
+  55%  { opacity: 1; transform: translate(-50%, -2px) rotate(-20deg); }
+  100% { opacity: 0; transform: translate(-50%, -6px) rotate(-30deg); }
+}
+.farm-item.sprout .berry-spray {
+  bottom: 34px;
+}
+.berry-drop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  border-radius: 0;
+  background: #9fd8f5;
+  box-shadow: 1px 0 0 #7ab8d8, 0 1px 0 #7ab8d8, 0 0 0 1px #7ab8d8;
+  pointer-events: none;
+  image-rendering: pixelated;
+  z-index: 7;
+  animation: berry-drop .65s steps(5, end) var(--delay, 0s) forwards;
+}
+@keyframes berry-drop {
+  0%   { opacity: 0; transform: translate(calc(-50% - 6px), 4px) translate(0, 0); }
+  15%  { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(calc(-50% - 6px), 20px) translate(var(--dx, 0), 0); }
+}
+.farm-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.farm-item b {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--ui-color-darker);
+}
+.farm-berry {
+  width: 32px;
+  height: 64px;
+  background-repeat: no-repeat;
+  background-size: 192px 64px;
+  image-rendering: pixelated;
+  animation: berrySwing 1.2s steps(1) infinite;
+}
+@keyframes berrySwing {
+  0%, 49.9% { background-position: -128px 0; }  /* 第 5 帧 */
+  50%, 100% { background-position: -160px 0; }  /* 第 6 帧 */
+}
+/* 发芽：2 帧横排图（32x16 等比 2x → 64x32），容器与其他树同高贴底 */
+.farm-item.sprout .farm-berry {
+  width: 32px;
+  height: 64px;
+  background-size: 64px 32px;
+  background-position: 0 100%;
+  animation-name: sproutSwing;
+}
+@keyframes sproutSwing {
+  0%, 49.9% { background-position: 0 100%; }
+  50%, 100% { background-position: -32px 100%; }
+}
+
+/* ============================================================
+   页脚
+   ============================================================ */
+.footer {
+  background: var(--ui-color-dark);
+  border-top: 4px solid var(--ui-color-darker);
+  color: #b9dfca;
+  font-size: 12px;
+  line-height: 1.8;
+  padding: 30px 24px 40px;
+  text-align: center;
+}
+.footer p { max-width: 900px; margin: 0 auto 8px; }
+.footer b { color: #eafff4; }
+.footer-copyright {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: #8fc0a9;
+}
+.footer-copyright a { color: #eafff4; text-decoration: none; }
+.footer-copyright a:hover { text-decoration: underline; }
+.footer-copyright .heart {
+  display: inline-flex;
+  vertical-align: -2px;
+}
+
+/* ============================================================
+   动画
+   ============================================================ */
+@keyframes blink { 50% { opacity: 0; } }
+
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* ============================================================
+   响应式
+   ============================================================ */
+@media (max-width: 760px) {
+  .hero-inner { padding: 34px 16px 44px; gap: 36px; }
+  .hero-text { text-align: center; }
+  .ht-actions { justify-content: center; }
+  .hero-text h1 { font-size: 38px; letter-spacing: 8px; }
+  .device { width: 300px; }
+  .screen { height: 216px; }
+  .stats { flex-wrap: nowrap; }
+  .stat { flex: 1 1 0; padding: 8px 2px; border-bottom: none; }
+  .stat b { font-size: 15px; letter-spacing: 0; }
+  .stat span { font-size: 10px; }
+  .cards { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .card {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    align-items: start;
+  }
+  .card-icon { grid-column: 1; grid-row: 1 / 3; }
+  .card h3 { grid-column: 2; grid-row: 1; margin-top: 0; }
+  .card p { grid-column: 2; grid-row: 2; margin-top: 3px; }
+  /* 移动端树果农场只显示 6 棵：隐藏最右一棵 */
+  #farm .farm-item:last-child { display: none; }
+}
+
+@media (max-width: 520px) {
+  .topbar-inner { justify-content: center; }
+  .logo span { display: none; }
+  .cards { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}

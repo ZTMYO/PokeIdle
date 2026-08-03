@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Stars" src="https://img.shields.io/github/stars/ZTMYO/PokemonIdle?style=for-the-badge&label=Stars&color=brightgreen" />
+  <img alt="Stars" src="https://img.shields.io/github/stars/ZTMYO/PokeIdle?style=for-the-badge&label=Stars&color=brightgreen" />
   <img alt="License" src="https://img.shields.io/badge/License-MIT%20%2B%20CC%20BY--NC--ND%204.0-blue?style=for-the-badge" />
   <img alt="Tauri" src="https://img.shields.io/badge/Tauri-v2.0-blueviolet?style=for-the-badge" />
   <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows-0078d6?style=for-the-badge" />
@@ -32,6 +32,7 @@
 - **树果农场** — 种植浇水收获树果，告示牌兑换糖果、招募帮手自动打理
 - **树果混合器** — 树果配方制成树果方块，按键时机评分决定遇敌概率
 - **地区悬赏** — 每日刷新悬赏，捕获指定宝可梦领取糖果奖励
+- **成就** — 每项累计统计达成等级即可领取糖果，等级按 1-2-5 规整序列无限递进
 - **图鉴** — 1025 只宝可梦全收录，支持搜索、筛选、排序、详情
 - **自动操作** — 遇敌自动捕获或逃跑，增益自动续杯；佛系模式遇敌超时自动逃跑
 - **离线挂机** — 离线仅结算每日刷新内容，回到游戏自动结算
@@ -47,6 +48,7 @@
 - **树果方块** — 小游戏玩法，QTE评分决定方块品质，轻松刷取已解锁完整图鉴的宝可梦
 - **音乐体验** — 各世代原声洗牌播放整轮不重复，并按每首实测响度自动补偿，切歌音量不突兀
 - **自动挂机** — 支持遇敌自动捕获或逃跑、增益自动续杯；
+- **托盘图标** — 系统托盘动态实时展示游戏状态相关的图标，悬停可查看多行实时状态；
 
 ## 开发
 

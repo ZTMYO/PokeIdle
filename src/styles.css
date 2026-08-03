@@ -1075,6 +1075,97 @@ body { margin: 0; padding: 0; cursor: default; }
   font-weight: 600;
 }
 
+/* ===== 成就系统 ===== */
+.ach-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--ui-color);
+}
+.ach-summary {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.ach-item {
+  border: 1px solid rgba(var(--ui-color-rgb), 0.25);
+  padding: 4px 6px;
+  margin-bottom: 4px;
+}
+.ach-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.ach-name {
+  font-weight: 700;
+}
+.ach-prog {
+  font-size: 10px;
+  opacity: 0.85;
+}
+.ach-bar {
+  height: 6px;
+  margin: 3px 0;
+  background: rgba(var(--ui-color-rgb), 0.12);
+  border: 1px solid rgba(var(--ui-color-rgb), 0.25);
+}
+.ach-bar-fill {
+  height: 100%;
+  background: var(--ui-color);
+  transition: width 0.3s;
+}
+.ach-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.ach-desc {
+  font-size: 10px;
+  opacity: 0.65;
+}
+.ach-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  border-radius: 3px;
+  background: rgba(var(--ui-color-rgb), 0.1);
+  color: var(--ui-color);
+  font-size: 9px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ach-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.ach-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 9px;
+  opacity: 0.9;
+}
+.ach-btn:hover:not(:disabled) { background: rgba(var(--ui-color-rgb), 0.25); }
+.ach-btn:active:not(:disabled) { transform: scale(0.95); }
+.ach-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ach-btn-ready {
+  border-color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb), 0.22);
+  font-weight: 700;
+}
+
 /* ===== 糖果兑换弹窗 ===== */
 .candy-dialog {
   position: absolute;

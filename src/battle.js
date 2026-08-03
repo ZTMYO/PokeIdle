@@ -579,7 +579,6 @@ export async function fleeEncounter(isAutoFlee) {
     // 宝可梦水平翻转并向右下平移出屏的逃跑动画
     if (isOnGameView()) await playFleeAnim();
   } else {
-    gameData.stats.totalFlees++;
     addSystemLog('player_fled', { pokemon: idx, shiny: currentIsShiny, auto: false });
     if (isOnGameView()) updateTextBox('你逃走了！', false);
   }
@@ -688,7 +687,6 @@ export async function autoCatch() {
       await delay(AUTO_FLEE_NO_BALL_DELAY);
       if (phase !== 'encounter') { setAutoCatching(false); return; }
       setPhase('fled');
-      gameData.stats.totalFlees++;
       const idx = String(currentEncounter.index);
       addSystemLog('player_fled', { pokemon: idx, shiny: currentIsShiny, auto: true });
       if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];

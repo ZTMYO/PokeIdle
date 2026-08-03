@@ -172,6 +172,23 @@ export function hasDryBerries() {
   return f.plots.some(p => p && stageOf(p).key !== 'ripe' && plotState(p).water <= 0);
 }
 
+// 农场关键数据（托盘悬停提示用）：缺水地块 / 生长中 / 可收获 数量
+export function getFarmStats() {
+  const f = gameData?.berryFarm;
+  const plots = f?.plots || [];
+  let dry = 0, growing = 0, ripe = 0;
+  for (const p of plots) {
+    if (!p) continue;
+    const st = stageOf(p);
+    if (st.key === 'ripe') ripe++;
+    else {
+      growing++;
+      if (plotState(p).water <= 0) dry++;
+    }
+  }
+  return { dry, growing, ripe };
+}
+
 function frameStyle(st, dry) {
   const bgW = st.cols * FRAME_W;
   const fromX = -(st.frame * FRAME_W);

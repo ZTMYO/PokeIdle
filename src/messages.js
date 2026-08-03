@@ -1,6 +1,7 @@
 // ===== 闲置轮播消息 + 地区文案 =====
 import { $, showView } from './ui.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer } from './state.js';
+import { ACHIEVEMENTS, earnedTiers, claimedTiers } from './achievements.js';
 import * as road from './road.js';
 
 // 对应9个世代大区的氛围文案
@@ -317,6 +318,20 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   if ((items['shiny-charm']||0) > 0) msgs.push(`闪耀护符×${items['shiny-charm']}，价值不菲的珍稀道具！`);
   if ((items['shiny-charm']||0) > 0) msgs.push('闪耀护符可以提升遇见闪光宝可梦的几率！');
   if ((items['shiny-charm']||0) >= 2) msgs.push(`手握${items['shiny-charm']}个闪耀护符，随时准备迎接奇迹降临！`);
+
+  // ——— 成就类 ———
+  const ach = gameData.achievements || {};
+  const achCount = Object.values(ach).reduce((s, v) => s + (v || 0), 0);
+  if (achCount > 0) {
+    msgs.push(`已在成就列表领取 ${formatNum(achCount)} 级奖励，每一步冒险都被铭记。`);
+    if ((ach['candy'] || 0) > 0) msgs.push(`「糖果富翁」已达成 ${ach['candy']} 级，糖果越攒越丰厚！`);
+    if ((ach['dex'] || 0) >= 5) msgs.push('「图鉴收藏家」几近满级，离全图鉴只差一步！');
+    if ((ach['hatch'] || 0) > 0) msgs.push(`孵化成就已达成 ${ach['hatch']} 级，见证了许多新生命的诞生。`);
+    if ((ach['shinyCaught'] || 0) > 0) msgs.push(`「闪光收藏家」已达 ${ach['shinyCaught']} 级，运气非同一般！`);
+    if ((ach['bounty'] || 0) > 0) msgs.push(`赏金猎人成就已领 ${ach['bounty']} 级，悬赏之路稳步前行。`);
+  }
+  const pendingAch = ACHIEVEMENTS.filter(a => earnedTiers(a) > claimedTiers(a.id)).length;
+  if (pendingAch > 0) msgs.push(`有 ${pendingAch} 项成就达到领取条件，打开统计页领取奖励吧！`);
 
   // ——— 地区悬赏类 ———
   const bounty = gameData.bounty;

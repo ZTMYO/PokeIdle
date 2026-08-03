@@ -143,6 +143,11 @@ export function hasTradableOffers() {
   return (gameData?.trades?.offers || []).some(o => !o.traded && eligible(o).length > 0);
 }
 
+// 可交换 offer 数量（托盘悬停提示用）
+export function countTradableOffers() {
+  return (gameData?.trades?.offers || []).filter(o => !o.traded && eligible(o).length > 0).length;
+}
+
 // ---------- 渲染 ----------
 export function showTradeView() {
   setPrevView('phoneView');
