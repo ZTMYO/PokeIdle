@@ -1,0 +1,27 @@
+# 开源授权双协议说明
+
+## 1. 源代码授权（MIT License）
+
+项目全部前端、Tauri Rust 逻辑、配置代码使用 MIT 开源协议：
+
+允许自由修改、本地调试、Fork、提交 BUG 修复与功能 PR，可查阅 [LICENSE-MIT](LICENSE-MIT) 文件查看完整协议。
+
+限制：衍生代码依旧不可用于商业售卖、打包盈利。
+
+## 2. 原创美术、文案、定制资源授权（CC BY-NC-ND 4.0）
+
+项目作者原创绘制配图、文案等素材遵循 CC BY-NC-ND 4.0：
+
+- 署名转发需标注原项目地址；
+- 禁止商用；
+- 禁止修改素材后二次分发传播。
+
+完整 CC 协议：https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode
+
+## 第三方 IP 版权特别声明
+
+项目内所有宝可梦形象、立绘、图标、原声 BGM、专有名称、世界观设定等官方 IP 素材，著作权归属：
+
+Nintendo / Creatures Inc. / GAME FREAK inc. / The Pokémon Company。
+
+该部分官方 IP 素材**不受以上两份开源协议覆盖**，无论商用、非商用场景，严禁私自提取、拆分、商用传播官方宝可梦素材。
