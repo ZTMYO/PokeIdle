@@ -199,7 +199,7 @@ export function getDefaultSave() {
       totalBlockMade:0, totalPlantings:0, totalHarvests:0, totalBerriesHarvested:0, totalBoardTrades:0,
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
       totalTrades:0, tradesToday:0, lastTradeDate:'',
-      totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
+      totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
     },
     incubators: Array.from({length: 8}, () => emptyIncubator()),
     incubatorUnlockedSlots: 0,

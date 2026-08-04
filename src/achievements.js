@@ -75,7 +75,8 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'candy', name: '糖果富翁', desc: '累计糖果数',
-    metric: d => d.stats.totalItemsEarned?.candy || 0, base: 100, reward: 10,
+    // 首级阈值 500：新档启动资金 200 已计入累计统计，若阈值过低开局就会直接解锁
+    metric: d => d.stats.totalItemsEarned?.candy || 0, base: 500, reward: 10,
     fmt: v => `${formatNum(v)} 个`,
   },
 ];

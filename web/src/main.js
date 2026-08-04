@@ -1,6 +1,22 @@
 // ===== 口袋挂机 · 展示页逻辑 =====
 import './style.css';
 
+/* ============================================================
+   下载链接
+   ============================================================ */
+const INSTALLER = '口袋挂机_1.0.0_x64-setup.exe';
+// 下载来源改为百度网盘分享，更换链接时只需改这里
+const DOWNLOAD_URL = 'https://pan.baidu.com/share/init?surl=sNWqwVQ-ni7YcWz6GBHG5A&pwd=c6kg';
+['downloadLink', 'downloadBtn'].forEach(id => {
+  const a = document.getElementById(id);
+  if (a) {
+    a.href = DOWNLOAD_URL;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.setAttribute('download', INSTALLER);
+  }
+});
+
 // 禁用浏览器刷新后的滚动位置恢复：每次进入页面都从顶部开始
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 window.scrollTo(0, 0);
@@ -634,20 +650,6 @@ function buildRegionMap() {
     h.path.addEventListener('mouseleave', clearHover);
   }));
 }
-
-/* ============================================================
-   下载链接
-   ============================================================ */
-const INSTALLER = '口袋挂机_1.0.0_x64-setup.exe';
-// 下载来源改为百度网盘分享，更换链接时只需改这里
-const DOWNLOAD_URL = 'https://pan.baidu.com/s/1JoYB2j9avv18BIGSK7IH0g?pwd=dfav';
-['downloadLink', 'downloadBtn'].forEach(id => {
-  const a = document.getElementById(id);
-  if (a) {
-    a.href = DOWNLOAD_URL;
-    a.setAttribute('download', INSTALLER);
-  }
-});
 
 /* ============================================================
    启动

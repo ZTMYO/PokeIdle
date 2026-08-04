@@ -142,8 +142,40 @@ export const regionMsg = {
 export const PICKUP_ACTIONS = ['踢了一下', '随手拨开', '扒拉了几下', '俯身翻看', '无意中踢到', '随手一翻', '扒开小土坑', '扫开灰尘', '蹲下来翻找', '拂开落叶', '刨开沙土', '伸手摸索', '掀开树皮', '轻踹土块', '伸手掏了掏', '扫开细沙'];
 export const PICKUP_RESULTS = ['捡到了', '发现了', '找到了', '翻出了', '捞到了', '寻获了', '意外拾获', '顺手拾起', '居然是', '竟挖到', '无意间摸出', '凑巧找到', '意外翻出', '随手摸出', '掘出了', '捞起了'];
 
+// 上次构建闲置消息时的数据快照：物品/图鉴/统计/成就/悬赏任一变，文案都需重建以保持同步
+let _msgSnapshot = '';
+
+// 当前闲置消息依赖数据的稳定字符串快照。
+function msgDataSnapshot() {
+  const d = gameData || {};
+  const s = d.stats || {};
+  const items = Object.entries(d.items || {})
+    .filter(([, v]) => v > 0)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}:${v}`)
+    .join('|');
+  const dex = Object.entries(d.pokedex || {})
+    .filter(([, e]) => e && (e.seen > 0 || e.caught > 0))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, e]) => `${k}:${e.seen || 0}:${e.caught || 0}:${e.shinyCaught || 0}`)
+    .join('|');
+  const ach = Object.entries(d.achievements || {})
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}:${v}`)
+    .join('|');
+  const b = d.bounty;
+  return [
+    items,
+    `${s.totalShinySeen || 0}|${s.totalShinyCaught || 0}|${s.totalCatches || 0}|${s.totalPlaySeconds || 0}|${s.totalBallsUsed || 0}|${s.totalFlees || 0}|${s.totalEggsHatched || 0}`,
+    dex,
+    ach,
+    b ? `${b.date || ''}|${(b.visited || []).join(',')}|${JSON.stringify(b.rewards)}` : '',
+  ].join(';;');
+}
+
 export function buildIdleMessages() {
   if (!gameData) return;
+  _msgSnapshot = msgDataSnapshot();
   const stats = gameData.stats;
   const pokedex = gameData.pokedex;
   const caught = Object.values(pokedex).filter(e => e.caught > 0).length;
@@ -380,6 +412,8 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
 
 export function rotateIdleMessage() {
   if (phase !== 'idle') return;
+  // 数据变化后重建消息列表（拾取/消费/捕获/成就/悬赏等都会改变），保持文案与实况同步
+  if (msgDataSnapshot() !== _msgSnapshot) buildIdleMessages();
   // 自行车道文案优先级最高（优先于 buff 轮播）：骑行期间只显示骑行相关文案；
   // 例外是 buff 到期，到期文案由 items.js 直接写入 idleText，不经过本函数
   if (road.isBike()) {
