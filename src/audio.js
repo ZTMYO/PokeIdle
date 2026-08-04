@@ -4,7 +4,7 @@ import { REGION_PLAYLISTS, SFX, INTRO_TRACK, TRACK_GAINS } from './regions.js';
 import { showNowPlaying } from './ui.js';
 
 let _volume = 0.6;
-let _musicEnabled = true;  // 音乐开关
+let _musicEnabled = true;  // 背景音乐开关
 let _splashLocked = false; // splash 动画期间禁声
 let _battleMusic = true;   // 战斗音乐开关（关闭时战斗保持地区曲）
 let _regionTracks = [];    // 当前地区歌单
@@ -86,7 +86,7 @@ function urlFor(path) {
 }
 
 let _pending = null; // 自动播放被拦截时挂起，等用户交互后补播
-let _sfxInterrupted = false; // 瞬发音效（胜利等）被音乐开关/静音/splash 暂停时置位，恢复时优先补播它
+let _sfxInterrupted = false; // 瞬发音效（胜利等）被音乐开关/splash 暂停时置位，恢复时优先补播它
 
 function tryPlay(el) {
   if (_splashLocked) return; // splash 期间不实际发声（状态保留，放行后恢复）
@@ -345,7 +345,7 @@ export function setVolume(v) {
   applyVolume();
 }
 
-// ---------- 静音 ----------
+// ---------- 音乐开关 ----------
 // 暂停全部通道时记录被中断的瞬发音效（胜利等），恢复时优先补播它，
 // 避免背景曲（如战斗曲）抢跑，造成「捕捉已完成但战斗音乐又响起」的状态错乱
 function pauseAll() {
@@ -368,7 +368,7 @@ function resumeBackground() {
   else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) { regionFadeIn(300); tryPlay(regionAudio); }
 }
 
-// 音乐开关（设置页/开场顶栏按钮共用）：关闭时暂停所有音频通道（含瞬发音效），重开恢复（覆盖曲 > 地区曲）
+// 音乐开关（设置页与开场顶栏按钮共用）：关闭时暂停所有音频通道（含瞬发音效），重开恢复（覆盖曲 > 地区曲）
 export function setMusicEnabled(on) {
   _musicEnabled = on !== false;
   if (!_musicEnabled) pauseAll();

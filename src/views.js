@@ -75,11 +75,11 @@ function calcTodayStats() {
 // 统计页打开时游戏仍在后台运行：道路持续滚动累计行走距离、自动捕捉/逃跑推进遭遇、
 // 道具持续拾取、GPS 导航推进地区，因此所有数值都需实时同步。
 // 按 id 更新而非整页重建，避免滚动位置被重置。
-// 挂机时长（仅统计页使用）：隐藏秒数，如 2:35 或 45 分
+// 挂机时长（仅统计页使用）：隐藏秒数，统一 HH:MM，如 00:04 或 02:35
 const fmtPlayTime = s => {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h}:${pad(m)}` : `${m}分`;
+  return `${pad(h)}:${pad(m)}`;
 };
 
 function refreshDataStats() {

@@ -8,7 +8,7 @@ const INSTALLER = '口袋挂机_1.0.1_x64-setup.exe';
 // 网页直连：安装包位于 web/public/download/ 下
 const DOWNLOAD_DIRECT = `./download/${INSTALLER}`;
 // 百度网盘分享，更换链接时只需改这里
-const DOWNLOAD_PAN = 'https://pan.baidu.com/s/1X-1YnMoaNuQEYnsovYYKuw?pwd=3et9';
+const DOWNLOAD_PAN = 'https://pan.baidu.com/s/15mUM01Ac3fPEUffOHbw2pw?pwd=2qvj';
 const dDirect = document.getElementById('downloadDirect');
 if (dDirect) {
   dDirect.href = DOWNLOAD_DIRECT;

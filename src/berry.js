@@ -725,7 +725,10 @@ function refreshBoard() {
   const stock = f.stock || {};
   const demandsEl = host.querySelector('.board-demands');
   if (demandsEl && Array.isArray(f.board?.demands)) {
-    demandsEl.innerHTML = f.board.demands.map((d, k) => boardDemandHtml(d, k, stock)).join('');
+    demandsEl.innerHTML = f.board.demands
+      .map((d, k) => ({ d, k }))
+      .sort((a, b) => a.d.candy - b.d.candy)
+      .map(({ d, k }) => boardDemandHtml(d, k, stock)).join('');
     demandsEl.querySelectorAll('img[data-src]').forEach(im => tryLoadImage(im, im.dataset.src));
     demandsEl.querySelectorAll('.board-trade:not(.locked):not(.done)').forEach(btn => {
       btn.addEventListener('click', e => {

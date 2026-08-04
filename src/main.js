@@ -293,26 +293,25 @@ function onGameTick() {
 }
 
 // ---------- 开场剧情音乐开关（顶栏按钮，仅开场显示） ----------
-// 与设置页「音乐」共用一个开关（settings.musicEnabled），避免两套静音状态脱节
-function syncIntroMuteIcon() {
-  const btn = document.getElementById('btnIntroMute');
-  const on = document.getElementById('introMuteIconOn');
-  const off = document.getElementById('introMuteIconOff');
-  const onOff = isMusicEnabled();
-  if (on) on.style.display = onOff ? 'none' : '';
-  if (off) off.style.display = onOff ? '' : 'none';
-  if (btn) { btn.title = onOff ? '取消静音' : '静音'; btn.setAttribute('aria-label', btn.title); }
+// 与设置面板「音乐」开关共用同一逻辑（settings.musicEnabled）
+function syncIntroMusicIcon() {
+  const btn = document.getElementById('btnIntroMusic');
+  const on = document.getElementById('introMusicIconOn');
+  const off = document.getElementById('introMusicIconOff');
+  const enabled = isMusicEnabled();
+  if (on) on.style.display = enabled ? '' : 'none';
+  if (off) off.style.display = enabled ? 'none' : '';
+  if (btn) { btn.title = enabled ? '关闭音乐' : '打开音乐'; btn.setAttribute('aria-label', btn.title); }
 }
 
-function onIntroMuteClick() {
-  if (!gameData.settings) gameData.settings = {};
-  const enabled = !(gameData.settings.musicEnabled !== false);
-  gameData.settings.musicEnabled = !enabled; // 关闭即静音（与设置页 toggle 同一语义）
-  setMusicEnabled(gameData.settings.musicEnabled);
+function onIntroMusicClick() {
+  const enabled = !isMusicEnabled();
+  gameData.settings.musicEnabled = enabled;
+  setMusicEnabled(enabled);
   saveGame();
-  syncIntroMuteIcon();
-  // 玩家点击过静音开关：引导文案不再显示
-  const hint = document.getElementById('introMuteHint');
+  syncIntroMusicIcon();
+  // 玩家点击过音乐开关：引导文案不再显示
+  const hint = document.getElementById('introMusicHint');
   if (hint) hint.style.display = 'none';
 }
 
@@ -366,6 +365,8 @@ async function init() {
   if (!gameDataRaw) setRoamEnabled(true); // 新档：默认开启漫游并自动规划首站路线（旧档保持原开关状态）
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
   initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
+  // 旧档迁移：静音开关已并入「音乐」开关（默认播放音乐），清理孤立的 muted 字段
+  if (gameData.settings?.muted !== undefined) delete gameData.settings.muted;
   setMusicEnabled(gameData.settings?.musicEnabled !== false); // 音乐开关：沿用上次状态
   setBattleMusic(gameData.settings?.battleMusic !== false); // 战斗音乐开关：沿用上次状态
   ensureBounty();   // 生成/恢复当日地区悬赏
@@ -541,23 +542,23 @@ async function init() {
     // 剧情期间隐藏底部背包/统计栏与顶部应用按钮（纯剧情画面）；最小化/关闭保持可用
     document.body.classList.add('boot-no-ui');
     window.__introActive = true;
-    // 开场剧情顶栏静音开关（仅开场显示，位于最小化按钮左侧）
-    syncIntroMuteIcon();
-    const muteBtn = document.getElementById('btnIntroMute');
-    if (muteBtn) {
-      muteBtn.style.display = 'flex';
-      muteBtn.addEventListener('click', onIntroMuteClick);
+    // 开场剧情顶栏音乐开关（仅开场显示，位于最小化按钮左侧）
+    syncIntroMusicIcon();
+    const musicBtn = document.getElementById('btnIntroMusic');
+    if (musicBtn) {
+      musicBtn.style.display = 'flex';
+      musicBtn.addEventListener('click', onIntroMusicClick);
     }
-    // 静音引导文案：与按钮一同显示在左侧，点击静音后消失
-    const muteHint = document.getElementById('introMuteHint');
-    if (muteHint) muteHint.style.display = 'flex';
+    // 音乐引导文案：与按钮一同显示在左侧，点击后消失
+    const musicHint = document.getElementById('introMusicHint');
+    if (musicHint) musicHint.style.display = 'flex';
     startIntro(() => {
       window.__introActive = false;
       gameData.introDone = true;
-      // 开场结束：静音开关与引导文案随开场一起隐藏
-      const btn = document.getElementById('btnIntroMute');
+      // 开场结束：音乐开关与引导文案随开场一起隐藏
+      const btn = document.getElementById('btnIntroMusic');
       if (btn) btn.style.display = 'none';
-      const hint = document.getElementById('introMuteHint');
+      const hint = document.getElementById('introMusicHint');
       if (hint) hint.style.display = 'none';
       // 底部背包/统计栏与顶部按钮的恢复由 startSplashDrop 统一处理（splash 显示后淡入，避免闪现）
       // 首次 splash（开场剧情结束后的首个开机动画）不静音：未白镇开场曲顺势延续
