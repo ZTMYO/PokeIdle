@@ -8,7 +8,7 @@ const INSTALLER = '口袋挂机_1.0.1_x64-setup.exe';
 // 网页直连：安装包位于 web/public/download/ 下
 const DOWNLOAD_DIRECT = `./download/${INSTALLER}`;
 // 百度网盘分享，更换链接时只需改这里
-const DOWNLOAD_PAN = 'https://pan.baidu.com/s/1OGnRHkIH2GzqOf_5whHFFg?pwd=fhc3';
+const DOWNLOAD_PAN = 'https://pan.baidu.com/s/1X-1YnMoaNuQEYnsovYYKuw?pwd=3et9';
 const dDirect = document.getElementById('downloadDirect');
 if (dDirect) {
   dDirect.href = DOWNLOAD_DIRECT;
@@ -20,6 +20,9 @@ if (dPan) {
   dPan.target = '_blank';
   dPan.rel = 'noopener';
 }
+// 提取码直接取网盘链接末尾 4 位（pwd 参数），更换链接时无需再同步文案
+const panCodeEl = document.getElementById('downloadPanCode');
+if (panCodeEl) panCodeEl.textContent = `提取码 ${DOWNLOAD_PAN.slice(-4)} · 备选线路`;
 // 下载按钮：点击展开「网页直连 / 百度网盘」两个选项，点外部收起
 const dlWrap = document.getElementById('downloadWrap');
 const dlMain = document.getElementById('downloadMain');

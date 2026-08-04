@@ -52,7 +52,7 @@ import { showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateDataBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
-import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMuted, isMuted, setMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
+import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
@@ -292,22 +292,23 @@ function onGameTick() {
   }
 }
 
-// ---------- 开场剧情静音开关（顶栏按钮，仅开场显示） ----------
+// ---------- 开场剧情音乐开关（顶栏按钮，仅开场显示） ----------
+// 与设置页「音乐」共用一个开关（settings.musicEnabled），避免两套静音状态脱节
 function syncIntroMuteIcon() {
   const btn = document.getElementById('btnIntroMute');
   const on = document.getElementById('introMuteIconOn');
   const off = document.getElementById('introMuteIconOff');
-  const muted = isMuted();
-  if (on) on.style.display = muted ? 'none' : '';
-  if (off) off.style.display = muted ? '' : 'none';
-  if (btn) { btn.title = muted ? '取消静音' : '静音'; btn.setAttribute('aria-label', btn.title); }
+  const onOff = isMusicEnabled();
+  if (on) on.style.display = onOff ? 'none' : '';
+  if (off) off.style.display = onOff ? '' : 'none';
+  if (btn) { btn.title = onOff ? '取消静音' : '静音'; btn.setAttribute('aria-label', btn.title); }
 }
 
 function onIntroMuteClick() {
-  const muted = !isMuted();
-  setMuted(muted);
   if (!gameData.settings) gameData.settings = {};
-  gameData.settings.muted = muted;
+  const enabled = !(gameData.settings.musicEnabled !== false);
+  gameData.settings.musicEnabled = !enabled; // 关闭即静音（与设置页 toggle 同一语义）
+  setMusicEnabled(gameData.settings.musicEnabled);
   saveGame();
   syncIntroMuteIcon();
   // 玩家点击过静音开关：引导文案不再显示
@@ -365,7 +366,6 @@ async function init() {
   if (!gameDataRaw) setRoamEnabled(true); // 新档：默认开启漫游并自动规划首站路线（旧档保持原开关状态）
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
   initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
-  setMuted(!!gameData.settings?.muted); // 开场静音开关：沿用上次状态
   setMusicEnabled(gameData.settings?.musicEnabled !== false); // 音乐开关：沿用上次状态
   setBattleMusic(gameData.settings?.battleMusic !== false); // 战斗音乐开关：沿用上次状态
   ensureBounty();   // 生成/恢复当日地区悬赏

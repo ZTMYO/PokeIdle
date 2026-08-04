@@ -4,8 +4,7 @@ import { REGION_PLAYLISTS, SFX, INTRO_TRACK, TRACK_GAINS } from './regions.js';
 import { showNowPlaying } from './ui.js';
 
 let _volume = 0.6;
-let _muted = false;        // 静音开关（开场顶栏按钮控制，随存档持久化）
-let _musicEnabled = true;  // 背景音乐开关（设置页控制，关闭时仅音乐静音，音效不受影响）
+let _musicEnabled = true;  // 音乐开关
 let _splashLocked = false; // splash 动画期间禁声
 let _battleMusic = true;   // 战斗音乐开关（关闭时战斗保持地区曲）
 let _regionTracks = [];    // 当前地区歌单
@@ -90,7 +89,7 @@ let _pending = null; // 自动播放被拦截时挂起，等用户交互后补�
 let _sfxInterrupted = false; // 瞬发音效（胜利等）被音乐开关/静音/splash 暂停时置位，恢复时优先补播它
 
 function tryPlay(el) {
-  if (_muted || _splashLocked) return; // 静音或 splash 期间不实际发声（状态保留，放行后恢复）
+  if (_splashLocked) return; // splash 期间不实际发声（状态保留，放行后恢复）
   // 音乐关闭时全局阻断：地区曲/覆盖曲/瞬发音效（victory、孵蛋、交换等）一律不发声
   if (!_musicEnabled) return;
   const p = el.play();
@@ -290,7 +289,7 @@ function showNowPlayingFromMeta(path) {
     const artist = meta?.artist || '';
     _currentTitle = title;
     _currentArtist = artist;
-    if (_volume <= 0 || _muted || _splashLocked || !_musicEnabled) return;
+    if (_volume <= 0 || _splashLocked || !_musicEnabled) return;
     showNowPlaying(title, artist);
   });
 }
@@ -369,15 +368,7 @@ function resumeBackground() {
   else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) { regionFadeIn(300); tryPlay(regionAudio); }
 }
 
-export function setMuted(m) {
-  _muted = !!m;
-  if (_muted) pauseAll();
-  else resumeBackground();
-}
-
-export function isMuted() { return _muted; }
-
-// 音乐开关（设置页控制）：关闭时暂停所有音频通道（含瞬发音效），重开恢复（覆盖曲 > 地区曲）
+// 音乐开关（设置页/开场顶栏按钮共用）：关闭时暂停所有音频通道（含瞬发音效），重开恢复（覆盖曲 > 地区曲）
 export function setMusicEnabled(on) {
   _musicEnabled = on !== false;
   if (!_musicEnabled) pauseAll();
@@ -394,7 +385,7 @@ export function getNowPlaying() {
   return {
     title: _currentTitle,
     artist: _currentArtist,
-    playing: _regionActive && _currentRegionPath && !_muted && !_splashLocked && _musicEnabled && _volume > 0 && !regionAudio.paused,
+    playing: _regionActive && _currentRegionPath && !_splashLocked && _musicEnabled && _volume > 0 && !regionAudio.paused,
   };
 }
 
@@ -418,7 +409,7 @@ export function consumeShowCardOnEncounterEnd() {
 
 // 展示当前地区曲歌曲卡
 export function showRegionNowPlaying() {
-  if (_volume <= 0 || _muted || _splashLocked || !_musicEnabled) return;
+  if (_volume <= 0 || _splashLocked || !_musicEnabled) return;
   if (!_regionActive || !_currentRegionPath) return;
   showNowPlayingFromMeta(_currentRegionPath);
 }
