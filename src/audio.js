@@ -247,7 +247,10 @@ function playSfx(path) {
   tryPlay(sfxAudio);
 }
 
-export function playVictory() { playSfx(SFX.victory); }
+export function playVictory() {
+  if (!_battleMusic) return;
+  playSfx(SFX.victory);
+}
 export function playCongratulation() { playSfx(SFX.congratulation); }
 export function playObtained() { playSfx(SFX.obtained); }
 

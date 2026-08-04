@@ -465,7 +465,7 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   justify-content: center;
   background: var(--ui-color-dark);
   border-bottom: 4px solid var(--ui-color-darker);
-  max-width: 900px;
+  max-width: 1120px;
   margin: 0 auto;
   border-radius: 0 0 14px 14px;
 }
@@ -514,23 +514,72 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 
 .section-note { margin-top: 12px; color: var(--color-muted); font-size: 13px; }
 
-/* ---------- 特色卡片 ---------- */
-.cards {
+/* ---------- 游戏截图轮播（左图右文，渐淡切换） ---------- */
+.shots-carousel {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 32px;
+  align-items: center;
+}
+.shots-viewport {
+  overflow: hidden;
+  border: 3px solid var(--screen-bg-dark);
+  border-radius: 12px;
+  background: var(--screen-bg-dark);
+}
+.shots-stage {
+  position: relative;
+  aspect-ratio: 558 / 696; /* 与截图尺寸一致，保证叠放高度恒定 */
+}
+.shot {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  transition: opacity .6s ease;
+  pointer-events: none;
+}
+.shot.active { opacity: 1; }
+.shot-frame { overflow: hidden; height: 100%; }
+.shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  image-rendering: auto;
+}
+
+/* 右侧卡片：图标 + 标题 + 描述，充当指示器高亮当前截图 */
+.shots-info { min-width: 0; }
+.shots-mobile-info { display: none; } /* 仅移动端显示 */
+.shots-cards {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
-  margin-top: 20px;
 }
-.card {
+.shot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 12px;
   background: var(--screen-bg-light);
   border: 3px solid var(--screen-bg-dark);
   border-radius: 12px;
-  padding: 12px 12px;
-  transition: transform .15s, background .15s;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, border-color .15s;
+  user-select: none;
 }
-.card:hover { transform: translateY(-3px); background: var(--screen-bg); }
-.card-icon {
-  width: 36px; height: 36px;
+.shot-card:hover { background: var(--screen-bg); }
+.shot-card.active {
+  background: var(--screen-bg);
+  border-color: var(--ui-color-darker);
+}
+.shot-card-icon {
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -538,10 +587,23 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   border: 2px solid var(--ui-color-darker);
   border-radius: 8px;
   color: #eafff4;
+  margin-bottom: 6px;
+  transition: background .15s;
 }
-.card-icon svg { width: 18px; height: 18px; fill: currentColor; }
-.card h3 { margin-top: 8px; font-size: 13px; letter-spacing: 1px; color: var(--ui-color-darker); }
-.card p { margin-top: 4px; font-size: 11px; color: #3f6a58; line-height: 1.55; }
+.shot-card-icon svg { width: 18px; height: 18px; fill: currentColor; }
+.shot-card.active .shot-card-icon { background: var(--ui-color-darker); }
+.shot-card-title {
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--ui-color-darker);
+}
+.shot-card.active .shot-card-title { font-weight: 700; }
+.shot-card-desc {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #3f6a58;
+  line-height: 1.55;
+}
 
 /* ---------- 全图鉴滚动 ---------- */
 .marquee {
@@ -807,6 +869,7 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
    ============================================================ */
 @media (max-width: 760px) {
   .hero-inner { padding: 34px 16px 44px; gap: 36px; }
+  .section { margin-top: 44px; }
   .hero-text { text-align: center; }
   .ht-actions { justify-content: center; }
   .hero-text h1 { font-size: 38px; letter-spacing: 8px; }
@@ -816,17 +879,31 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   .stat { flex: 1 1 0; padding: 8px 2px; border-bottom: none; }
   .stat b { font-size: 15px; letter-spacing: 0; }
   .stat span { font-size: 10px; }
-  .cards { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
-  .card {
-    display: grid;
-    grid-template-columns: 36px 1fr;
-    grid-template-rows: auto auto;
-    column-gap: 10px;
-    align-items: start;
+  /* 移动端截图轮播：左截图右信息，卡片隐藏自然轮播 */
+  .shots-carousel { grid-template-columns: 44% 1fr; gap: 14px; align-items: center; }
+  .shots-viewport { width: 100%; border-width: 2px; }
+  .shots-cards { display: none; }
+  .shots-mobile-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
   }
-  .card-icon { grid-column: 1; grid-row: 1 / 3; }
-  .card h3 { grid-column: 2; grid-row: 1; margin-top: 0; }
-  .card p { grid-column: 2; grid-row: 2; margin-top: 3px; }
+  .shots-mobile-info .shot-mi-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ui-color);
+    border: 2px solid var(--ui-color-darker);
+    border-radius: 8px;
+    color: #eafff4;
+  }
+  .shots-mobile-info .shot-mi-icon svg { width: 22px; height: 22px; fill: currentColor; }
+  .shot-mi-title { font-size: 24px; font-weight: 800; letter-spacing: 2px; color: var(--ui-color-darker); }
+  .shot-mi-desc { font-size: 13px; color: #3f6a58; line-height: 1.8; }
   /* 移动端树果农场只显示 6 棵：隐藏最右一棵 */
   #farm .farm-item:last-child { display: none; }
 }
@@ -834,5 +911,4 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 @media (max-width: 520px) {
   .topbar-inner { justify-content: center; }
   .logo span { display: none; }
-  .cards { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 }

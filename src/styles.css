@@ -318,14 +318,14 @@ body { margin: 0; padding: 0; cursor: default; }
   object-fit: contain;
   image-rendering: pixelated;
 }
-/* 闪光标记：右上角金色星星（同交换页面 NPC 旁的闪光表示） */
+/* 闪光标记：右上角白色星星（同交换页面 NPC 旁的闪光表示） */
 .mass-poke-shiny {
   position: absolute;
   right: -3px;
   top: -4px;
   width: 12px;
   height: 12px;
-  color: #ffd700;
+  color: #ffffff;
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
 }
 

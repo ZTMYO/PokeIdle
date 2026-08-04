@@ -1,6 +1,10 @@
 // ===== 口袋挂机 · 展示页逻辑 =====
 import './style.css';
 
+// 禁用浏览器刷新后的滚动位置恢复：每次进入页面都从顶部开始
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.scrollTo(0, 0);
+
 /* ============================================================
    遭遇展示（复刻游戏内 #encounterView）
    ============================================================ */
@@ -380,6 +384,71 @@ function fillMarquee(el, list) {
 fillMarquee(document.getElementById('mq1'), MQ_A);
 fillMarquee(document.getElementById('mq2'), MQ_B);
 
+// ---- 游戏截图轮播：左图右文，右侧卡片（图标+标题+描述）充当指示器 ----
+const SHOT_CARDS = [
+  { title: '手机系统', icon: 'icon-phone', desc: '一个手机搞定全部：导航、图鉴、仓库、交换、孵蛋器、农场。' },
+  { title: '智能导航', icon: 'icon-gps', desc: '指定目的地自动规划路线，环国漫游一路畅通，事件地点轻松到达。' },
+  { title: '宝可梦详情', icon: 'icon-book', desc: '属性、个体、稀有度一目了然，收藏进度尽在掌握。' },
+  { title: '孵蛋器', icon: 'icon-egg', desc: '挂机孵化神秘蛋，随机出宠，还有概率孵出闪。' },
+  { title: '树果农场', icon: 'icon-tree', desc: '种植、浇水、收获一气呵成，还能招募帮手自动打理。' },
+  { title: '树果混合器', icon: 'icon-mixer', desc: '按配方混合树果制成树果方块，吸引特定宝可梦。' },
+  { title: '交换广场', icon: 'icon-trade', desc: '与 NPC 训练家交换个体，补全图鉴更快一步。' },
+  { title: '地区悬赏', icon: 'icon-station', desc: '接取悬赏任务，提交指定宝可梦，换取丰厚奖励。' },
+  { title: '钓鱼', icon: 'icon-fishing', desc: '途经水域自动垂钓，道具和宝可梦都可能上钩。' },
+  { title: '闪光宝可梦', icon: 'icon-star', desc: '1/1000 概率遇见闪光，搭配闪耀护符大幅提升。' },
+];
+
+const shotStage = document.getElementById('shotStage');
+if (shotStage) {
+  const shots = shotStage.children;
+  const shotCards = document.getElementById('shotCards');
+  const shotMobileInfo = document.getElementById('shotMobileInfo');
+  let shotIndex = 0;
+  let shotTimer = null;
+
+  // 右侧卡片（图标 + 标题 + 描述）
+  shotCards.innerHTML = SHOT_CARDS.map((c, i) => `
+    <button class="shot-card${i === 0 ? ' active' : ''}" data-i="${i}" type="button">
+      <span class="shot-card-icon"><svg><use href="./sprites.svg#${c.icon}" /></svg></span>
+      <span class="shot-card-title">${c.title}</span>
+      <span class="shot-card-desc">${c.desc}</span>
+    </button>`).join('');
+
+  // 移动端信息区（图标 + 标题 + 描述）
+  function renderMobileInfo(i) {
+    const c = SHOT_CARDS[i];
+    shotMobileInfo.innerHTML = `
+      <span class="shot-mi-icon"><svg><use href="./sprites.svg#${c.icon}" /></svg></span>
+      <span class="shot-mi-title">${c.title}</span>
+      <span class="shot-mi-desc">${c.desc}</span>`;
+  }
+
+  function goShot(i) {
+    shotIndex = (i + shots.length) % shots.length;
+    // 图片渐淡切换
+    [...shots].forEach((el, k) => el.classList.toggle('active', k === shotIndex));
+    // 高亮对应卡片
+    [...shotCards.children].forEach((card, k) => card.classList.toggle('active', k === shotIndex));
+    renderMobileInfo(shotIndex);
+  }
+
+  // 自动播放，点击卡片后重新计时
+  function restartShotTimer() {
+    clearInterval(shotTimer);
+    shotTimer = setInterval(() => goShot(shotIndex + 1), 4500);
+  }
+
+  shotCards.addEventListener('click', e => {
+    const card = e.target.closest('.shot-card');
+    if (!card) return;
+    goShot(+card.dataset.i);
+    restartShotTimer();
+  });
+
+  goShot(0);
+  restartShotTimer();
+}
+
 /* ============================================================
    九大地区地图（复刻游戏内地图：节点 + 半段道路归属）
    ============================================================ */
@@ -528,7 +597,7 @@ function buildRegionMap() {
     const off = LABEL_OFFSETS[i] || { x: 26, y: 0, anchor: 'start' };
     const l = el('text', {
       x: x + off.x, y: y + 4.5 + off.y, 'text-anchor': off.anchor, 'font-size': 12.5, 'font-weight': 700, fill: '#1f1f1f',
-      style: 'paint-order:stroke;stroke:#d0c4a4;stroke-width:3px;'
+      style: 'paint-order:stroke;stroke:#d0c4a4;'
     });
     l.textContent = name;
     g.appendChild(l);

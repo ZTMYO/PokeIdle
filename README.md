@@ -15,6 +15,32 @@
   <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows-0078d6?style=for-the-badge" />
   <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-informational?style=for-the-badge" />
 </p>
+<p align="center">
+  <a href="https://github.com/ZTMYO/PokeIdle">https://pokeidle.shiliu.space/</a>
+</p>
+
+
+## 截图预览
+
+<table align="center">
+<tr>
+<td align="center"><img src="web/public/images/手机.png" width="180"></td>
+<td align="center"><img src="web/public/images/导航.png" width="180"></td>
+<td align="center"><img src="web/public/images/宝可梦详情.png" width="180"></td>
+<td align="center"><img src="web/public/images/孵蛋.png" width="180"></td>
+<td align="center"><img src="web/public/images/农场.png" width="180"></td>
+</tr>
+</table>
+
+<table align="center">
+<tr>
+<td align="center"><img src="web/public/images/树果混合.png" width="180"></td>
+<td align="center"><img src="web/public/images/交换广场.png" width="180"></td>
+<td align="center"><img src="web/public/images/地区悬赏.png" width="180"></td>
+<td align="center"><img src="web/public/images/钓鱼.png" width="180"></td>
+<td align="center"><img src="web/public/images/闪光宝可梦.png" width="180"></td>
+</tr>
+</table>
 
 ## 玩法
 
