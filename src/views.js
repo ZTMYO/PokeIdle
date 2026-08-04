@@ -1,4 +1,6 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX,
+  MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX,
+  MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, setPrevView, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS } from './items.js';
@@ -569,6 +571,7 @@ export function toggleAutoCatch() {
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
+  updateStats(); // 立即刷新底部状态栏（自动模式文字显示/隐藏）
   // 若当前正在遇敌且刚开启了自动捕捉：仅在游戏页立即接管。
   // 非游戏页（设置页等）下 encounterView 隐藏，丢球动画取不到真实尺寸会错位，
   // 交给切回游戏页时的 showView 统一接管
@@ -581,9 +584,11 @@ export function toggleAutoFlee() {
   ensureSettings();
   gameData.settings.autoFlee = !gameData.settings.autoFlee;
   if (gameData.settings.autoFlee) gameData.settings.autoCatch = false;
+  else stopAutoFleeTimer(); // 关闭佛系：立即停止逃跑倒计时并隐藏进度条
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
+  updateStats(); // 立即刷新底部状态栏（佛系文字显示/隐藏）
   // 若当前正在遇敌且刚开启了佛系模式，启动倒计时
   if (gameData.settings.autoFlee && phase === 'encounter' && currentEncounter) {
     stopAutoFleeTimer(); // 先清旧计时
@@ -630,6 +635,7 @@ export function toggleAutoCatchBall(ballType) {
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
+  updateStats(); // 立即刷新「自动捕捉中/自动逃跑中」文字
 }
 
 export function toggleShinyStop() {
@@ -652,6 +658,7 @@ export function toggleShinyStop() {
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
+  updateStats(); // 开启/关闭闪光暂停会联动自动捕捉，立即刷新底部状态文字
 }
 
 export function toggleGender(g) {
@@ -750,6 +757,15 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>页面打开<b>导航</b>应用：选择目的地即可手动导航；开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→帕底亚→阿罗拉→丰缘→关都→城都→神奥→卡洛斯→伽勒尔→合众…循环）选择下一站。</p>`
       + `<p>到达目的地后导航结束（若开启<b>漫游</b>，会自动选择下一站）。</p>`
       + `<p>进度由主角实际移动驱动——跑步更快，遇敌或钓鱼时暂停（详见「<b>钓鱼</b>」章节）。</p>`,
+  },
+  {
+    title: '事件',
+    html: `<p>每隔 <b>${MASS_GEN_MIN}~${MASS_GEN_MAX}</b> 分钟，道路网络上会随机出现一个<b>大量出没</b>事件点：某只宝可梦在某条路段上大量出现。</p>`
+      + `<p>在<b>导航</b>页地图上能看到事件点标记，<b>点击即可导航过去</b>。</p>`
+      + `<p>事件点是一个<b>点</b>而不是整条路：只有抵达事件点并停下才算进入大量出没区域，<b>途经该路段不算</b>；到达后（未开启漫游）会<b>自动停在事件点</b>。</p>`
+      + `<p>进入区域后，事件宝可梦会大量出现：<b>锁定该宝可梦</b>，闪光率 <b>1/${Math.round(1 / MASS_SHINY_CHANCE)}</b>（不吃闪耀护符加成）。</p>`
+      + `<p>使用<b>甜甜蜜</b>可让下一只出现得更快（<b>${MASS_SPAWN_HONEY_MIN}~${MASS_SPAWN_HONEY_MAX}</b> 秒，普通 <b>${MASS_SPAWN_MIN}~${MASS_SPAWN_MAX}</b> 秒）。</p>`
+      + `<p>事件持续 <b>${MASS_DURATION}</b> 分钟，抓完剩余数量（<b>${MASS_COUNT_MIN}~${MASS_COUNT_MAX}</b> 只）或到期后结束。</p>`,
   },
   {
     title: '悬赏',

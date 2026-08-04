@@ -53,6 +53,18 @@ export const CHARM_RARITY_BOOST = 0.7; // 闪耀护符稀有度加成权重
 export const SHINY_CHANCE = 1 / 1000;  // 野生/钓鱼/孵蛋基础闪光概率
 export const CHARM_SHINY_CHANCE = 0.8; // 闪耀护符生效时的遇敌/钓鱼闪光概率
 
+// ===== 大量出没（随机道路事件）=====
+export const MASS_GEN_MIN = 20;      // 事件点生成间隔下限（分钟）
+export const MASS_GEN_MAX = 60;      // 事件点生成间隔上限（分钟）
+export const MASS_DURATION = 60;     // 事件点存在时长（分钟）
+export const MASS_COUNT_MIN = 10;    // 大量出没数量下限
+export const MASS_COUNT_MAX = 20;    // 大量出没数量上限
+export const MASS_SHINY_CHANCE = 1 / 200; // 大量出没闪光率（不吃闪耀护符加成）
+export const MASS_SPAWN_MIN = 8;     // 遭遇结束后下一只出现间隔下限（秒）
+export const MASS_SPAWN_MAX = 15;    // 遭遇结束后下一只出现间隔上限（秒）
+export const MASS_SPAWN_HONEY_MIN = 3;  // 甜甜蜜生效期间下一只出现间隔下限（秒）
+export const MASS_SPAWN_HONEY_MAX = 6;  // 甜甜蜜生效期间下一只出现间隔上限（秒）
+
 // ===== 孵蛋 =====
 export const HATCH_DIST_MIN = 2000;   // 最短（2 公里）
 export const HATCH_DIST_MAX = 30000;  // 最长（30 公里）

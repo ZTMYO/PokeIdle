@@ -169,6 +169,8 @@ export function defaultGpsState() {
     remainPx: 0,                    // 当前路段剩余像素
     pxPerSec: ROAD_SPEED_WALK * 60, // 最近一次移动速度（px/秒）
     position: null,                 // 显式位置快照：存档里清楚写明当前在地区还是在道路上
+    massTarget: null,               // 导航目标为大量出没事件点：{ edge:[a,b], t }；null=无
+    massArrived: false,             // 是否已到达大量出没事件点（导航在该点停止后才触发大量出没）
   };
 }
 
@@ -203,6 +205,8 @@ export function getDefaultSave() {
     incubatorUnlockedSlots: 0,
     gps: defaultGpsState(),
     berryFarm: { plots: Array(6).fill(null), stock: {} }, // 树果农场：6 块田地 + 收获库存（键为树果下标）
+    massOutbreak: null,     // 大量出没事件：{ edge:[a,b], t, pokemon, remain, expiresAt, nextSpawnAt, active }；null=无事件
+    massNextGenAt: 0,       // 下一次大量出没生成时间戳（毫秒）
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
@@ -398,6 +402,28 @@ export function calcOffline(save) {
   return elapsed;
 }
 
+// ---------- 大量出没（随机道路事件）----------
+// 共享读取函数放这里：gps.js / battle.js / events.js 都会用到，避免模块间循环依赖
+export function getMassOutbreak() {
+  if (!gameData || !gameData.massOutbreak || !gameData.massOutbreak.active) return null;
+  return gameData.massOutbreak;
+}
+
+// 主角当前是否位于大量出没事件点：事件是一个"点"而非整条路，
+// 必须通过地图点击事件点标记导航过去并在该点停下（gps.massArrived）才算进入大量出没区域；
+// 仅在事件路段上路过（去往其他地区）不算，避免整条路都触发大量出没。
+export function inMassZone() {
+  const mo = getMassOutbreak();
+  if (!mo) return false;
+  const g = gameData?.gps;
+  if (!g || !g.massArrived) return false;
+  if (!g.path || g.path.length < 2) return false;
+  const a = g.path[g.seg];
+  const b = g.path[g.seg + 1];
+  const [ea, eb] = mo.edge;
+  return (a === ea && b === eb) || (a === eb && b === ea);
+}
+
 // ---------- 当前地区 ----------
 // 在途时按路段进度分归属：前半程归出发端、后半程归目标端，避免方向性矛盾
 export function getCurrentRegion() {
@@ -453,6 +479,15 @@ export function getCurrentRoadInfo() {
   // 编号：出发端为小号地区时前半段 = base，否则 = base + 1
   const num = firstHalf === (a === min) ? base : base + 1;
   return { num, name: REGION_CYCLE[firstHalf ? a : b] };
+}
+
+// 任意路段（边）+ 事件点位置比例 → 路段编号（与 getCurrentRoadInfo 的编号规则一致：t<0.5 归前段）
+// 大量出没等事件文案需要显示"几号道路"时使用；边不在道路网络中返回 null
+export function getRoadNumForEdge(edge, t) {
+  if (!edge || edge.length < 2) return null;
+  const base = segBase()?.[`${Math.min(edge[0], edge[1])}-${Math.max(edge[0], edge[1])}`];
+  if (base == null) return null;
+  return base + (t < 0.5 ? 0 : 1);
 }
 
 // 当前 GPS 位置快照（存档记录“我在哪”，读档后用于确认位置）

@@ -301,6 +301,34 @@ body { margin: 0; padding: 0; cursor: default; }
   image-rendering: pixelated;
 }
 
+/* === 大量出没/普通遇敌宝可梦（道路滚动，上下跳动）=== */
+.mass-poke {
+  position: absolute;
+  z-index: 11;
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+  transform: translateY(-10px);
+  animation: pokeJump 0.5s steps(1, end) infinite;
+}
+.mass-poke-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+/* 闪光标记：右上角金色星星（同交换页面 NPC 旁的闪光表示） */
+.mass-poke-shiny {
+  position: absolute;
+  right: -3px;
+  top: -4px;
+  width: 12px;
+  height: 12px;
+  color: #ffd700;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
+}
+
 /* === 路面层 (Canvas 无限滚动) === */
 .road-layer {
   position: absolute;
@@ -843,6 +871,12 @@ body { margin: 0; padding: 0; cursor: default; }
 .stats-bar span:first-child, .stats-bar span:last-child { cursor: pointer; }
 .stats-bar span:first-child:hover, .stats-bar span:last-child:hover { color: var(--ui-color-dark); }
 .stats-bar span:last-child { text-align: right; }
+#statProgress { grid-column: 1; }
+#statAutoStatus { grid-column: 2; }
+#statTime { grid-column: 3; }
+
+#statDropHint { grid-column: 2; }
+.stat-drop-hint { display: inline-flex; align-items: center; }
 
 .stat-auto-status { display: inline-flex; align-items: center; gap: 4px; }
 .stat-auto-bar-wrap {
@@ -1286,16 +1320,16 @@ body { margin: 0; padding: 0; cursor: default; }
 #phoneView.has-music .phone-clock { padding: 0 0 2px; }
 #phoneView.has-music .phone-clock .date { font-size: 9px; }
 #phoneView.has-music .phone-clock .time { font-size: 17px; line-height: 1.2; }
+#phoneContent { display: flex; flex-direction: column; }
 .phone-apps {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px 4px;
   justify-items: center;
-  padding: 6px 2px 4px;
-  margin-top: 4px;
+  padding: 2px 2px 18px;
+  margin-top: auto;
 }
-
-/* 手机主页：时间下方当前地区音乐 */
+/* 音乐栏平滑展开/收起：max-height+opacity 过渡，与时钟放大/压缩互补，过渡期间总高度恒定 */
 .phone-music {
   display: flex;
   align-items: center;
@@ -1305,8 +1339,15 @@ body { margin: 0; padding: 0; cursor: default; }
   padding: 0 0 2px;
   color: var(--ui-color);
   font-size: 11px;
-  opacity: 0.7;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
   user-select: none;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+#phoneView.has-music .phone-music {
+  max-height: 22px;
+  opacity: 0.7;
 }
 .phone-music-title {
   max-width: 100px;
@@ -2454,6 +2495,33 @@ body { margin: 0; padding: 0; cursor: default; }
   stroke: var(--screen-bg-light);
   stroke-width: 2;
   filter: drop-shadow(0 1px 1px rgba(0,0,0,0.18));
+}
+/* 大量出没事件点标记：闪烁圆环 + 高亮点 + 标签 */
+.gps-mass-ring {
+  fill: none;
+  stroke: var(--ui-color);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gps-mass-pulse 1.6s ease-in-out infinite;
+}
+.gps-mass-dot {
+  fill: var(--ui-color);
+  stroke: var(--screen-bg-light);
+  stroke-width: 1.5;
+}
+.gps-mass-label {
+  fill: var(--ui-color);
+  font-size: 9px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--screen-bg-light);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+@keyframes gps-mass-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.5); opacity: 0.3; }
 }
 /* 漫游开关行：位于地图与底部信息栏之间的空隙区，靠左显示 */
 .gps-roam-row {

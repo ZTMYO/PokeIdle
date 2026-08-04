@@ -1,6 +1,7 @@
 // ===== 闲置轮播消息 + 地区文案 =====
 import { $, showView } from './ui.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer, _fishing, getMassOutbreak, inMassZone, getRoadNumForEdge } from './state.js';
+import { REGION_CYCLE } from './config.js';
 import { ACHIEVEMENTS, earnedTiers, claimedTiers } from './achievements.js';
 import * as road from './road.js';
 
@@ -520,4 +521,93 @@ export function startIdleRotation() {
   }
   // 每 10 秒轮换
   setIdleMsgTimer(setInterval(rotateIdleMessage, 10000));
+}
+
+// ===== 大量出没提示文案 =====
+// 玩家在别的区域 → 随机「xxx在xx道路大量出没」；玩家在事件路段 → 对应区域文案
+const MASS_FAR_MSGS = (name, road, remain) => [
+  `✦ ${name}在${road}大量出没，去看看吧！`,
+  `✦ ${road}一带${name}成群出没，还剩${remain}只！`,
+  `✦ ${road}方向传来骚动，似乎是${name}大量出没！`,
+];
+const MASS_ZONE_MSGS = (name, remain) => [
+  `✦ 大量出没的${name}就在附近！`,
+  `✦ 草丛里${name}的动静不断，还剩${remain}只！`,
+  `✦ ${name}成群结队地出现了，抓紧捕捉！`,
+  `✦ 大量出没中！还剩${remain}只${name}！`,
+  `✦ 附近全是${name}，别让它们溜走了！`,
+];
+
+// 事件路段的道路编号（如「6#道路」）；不在道路网络时退化为地区间描述
+function massRoadStr(mo) {
+  const num = getRoadNumForEdge(mo.edge, mo.t);
+  if (num != null) return `${num}#道路`;
+  return `${REGION_CYCLE[Math.min(mo.edge[0], mo.edge[1])]}↔${REGION_CYCLE[Math.max(mo.edge[0], mo.edge[1])]}的道路`;
+}
+
+// 按玩家所处位置随机挑一条提示文案
+function pickMassMsg() {
+  const mo = getMassOutbreak();
+  if (!mo) return '';
+  const poke = getPokemonByIndex(mo.pokemon);
+  const name = poke ? poke.name : '宝可梦';
+  const remain = Math.max(0, mo.remain);
+  if (inMassZone()) {
+    const list = MASS_ZONE_MSGS(name, remain);
+    return list[randInt(0, list.length - 1)];
+  }
+  const list = MASS_FAR_MSGS(name, massRoadStr(mo), remain);
+  return list[randInt(0, list.length - 1)];
+}
+
+// 向闲置文案写入一条即时提示，并重置 10 秒轮播计时
+function pushIdleEventMsg(text) {
+  if (!text) return;
+  $('idleText').textContent = text;
+  setIdleMsgIdx(-1);
+  if (_idleMsgTimer) {
+    clearInterval(_idleMsgTimer);
+    setIdleMsgTimer(setInterval(rotateIdleMessage, 10000));
+  }
+}
+
+// 事件活跃期间的提示轮播状态
+let _lastMassMsgAt = 0;
+let _wasInMassZone = false;
+
+// 事件生成：以"此刻"为起点推送一条随机提示，避免立即重复推送
+export function notifyMassStart() {
+  _lastMassMsgAt = Date.now();
+  _wasInMassZone = inMassZone();
+  pushIdleEventMsg(pickMassMsg());
+}
+
+// 事件结束：提示散去并复位轮播状态
+export function notifyMassEnd(mo) {
+  const poke = getPokemonByIndex(mo.pokemon);
+  pushIdleEventMsg(`大量出没的${poke ? poke.name : '宝可梦'}渐渐散去了……`);
+  _lastMassMsgAt = 0;
+  _wasInMassZone = false;
+}
+
+// 事件活跃期间按玩家位置轮播提示：刚进入事件路段立即提示，其余按远近间隔补充
+export function massMsgTick(now) {
+  const mo = getMassOutbreak();
+  if (!mo || phase !== 'idle' || _fishing) return;
+  if ($('idleView')?.style.display === 'none') return; // 非主界面不打扰
+  const zone = inMassZone();
+  if (zone && !_wasInMassZone) {
+    // 刚进入事件路段：立即提示，让玩家意识到已经在事件区域内
+    _wasInMassZone = true;
+    _lastMassMsgAt = now;
+    pushIdleEventMsg(pickMassMsg());
+    return;
+  }
+  if (!zone) _wasInMassZone = false;
+  // 区域内约 20 秒轮播一次，区域外约 60 秒提醒一次
+  const interval = zone ? 20000 : 60000;
+  if (now - _lastMassMsgAt >= interval) {
+    _lastMassMsgAt = now;
+    pushIdleEventMsg(pickMassMsg());
+  }
 }

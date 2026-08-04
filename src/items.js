@@ -100,13 +100,49 @@ export function findBerryTarget(recipe) {
   ) || null;
 }
 
+// 掉落提示互斥恢复定时器（获得道具时短暂显示掉落信息，之后恢复自动模式状态）
+let _dropStatusTimer = null;
+
+// 道具入库：背包/统计/日志统一处理
+function grantItem(itemKey) {
+  gameData.items[itemKey] = (gameData.items[itemKey] || 0) + 1;
+  gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + 1;
+  addSystemLog('item_gain', { item: itemKey, qty: 1 });
+  updateBackpack(itemKey);
+  // 独立掉落提示：获得道具时显示「精灵球 + 1」，短暂停留后自动隐藏
+  const hint = $('statDropHint');
+  if (hint) {
+    hint.textContent = `${ITEM_NAMES[itemKey] || itemKey} + 1`;
+    hint.style.display = '';
+  }
+  // 互斥：掉落显示期间隐藏自动模式状态栏（自动捕捉/自动逃跑/佛系模式及其进度条）
+  const autoEl = $('statAutoStatus');
+  if (autoEl) autoEl.style.display = 'none';
+  // 短暂停留后恢复自动状态（多个道具连续掉落时重置计时）
+  if (_dropStatusTimer) clearTimeout(_dropStatusTimer);
+  _dropStatusTimer = setTimeout(() => {
+    _dropStatusTimer = null;
+    const h = $('statDropHint');
+    if (h) h.style.display = 'none';
+    updateStats();
+  }, 1500);
+  updateStats();
+}
+
 // ---------- 道具随路面滚动进入 ----------
 export function spawnItemDrop(itemKey) {
   if (phase !== 'idle') return;
-  if (_itemDropActive) return;
   const screen = $('screen');
   const charEl = $('walkGif');
   if (!screen || !charEl) return;
+
+  // 不在主界面（在其他页面挂机中）：后台直接模拟拾取入库，不播放滚动/拾取动画
+  if ($('idleView')?.style.display === 'none') {
+    grantItem(itemKey);
+    return;
+  }
+
+  if (_itemDropActive) return;
 
   setItemDropActive(true);
 
@@ -131,6 +167,7 @@ export function spawnItemDrop(itemKey) {
   el.style.opacity = '1';
 
   const pickupX = charLeft + 10;
+  const cTop = cRect.top - sRect.top;
   let active = true;
 
   function cleanup() {
@@ -178,7 +215,6 @@ export function spawnItemDrop(itemKey) {
       const startX = itemX;
       const targetX = charLeft + 6;
       const startY = itemY;
-      const cTop = cRect.top - sRect.top;
       const targetY = cTop + 12;
       const startT = performance.now();
       const flyDuration = 500;
@@ -186,10 +222,17 @@ export function spawnItemDrop(itemKey) {
       (function fly(now) {
         const t = Math.min((now - startT) / flyDuration, 1);
         const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        el.style.left = (startX + (targetX - startX) * ease) + 'px';
-        el.style.top = (startY + (targetY - startY) * ease) + 'px';
-        const scale = 1 - ease * 0.7;
-        el.style.transform = `scale(${scale})`;
+
+        const isIdleView = $('idleView')?.style.display !== 'none';
+        if (!isIdleView) {
+          el.style.display = 'none';
+        } else {
+          el.style.display = '';
+          el.style.left = (startX + (targetX - startX) * ease) + 'px';
+          el.style.top = (startY + (targetY - startY) * ease) + 'px';
+          const scale = 1 - ease * 0.7;
+          el.style.transform = `scale(${scale})`;
+        }
 
         if (t < 1) {
           requestAnimationFrame(fly);
@@ -197,11 +240,7 @@ export function spawnItemDrop(itemKey) {
           el.remove();
           setItemDropActive(false);
           if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
-          gameData.items[itemKey] = (gameData.items[itemKey] || 0) + 1;
-          gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + 1;
-          addSystemLog('item_gain', { item: itemKey, qty: 1 });
-          updateBackpack(itemKey);
-          updateStats();
+          grantItem(itemKey);
           showIdlePickup(ITEM_NAMES[itemKey], road.getPlace());
         }
       })(performance.now());

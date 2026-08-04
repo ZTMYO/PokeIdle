@@ -1,6 +1,6 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing } from './state.js';
-import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost } from './state.js';
+import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
 import * as road from './road.js';
 
@@ -345,6 +345,13 @@ export function tryLoadPokemonImage(img, poke, suffix) {
   return tryLoad(primaryExt).then(ok => ok ? true : tryLoad(fallbackExt));
 }
 
+// 加载宝可梦头像 icon
+export function tryLoadPokemonIcon(img, poke) {
+  const idx = String(poke.index);
+  const ip = `./pokemon-data/icon/${idx}-${poke.name}.png`;
+  return tryLoadImage(img, ip);
+}
+
 // ---------- 背包更新 ----------
 export function updateBackpack(popItem) {
   for (const [item, qty] of Object.entries(gameData.items)) {
@@ -394,16 +401,20 @@ export function updateStats() {
   const autoText = $('statAutoText');
   const autoBar = $('statAutoBar');
   if (autoEl && autoText && autoBar) {
-    if (gameData.settings?.autoCatch) {
+    const hint = $('statDropHint');
+    if (hint && hint.style.display !== 'none' && hint.textContent) {
+      // 掉落提示显示期间互斥：整个自动模式状态栏隐藏（含佛系进度条）
+      autoEl.style.display = 'none';
+    } else if (gameData.settings?.autoCatch) {
       const balls = gameData.settings?.autoCatchBalls || {};
       const enabled = ['poke-ball','ultra-ball','master-ball'].filter(b => balls[b] !== false);
       const hasStock = enabled.some(b => (gameData.items[b]||0) > 0);
-      autoText.textContent = hasStock ? '【自动捕捉中】' : '【自动逃跑中】';
+      autoText.textContent = hasStock ? '自动捕捉中' : '自动逃跑中';
       autoEl.style.display = '';
       autoBar.style.display = 'none';
       if (autoBar.parentElement) autoBar.parentElement.style.display = 'none';
     } else if (gameData.settings?.autoFlee) {
-      autoText.textContent = '【佛系模式】';
+      autoText.textContent = '佛系模式';
       autoEl.style.display = '';
       if (phase !== 'encounter') {
         autoBar.style.display = 'none';
@@ -540,4 +551,83 @@ export function updateIncubatorTimers() {
     updateIncubatorBadge();
     renderIncubatorView();
   }
+}
+
+// ---------- 游戏内自制 tooltip（跟随鼠标，自动越界翻转）----------
+let _foodTipEl = null;
+let _foodTipInit = false;
+
+function getFoodTipEl() {
+  if (!_foodTipEl) {
+    _foodTipEl = document.createElement('div');
+    _foodTipEl.className = 'food-tooltip';
+    _foodTipEl.style.display = 'none';
+    document.body.appendChild(_foodTipEl);
+  }
+  return _foodTipEl;
+}
+
+export function hideFoodTip() {
+  if (_foodTipEl) _foodTipEl.style.display = 'none';
+}
+
+export function showFoodTip(text, x, y) {
+  const tip = getFoodTipEl();
+  tip.textContent = text;
+  // 多行文案（含 \n）时按行折行，单行文案保持 nowrap（如树果 tooltip）
+  tip.style.whiteSpace = text.includes('\n') ? 'pre-line' : '';
+  tip.style.display = '';
+  // 定位：优先右下方，越界时翻转到左/上方
+  const pad = 10;
+  let left = x + 12;
+  let top = y + 14;
+  const tw = tip.offsetWidth;
+  const th = tip.offsetHeight;
+  if (left + tw > window.innerWidth - pad) left = x - tw - 12;
+  if (top + th > window.innerHeight - pad) top = y - th - 10;
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+}
+
+// 命中可弹自定义 tooltip 的元素并取文案；不支持的元素返回 null
+// 支持：树果图标（.berry-icon 的 dataset.tip）、大量出没地图标记（.gps-mass-marker，显示 宝可梦在 x#道路 大量出没 · 剩余时间/只数）
+function tooltipTextFor(target) {
+  const icon = target && target.closest ? target.closest('.berry-icon') : null;
+  if (icon) return icon.dataset.tip || '';
+  const mass = target && target.closest ? target.closest('.gps-mass-marker') : null;
+  if (mass) {
+    const mo = getMassOutbreak();
+    const name = mass.dataset.name || '宝可梦';
+    const remain = mass.dataset.remain != null ? mass.dataset.remain : '?';
+    if (!mo) return `${name}（剩余 ${remain} 只）`;
+    const num = getRoadNumForEdge(mo.edge, mo.t);
+    const roadStr = num != null ? `${num}#道路` : '某道路';
+    const sec = Math.max(0, Math.ceil((mo.expiresAt - Date.now()) / 1000));
+    const timeStr = `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, '0')}秒`;
+    return `${name} ${remain} 只\n剩余${timeStr}`;
+  }
+  return null;
+}
+
+export function setupFoodTooltip() {
+  if (_foodTipInit) return;
+  _foodTipInit = true;
+
+  // 事件委托：任何支持的元素悬停都走这里（图鉴日志列表、地图大量出没标记重建后依然生效）
+  document.addEventListener('mouseover', (e) => {
+    const text = tooltipTextFor(e.target);
+    if (!text) { hideFoodTip(); return; }
+    showFoodTip(text, e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (_foodTipEl && _foodTipEl.style.display !== 'none' && tooltipTextFor(e.target)) {
+      // 重新取文案：大量出没剩余时间随鼠标移动实时刷新
+      showFoodTip(tooltipTextFor(e.target), e.clientX, e.clientY);
+    }
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (!tooltipTextFor(e.target)) hideFoodTip();
+  });
+  // 滚出/切页时隐藏
+  document.addEventListener('scroll', hideFoodTip, true);
 }

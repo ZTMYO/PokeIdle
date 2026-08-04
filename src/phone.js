@@ -4,6 +4,7 @@ import { $, showView, renderIncubatorView, updateIncubatorBadge } from './ui.js'
 import { phase, setPrevView, anyIncubatorReady } from './state.js';
 import { hasTradableOffers, ensureTrades } from './trade.js';
 import { hasDryBerries } from './berry.js';
+import { hasClaimableAchievements } from './achievements.js';
 import { getNowPlaying } from './audio.js';
 
 const APPS = [
@@ -38,20 +39,26 @@ function updateBerryBadge() {
   const badge = $('phone-badge-berry');
   if (badge) badge.style.display = hasDryBerries() ? '' : 'none';
 }
+// 统计页成就红点：有未领取的成就奖励即点亮
+function updateDataBadge() {
+  const badge = $('phone-badge-data');
+  if (badge) badge.style.display = hasClaimableAchievements() ? '' : 'none';
+}
 
-// 标题栏手机图标聚合红点：任意 app 有红点（孵蛋完成/可交换/干涸树果）即点亮
+// 标题栏手机图标聚合红点：任意 app 有红点（孵蛋完成/可交换/干涸树果/成就可领）即点亮
 function updatePhoneBadge() {
   const badge = $('title-badge-phone');
   if (!badge) return;
   ensureTrades(); // 波次过期先刷新，保证与交换红点口径一致
-  badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries()) ? '' : 'none';
+  badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries() || hasClaimableAchievements()) ? '' : 'none';
 }
-export { updateTradeBadge, updateBerryBadge, updatePhoneBadge };
+export { updateTradeBadge, updateBerryBadge, updateDataBadge, updatePhoneBadge };
 
-// 状态变化时即时刷新红点：树果浇水/收获/种植、仓库宝可梦变化（捕获/孵化/交换）、交换波次刷新，无需等 5 秒轮询
+// 状态变化时即时刷新红点：树果浇水/收获/种植、仓库宝可梦变化（捕获/孵化/交换）、交换波次刷新、成就领取，无需等 5 秒轮询
 window.addEventListener('berry-farm-changed', () => { updateBerryBadge(); updatePhoneBadge(); });
 window.addEventListener('roster-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
 window.addEventListener('trade-wave-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
+window.addEventListener('achievements-changed', () => { updateDataBadge(); updatePhoneBadge(); });
 
 // 顶部系统时间，每秒刷新一次（仅启动一次）
 function startClock() {
@@ -78,14 +85,12 @@ function updatePhoneMusic() {
   if (!el) return;
   const info = getNowPlaying();
   const pv = $('phoneView');
-  // 未在播放（音乐关闭/静音/音量 0/战斗中等）时隐藏 label，波形与标题同步
+  // 音乐栏常驻 flex，展开/收起由 has-music 控制（max-height+opacity 平滑过渡），与时钟放大/压缩互补保持总高度稳定
+  el.style.display = 'flex';
   if (!info.title || !info.playing) {
-    el.style.display = 'none';
     if (pv) pv.classList.remove('has-music');
     return;
   }
-  el.style.display = 'flex';
-  // 有音乐时压缩时间区域（上挤），app 图标位置保持不动
   if (pv) pv.classList.add('has-music');
   const titleEl = $('phoneMusicTitle');
   if (titleEl && titleEl.textContent !== info.title) titleEl.textContent = info.title;
@@ -109,7 +114,7 @@ export function showPhoneView() {
       ${APPS.map(a => `
         <div class="phone-app" data-app="${a.id}">
           <div class="phone-app-icon"><svg><use xlink:href="./icons/sprites.svg#${a.icon}"/></svg>
-            ${['incubator', 'trade', 'berry'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
+            ${['incubator', 'trade', 'berry', 'data'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
           </div>
           <div class="phone-app-name">${a.name}</div>
         </div>`).join('')}
@@ -118,6 +123,7 @@ export function showPhoneView() {
   updateIncubatorBadge();
   updateTradeBadge();
   updateBerryBadge();
+  updateDataBadge();
   updatePhoneBadge();
   // 事件委托：点击应用进入对应页面
   el.onclick = (e) => {

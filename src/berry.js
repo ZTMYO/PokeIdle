@@ -3,7 +3,7 @@
 import { $, showView, tryLoadImage, getCharPrefix, updateStats } from './ui.js';
 import { phase, gameData, setPrevView, saveGame, randInt } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
-import { setupFoodTooltip } from './pokedex.js';
+import { setupFoodTooltip } from './ui.js';
 import {
   FARM_PLOT_COUNT as PLOT_COUNT,
   FARM_MATURE_MIN as MATURE_MIN,

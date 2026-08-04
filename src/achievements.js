@@ -98,6 +98,16 @@ function tierAt(a, n) {
   return { threshold: a.base * k, reward: a.reward * k };
 }
 
+// 是否有未领取的成就奖励（供手机"统计"app 及标题栏手机图标红点使用）
+export function hasClaimableAchievements() {
+  ensureAchievements();
+  return ACHIEVEMENTS.some(a => {
+    const claimed = gameData.achievements[a.id] || 0;
+    if (a.maxTiers != null && claimed >= a.maxTiers) return false; // 已达成全部，不再提示
+    return earnedTiers(a) > claimed;
+  });
+}
+
 // 当前值达标的总等级数（逐级累加，阈值按乘法增长，循环次数很少）
 export function earnedTiers(a) {
   const v = a.metric(gameData) || 0;
@@ -126,6 +136,8 @@ export function claimAchievement(id) {
   saveGame();
   updateBackpack('candy');
   updateStats();
+  // 通知手机"统计"app 红点刷新（领取后可能还有下一级待领或全部领完）
+  window.dispatchEvent(new Event('achievements-changed'));
   return candy;
 }
 

@@ -25,9 +25,10 @@ import {
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
   hasAnyBall, saveSessionState, rand, randInt, formatNum,
-  setEncounterMsg, addPlaySeconds,
+  setEncounterMsg, addPlaySeconds, inMassZone,
 } from './state.js';
 import { computeObtainScore } from './scoring.js';
+import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak } from './events.js';
 import {
   $, showView, updateTextBox, hideTextBox,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
@@ -49,7 +50,7 @@ import { showRosterView, isRosterInDetail, isRosterDetailFromObtain, leaveRoster
 import { isTradeInDetail, restoreTradeList } from './trade.js';
 import { showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
-import { showPhoneView, updateTradeBadge, updateBerryBadge, updatePhoneBadge } from './phone.js';
+import { showPhoneView, updateTradeBadge, updateBerryBadge, updateDataBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMuted, isMuted, setMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
@@ -154,13 +155,12 @@ function goBack() {
   showView(target);
   setPrevView('idleView');
   // 返回手机主页时兜底同步红点（showView 不重建页面，避免漏刷新）
-  if (target === 'phoneView') { updateTradeBadge(); updateBerryBadge(); updatePhoneBadge(); }
+  if (target === 'phoneView') { updateTradeBadge(); updateBerryBadge(); updateDataBadge(); updatePhoneBadge(); }
 }
 
 // ---------- 背包点击 ----------
 function onBagClick(itemKey) {
   if (phase === 'encounter') {
-    // 自动捕捉开启但勾选球种均无库存（自动逃跑中）：禁止手动丢球，与状态栏【自动逃跑中】判定一致
     if (gameData.settings?.autoCatch) {
       const balls = gameData.settings?.autoCatchBalls || {};
       const hasStock = ['poke-ball', 'ultra-ball', 'master-ball'].some(b => balls[b] !== false && (gameData.items[b] || 0) > 0);
@@ -208,6 +208,9 @@ function onGameTick() {
   // 地区悬赏：跨过 0 点自动刷新（日期变化时重新生成，当天保持不变）
   ensureBounty();
 
+  // 大量出没事件：生成 / 到期 / 事件宝可梦滚动出现
+  massTick();
+
   if (phase !== 'idle') { updateStats(); return; }
 
   // 过渡完成：应用新路段的骑行状态（骑行/行走与骑行音乐一起切换）
@@ -219,8 +222,8 @@ function onGameTick() {
     setIdleCharacter('walk');
   }
 
-  // 道路轮播：每 ROAD_SWITCH_CYCLES 个完整循环切下一个（过渡中/钓鱼中不切）
-  if (!road.isTransitioning() && !_fishing) {
+  // 道路轮播：每 ROAD_SWITCH_CYCLES 个完整循环切下一个（过渡中/钓鱼中/大量出没事件路段内不切）
+  if (!road.isTransitioning() && !_fishing && !inMassZone()) {
     const cyc = road.getCycles();
     if (cyc >= ROAD_SWITCH_CYCLES && _roadCycleStart < cyc) {
       if (ROAD_PRESETS.length > 1) {
@@ -236,8 +239,8 @@ function onGameTick() {
   }
 
   // 钓鱼：有垂钓点的路段随机停下钓鱼（钓鱼期间不生成道路道具；自行车道上不钓鱼不拾取，
-  // 过渡到自行车道期间也停止生成，避免遗留道具在骑行开始后滑过）
-  if (!road.isBike()) tryStartFishing();
+  // 过渡到自行车道期间也停止生成，避免遗留道具在骑行开始后滑过；大量出没事件路段内不钓鱼）
+  if (!road.isBike() && !inMassZone()) tryStartFishing();
   if (!_fishing && !road.isBike() && _pendingBike !== true) {
     for (const [item, rate] of Object.entries(ITEM_RATES)) {
       const key = `_f_${item}`;
@@ -283,6 +286,7 @@ function onGameTick() {
     updateIncubatorBadge();
     updateTradeBadge();
     updateBerryBadge();
+    updateDataBadge();
     updateBountyBadge();
     updatePhoneBadge();
   }
@@ -364,6 +368,7 @@ async function init() {
   setMusicEnabled(gameData.settings?.musicEnabled !== false); // 音乐开关：沿用上次状态
   setBattleMusic(gameData.settings?.battleMusic !== false); // 战斗音乐开关：沿用上次状态
   ensureBounty();   // 生成/恢复当日地区悬赏
+  ensureMassInitEvents(); // 大量出没事件：初始化下次生成时间
   updateBountyBadge(); // 初始化标题栏悬赏红点
   updatePhoneBadge(); // 初始化标题栏手机聚合红点
 
@@ -420,6 +425,19 @@ async function init() {
     updateStats();
     if ($('gpsView')?.style.display === 'flex') showGpsView();
     console.log('GPS 已重置为默认丰缘');
+  };
+
+  // 调试辅助：一键刷新大量出没事件（清掉当前事件并立即生成一次新事件）
+  window.__resetMassOutbreak = () => {
+    forceRefreshMassOutbreak();
+    if ($('gpsView')?.style.display === 'flex') showGpsView();
+    const mo = gameData.massOutbreak;
+    if (mo) {
+      const poke = getPokemonByIndex(mo.pokemon);
+      console.log(`大量出没已刷新：${poke ? poke.name : '#' + mo.pokemon}，剩余 ${mo.remain} 只，路段 ${mo.edge.join('-')} @ ${(mo.t * 100).toFixed(0)}%`);
+    } else {
+      console.warn('大量出没刷新失败：暂无可生成的宝可梦，1 秒后自动重试');
+    }
   };
 
   // 调试：按宝可梦编号直接写入一只 6V 孵蛋宝可梦（如 window.__addPoke(25) 写入皮卡丘）
@@ -932,6 +950,9 @@ function startSplashDrop(onDone, silent = true) {
           splash.classList.add('hide');
           setTimeout(() => {
             splash.remove();
+            // 移除开机渐显动画类：否则 statAutoStatus/statTime 每次从隐藏恢复都会重播淡入，造成闪烁
+            if (autoStatus) autoStatus.classList.remove('stats-fade');
+            if (timeEl) timeEl.classList.remove('stats-fade');
             // 开场剧情期间保持禁用标题栏按钮（防止切走无法返回），开场结束由 beginGameplay 恢复
             if (controls && !window.__introActive) controls.classList.remove('controls-disabled');
             if (silent) setSplashLocked(false);

@@ -1,12 +1,12 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId } from './state.js';
-import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, fitPokemonImage } from './ui.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE } from './config.js';
+import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId } from './state.js';
+import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage } from './ui.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { catchBonusFor, computeObtainScore, computeMeetScore } from './scoring.js';
 import { startIdleRotation } from './messages.js';
-import { playBattle, endBattle, playVictory, consumeShowCardOnEncounterEnd, showRegionNowPlaying } from './audio.js';
+import { playBattle, endBattle, playVictory, stopVictory, consumeShowCardOnEncounterEnd, showRegionNowPlaying } from './audio.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -59,6 +59,9 @@ export function scheduleNextEncounter(delay) {
 export async function tryEncounter() {
   if (phase !== 'idle') return;
   if (_fishing) return; // 钓鱼中不遇敌
+  // 大量出没事件路段内不触发普通遇敌：事件宝可梦滚动触发战斗，
+  // 数量抓完由 endMassOutbreak 重新调度普通遇敌
+  if (inMassZone()) return;
   // 自行车道上不遇敌：本次调度延后，离开自行车道后再遇
   if (road.isBike()) {
     scheduleNextEncounter(rand(ENCOUNTER_MIN, ENCOUNTER_MAX) * 1000);
@@ -81,35 +84,6 @@ export async function tryEncounter() {
   }
 
   let poke;
-  
-  // 闪耀护符倒计时暂停
-  if (charmBuffActive && charmCountdownEnd > Date.now()) {
-    setCharmPausedRemaining(charmCountdownEnd - Date.now());
-    setCharmCountdownEnd(0);
-    if (charmCountdownInterval) { clearInterval(charmCountdownInterval); setCharmCountdownInterval(null); }
-    if (charmExpiryTimer) { clearTimeout(charmExpiryTimer); setCharmExpiryTimer(null); }
-    if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
-  } else if (charmCountdownEnd > 0 && charmCountdownEnd <= Date.now()) {
-    setCharmBuffActive(false);
-    setCharmCountdownEnd(0);
-    clearCharmCountdown();
-  }
-
-  // 甜甜蜜倒计时暂停（保留显示不清除遮罩）
-  if (honeyBuffActive && honeyCountdownEnd > Date.now()) {
-    setHoneyPausedRemaining(honeyCountdownEnd - Date.now());
-    setHoneyCountdownEnd(0);
-    if (honeyCountdownInterval) { clearInterval(honeyCountdownInterval); setHoneyCountdownInterval(null); }
-    if (honeyExpiryTimer) { clearTimeout(honeyExpiryTimer); setHoneyExpiryTimer(null); }
-    if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
-  } else if (honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now()) {
-    setHoneyBuffActive(false);
-    setHoneyCountdownEnd(0);
-    clearHoneyCountdown();
-  }
-
-  setPhase('encounter');
-  setEncounterBallsUsed(0);
 
   // 选择宝可梦：确保 poke 和 currentEncounter 始终指向同一对象
   const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name);
@@ -156,6 +130,140 @@ export async function tryEncounter() {
   if (blockTargetCaught && poke === blockTarget) eatBlock('encounter');
   if (charmBuffActive) setCharmEncounterCount(_charmEncounterCount + 1);
 
+  // 遇敌不立即开战：宝可梦图标在道路上从右向左滚向主角（同大量出没表现），
+  // 碰到主角才真正进入战斗；滚动期间 buff 照常计时，开战时再暂停
+  spawnEncounterPoke(poke, currentIsShiny, () => startRoadEncounter(poke));
+}
+
+// ===== 道路遇敌宝可梦（普通遇敌改为像大量出没一样滚向主角）=====
+// 遇敌时机到后先在主界面道路上生成宝可梦图标，从右向左滚向主角（上下跳动），
+// 碰到主角才进入战斗；后台挂机时图标隐藏但照常滚动，碰到后按后台流程自动处理
+let _encPokeEl = null;      // 滚动的宝可梦 <img>
+let _encPokeX = 0;          // 宝可梦当前 X
+let _encPokeCharX = 0;      // 主角碰撞点 X
+let _encPokeCb = null;      // 碰到主角后的回调（真正开始战斗）
+let _encPokeRafActive = false;
+
+function spawnEncounterPoke(poke, shiny, cb) {
+  const screen = $('screen');
+  const charEl = $('walkGif');
+  if (!screen || !charEl) return;
+  // 后台挂机（不在主界面）：不做滚动动画，直接进入遇敌（同拾取道具的后台直收逻辑，
+  // 且后台 RAF 不推进，动画会永远停在原地）
+  if ($('idleView')?.style.display === 'none') {
+    if (cb) cb();
+    return;
+  }
+  if (_encPokeEl) return;
+  // 容器内放头像 icon，闪光时右上角叠星星标记（同交换页面 NPC 旁的闪光表示）
+  const el = document.createElement('div');
+  el.className = 'mass-poke';
+  screen.appendChild(el);
+  const img = document.createElement('img');
+  img.className = 'mass-poke-img';
+  el.appendChild(img);
+  if (shiny) {
+    const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    star.setAttribute('viewBox', '0 0 1024 1024');
+    star.classList.add('mass-poke-shiny');
+    star.innerHTML = '<use xlink:href="./icons/sprites.svg#icon-star"/>';
+    el.appendChild(star);
+  }
+  // 异步加载头像 icon；加载失败则移除并重调度
+  tryLoadPokemonIcon(img, poke).then(ok => {
+    if (!ok || !el.isConnected) { el.remove(); if (_encPokeEl === el) _encPokeEl = null; }
+  });
+  const sRect = screen.getBoundingClientRect();
+  const cRect = charEl.getBoundingClientRect();
+  _encPokeCharX = cRect.left - sRect.left + 24;
+  const roadEl = document.querySelector('.road-layer');
+  const rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
+  const y = (rRect.top - sRect.top) + 14; // 底边贴近路面
+  _encPokeX = sRect.width + 16;
+  el.style.left = _encPokeX + 'px';
+  el.style.top = y + 'px';
+  _encPokeEl = el;
+  _encPokeCb = cb;
+  startEncPokeRaf();
+}
+
+function despawnEncounterPoke() {
+  if (_encPokeEl) { _encPokeEl.remove(); _encPokeEl = null; }
+  _encPokeCb = null;
+  stopEncPokeRaf();
+}
+
+function startEncPokeRaf() {
+  if (_encPokeRafActive) return;
+  _encPokeRafActive = true;
+  requestAnimationFrame(_encPokeFrame);
+}
+
+function stopEncPokeRaf() {
+  _encPokeRafActive = false;
+}
+
+function _encPokeFrame() {
+  if (!_encPokeRafActive) return;
+  // 游戏被占用（已开战/钓鱼中/大量出没事件点）：移除图标，之后重新调度遇敌
+  if (phase !== 'idle' || _fishing || inMassZone()) {
+    despawnEncounterPoke();
+    if (phase === 'idle') scheduleNextEncounter();
+    return;
+  }
+  // 图标丢失（图片加载失败被移除）：结束本次滚动，稍后重新调度遇敌
+  if (!_encPokeEl) { despawnEncounterPoke(); scheduleNextEncounter(); return; }
+  const isIdleView = $('idleView')?.style.display !== 'none';
+  // 后台挂机：图标隐藏但继续滚动，碰到后按后台流程自动处理
+  if (!isIdleView) { _encPokeEl.style.display = 'none'; requestAnimationFrame(_encPokeFrame); return; }
+  // 道路暂停（拾取道具等）：原地等待
+  if (!road.isActive()) { requestAnimationFrame(_encPokeFrame); return; }
+  _encPokeEl.style.display = '';
+  // 骑车时宝可梦原地等待（与大量出没一致）
+  if (road.isBike()) { requestAnimationFrame(_encPokeFrame); return; }
+
+  _encPokeX -= road.getSpeed();
+  _encPokeEl.style.left = _encPokeX + 'px';
+  if (_encPokeX <= _encPokeCharX) {
+    const cb = _encPokeCb;
+    despawnEncounterPoke();
+    if (cb) cb();
+    return;
+  }
+  if (_encPokeX < -120) { despawnEncounterPoke(); scheduleNextEncounter(); return; } // 走过头（异常兜底）重调度
+  requestAnimationFrame(_encPokeFrame);
+}
+
+// 道路遇敌宝可梦碰到主角：暂停 buff 倒计时并真正进入战斗
+function startRoadEncounter(poke) {
+  // 闪耀护符倒计时暂停（滚动期间照常计时，开战才暂停）
+  if (charmBuffActive && charmCountdownEnd > Date.now()) {
+    setCharmPausedRemaining(charmCountdownEnd - Date.now());
+    setCharmCountdownEnd(0);
+    if (charmCountdownInterval) { clearInterval(charmCountdownInterval); setCharmCountdownInterval(null); }
+    if (charmExpiryTimer) { clearTimeout(charmExpiryTimer); setCharmExpiryTimer(null); }
+    if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
+  } else if (charmCountdownEnd > 0 && charmCountdownEnd <= Date.now()) {
+    setCharmBuffActive(false);
+    setCharmCountdownEnd(0);
+    clearCharmCountdown();
+  }
+
+  // 甜甜蜜倒计时暂停（保留显示不清除遮罩）
+  if (honeyBuffActive && honeyCountdownEnd > Date.now()) {
+    setHoneyPausedRemaining(honeyCountdownEnd - Date.now());
+    setHoneyCountdownEnd(0);
+    if (honeyCountdownInterval) { clearInterval(honeyCountdownInterval); setHoneyCountdownInterval(null); }
+    if (honeyExpiryTimer) { clearTimeout(honeyExpiryTimer); setHoneyExpiryTimer(null); }
+    if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
+  } else if (honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now()) {
+    setHoneyBuffActive(false);
+    setHoneyCountdownEnd(0);
+    clearHoneyCountdown();
+  }
+
+  setPhase('encounter');
+  setEncounterBallsUsed(0);
   beginEncounter(poke);
 }
 
@@ -193,6 +301,18 @@ export function startFishingEncounter(poke) {
   // 闪耀护符生效期间，钓鱼钓到的宝可梦同样享受护符闪光加成
   setCurrentIsShiny(Math.random() < (charmBuffActive ? CHARM_SHINY_CHANCE : SHINY_CHANCE));
   beginEncounter(poke, { message: (currentIsShiny ? '野生的 闪光' : '野生的 ') + poke.name + ' 上钩了！', source: 'fishing' });
+}
+
+// ===== 大量出没遭遇：事件宝可梦滚向主角时直接进入战斗 =====
+// 锁定事件宝可梦；闪光率固定为大量出没概率，不享受闪耀护符加成（甜甜蜜只加快下一只出现）。
+// shiny 为生成时已判定的闪光状态（滚动图标用星星标记），缺省时兜底随机。
+export function startMassEncounter(poke, shiny) {
+  if (!poke) return;
+  setPhase('encounter');
+  setEncounterBallsUsed(0);
+  setCurrentEncounter(poke);
+  setCurrentIsShiny(shiny != null ? shiny : Math.random() < MASS_SHINY_CHANCE);
+  beginEncounter(poke, { message: (currentIsShiny ? '野生的 闪光 ' : '野生的 ') + poke.name + ' 迎面冲了过来！', source: 'mass' });
 }
 
 // ===== 佛系模式：遇敌超时自动逃跑 =====
@@ -518,6 +638,7 @@ export async function throwBall(ballType) {
       updateStats();
       if (_autoCatching) {
         await delay(300);
+        stopVictory(); // 自动捕捉成功：与手动捕获流程一致，关闭胜利音效并恢复背景曲
         goIdle();
       }
       return;
@@ -614,6 +735,10 @@ export function goIdle() {
   $('screen').style.borderColor = '';
   $('fleeBtn').style.display = 'none';
   setIdleCharacter('walk');
+  // 大量出没事件遭遇结束：剩余数量-1，未抓完则调度下一只事件宝可梦出现（事件区域内由滚动触发遇敌）
+  if (inMassZone()) {
+    import('./events.js').then(m => m.onMassEncounterEnded());
+  }
   // 恢复闪耀护符倒计时（优先级高于甜甜蜜）
   if (charmBuffActive && charmPausedRemaining > 0) {
     $('idleText').textContent = '✦ 闪耀护符生效中 ✦';
