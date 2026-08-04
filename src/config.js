@@ -29,8 +29,8 @@ export const CATCH_BONUS_INC = 0.10;
 
 // 糖果商店兑换价格
 export const CANDY_EXCHANGE = {
-  'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 50,
-  'sweet-honey': 15, 'mystery-egg': 100, 'shiny-charm': 1000,
+  'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 200,
+  'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 1000,
 };
 
 // 丢球挣脱后宝可梦逃跑的概率（随丢球次数递增，上限 FLEE_CHANCE_MAX）
@@ -153,7 +153,7 @@ export const FISH_RARE_RATE = 0.6;      // 钓到宝可梦时极稀有所占比�
 export const FISH_WAIT_MIN = 6;         // 等待上钩最短秒数
 export const FISH_WAIT_MAX = 30;        // 等待上钩最长秒数
 export const FISH_QTY_MIN = 1;          // 钓到道具最少数量
-export const FISH_QTY_MAX = 10;         // 钓到道具最多数量
+export const FISH_QTY_MAX = 15;         // 钓到道具最多数量
 export const FISH_TRIGGER_MIN = 5;      // 进入垂钓路段后预定开始钓鱼的最短秒数
 export const FISH_TRIGGER_MAX = 20;     // 预定开始钓鱼的最长秒数
 

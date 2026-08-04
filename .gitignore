@@ -33,7 +33,7 @@ src-tauri/release/
 
 # Web build (web/)：构建产物与安装包不入库
 web/dist.zip
-web/public/downloads/
+web/public/download/
 
 # OS generated files
 Thumbs.db

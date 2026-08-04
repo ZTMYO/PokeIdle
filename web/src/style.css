@@ -59,6 +59,41 @@ a { text-decoration: none; color: inherit; }
 .btn-big { font-size: 17px; padding: 15px 28px; }
 .btn-small { font-size: 12px; padding: 8px 14px; }
 
+/* ---- 下载按钮下拉 ---- */
+.dl-wrap { position: relative; }
+.dl-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  min-width: 100%;
+  padding: 6px;
+  background: var(--screen-bg-light);
+  border: 3px solid var(--ui-color-darker);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity .18s, transform .18s;
+  z-index: 30;
+}
+.dl-wrap.open .dl-menu { opacity: 1; transform: none; pointer-events: auto; }
+.dl-opt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 7px;
+  transition: background .12s;
+  white-space: nowrap;
+}
+.dl-opt:hover { background: rgba(0,0,0,.06); }
+.dl-opt svg { grid-row: 1 / 3; align-self: center; }
+.dl-t { font-weight: 800; font-size: 14px; color: var(--ui-color-darker); line-height: 1.3; }
+.dl-s { font-size: 11px; color: var(--ui-color); opacity: .85; line-height: 1.3; }
+
 .blink { animation: blink 1.2s steps(1) infinite; }
 
 /* ============================================================

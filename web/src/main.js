@@ -5,17 +5,33 @@ import './style.css';
    下载链接
    ============================================================ */
 const INSTALLER = '口袋挂机_1.0.0_x64-setup.exe';
-// 下载来源改为百度网盘分享，更换链接时只需改这里
-const DOWNLOAD_URL = 'https://pan.baidu.com/share/init?surl=sNWqwVQ-ni7YcWz6GBHG5A&pwd=c6kg';
-['downloadLink', 'downloadBtn'].forEach(id => {
-  const a = document.getElementById(id);
-  if (a) {
-    a.href = DOWNLOAD_URL;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.setAttribute('download', INSTALLER);
-  }
-});
+// 网页直连：安装包位于 web/public/download/ 下
+const DOWNLOAD_DIRECT = `./download/${INSTALLER}`;
+// 百度网盘分享，更换链接时只需改这里
+const DOWNLOAD_PAN = 'https://pan.baidu.com/s/1OGnRHkIH2GzqOf_5whHFFg?pwd=fhc3';
+const dDirect = document.getElementById('downloadDirect');
+if (dDirect) {
+  dDirect.href = DOWNLOAD_DIRECT;
+  dDirect.setAttribute('download', INSTALLER);
+}
+const dPan = document.getElementById('downloadPan');
+if (dPan) {
+  dPan.href = DOWNLOAD_PAN;
+  dPan.target = '_blank';
+  dPan.rel = 'noopener';
+}
+// 下载按钮：点击展开「网页直连 / 百度网盘」两个选项，点外部收起
+const dlWrap = document.getElementById('downloadWrap');
+const dlMain = document.getElementById('downloadMain');
+if (dlWrap && dlMain) {
+  dlMain.addEventListener('click', e => {
+    e.preventDefault();
+    dlWrap.classList.toggle('open');
+  });
+  document.addEventListener('click', e => {
+    if (!dlWrap.contains(e.target)) dlWrap.classList.remove('open');
+  });
+}
 
 // 禁用浏览器刷新后的滚动位置恢复：每次进入页面都从顶部开始
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
