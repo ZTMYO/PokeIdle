@@ -9,11 +9,15 @@
 </p>
 
 <p align="center">
-  <img alt="Stars" src="https://img.shields.io/github/stars/ZTMYO/PokeIdle?style=for-the-badge&label=Stars&color=brightgreen" />
-  <img alt="License" src="https://img.shields.io/badge/License-MIT%20%2B%20CC%20BY--NC--ND%204.0-blue?style=for-the-badge" />
-  <img alt="Tauri" src="https://img.shields.io/badge/Tauri-v2.0-blueviolet?style=for-the-badge" />
-  <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows-0078d6?style=for-the-badge" />
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-informational?style=for-the-badge" />
+  <a href="https://github.com/ZTMYO/PokeIdle/stargazers">
+    <img src="https://img.shields.io/github/stars/ZTMYO/PokeIdle?style=flat&logo=github&color=brightgreen&label=Stars" />
+  </a>
+  <a href="https://github.com/ZTMYO/PokeIdle/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT%20%2B%20CC%20BY--NC--ND%204.0-blue?style=flat&logo=creativecommons" />
+  </a>
+  <a href="https://github.com/ZTMYO/PokeIdle">
+    <img src="https://img.shields.io/badge/Tauri-v2.0-blueviolet?style=flat&logo=tauri" />
+  </a>
 </p>
 <p align="center">
   <a href="https://github.com/ZTMYO/PokeIdle">https://pokeidle.shiliu.space/</a>

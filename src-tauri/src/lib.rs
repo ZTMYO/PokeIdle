@@ -44,6 +44,30 @@ fn set_tray_frames(state: tauri::State<'_, TrayFrames>, frames: Vec<TrayFrameDat
     }
 }
 
+// 切换主窗口的显示状态（托盘点击 / Ctrl+Alt+1 全局快捷键共用）：
+// - 窗口可见且未最小化 → 收起（隐藏窗口与任务栏图标）
+// - 窗口可见但处于最小化 → 还原显示（点击托盘从任务栏恢复，而不是把图标也藏起来）
+// - 窗口已隐藏 → 弹出到前台
+fn toggle_window_visibility(app_handle: &tauri::AppHandle) {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        match window.is_visible() {
+            Ok(true) => {
+                if window.is_minimized().unwrap_or(false) {
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                } else {
+                    let _ = window.hide();
+                }
+            }
+            _ => {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = window_manager::mark_show();
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -57,16 +81,7 @@ pub fn run() {
                     }
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        if let Some(window) = app_handle.get_webview_window("main") {
-                            match window.is_visible() {
-                                Ok(true) => { let _ = window.hide(); }
-                                _ => {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                    window_manager::mark_show().ok();
-                                }
-                            }
-                        }
+                        toggle_window_visibility(&app_handle);
                     });
                 })
                 .build(),
@@ -148,15 +163,7 @@ pub fn run() {
                             if button == MouseButton::Left && button_state == MouseButtonState::Up {
                                 let app_handle = tray.app_handle().clone();
                                 tauri::async_runtime::spawn(async move {
-                                    if let Some(window) = app_handle.get_webview_window("main") {
-                                        match window.is_visible() {
-                                            Ok(true) => { let _ = window.hide(); }
-                                            _ => {
-                                                let _ = window.show();
-                                                let _ = window.set_focus();
-                                            }
-                                        }
-                                    }
+                                    toggle_window_visibility(&app_handle);
                                 });
                             }
                         }

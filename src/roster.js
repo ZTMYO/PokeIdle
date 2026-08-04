@@ -423,6 +423,17 @@ export function showRosterView() {
     setupHeaderSort();
     _uiBound = true;
   }
+  _detailId = null;
+  _detailJumpedToPokedex = false;
+  const rootEl = $('rosterView');
+  if (rootEl) {
+    const s = rootEl.querySelector('.pokedex-search');
+    if (s) s.style.display = '';
+    const h = rootEl.querySelector('.roster-header');
+    if (h) h.style.display = '';
+  }
+  const prog = $('rosterProgress');
+  if (prog) prog.style.display = '';
   renderList();
   showView('rosterView');
 }

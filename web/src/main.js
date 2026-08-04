@@ -639,11 +639,12 @@ function buildRegionMap() {
    下载链接
    ============================================================ */
 const INSTALLER = '口袋挂机_1.0.0_x64-setup.exe';
-const dl = encodeURIComponent(INSTALLER);
+// 下载来源改为百度网盘分享，更换链接时只需改这里
+const DOWNLOAD_URL = 'https://pan.baidu.com/s/1JoYB2j9avv18BIGSK7IH0g?pwd=dfav';
 ['downloadLink', 'downloadBtn'].forEach(id => {
   const a = document.getElementById(id);
   if (a) {
-    a.href = `downloads/${dl}`;
+    a.href = DOWNLOAD_URL;
     a.setAttribute('download', INSTALLER);
   }
 });

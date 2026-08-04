@@ -74,13 +74,11 @@ export const ACHIEVEMENTS = [
     fmt: v => `${formatNum(v)} 小时`,
   },
   {
-    id: 'candy', name: '糖果富翁', desc: '累计获得糖果',
+    id: 'candy', name: '糖果富翁', desc: '累计糖果数',
     metric: d => d.stats.totalItemsEarned?.candy || 0, base: 100, reward: 10,
     fmt: v => `${formatNum(v)} 个`,
   },
 ];
-
-const achById = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
 
 function ensureAchievements() {
   if (!gameData.achievements) gameData.achievements = {};
@@ -119,26 +117,40 @@ export function earnedTiers(a) {
   return n;
 }
 
-// 领取当前达标等级（一级一级领）：每次只领一级糖果，领完切到下一级
-export function claimAchievement(id) {
+// 一键领取全部
+// 点任意一个「领取」按钮都会走这里。循环领取直到不再有新达标：
+// 领取会发放糖果，可能联动解锁「糖果富翁」，因此发糖后需重新评估再领一轮。
+export function claimAllAchievements() {
   ensureAchievements();
-  const a = achById.get(id);
-  if (!a) return 0;
-  const earned = earnedTiers(a);
-  const claimed = gameData.achievements[id] || 0;
-  if (earned <= claimed) return 0;
-  const candy = tierAt(a, claimed).reward;
-  gameData.achievements[id] = claimed + 1;
-  gameData.items['candy'] = (gameData.items['candy'] || 0) + candy;
-  // 计入「道具累计获得」，与商店/悬赏等来源口径一致
-  gameData.stats.totalItemsEarned = gameData.stats.totalItemsEarned || {};
-  gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + candy;
-  saveGame();
-  updateBackpack('candy');
-  updateStats();
-  // 通知手机"统计"app 红点刷新（领取后可能还有下一级待领或全部领完）
-  window.dispatchEvent(new Event('achievements-changed'));
-  return candy;
+  let total = 0;
+  while (true) {
+    let round = 0; // 本轮领取的糖果
+    for (const a of ACHIEVEMENTS) {
+      const earned = earnedTiers(a);
+      let claimed = gameData.achievements[a.id] || 0;
+      while (earned > claimed) {
+        if (a.maxTiers != null && claimed >= a.maxTiers) break; // 图鉴类已达上限，不再继续
+        round += tierAt(a, claimed).reward;
+        gameData.achievements[a.id] = claimed + 1;
+        claimed++;
+      }
+    }
+    if (round === 0) break; // 本轮没有任何可领 → 结束
+    total += round;
+    gameData.items['candy'] = (gameData.items['candy'] || 0) + round;
+    // 计入「道具累计获得」，与商店/悬赏等来源口径一致
+    gameData.stats.totalItemsEarned = gameData.stats.totalItemsEarned || {};
+    gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + round;
+    // 糖果入账后「糖果富翁」可能新达标，进入下一轮继续领
+  }
+  if (total > 0) {
+    saveGame();
+    updateBackpack('candy');
+    updateStats();
+    // 通知手机"统计"app 红点刷新（领取后可能仍有剩余可领或全部领完）
+    window.dispatchEvent(new Event('achievements-changed'));
+  }
+  return total;
 }
 
 function buildItem(a) {
@@ -185,7 +197,7 @@ export function renderAchievements() {
   `;
   wrap.querySelectorAll('.ach-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      claimAchievement(btn.dataset.ach);
+      claimAllAchievements();
       renderAchievements();
     });
   });

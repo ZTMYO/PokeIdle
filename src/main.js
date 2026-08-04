@@ -844,6 +844,7 @@ async function init() {
 
   // 页面关闭前保存
   window.addEventListener('beforeunload', () => {
+    if (window.__resettingSave) return;
     saveSessionState();
     if (gameData) {
       gameData.stats.lastSaveTime = Date.now();

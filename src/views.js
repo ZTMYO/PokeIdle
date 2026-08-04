@@ -501,6 +501,7 @@ export function renderSettings(container, s) {
 
 // 重置存档：清空本地存档并开新档
 export async function resetSave() {
+  window.__resettingSave = true;
   try { localStorage.removeItem('pokemon_idle_save'); } catch (_) { }
   try { localStorage.removeItem('pokemon_idle_road'); } catch (_) { }
   try { localStorage.removeItem('pokemon_idle_session'); } catch (_) { }
@@ -917,7 +918,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '状态栏图标',
     html: `<p>把窗口<b>最小化</b>后主角依然在挂机冒险。Windows 任务栏右下角（系统托盘）会出现<b>口袋挂机</b>图标。</p>`
-      + `<p>点击图标可以收起游戏窗口，再次点击弹出。</p>`
+      + `<p>点击图标：窗口<b>打开时</b>点一下收起，<b>最小化或收起后</b>再点一下即可弹回前台。</p>`
       + `<p>Windows 默认会把不常用的图标收进「<b>显示隐藏的图标</b>」弹层里：点开它找到口袋挂机图标，<b>按住拖到外面的任务栏</b>即可固定显示，游戏状态一眼可见。</p>`
       + `<p>鼠标<b>悬停</b>在图标上会弹出多行状态提示：地点、主角动作、操作模式、农场、悬赏、交换、可孵化等信息一目了然；</p>`
       + `<p>图标还会动：角色前进、钓鱼、可孵化、遭遇、可浇水时各有对应提示动画；</p>`,
