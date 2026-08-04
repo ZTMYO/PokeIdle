@@ -87,11 +87,12 @@ function urlFor(path) {
 }
 
 let _pending = null; // 自动播放被拦截时挂起，等用户交互后补播
+let _sfxInterrupted = false; // 瞬发音效（胜利等）被音乐开关/静音/splash 暂停时置位，恢复时优先补播它
 
 function tryPlay(el) {
   if (_muted || _splashLocked) return; // 静音或 splash 期间不实际发声（状态保留，放行后恢复）
-  // 音乐关闭时仅音效可发声：地区曲/覆盖曲保留播放状态，重开音乐后恢复
-  if (!_musicEnabled && el !== sfxAudio) return;
+  // 音乐关闭时全局阻断：地区曲/覆盖曲/瞬发音效（victory、孵蛋、交换等）一律不发声
+  if (!_musicEnabled) return;
   const p = el.play();
   if (p && typeof p.catch === 'function') {
     p.catch(() => { _pending = el; });
@@ -232,6 +233,7 @@ export function endCycling() { if (_overlayType === 'cycling') endOverlay(); }
 function playSfx(path) {
   if (!path) return;
   const url = urlFor(path);
+  _sfxInterrupted = false; // 新瞬发音效接管，清掉被中断的旧音效标记
   const resumeOverlay = _overlayActive && !overlayAudio.paused;
   const resumeRegion = _regionActive && !regionAudio.paused;
   if (resumeOverlay) overlayAudio.pause();
@@ -240,6 +242,7 @@ function playSfx(path) {
   applyTrackGain('sfx', path);
   sfxAudio.currentTime = 0;
   sfxAudio.onended = () => {
+    _sfxInterrupted = false;
     // 恢复前再校验：覆盖曲可能已结束（如抓捕胜利后战斗已退场）
     if (resumeOverlay && _overlayActive && overlayAudio.getAttribute('src')) tryPlay(overlayAudio);
     else if (resumeRegion && _regionActive && regionAudio.getAttribute('src')) tryPlay(regionAudio);
@@ -257,6 +260,7 @@ export function playObtained() { playSfx(SFX.obtained); }
 // 停止胜利音效并恢复背景曲（图鉴对话框交互后调用）
 export function stopVictory() {
   if (sfxAudio.getAttribute('src') !== urlFor(SFX.victory)) return;
+  _sfxInterrupted = false; // 显式停止胜利音效，清理被中断标记
   if (sfxAudio.paused) return;
   sfxAudio.pause();
   sfxAudio.currentTime = 0;
@@ -343,31 +347,41 @@ export function setVolume(v) {
 }
 
 // ---------- 静音 ----------
+// 暂停全部通道时记录被中断的瞬发音效（胜利等），恢复时优先补播它，
+// 避免背景曲（如战斗曲）抢跑，造成「捕捉已完成但战斗音乐又响起」的状态错乱
+function pauseAll() {
+  _sfxInterrupted = !sfxAudio.paused && sfxAudio.getAttribute('src');
+  if (!sfxAudio.paused) sfxAudio.pause();
+  if (!overlayAudio.paused) overlayAudio.pause();
+  if (!regionAudio.paused) regionAudio.pause();
+}
+
+function resumeBackground() {
+  // 瞬发音效被中断时先恢复它（onended 后再由 playSfx 恢复对应背景曲）
+  if (_sfxInterrupted && sfxAudio.getAttribute('src')) {
+    _sfxInterrupted = false;
+    tryPlay(sfxAudio);
+    return;
+  }
+  _sfxInterrupted = false;
+  // 恢复背景曲：覆盖曲 > 地区曲
+  if (_overlayActive && overlayAudio.getAttribute('src') && overlayAudio.paused) tryPlay(overlayAudio);
+  else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) { regionFadeIn(300); tryPlay(regionAudio); }
+}
+
 export function setMuted(m) {
   _muted = !!m;
-  if (_muted) {
-    if (!sfxAudio.paused) sfxAudio.pause();
-    if (!overlayAudio.paused) overlayAudio.pause();
-    if (!regionAudio.paused) regionAudio.pause();
-  } else {
-    // 恢复背景曲：覆盖曲 > 地区曲
-    if (_overlayActive && overlayAudio.getAttribute('src') && overlayAudio.paused) tryPlay(overlayAudio);
-    else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) { regionFadeIn(300); tryPlay(regionAudio); }
-  }
+  if (_muted) pauseAll();
+  else resumeBackground();
 }
 
 export function isMuted() { return _muted; }
 
-// 音乐开关（设置页控制）：关闭时暂停所有音乐通道，重开恢复（覆盖曲 > 地区曲）
+// 音乐开关（设置页控制）：关闭时暂停所有音频通道（含瞬发音效），重开恢复（覆盖曲 > 地区曲）
 export function setMusicEnabled(on) {
   _musicEnabled = on !== false;
-  if (!_musicEnabled) {
-    if (!overlayAudio.paused) overlayAudio.pause();
-    if (!regionAudio.paused) regionAudio.pause();
-  } else {
-    if (_overlayActive && overlayAudio.getAttribute('src') && overlayAudio.paused) tryPlay(overlayAudio);
-    else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) { regionFadeIn(300); tryPlay(regionAudio); }
-  }
+  if (!_musicEnabled) pauseAll();
+  else resumeBackground();
 }
 
 export function isMusicEnabled() { return _musicEnabled; }
@@ -387,14 +401,8 @@ export function getNowPlaying() {
 // splash 动画期间禁声，结束放行并恢复被暂停的背景曲
 export function setSplashLocked(locked) {
   _splashLocked = !!locked;
-  if (_splashLocked) {
-    if (!sfxAudio.paused) sfxAudio.pause();
-    if (!overlayAudio.paused) overlayAudio.pause();
-    if (!regionAudio.paused) regionAudio.pause();
-  } else {
-    if (_overlayActive && overlayAudio.getAttribute('src') && overlayAudio.paused) tryPlay(overlayAudio);
-    else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) { regionFadeIn(300); tryPlay(regionAudio); }
-  }
+  if (_splashLocked) pauseAll();
+  else resumeBackground();
 }
 
 // 启动即遭遇时，等这场遭遇结束再补弹一次歌曲卡

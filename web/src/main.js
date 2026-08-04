@@ -4,7 +4,7 @@ import './style.css';
 /* ============================================================
    下载链接
    ============================================================ */
-const INSTALLER = '口袋挂机_1.0.0_x64-setup.exe';
+const INSTALLER = '口袋挂机_1.0.1_x64-setup.exe';
 // 网页直连：安装包位于 web/public/download/ 下
 const DOWNLOAD_DIRECT = `./download/${INSTALLER}`;
 // 百度网盘分享，更换链接时只需改这里

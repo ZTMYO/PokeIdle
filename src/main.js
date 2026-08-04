@@ -51,7 +51,7 @@ import { isTradeInDetail, restoreTradeList } from './trade.js';
 import { showShopView, showSettingsView,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateDataBadge, updatePhoneBadge } from './phone.js';
-import { gpsAddDistance, showGpsView } from './gps.js';
+import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMuted, isMuted, setMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import * as road from './road.js';
@@ -362,6 +362,7 @@ async function init() {
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
+  if (!gameDataRaw) setRoamEnabled(true); // 新档：默认开启漫游并自动规划首站路线（旧档保持原开关状态）
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
   initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
   setMuted(!!gameData.settings?.muted); // 开场静音开关：沿用上次状态

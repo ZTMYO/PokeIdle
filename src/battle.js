@@ -1,4 +1,4 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE } from './config.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE } from './config.js';
 import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage } from './ui.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS } from './items.js';
@@ -551,7 +551,9 @@ export async function throwBall(ballType) {
 
     // 捕获加成：逃跑率拉满（50%）后，每多丢一球 +10%，上限 2 倍 —— 能撑过逃跑率上限的奖励
     const catchBonus = catchBonusFor(encounterBallsUsed);
-    const rate = ballType === 'master-ball' ? 1.0 : (CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) * catchBonus;
+    // 高级球额外 +ULTRA_BALL_ADD 绝对捕获率：对低 catchRate 的稀有宝可梦增幅显著（定位：抓神兽用高级球）
+    const rate = ballType === 'master-ball' ? 1.0
+      : ((CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) + (ballType === 'ultra-ball' ? ULTRA_BALL_ADD : 0)) * catchBonus;
     const isCaught = Math.random() < rate;
 
     // 丢球瞬间生成全部判定（挣脱轮数 / 是否逃跑）并立即落库：动画只做展示，刷新/重启不丢数据
@@ -622,6 +624,7 @@ export async function throwBall(ballType) {
     const anim = await playCatchSequence(ballType, outcome, breakRound);
 
     if (outcome === 'caught') {
+      endBattle(); // 战斗结束：捕捉成功即停战斗曲，胜利音效播完后恢复地区曲
       playVictory(); // 抓捕成功 → 胜利音效
       // 捕获文案（离开遇敌页则不弹出）
       let msg;

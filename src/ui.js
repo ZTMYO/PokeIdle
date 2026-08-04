@@ -1,5 +1,5 @@
 // ===== UI 管理 =====
-import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing } from './state.js';
+import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching } from './state.js';
 import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
 import * as road from './road.js';
@@ -64,6 +64,14 @@ export function showView(id) {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
+  // 孵蛋动画结束后的「查看详情」确认页：玩家离开游戏页 → 后台完成流程（回到空闲），
+  // 避免 phase 停留在 eggResult 导致孵蛋按钮一直禁用
+  if (wasOnGameView && phase === 'eggResult' && !_eggHatching && id !== 'encounterView') {
+    import('./battle.js').then(m => {
+      m.goIdle();
+      renderIncubatorView();
+    });
+  }
   if (!wasOnGameView && (id === 'idleView' || id === 'encounterView') && phase === 'encounter' && currentEncounter) {
     setTimeout(() => {
       import('./battle.js').then(async m => {

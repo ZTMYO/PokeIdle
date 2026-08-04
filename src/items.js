@@ -382,56 +382,67 @@ export async function hatchFromIncubator(slotIndex) {
   `;
   parent.replaceChild(sprite, oldImg);
 
-  // 第一帧 — 摇晃
-  sprite.className = 'encounter-gif egg-shake';
-  if (isOnGameView()) updateTextBox('蛋在微微晃动...', false);
-  await delay(1200);
+  // 孵蛋动画：玩家中途跳到其他页面（孵化转入后台）→ 跳过剩余动画帧，后台直接结算
+  let watchedAnim = true;
+  async function hatchFrame(ms, before) {
+    if (!isOnGameView()) { watchedAnim = false; return; }
+    if (before) before();
+    await delay(ms);
+    if (!isOnGameView()) watchedAnim = false;
+  }
 
-  sprite.className = 'encounter-gif';
-  await delay(300);
+  // 第一帧 — 摇晃
+  await hatchFrame(1200, () => {
+    sprite.className = 'encounter-gif egg-shake';
+    updateTextBox('蛋在微微晃动...', false);
+  });
 
   // 第二帧 — 蛋裂
-  sprite.style.backgroundPosition = `0 -${displayH}px`;
-  await delay(350);
+  if (watchedAnim) await hatchFrame(300, () => { sprite.className = 'encounter-gif'; });
+  if (watchedAnim) await hatchFrame(350, () => { sprite.style.backgroundPosition = `0 -${displayH}px`; });
 
   // 第三帧 — 裂缝更大
-  sprite.style.backgroundPosition = `0 -${displayH * 2}px`;
-  if (isOnGameView()) updateTextBox('蛋裂开了！', false);
-  await delay(350);
+  if (watchedAnim) await hatchFrame(350, () => {
+    sprite.style.backgroundPosition = `0 -${displayH * 2}px`;
+    updateTextBox('蛋裂开了！', false);
+  });
 
   // 第四帧 — 破壳
-  sprite.style.backgroundPosition = `0 -${displayH * 3}px`;
-  await delay(400);
+  if (watchedAnim) await hatchFrame(400, () => { sprite.style.backgroundPosition = `0 -${displayH * 3}px`; });
 
+  // 无论是否跳过动画，都恢复为 <img> 元素（后续遭遇渲染依赖 #encounterGif 是 img）
   const img = document.createElement('img');
   img.id = 'encounterGif';
   img.className = 'encounter-gif';
-  img.style.opacity = '0';
   parent.replaceChild(img, sprite);
 
-  let imageLoaded = false;
-  await tryLoadPokemonImage(img, poke, '').then(ok => { imageLoaded = ok; });
+  // 宝可梦出场动画（仅玩家仍在游戏页时播放；已离开则后台直接结算）
+  if (watchedAnim) {
+    img.style.opacity = '0';
+    let imageLoaded = false;
+    await tryLoadPokemonImage(img, poke, '').then(ok => { imageLoaded = ok; });
 
-  img.style.transform = 'translateX(-50%) scale(0)';
-  if (imageLoaded) {
-    fitPokemonImage(img);
-  } else {
-    img.removeAttribute('src');
-    img.style.width = '80px';
-    img.style.height = '80px';
-    img.style.objectFit = 'contain';
+    img.style.transform = 'translateX(-50%) scale(0)';
+    if (imageLoaded) {
+      fitPokemonImage(img);
+    } else {
+      img.removeAttribute('src');
+      img.style.width = '80px';
+      img.style.height = '80px';
+      img.style.objectFit = 'contain';
+    }
+
+    void img.offsetHeight;
+
+    await animate(350, t => {
+      const s = t;
+      const o = t < 0.2 ? t / 0.2 : 1;
+      img.style.transform = `translateX(-50%) scale(${s})`;
+      img.style.opacity = o;
+    });
+
+    img.style.transform = '';
   }
-
-  void img.offsetHeight;
-
-  await animate(350, t => {
-    const s = t;
-    const o = t < 0.2 ? t / 0.2 : 1;
-    img.style.transform = `translateX(-50%) scale(${s})`;
-    img.style.opacity = o;
-  });
-
-  img.style.transform = '';
 
   $('encounterName').style.display = 'none';
   $('encounterTypes').style.display = 'none';
@@ -502,6 +513,15 @@ export async function hatchFromIncubator(slotIndex) {
   updateIncubatorBadge();
 
   setEggHatching(false);
+
+  // 玩家已离开游戏页（后台孵化）：跳过「查看详情」确认流程，直接回到空闲状态，
+  // 并刷新孵蛋器按钮（避免 phase 停留在 eggResult 导致孵化按钮一直禁用）
+  if (!isOnGameView()) {
+    import('./battle.js').then(m => {
+      m.goIdle();
+      renderIncubatorView();
+    });
+  }
 }
 
 // ===== 糖果兑换弹窗 =====

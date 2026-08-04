@@ -159,7 +159,7 @@ export function anyIncubatorReady() {
 // 当前地区由 GPS 位置决定（默认从丰缘出发）；开启"漫游"后才会有目的地并随行走推进。
 export function defaultGpsState() {
   return {
-    roamEnabled: false,              // 漫游开关：默认关闭，需在导航页手动开启后自动沿环国路线前进
+    roamEnabled: true,               // 漫游开关：开局默认开启，自动沿环国路线前进
     curIdx: 2,                      // 当前地区编号（REGION_CYCLE 下标，2=丰缘）
     destIdx: null,                  // 目的地地区编号；null=无目的地
     path: null,                     // 最短路线（地区编号数组）

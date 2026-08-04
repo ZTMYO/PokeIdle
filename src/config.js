@@ -1,12 +1,12 @@
 // ===== 游戏常量配置 =====
 
-export const START_CANDY = 200; // 新存档启动资金
+export const START_CANDY = 450; // 新存档启动资金
 // 道具概率权重
 export const ITEM_RATES = {
   'poke-ball':   1 / 90,   // 精灵球
   'ultra-ball':  1 / 220,  // 高级球
   'master-ball': 1 / 900,  // 大师球
-  'candy':       1 / 30,   // 糖果
+  'candy':       1 / 20,   // 糖果
   'sweet-honey': 1 / 400,  // 甜甜蜜
   'mystery-egg': 1 / 800,  // 神秘蛋
   'shiny-charm': 1 / 1000, // 闪耀护符
@@ -21,22 +21,26 @@ export const ITEM_NAMES = {
 
 // 精灵球基础捕获率（最终 = 基础率 × 宝可梦 catchRate × 丢球加成）
 export const CATCH_RATES = {
-  'poke-ball': 0.30, 'ultra-ball': 0.70, 'master-ball': 1.00,
+  'poke-ball': 0.35, 'ultra-ball': 0.70, 'master-ball': 1.00,
 };
+
+// 高级球绝对捕获率加成：捕获率 = (基础率 × catchRate + 加成) × 丢球加成
+// 对低 catchRate 的稀有/神兽增幅显著，体现「抓神兽用高级球」的定位
+export const ULTRA_BALL_ADD = 0.06;
 
 // 逃跑率拉满后每多丢一球的捕获加成
 export const CATCH_BONUS_INC = 0.10;
 
 // 糖果商店兑换价格
 export const CANDY_EXCHANGE = {
-  'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 200,
+  'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 500,
   'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 1000,
 };
 
 // 丢球挣脱后宝可梦逃跑的概率（随丢球次数递增，上限 FLEE_CHANCE_MAX）
-export const FLEE_CHANCE = 0.05;     // 第 1 球挣脱后的逃跑概率
-export const FLEE_CHANCE_INC = 0.05; // 每多丢一球额外增加的逃跑概率
-export const FLEE_CHANCE_MAX = 0.5; // 逃跑概率上限
+export const FLEE_CHANCE = 0.04;     // 第 1 球挣脱后的逃跑概率
+export const FLEE_CHANCE_INC = 0.04; // 每多丢一球额外增加的逃跑概率
+export const FLEE_CHANCE_MAX = 0.4;  // 逃跑概率上限
 
 // 普通遇敌间隔（秒，范围内随机）
 export const ENCOUNTER_MIN = 120;
