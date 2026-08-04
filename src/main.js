@@ -48,7 +48,7 @@ import { restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex } from './roster.js';
 import { isTradeInDetail, restoreTradeList } from './trade.js';
-import { showShopView, showSettingsView,
+import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateDataBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
@@ -774,13 +774,21 @@ async function init() {
   bindHeaderIcon($('btnSettings'), showSettingsView);
   bindHeaderIcon($('btnStation'), () => import('./bounty.js').then(m => m.showBountyView()));
 
-  // 状态栏点击：糖果→商店，当前位置→导航
-  $('statProgress')?.addEventListener('click', showShopView);
-  // 右下角状态栏：点击进入导航，返回回主界面
-  $('statTime')?.addEventListener('click', () => {
-    setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
-    showGpsView();
-  });
+  // 底部三区点击：糖果→商店、状态文字→日志、当前道路→导航。
+  // 统一逻辑：在挂机页面时点击跳转对应页面；不在挂机页面时点击直接返回挂机页面（即"再次点击返回"）。
+  // 跳转时同步 prevView，保证标题栏返回按钮也回到挂机/战斗页。
+  const footerNav = (open) => () => {
+    if (isOnGameView()) {
+      open();
+      setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
+    } else {
+      showView('idleView');
+    }
+  };
+  $('statProgress')?.addEventListener('click', footerNav(showShopView));
+  $('statAutoStatus')?.addEventListener('click', footerNav(showSystemLogs));
+  $('statDropHint')?.addEventListener('click', footerNav(showSystemLogs));
+  $('statTime')?.addEventListener('click', footerNav(showGpsView));
   $('appTitle')?.addEventListener('click', () => {
     if ($('appTitle').dataset.action === 'back') goBack();
   });

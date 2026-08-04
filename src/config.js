@@ -162,7 +162,7 @@ export const FISH_TRIGGER_MIN = 5;      // 进入垂钓路段后预定开始钓�
 export const FISH_TRIGGER_MAX = 20;     // 预定开始钓鱼的最长秒数
 
 // ===== 路段生成 =====
-export const ROAD_SPECIAL_CHANCE = 1.05;   // 特殊路段概率（水域与自行车道对半）
+export const ROAD_SPECIAL_CHANCE = 0.05;   // 特殊路段概率（水域与自行车道对半）
 export const ROAD_WIDTH_MIN = 50;          // 随机路段最短格数
 export const ROAD_WIDTH_MAX = 200;         // 随机路段最长格数
 export const ROAD_SWITCH_CYCLES = 2;       // 滚动满几个循环后切换场景

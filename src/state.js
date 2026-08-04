@@ -424,6 +424,33 @@ export function inMassZone() {
   return (a === ea && b === eb) || (a === eb && b === ea);
 }
 
+// ---------- 当前位置换算 ----------
+// 当前路段已走像素（从段起点 path[seg] 量起）。
+// 大量出没事件边（最后一段）的 remainPx 语义是"到事件点的剩余距离"：已走 = 段起点到事件点的距离 - 剩余；
+// 普通路段 remainPx 是"到段终点的剩余"：已走 = 总长 - 剩余。统一换算，避免定位点/归属/路段编号跳变。
+export function walkedPxOnSegment(g) {
+  if (!g || !g.path || g.path.length < 2 || g.seg >= g.path.length - 1 || !g.totalPx) return 0;
+  const remain = g.remainPx || 0;
+  if (g.massTarget && g.seg === g.path.length - 2) {
+    const [ea, eb] = g.massTarget.edge;
+    const fromA = g.totalPx * g.massTarget.t;
+    const fromStart = (g.path[g.seg] === ea) ? fromA : g.totalPx - fromA; // 段起点到事件点的距离
+    return Math.max(0, Math.min(fromStart, fromStart - remain));
+  }
+  return Math.max(0, Math.min(g.totalPx, g.totalPx - remain));
+}
+
+// 取消大量出没目标时，把事件边最后一段的 remainPx 从"到事件点的剩余"换算回"到段终点的剩余"，
+// 保证之后（取消导航/改目的地/事件结束）按普通路段语义读取位置时不会瞬移。
+export function normalizeMassRemainToEnd(g) {
+  if (!g || !g.massTarget || !g.path || g.path.length < 2 || g.seg !== g.path.length - 2 || !g.totalPx) return;
+  const [ea, eb] = g.massTarget.edge;
+  const fromA = g.totalPx * g.massTarget.t;
+  const fromStart = (g.path[g.seg] === ea) ? fromA : g.totalPx - fromA;
+  const walked = Math.max(0, Math.min(fromStart, fromStart - (g.remainPx || 0)));
+  g.remainPx = g.totalPx - walked;
+}
+
 // ---------- 当前地区 ----------
 // 在途时按路段进度分归属：前半程归出发端、后半程归目标端，避免方向性矛盾
 export function getCurrentRegion() {
@@ -434,7 +461,7 @@ export function getCurrentRegion() {
     const b = g.path[g.seg + 1];
     if (a != null && b != null && a !== b) {
       // 段内已走比例 [0,1)：A→B 正算，B→A 反向折算成从 A 端量起的物理坐标
-      let p = 1 - (g.remainPx || 0) / g.totalPx;
+      let p = g.totalPx > 0 ? walkedPxOnSegment(g) / g.totalPx : 0;
       if (a > b) p = 1 - p;
       const idx = p < 0.5 ? Math.min(a, b) : Math.max(a, b);
       return { id: idx, name: REGION_CYCLE[idx] || '丰缘' };
@@ -474,7 +501,7 @@ export function getCurrentRoadInfo() {
   const min = Math.min(a, b), max = Math.max(a, b);
   const base = t[`${min}-${max}`];
   if (base == null) return null;
-  const pa = g.totalPx > 0 ? 1 - (g.remainPx || 0) / g.totalPx : 0; // 从出发端量起的段内进度
+  const pa = g.totalPx > 0 ? walkedPxOnSegment(g) / g.totalPx : 0; // 从出发端量起的段内进度
   const firstHalf = pa < 0.5;
   // 编号：出发端为小号地区时前半段 = base，否则 = base + 1
   const num = firstHalf === (a === min) ? base : base + 1;
@@ -515,7 +542,8 @@ export function getGpsPositionSnapshot() {
   }
   const fromIdx = g.path[g.seg];
   const toIdx = g.path[g.seg + 1];
-  const progress = g.totalPx > 0 ? Math.max(0, Math.min(1, 1 - (g.remainPx || 0) / g.totalPx)) : 0;
+  const walked = walkedPxOnSegment(g);
+  const progress = g.totalPx > 0 ? Math.max(0, Math.min(1, walked / g.totalPx)) : 0;
   const progressPct = Math.round(progress * 1000) / 10;
   return {
     ...base,
@@ -527,7 +555,7 @@ export function getGpsPositionSnapshot() {
     toName: REGION_CYCLE[toIdx] || '',
     progress: Number(progress.toFixed(4)),
     progressPct,
-    remainPx: Math.round(g.remainPx || 0),
+    remainPx: Math.round((g.totalPx || 0) - walked),
     totalPx: Math.round(g.totalPx || 0),
     label: `${road.num}#道路（${road.name}） ${REGION_CYCLE[fromIdx] || ''}→${REGION_CYCLE[toIdx] || ''} ${progressPct}%`,
   };

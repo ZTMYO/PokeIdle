@@ -5,7 +5,7 @@
 // 没有目的地时，定位图标在水平轴中央原地上下浮动。
 // 推进由主角实际移动驱动（gpsAddDistance），遇敌/钓鱼时道路暂停、导航也随之暂停。
 import { $, showView, setupFoodTooltip } from './ui.js';
-import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo, getMassOutbreak, getPokemonByIndex, inMassZone } from './state.js';
+import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo, getMassOutbreak, getPokemonByIndex, inMassZone, walkedPxOnSegment, normalizeMassRemainToEnd } from './state.js';
 import { REGION_CYCLE, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
 import { isFishing } from './fishing.js';
 import * as road from './road.js';
@@ -80,13 +80,9 @@ function computeMarkerPos(g) {
   let markerY = MAP_POS[markerIdx][1];
 
   if (currentRoad && activeA != null && activeB != null && g.totalPx > 0) {
-    let p = Math.max(0, Math.min(1, 1 - (g.remainPx || 0) / g.totalPx));
-    if (g.massTarget && g.path && g.path.length >= 2 && g.seg === g.path.length - 2) {
-      const [ea, eb] = g.massTarget.edge;
-      const fromA = g.totalPx * g.massTarget.t;
-      const fromStart = (activeA === ea && activeB === eb) ? fromA : g.totalPx - fromA;
-      p = Math.min(p, Math.max(0, Math.min(1, fromStart / g.totalPx)));
-    }
+    // 已走比例：普通路段 = (总长-剩余)/总长；事件边最后一段的 remainPx 是"到事件点的剩余"，
+    // 由 walkedPxOnSegment 统一换算成从段起点量起的真实已走像素——定位点从段起点平滑走到事件点，不会跳变
+    const p = Math.max(0, Math.min(1, walkedPxOnSegment(g) / g.totalPx));
     [markerX, markerY] = lerpPoint(MAP_POS[activeA], MAP_POS[activeB], p);
   }
 
@@ -216,7 +212,7 @@ function buildMiniMap(g) {
     // 标签方位按 MAP_LABEL 配置：水平一侧或 右上(tr)/左下(bl)
     const pos = MAP_LABEL[i] || 'right';
     const dx = pos === 'right' || pos === 'tr' ? 10 : -10;
-    const dy = pos === 'bl' ? 14 : pos === 'tr' ? -5 : 3.5;
+    const dy = pos === 'bl' ? 14 : pos === 'tr' ? -10 : 3.5;
     const anchor = pos === 'right' || pos === 'tr' ? 'start' : 'end';
     return `
       <g class="gps-map-node${isCur ? ' current' : ''}${isDest ? ' dest' : ''}" data-region="${i}" style="cursor:pointer">
@@ -233,7 +229,7 @@ function buildMiniMap(g) {
         ${massMarkerSvg()}
         <g class="gps-map-marker" transform="translate(${markerX} ${markerY})${markerUsable ? ` rotate(${markerAngle}) scale(0.35) translate(-20 -15)` : ''}">
           ${markerUsable
-            ? `<path d="M19.9785 8.35385C21.8358 8.35385 23.6171 9.09168 24.9304 10.405C26.2437 11.7183 26.9815 13.4996 26.9815 15.3569C26.9815 17.2143 26.2437 18.9955 24.9304 20.3089C23.6171 21.6222 21.8358 22.36 19.9785 22.36C18.1211 22.36 16.3399 21.6222 15.0265 20.3089C13.7132 18.9955 12.9754 17.2143 12.9754 15.3569C12.9754 13.4996 13.7132 11.7183 15.0265 10.405C16.3399 9.09168 18.1211 8.35385 19.9785 8.35385ZM35.3415 15.36C35.3415 12.9683 34.7829 10.6096 33.7105 8.47173C32.638 6.33391 31.0812 4.47602 29.164 3.04599C27.2469 1.61597 25.0223 0.653312 22.6675 0.234685C20.3126 -0.183942 17.8926 -0.0469785 15.6 0.634669C13.3074 1.31632 11.2057 2.52382 9.46212 4.16102C7.71855 5.79823 6.38132 7.81991 5.5569 10.0651C4.73248 12.3103 4.44366 14.7169 4.71342 17.0934C4.98319 19.4699 5.8041 21.7506 7.11077 23.7539L18.6031 39.0769C18.7307 39.3329 18.9271 39.5483 19.1703 39.6988C19.4136 39.8494 19.694 39.9291 19.98 39.9291C20.2661 39.9291 20.5464 39.8494 20.7897 39.6988C21.0329 39.5483 21.2293 39.3329 21.3569 39.0769L32.8708 23.7539C34.4215 21.3354 35.3415 18.4615 35.3415 15.36Z" fill="#96D0B9"></path><path d="M20 23C24.4183 23 28 19.4183 28 15C28 10.5817 24.4183 7 20 7C15.5817 7 12 10.5817 12 15C12 19.4183 15.5817 23 20 23Z" fill="#376D56"></path>`
+            ? `<g class="gps-map-pin"><path d="M19.9785 8.35385C21.8358 8.35385 23.6171 9.09168 24.9304 10.405C26.2437 11.7183 26.9815 13.4996 26.9815 15.3569C26.9815 17.2143 26.2437 18.9955 24.9304 20.3089C23.6171 21.6222 21.8358 22.36 19.9785 22.36C18.1211 22.36 16.3399 21.6222 15.0265 20.3089C13.7132 18.9955 12.9754 17.2143 12.9754 15.3569C12.9754 13.4996 13.7132 11.7183 15.0265 10.405C16.3399 9.09168 18.1211 8.35385 19.9785 8.35385ZM35.3415 15.36C35.3415 12.9683 34.7829 10.6096 33.7105 8.47173C32.638 6.33391 31.0812 4.47602 29.164 3.04599C27.2469 1.61597 25.0223 0.653312 22.6675 0.234685C20.3126 -0.183942 17.8926 -0.0469785 15.6 0.634669C13.3074 1.31632 11.2057 2.52382 9.46212 4.16102C7.71855 5.79823 6.38132 7.81991 5.5569 10.0651C4.73248 12.3103 4.44366 14.7169 4.71342 17.0934C4.98319 19.4699 5.8041 21.7506 7.11077 23.7539L18.6031 39.0769C18.7307 39.3329 18.9271 39.5483 19.1703 39.6988C19.4136 39.8494 19.694 39.9291 19.98 39.9291C20.2661 39.9291 20.5464 39.8494 20.7897 39.6988C21.0329 39.5483 21.2293 39.3329 21.3569 39.0769L32.8708 23.7539C34.4215 21.3354 35.3415 18.4615 35.3415 15.36Z" fill="#96D0B9"></path><path d="M20 23C24.4183 23 28 19.4183 28 15C28 10.5817 24.4183 7 20 7C15.5817 7 12 10.5817 12 15C12 19.4183 15.5817 23 20 23Z" fill="#376D56"></path></g>`
             : `<circle cx="0" cy="0" r="3.2"></circle>`}
         </g>
       </svg>
@@ -426,6 +422,8 @@ function advanceSegment() {
 function planRoute(toIdx) {
   const g = gameData.gps;
   const fromIdx = g.curIdx;
+  // 改选地区目的地会取消大量出没事件点目标：先换算事件边的剩余语义，避免位置整体偏移
+  normalizeMassRemainToEnd(g);
   g.massTarget = null; // 改选地区目的地会取消大量出没事件点目标
   g.massArrived = false; // 离开大量出没事件点
   // 起点即终点（仅站在节点上时成立）：无路程可规划，直接视为未选择目的地
@@ -486,13 +484,16 @@ export function planMassRoute() {
     const isEventEdge = (a === ea && b === eb) || (a === eb && b === ea);
     if (isEventEdge) {
       const fromStart = (a === ea && b === eb) ? g.totalPx * mo.t : g.totalPx * (1 - mo.t);
-      const walkedPx = Math.max(0, Math.min(g.totalPx - (g.remainPx || 0), g.totalPx));
+      // 用统一换算取真实已走像素：massTarget 已设时 remainPx 是"到事件点的剩余"，未设时是"到段终点的剩余"
+      const walkedPx = walkedPxOnSegment(g);
       const distToEvent = Math.abs(walkedPx - fromStart);
       if (distToEvent < 1) {
-        // 已站在事件点上：直接结束导航，恢复"已到达事件点"状态
+        // 已站在事件点上：直接结束导航，恢复"已到达事件点"状态；
+        // remainPx 修正为"事件点到段终点的距离"，定位点精确停在事件坐标
         g.destIdx = null;
         g.massTarget = null;
         g.massArrived = true;
+        g.remainPx = g.totalPx - fromStart;
         render();
         saveGame();
         return;
@@ -601,6 +602,9 @@ export function setRoamEnabled(on) {
 export function cancelNavigation() {
   const g = gameData.gps;
   g.roamEnabled = false;
+  // 若正停在事件边最后一段上，先把 remainPx 从"到事件点的剩余"换算回"到段终点的剩余"，
+  // 否则下面清掉 massTarget 后，后续按普通路段语义读取位置会整体偏移（瞬移）
+  normalizeMassRemainToEnd(g);
   g.destIdx = null;
   g.massTarget = null;
   render();

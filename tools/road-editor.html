@@ -491,6 +491,72 @@
       margin-top: 8px;
     }
 
+    /* === 安装器侧栏图绘制 === */
+    .sidebar-editor {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .sb-tools {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .sb-tools .label {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .sb-tools .sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--screen-dark);
+      cursor: pointer;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .sb-color {
+      width: 30px;
+      height: 20px;
+      padding: 0;
+      border: 2px solid var(--screen-dark);
+      background: none;
+    }
+
+    .sb-check {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .sb-check input {
+      width: auto;
+    }
+
+    .sb-canvas {
+      background: #000;
+      image-rendering: pixelated;
+      border: 2px solid var(--screen-dark);
+      cursor: crosshair;
+      flex-shrink: 0;
+    }
+
     /* 滚动条 */
     ::-webkit-scrollbar {
       width: 6px;
@@ -536,6 +602,7 @@
     <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="roadBike" style="width:auto;"> 自行车道</label>
     <button class="btn btn-sm" id="saveBtn">保存</button>
     <button class="btn btn-sm" id="exportBtn">导出</button>
+    <button class="btn btn-sm" id="sidebarBtn">侧栏图</button>
   </div>
 
   <div class="main">
@@ -544,7 +611,7 @@
     <div class="editor-area">
       <div class="screen-panel">
         <div class="road-grid" id="roadGrid"></div>
-        <div class="road-controls">
+        <div class="road-controls" id="roadControls">
           <span class="label">填充:</span>
           <button class="btn btn-sm" id="fill1">行1</button>
           <button class="btn btn-sm" id="fill2">行2</button>
@@ -553,6 +620,40 @@
           <button class="btn btn-sm btn-sec" id="clearBtn">清空</button>
           <span class="road-status" id="roadStatus"
             style="font-size:10px;color:var(--text-muted);margin-left:8px;"></span>
+        </div>
+        <!-- 安装器侧栏图绘制（与道路编辑互斥，点击「侧栏图」切换） -->
+        <div class="sidebar-editor" id="sidebarEditor" style="display:none;">
+          <div class="sb-tools">
+            <span class="label">工具:</span>
+            <button class="btn btn-sm btn-active" id="sbPaint">画笔</button>
+            <button class="btn btn-sm btn-sec" id="sbEraser">橡皮</button>
+            <button class="btn btn-sm btn-sec" id="sbTile">贴瓦片</button>
+            <span class="label" style="margin-left:8px;">笔刷:</span>
+            <button class="btn btn-sm btn-active" id="sbS1">1</button>
+            <button class="btn btn-sm btn-sec" id="sbS2">2</button>
+            <button class="btn btn-sm btn-sec" id="sbS4">4</button>
+            <button class="btn btn-sm btn-sec" id="sbS8">8</button>
+          </div>
+          <div class="sb-tools">
+            <span class="label">颜色:</span>
+            <span class="swatch" style="background:#3a775e;" data-c="#3a775e"></span>
+            <span class="swatch" style="background:#73c5a4;" data-c="#73c5a4"></span>
+            <span class="swatch" style="background:#2e5e3e;" data-c="#2e5e3e"></span>
+            <span class="swatch" style="background:#8a6f3c;" data-c="#8a6f3c"></span>
+            <span class="swatch" style="background:#1f1f1f;" data-c="#1f1f1f"></span>
+            <span class="swatch" style="background:#ffffff;" data-c="#ffffff"></span>
+            <span class="swatch" style="background:#ee1c25;" data-c="#ee1c25"></span>
+            <span class="swatch" style="background:#f0c840;" data-c="#f0c840"></span>
+            <span class="swatch" style="background:#4a7db5;" data-c="#4a7db5"></span>
+            <span class="swatch" style="background:#b0569e;" data-c="#b0569e"></span>
+            <input type="color" id="sbColor" value="#3a775e" class="sb-color">
+            <label class="sb-check"><input type="checkbox" id="sbGrid" checked> 网格</label>
+            <div class="sep"></div>
+            <button class="btn btn-sm" id="sbGrass">填满草地</button>
+            <button class="btn btn-sm" id="sbExport">导出 BMP</button>
+            <button class="btn btn-sm btn-sec" id="sbDone">完成</button>
+          </div>
+          <canvas id="sidebarCanvas" class="sb-canvas"></canvas>
         </div>
       </div>
     </div>
@@ -661,7 +762,14 @@
       sel = { col: c, row: r };
       $('selectedTileDisplay').textContent = `[${c}, ${r}]`;
       drawPalette();
-      $('statusInfo').textContent = `已选 [${c},${r}]，拖拽放置到道路`;
+      if (isSidebarActive()) {
+        // 侧栏图模式下：选中的瓦片作为「贴瓦片」笔刷
+        sideBrush.tile = { col: c, row: r };
+        setSbMode('tile');
+        $('statusInfo').textContent = `已选瓦片 [${c},${r}]，点击画布贴图`;
+      } else {
+        $('statusInfo').textContent = `已选 [${c},${r}]，拖拽放置到道路`;
+      }
     }
 
     // ==================== 道路编辑 ====================
@@ -971,6 +1079,180 @@
       $('exportText').value = JSON.stringify({ name, type, editor, game }, null, 2);
     }
     function closeExport() { $('exportOverlay').classList.remove('show'); }
+
+    // ==================== 安装器侧栏图绘制 ====================
+    // 在主编辑区手绘 164×314 像素（2 倍放大显示），瓦片面板选瓦片贴图，导出 24-bit BMP
+    const SIDEW = 164, SIDEH = 314, SIDE_TILE = 16;
+    let sideOff = null, sideCtx = null;
+    let sideBrush = { mode: 'paint', size: 2, color: '#3a775e', tile: { col: 1, row: 0 } };
+    let sbPainting = false;
+
+    function isSidebarActive() { return $('sidebarEditor').style.display !== 'none'; }
+
+    function enterSidebar() {
+      // 首次进入时创建画布并铺满草地
+      if (!sideOff) {
+        sideOff = document.createElement('canvas');
+        sideOff.width = SIDEW;
+        sideOff.height = SIDEH;
+        sideCtx = sideOff.getContext('2d');
+        fillGrass();
+      }
+      $('roadGrid').style.display = 'none';
+      $('roadControls').style.display = 'none';
+      $('sidebarEditor').style.display = 'flex';
+      $('sidebarBtn').classList.add('btn-active');
+      setSbMode('paint');
+      setSbSize(2);
+      drawSidebarView();
+      $('statusInfo').textContent = '侧栏图模式：点击底部瓦片面板选瓦片贴图，画笔可自由绘制';
+    }
+
+    function exitSidebar() {
+      $('sidebarEditor').style.display = 'none';
+      $('roadGrid').style.display = '';
+      $('roadControls').style.display = '';
+      $('sidebarBtn').classList.remove('btn-active');
+      $('statusInfo').textContent = '点击瓦片选中，拖拽放置到道路';
+    }
+
+    // 用 tileset 的 0行1列 草地铺满（与现有 installer-sidebar.bmp 一致）
+    function fillGrass() {
+      if (!palImg || !sideCtx) return;
+      for (let y = 0; y < SIDEH; y += SIDE_TILE)
+        for (let x = 0; x < SIDEW; x += SIDE_TILE)
+          sideCtx.drawImage(palImg, SIDE_TILE, 0, SIDE_TILE, SIDE_TILE, x, y, SIDE_TILE, SIDE_TILE);
+      drawSidebarView();
+    }
+
+    function drawSidebarView() {
+      if (!sideOff) return;
+      const v = $('sidebarCanvas');
+      const vc = v.getContext('2d');
+      v.width = SIDEW * 2;
+      v.height = SIDEH * 2;
+      vc.imageSmoothingEnabled = false;
+      vc.drawImage(sideOff, 0, 0, v.width, v.height);
+      if ($('sbGrid').checked) {
+        vc.strokeStyle = 'rgba(255,255,255,0.25)';
+        vc.lineWidth = 1;
+        for (let x = 0; x <= SIDEW; x += SIDE_TILE) { vc.beginPath(); vc.moveTo(x * 2 + .5, 0); vc.lineTo(x * 2 + .5, v.height); vc.stroke(); }
+        for (let y = 0; y <= SIDEH; y += SIDE_TILE) { vc.beginPath(); vc.moveTo(0, y * 2 + .5); vc.lineTo(v.width, y * 2 + .5); vc.stroke(); }
+      }
+    }
+
+    function sidePaint(px, py) {
+      const b = sideBrush;
+      const tx = Math.floor(px / SIDE_TILE) * SIDE_TILE;
+      const ty = Math.floor(py / SIDE_TILE) * SIDE_TILE;
+      if (b.mode === 'tile') {
+        if (palImg) sideCtx.drawImage(palImg, b.tile.col * SIDE_TILE, b.tile.row * SIDE_TILE, SIDE_TILE, SIDE_TILE, tx, ty, SIDE_TILE, SIDE_TILE);
+      } else if (b.mode === 'eraser') {
+        if (palImg) sideCtx.drawImage(palImg, SIDE_TILE, 0, SIDE_TILE, SIDE_TILE, tx, ty, SIDE_TILE, SIDE_TILE);
+      } else {
+        sideCtx.fillStyle = b.color;
+        const s = b.size, d = Math.floor(s / 2);
+        sideCtx.fillRect(px - d, py - d, s, s);
+      }
+      drawSidebarView();
+    }
+
+    function sidePaintAt(e) {
+      const r = $('sidebarCanvas').getBoundingClientRect();
+      const px = Math.floor((e.clientX - r.left) / 2);
+      const py = Math.floor((e.clientY - r.top) / 2);
+      if (px < 0 || py < 0 || px >= SIDEW || py >= SIDEH) return;
+      sidePaint(px, py);
+    }
+
+    function setSbMode(m) {
+      sideBrush.mode = m;
+      const map = { paint: 'sbPaint', eraser: 'sbEraser', tile: 'sbTile' };
+      ['sbPaint', 'sbEraser', 'sbTile'].forEach(id => {
+        $(id).classList.toggle('btn-active', id === map[m]);
+        $(id).classList.toggle('btn-sec', id !== map[m]);
+      });
+    }
+
+    function setSbSize(s) {
+      sideBrush.size = s;
+      [['sbS1', 1], ['sbS2', 2], ['sbS4', 4], ['sbS8', 8]].forEach(([id, v]) => {
+        $(id).classList.toggle('btn-active', v === s);
+        $(id).classList.toggle('btn-sec', v !== s);
+      });
+    }
+
+    // 164×314 → 24-bit BMP（无压缩，BMP 文件头 + 自底向上像素，行宽 492 恰好 4 字节对齐）
+    function canvasToBmp(canvas) {
+      const w = canvas.width, h = canvas.height;
+      const img = canvas.getContext('2d').getImageData(0, 0, w, h);
+      const rowSize = Math.ceil(w * 3 / 4) * 4;
+      const fileSize = 54 + rowSize * h;
+      const buf = new ArrayBuffer(fileSize);
+      const dv = new DataView(buf);
+      dv.setUint8(0, 0x42); dv.setUint8(1, 0x4d);          // 'BM'
+      dv.setUint32(2, fileSize, true);
+      dv.setUint32(10, 54, true);                          // 像素数据偏移
+      dv.setUint32(14, 40, true);                          // BITMAPINFOHEADER 大小
+      dv.setInt32(18, w, true);
+      dv.setInt32(22, h, true);
+      dv.setUint16(26, 1, true);
+      dv.setUint16(28, 24, true);                          // 24-bit
+      dv.setUint32(30, 0, true);
+      dv.setUint32(34, rowSize * h, true);
+      dv.setInt32(38, 2835, true);
+      dv.setInt32(42, 2835, true);
+      for (let y = 0; y < h; y++) {                        // BMP 自底向上存储
+        const src = (h - 1 - y) * w;
+        const off = 54 + y * rowSize;
+        for (let x = 0; x < w; x++) {
+          const i = (src + x) * 4;
+          dv.setUint8(off + x * 3, img.data[i + 2]);       // B
+          dv.setUint8(off + x * 3 + 1, img.data[i + 1]);   // G
+          dv.setUint8(off + x * 3 + 2, img.data[i]);       // R
+        }
+      }
+      return new Blob([buf], { type: 'image/bmp' });
+    }
+
+    function exportSidebarBmp() {
+      if (!sideOff) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(canvasToBmp(sideOff));
+      a.download = 'installer-sidebar.bmp';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+
+    function initSidebar() {
+      $('sidebarBtn').addEventListener('click', () => isSidebarActive() ? exitSidebar() : enterSidebar());
+      $('sbDone').addEventListener('click', exitSidebar);
+      $('sbPaint').addEventListener('click', () => setSbMode('paint'));
+      $('sbEraser').addEventListener('click', () => setSbMode('eraser'));
+      $('sbTile').addEventListener('click', () => setSbMode('tile'));
+      $('sbS1').addEventListener('click', () => setSbSize(1));
+      $('sbS2').addEventListener('click', () => setSbSize(2));
+      $('sbS4').addEventListener('click', () => setSbSize(4));
+      $('sbS8').addEventListener('click', () => setSbSize(8));
+      $('sbGrass').addEventListener('click', fillGrass);
+      $('sbExport').addEventListener('click', exportSidebarBmp);
+      $('sbColor').addEventListener('input', e => { sideBrush.color = e.target.value; });
+      document.querySelectorAll('.swatch').forEach(el => el.addEventListener('click', () => {
+        const c = el.dataset.c;
+        sideBrush.color = c;
+        $('sbColor').value = c;
+      }));
+      $('sbGrid').addEventListener('change', drawSidebarView);
+
+      // 画布绘制（坐标按 2 倍显示换算回 164×314）
+      const c = $('sidebarCanvas');
+      c.addEventListener('pointerdown', e => { sbPainting = true; sidePaintAt(e); c.setPointerCapture(e.pointerId); });
+      c.addEventListener('pointermove', e => { if (sbPainting) sidePaintAt(e); });
+      c.addEventListener('pointerup', () => { sbPainting = false; });
+    }
+
     function copyExport() {
       $('exportText').select();
       navigator.clipboard.writeText($('exportText').value).then(() => {
@@ -1087,6 +1369,7 @@
       initPalette();
       initPreview();
       bind();
+      initSidebar();
       rebuild();
     }
     init();

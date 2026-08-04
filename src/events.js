@@ -11,7 +11,7 @@ import {
 } from './config.js';
 import {
   gameData, allPokemon, getPokemonByIndex, getMassOutbreak, honeyBuffActive, phase,
-  randInt, rand, saveGame, addSystemLog, inMassZone,
+  randInt, rand, saveGame, addSystemLog, inMassZone, normalizeMassRemainToEnd,
 } from './state.js';
 import { $, tryLoadPokemonIcon } from './ui.js';
 import { MAP_EDGES, showGpsView } from './gps.js';
@@ -66,7 +66,8 @@ export function endMassOutbreak() {
   const mo = gameData.massOutbreak;
   addSystemLog('mass_outbreak_end', { pokemon: mo.pokemon });
   gameData.massOutbreak = null;
-  if (gameData.gps) { gameData.gps.massTarget = null; gameData.gps.massArrived = false; } // 事件结束，取消残留的事件点导航目标与到达标记
+  // 事件结束：先换算事件边上的剩余语义再取消目标，避免残留的"到事件点剩余"被当普通路段读导致瞬移
+  if (gameData.gps) { normalizeMassRemainToEnd(gameData.gps); gameData.gps.massTarget = null; gameData.gps.massArrived = false; } // 事件结束，取消残留的事件点导航目标与到达标记
   saveGame();
   notifyMassEnd(mo);
   // 事件结束：恢复正常遇敌调度（在战斗中到期时由 goIdle 的 scheduleNextEncounter 兜底）
@@ -111,7 +112,7 @@ export function forceRefreshMassOutbreak() {
   if (gameData.massOutbreak) {
     addSystemLog('mass_outbreak_end', { pokemon: gameData.massOutbreak.pokemon, forced: true });
     gameData.massOutbreak = null;
-    if (gameData.gps) { gameData.gps.massTarget = null; gameData.gps.massArrived = false; }
+    if (gameData.gps) { normalizeMassRemainToEnd(gameData.gps); gameData.gps.massTarget = null; gameData.gps.massArrived = false; }
   }
   spawnMassOutbreak();
   if (!gameData.massOutbreak) gameData.massNextGenAt = Date.now() + 1000; // 生成失败（该地区无精灵）则 1 秒后重试

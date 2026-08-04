@@ -2,18 +2,25 @@
 import './style.css';
 
 /* ============================================================
-   下载链接
+   下载选项：加Q群下载（复制群号）/ 百度网盘
    ============================================================ */
-const INSTALLER = '口袋挂机_1.0.1_x64-setup.exe';
-// 网页直连：安装包位于 web/public/download/ 下
-const DOWNLOAD_DIRECT = `./download/${INSTALLER}`;
+// QQ 群下载：点击复制群号，加群后从群文件下载安装包
+const QQ_GROUP = '1011321822';
+const dQQ = document.getElementById('downloadQQ');
+if (dQQ) {
+  dQQ.addEventListener('click', e => {
+    e.preventDefault();
+    copyText(QQ_GROUP).then(() => {
+      const sub = dQQ.querySelector('.dl-s');
+      if (!sub) return;
+      const old = sub.textContent;
+      sub.textContent = `群号 ${QQ_GROUP} 已复制，去 QQ 加群下载`;
+      setTimeout(() => { sub.textContent = old; }, 1600);
+    });
+  });
+}
 // 百度网盘分享，更换链接时只需改这里
 const DOWNLOAD_PAN = 'https://pan.baidu.com/s/15mUM01Ac3fPEUffOHbw2pw?pwd=2qvj';
-const dDirect = document.getElementById('downloadDirect');
-if (dDirect) {
-  dDirect.href = DOWNLOAD_DIRECT;
-  dDirect.setAttribute('download', INSTALLER);
-}
 const dPan = document.getElementById('downloadPan');
 if (dPan) {
   dPan.href = DOWNLOAD_PAN;
@@ -23,7 +30,24 @@ if (dPan) {
 // 提取码直接取网盘链接末尾 4 位（pwd 参数），更换链接时无需再同步文案
 const panCodeEl = document.getElementById('downloadPanCode');
 if (panCodeEl) panCodeEl.textContent = `提取码 ${DOWNLOAD_PAN.slice(-4)} · 备选线路`;
-// 下载按钮：点击展开「网页直连 / 百度网盘」两个选项，点外部收起
+// 复制到剪贴板：https 环境用新版 API，否则退回 execCommand（兼容 http 部署）
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); resolve(); }
+    catch (err) { reject(err); }
+    ta.remove();
+  });
+}
+// 下载按钮：点击展开「加Q群下载 / 百度网盘」两个选项，点外部收起
 const dlWrap = document.getElementById('downloadWrap');
 const dlMain = document.getElementById('downloadMain');
 if (dlWrap && dlMain) {

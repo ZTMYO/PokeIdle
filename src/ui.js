@@ -171,7 +171,8 @@ export function isOnGameView() {
 }
 
 // ---------- 角色系统 ----------
-function isBuffActive() {
+// 增益（甜甜蜜/闪耀护符）生效时主角改为跑步
+export function isBuffActive() {
   return !!(window.__honeyBuffActive__ || window.__charmBuffActive__);
 }
 
@@ -429,7 +430,10 @@ export function updateStats() {
         if (autoBar.parentElement) autoBar.parentElement.style.display = 'none';
       }
     } else {
-      autoEl.style.display = 'none';
+      autoText.textContent = '手动模式';
+      autoEl.style.display = '';
+      autoBar.style.display = 'none';
+      if (autoBar.parentElement) autoBar.parentElement.style.display = 'none';
     }
   }
 }

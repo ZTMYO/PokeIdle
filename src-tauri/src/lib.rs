@@ -9,9 +9,14 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 // ===== 托盘走路动画 =====
-// 前端一次性传入动画帧（RGBA 字节），后台线程按帧率循环切换托盘图标
+// 前端一次性传入动画帧（RGBA 字节）与每帧间隔 delay（毫秒），后台线程按帧率循环切换托盘图标
 #[derive(Default)]
 struct TrayFrames(Mutex<Vec<Image<'static>>>);
+
+// 当前动画每帧间隔（毫秒）：随 set_tray_frames 一起更新，让走路/跑步/骑车/钓鱼等
+// 不同动画各自按游戏实际节奏切换（如钓鱼 800ms/帧，走路 150ms/帧）
+#[derive(Default)]
+struct TrayDelay(Mutex<u64>);
 
 #[derive(serde::Deserialize)]
 struct TrayFrameData {
@@ -33,7 +38,12 @@ fn set_tray_status(app: tauri::AppHandle, state: tauri::State<'_, TrayStatus>, t
 }
 
 #[tauri::command]
-fn set_tray_frames(state: tauri::State<'_, TrayFrames>, frames: Vec<TrayFrameData>) {
+fn set_tray_frames(
+    state: tauri::State<'_, TrayFrames>,
+    delay_state: tauri::State<'_, TrayDelay>,
+    frames: Vec<TrayFrameData>,
+    delay: Option<u64>,
+) {
     let mut list = state.0.lock().unwrap();
     list.clear();
     for f in frames {
@@ -42,6 +52,9 @@ fn set_tray_frames(state: tauri::State<'_, TrayFrames>, frames: Vec<TrayFrameDat
         }
         list.push(Image::new_owned(f.rgba, f.width, f.height));
     }
+    // 每帧间隔随本次动画一起更新；默认 150ms，最低 30ms 防止误传 0 造成忙转
+    let mut d = delay_state.0.lock().unwrap();
+    *d = delay.unwrap_or(150).max(30);
 }
 
 // 切换主窗口的显示状态（托盘点击 / Ctrl+Alt+1 全局快捷键共用）：
@@ -171,15 +184,18 @@ pub fn run() {
                     .build(&handle)?;
             }
 
-            // 托盘走路动画：后台线程每 150ms 切一帧，帧数据由前端通过 set_tray_frames 传入
+            // 托盘动画：后台线程按当前动画的每帧间隔切帧，帧数据与间隔由前端通过 set_tray_frames 传入
             app.manage(TrayFrames::default());
             app.manage(TrayStatus::default());
+            app.manage(TrayDelay::default());
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
                     let mut idx = 0usize;
                     loop {
-                        std::thread::sleep(std::time::Duration::from_millis(150));
+                        // 每次循环读取最新帧间隔（切换动画时即时生效）
+                        let delay_ms = *handle.state::<TrayDelay>().0.lock().unwrap();
+                        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
                         let tray_frames = handle.state::<TrayFrames>();
                         let frames = tray_frames.0.lock().unwrap();
                         if frames.is_empty() {

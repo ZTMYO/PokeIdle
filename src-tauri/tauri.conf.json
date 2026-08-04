@@ -44,7 +44,10 @@
         "installMode": "currentUser",
         "compression": "lzma",
         "languages": ["SimpChinese"],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "sidebarImage": "nsis/installer-sidebar.bmp",
+        "headerImage": "nsis/installer-header.bmp"
       }
     }
   }
