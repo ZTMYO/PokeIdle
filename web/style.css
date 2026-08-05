@@ -946,3 +946,161 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   .topbar-inner { justify-content: center; }
   .logo span { display: none; }
 }
+
+/* ============================================================
+   游戏教程子页面（内容解析自游戏源码 src/views.js）
+   ============================================================ */
+.topbar-tut {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  margin-bottom: 10px;
+  background: var(--ui-color);
+  border: 3px solid var(--ui-color-darker);
+  border-radius: 8px;
+  color: #eafff4;
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background .12s, transform .06s;
+}
+.topbar-tut:hover { background: var(--ui-color-dark); }
+.topbar-tut:active { transform: translateY(2px); }
+
+.tutorial-page {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: var(--console-body);
+}
+.tutorial-page[hidden] { display: none; }
+
+.tut-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  background: var(--ui-color-darker);
+  border-bottom: 3px solid #12301f;
+}
+.tut-head-title {
+  color: #eafff4;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 3px;
+}
+.tut-close {
+  width: 30px;
+  height: 30px;
+  border: 2px solid rgba(255, 255, 255, .4);
+  border-radius: 6px;
+  background: transparent;
+  color: #eafff4;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .12s;
+}
+.tut-close:hover { background: rgba(255, 255, 255, .15); }
+
+.tut-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.tut-list {
+  flex-shrink: 0;
+  width: 150px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 8px;
+  border-right: 2px solid var(--console-border);
+  user-select: none;
+}
+.tut-list::-webkit-scrollbar,
+.tut-content::-webkit-scrollbar { width: 6px; }
+.tut-list::-webkit-scrollbar-thumb,
+.tut-content::-webkit-scrollbar-thumb { background: rgba(55, 109, 86, .3); border-radius: 3px; }
+
+.tut-nav-item {
+  padding: 7px 10px;
+  margin-bottom: 3px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--ui-color);
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background .12s, color .12s;
+}
+.tut-nav-item:hover { background: rgba(55, 109, 86, .08); }
+.tut-nav-item.active {
+  background: var(--ui-color);
+  color: #fff;
+  font-weight: 700;
+}
+
+.tut-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px 20px 34px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--ui-color-dark);
+}
+.tut-content p { margin-bottom: 8px; }
+.tut-content b { color: var(--ui-color-darker); }
+.tut-content .tut-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ui-color-darker);
+  border-bottom: 2px solid rgba(55, 109, 86, .25);
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
+/* 教程数据表（复刻游戏内 .tutorial-table） */
+.tut-content .tutorial-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0 10px;
+  font-size: 13px;
+  table-layout: fixed;
+}
+.tut-content .tutorial-table th,
+.tut-content .tutorial-table td {
+  border: 1px solid rgba(55, 109, 86, .3);
+  padding: 5px 8px;
+  text-align: center;
+  line-height: 1.5;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+.tut-content .tutorial-table th {
+  background: rgba(55, 109, 86, .12);
+  font-weight: 700;
+}
+
+/* 窄屏：导航改为顶部横向排列 */
+@media (max-width: 640px) {
+  .tut-body { flex-direction: column; }
+  .tut-list {
+    width: 100%;
+    max-height: 140px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-right: none;
+    border-bottom: 2px solid var(--console-border);
+    padding: 8px;
+  }
+  .tut-nav-item { margin-bottom: 0; }
+}

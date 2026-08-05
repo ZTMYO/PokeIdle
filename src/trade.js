@@ -5,7 +5,7 @@
 import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_NATURE_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, setPrevView, saveGame, addSystemLog, randInt, rollIvs, rollNature, addRosterEntry, setLastObtainedEntryId } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
-import { showGoodbyeConfirm, showTradeReceive } from './animation.js';
+import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { computeObtainScore } from './scoring.js';
 import { TYPE_COLORS } from './items.js';
 import { playCongratulation } from './audio.js';
@@ -114,21 +114,31 @@ function makeOffer(npc) {
   };
 }
 
+// 生成并写入新一波交换 offers（重置刷新时间；通知手机主页红点按新一波刷新）
+function regenerateOffers() {
+  const pool = [...NPCS];
+  const offers = [];
+  for (let i = 0, n = Math.min(TRADE_COUNT, pool.length); i < n; i++) {
+    offers.push(makeOffer(pool.splice(randInt(0, pool.length - 1), 1)[0]));
+  }
+  gameData.trades = { refreshedAt: Date.now(), offers };
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trade-wave-changed'));
+}
+
 // 到点或数据缺失时刷新一波
 export function ensureTrades() {
   if (!gameData) return;
   const t = gameData.trades;
   if (!t || !Array.isArray(t.offers) || !t.refreshedAt || Date.now() - t.refreshedAt >= TRADE_REFRESH_MS) {
-    const pool = [...NPCS];
-    const offers = [];
-    for (let i = 0, n = Math.min(TRADE_COUNT, pool.length); i < n; i++) {
-      offers.push(makeOffer(pool.splice(randInt(0, pool.length - 1), 1)[0]));
-    }
-    gameData.trades = { refreshedAt: Date.now(), offers };
-    // 通知手机主页红点按新一波刷新（新一波无可交换时熄灭）
-    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trade-wave-changed'));
+    regenerateOffers();
   }
   return gameData.trades;
+}
+
+// 强制刷新一波交换（无视是否到期，重置刷新时间）
+export function refreshTrades() {
+  if (!gameData) return;
+  regenerateOffers();
 }
 
 // ---------- 匹配 ----------
@@ -196,6 +206,7 @@ export function isTradeInDetail() {
   return _tradeMode != null || _tradeDetail != null;
 }
 export function restoreTradeList() {
+  stopShinySparkleLoop(); // 离开详情/选择子页面：停止闪光粒子循环
   _tradeMode = null;
   _tradeDetail = null;
   resumeTradeRefresh(); // 离开选择子页面：恢复刷新倒计时
@@ -205,7 +216,8 @@ export function restoreTradeList() {
   if (tv) tv.scrollTop = _tradeListScroll;
 }
 
-function renderTrade() {
+// 渲染交换页（列表或当前子页面）；供 showTradeView / 定时刷新 / 聚合刷新调用
+export function renderTrade() {
   const content = $('tradeContent');
   if (!content) return;
   ensureTrades();
@@ -334,7 +346,10 @@ function renderGiveDetail(content, offerId) {
       </div>
     </div>`;
   const img = $('tradeGiveDetailImg');
-  if (img) tryLoadPokemonImage(img, givePoke, o.give.shiny ? '_shiny' : '');
+  if (img) tryLoadPokemonImage(img, givePoke, o.give.shiny ? '_shiny' : '').then(() => {
+    // 闪光个体：图片周围循环播放星星粒子（与个体详情页同款）
+    if (o.give.shiny) startShinySparkleOn($('tradeView'), img, { cls: 'sm', scale: 0.6 });
+  });
 }
 
 // 选择交出哪只个体（复用悬赏提交列表样式）
@@ -356,7 +371,7 @@ function renderSelect(content, offerId) {
           <span class="roster-icon"><img class="roster-icon-img" data-trade-icon="${p.id}" alt="" /></span>
           <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
           <span class="roster-ivs">${ivsText}</span>
-          <span class="roster-nature">${(getNature(p.nature) || { cn: '—' }).cn}</span>
+          <span class="roster-nature">Lv${p.level || 1}</span>
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">交换</button></span>
         </div>`;
       }).join('');
@@ -371,7 +386,7 @@ function renderSelect(content, offerId) {
         <span class="roster-icon"></span>
         <span class="pokedex-star"></span>
         <span class="roster-ivs">个体值</span>
-        <span class="roster-nature">性格</span>
+        <span class="roster-nature">等级</span>
         <span class="bounty-trade-btn-col">交换</span>
       </div>
       ${rows}

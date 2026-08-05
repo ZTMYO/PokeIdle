@@ -21,6 +21,7 @@
       <!-- 像素主角：顶栏中间轨道来回行走（不覆盖左右 UI） -->
       <div class="pv-track"><div class="pv-walk" id="pvBrendan"></div></div>
       <nav>
+        <button class="topbar-tut" id="openTutorialBtn" type="button">游戏教程</button>
         <a class="topbar-gh" href="https://github.com/ZTMYO/PokeIdle" target="_blank" rel="noopener" title="GitHub" aria-label="GitHub"><svg class="gh-icon"><use href="./sprites.svg#icon-github" /></svg></a>
       </nav>
     </div>
@@ -204,6 +205,18 @@
     <p>源代码以 <b>MIT License</b> 开源（衍生代码不可商用售卖）；原创美术与文案遵循 <b>CC BY-NC-ND 4.0</b>。</p>
     <div class="footer-copyright">© 2026 口袋挂机 Made with <span class="heart"><svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="6361" width="14" height="14"><path d="M95.2 600.8l361.4 337.4c15 14 34.8 21.8 55.4 21.8s40.4-7.8 55.4-21.8l361.4-337.4c60.8-56.6 95.2-136 95.2-219v-11.6c0-139.8-101-259-238.8-282-91.2-15.2-184 14.6-249.2 79.8l-24 24-24-24c-65.2-65.2-158-95-249.2-79.8C101 111.2 0 230.4 0 370.2v11.6c0 83 34.4 162.4 95.2 219z" p-id="6362" fill="#f2687b"></path></svg></span> by <a href="https://github.com/ZTMYO/PokeIdle" target="_blank" rel="noopener">@ZTMYO</a></div>
   </footer>
+
+  <!-- ============ 游戏教程子页面（内容解析自游戏源码 src/views.js） ============ -->
+  <div class="tutorial-page" id="tutorialPage" hidden>
+    <div class="tut-head">
+      <div class="tut-head-title">游戏教程</div>
+      <button class="tut-close" id="tutClose" type="button" aria-label="关闭教程">✕</button>
+    </div>
+    <div class="tut-body">
+      <div class="tut-list" id="tutList"></div>
+      <div class="tut-content" id="tutContent"></div>
+    </div>
+  </div>
 
   <script type="module" src="/main.js"></script>
 </body>

@@ -47,14 +47,16 @@ import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor } from './roster.js';
-import { isTradeInDetail, restoreTradeList } from './trade.js';
+import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateDataBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
-import { retreatBattle, isBattleActive } from './battle-view.js';
+import { retreatBattle, isBattleActive, renderBattleList, restoreBattleTier, clearBattleTier } from './battle-view.js';
+import { backFromBattlePick } from './team.js';
+import { refreshNpcs } from './npcs.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -146,6 +148,11 @@ function goBack() {
     retreatBattle();
     return;
   }
+  // 宝可梦倒下换人选择页：标题栏返回 = 没选任何宝可梦，不用回对战了，直接撤退回对战列表
+  if (backFromBattlePick()) {
+    retreatBattle();
+    return;
+  }
   // 仓库选取模式（配队/训练点击空位进入）：返回恢复来源页
   if (isRosterPicking()) { leaveRosterPicker(); return; }
   // 手动配招独立页：返回回个体详情
@@ -165,6 +172,10 @@ function goBack() {
   const target = _prevView;
   showView(target);
   setPrevView('idleView');
+  // 从设置返回战斗页：恢复 NPC 难度边框色（进入设置时已被清除）
+  if (target === 'battleView' && isBattleActive()) restoreBattleTier();
+  // 其它情况（含挑战结算页返回）：清除屏幕难度背景色，避免其它页面沿用战斗配色
+  else clearBattleTier();
   // 返回手机主页时兜底同步红点（showView 不重建页面，避免漏刷新）
   if (target === 'phoneView') { updateTradeBadge(); updateBerryBadge(); updateDataBadge(); updatePhoneBadge(); }
 }
@@ -510,6 +521,15 @@ async function init() {
   window.__addPokeLv = (idx, lv) => addDebugPoke(idx, false, lv);
   window.__addShinyPokeLv = (idx, lv) => addDebugPoke(idx, true, lv);
 
+  // 调试辅助：同时刷新对战与交换（重置各自倒计时并立即换新一波；页面正打开则同步重绘）
+  window.__refreshBattleAndTrade = () => {
+    refreshNpcs();
+    refreshTrades();
+    if ($('battleView')?.style.display !== 'none' && !isBattleActive()) renderBattleList();
+    if ($('tradeView')?.style.display !== 'none') renderTrade();
+    console.log('对战与交换已刷新');
+  };
+
   // 固定窗口
   if (gameData.settings?.windowPinned) {
     try {
@@ -795,6 +815,12 @@ async function init() {
   // header 图标：当前页面体系内（图标高亮）再次点击 → 直接返回首页挂机页；否则打开对应页面
   const bindHeaderIcon = (btn, open) => {
     btn?.addEventListener('click', () => {
+      // 战斗中锁定：仅允许进入设置（返回仍回战斗页），其余页面一律拦截；
+      // 中途退出战斗只能通过战斗页的标题栏返回按钮撤退
+      if (isBattleActive()) {
+        if (btn.dataset.view === 'settingsView') open();
+        return;
+      }
       if (btn.classList.contains('active')) {
         setPrevView('idleView');
         showView('idleView');
@@ -812,6 +838,7 @@ async function init() {
   // 统一逻辑：在挂机页面时点击跳转对应页面；不在挂机页面时点击直接返回挂机页面（即"再次点击返回"）。
   // 跳转时同步 prevView，保证标题栏返回按钮也回到挂机/战斗页。
   const footerNav = (open) => () => {
+    if (isBattleActive()) return; // 战斗中锁定：底部三区同样禁止点击跳转
     if (isOnGameView()) {
       open();
       setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');

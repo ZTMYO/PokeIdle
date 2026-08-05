@@ -96,6 +96,7 @@ export function processTrainingXp(now = Date.now()) {
     if (slot.satiety == null) slot.satiety = TRAIN_SATIETY_MAX;
     slot.satiety = Math.max(0, slot.satiety - effMin * TRAIN_SATIETY_DRAIN_PER_MIN);
     if (slot.satiety < TRAIN_SATIETY_EAT_AT && eatFavorite(slot, entry)) fed = true;
+    entry.satiety = slot.satiety; // 同步到个体记录：取出再放回时沿用当前饱食度
     // 随机偷懒：只影响之后，不扣已结算经验；饱食度越低越容易偷懒（满饱食 1 倍，归零 TRAIN_HUNGRY_LAZY_MULT 倍）
     const hungerMult = 1 + (1 - slot.satiety / TRAIN_SATIETY_MAX) * (TRAIN_HUNGRY_LAZY_MULT - 1);
     if (TRAIN_LAZY.enabled && Math.random() < Math.min(0.8, TRAIN_LAZY.chancePerMin * hungerMult * effMin)) {
@@ -120,6 +121,13 @@ function eatFavorite(slot, entry) {
   return true;
 }
 
+// 把槽位当前的饱食度记回个体记录（取出训练时调用），夹取到合法区间
+function saveSatietyToEntry(slot) {
+  if (!slot || slot.satiety == null) return;
+  const entry = (gameData.roster || []).find(x => x.id === slot.id);
+  if (entry) entry.satiety = Math.max(0, Math.min(TRAIN_SATIETY_MAX, slot.satiety));
+}
+
 export function showTrainView() {
   setPrevView('phoneView');
   processTrainingXp();
@@ -128,12 +136,13 @@ export function showTrainView() {
   startTimer();
 }
 
-// 训练/队伍互斥：入队后把该个体从所有训练槽移除
+// 训练/队伍互斥：入队后把该个体从所有训练槽移除（取出前把饱食度记回个体，放回时沿用）
 export function removeTrainingByPokemon(id) {
   const t = ensureTraining();
   let changed = false;
   for (let i = 0; i < t.slots.length; i++) {
     if (t.slots[i] && t.slots[i].id === id) {
+      saveSatietyToEntry(t.slots[i]);
       t.slots[i] = null;
       changed = true;
     }
@@ -146,7 +155,12 @@ export function removeTrainingByPokemon(id) {
 export function addToTraining(id, slot) {
   const t = ensureTraining();
   if (t.slots[slot]) return; // 目标槽已被占用则不处理
-  t.slots[slot] = { id, startAt: Date.now(), satiety: TRAIN_SATIETY_MAX };
+  const entry = (gameData.roster || []).find(x => x.id === id);
+  // 饱食度沿用个体记录值（取出再放回不重置）；新个体/无记录默认满饱食
+  const satiety = entry && entry.satiety != null
+    ? Math.max(0, Math.min(TRAIN_SATIETY_MAX, entry.satiety))
+    : TRAIN_SATIETY_MAX;
+  t.slots[slot] = { id, startAt: Date.now(), satiety };
   // 训练中的宝可梦不能留在配队队伍里
   if (Array.isArray(gameData.team)) {
     gameData.team = gameData.team.filter(x => x !== id);
@@ -253,7 +267,8 @@ function syncWalkers() {
     el.className = 'train-walker';
     el.style.left = (start.c * TILE) + 'px';
     el.style.top = (start.r * TILE) + 'px';
-    el.innerHTML = '<div class="train-walker-flip"><img class="train-walker-img" alt=""></div>';
+    el.innerHTML = '<div class="train-walker-flip"><img class="train-walker-img" alt=""></div>'
+      + '<span class="train-walker-zzz"><i>z</i><i>z</i><i>z</i></span>';
     layer.appendChild(el);
     const img = el.querySelector('img');
     if (poke.icon) tryLoadImage(img, poke.icon);
@@ -329,7 +344,10 @@ function wakeUp(slot, img) {
   if (!slot || !slot.lazyUntil || Date.now() >= slot.lazyUntil) return;
   slot.lazyUntil = 0;
   saveGame();
-  if (img) img.classList.remove('lazy');
+  if (img) {
+    img.classList.remove('lazy');
+    img.closest('.train-walker')?.classList.remove('lazy'); // 同步移除，睡觉粒子立即消失
+  }
   refreshSlots(); // 同步告示牌上的状态标签
 }
 
@@ -565,6 +583,7 @@ function bindSlots(host) {
 function stopTraining(idx) {
   const t = ensureTraining();
   if (!t.slots[idx]) return;
+  saveSatietyToEntry(t.slots[idx]); // 取出时把当前饱食度记回个体，放回时沿用
   t.slots[idx] = null;
   saveGame();
   render();

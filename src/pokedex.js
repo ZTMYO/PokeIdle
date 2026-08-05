@@ -3,6 +3,7 @@ import { ITEM_NAMES } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, _pokedexInLogView, _pokedexSortBy, _pokedexSortDir, pad, randInt, setPrevView, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
 import { $, showView, tryLoadPokemonImage, tryLoadImage, fitPokemonImage, setupFoodTooltip } from './ui.js';
 import { TYPE_COLORS, BERRY_ICONS, BERRY_NAMES } from './items.js';
+import { startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 
 // 图鉴/统计页的地区筛选选项
 const REGION_OPTIONS = ['全部地区', '关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
@@ -199,7 +200,7 @@ export function showEncounterLogs(pokemonIndex) {
     tryLoadImage(icon, `./items/berries/${BERRY_ICONS[bi]}`);
   });
 
-  // 加载宝可梦素材，点击切换闪光
+  // 加载宝可梦素材，点击切换闪光；闪光形态循环播放星星粒子（与个体详情页同款）
   const img = $('logPokeImg');
   if (img && poke) {
     img.dataset.shiny = 'false';
@@ -212,12 +213,15 @@ export function showEncounterLogs(pokemonIndex) {
       tryLoadPokemonImage(img, poke, suffix).then(() => {
         img.style.visibility = 'visible';
         img.dataset.shiny = isShiny ? 'false' : 'true';
+        if (!isShiny) startShinySparkleOn($('pokedexView'), img, { cls: 'sm', scale: 0.6 });
+        else stopShinySparkleLoop();
       });
     };
   }
 }
 
 export function restorePokedex() {
+  stopShinySparkleLoop(); // 离开图鉴详情：停止闪光粒子循环
   setPokedexInLogView(false);
   // 恢复搜索框、表头和进度
   document.querySelector('.pokedex-search').style.display = '';

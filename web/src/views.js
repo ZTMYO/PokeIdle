@@ -9,7 +9,7 @@ import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, curre
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
-import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch, isLegendEncounter } from './battle.js';
+import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch } from './battle.js';
 import { setVolume, setBattleMusic, setMusicEnabled, playBattle, endBattle } from './audio.js';
 import { renderAchievements, refreshAchievements } from './achievements.js';
 import { TEAM_MAX } from './team.js';
@@ -456,7 +456,6 @@ export function renderSettings(container, s) {
   const windowPinned = s.windowPinned || false;
   const balls = s.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   const shinyStop = s.shinyStop || false;
-  const legendStop = s.legendStop || false;
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
   const gender = s.gender || 'brendan';
@@ -477,13 +476,6 @@ export function renderSettings(container, s) {
         <div class="auto-catch-label">闪光暂停</div>
         <div class="toggle-switch" id="toggleShinyStop">
           <div class="toggle-track ${shinyStop ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
-        </div>
-      </div>
-      <div class="auto-catch-row" style="padding-left:8px;">
-        <div class="auto-catch-label">神兽暂停</div>
-        <div class="toggle-switch" id="toggleLegendStop">
-          <div class="toggle-track ${legendStop ? 'on' : ''}"></div>
           <div class="toggle-knob"></div>
         </div>
       </div>
@@ -561,7 +553,6 @@ export function renderSettings(container, s) {
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
   container.querySelector('#toggleBattleMusic')?.addEventListener('click', toggleBattleMusic);
   container.querySelector('#toggleShinyStop')?.addEventListener('click', toggleShinyStop);
-  container.querySelector('#toggleLegendStop')?.addEventListener('click', toggleLegendStop);
   // 重置存档：二次点击确认，防误触
   container.querySelector('#resetSaveBtn')?.addEventListener('click', (e) => {
     const btn = e.currentTarget;
@@ -615,7 +606,7 @@ export async function resetSave() {
 
 // 确保设置存在（旧存档可能缺 settings 或 autoCatchBalls）
 function ensureSettings() {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
+  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
   if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
@@ -762,29 +753,6 @@ export function toggleShinyStop() {
   renderSettings(container, gameData.settings);
   saveGame();
   updateStats(); // 开启/关闭闪光暂停会联动自动捕捉，立即刷新底部状态文字
-}
-
-export function toggleLegendStop() {
-  ensureSettings();
-  gameData.settings.legendStop = !gameData.settings.legendStop;
-  if (gameData.settings.legendStop) {
-    gameData.settings.autoCatch = true;
-    // 刚开启神兽暂停 → 中止当前极稀有的自动丢球（不跳转页面，用户留在设置页；
-    // 切回遭遇页时 fleeBtn 由渲染逻辑恢复显示）
-    if (isLegendEncounter() && phase === 'encounter') {
-      setAbortAutoCatch();
-    }
-  } else {
-    // 刚关闭神兽暂停 → 仅当遭遇页可见时立即接管；
-    // 在设置页时交给 showView 切回游戏页的统一接管（避免在隐藏页上丢球导致动画状态错乱）
-    if (isLegendEncounter() && phase === 'encounter' && isOnGameView()) {
-      import('./battle.js').then(m => m.autoCatch());
-    }
-  }
-  const container = $('settingsContent');
-  renderSettings(container, gameData.settings);
-  saveGame();
-  updateStats(); // 开启/关闭神兽暂停会联动自动捕捉，立即刷新底部状态文字
 }
 
 export function toggleGender(g) {
@@ -1006,8 +974,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '配队',
     html: `<p>在<b>手机</b>页面打开<b>配队</b>应用组建小队：点击<b>空位</b>从仓库选择宝可梦加入（最多 <b>${TEAM_MAX}</b> 只）。</p>`
-      + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>移除</b>（放回仓库）；<b>右键</b>点击可隐藏菜单。</p>`
-      + `<p><b>拖拽</b>可以对队伍中的宝可梦进行快速排序。</p>`
+      + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>交换</b>（与队伍中另一只互换位置）、<b>移除</b>（放回仓库）；<b>右键</b>点击可隐藏菜单。</p>`
       + `<p>加入队伍的宝可梦会从<b>训练</b>中自动撤下（训练/队伍<b>互斥</b>，详见「<b>训练</b>」章节）。</p>`,
   },
   {
@@ -1034,7 +1001,6 @@ const TUTORIAL_SECTIONS = [
     title: '配招',
     html: `<p>在<b>宝可梦</b>仓库的个体详情页配置招式（最多 <b>4</b> 个）：<b>自动</b>按等级搭配；<b>手动</b>进入独立的配招页自由调整。</p>`
       + `<p>配招页<b>左侧</b>是可学习的招式（带<b>属性图标</b>，<b>高亮</b>=已配入），点一下在<b>右侧</b>查看<b>详细解释</b>；再点<b>顶部空槽位</b>就把这招放进去。</p>`
-      + `<p><b>拖拽</b>操作可以快速配招。</p>`
       + `<p>槽位上的<b>叉号</b>可移除招式。</p>`,
   },
   {
@@ -1062,8 +1028,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>勾选球种：<b>自动捕获</b>（会根据捕获率智能选择勾选的球种）。</p>`
       + `<p>不勾选任何球种：<b>自动逃跑</b>（期间禁止手动丢球）。</p>`
       + `<p>勾选增益道具：增益结束后自动<b>续杯</b>（同时勾选优先甜甜蜜）。</p>`
-      + `<p>开启<b>闪光暂停</b>：闪光出现时不自动操作。</p>`
-      + `<p>开启<b>神兽暂停</b>：极稀有宝可梦（稀有度 0.8 以上，含多数神兽/幻兽）出现时不自动操作。</p>`,
+      + `<p>开启<b>闪光暂停</b>：闪光出现时不自动操作。</p>`,
   },
   {
     title: '佛系模式',

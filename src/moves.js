@@ -1,20 +1,13 @@
-// 配招逻辑：从 learnset 过滤已实现难度档 → 按规则选 4 招（STAB/打击面优先）→ 兜底补通用攻击招
+// 配招逻辑：从 learnset 过滤已实现招式 → 按规则选 4 招（STAB/打击面优先）→ 兜底补通用攻击招
 // 输入：
 //   learnsetEntry: { lv:[[等级,招式id]...], tm:[], egg:[] }
 //   level: 当前等级
 //   data: moves.json（{ id2name, moves }）
-//   opts: { includeTm: false, scope: 'easy+med', types: [] }
+//   opts: { includeTm: false, types: [] }
 // 输出：[招式id, ...] 最多 4 个
-
-// 招式是否可配：已实现难度档（难档第一版跳过）
-function usable(move, scope) {
-  if (scope === 'easy') return move.diff === '易';
-  return move.diff === '易' || move.diff === '中';
-}
 
 export function chooseMoves(learnsetEntry, level, data, opts = {}) {
   const { moves } = data;
-  const scope = opts.scope || 'easy+med';
   const includeTm = !!opts.includeTm;
   const cands = [];
 
@@ -29,7 +22,7 @@ export function chooseMoves(learnsetEntry, level, data, opts = {}) {
   const ok = new Set();
   for (const m of cands) {
     const mv = moves[m];
-    if (!mv || !usable(mv, scope) || mv.effect.kind === 'unimplemented') continue;
+    if (!mv || mv.effect.kind === 'unimplemented') continue;
     ok.add(m);
   }
   if (ok.size === 0) return fallbackMoves(data);

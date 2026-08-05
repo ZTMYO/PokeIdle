@@ -1,5 +1,5 @@
 // NPC 挑战：每 20 分钟刷新一波训练家（3 普通 + 2 精英 + 1 冠军）
-// 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级随玩家最高等级递进
+// 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级随玩家出战队伍最高等级递进
 import { gameData, getPokemonByIndex, rollIvs, rollNature, randInt } from './state.js';
 import { chooseMoves } from './moves.js';
 import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, MAX_LEVEL } from './config.js';
@@ -82,10 +82,13 @@ export function ensureNpcs() {
   return gameData.battleNpcs;
 }
 
-// 按玩家最高等级生成 NPC 队伍（首只=基准等级，往后逐只低一级）；动态跟随玩家等级，上限 MAX_LEVEL
-export function buildNpcTeam(npc, data, learnset) {
-  const gd = gameData;
-  const maxLv = (gd.roster || []).reduce((m, p) => Math.max(m, p.level || 1), 1);
+// 强制刷新一波 NPC（无视是否到期，重置刷新时间）
+export function refreshNpcs() {
+  gameData.battleNpcs = { refreshedAt: Date.now(), list: generateWave() };
+}
+
+// 按玩家出战队伍最高等级生成 NPC 队伍（首只=基准等级，往后逐只低一级）；带谁打 NPC 就跟随谁，上限 MAX_LEVEL
+export function buildNpcTeam(npc, data, learnset, maxLv) {
   const base = Math.max(3, Math.min(MAX_LEVEL, maxLv + npc.lvBonus));
   return npc.mons.map((idx, i) => {
     const pd = getPokemonByIndex(idx);

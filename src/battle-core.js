@@ -63,7 +63,7 @@ export function createMon(pokeData, level, ivsObj, natureKey, moveIds) {
 function hit(actor, target, mv, ef, events) {
   const acc = mv.accuracy;
   if (acc != null && Math.random() * 100 > acc) {
-    events.push(msg(`${actor.name}的${mv.name}没有命中！`));
+    events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
     return false;
   }
   const atkType = mv.type;
@@ -78,12 +78,18 @@ function hit(actor, target, mv, ef, events) {
   const pw = ef.power || 0;
   let dmg = Math.floor(((((2 * actor.level) / 5 + 2) * pw * atk) / def / 50 + 2) * stab * m * (0.85 + Math.random() * 0.15));
   dmg = Math.max(1, dmg);
+  // 记录命中前后的 HP：连击等多次伤害事件回放时，播放层据此把血条逐段扣，而不是一次扣到底
+  const fromHp = target.hp;
   target.hp -= dmg;
-  events.push({ t: 'dmg', who: target.name, amount: dmg, text: `${actor.name}使用${mv.name}！` });
+  events.push({ t: 'dmg', who: target.name, amount: dmg, from: fromHp, to: target.hp, text: `${actor.name}使用${mv.name}！` });
   if (m > 1) events.push(msg('效果绝佳！'));
   else if (m < 1) events.push(msg('收效甚微…'));
-  // 概率附加状态
-  if (ef.attach && target.hp > 0) applyStatus(target, ef.attach.status, events, ef.attach.chance, mv.type);
+  // 概率附加状态 / 能力变化
+  if (ef.attach && target.hp > 0) {
+    const st = Array.isArray(ef.attach.statuses) ? ef.attach.statuses[Math.floor(Math.random() * ef.attach.statuses.length)] : ef.attach.status;
+    applyStatus(target, st, events, ef.attach.chance, mv.type);
+  }
+  if (ef.stat && target.hp > 0) applyStat(ef.stat.target === 'self' ? actor : target, ef.stat.stats, events, mv.type, ef.stat.chance);
   if (target.hp <= 0) events.push({ t: 'faint', who: target.name, text: `${target.name}倒下了！` });
   return true;
 }
@@ -99,7 +105,8 @@ function applyStatus(mon, st, events, chance = 100, moveType = null) {
   events.push({ t: 'status', who: mon.name, status: st, text: `${mon.name}${STATUS_TEXT[st]}！` });
 }
 
-function applyStat(mon, stats, events, moveType) {
+function applyStat(mon, stats, events, moveType, chance = 100) {
+  if (Math.random() * 100 > chance) return;
   for (const { stat, delta } of stats) {
     const i = STAT_INDEX[stat];
     const ns = clamp(mon.stages[i] + delta, -6, 6);
@@ -123,7 +130,10 @@ export function useMove(actor, target, moveId, data, events = []) {
     case 'multihit': {
       const n = rand(ef.hits[0], ef.hits[1]);
       events.push(msg(`${actor.name}使用${mv.name}！`));
-      for (let i = 0; i < n; i++) if (hit(actor, target, mv, ef, events) && target.hp <= 0) break;
+      for (let i = 0; i < n; i++) {
+        events.push({ t: 'step' });
+        if (hit(actor, target, mv, ef, events) && target.hp <= 0) break;
+      }
       events.push(msg(`攻击了 ${n} 次！`));
       break;
     }
@@ -134,11 +144,12 @@ export function useMove(actor, target, moveId, data, events = []) {
       events.push(msg(`${actor.name}使用${mv.name}！`));
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
-        events.push(msg(`${actor.name}的${mv.name}没有命中！`));
+        events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }
+      const fromHp = target.hp;
       target.hp -= dmg;
-      events.push({ t: 'dmg', who: target.name, amount: dmg, text: `造成了 ${dmg} 点伤害。` });
+      events.push({ t: 'dmg', who: target.name, amount: dmg, from: fromHp, to: target.hp, text: `造成了 ${dmg} 点伤害。` });
       if (target.hp <= 0) events.push({ t: 'faint', who: target.name, text: `${target.name}倒下了！` });
       break;
     }
@@ -184,7 +195,7 @@ export function useMove(actor, target, moveId, data, events = []) {
       events.push(msg(`${actor.name}使用${mv.name}！`));
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
-        events.push(msg(`${actor.name}的${mv.name}没有命中！`));
+        events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }
       applyStatus(target, ef.status, events, ef.chance, mv.type);
@@ -195,7 +206,7 @@ export function useMove(actor, target, moveId, data, events = []) {
       if (ef.target === 'foe') {
         const acc = mv.accuracy;
         if (acc != null && Math.random() * 100 > acc) {
-          events.push(msg(`${actor.name}的${mv.name}没有命中！`));
+          events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
           break;
         }
       }
@@ -214,7 +225,7 @@ export function preTurn(mon, events) {
   if (mon.hp <= 0) return false;
   if (mon.flinch) {
     mon.flinch = false;
-    events.push(msg(`${mon.name}畏缩了，无法行动！`));
+    events.push({ t: 'flinch', who: mon.name, text: `${mon.name}畏缩了，无法行动！` });
     return false;
   }
   if (mon.status === 'freeze') {
@@ -222,9 +233,17 @@ export function preTurn(mon, events) {
     else { events.push(msg(`${mon.name}被冻住，无法行动。`)); return false; }
   }
   if (mon.status === 'sleep') {
-    mon.sleepTurns--;
-    if (mon.sleepTurns <= 0) { mon.status = null; events.push(msg(`${mon.name}醒了过来！`)); }
-    else { events.push(msg(`${mon.name}正在呼呼大睡。`)); return false; }
+    if (mon.sleepTurns <= 0) {
+      mon.status = null;
+      mon.sleepTurns = 0;
+      events.push(msg(`${mon.name}醒了过来！`));
+    } else {
+      // 先判后减：保证入睡后至少有一回合无法行动（sleepTurns=1 也睡一回合，
+      // 避免睡眠粉/催眠术随机到 1 时"刚睡着就醒来"等于没生效）
+      mon.sleepTurns--;
+      events.push(msg(`${mon.name}正在呼呼大睡。`));
+      return false;
+    }
   }
   if (mon.status === 'paralysis' && Math.random() < 0.25) {
     events.push(msg(`${mon.name}因麻痹无法行动！`));

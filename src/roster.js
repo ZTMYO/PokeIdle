@@ -60,6 +60,7 @@ function ivHexagon(p) {
 let _sortBy = 'time';  // 当前排序列：time | name | iv | level
 let _sortDir = -1;     // 1 升序 / -1 降序
 let _filter = '';      // 来源/闪光筛选（''=全部）
+let _typeFilter = '';  // 属性筛选（''=全部）
 let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
 let _detailFromView = null; // 详情跳转来源（捕获/孵蛋后“查看详情”进入时记录，返回列表后再返回时优先回来源）
 let _detailReturnFn = null; // 从悬赏提交/交换选择列表进入详情时注册的返回回调（返回时恢复来源列表）
@@ -106,6 +107,11 @@ function renderList() {
   // 筛选：闪光 / 来源
   if (_filter === 'shiny') pool = pool.filter(p => p.shiny);
   else if (_filter) pool = pool.filter(p => p.source === _filter);
+  // 属性筛选：含有目标属性的宝可梦都筛出来（单属性/双属性均可命中）
+  if (_typeFilter) pool = pool.filter(p => {
+    const poke = getPokemonByIndex(String(p.species));
+    return poke?.types?.includes(_typeFilter);
+  });
   // 搜索
   if (q) pool = pool.filter(p => matchesQuery(p, q));
   // 选取模式：排除已在队伍/训练中的个体
@@ -123,7 +129,7 @@ function renderList() {
     } else {
       const total = inRoster().length;
       const shinyCount = inRoster().filter(p => p.shiny).length;
-      prog.textContent = q || _filter
+      prog.textContent = q || _filter || _typeFilter
         ? `共 ${total} 只 · 匹配 ${pool.length} 只`
         : `共 ${total} 只 · 闪光 ${shinyCount} 只`;
     }
@@ -249,6 +255,53 @@ function setupFilter() {
   });
 }
 
+// 属性筛选下拉（含目标属性的宝可梦都筛出来）：选项带属性色圆点，选中后标签同步显示属性
+function setupTypeFilter() {
+  const trigger = $('rosterTypeFilter');
+  const label = $('rosterTypeFilterLabel');
+  const dd = $('rosterTypeFilterDropdown');
+  if (!trigger || !label || !dd) return;
+  const typeList = Object.keys(TYPE_COLORS); // 18 属性
+  function typeOption(t) {
+    return `<div class="region-dropdown-item${t === _typeFilter ? ' active' : ''}" data-type="${t}">
+      <span class="roster-type-dot" style="background:${TYPE_COLORS[t]}"></span>${t}
+    </div>`;
+  }
+  function buildOptions() {
+    dd.innerHTML = `<div class="region-dropdown-item${!_typeFilter ? ' active' : ''}" data-type="">全部</div>`
+      + typeList.map(typeOption).join('');
+    dd.querySelectorAll('.region-dropdown-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _typeFilter = el.dataset.type || '';
+        if (_typeFilter) {
+          label.innerHTML = `<span class="roster-type-dot" style="background:${TYPE_COLORS[_typeFilter]}"></span>${_typeFilter}`;
+        } else {
+          label.textContent = '属性';
+        }
+        dd.style.display = 'none';
+        trigger.classList.remove('open');
+        renderList();
+      });
+    });
+  }
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = dd.style.display !== 'none';
+    document.querySelectorAll('.region-dropdown').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.pokedex-region-select').forEach(s => s.classList.remove('open'));
+    if (!open) {
+      buildOptions();
+      dd.style.display = '';
+      trigger.classList.add('open');
+    }
+  });
+  document.addEventListener('click', () => {
+    dd.style.display = 'none';
+    trigger.classList.remove('open');
+  });
+}
+
 // 表头点击排序（限定仓库视图，避免绑定到悬赏/交换列表的同名表头）
 function setupHeaderSort() {
   const header = $('rosterView')?.querySelector('.roster-header');
@@ -291,7 +344,7 @@ function currentMoveIds(p) {
   return chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [] });
 }
 
-// 可学习候选：升级习得（≤当前等级）+ 蛋招式，过滤未实现/难度档，按学习等级升序
+// 可学习候选：升级习得（≤当前等级）+ 蛋招式，过滤未实现招式，按学习等级升序
 function candidateMoves(p) {
   const ls = _learnset[p.species] || { lv: [], tm: [], egg: [] };
   const out = [];
@@ -305,7 +358,6 @@ function candidateMoves(p) {
     if (seen.has(c.id)) continue;
     const mv = _moveData.moves[c.id];
     if (!mv || mv.effect.kind === 'unimplemented') continue;
-    if (mv.diff !== '易' && mv.diff !== '中') continue;
     seen.add(c.id);
     res.push(c);
   }
@@ -371,7 +423,7 @@ function bindMovesBlock(id) {
 }
 
 // ---------- 手动配招独立页 ----------
-const MOVE_STATUS_CN = { sleep: '睡眠', poison: '中毒', paralysis: '麻痹', burn: '灼伤', confusion: '混乱', flinch: '畏缩' };
+const MOVE_STATUS_CN = { sleep: '睡眠', poison: '中毒', paralysis: '麻痹', burn: '灼伤', confusion: '混乱', flinch: '畏缩', freeze: '冰冻' };
 
 // 招式类别 → 图标文件与中文名（物理/特殊/变化；伤害类招式按 effect.cat 归类）
 const MOVE_CAT_ICON = { phys: 'physical.png', spec: 'special.png', status: 'status.png' };
@@ -392,7 +444,21 @@ function catIconHtml(mv) {
 function moveDesc(mv) {
   const ef = mv.effect || {};
   switch (ef.kind) {
-    case 'damage': return '对目标造成伤害。';
+    case 'damage': {
+      let d = '对目标造成伤害。';
+      if (ef.stat) {
+        const parts = (ef.stat.stats || []).map((s) => `${s.stat}${s.delta > 0 ? '+' : ''}${s.delta}`);
+        const chance = ef.stat.chance ?? 100;
+        const who = ef.stat.target === 'self' ? '使用者' : '目标';
+        d += `使${who}${parts.join('、')}${chance < 100 ? `（几率 ${chance}%）` : ''}。`;
+      }
+      if (ef.attach) {
+        const sts = ef.attach.statuses || [ef.attach.status];
+        const stTxt = sts.map((s) => MOVE_STATUS_CN[s] || s).join('、');
+        d += `有 ${ef.attach.chance ?? 100}% 几率使目标${stTxt}。`;
+      }
+      return d;
+    }
     case 'multihit': return `连续攻击 ${ef.hits?.[0]}~${ef.hits?.[1]} 次。`;
     case 'status': return `使对手陷入「${MOVE_STATUS_CN[ef.status] || ef.status}」状态。`;
     case 'stat': {
@@ -443,10 +509,132 @@ export function leaveMoveEditor() {
   }
 }
 
+// ---------- 配招页拖拽：候选招式拖入槽位（鼠标）/ 槽位间交换（鼠标+触摸） ----------
+// 与配招页原有点击逻辑并存：拖过（移动>6px）才走拖拽并吞掉收尾 click，纯点击仍按原逻辑
+let _meDrag = null;       // { kind:'row'|'slot', slot, moveId, name, type }
+let _meDragTarget = -1;   // 悬停目标槽位
+let _meSuppress = false;  // 拖拽收尾抑制 click
+
+function meDragGhost() {
+  return $('moveEditView')?.querySelector('.move-edit-drag-ghost');
+}
+function meClearTarget() {
+  $('moveEditView')?.querySelector(`.move-edit-slot[data-slot="${_meDragTarget}"]`)?.classList.remove('drag-over');
+  _meDragTarget = -1;
+}
+function meMoveGhost(e) {
+  const g = meDragGhost();
+  if (!g) return;
+  const r = $('moveEditView').getBoundingClientRect();
+  g.style.left = (e.clientX - r.left) + 'px';
+  g.style.top = (e.clientY - r.top) + 'px';
+}
+
+function bindMoveEditDrag(box) {
+  const p = (gameData.roster || []).find((r) => r.id === _moveEditId);
+  if (!p) return;
+  let startX = 0, startY = 0, moved = false;
+  function begin(e, src, info) {
+    startX = e.clientX; startY = e.clientY; moved = false;
+    _meDrag = info;
+    _meDragTarget = -1;
+    src.setPointerCapture(e.pointerId);
+    src.classList.add('dragging');
+    const g = document.createElement('div');
+    g.className = 'move-edit-drag-ghost';
+    if (info.type) {
+      const t = document.createElement('span');
+      t.className = 'b-move-type';
+      t.style.background = TYPE_COLORS[info.type] || '#888';
+      t.innerHTML = `<svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${info.type}"></use></svg>`;
+      g.appendChild(t);
+    }
+    const n = document.createElement('span');
+    n.className = 'move-edit-ghost-name';
+    n.textContent = info.name;
+    g.appendChild(n);
+    $('moveEditView').appendChild(g);
+    meMoveGhost(e);
+  }
+  function onMove(e) {
+    if (!_meDrag) return;
+    if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) > 6) moved = true;
+    meMoveGhost(e);
+    // 命中检测：指针下最近的招式槽（幽灵 pointer-events:none 不影响）
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.move-edit-slot[data-slot]');
+    const t = el ? parseInt(el.dataset.slot, 10) : -1;
+    if (t !== _meDragTarget) {
+      meClearTarget();
+      if (t >= 0 && !(_meDrag.kind === 'slot' && t === _meDrag.slot)) {
+        _meDragTarget = t;
+        el.classList.add('drag-over');
+      }
+    }
+  }
+  function end() {
+    if (!_meDrag) return;
+    const d = _meDrag;
+    const to = _meDragTarget;
+    _meDrag = null;
+    meClearTarget();
+    meDragGhost()?.remove();
+    box.querySelector('.dragging')?.classList.remove('dragging');
+    if (moved) { _meSuppress = true; setTimeout(() => { _meSuppress = false; }, 0); } // 拖过就吞掉收尾 click
+    if (to < 0) return;
+    if (d.kind === 'row') {
+      // 候选招式拖入槽位：已在其它槽则顺移过来（assignMove 会清掉旧位置）
+      assignMove(p, d.moveId, to);
+      saveGame();
+      renderMoveEditor();
+    } else {
+      // 槽位间交换（目标为空槽 = 移过去）
+      const ids = currentMoveIds(p);
+      const arr = [0, 1, 2, 3].map((i) => ids[i] ?? null);
+      const a = d.slot, b = to;
+      const tmp = arr[a]; arr[a] = arr[b]; arr[b] = tmp;
+      p.moves = arr;
+      saveGame();
+      renderMoveEditor();
+    }
+  }
+  // 已装招式槽 → 拖到另一槽交换/移动：鼠标/触摸都支持（槽位区不可滚动，touch-action:none 已放开拖拽）
+  box.querySelectorAll('.move-edit-slot[data-slot]').forEach((slot) => {
+    const slotIdx = parseInt(slot.dataset.slot, 10);
+    const mid = currentMoveIds(p)[slotIdx];
+    if (mid == null) return; // 空槽不能作为拖拽源
+    const mv = _moveData.moves[mid];
+    slot.addEventListener('pointerdown', (e) => {
+      if (e.button === 2) return; // 右键不拖
+      if (e.target.closest('.move-edit-slot-x')) return; // 叉号不拖
+      e.preventDefault();
+      begin(e, slot, { kind: 'slot', slot: slotIdx, name: mv?.name || '', type: mv?.type || '' });
+    });
+    slot.addEventListener('pointermove', onMove);
+    slot.addEventListener('pointerup', end);
+    slot.addEventListener('pointercancel', end);
+  });
+  // 候选招式行 → 拖入槽位装招：仅鼠标（触摸用于滚动候选列表，装招仍走"点击选中→点空槽装入"）
+  box.querySelectorAll('.move-edit-row').forEach((row) => {
+    const moveId = parseInt(row.dataset.move, 10);
+    const mv = _moveData.moves[moveId];
+    row.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      if (e.button === 2) return;
+      e.preventDefault();
+      begin(e, row, { kind: 'row', slot: -1, moveId, name: mv?.name || '', type: mv?.type || '' });
+    });
+    row.addEventListener('pointermove', onMove);
+    row.addEventListener('pointerup', end);
+    row.addEventListener('pointercancel', end);
+  });
+}
+
 function renderMoveEditor() {
   const p = (gameData.roster || []).find((r) => r.id === _moveEditId);
   const box = $('moveEditContent');
   if (!p || !box) return;
+  // innerHTML 重建会重置候选列表滚动位置：先记住再还原，避免点选招式后列表跳回顶部
+  const prevScroll = box.querySelector('.move-edit-list')?.scrollTop || 0;
   const ids = currentMoveIds(p); // 已配招（固定 4 格，空位为 null）
   const cands = candidateMoves(p);
   box.innerHTML = `
@@ -483,9 +671,13 @@ function renderMoveEditor() {
       </div>
       <div class="move-edit-detail">${renderMoveDetail(p, ids)}</div>
     </div>`;
+  // 还原候选列表滚动位置（内容重建后 scrollTop 已被清 0）
+  const listEl = box.querySelector('.move-edit-list');
+  if (listEl && prevScroll > 0) listEl.scrollTop = prevScroll;
   // 点击候选行 → 仅查看详情，不自动配招
   box.querySelectorAll('.move-edit-row').forEach((btn) => {
     btn.addEventListener('click', () => {
+      if (_meSuppress) return; // 刚拖拽结束，本次点击只算收尾
       _moveSel = parseInt(btn.dataset.move, 10);
       renderMoveEditor();
     });
@@ -494,17 +686,20 @@ function renderMoveEditor() {
   box.querySelectorAll('.move-edit-slot-x').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      const slot = parseInt(btn.dataset.slot, 10);
       const cur = currentMoveIds(p); // 首次进入（p.moves 未初始化）时基于自动配招，避免叉一下清空全部
       const arr = [0, 1, 2, 3].map((i) => cur[i] ?? null);
-      arr[parseInt(btn.dataset.slot, 10)] = null;
+      arr[slot] = null;
       p.moves = arr;
-      if (_moveSel == null || !arr.includes(_moveSel)) _moveSel = null;
+      // 仅当被移出的招式恰是当前选中项时清空选中；否则保留选中，方便移除后直接点空槽装入
+      if ((cur[slot] ?? null) === _moveSel) _moveSel = null;
       saveGame();
       renderMoveEditor();
     });
   });
   box.querySelectorAll('.move-edit-slot').forEach((el) => {
     el.addEventListener('click', () => {
+      if (_meSuppress) return; // 刚拖拽结束，本次点击只算收尾
       const slot = parseInt(el.dataset.slot, 10);
       const mid = ids[slot];
       if (mid != null) {
@@ -516,12 +711,13 @@ function renderMoveEditor() {
       renderMoveEditor();
     });
   });
+  bindMoveEditDrag(box);
 }
 
 function renderMoveDetail(p, ids) {
   const mv = _moveSel != null ? _moveData.moves[_moveSel] : null;
   if (!mv) {
-    return `<div class="move-edit-detail-empty">从左侧选择招式查看详情</div>`;
+    return `<div class="move-edit-detail-empty">从左侧选择招式查看</div>`;
   }
   return `
     <div class="move-edit-detail-head">
@@ -754,6 +950,7 @@ export function showRosterView() {
   if (!_uiBound) {
     setupSearch();
     setupFilter();
+    setupTypeFilter();
     setupHeaderSort();
     _uiBound = true;
   }
