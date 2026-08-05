@@ -2,7 +2,7 @@
 import './style.css';
 
 /* ============================================================
-   下载选项：加Q群下载（复制群号）/ 百度网盘
+   下载选项：加Q群下载（复制群号）/ GitHub Release
    ============================================================ */
 // QQ 群下载：点击复制群号，加群后从群文件下载安装包
 const QQ_GROUP = '1011321822';
@@ -14,22 +14,19 @@ if (dQQ) {
       const sub = dQQ.querySelector('.dl-s');
       if (!sub) return;
       const old = sub.textContent;
-      sub.textContent = `群号 ${QQ_GROUP} 已复制，去 QQ 加群下载`;
+      sub.textContent = `群号已复制，去 QQ 加群下载`;
       setTimeout(() => { sub.textContent = old; }, 1600);
     });
   });
 }
-// 百度网盘分享，更换链接时只需改这里
-const DOWNLOAD_PAN = 'https://pan.baidu.com/s/15mUM01Ac3fPEUffOHbw2pw?pwd=2qvj';
-const dPan = document.getElementById('downloadPan');
-if (dPan) {
-  dPan.href = DOWNLOAD_PAN;
-  dPan.target = '_blank';
-  dPan.rel = 'noopener';
+// GitHub Releases 下载，更换仓库时只需改这里
+const RELEASES_URL = 'https://github.com/ZTMYO/PokeIdle/releases';
+const dGh = document.getElementById('downloadGh');
+if (dGh) {
+  dGh.href = RELEASES_URL;
+  dGh.target = '_blank';
+  dGh.rel = 'noopener';
 }
-// 提取码直接取网盘链接末尾 4 位（pwd 参数），更换链接时无需再同步文案
-const panCodeEl = document.getElementById('downloadPanCode');
-if (panCodeEl) panCodeEl.textContent = `提取码 ${DOWNLOAD_PAN.slice(-4)} · 备选线路`;
 // 复制到剪贴板：https 环境用新版 API，否则退回 execCommand（兼容 http 部署）
 function copyText(text) {
   if (navigator.clipboard && window.isSecureContext) {
@@ -47,7 +44,7 @@ function copyText(text) {
     ta.remove();
   });
 }
-// 下载按钮：点击展开「加Q群下载 / 百度网盘」两个选项，点外部收起
+// 下载按钮：点击展开「加Q群下载 / GitHub Release」两个选项，点外部收起
 const dlWrap = document.getElementById('downloadWrap');
 const dlMain = document.getElementById('downloadMain');
 if (dlWrap && dlMain) {

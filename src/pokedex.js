@@ -126,13 +126,14 @@ export function showEncounterLogs(pokemonIndex) {
       </div>
       </div>
       ${(caughtCount > 0 && poke && poke.stats && poke.stats.length) ? `<div style="font-size:10px;flex:1;min-width:0;overflow:hidden;">${(() => {
-        const statNames = { hp:'HP', attack:'攻击', defense:'防御', 'special-attack':'特攻', 'special-defense':'特防', speed:'速度' };
+        // stats 为固定顺序数字数组：0=HP, 1=物攻, 2=物防, 3=特攻, 4=特防, 5=速度
+        const statNames = ['HP', '攻击', '防御', '特攻', '特防', '速度'];
         const maxStat = 255;
-        return poke.stats.map(s => `<div style="display:flex;align-items:center;gap:2px;line-height:1.4;">
-          <span style="width:24px;flex-shrink:0;">${statNames[s.name]||s.name}</span>
-          <span style="width:16px;text-align:right;flex-shrink:0;">${s.baseStat}</span>
+        return poke.stats.map((v, i) => `<div style="display:flex;align-items:center;gap:2px;line-height:1.4;">
+          <span style="width:24px;flex-shrink:0;">${statNames[i]||i}</span>
+          <span style="width:16px;text-align:right;flex-shrink:0;">${v}</span>
           <div style="flex:1;height:4px;background:rgba(var(--ui-color-rgb),0.12);border-radius:2px;overflow:hidden;">
-            <div style="height:100%;width:${(s.baseStat/maxStat*100).toFixed(0)}%;background:rgba(var(--ui-color-rgb),0.5);border-radius:2px;"></div>
+            <div style="height:100%;width:${(v/maxStat*100).toFixed(0)}%;background:rgba(var(--ui-color-rgb),0.5);border-radius:2px;"></div>
           </div>
         </div>`).join('');
       })()}</div>` : ''}

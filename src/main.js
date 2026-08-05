@@ -742,16 +742,24 @@ async function init() {
     $('catchConfirmBtns').style.display = 'none';
     setCatchConfirmStep(false);
     const entryId = getLastObtainedEntryId();
+    const fromEgg = phase === 'eggResult'; // 必须在 goIdle 前判断（goIdle 会把 phase 置回 idle）
     goIdle();
+    if (fromEgg) renderIncubatorView(); // 预刷新孵蛋器 DOM，详情返回时直接显示最新槽位
     if (entryId) {
-      import('./roster.js').then(m => m.showRosterDetailById(entryId, 'idleView'));
+      import('./roster.js').then(m => m.showRosterDetailById(entryId, fromEgg ? 'incubatorView' : 'idleView'));
     }
   });
   $('confirmNo')?.addEventListener('click', () => {
     stopVictory(); // 交互完图鉴对话框 → 停止胜利音效
     $('catchConfirmBtns').style.display = 'none';
     setCatchConfirmStep(false);
+    const fromEgg = phase === 'eggResult'; // 必须在 goIdle 前判断（goIdle 会把 phase 置回 idle）
     goIdle();
+    if (fromEgg) {
+      // 孵蛋流程：取消查看详情后回到孵蛋器页面（先刷新，避免显示已取走蛋的旧状态）
+      renderIncubatorView();
+      showView('incubatorView');
+    }
   });
 
   // 逃跑
