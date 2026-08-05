@@ -33,7 +33,7 @@ export function chooseMoves(learnsetEntry, level, data, opts = {}) {
     const mv = moves[m];
     const ef = mv.effect;
     let s = 0;
-    const isAtk = ef.kind === 'damage' || ef.kind === 'fixed' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil';
+    const isAtk = ef.kind === 'damage' || ef.kind === 'fixed' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'counter';
     if (isAtk) {
       s += 20;
       const pw = ef.power || 0;
@@ -46,6 +46,9 @@ export function chooseMoves(learnsetEntry, level, data, opts = {}) {
       s += 6;
       if (ef.kind === 'heal') s += 6;
       if (ef.kind === 'stat') s += 4;
+      if (ef.kind === 'protect' || ef.kind === 'endure') s += 8; // 守住/挺住：保命防护
+      if (ef.kind === 'substitute') s += 6;                     // 替身：承伤站场
+      if (ef.kind === 'leechSeed') s += 8;                      // 寄生种子：持续吸血
     }
     return { m, s };
   }).sort((a, b) => b.s - a.s);

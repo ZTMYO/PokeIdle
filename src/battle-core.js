@@ -50,6 +50,9 @@ export function createMon(pokeData, level, ivsObj, natureKey, moveIds) {
     stages: [0, 0, 0, 0, 0],
     stageTypes: [null, null, null, null, null], // 每项能力最近一次变化来源招式的属性（能力圆点按此着色）
     status: null, statusType: null, sleepTurns: 0, confusionTurns: 0, flinch: false,
+    hitByPhys: false, physDmg: 0, // 双倍奉还结算：最近一次受到的物理伤害（回合开始清零）
+    hitBySpec: false, specDmg: 0, // 镜面反射结算：最近一次受到的特殊伤害（回合开始清零）
+    protected: false, endure: false, seeded: false, seedSrc: null, subHp: 0, // 守住/挺住/寄生种子/替身
     effStat(i) {
       let v = this.stats[i] * STAGE_MULT[this.stages[i] + 6];
       if (i === 4 && this.status === 'paralysis') v *= 0.5;
@@ -72,15 +75,46 @@ function hit(actor, target, mv, ef, events) {
     events.push(msg(`${mv.name}对${target.name}没有效果…`));
     return false;
   }
+  // 守住：本回合免疫一切招式伤害
+  if (target.protected) {
+    events.push(msg(`${target.name}用守住挡住了${mv.name}！`));
+    return false;
+  }
   const stab = actor.types.includes(atkType) ? 1.5 : 1;
   const atk = actor.effStat(ef.cat === 'phys' ? 0 : 2);
   const def = target.effStat(ef.cat === 'phys' ? 1 : 3);
   const pw = ef.power || 0;
   let dmg = Math.floor(((((2 * actor.level) / 5 + 2) * pw * atk) / def / 50 + 2) * stab * m * (0.85 + Math.random() * 0.15));
   dmg = Math.max(1, dmg);
+  // 替身：伤害由替身承受，本体不受影响（替身破裂后多余伤害不传递）
+  if (target.subHp > 0) {
+    target.subHp -= dmg;
+    events.push(msg(`${target.name}的替身挡住了伤害！`));
+    if (target.subHp <= 0) {
+      target.subHp = 0;
+      events.push(msg(`${target.name}的替身消失了！`));
+    }
+    if (m > 1) events.push(msg('效果绝佳！'));
+    else if (m < 1) events.push(msg('收效甚微…'));
+    return true;
+  }
   // 记录命中前后的 HP：连击等多次伤害事件回放时，播放层据此把血条逐段扣，而不是一次扣到底
   const fromHp = target.hp;
   target.hp -= dmg;
+  // 挺住：受到致命伤害时保留 1 点 HP（一次性）
+  if (target.endure && target.hp <= 0) {
+    target.hp = 1;
+    target.endure = false;
+    events.push(msg(`${target.name}挺住了！`));
+  }
+  // 双倍奉还/镜面反射记录：覆盖为最近一次受到的物理/特殊伤害（官方：反击最近一次攻击，不累加）
+  if (ef.cat === 'phys' && dmg > 0) {
+    target.hitByPhys = true;
+    target.physDmg = dmg;
+  } else if (ef.cat === 'spec' && dmg > 0) {
+    target.hitBySpec = true;
+    target.specDmg = dmg;
+  }
   events.push({ t: 'dmg', who: target.name, amount: dmg, from: fromHp, to: target.hp, text: `${actor.name}使用${mv.name}！` });
   if (m > 1) events.push(msg('效果绝佳！'));
   else if (m < 1) events.push(msg('收效甚微…'));
@@ -118,10 +152,41 @@ function applyStat(mon, stats, events, moveType, chance = 100) {
   }
 }
 
+// 反击/镜面反射：本回合受到对应类别的伤害时返还其 2 倍（按自身属性走克制），成功后伤害记录清零
+function retaliate(actor, target, mv, events, spec) {
+  events.push(msg(`${actor.name}使用${mv.name}！`));
+  const hit = spec ? actor.hitBySpec : actor.hitByPhys;
+  const dmg = spec ? actor.specDmg : actor.physDmg;
+  if (!hit || dmg <= 0) {
+    events.push(msg(`但是没有效果！（本回合未受到${spec ? '特殊' : '物理'}伤害）`));
+    return;
+  }
+  const m = typeMult(mv.type, target.types);
+  if (m === 0) {
+    events.push(msg(`${mv.name}对${target.name}没有效果…`));
+    return;
+  }
+  const final = Math.floor(dmg * 2 * m);
+  const fromHp = target.hp;
+  target.hp -= final;
+  events.push({ t: 'dmg', who: target.name, amount: final, from: fromHp, to: target.hp, text: `${actor.name}使用${mv.name}！` });
+  if (m > 1) events.push(msg('效果绝佳！'));
+  else if (m < 1) events.push(msg('收效甚微…'));
+  // 反击成功：对应伤害记录清零，需再次受到同类别伤害才能再次反击
+  if (spec) { actor.hitBySpec = false; actor.specDmg = 0; }
+  else { actor.hitByPhys = false; actor.physDmg = 0; }
+  if (target.hp <= 0) events.push({ t: 'faint', who: target.name, text: `${target.name}倒下了！` });
+}
+
 // ---------- 招式执行（返回事件数组） ----------
 export function useMove(actor, target, moveId, data, events = []) {
   const mv = data.moves[moveId];
   if (!mv) { events.push(msg(`${actor.name}没有可用招式！`)); return events; }
+  // 蓄力回避：目标正处两回合招式离场蓄力（挖洞/飞翔/潜水/弹跳/潜灵奇袭），任何招式都无法命中
+  if (target.chargeMove != null && target.chargeHidden) {
+    events.push({ t: 'miss', who: actor.name, text: `${actor.name}的攻击对${target.name}没有命中！` });
+    return events;
+  }
   const ef = mv.effect;
   switch (ef.kind) {
     case 'damage':
@@ -145,6 +210,11 @@ export function useMove(actor, target, moveId, data, events = []) {
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
         events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
+        break;
+      }
+      // 属性免疫：固定伤害招式同样受克制表约束（音爆对幽灵、龙之怒对妖精等无效）
+      if (typeMult(mv.type, target.types) === 0) {
+        events.push(msg(`${mv.name}对${target.name}没有效果…`));
         break;
       }
       const fromHp = target.hp;
@@ -172,6 +242,12 @@ export function useMove(actor, target, moveId, data, events = []) {
       }
       break;
     }
+    case 'counter':
+      retaliate(actor, target, mv, events, false);
+      break;
+    case 'mirrorCoat':
+      retaliate(actor, target, mv, events, true);
+      break;
     case 'heal': {
       const healed = Math.floor(actor.maxHp * ef.ratio);
       actor.hp = Math.min(actor.maxHp, actor.hp + healed);
@@ -211,6 +287,53 @@ export function useMove(actor, target, moveId, data, events = []) {
         }
       }
       applyStat(ef.target === 'foe' ? target : actor, ef.stats, events, mv.type);
+      break;
+    }
+    case 'protect': {
+      events.push(msg(`${actor.name}使用${mv.name}！`));
+      actor.protected = true;
+      break;
+    }
+    case 'endure': {
+      events.push(msg(`${actor.name}使用${mv.name}！`));
+      actor.endure = true;
+      break;
+    }
+    case 'leechSeed': {
+      events.push(msg(`${actor.name}使用${mv.name}！`));
+      const acc = mv.accuracy;
+      if (acc != null && Math.random() * 100 > acc) {
+        events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
+        break;
+      }
+      if (target.types.includes('草')) {
+        events.push(msg(`${mv.name}对${target.name}没有效果…`));
+        break;
+      }
+      if (target.seeded) {
+        events.push(msg(`${target.name}已经被寄生种子寄生。`));
+        break;
+      }
+      target.seeded = true;
+      target.seedSrc = actor;
+      events.push({ t: 'seed', who: target.name, text: `${target.name}被种下了寄生种子！` });
+      break;
+    }
+    case 'substitute': {
+      events.push(msg(`${actor.name}使用${mv.name}！`));
+      if (actor.subHp > 0) {
+        events.push(msg(`${actor.name}已经有替身了。`));
+        break;
+      }
+      const cost = Math.max(1, Math.floor(actor.maxHp / 4));
+      if (actor.hp <= cost) {
+        events.push(msg(`但是没有效果！（体力不足，无法制造替身）`));
+        break;
+      }
+      const fromHp = actor.hp;
+      actor.hp -= cost;
+      actor.subHp = cost;
+      events.push({ t: 'dmg', who: actor.name, amount: cost, from: fromHp, to: actor.hp, text: `${actor.name}消耗 ${cost} 点体力，制造出替身！` });
       break;
     }
     default:
@@ -270,16 +393,30 @@ export function postTurn(mon, events) {
     const d = Math.floor(mon.maxHp / 8);
     mon.hp -= d;
     events.push({ t: 'dmg', who: mon.name, amount: d, text: `${mon.name}因为中毒受到 ${d} 点伤害！` });
-  } else if (mon.status === 'burn') {
+  }
+  if (mon.status === 'burn') {
     const d = Math.floor(mon.maxHp / 16);
     mon.hp -= d;
     events.push({ t: 'dmg', who: mon.name, amount: d, text: `${mon.name}因为灼伤受到 ${d} 点伤害！` });
+  }
+  // 寄生种子：每回合吸取目标 HP 回复施种者（施种者倒下则效果消失）
+  if (mon.seeded && mon.seedSrc && mon.seedSrc.hp > 0 && mon.hp > 1) {
+    const drain = Math.min(mon.hp - 1, Math.max(1, Math.floor(mon.maxHp / 8)));
+    const src = mon.seedSrc;
+    events.push({ t: 'seedDrain', from: mon, to: src }); // 吸血粒子：绿色能量从被吸者身上吸回施种者
+    mon.hp -= drain;
+    events.push({ t: 'dmg', who: mon.name, amount: drain, text: `${mon.name}被寄生种子吸走了 ${drain} 点HP！` });
+    const healed = Math.min(src.maxHp - src.hp, drain);
+    if (healed > 0) {
+      src.hp += healed;
+      events.push({ t: 'heal', who: src.name, amount: healed, text: `${src.name}回复了 ${healed} 点HP！` });
+    }
   }
   if (mon.hp <= 0) events.push({ t: 'faint', who: mon.name, text: `${mon.name}倒下了！` });
 }
 
 // ---------- AI：按属性克制与威力择优（克制的招优先，免疫的尽量避开） ----------
-const AI_DMG_KIND = ['damage', 'multihit', 'fixed', 'drain', 'recoil'];
+const AI_DMG_KIND = ['damage', 'multihit', 'fixed', 'drain', 'recoil', 'counter', 'mirrorCoat'];
 export function aiMove(actor, enemy, data) {
   const usable = actor.moves.filter((m) => {
     const ef = data.moves[m] && data.moves[m].effect;
@@ -311,6 +448,14 @@ export function aiMove(actor, enemy, data) {
       score += maxMult < 1.5 && Math.random() < 0.6 ? 9 : -6;
     } else if (ef.kind === 'status') {
       score += !enemy.status && Math.random() < 0.3 ? 7 : -8; // 对方已中异常则不再施放
+    } else if (ef.kind === 'protect') {
+      score += actor.hp < actor.maxHp * 0.5 && Math.random() < 0.5 ? 8 : -6; // 守住：血量低时防御
+    } else if (ef.kind === 'endure') {
+      score += actor.hp < actor.maxHp * 0.3 && Math.random() < 0.4 ? 8 : -7; // 挺住：濒死保命
+    } else if (ef.kind === 'leechSeed') {
+      score += !enemy.seeded && maxMult < 1.5 && Math.random() < 0.5 ? 8 : -6; // 寄生种子：打不动时用
+    } else if (ef.kind === 'substitute') {
+      score += actor.subHp <= 0 && actor.hp > actor.maxHp * 0.5 && Math.random() < 0.35 ? 7 : -7; // 替身：血线健康时用
     } else if ((ef.kind === 'heal' || ef.kind === 'sleepRest') && actor.hp < actor.maxHp * 0.45) {
       score += 10; // 血量低时优先回复
     } else {

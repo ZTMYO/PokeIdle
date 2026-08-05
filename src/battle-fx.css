@@ -1,0 +1,857 @@
+/* ==================== NPC 对战 - 技能特效/动画 ==================== */
+/* 战斗动画与粒子特效独立于全局样式，便于统一管理。
+   全部规则仅由 battle-view.js（NPC 对战）引用；颜色/位移多通过 CSS 变量由 JS 内联传入。 */
+
+/* 战斗动画 */
+.b-flip { position: relative; transform: scaleX(-1); }
+#bp-img, #be-img { will-change: transform; }
+#bp-img.lunge, #be-img.lunge { animation: bLunge 0.3s cubic-bezier(0.3, 0.7, 0.4, 1); }
+/* 特殊攻击：朝对手方向摆动一小段（位移由战斗页按双方精灵位置设置 --lunge-dx/--lunge-dy） */
+@keyframes bLunge {
+  0% { transform: translate(0, 0) scale(1); }
+  45% { transform: translate(var(--lunge-dx, 0px), var(--lunge-dy, 0px)) scale(1.06); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+/* 物理攻击：图片冲向对方面前（我方右下→左上为向对方，敌方反之），
+   冲到贴脸只挥砍一击（打击感）后缓缓退回原位，让伤害在挥砍瞬间爆出。
+   位移量由战斗页按双方精灵实际中心距设置 --lunge-dx/--lunge-dy（精灵按身高缩放，固定像素打不中） */
+#bp-img.lunge-attack { animation: bLungeAtkR 0.5s cubic-bezier(0.3, 0.7, 0.4, 1); }
+#be-img.lunge-attack { animation: bLungeAtkL 0.5s cubic-bezier(0.3, 0.7, 0.4, 1); }
+@keyframes bLungeAtkR {
+  0% { transform: translate(0, 0) scale(1); }
+  35% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(0.78); }   /* 压缩蓄力扑出 */
+  48% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(1.22); }  /* 挥砍一击 */
+  60% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(0.85); }   /* 收招 */
+  100% { transform: translate(0, 0) scale(1); }  /* 缓缓退回原位 */
+}
+@keyframes bLungeAtkL {
+  0% { transform: translate(0, 0) scale(1); }
+  35% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.45); }  /* 放大扑出 */
+  48% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.62); }
+  60% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.3); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+/* 物理连击：首击冲到对手面前并停留，之后在贴脸位小幅挥砍，末击由动画回调移除类回位 */
+#bp-img.lunge-stay { animation: bLungeStayR 0.25s cubic-bezier(0.3, 0.7, 0.4, 1) forwards; }
+#be-img.lunge-stay { animation: bLungeStayL 0.25s cubic-bezier(0.3, 0.7, 0.4, 1) forwards; }
+/* 重踏/地震：原地快速跳起后砸地（落地瞬间由 JS 触发整屏震动） */
+#bp-img.quake-hop, #be-img.quake-hop { animation: bQuakeHop 0.4s cubic-bezier(0.45, 0, 0.55, 1); }
+@keyframes bQuakeHop {
+  0% { transform: translate(0, 0); }
+  30% { transform: translate(0, -26px); }
+  75% { transform: translate(0, 0); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes bLungeStayR {
+  0% { transform: translate(0, 0) scale(1); }
+  55% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(0.78); }
+  75% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(1.22); }
+  100% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(0.85); }
+}
+@keyframes bLungeStayL {
+  0% { transform: translate(0, 0) scale(1); }
+  55% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.45); }
+  75% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.62); }
+  100% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.3); }
+}
+#bp-img.b-strike { animation: bStrikeR 0.16s ease-out forwards; }
+#be-img.b-strike { animation: bStrikeL 0.16s ease-out forwards; }
+@keyframes bStrikeR {
+  0% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(0.85); }
+  40% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(1.22); }
+  100% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(0.85); }
+}
+@keyframes bStrikeL {
+  0% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.3); }
+  40% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.62); }
+  100% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, 42px)) scale(1.3); }
+}
+/* 受击：大幅横震 + 闪白（filter 只在受击瞬间提亮），强化打击感 */
+#bp-img.hit, #be-img.hit { animation: bHitShake 0.3s; }
+@keyframes bHitShake {
+  0% { transform: translateX(0); filter: brightness(1); }
+  20% { transform: translateX(-8px) scale(1.05); filter: brightness(2.3) saturate(0.1); }
+  40% { transform: translateX(6px); filter: brightness(2.3) saturate(0.1); }
+  60% { transform: translateX(-4px); filter: brightness(1.6); }
+  80% { transform: translateX(2px); filter: brightness(1); }
+  100% { transform: translateX(0); filter: brightness(1); }
+}
+#bp-img.faint, #be-img.faint { animation: bFaintFall 0.45s forwards; }
+@keyframes bFaintFall {
+  to { opacity: 0; transform: translateY(26px) rotate(-10deg); }
+}
+/* 畏缩：向后退一步*/
+#bp-img.flinch, #be-img.flinch { animation: bFlinchBack 0.3s ease-out; }
+@keyframes bFlinchBack {
+  0% { transform: translate(0, 0); }
+  40% { transform: translateX(16px); }
+  100% { transform: translate(0, 0); }
+}
+/* 畏缩感叹号：精灵头顶弹出并上浮淡出 */
+.b-flinch-mark {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 24px;
+  font-weight: 900;
+  color: #ff5a4d;
+  line-height: 1;
+  z-index: 8;
+  pointer-events: none;
+  animation: flinchMark 0.55s ease-out forwards;
+}
+@keyframes flinchMark {
+  0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -28px) scale(1.2); }
+}
+/* 未命中：目标头顶弹出灰色 MISS 大字，弹出后上浮淡出 */
+.b-miss-mark {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: #ffffff;
+  z-index: 8;
+  pointer-events: none;
+  animation: missMarkPop 0.6s ease-out forwards;
+}
+@keyframes missMarkPop {
+  0% { opacity: 1; transform: translate(-50%, 0) scale(0.5); }
+  35% { opacity: 1; transform: translate(-50%, -8px) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(1); }
+}
+/* 精灵球登场：闭合球快速落下弹一下 → 立即开盖展开闪光 → 精灵淡入 */
+.b-ball-entry { position: absolute; width: 0; height: 0; z-index: 9; pointer-events: none; }
+.b-ball-entry img { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); image-rendering: pixelated; }
+.b-ball-closed { animation: bBallIn 0.26s cubic-bezier(0.3, 0.9, 0.5, 1); }
+@keyframes bBallIn {
+  0% { opacity: 0; transform: translate(-50%, -190%) translateY(-18px); }
+  45% { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+  57% { transform: translate(-50%, -50%) translateY(0) scale(0.82); }
+  70% { transform: translate(-50%, -70%) scale(1.12); }
+  85% { transform: translate(-50%, -50%) translateY(0) scale(0.94); }
+  100% { transform: translate(-50%, -50%) translateY(0) scale(1); }
+}
+.b-ball-open { opacity: 0; }
+.b-ball-open.show { animation: bBallOpen 0.15s ease-out forwards; }
+@keyframes bBallOpen {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+  35% { opacity: 1; transform: translate(-50%, -50%) scale(0.97); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+/* 精灵登场淡入 */
+#bp-img.b-enter, #be-img.b-enter { animation: bEnter 0.3s ease-out; }
+@keyframes bEnter { from { opacity: 0; } to { opacity: 1; } }
+/* 受击火花：受击宝可梦中心迸发一圈白色像素火花 */
+.b-spark {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-spark i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+  animation: bSparkFly 0.35s ease-out forwards;
+}
+.b-spark i:nth-child(odd) { background: #ffd7a3; }
+@keyframes bSparkFly {
+  0% { transform: translate(0, 0) scale(1.2); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.15); opacity: 0; }
+}
+/* 属性专属命中爆发：命中瞬间围绕精灵迸发一圈该属性粒子（12 元素系属性专属，其余用默认白火花）。
+   颜色由 JS 按属性写入 --fc，全部粒子共用 tfFly 扩散动画（沿 --dx/--dy 飞散淡出），
+   各属性只靠形状（火苗/水滴/叶片/星芒/毒泡/碎石/风刃…）区分，纯扁平无阴影 */
+.b-type-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-type-fx i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: var(--fc, #fff);
+  animation: tfFly 0.45s ease-out forwards;
+}
+@keyframes tfFly {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
+}
+/* 火：扁平火苗 */
+.tf-flame i { width: 5px; height: 8px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; }
+/* 水：圆润水滴（一半纯圆、一半尖底水滴） */
+.tf-drop i { width: 6px; height: 6px; border-radius: 50%; }
+.tf-drop i:nth-child(2n) { border-radius: 50% 50% 50% 0; }
+/* 草：斜向叶片 */
+.tf-leaf i { width: 7px; height: 4px; border-radius: 70% 10% 70% 10%; }
+/* 电：电芒星 */
+.tf-spark i { width: 5px; height: 5px; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+/* 冰：冰晶菱形 */
+.tf-ice i { width: 5px; height: 5px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+/* 毒：空心毒泡 */
+.tf-bubble i { width: 6px; height: 6px; border-radius: 50%; background: none; border: 1.5px solid var(--fc); }
+/* 地面：尘土块 */
+.tf-clump i { width: 6px; height: 5px; border-radius: 2px; }
+/* 岩石：碎石块 */
+.tf-rock i { width: 5px; height: 5px; clip-path: polygon(20% 0, 80% 10%, 100% 60%, 70% 100%, 10% 90%, 0 40%); }
+/* 飞行：风刃 */
+.tf-streak i { width: 10px; height: 2px; border-radius: 2px; }
+/* 虫：虫粉圆点 */
+.tf-dot i { width: 4px; height: 4px; border-radius: 50%; }
+/* 超能：念力漩涡（圆点与星芒交替） */
+.tf-swirl i { width: 6px; height: 6px; border-radius: 50%; }
+.tf-swirl i:nth-child(2n) { clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); border-radius: 0; }
+/* 龙：拉长龙焰 */
+.tf-dragon i { width: 6px; height: 9px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; }
+/* 异常状态粒子特效（挂在精灵所在盒子上，原点为精灵中心/头顶）：
+   睡眠头顶飘 Zzz / 混乱旋星 / 麻痹电火花 / 灼伤火焰 / 中毒毒泡 / 冰冻冰晶 */
+.b-status-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+.b-status-fx i { position: absolute; left: 0; top: 0; }
+/* 睡眠：头顶上方飘 Zzz（简化：纯白小号字体，淡出上浮） */
+.fx-sleep i {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 10px;
+  color: #fff;
+  animation: fxZzz 2.4s ease-out infinite;
+}
+@keyframes fxZzz {
+  0% { opacity: 0; transform: translate(0, 4px); }
+  25% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(0, -24px); }
+}
+/* 麻痹：黄色小粒子明灭 */
+.fx-paralysis i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ffe066;
+  animation: fxSpark 0.65s ease-in-out infinite;
+}
+@keyframes fxSpark {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1); }
+}
+/* 灼伤：扁平橙红火焰上窜（纯色无渐变，降低质感） */
+.fx-burn i {
+  width: 6px;
+  height: 8px;
+  background: #ff7a3d;
+  border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+  animation: fxFlame 0.9s ease-out infinite;
+}
+@keyframes fxFlame {
+  0% { opacity: 0; transform: translateY(5px) scale(0.55); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-12px) scale(1.15); }
+}
+/* 中毒：紫色圈圈上浮 */
+.fx-poison i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1.5px solid #a23df0;
+  animation: fxBubble 1.5s ease-out infinite;
+}
+@keyframes fxBubble {
+  0% { opacity: 0; transform: translateY(3px) scale(0.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px) scale(0.85); }
+}
+/* 冰冻：淡蓝冰晶闪烁 */
+.fx-freeze i {
+  width: 5px;
+  height: 5px;
+  background: #bfe9ff;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: fxIce 1.8s ease-in-out infinite;
+}
+@keyframes fxIce {
+  0%, 100% { opacity: 0.2; transform: scale(0.6) rotate(0); }
+  50% { opacity: 0.95; transform: scale(1.15) rotate(160deg); }
+}
+/* 混乱：头顶黄色小星盘旋打转 */
+.fx-confusion i {
+  font-style: normal;
+  font-size: 10px;
+  color: #ffe066;
+  animation: fxDizzy 1.2s ease-in-out infinite;
+}
+@keyframes fxDizzy {
+  0%, 100% { opacity: 0.25; transform: rotate(0) scale(0.65); }
+  50% { opacity: 1; transform: rotate(180deg) scale(1.1); }
+}
+/* 重创（伤害占比高）：战斗画面整体震动 */
+.battle-fight.battle-shake { animation: bStageShake 0.3s; }
+@keyframes bStageShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 2px); }
+  40% { transform: translate(4px, -2px); }
+  60% { transform: translate(-3px, -1px); }
+  80% { transform: translate(3px, 1px); }
+}
+/* 宝可梦退场/上场：信息卡片滑出/滑入屏幕。
+   敌方卡片在左上（滑出左边界），我方卡片在右下（滑出右边界）；
+   滑出用 forwards 保持离屏，滑入播完由 JS 移除类回位 */
+.b-panel.panel-out-l { animation: bPanelOutL 0.28s ease-in forwards; }
+.b-panel.panel-out-r { animation: bPanelOutR 0.28s ease-in forwards; }
+.b-panel.panel-in-l { animation: bPanelInL 0.32s ease-out; }
+.b-panel.panel-in-r { animation: bPanelInR 0.32s ease-out; }
+@keyframes bPanelOutL {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-110vw); opacity: 0; }
+}
+@keyframes bPanelOutR {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(110vw); opacity: 0; }
+}
+@keyframes bPanelInL {
+  0% { transform: translateX(-110vw); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes bPanelInR {
+  0% { transform: translateX(110vw); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+/* 受击侧 HP 面板红闪 */
+.b-hit-panel {
+  background: rgba(255, 90, 80, 0.55) !important;
+  transition: background 0.25s;
+}
+/* 伤害数字：弹出前小幅压缩再放大（更有力），重创加大变红 */
+.b-dmg {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  animation: bDmgPop 0.7s forwards;
+  pointer-events: none;
+  z-index: 5;
+}
+.b-dmg.heavy { color: #ff5252; font-size: 18px; } /* 重创（占比高）：红色加大 */
+.b-dmg.heal { color: #2cb065; } /* 回复：绿色（与满血血条同色） */
+@keyframes bDmgPop {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(0.3); }
+  12% { opacity: 1; transform: translate(-50%, 2px) scale(1.35); }
+  26% { transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(1); }
+}
+/* 回复加号粒子：受回复宝可梦身上迸发绿色十字，治疗能量向上飘散（纯扁平无阴影） */
+.b-heal-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-heal-fx i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  background: #7ce38b;
+  clip-path: polygon(42% 0, 58% 0, 58% 42%, 100% 42%, 100% 58%, 58% 58%, 58% 100%, 42% 100%, 42% 58%, 0 58%, 0 42%, 42% 42%);
+  animation: healFly 0.6s ease-out forwards;
+}
+@keyframes healFly {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
+}
+/* 寄生种子幼芽：被寄生宝可梦脚下长出几根 Y 形豆芽（茎 + 两片小叶），
+   以根部为轴错峰左右摆动（高矮交替）。每根高度/延迟由 JS 通过 --sh/--hd 内联设置 */
+.b-seed-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-seed-fx i {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(#3fa129, #7ccb5e);
+  transform-origin: bottom center; /* 根部固定，芽身绕此左右摆动 */
+  animation: seedSway 0.7s ease-in-out infinite;
+  animation-delay: var(--hd, 0s);
+  height: var(--sh, 14px);
+}
+/* Y 形芽的两片小叶：从茎顶向两侧张开 */
+.b-seed-fx i::before,
+.b-seed-fx i::after {
+  content: '';
+  position: absolute;
+  bottom: calc(100% - 1px);
+  width: 8px;
+  height: 5px;
+  border-radius: 60% 60% 60% 0 / 90% 90% 40% 10%;
+  background: #7ccb5e;
+}
+.b-seed-fx i::before {
+  right: 3px; /* 偏向茎顶左侧 */
+  transform: rotate(-18deg);
+  transform-origin: bottom right;
+}
+.b-seed-fx i::after {
+  left: 3px; /* 偏向茎顶右侧 */
+  transform: rotate(18deg);
+  transform-origin: bottom left;
+}
+@keyframes seedSway {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+/* 弹道粒子特效（泡沫/水枪=气泡、高速星星=星形）：一串粒子从攻击方位置飞向目标，逐一在目标处消失。
+   我方（左下→右上）由大变小，敌方（右上→左下）由小变大；
+   始末缩放/位移/大小/错峰延迟由 JS 经 --sf/--se/--bx/--by/--bs/--bd 内联传入 */
+.b-proj-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-proj-fx i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--bs, 14px);
+  height: var(--bs, 14px);
+  margin-left: calc(var(--bs, 14px) / -2);
+  margin-top: calc(var(--bs, 14px) / -2);
+  opacity: 0;
+  animation: projFly 0.35s ease-out forwards;
+  animation-delay: var(--bd, 0s);
+}
+@keyframes projFly {
+  0% { transform: translate(0, 0) scale(var(--sf, 1)); opacity: 0; }
+  12% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { transform: translate(var(--bx, 0px), var(--by, 0px)) scale(var(--se, 1)); opacity: 0; }
+}
+/* 气泡形：圆润蓝色水泡，带高光渐变 */
+.b-proj-fx.proj-bubble i {
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95), rgba(130, 195, 255, 0.7) 42%, rgba(80, 160, 255, 0.5) 72%, rgba(120, 190, 255, 0.2));
+  box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.5), 0 0 3px rgba(90, 170, 255, 0.4);
+}
+/* 星形：金黄色五角星，带外发光 */
+.b-proj-fx.proj-star i {
+  background: #ffd94a;
+  box-shadow: 0 0 6px rgba(255, 215, 90, 0.9);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+/* 圆环弹道（幻象光线/精神波/水炮）：彩色圆环，颜色由 JS 经 --fc 传入，带柔光 */
+.b-proj-fx.proj-ring i {
+  border-radius: 50%;
+  border: 3px solid var(--fc, rgba(248, 102, 156, 0.9));
+  box-shadow: 0 0 6px var(--fc, rgba(248, 102, 156, 0.65)), inset 0 0 4px var(--fc, rgba(248, 102, 156, 0.35));
+}
+/* 能量球/暗影球/电球/火焰球：发光圆球（颜色由 JS 经 --fc 传入），带高光与暗部。
+   发射单个圆球：先在原位蓄力变大，再沿直线飞向目标，到位后淡出（ballCharge 覆盖通用 projFly） */
+.b-proj-fx.proj-ball i {
+  border-radius: 50%;
+  background: var(--fc, #9aa);
+  box-shadow: 0 0 8px var(--fc, #9aa);
+  animation: ballCharge 0.7s ease-out forwards;
+}
+@keyframes ballCharge {
+  0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+  25% { transform: translate(0, 0) scale(1.4); opacity: 1; }
+  38% { transform: translate(0, 0) scale(1.1); }
+  85% { transform: translate(var(--bx, 0px), var(--by, 0px)) scale(0.9); opacity: 1; }
+  100% { transform: translate(var(--bx, 0px), var(--by, 0px)) scale(0.9); opacity: 0; }
+}
+/* 破坏光线：一截橙色带白边光段，从攻击方中心沿目标方向飞出，穿过对手后冲出屏幕。
+   发射点为容器原点并旋转对齐方向；内部光段沿自身 X 轴平移（--td 为沿该方向的飞行总距离），超长部分被舞台裁剪 */
+.b-light-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+.b-light-fx .seg {
+  position: absolute;
+  left: -24px;
+  top: -5px;
+  width: 48px;
+  height: 10px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #ffd9a0, #ff8c2e 55%, #ff6a00);
+  border: 2px solid #fff;
+  opacity: 0;
+  animation: lightDash 0.7s ease-out forwards;
+}
+@keyframes lightDash {
+  0% { transform: translateX(0); opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(var(--td, 300px)); opacity: 0; }
+}
+/* 电系招式：一道闪电从目标头顶上方劈下命中头部（短暂闪灭），命中点带光爆。
+   闪电挂在目标盒子、以头部为原点向上延伸，超出舞台部分被裁剪（表现为从屏幕顶劈下） */
+.b-lightning-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-lightning-fx .bolt {
+  position: absolute;
+  left: -14px;
+  top: -160px;
+  width: 28px;
+  height: 160px;
+  background: linear-gradient(180deg, #fff7c0, #ffe066 45%, #ffd12e);
+  filter: drop-shadow(0 0 6px rgba(255, 214, 60, 0.9));
+  opacity: 0;
+  clip-path: polygon(52% 0%, 42% 0%, 36% 30%, 52% 30%, 34% 62%, 48% 62%, 24% 100%, 40% 100%, 52% 78%, 68% 78%, 88% 100%, 100% 100%, 62% 48%, 44% 48%, 68% 0%);
+  animation: boltFlash 0.4s linear forwards;
+}
+@keyframes boltFlash {
+  0%, 100% { opacity: 0; }
+  5% { opacity: 1; }
+  12% { opacity: 0.25; }
+  18% { opacity: 1; }
+  30% { opacity: 0.35; }
+  40% { opacity: 0.95; }
+  55% { opacity: 0; }
+}
+/* 命中点电光爆发：亮白向四周扩散 */
+.b-lightning-fx .flash {
+  position: absolute;
+  left: -20px;
+  top: -16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(255, 224, 102, 0.6) 55%, transparent 75%);
+  opacity: 0;
+  animation: boltGlow 0.4s ease-out forwards;
+}
+@keyframes boltGlow {
+  0% { opacity: 0; transform: scale(0.3); }
+  15% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+/* 岩崩：目标头顶掉下大小不一的圆形岩石，错峰砸落（下落距离由 JS 经 --by 传入，落地淡出） */
+.b-rock-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+/* 岩崩/落石：圆形岩石与单颗大石块，纯色扁平（不做立体渐变） */
+.b-rock-fx i {
+  position: absolute;
+  border-radius: 45%;
+  background: #b59162;
+  opacity: 0;
+  animation: rockFall 0.55s ease-in forwards;
+  animation-delay: var(--bd, 0s);
+}
+/* 落石：单颗大石头，不规则石块轮廓 */
+.b-rock-fx i.big {
+  border-radius: 30%;
+  background: #a9855a;
+  clip-path: polygon(20% 4%, 58% 0%, 86% 22%, 98% 56%, 84% 86%, 52% 100%, 16% 90%, 0% 56%, 10% 20%);
+}
+@keyframes rockFall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  70% { transform: translate(0, var(--by, 120px)) rotate(240deg); opacity: 1; }
+  100% { transform: translate(0, var(--by, 120px)) rotate(240deg); opacity: 0; }
+}
+/* 雪崩：目标头顶掉下大小不一的白色雪球，错峰砸落（位移逻辑同岩崩，纯白扁平不带旋转） */
+.b-snow-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-snow-fx i {
+  position: absolute;
+  border-radius: 50%;
+  background: #f2f9ff;
+  box-shadow: 0 0 5px rgba(170, 215, 255, 0.9);
+  opacity: 0;
+  animation: snowFall 0.55s ease-in forwards;
+  animation-delay: var(--bd, 0s);
+}
+@keyframes snowFall {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate(0, var(--by, 120px)); opacity: 0; }
+}
+/* 吸血粒子：从目标身上飞出一串能量粒子，收拢吸回攻击方/施种方（颜色经 --fc 传入，位移经 --bx/--by） */
+.b-drain-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-drain-fx i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--fc, #7dc84a);
+  box-shadow: 0 0 6px rgba(125, 200, 74, 0.8);
+  opacity: 0;
+  animation: drainFly 0.5s ease-in forwards;
+}
+@keyframes drainFly {
+  0% { transform: translate(0, 0) scale(1.1); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(var(--bx, 0px), var(--by, 0px)) scale(0.45); opacity: 0; }
+}
+/* 念力/精神强念：目标身上一个扭动变形的圆环（精神波动扭曲），横向压扁/纵向拉伸交错起伏后消失 */
+.b-psy-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-psy-fx i {
+  position: absolute;
+  left: -28px;
+  top: -28px;
+  width: 56px;
+  height: 56px;
+  border: 3px solid rgba(248, 102, 156, 0.85);
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(248, 102, 156, 0.5), inset 0 0 8px rgba(248, 102, 156, 0.3);
+  opacity: 0;
+  animation: psyWarp 0.85s ease-in-out forwards;
+}
+@keyframes psyWarp {
+  0% { transform: scale(0.4, 0.4) rotate(0deg); opacity: 0; }
+  15% { transform: scale(1.25, 0.75) rotate(6deg); opacity: 1; }
+  32% { transform: scale(0.8, 1.3) rotate(-8deg); }
+  50% { transform: scale(1.2, 0.82) rotate(5deg); }
+  68% { transform: scale(0.85, 1.15) rotate(-4deg); }
+  85% { transform: scale(1, 1) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1, 1) rotate(0deg); opacity: 0; }
+}
+/* 发声招式（叫声/哈欠/虫鸣等）：从攻击方发出扩散的声波圈（圆环放大并涌向目标，逐波错峰） */
+.b-sonic-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-sonic-fx i {
+  position: absolute;
+  left: -18px;
+  top: -18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(160, 190, 235, 0.9);
+  box-shadow: 0 0 8px rgba(160, 190, 235, 0.5), inset 0 0 6px rgba(160, 190, 235, 0.35);
+  opacity: 0;
+  animation: sonicShock 0.5s ease-out forwards;
+  animation-delay: var(--bd, 0s);
+}
+@keyframes sonicShock {
+  0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(var(--bx, 0px), var(--by, 0px)) scale(2.2); opacity: 0; }
+}
+/* 冰冻光束：淡蓝色直线光束，从攻击方沿目标方向快速展开（长度/角度由 JS 计算） */
+.b-beam-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-beam-fx i {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(170, 225, 255, 0), rgba(170, 225, 255, 0.95) 25%, #d9f4ff 100%);
+  box-shadow: 0 0 12px rgba(170, 225, 255, 0.8);
+  animation: beamShoot 0.35s ease-out forwards;
+}
+@keyframes beamShoot {
+  0% { transform: scaleX(0); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0.95; }
+}
+/* 大面积水系冲浪圆形水波 */
+.b-water-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: visible; /* 关键：允许圆形从屏幕外面进来 */
+}
+.b-water-fx i {
+  --dx: 0%;
+  --dy: 0%;
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(150, 215, 255, 0.8), rgba(120, 190, 255, 0.35) 60%, transparent 90%);
+  box-shadow: 0 0 20px #72bfff;
+  left: -175px;
+  bottom: -175px;
+  animation: waterSweep 0.65s ease-in-out forwards;
+}
+
+@keyframes waterSweep {
+  0% {
+    transform: translate(0,0) scale(0.7);
+    opacity: 1;
+  }
+  100% {
+    /* 整体斜向平移到对角，同时轻微扩张 */
+    transform: translate(var(--dx), var(--dy)) scale(1.4);
+    opacity: 0.8;
+  }
+}
+/* 风系/龙卷风类招式：旋转的旋风团刮向对手（颜色由 --fc 传入，位移/错峰由 JS 设置） */
+.b-wind-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-wind-fx i {
+  position: absolute;
+  left: -26px;
+  top: -26px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    transparent 0deg 30deg, var(--fc, #cfe6f5) 30deg 50deg, transparent 50deg 120deg,
+    var(--fc, #cfe6f5) 120deg 140deg, transparent 140deg 210deg,
+    var(--fc, #cfe6f5) 210deg 230deg, transparent 230deg 300deg,
+    var(--fc, #cfe6f5) 300deg 320deg, transparent 320deg 360deg);
+  opacity: 0;
+  animation: windWhirl 0.5s ease-out forwards;
+  animation-delay: var(--bd, 0s);
+}
+@keyframes windWhirl {
+  0% { transform: translate(0, 0) rotate(0deg) scale(0.5); opacity: 0; }
+  10% { opacity: 0.9; }
+  100% { transform: translate(var(--bx, 0px), var(--by, 0px)) rotate(400deg) scale(1.1); opacity: 0; }
+}
+/* 龙系特殊招式（龙息/龙之波动/流星群/时光咆哮/亚空裂斩/鳞片噪音/巨龙威能/归无之光/随机光）：
+   一团紫蓝色龙息能量粒子，从攻击方聚拢出发，飞向目标途中逐渐散开（位移由 JS 经 --bx/--by 传入） */
+.b-dragon-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-dragon-fx i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #8a7bff;
+  opacity: 0;
+  animation: dragonPuff 0.55s ease-out forwards;
+}
+@keyframes dragonPuff {
+  0% { transform: translate(0, 0) scale(0.4); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(var(--bx, 0px), var(--by, 0px)) scale(1); opacity: 0; }
+}
+/* ==================== 两回合招式（挖洞/飞翔/潜水/弹跳/神鸟猛击/潜灵奇袭） ==================== */
+/* 第一回合蓄力进入：精灵离场消失（挖洞/潜水向下钻入、飞翔/弹跳向上升空、潜灵奇袭隐身淡出） */
+#bp-img.cg-sink, #be-img.cg-sink { animation: cgSink 0.5s cubic-bezier(0.45, 0, 0.8, 0.5) forwards; }
+@keyframes cgSink {
+  to { transform: translate(0, 42%) scale(0.2); opacity: 0; }
+}
+#bp-img.cg-rise, #be-img.cg-rise { animation: cgRise 0.3s ease-in forwards; }
+@keyframes cgRise {
+  to { transform: translate(0, -70vh) scale(0.6); opacity: 0; }
+}
+#bp-img.cg-vanish, #be-img.cg-vanish { animation: cgVanish 0.45s ease-in forwards; }
+@keyframes cgVanish { to { opacity: 0; } }
+/* 神鸟猛击：原地蓄光（不消失），光芒骤亮后收回 */
+#bp-img.cg-glow, #be-img.cg-glow { animation: cgGlow 0.8s ease-in-out; }
+@keyframes cgGlow {
+  0%, 100% { filter: brightness(1); transform: scale(1); }
+  50% { filter: brightness(2.1); transform: scale(1.07); }
+}
+/* 第二回合攻击：从消失位现身（破土而出/跃出水面/俯冲而下/显现），随后由 lungeAttack 冲刺 */
+#bp-img.cg-out-sink, #be-img.cg-out-sink { animation: cgOutSink 0.32s ease-out; }
+@keyframes cgOutSink {
+  from { transform: translate(0, 42%) scale(0.2); opacity: 0; }
+  to { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+#bp-img.cg-out-rise, #be-img.cg-out-rise { animation: cgOutRise 0.32s ease-out; }
+@keyframes cgOutRise {
+  from { transform: translate(0, -70vh) scale(0.6); opacity: 0; }
+  to { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+#bp-img.cg-out-vanish, #be-img.cg-out-vanish { animation: cgOutVanish 0.26s ease-out; }
+@keyframes cgOutVanish {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* 尘土/水花粒子：挖洞钻地/破土、潜水入水/跃出时脚部溅起的颗粒（颜色由 JS 经 --fc 传入） */
+.b-ground-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-ground-fx i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--fc, #b98f5e);
+  opacity: 0;
+  animation: groundFly 0.5s ease-out forwards;
+}
+@keyframes groundFly {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.8); }
+}

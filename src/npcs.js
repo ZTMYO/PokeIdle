@@ -37,8 +37,8 @@ const MON_POOLS = {
 
 const TIER_CFG = {
   novice:   { title: '普通', lvBonus: 0, candy: 5 },
-  veteran:  { title: '精英', lvBonus: 4, candy: 10 },
-  champion: { title: '冠军', lvBonus: 8, candy: 20 },
+  veteran:  { title: '精英', lvBonus: 0, candy: 10 },
+  champion: { title: '冠军', lvBonus: 2, candy: 20 },
 };
 
 // 洗牌（原地）

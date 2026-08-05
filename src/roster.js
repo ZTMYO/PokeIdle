@@ -341,10 +341,10 @@ function currentMoveIds(p) {
     });
   }
   const pd = getPokemonByIndex(String(p.species));
-  return chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [] });
+  return chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [], includeTm: true });
 }
 
-// 可学习候选：升级习得（≤当前等级）+ 蛋招式，过滤未实现招式，按学习等级升序
+// 可学习候选：升级习得（≤当前等级）+ 蛋招式 + 招式机，过滤未实现招式，按学习等级升序（TM 排最后）
 function candidateMoves(p) {
   const ls = _learnset[p.species] || { lv: [], tm: [], egg: [] };
   const out = [];
@@ -352,6 +352,7 @@ function candidateMoves(p) {
     if (lv <= (p.level || 1)) out.push({ id: m, lv, egg: false });
   }
   for (const m of ls.egg || []) out.push({ id: m, lv: null, egg: true });
+  for (const m of ls.tm || []) out.push({ id: m, lv: null, tm: true });
   const seen = new Set();
   const res = [];
   for (const c of out) {
@@ -370,7 +371,7 @@ function candidateMoves(p) {
       res.push({ id, lv: null, egg: false });
     }
   }
-  res.sort((a, b) => (a.lv ?? 999) - (b.lv ?? 999));
+  res.sort((a, b) => (a.lv ?? (a.tm ? 9999 : 999)) - (b.lv ?? (b.tm ? 9999 : 999)));
   return res;
 }
 
@@ -415,7 +416,7 @@ function bindMovesBlock(id) {
   if (!p) return;
   box.querySelector('#rosterAutoSet')?.addEventListener('click', () => {
     const pd = getPokemonByIndex(String(p.species));
-    p.moves = chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [] });
+    p.moves = chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [], includeTm: true });
     saveGame();
     renderMovesBlock(id);
   });
@@ -439,7 +440,7 @@ const MOVE_CAT_ICON = { phys: 'physical.png', spec: 'special.png', status: 'stat
 const MOVE_CAT_CN = { phys: '物理', spec: '特殊', status: '变化' };
 function moveCat(mv) {
   const ef = mv.effect || {};
-  if (ef.kind === 'damage' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'fixed') {
+  if (ef.kind === 'damage' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'fixed' || ef.kind === 'counter') {
     return ef.cat === 'spec' ? 'spec' : 'phys';
   }
   return 'status';
@@ -477,9 +478,14 @@ function moveDesc(mv) {
     case 'drain': return `造成伤害，并回复造成伤害${ef.ratio ? Math.round(ef.ratio * 100) + '%' : ''}的HP。`;
     case 'recoil': return `造成伤害，但自身也会承受${Math.round((ef.ratio || 0.25) * 100)}%的反噬伤害。`;
     case 'fixed': return '无视对手防御，造成固定伤害。';
+    case 'counter': return '本回合受到物理攻击后使用，可将该伤害翻倍返还给对手。';
     case 'heal': return `回复最大HP的${Math.round((ef.ratio || 0.5) * 100)}%。`;
     case 'sleepRest': return '回复全部HP，同时陷入睡眠状态。';
     case 'cure': return '治愈全队的异常状态。';
+    case 'protect': return '本回合免疫所有招式造成的伤害，但连续使用容易失败。';
+    case 'endure': return '本回合受到致命伤害时，保留至少 1 点 HP。';
+    case 'leechSeed': return '在对手脚下种下寄生种子，每回合吸取其 HP 回复自己。对草系无效。';
+    case 'substitute': return '消耗 1/4 最大 HP 制造替身，替身替自己承受伤害。';
     case 'unimplemented': return ef.note || '该招式暂未实装。';
     default: return '';
   }
@@ -674,7 +680,7 @@ function renderMoveEditor() {
               <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
             </span>
             <span class="move-edit-row-name">${mv.name}</span>
-            <span class="move-edit-row-lv">${c.egg ? '蛋招式' : c.lv ? `Lv${c.lv}` : ''}</span>
+            <span class="move-edit-row-lv">${c.tm ? '招式机' : c.egg ? '蛋招式' : c.lv ? `Lv${c.lv}` : ''}</span>
           </button>`;
         }).join('')}
       </div>

@@ -1,4 +1,4 @@
-﻿// 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
+// 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
 import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
 import { gameData, getPokemonByIndex, addSystemLog, saveGame, setPrevView, setPhase, currentEncounter, phase } from './state.js';
@@ -6,7 +6,7 @@ import { createMon, useMove, preTurn, postTurn, aiMove } from './battle-core.js'
 import { typeMult } from './type-chart.js';
 import { chooseMoves } from './moves.js';
 import { ensureNpcs, buildNpcTeam } from './npcs.js';
-import { BATTLE_REFRESH_MS, MAX_LEVEL } from './config.js';
+import { BATTLE_REFRESH_MS, MAX_LEVEL, SPECIAL_SPRITE_SCALE } from './config.js';
 import { playBattle, endBattle, playVictory, stopVictory } from './audio.js';
 import * as road from './road.js';
 
@@ -45,10 +45,28 @@ const STAT_NAMES = ['攻击', '防御', '特攻', '特防', '速度'];
 const MOVE_CAT_CN = { phys: '物理', spec: '特殊', status: '变化' };
 function moveCat(mv) {
   const ef = mv.effect || {};
-  if (ef.kind === 'damage' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'fixed') {
+  if (ef.kind === 'damage' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'fixed' || ef.kind === 'counter' || ef.kind === 'mirrorCoat') {
+    if (ef.kind === 'mirrorCoat') return 'spec'; // 镜面反射：返还特殊伤害，属特殊攻击
     return ef.cat === 'spec' ? 'spec' : 'phys';
   }
   return 'status';
+}
+// 招式先制度：双倍奉还/镜面反射等反击招先制度 -5（永远最后出手），守住/挺住先制 +4
+function movePriority(mv) {
+  const k = (mv.effect || {}).kind;
+  if (k === 'counter' || k === 'mirrorCoat') return -5;
+  if (k === 'protect' || k === 'endure') return 4;
+  return 0;
+}
+// 换人/新宝可梦上场：清空反击/镜面反射记录及替身/寄生种子/两回合蓄力等仅对当前个体的战斗标记
+function resetCounter(mon) {
+  if (!mon) return;
+  mon.hitByPhys = false; mon.physDmg = 0;
+  mon.hitBySpec = false; mon.specDmg = 0;
+  mon.protected = false; mon.endure = false;
+  mon.subHp = 0;
+  mon.seeded = false; mon.seedSrc = null;
+  mon.chargeMove = null; mon.chargeHidden = false; // 换人中断两回合蓄力
 }
 
 // 战斗是否进行中（标题栏返回判断）
@@ -93,7 +111,9 @@ function applySpriteSize(img, side, pd) {
   const h = pd && pd.height ? pd.height : SPRITE_REF_H;
   // 1m 以下线性保持精确比例；以上开方放缓，避免 20m 之类的极端身高直接顶满布局
   const s = h <= SPRITE_REF_H ? h / SPRITE_REF_H : Math.sqrt(h / SPRITE_REF_H);
-  const scale = Math.max(SPRITE_MIN, Math.min(SPRITE_MAX, s));
+  // 盘绕/长身类宝可梦（图鉴身高为拉直总长，立绘蜷缩成团）：按个体修正系数缩小
+  const mult = (pd && SPECIAL_SPRITE_SCALE[pd.index]) || 1;
+  const scale = Math.max(SPRITE_MIN, Math.min(SPRITE_MAX, s * mult));
   let px = Math.round(SPRITE_BASE_H * scale); // 高度目标（像素）
   let w = px;
   if (img.naturalWidth && img.naturalHeight) {
@@ -256,7 +276,7 @@ function buildPlayerTeam() {
           const m = entry.moves[i];
           return m && _data.moves[m] && _data.moves[m].effect.kind !== 'unimplemented' ? m : null;
         })
-      : chooseMoves(_learnset[entry.species], entry.level, _data, { types: pd ? pd.types : [] });
+      : chooseMoves(_learnset[entry.species], entry.level, _data, { types: pd ? pd.types : [], includeTm: true });
     return (() => {
       const mon = createMon(pd, entry.level || 1, entry.ivs, entry.nature, moveIds);
       mon.shiny = !!entry.shiny; // 战斗大图按闪光贴图（_shiny 后缀）加载
@@ -461,13 +481,16 @@ function renderMon(mon, side, enter) {
   // 清除上一只残留的战斗动画类（faint 带 forwards 会停在不可见状态；其余互斥类按 CSS 后定义覆盖）
   img.classList.remove(...B_ANIM_CLS);
   lowerAttacker(side); // 换宠/刷新时恢复默认层级（动画被中断时 animationend 不会触发）
-  if (enter) img.style.visibility = 'hidden'; // 球登场期间隐藏精灵，等动画结束再淡入
+  // 登场球动画期间隐藏精灵；两回合招式蓄力（钻地/升空/入水）期间同样保持隐藏
+  img.style.visibility = (enter || mon.chargeHidden) ? 'hidden' : '';
+  img.dataset.charged = mon.chargeHidden ? '1' : ''; // 蓄力离场标记与逻辑状态同步（换人/刷新时清除残留）
   // 战斗大图优先，失败回退小图标；闪光个体使用 _shiny 贴图（路径含中文，走 tryLoad 的编码/兜底加载）
   const loaded = tryLoadPokemonImage(img, pd, mon.shiny ? '_shiny' : '').then(ok => {
     if (!ok) return tryLoadPokemonIcon(img, pd);
   }).then(() => {
     applySpriteSize(img, side, pd); // 按真实身高缩放（仅战斗页生效）
     syncStatusFx(side, mon, true); // 图片尺寸确定后校正异常状态粒子挂点位置
+    syncSeedFx(side, mon, true); // 同上：校正寄生种子幼芽挂点位置
   });
   const nameEl = $(`${side}-name`);
   nameEl.textContent = mon.name;
@@ -494,6 +517,7 @@ function renderMon(mon, side, enter) {
   const hpBox = bar.closest('.b-hp');
   if (hpBox) hpBox.dataset.tip = `${mon.hp}/${mon.maxHp}`;
   syncStatusFx(side, mon); // 异常状态粒子（睡眠 Zzz / 混乱旋星 / 麻痹火花 / 灼伤火焰 / 中毒毒泡 / 冰冻冰晶）
+  syncSeedFx(side, mon); // 寄生种子幼芽（被寄生期间常驻脚下，换宠/解除后移除）
   // 上阵/换人：等图片加载完成（此时尺寸才是最终尺寸）再放球，落点为精灵图片底部居中
   return enter ? loaded.then(() => ballEntry(side, img)) : loaded;
 }
@@ -566,7 +590,8 @@ function setText(t) {
 function showRight() { const el = $('b-right'); if (el) el.style.display = ''; }
 function hideRight() { const el = $('b-right'); if (el) el.style.display = 'none'; }
 // 战斗动画互斥：lunge/hit/faint 同时存在时会按 CSS 后定义者覆盖，取动画前必须清掉全部
-const B_ANIM_CLS = ['lunge', 'lunge-attack', 'hit', 'faint', 'lunge-stay', 'b-strike', 'flinch', 'b-enter'];
+const B_ANIM_CLS = ['lunge', 'lunge-attack', 'hit', 'faint', 'lunge-stay', 'b-strike', 'flinch', 'b-enter',
+  'cg-sink', 'cg-rise', 'cg-vanish', 'cg-glow', 'cg-out-sink', 'cg-out-rise', 'cg-out-vanish'];
 function resetAnim(el) {
   el.classList.remove(...B_ANIM_CLS);
 }
@@ -602,17 +627,28 @@ function playAnim(side, cls) {
     el.removeEventListener('animationend', h);
   });
 }
+// 攻击目标定位：目标离场蓄力（挖洞/飞翔等，dataset.charged 标记）时，
+// 物理/特殊攻击应瞄准对方底座（地面位置）而非飞向隐藏中的精灵图片
+function lungeTargetRect(side) {
+  const tSide = side === 'bp' ? 'be' : 'bp';
+  const foe = $(`${tSide}-img`);
+  if (foe && foe.dataset.charged === '1') {
+    const base = $(`${tSide}-base`);
+    if (base) return base.getBoundingClientRect();
+  }
+  return foe ? foe.getBoundingClientRect() : null;
+}
 // 特殊攻击：朝对手方向摆动一小段施法动作（位移量由 --lunge-dx/--lunge-dy 传入，
 // 按双方精灵实际位置计算——固定向侧边摆动对缩放后的精灵方向会偏）
 function lunge(side) {
   const el = $(`${side}-img`);
-  const foe = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const f = lungeTargetRect(side);
+  if (!el || !f) return;
   resetAnim(el);
   void el.offsetWidth;
   raiseAttacker(side);
   el.classList.add('lunge');
   const r = el.getBoundingClientRect();
-  const f = foe.getBoundingClientRect();
   // 朝对手中心方向的单位向量 × 固定摆动距离
   let vx = f.left + f.width / 2 - (r.left + r.width / 2);
   const vy = f.top + f.height / 2 - (r.top + r.height / 2);
@@ -633,13 +669,13 @@ function lunge(side) {
 // 位移按双方精灵实际间距动态计算——攻击方边缘正好触到对手边缘，不重叠；精灵按身高缩放后固定像素会打不中/打过对手
 function lungeAttack(side) {
   const el = $(`${side}-img`);
-  const foe = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const f = lungeTargetRect(side);
+  if (!el || !f) return;
   resetAnim(el);
   void el.offsetWidth;
   raiseAttacker(side);
   el.classList.add('lunge-attack');
   const r = el.getBoundingClientRect();
-  const f = foe.getBoundingClientRect();
   // 横向位移：让攻击方边缘恰好贴住对手边缘（我方右缘→敌方左缘；敌方左缘→我方右缘）；已接触/重叠则不动
   const dx = side === 'bp'
     ? -(Math.max(0, f.left - r.right))   // 我方在 scaleX(-1) 容器内，x 方向与屏幕相反
@@ -777,6 +813,355 @@ function spawnHealFx(side) {
   box.appendChild(fx);
   setTimeout(() => fx.remove(), 900);
 }
+// 弹道粒子：一串粒子从攻击方位置飞向目标，逐一在目标处消失（shape: 'bubble' 气泡 / 'star' 星形 / 'ball' 圆球）。
+// 我方（左下→右上）由大变小，敌方（右上→左下）由小变大；始末大小/位移/错峰由 CSS 变量传入。
+// 圆球类招式仅发射单球：先在攻击方位置蓄力变大，再沿直线飞向目标（动画见 ballCharge）；
+// solid 为 true 时去掉柔和光晕（实心岩石球，如击落）
+function spawnProjStream(side, shape, color, solid) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-proj-fx proj-' + shape;
+  if (color) fx.style.setProperty('--fc', color); // 圆球类招式按属性着色
+  // 起点：攻击方中心略偏上（模拟喷出点）；终点：目标中心略偏上
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.38;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.38;
+  fx.style.left = sx + 'px';
+  fx.style.top = sy + 'px';
+  if (shape === 'ball') {
+    const b = document.createElement('i');
+    b.style.setProperty('--bx', (ex - sx).toFixed(1) + 'px');
+    b.style.setProperty('--by', (ey - sy).toFixed(1) + 'px');
+    b.style.setProperty('--bs', (16 + Math.random() * 4).toFixed(1) + 'px');
+    if (solid) b.style.boxShadow = 'none'; // 实心球：去掉柔和光晕
+    fx.appendChild(b);
+    box.appendChild(fx);
+    setTimeout(() => fx.remove(), 800);
+    return;
+  }
+  const shrink = side === 'bp'; // 我方大→小；敌方小→大
+  const n = 7;
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('i');
+    b.style.setProperty('--bx', (ex - sx + (Math.random() * 12 - 6)).toFixed(1) + 'px');
+    b.style.setProperty('--by', (ey - sy + (Math.random() * 10 - 5)).toFixed(1) + 'px');
+    b.style.setProperty('--sf', shrink ? 1.5 : 0.45);
+    b.style.setProperty('--se', shrink ? 0.45 : 1.5);
+    b.style.setProperty('--bs', (10 + Math.random() * 7).toFixed(1) + 'px');
+    b.style.setProperty('--bd', (i * 0.08).toFixed(2) + 's'); // 逐发错开，在目标处逐一消失
+    fx.appendChild(b);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 600 + n * 90);
+}
+// 破坏光线：一截橙色带白边光段，从攻击方中心沿目标方向飞出，穿过对手后冲出屏幕。
+// 发射点为容器原点并旋转对齐方向；--td 为沿该方向的飞行总距离
+function spawnLightSweep(side) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.42;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.42;
+  const fx = document.createElement('span');
+  fx.className = 'b-light-fx';
+  fx.style.left = sx + 'px';
+  fx.style.top = sy + 'px';
+  fx.style.transform = `rotate(${Math.atan2(ey - sy, ex - sx)}rad)`;
+  const seg = document.createElement('i');
+  seg.className = 'seg';
+  // 飞行距离超出目标继续延伸，冲向屏幕边缘后淡出
+  seg.style.setProperty('--td', (Math.hypot(ex - sx, ey - sy) * 1.9).toFixed(0) + 'px');
+  fx.appendChild(seg);
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 1000);
+}
+// 电系招式：一道闪电从目标头顶上方劈下命中头部（短暂闪灭）。
+// 闪电挂在目标盒子、以头部为原点向上延伸，超出舞台部分被裁剪（表现为从屏幕顶劈下）
+function spawnLightningStrike(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-lightning-fx';
+  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  fx.style.top = (ir.top - br.top) + 'px'; // 头部
+  const bolt = document.createElement('i');
+  bolt.className = 'bolt';
+  fx.appendChild(bolt);
+  const flash = document.createElement('i');
+  flash.className = 'flash';
+  fx.appendChild(flash);
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 600);
+}
+// 岩崩：目标头顶上方掉下大小不一的圆形岩石，错峰砸落（从盒子顶部上方落下，超出舞台部分被裁剪，
+// 表现为从屏幕上方滚落；落在目标身上后消失）
+function spawnRockSlide(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-rock-fx';
+  const cx = ir.left - br.left + ir.width / 2; // 目标横向中心
+  for (let i = 0; i < 8; i++) {
+    const r = document.createElement('i');
+    const size = 6 + Math.random() * 10; // 大小不一
+    const dropY = 130 + Math.random() * 70; // 各自的下落起点高度
+    r.style.width = size + 'px';
+    r.style.height = size + 'px';
+    r.style.left = (cx + (Math.random() * 100 - 50)) + 'px'; // 头顶上方横向散布
+    r.style.top = (ir.top - br.top - dropY) + 'px';
+    r.style.setProperty('--by', (dropY + ir.height * 0.35).toFixed(0) + 'px'); // 落到身体上
+    r.style.setProperty('--bd', (Math.random() * 0.3).toFixed(2) + 's'); // 错峰砸落
+    fx.appendChild(r);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 950);
+}
+// 落石：目标头顶上方砸下一颗大石头（单颗、不规则石块，落地旋转后淡出）
+function spawnRockDrop(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-rock-fx';
+  const size = 46;
+  const dropY = ir.height * 0.9 + 130; // 从目标头顶更高的地方砸下
+  const r = document.createElement('i');
+  r.classList.add('big');
+  r.style.width = size + 'px';
+  r.style.height = size + 'px';
+  r.style.left = (ir.left - br.left + ir.width / 2 - size / 2) + 'px';
+  r.style.top = (ir.top - br.top - dropY) + 'px';
+  r.style.setProperty('--by', (dropY + ir.height * 0.08).toFixed(0) + 'px'); // 砸中头部位置，不落到身体下方
+  fx.appendChild(r);
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 900);
+}
+// 雪崩：目标头顶上方掉下大小不一的白色雪球，错峰砸落（表现同岩崩，颜色换冰白）
+function spawnSnowSlide(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-snow-fx';
+  const cx = ir.left - br.left + ir.width / 2; // 目标横向中心
+  for (let i = 0; i < 8; i++) {
+    const s = document.createElement('i');
+    const size = 7 + Math.random() * 12; // 雪球大小不一
+    const dropY = 130 + Math.random() * 70; // 各自的下落起点高度
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    s.style.left = (cx + (Math.random() * 100 - 50)) + 'px'; // 头顶上方横向散布
+    s.style.top = (ir.top - br.top - dropY) + 'px';
+    s.style.setProperty('--by', (dropY + ir.height * 0.35).toFixed(0) + 'px'); // 落到身体上
+    s.style.setProperty('--bd', (Math.random() * 0.3).toFixed(2) + 's'); // 错峰砸落
+    fx.appendChild(s);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 950);
+}
+// 发声招式（叫声/唱歌/哈欠/巨声/金属音/长嚎/治愈铃声/虫鸣）：从攻击方发出扩散的声波圈，
+// 圆环逐波涌向目标方向并放大淡出
+function spawnSoundWave(side) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-sonic-fx';
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.35;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.35;
+  fx.style.left = sx + 'px';
+  fx.style.top = sy + 'px';
+  for (let i = 0; i < 3; i++) {
+    const w = document.createElement('i');
+    w.style.setProperty('--bx', ((ex - sx) * 0.72).toFixed(1) + 'px');
+    w.style.setProperty('--by', ((ey - sy) * 0.72).toFixed(1) + 'px');
+    w.style.setProperty('--bd', (i * 0.16).toFixed(2) + 's'); // 逐波错峰
+    fx.appendChild(w);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 850);
+}
+// 冰冻光束：从攻击方射出一道淡蓝色直线光束到对手（光线容器旋转对准目标方向，内部沿长度方向展开）
+function spawnIceBeam(side) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.35;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.35;
+  const dx = ex - sx, dy = ey - sy;
+  const fx = document.createElement('span');
+  fx.className = 'b-beam-fx';
+  fx.style.left = sx + 'px';
+  fx.style.top = sy + 'px';
+  fx.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`; // 旋转指向目标
+  const b = document.createElement('i');
+  b.style.width = Math.hypot(dx, dy) + 'px'; // 光线长度 = 攻击方到目标距离
+  fx.appendChild(b);
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 450);
+}
+// 大面积水系招式（潮旋/水之波动/泼冷水/冲浪/热水）：蓝色半透明水幕整片覆盖战场，
+// 沿对角线涌过（我方从左下角涌向右上角，敌方从右上角涌向左下角，由 --dx/--dy 控制位移）
+function spawnWaterSweep(side) {
+  const stage = document.querySelector('.battle-fight');
+  if (!stage) return;
+  const fx = document.createElement('span');
+  fx.className = 'b-water-fx';
+  const wave = document.createElement('i');
+  if (side === 'bp') {
+    wave.style.setProperty('--dx', '30%');  // 左下 → 右上
+    wave.style.setProperty('--dy', '-30%');
+  } else {
+    wave.style.setProperty('--dx', '-30%'); // 右上 → 左下
+    wave.style.setProperty('--dy', '30%');
+  }
+  fx.appendChild(wave);
+  stage.appendChild(fx);
+  setTimeout(() => fx.remove(), 700);
+}
+// 风系/龙卷风类招式：彩色旋风（旋转的风团）从攻击方刮向对手，逐团错峰；
+// 热风红色/妖精之风粉色/冰冻之风蓝色，其余默认青白（--fc 由 JS 传入）
+function spawnWindTornado(side, color) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-wind-fx';
+  if (color) fx.style.setProperty('--fc', color);
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.35;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.35;
+  fx.style.left = sx + 'px';
+  fx.style.top = sy + 'px';
+  for (let i = 0; i < 3; i++) {
+    const w = document.createElement('i');
+    w.style.setProperty('--bx', (ex - sx + (Math.random() * 20 - 10)).toFixed(1) + 'px');
+    w.style.setProperty('--by', (ey - sy + (Math.random() * 16 - 8)).toFixed(1) + 'px');
+    w.style.setProperty('--bd', (i * 0.12).toFixed(2) + 's'); // 逐团错峰
+    fx.appendChild(w);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 750);
+}
+// 龙系特殊招式（龙息/龙之波动/流星群/时光咆哮/亚空裂斩/鳞片噪音/巨龙威能/归无之光/随机光）：
+// 一团紫蓝色龙息能量粒子，起点聚拢成团，飞向目标途中逐渐散开（动画见 .b-dragon-fx）
+function spawnDragonWave(side) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.38; // 攻击方躯干中心
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.38;
+  const fx = document.createElement('span');
+  fx.className = 'b-dragon-fx';
+  fx.style.left = sx + 'px';
+  fx.style.top = sy + 'px';
+  for (let i = 0; i < 12; i++) {
+    const p = document.createElement('i');
+    const spread = Math.random() * 26; // 终点散开幅度
+    const ang = Math.random() * Math.PI * 2;
+    p.style.setProperty('--bx', (ex - sx + Math.cos(ang) * spread).toFixed(1) + 'px');
+    p.style.setProperty('--by', (ey - sy + Math.sin(ang) * spread).toFixed(1) + 'px');
+    p.style.animationDelay = (Math.random() * 0.12).toFixed(2) + 's'; // 错峰出发
+    p.style.animationDuration = (0.5 + Math.random() * 0.15).toFixed(2) + 's';
+    fx.appendChild(p);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 750);
+}
+// 吸血粒子：从来源精灵身上飞出一串能量粒子，收拢吸回目标。
+// 即时吸血招式（吸取/终极吸取等 drain 类）与寄生种子回合末吸血通用（颜色经 color 传入）
+function spawnDrainParticles(fromSide, toSide, color, count = 10) {
+  const from = $(`${fromSide}-img`);
+  const to = $(`${toSide}-img`);
+  const box = $(`${toSide}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.4; // 来源精灵躯干中心
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.4;
+  const fx = document.createElement('span');
+  fx.className = 'b-drain-fx';
+  fx.style.setProperty('--fc', color);
+  fx.style.left = sx + 'px';
+  fx.style.top = sy + 'px';
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('i');
+    // 粒子先从来源身上散开，再收拢吸回目标
+    const spread = Math.random() * 20;
+    const ang = Math.random() * Math.PI * 2;
+    p.style.setProperty('--bx', (ex - sx + Math.cos(ang) * spread).toFixed(1) + 'px');
+    p.style.setProperty('--by', (ey - sy + Math.sin(ang) * spread).toFixed(1) + 'px');
+    p.style.animationDelay = (Math.random() * 0.2).toFixed(2) + 's'; // 错峰出发
+    p.style.animationDuration = (0.45 + Math.random() * 0.2).toFixed(2) + 's';
+    fx.appendChild(p);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 800);
+}
+// 念力/精神强念：目标身上产生一个扭动变形的圆环（超能系精神波动扭曲空气），绕目标中心起伏后消失
+function spawnPsychicWrap(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-psy-fx';
+  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  fx.style.top = (ir.top - br.top + ir.height * 0.35) + 'px'; // 目标身体中心
+  fx.appendChild(document.createElement('i'));
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 950);
+}
 // 异常状态粒子特效：在精灵处生成循环粒子（睡眠头顶飘 Zzz / 混乱旋星 / 麻痹电火花 /
 // 灼伤火焰 / 中毒毒泡 / 冰冻冰晶）。状态未变化时保留现有粒子，避免每次 renderMon 重排跳动；
 // force 用于图片尺寸确定后（applySpriteSize 异步缩放完成）校正粒子挂点位置
@@ -829,6 +1214,48 @@ function syncStatusFx(side, mon, force) {
     }
   }
   box.appendChild(fx);
+}
+// 寄生种子幼芽特效：被寄生宝可梦脚下长出几根 Y 形豆芽（茎+两片小叶），错峰左右摆动（高矮交替）。
+// 生命周期与 syncStatusFx 一致：被寄生期间常驻显示，换宠/解除后移除；
+// force 用于图片尺寸确定后（applySpriteSize 异步缩放完成）校正挂点位置
+function syncSeedFx(side, mon, force) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const seeded = !!mon.seeded;
+  let fx = box.querySelector('.b-seed-fx');
+  if (fx) {
+    if (!force && fx._mon === mon && fx._seeded === seeded) return;
+    fx.remove();
+  }
+  if (!seeded) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  fx = document.createElement('span');
+  fx.className = 'b-seed-fx';
+  fx._mon = mon;
+  fx._seeded = seeded;
+  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  fx.style.top = (ir.top - br.top + ir.height) + 'px'; // 幼芽从脚部地面长出
+  for (let i = 0; i < 4; i++) {
+    const p = document.createElement('i');
+    p.style.setProperty('--hd', (i * 0.16).toFixed(2) + 's'); // 错峰起跳
+    p.style.setProperty('--sh', (10 + (i % 2) * 5) + 'px');    // 高矮交替
+    p.style.left = ((i - 1.5) * 7) + 'px';
+    fx.appendChild(p);
+  }
+  box.appendChild(fx);
+}
+// 重踏/地震：攻击方原地跳起后砸地，落地瞬间整个战斗画面震动
+function quakeAttack(side) {
+  const img = $(`${side}-img`);
+  if (img) {
+    img.classList.remove('quake-hop');
+    void img.offsetWidth;
+    img.classList.add('quake-hop');
+    setTimeout(() => img.classList.remove('quake-hop'), 450);
+  }
+  setTimeout(stageShake, 300); // 跳起动画 0.4s，约 75% 处落地触发震屏
 }
 // 重创（伤害 ≥25% 最大 HP）：战斗画面整体震动一下
 function stageShake() {
@@ -884,11 +1311,17 @@ function askPlayerMove(battle) {
     }
 
     // 左下角克制提示：随 hover 的招式刷新（无效/收效甚微/有效/效果绝佳）
+    // 变化/回复类招式不造成伤害，无克制概念，统一显示横杠
     function updateEffHint(mid) {
       const hint = $('b-eff-hint');
       const eMon = curMon(battle, 'e');
       const mv = mid != null ? _data.moves[mid] : null;
       if (!hint || !mv) return;
+      if (moveCat(mv) === 'status') {
+        hint.textContent = '——';
+        hint.className = 'b-eff-hint';
+        return;
+      }
       const mult = typeMult(mv.type, eMon.types);
       hint.textContent = mult === 0 ? '无效' : mult < 1 ? '收效甚微' : mult === 1 ? '有效' : '效果绝佳';
       hint.className = 'b-eff-hint ' + (mult === 0 ? 'no' : mult < 1 ? 'weak' : mult === 1 ? 'ok' : 'strong');
@@ -978,6 +1411,15 @@ async function playEvents(events, battle, hitRef, hitType, multiSide) {
       }
       continue;
     }
+    if (ev.t === 'seedDrain') {
+      // 寄生种子回合末吸血：绿色粒子从被吸者身上吸回施种者（双方都在场时才播）
+      const pCur = curMon(battle, 'p');
+      const eCur = curMon(battle, 'e');
+      const fromSide = ev.from === pCur ? 'bp' : ev.from === eCur ? 'be' : null;
+      const toSide = ev.to === pCur ? 'bp' : ev.to === eCur ? 'be' : null;
+      if (fromSide && toSide) spawnDrainParticles(fromSide, toSide, '#7dc84a', 9);
+      continue;
+    }
     if (ev.t === 'flinch') {
       // 畏缩：头顶感叹号 + 向后退一步（我方屏幕向左、敌方屏幕向右，方向由镜像容器处理）
       setText(ev.text || `${ev.who}畏缩了！`);
@@ -985,62 +1427,75 @@ async function playEvents(events, battle, hitRef, hitType, multiSide) {
         playAnim(hitSide, 'flinch');
         flinchFx(hitSide);
       }
-      await battleSleep(500);
+      await battleSleep(350);
       continue;
     }
     if (ev.t === 'miss') {
       // 未命中：目标头顶弹出灰色 MISS（挥空反馈），正文保留招式文案
       setText(ev.text || '没有命中！');
       if (onField) missFx(hitSide);
-      await battleSleep(700);
+      await battleSleep(450);
       continue;
     }
     if (ev.t === 'dmg') {
-      if (!onField) { setText(ev.text || `${ev.who} 受到 ${ev.amount} 点伤害！`); await battleSleep(450); continue; }
-      popDmg(hitSide, ev.amount, hitRef);
+      // 按承受者定位播放侧：攻击伤害=目标侧，替身消耗/混乱自伤/回合伤害=自身侧
+      const pCur = curMon(battle, 'p');
+      const eCur = curMon(battle, 'e');
+      const dMon = ev.who === pCur.name ? pCur : ev.who === eCur.name ? eCur : null;
+      const dSide = dMon === pCur ? 'bp' : 'be';
+      if (!dMon) { setText(ev.text || `${ev.who} 受到 ${ev.amount} 点伤害！`); await battleSleep(300); continue; }
+      popDmg(dSide, ev.amount, dMon);
       setText(ev.text || `${ev.who} 受到 ${ev.amount} 点伤害！`);
-      renderMon(hitRef, hitSide);
+      renderMon(dMon, dSide);
       // 连击等多次伤害：useMove 提前把 HP 全部扣光，renderMon 读到的是最终值；
       // 这里按本次命中前后的 HP 回放血条过渡，逐段扣血，不一次扣完
-      if (ev.from != null) animateHpBar(hitSide, ev.from, ev.to, hitRef.maxHp);
-      shake(hitSide); // 渲染后再震：renderMon 会清掉动画类，先渲染才能让受击动画真正播完
-      if (hitType && TYPE_FX[hitType]) spawnTypeFx(hitSide, hitType); // 12 元素系属性：专属粒子爆发
-      else spawnHitSpark(hitSide); // 其余属性：默认白火花
-      flashHitPanel(hitSide);
-      if (hitRef.maxHp > 0 && ev.amount / hitRef.maxHp >= 0.25) stageShake(); // 重创（占比高）才全屏震动
+      if (ev.from != null) animateHpBar(dSide, ev.from, ev.to, dMon.maxHp);
+      shake(dSide); // 渲染后再震：renderMon 会清掉动画类，先渲染才能让受击动画真正播完
+      if (hitType && TYPE_FX[hitType]) spawnTypeFx(dSide, hitType); // 12 元素系属性：专属粒子爆发
+      else spawnHitSpark(dSide); // 其余属性：默认白火花
+      flashHitPanel(dSide);
+      if (dMon.maxHp > 0 && ev.amount / dMon.maxHp >= 0.25) stageShake(); // 重创（占比高）才全屏震动
       // 连击命中段：等待缩短到挥砍动画后立即衔接下一击（约 0.2s 动画 + 0.43s 停顿 ≈ 0.6s 一击）；
       // 普通单发伤害保留 750ms，维持重创一击的停顿感
-      await battleSleep(nSteps ? 430 : 750);
+      await battleSleep(nSteps ? 300 : 500);
     } else if (ev.t === 'heal') {
       const side = ev.who === hitRef.name ? hitSide : otherSide;
       popHeal(side, ev.amount);
       spawnHealFx(side); // 回复加号粒子：绿色十字能量向上飘散
       setText(ev.text);
       renderMon(side === 'bp' ? curMon(battle, 'p') : curMon(battle, 'e'), side);
-      await battleSleep(750);
+      await battleSleep(500);
+    } else if (ev.t === 'seed') {
+      // 寄生种子种下：刷新目标侧精灵，触发脚下幼芽特效挂载
+      const pCur = curMon(battle, 'p');
+      const eCur = curMon(battle, 'e');
+      const dMon = ev.who === pCur.name ? pCur : ev.who === eCur.name ? eCur : null;
+      if (dMon) renderMon(dMon, dMon === pCur ? 'bp' : 'be');
+      setText(ev.text);
+      await battleSleep(450);
     } else if (ev.t === 'faint') {
       // 换人后旧宠残留的 faint 事件：只播文本，避免把新上场的宝可梦闪掉
       if (ev.who === hitRef.name && !onField) { setText(ev.text); await battleSleep(850); continue; }
       faintAnim(ev.who === hitRef.name ? hitSide : otherSide);
       setText(ev.text);
-      await battleSleep(850);
+      await battleSleep(600);
     } else if (ev.t === 'status') {
       // 换人后旧宠残留的 status 事件：只播文本，避免震动误震新上场的宝可梦
       if (ev.who === hitRef.name && !onField) { setText(ev.text); await battleSleep(700); continue; }
       setText(ev.text);
       renderMon(hitRef, hitSide); // 立即刷新，属性后显示状态圆点
       shake(hitSide); // 渲染后再震，避免被 renderMon 清掉动画类
-      await battleSleep(700);
+      await battleSleep(450);
     } else if (ev.t === 'stat') {
       // 能力升降：立即刷新对应侧，属性后显示能力变化圆点（buff/debuff）
       const side = ev.who === curMon(battle, 'p').name ? 'bp' : 'be';
       const mon = side === 'bp' ? curMon(battle, 'p') : curMon(battle, 'e');
       setText(ev.text);
       renderMon(mon, side);
-      await battleSleep(700);
+      await battleSleep(450);
     } else {
       setText(ev.text);
-      await battleSleep(700);
+      await battleSleep(450);
     }
   }
 }
@@ -1051,13 +1506,13 @@ let _multiHits = 0; // 物理连击已播放的击次计数（用于首/末击�
 function swingOnce(side, first, last) {
   return new Promise((resolve) => {
     const el = $(`${side}-img`);
-    const foe = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
-    if (!el || !foe) return resolve();
+    if (!el) return resolve();
     resetAnim(el);
     void el.offsetWidth;
     raiseAttacker(side);
     const r = el.getBoundingClientRect();
-    const f = foe.getBoundingClientRect();
+    const f = lungeTargetRect(side);
+    if (!f) return resolve();
     const dx = side === 'bp'
       ? -(Math.max(0, f.left - r.right))
       : Math.min(0, f.right - r.left);
@@ -1093,12 +1548,17 @@ function flinchFx(side) {
   setTimeout(() => s.remove(), 800);
 }
 
-// 未命中：目标头顶弹出灰色 MISS 大字（挥空反馈），弹出后上浮淡出
+// 未命中：目标头顶弹出灰色 MISS 大字（挥空反馈），弹出后上浮淡出；
+// 目标离场蓄力（挖洞/飞翔等）时改显示在地面底座上方，避免出现在天上的精灵位置
 function missFx(side) {
   const box = $(`${side}-box`);
   const img = $(`${side}-img`);
   if (!box || !img) return;
-  const ir = img.getBoundingClientRect();
+  let ir = img.getBoundingClientRect();
+  if (img.dataset.charged === '1') {
+    const base = $(`${side}-base`);
+    if (base) ir = base.getBoundingClientRect();
+  }
   const br = box.getBoundingClientRect();
   const s = document.createElement('span');
   s.className = 'b-miss-mark';
@@ -1116,27 +1576,219 @@ async function sleepCheckAttack(mon, side, moveId, battle) {
   if (mon.status === 'sleep' && mon.sleepTurns > 0) {
     mon.sleepTurns--; // 本回合入睡消耗 1 个睡眠回合（与 preTurn 先判后减语义一致）
     setText(`${mon.name}正在呼呼大睡。`);
-    await battleSleep(650);
+    await battleSleep(450);
     return;
   }
   await doAttack(mon, side, moveId, battle);
 }
+
+// ---------- 两回合招式（挖洞/飞翔/潜水/弹跳/神鸟猛击/潜灵奇袭） ----------
+// 第一回合进入蓄力状态（chargeMove 挂起），第二回合自动出招结算伤害
+const CHARGE_MOVES = new Set(['挖洞', '飞翔', '潜水', '弹跳', '神鸟猛击', '潜灵奇袭']);
+// 蓄力期间是否离场隐藏（神鸟猛击为原地蓄光，不隐藏）
+const CHARGE_HIDES = { 挖洞: true, 飞翔: true, 潜水: true, 弹跳: true, 潜灵奇袭: true, 神鸟猛击: false };
+const CHARGE_ENTER_TEXT = {
+  挖洞: (n) => `${n} 挖洞钻入了地下！`,
+  飞翔: (n) => `${n} 飞向了高空！`,
+  潜水: (n) => `${n} 潜入了水中！`,
+  弹跳: (n) => `${n} 高高跃起！`,
+  神鸟猛击: (n) => `${n} 开始积蓄力量！`,
+  潜灵奇袭: (n) => `${n} 消失在了暗影中！`,
+};
+// 进入蓄力的精灵位移动画类：下潜（挖洞/潜水）/ 升空（飞翔/弹跳）/ 原地蓄光 / 隐身
+const CHARGE_ENTER_CLS = {
+  挖洞: 'cg-sink', 潜水: 'cg-sink',
+  飞翔: 'cg-rise', 弹跳: 'cg-rise',
+  神鸟猛击: 'cg-glow',
+  潜灵奇袭: 'cg-vanish',
+};
+// 第二回合现身攻击的动画类：从地下破土而出 / 从空中俯冲而下 / 显现冲刺
+const CHARGE_OUT_CLS = {
+  挖洞: 'cg-out-sink', 潜水: 'cg-out-sink',
+  飞翔: 'cg-out-rise', 弹跳: 'cg-out-rise', 神鸟猛击: 'cg-out-rise',
+  潜灵奇袭: 'cg-out-vanish',
+};
+// 第一回合蓄力进入：播放对应离场动画（飞翔升空/挖洞钻地等，过程完整可见），钻地/潜水在脚部溅起尘土与水花。
+// 离场状态用 dataset.charged 标记（供对方攻击瞄准底座），不直接隐藏本体以免遮掉动画
+function playChargeEnter(side, mvName) {
+  const el = $(`${side}-img`);
+  if (!el) return;
+  resetAnim(el);
+  void el.offsetWidth;
+  el.classList.add(CHARGE_ENTER_CLS[mvName] || 'cg-vanish');
+  el.dataset.charged = CHARGE_HIDES[mvName] ? '1' : ''; // 神鸟猛击原地蓄光不标记离场
+  if (mvName === '挖洞') spawnGroundBurst(side, '#b98f5e', 9);
+  else if (mvName === '潜水') spawnGroundBurst(side, '#7fd0f5', 7);
+}
+// 第二回合攻击：先播现身动画（破土/俯冲/跃出），再物理冲刺结算伤害
+async function playChargeAttack(actor, side, moveId, battle) {
+  const mv = _data.moves[moveId];
+  const foe = curMon(battle, side === 'bp' ? 'e' : 'p');
+  const el = $(`${side}-img`);
+  setText(`${actor.name} 使用 ${mv.name} 攻击！`);
+  if (el) {
+    el.dataset.charged = ''; // 结束离场蓄力，恢复可被瞄准的在场状态
+    resetAnim(el);
+    void el.offsetWidth;
+    el.classList.add(CHARGE_OUT_CLS[mv.name] || 'cg-out-vanish');
+  }
+  if (mv.name === '挖洞') spawnGroundBurst(side, '#b98f5e', 10);
+  else if (mv.name === '潜水') spawnGroundBurst(side, '#7fd0f5', 8);
+  await battleSleep(340); // 等现身动画播完
+  lungeAttack(side); // 两回合招式均为物理攻击：冲撞对手
+  await battleSleep(280);
+  const evs = [];
+  useMove(actor, foe, moveId, _data, evs);
+  await playEvents(evs, battle, foe, mv.type);
+}
+// 尘土/水花：精灵脚部向两侧溅起一圈小颗粒（挖洞钻地/破土、潜水入水/跃出用）
+function spawnGroundBurst(side, color, count) {
+  const img = $(`${side}-img`);
+  const box = $(`${side}-box`);
+  if (!img || !box) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-ground-fx';
+  fx.style.setProperty('--fc', color);
+  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  fx.style.top = (ir.top - br.top + ir.height - 3) + 'px'; // 脚底
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('i');
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    p.style.setProperty('--dx', (dir * (8 + Math.random() * 24)).toFixed(1) + 'px');
+    p.style.setProperty('--dy', -(5 + Math.random() * 20).toFixed(1) + 'px'); // 向上溅
+    p.style.animationDelay = (Math.random() * 0.15).toFixed(2) + 's';
+    p.style.animationDuration = (0.35 + Math.random() * 0.3).toFixed(2) + 's';
+    fx.appendChild(p);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 800);
+}
+
 // 执行一次出招：攻击方前冲使用招式，目标实时取对方当前在场宝可梦；
 // 任一方已倒下（先动者击倒后动者）则后动者本回合不再行动，避免对已倒下目标出手
 async function doAttack(actor, side, moveId, battle) {
   if (!moveId || actor.hp <= 0) return;
   const foe = curMon(battle, side === 'bp' ? 'e' : 'p');
   if (foe.hp <= 0) return; // 对手已被击倒：本回合不再行动
+  // 两回合招式第二回合：chargeMove 已挂起（选招阶段自动带出），强制执行攻击阶段
+  if (actor.chargeMove != null) {
+    const cm = actor.chargeMove;
+    actor.chargeMove = null;
+    actor.chargeHidden = false;
+    await playChargeAttack(actor, side, cm, battle);
+    return;
+  }
   const mv = _data.moves[moveId];
+  // 两回合招式第一回合：进入蓄力（钻地/升空/入水/隐身/蓄光），本回合不出伤
+  if (CHARGE_MOVES.has(mv.name)) {
+    actor.chargeMove = moveId;
+    actor.chargeHidden = !!CHARGE_HIDES[mv.name];
+    setText(CHARGE_ENTER_TEXT[mv.name](actor.name));
+    playChargeEnter(side, mv.name);
+    await battleSleep(720); // 等蓄力动画播完，本回合行动结束
+    return;
+  }
   setText(`${actor.name} 使用了 ${mv.name}！`);
   const isPhys = moveCat(mv) === 'phys';
+  const isSound = mv.name === '叫声' || mv.name === '唱歌' || mv.name === '哈欠' || mv.name === '巨声' || mv.name === '金属音' || mv.name === '长嚎' || mv.name === '治愈铃声' || mv.name === '虫鸣'; // 发声招式：声波弹道
+  const isBubble = mv.name === '泡沫' || mv.name === '泡沫光线' || mv.name === '水枪'; // 水系弹道招式：气泡特效
+  const isStar = mv.name === '高速星星'; // 高速星星：星形弹道特效
+  // 圆环弹道（幻象光线/精神波 超能粉；水炮 水系蓝）
+  const isRing = mv.name === '幻象光线' || mv.name === '精神波' || mv.name === '水炮';
+  const RING_COLOR = { '幻象光线': '#F8669C', '精神波': '#F8669C', '水炮': '#3F98EA' };
+  const isPsychicWrap = mv.name === '念力' || mv.name === '精神强念'; // 念力/精神强念：目标身上扭动圆环
+  const isBeam = mv.name === '破坏光线'; // 破坏光线：光束弹道特效
+  const isIceBeam = mv.name === '冰冻光束'; // 冰冻光束：淡蓝直线光束
+  // 风系/龙卷风类招式（起风/翅膀攻击/龙卷风/暴风/空气利刃 青白，热风红，妖精之风粉，冰冻之风蓝）
+  const isWind = mv.name === '起风' || mv.name === '翅膀攻击' || mv.name === '龙卷风' || mv.name === '暴风' || mv.name === '空气利刃' || mv.name === '热风' || mv.name === '妖精之风' || mv.name === '冰冻之风';
+  const WIND_COLOR = { '热风': '#ff5a3c', '妖精之风': '#f8669c', '冰冻之风': '#7fd0f5' };
+  // 龙系特殊招式（龙息/龙之波动/流星群/时光咆哮/亚空裂斩/鳞片噪音/巨龙威能/归无之光/随机光）：龙息能量波弹道；龙卷风走旋风特效
+  const isDragon = mv.type === '龙' && moveCat(mv) === 'spec' && mv.name !== '龙卷风';
+  // 吸血招式（吸取/超级吸取/终极吸取/吸取拳/吸取之吻等 drain 类）：命中后粒子从目标吸回攻击方
+  const isDrain = mv.effect && mv.effect.kind === 'drain';
+  const DRAIN_COLOR = {
+    吸取: '#7dc84a', 超级吸取: '#7dc84a', 终极吸取: '#7dc84a', 强力吸取: '#7dc84a', // 草系绿
+    吸取之吻: '#f8669c', // 妖精粉
+    吸取拳: '#9CAE1E', 吸血: '#9CAE1E', 吸血轮盘: '#9CAE1E', // 虫系黄绿
+    地狱突刺: '#9a6cd0', 灵魂吸取: '#9a6cd0', // 幽灵紫
+    深渊汲取: '#3F98EA', // 水系蓝
+  };
+  // 大面积水系招式（潮旋/水之波动/泼冷水/冲浪/热水）：蓝色半透明水幕沿对角线涌过战场
+  const isWaterSweep = mv.name === '潮旋' || mv.name === '水之波动' || mv.name === '泼冷水' || mv.name === '冲浪' || mv.name === '热水';
+  // 圆球弹道招式（按属性着色）；火花/磷火复用火焰球
+  const BALL_COLOR = { '能量球': '#3fa129', '暗影球': '#7a52c9', '电球': '#ffd93b', '火焰球': '#ff7a2e', '火花': '#ff7a2e', '磷火': '#ff7a2e', '大字爆炎': '#ff7a2e', '意念头锤': '#F8669C', '污泥炸弹': '#8943B0', '击落': '#D3A865' };
+  const isBall = Object.prototype.hasOwnProperty.call(BALL_COLOR, mv.name);
+  const isElectric = mv.type === '电' && moveCat(mv) !== 'status'; // 电系伤害招式：头顶闪电特效
+  const isQuake = mv.name === '重踏' || mv.name === '地震'; // 地面系砸地招式：原地跳起砸地震屏
+  const isRockSlide = mv.name === '岩崩'; // 岩崩：目标头顶砸落一堆岩石
+  const isRockThrow = mv.name === '落石'; // 落石：目标头顶砸下一颗大石头
+  const isSnowSlide = mv.name === '雪崩'; // 雪崩：目标头顶砸落雪球
   // 物理连击：不预摆，由 playEvents 的 step 标记逐击摆动
   const multiPhys = mv.effect.kind === 'multihit' && isPhys;
   if (!multiPhys) {
-    if (isPhys) lungeAttack(side);
-    else lunge(side);
-    // 伤害/状态在攻击"贴脸/命中"瞬间爆出（物理=挥砍一击时刻，特殊=施法摆动到位），而非回退时
-    await battleSleep(isPhys ? 340 : 190);
+    if (isSound) {
+      spawnSoundWave(side); // 从攻击方发出扩散的声波圈
+      await battleSleep(320); // 等声波扩散起效再结算
+    } else if (isWind) {
+      spawnWindTornado(side, WIND_COLOR[mv.name]); // 彩色旋风刮向对手
+      await battleSleep(430); // 等旋风刮到对手处再结算伤害
+    } else if (isWaterSweep) {
+      spawnWaterSweep(side); // 蓝色水幕沿对角线涌过战场
+      await battleSleep(560); // 等水幕涌到对手处再结算伤害
+    } else if (isDragon) {
+      spawnDragonWave(side); // 龙息能量波弹道
+      await battleSleep(480); // 等能量波飞抵目标再结算伤害（动画 0.6s，到位约 0.5s）
+    } else if (isBubble) {
+      spawnProjStream(side, 'bubble'); // 一串气泡飞向对手，逐一消失
+      await battleSleep(300); // 等气泡飞到对手处再结算伤害
+    } else if (isStar) {
+      spawnProjStream(side, 'star'); // 一串星星飞向对手，逐一消失
+      await battleSleep(300);
+    } else if (isRing) {
+      spawnProjStream(side, 'ring', RING_COLOR[mv.name]); // 一串彩色圆环飞向对手，逐一消失
+      await battleSleep(300);
+    } else if (isPsychicWrap) {
+      spawnPsychicWrap(side === 'bp' ? 'be' : 'bp'); // 目标身上扭动圆环（精神波动）
+      await battleSleep(480); // 等圆环扭动起来再结算伤害
+    } else if (isBall) {
+      spawnProjStream(side, 'ball', BALL_COLOR[mv.name], mv.name === '击落'); // 单球蓄力后飞向对手；击落为实心岩石球
+      await battleSleep(560); // 等球蓄力完成并飞抵目标再结算伤害（动画 0.7s，飞行到位约 0.6s）
+    } else if (isBeam) {
+      spawnLightSweep(side); // 一截光段飞向对手并冲出屏幕
+      await battleSleep(350); // 光段飞抵对手即结算伤害（飞行 0.7s、距离 1.9 倍，到点时刻恒定 ≈0.37s）
+    } else if (isIceBeam) {
+      spawnIceBeam(side); // 一道淡蓝色直线射到对手
+      await battleSleep(360); // 等光束射到对手处再结算伤害
+    } else if (isQuake) {
+      quakeAttack(side); // 原地快速跳起后砸地，落地震屏
+      await battleSleep(400); // 等落地震屏起效时再结算伤害
+    } else if (isRockSlide) {
+      spawnRockSlide(side === 'bp' ? 'be' : 'bp'); // 目标头顶砸落一堆岩石
+      await battleSleep(520); // 等岩石砸中目标再结算伤害
+    } else if (isRockThrow) {
+      spawnRockDrop(side === 'bp' ? 'be' : 'bp'); // 目标头顶砸下一颗大石头
+      await battleSleep(560); // 等大石头砸中目标再结算伤害
+    } else if (isSnowSlide) {
+      spawnSnowSlide(side === 'bp' ? 'be' : 'bp'); // 目标头顶砸落雪球
+      await battleSleep(520); // 等雪球砸中目标再结算伤害
+    } else if (isElectric) {
+      spawnLightningStrike(side === 'bp' ? 'be' : 'bp'); // 闪电劈中对手头部
+      await battleSleep(400); // 等闪电劈到再结算伤害
+    } else if (isDrain) {
+      // 吸血招式：先攻击命中，命中后粒子从目标身上吸回攻击方
+      if (isPhys) lungeAttack(side);
+      else lunge(side);
+      await battleSleep(isPhys ? 280 : 160);
+      spawnDrainParticles(side === 'bp' ? 'be' : 'bp', side, DRAIN_COLOR[mv.name] || '#7dc84a');
+      await battleSleep(520); // 等粒子吸回再结算伤害（粒子约 0.45-0.65s）
+    } else {
+      if (isPhys) lungeAttack(side);
+      else lunge(side);
+      // 伤害/状态在攻击"贴脸/命中"瞬间爆出（物理=挥砍一击时刻，特殊=施法摆动到位），而非回退时
+      await battleSleep(isPhys ? 280 : 160);
+    }
   }
   const evs = [];
   useMove(actor, foe, moveId, _data, evs);
@@ -1149,48 +1801,31 @@ async function battleLoop(battle) {
     while (!battle.winner && !_fleeing) {
       // 每回合开始标记当前出战宝可梦为"参战"（含开场首只与换人上场的，供经验结算判定）
       markParticipated(battle, 'p');
-      // 换人检查：我方倒下弹出队伍选择下一只；敌方自动换下一只存活
-      if (curMon(battle, 'p').hp <= 0) {
-        if (!hasAlive(battle, 'p')) { battle.winner = 'e'; break; }
-        const idx = await promptSwitchAfterFaint(battle);
-        if (_fleeing) break;
-        if (idx < 0) continue; // 取消：回到换人检查，重新弹出选择
-        battle.pIdx = idx;
-        markParticipated(battle, 'p');
-        setText(`${curMon(battle, 'p').name} 上场了！`);
-        const ballP = renderMon(curMon(battle, 'p'), 'bp', true);
-        renderTeamInfo(battle);
-        panelIn('bp'); // 新宝可梦上场：信息卡片滑入屏幕
-        if (ballP) await ballP; // 等精灵球登场动画播完，避免对手在动画期间行动
-        await battleSleep(500);
-      }
-      if (curMon(battle, 'e').hp <= 0) {
-        if (!nextMon(battle, 'e')) { battle.winner = 'p'; break; }
-        setText(`${curMon(battle, 'e').name} 上场了！`);
-        const ballE = renderMon(curMon(battle, 'e'), 'be', true);
-        renderTeamInfo(battle);
-        panelIn('be'); // 新宝可梦上场：信息卡片滑入屏幕
-        if (ballE) await ballE; // 等精灵球登场动画播完，避免对手在动画期间行动
-        await battleSleep(500);
-      }
 
       // ---------- 双方选择行动：换人优先执行，出招按速度决定先后 ----------
       let pMon = curMon(battle, 'p');
       let eMon = curMon(battle, 'e');
+      // 每回合开始清零：双倍奉还记录（严格同回合）+ 守住/挺住标记（先制防护仅当回合生效）
+      pMon.hitByPhys = false; pMon.physDmg = 0; pMon.hitBySpec = false; pMon.specDmg = 0; pMon.protected = false; pMon.endure = false;
+      eMon.hitByPhys = false; eMon.physDmg = 0; eMon.hitBySpec = false; eMon.specDmg = 0; eMon.protected = false; eMon.endure = false;
       const pPre = []; // 我方回合前状态事件（睡眠/麻痹/畏缩/混乱自伤等）
       const ePre = []; // 敌方回合前状态事件
       let pAct = null; // 我方选择：{type:'move',id} / {type:'switch',idx}
       let eMove = null; // 敌方 AI 选择（null = 本回合不行动）
 
       if (preTurn(pMon, pPre)) {
-        pAct = await askPlayerMove(battle);
-        if (pAct.type === 'flee') { // 撤退（标题栏返回触发）
-          doRetreat(battle);
-          return;
+        if (pMon.chargeMove != null) {
+          pAct = { type: 'move', id: pMon.chargeMove }; // 两回合招式第二回合：自动出招
+        } else {
+          pAct = await askPlayerMove(battle);
+          if (pAct.type === 'flee') { // 撤退（标题栏返回触发）
+            doRetreat(battle);
+            return;
+          }
         }
       }
       if (preTurn(eMon, ePre)) {
-        eMove = aiMove(eMon, pMon, _data);
+        eMove = eMon.chargeMove != null ? eMon.chargeMove : aiMove(eMon, pMon, _data); // 同上：AI 蓄力招式第二回合自动出招
       }
 
       // 先播行动前状态事件（双方各自的状态检查结果）
@@ -1200,26 +1835,34 @@ async function battleLoop(battle) {
       // 换人优先于出招（宝可梦规则：换人动作先于双方出招结算）
       if (pAct && pAct.type === 'switch') {
         panelOut('bp'); // 主动换人：当前宝可梦退场，信息卡片滑出
-        await battleSleep(320); // 等卡片滑出后再渲染新宝可梦
+        await battleSleep(260); // 等卡片滑出后再渲染新宝可梦
         battle.pIdx = pAct.idx;
         pMon = curMon(battle, 'p');
         markParticipated(battle, 'p');
+        resetCounter(pMon);
         setText(`${pMon.name} 上场了！`);
         const ballP = renderMon(pMon, 'bp', true);
         renderTeamInfo(battle);
         panelIn('bp'); // 新宝可梦上场：信息卡片滑入屏幕
         if (ballP) await ballP; // 等精灵球登场动画播完，避免对手在动画期间行动
-        await battleSleep(500);
+        await battleSleep(400);
         pAct = null; // 本回合行动已消耗在换人上
       }
 
-      // 出招：双方都出招时按速度先后（速度更高者先动；平手随机）
+      // 出招：双方都出招时按速度先后（速度更高者先动；平手随机）；
+      // 反击招先制度 -4 强制后手，否则本回合还没吃到物理伤害就出手必然失败
       const pMove = pAct && pAct.type === 'move' ? pAct.id : null;
       let pFirst;
       if (pMove != null && eMove != null) {
-        const ps = pMon.effStat(4);
-        const es = eMon.effStat(4);
-        pFirst = ps > es || (ps === es && Math.random() < 0.5);
+        const pPri = movePriority(_data.moves[pMove]);
+        const ePri = movePriority(_data.moves[eMove]);
+        if (pPri !== ePri) {
+          pFirst = pPri > ePri; // 先制度更高者先动（counter 优先级低 → 后手）
+        } else {
+          const ps = pMon.effStat(4);
+          const es = eMon.effStat(4);
+          pFirst = ps > es || (ps === es && Math.random() < 0.5);
+        }
       } else {
         pFirst = pMove != null; // 仅一方出招时自然先执行
       }
@@ -1231,7 +1874,17 @@ async function battleLoop(battle) {
         await sleepCheckAttack(pMon, 'bp', pMove, battle);
       }
 
-      // 出招后的倒下换人（本轮双方行动已结算，新上场者不再被追加攻击）
+      // 回合末持续伤害：作用于本回合结束时在场（含昏厥）的宝可梦；
+      // 昏厥者 hp=0 由 postTurn 自动跳过，未倒下的正常结算中毒/灼伤等
+      const pEvs = [];
+      const eEvs = [];
+      postTurn(curMon(battle, 'p'), pEvs);
+      postTurn(curMon(battle, 'e'), eEvs);
+      await playEvents(pEvs, battle, curMon(battle, 'p'));
+      await playEvents(eEvs, battle, curMon(battle, 'e'));
+
+      // 回合结束强制替换：昏厥宝可梦留在场上直到本回合全部结算完毕（含回合末伤害），
+      // 之后才替换；新上场者本回合无行动指令，下一回合起才能自由操作
       if (curMon(battle, 'p').hp <= 0) {
         if (!hasAlive(battle, 'p')) { battle.winner = 'e'; break; }
         const idx = await promptSwitchAfterFaint(battle);
@@ -1239,32 +1892,24 @@ async function battleLoop(battle) {
         if (idx < 0) continue; // 取消：回到换人检查，重新弹出选择
         battle.pIdx = idx;
         markParticipated(battle, 'p');
+        resetCounter(curMon(battle, 'p'));
         setText(`${curMon(battle, 'p').name} 上场了！`);
         const ballP = renderMon(curMon(battle, 'p'), 'bp', true);
         renderTeamInfo(battle);
         panelIn('bp'); // 新宝可梦上场：信息卡片滑入屏幕
         if (ballP) await ballP; // 等精灵球登场动画播完，避免对手在动画期间行动
-        await battleSleep(500);
+        await battleSleep(400);
       }
       if (curMon(battle, 'e').hp <= 0) {
         if (!nextMon(battle, 'e')) { battle.winner = 'p'; break; }
+        resetCounter(curMon(battle, 'e'));
         setText(`${curMon(battle, 'e').name} 上场了！`);
         const ballE = renderMon(curMon(battle, 'e'), 'be', true);
         renderTeamInfo(battle);
         panelIn('be'); // 新宝可梦上场：信息卡片滑入屏幕
         if (ballE) await ballE; // 等精灵球登场动画播完，避免对手在动画期间行动
-        await battleSleep(500);
+        await battleSleep(400);
       }
-
-      // 回合末持续伤害
-      const pEvs = [];
-      const eEvs = [];
-      postTurn(curMon(battle, 'p'), pEvs);
-      postTurn(curMon(battle, 'e'), eEvs);
-      await playEvents(pEvs, battle, curMon(battle, 'p'));
-      await playEvents(eEvs, battle, curMon(battle, 'e'));
-      if (curMon(battle, 'p').hp <= 0 && !hasAlive(battle, 'p')) battle.winner = 'e';
-      if (curMon(battle, 'e').hp <= 0 && !hasAlive(battle, 'e')) battle.winner = 'p';
       if (battle.winner) break;
 
       battle.round++;
