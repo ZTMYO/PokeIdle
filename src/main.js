@@ -50,7 +50,7 @@ import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, i
 import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs } from './views.js';
-import { showPhoneView, updateTradeBadge, updateBerryBadge, updateDataBadge, updatePhoneBadge } from './phone.js';
+import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
@@ -177,7 +177,7 @@ function goBack() {
   // 其它情况（含挑战结算页返回）：清除屏幕难度背景色，避免其它页面沿用战斗配色
   else clearBattleTier();
   // 返回手机主页时兜底同步红点（showView 不重建页面，避免漏刷新）
-  if (target === 'phoneView') { updateTradeBadge(); updateBerryBadge(); updateDataBadge(); updatePhoneBadge(); }
+  if (target === 'phoneView') { updateTradeBadge(); updateBerryBadge(); updateAchievementBadge(); updatePhoneBadge(); }
 }
 
 // ---------- 背包点击 ----------
@@ -308,7 +308,7 @@ function onGameTick() {
     updateIncubatorBadge();
     updateTradeBadge();
     updateBerryBadge();
-    updateDataBadge();
+    updateAchievementBadge();
     updateBountyBadge();
     updatePhoneBadge();
   }

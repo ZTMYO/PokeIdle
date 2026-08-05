@@ -1312,6 +1312,12 @@ function finishBattle(battle) {
       results.push({ name: mon.name, lv: entry.level, up });
     }
     gd.items.candy = (gd.items.candy || 0) + battle.preset.candy;
+    // NPC 对战成就统计：累计胜场 / 精英与冠军胜场 / 对战糖果
+    gd.stats.totalNpcWins = (gd.stats.totalNpcWins || 0) + 1;
+    gd.stats.totalNpcCandy = (gd.stats.totalNpcCandy || 0) + battle.preset.candy;
+    if (battle.preset.tier === 'novice') gd.stats.totalNpcNoviceWins = (gd.stats.totalNpcNoviceWins || 0) + 1;
+    else if (battle.preset.tier === 'veteran') gd.stats.totalNpcEliteWins = (gd.stats.totalNpcEliteWins || 0) + 1;
+    else if (battle.preset.tier === 'champion') gd.stats.totalNpcChampionWins = (gd.stats.totalNpcChampionWins || 0) + 1;
     if (gd.battleNpcs?.list) {
       // 战胜领奖后从当前一波中移除该 NPC
       gd.battleNpcs.list = gd.battleNpcs.list.filter((n) => n.id !== battle.preset.id);
@@ -1321,6 +1327,7 @@ function finishBattle(battle) {
   addSystemLog('战斗', `${win ? '战胜' : '输给'}了「${battle.preset.name}」${win ? `，获得 ${battle.preset.candy} 糖果` : ''}。`);
   endBattle(); // 战斗结束 → 停止战斗曲，恢复地区曲
   if (win) playVictory(); // 胜利音效（播完自动恢复地区曲）
+  if (win) window.dispatchEvent(new Event('achievements-changed')); // 胜利可能解锁对战成就，即时刷新手机红点
 
   const box = $('battleContent');
   box.innerHTML = `

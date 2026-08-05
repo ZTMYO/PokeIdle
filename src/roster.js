@@ -2,11 +2,11 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, tryLoadImage, tryLoadPokemonImage } from './ui.js';
-import { phase, gameData, getPokemonByIndex, getNature, setPrevView, saveGame, setPokedexInLogView, _prevView } from './state.js';
+import { phase, gameData, getPokemonByIndex, getNature, setPrevView, saveGame, addSystemLog, setPokedexInLogView, _prevView } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
-import { chooseMoves } from './moves.js';
+import { chooseMoves, fallbackMoves } from './moves.js';
 
 // 获得来源 → 中文
 const SOURCE_NAMES = { normal: '野生', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
@@ -360,6 +360,15 @@ function candidateMoves(p) {
     if (!mv || mv.effect.kind === 'unimplemented') continue;
     seen.add(c.id);
     res.push(c);
+  }
+  // 学不到任何已实现招式（如百变怪只有变身、图图犬只有写生且均未实装）：
+  // 候选列表补通用兜底攻击招，保证配招页有招可选、移除后可恢复
+  if (res.length === 0) {
+    for (const id of fallbackMoves(_moveData)) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      res.push({ id, lv: null, egg: false });
+    }
   }
   res.sort((a, b) => (a.lv ?? 999) - (b.lv ?? 999));
   return res;
@@ -839,6 +848,7 @@ function releasePokemon(id) {
       if (ri >= 0) arr.splice(ri, 1);
       stopShinySparkleLoop();
       _releasing = false;
+      addSystemLog('pokemon_release', { pokemon: p.species, shiny: !!p.shiny });
       saveGame();
       restoreRosterList();
     },

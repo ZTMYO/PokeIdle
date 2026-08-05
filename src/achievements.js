@@ -24,14 +24,20 @@ function niceValue(n) {
 // 后续等级 = base/reward × niceValue(n)（无限递进）；maxTiers 可选（图鉴类上限）。
 export const ACHIEVEMENTS = [
   {
+    id: 'candy', name: '糖果富翁', desc: '累计糖果数',
+    // 首级阈值 500：新档启动资金 200 已计入累计统计，若阈值过低开局就会直接解锁
+    metric: d => d.stats.totalItemsEarned?.candy || 0, base: 500, reward: 10,
+    fmt: v => `${formatNum(v)} 个`,
+  },
+  {
+    id: 'play', name: '时间旅人', desc: '累计挂机时长',
+    metric: d => Math.floor((d.stats.totalPlaySeconds || 0) / 3600), base: 1, reward: 20,
+    fmt: v => `${formatNum(v)} 小时`,
+  },
+  {
     id: 'catch', name: '收服之旅', desc: '累计捕捉宝可梦',
     metric: d => d.stats.totalCatches || 0, base: 5, reward: 10,
     fmt: v => `${formatNum(v)} 只`,
-  },
-  {
-    id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
-    metric: () => dexCount(), base: 10, reward: 30, maxTiers: 7,
-    fmt: v => `${formatNum(v)} 种`,
   },
   {
     id: 'walk', name: '漫步者', desc: '累计行走距离',
@@ -39,19 +45,14 @@ export const ACHIEVEMENTS = [
     fmt: v => v >= 1000 ? `${formatNum(v / 1000)} 公里` : `${v} 米`,
   },
   {
-    id: 'hatch', name: '孵化师', desc: '累计孵化宝可梦',
-    metric: d => d.stats.totalEggsHatched || 0, base: 1, reward: 30,
-    fmt: v => `${formatNum(v)} 只`,
-  },
-  {
-    id: 'shinyCaught', name: '闪光收藏家', desc: '累计捕获闪光宝可梦',
-    metric: d => d.stats.totalShinyCaught || 0, base: 1, reward: 100,
-    fmt: v => `${formatNum(v)} 只`,
-  },
-  {
     id: 'harvest', name: '农场主', desc: '累计收获树果',
     metric: d => d.stats.totalBerriesHarvested || 0, base: 10, reward: 20,
     fmt: v => `${formatNum(v)} 颗`,
+  },
+  {
+    id: 'hatch', name: '孵化师', desc: '累计孵化宝可梦',
+    metric: d => d.stats.totalEggsHatched || 0, base: 1, reward: 30,
+    fmt: v => `${formatNum(v)} 只`,
   },
   {
     id: 'block', name: '树果大师', desc: '累计合成树果方块',
@@ -64,20 +65,39 @@ export const ACHIEVEMENTS = [
     fmt: v => `${formatNum(v)} 次`,
   },
   {
+    id: 'npcCandy', name: '对战丰收', desc: '累计通过 NPC 对战获得糖果',
+    metric: d => d.stats.totalNpcCandy || 0, base: 100, reward: 30,
+    fmt: v => `${formatNum(v)} 个`,
+  },
+  {
+    id: 'npcWin', name: '百战百胜', desc: '累计战胜 NPC 训练家',
+    metric: d => d.stats.totalNpcWins || 0, base: 1, reward: 30,
+    fmt: v => `${formatNum(v)} 次`,
+  },
+  {
     id: 'bounty', name: '赏金猎人', desc: '累计完成地区悬赏',
     metric: d => d.stats.totalBountyClaims || 0, base: 1, reward: 50,
     fmt: v => `${formatNum(v)} 次`,
   },
   {
-    id: 'play', name: '时间旅人', desc: '累计挂机时长',
-    metric: d => Math.floor((d.stats.totalPlaySeconds || 0) / 3600), base: 1, reward: 20,
-    fmt: v => `${formatNum(v)} 小时`,
+    id: 'npcElite', name: '精英猎人', desc: '累计战胜精英 NPC 训练家',
+    metric: d => d.stats.totalNpcEliteWins || 0, base: 1, reward: 60,
+    fmt: v => `${formatNum(v)} 次`,
   },
   {
-    id: 'candy', name: '糖果富翁', desc: '累计糖果数',
-    // 首级阈值 500：新档启动资金 200 已计入累计统计，若阈值过低开局就会直接解锁
-    metric: d => d.stats.totalItemsEarned?.candy || 0, base: 500, reward: 10,
-    fmt: v => `${formatNum(v)} 个`,
+    id: 'npcChampion', name: '冠军挑战者', desc: '累计战胜冠军 NPC 训练家',
+    metric: d => d.stats.totalNpcChampionWins || 0, base: 1, reward: 120,
+    fmt: v => `${formatNum(v)} 次`,
+  },
+  {
+    id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
+    metric: () => dexCount(), base: 10, reward: 30, maxTiers: 7,
+    fmt: v => `${formatNum(v)} 种`,
+  },
+  {
+    id: 'shinyCaught', name: '闪光收藏家', desc: '累计捕获闪光宝可梦',
+    metric: d => d.stats.totalShinyCaught || 0, base: 1, reward: 100,
+    fmt: v => `${formatNum(v)} 只`,
   },
 ];
 
@@ -97,7 +117,7 @@ function tierAt(a, n) {
   return { threshold: a.base * k, reward: a.reward * k };
 }
 
-// 是否有未领取的成就奖励（供手机"统计"app 及标题栏手机图标红点使用）
+// 是否有未领取的成就奖励（供手机"成就"app 及标题栏手机图标红点使用）
 export function hasClaimableAchievements() {
   ensureAchievements();
   return ACHIEVEMENTS.some(a => {
@@ -148,7 +168,7 @@ export function claimAllAchievements() {
     saveGame();
     updateBackpack('candy');
     updateStats();
-    // 通知手机"统计"app 红点刷新（领取后可能仍有剩余可领或全部领完）
+    // 通知手机"成就"app 红点刷新（领取后可能仍有剩余可领或全部领完）
     window.dispatchEvent(new Event('achievements-changed'));
   }
   return total;
@@ -183,7 +203,7 @@ function buildItem(a) {
     </div>`;
 }
 
-// 整页渲染成就区（打开统计页 / 领取后重建）
+// 整页渲染成就区（打开成就页 / 领取后重建）
 export function renderAchievements() {
   const wrap = document.getElementById('achievementList');
   if (!wrap) return;

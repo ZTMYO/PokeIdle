@@ -15,10 +15,11 @@ const APPS = [
   { id: 'incubator', icon: 'icon-egg', name: '孵蛋器' },
   { id: 'berry', icon: 'icon-tree', name: '树果农场' },
   { id: 'mixer', icon: 'icon-mixer', name: '混合器' },
+  { id: 'achievement', icon: 'icon-achievement', name: '成就' },
   { id: 'data', icon: 'icon-data', name: '统计' },
-  { id: 'log', icon: 'icon-log', name: '日志' },
   { id: 'tutorial', icon: 'icon-tutorial', name: '教程' },
-  // 第二页：对战 + 配队 + 训练
+  // 第二页：日志 + 训练 + 配队 + 对战
+  { id: 'log', icon: 'icon-log', name: '日志' },
   { id: 'train', icon: 'icon-train', name: '训练' },
   { id: 'team', icon: 'icon-edit', name: '配队' },
   { id: 'battle', icon: 'icon-versus', name: '对战' },
@@ -46,9 +47,9 @@ function updateBerryBadge() {
   const badge = $('phone-badge-berry');
   if (badge) badge.style.display = hasDryBerries() ? '' : 'none';
 }
-// 统计页成就红点：有未领取的成就奖励即点亮
-function updateDataBadge() {
-  const badge = $('phone-badge-data');
+// 成就应用红点：有未领取的成就奖励即点亮
+function updateAchievementBadge() {
+  const badge = $('phone-badge-achievement');
   if (badge) badge.style.display = hasClaimableAchievements() ? '' : 'none';
 }
 
@@ -59,13 +60,13 @@ function updatePhoneBadge() {
   ensureTrades(); // 波次过期先刷新，保证与交换红点口径一致
   badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries() || hasClaimableAchievements()) ? '' : 'none';
 }
-export { updateTradeBadge, updateBerryBadge, updateDataBadge, updatePhoneBadge };
+export { updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge };
 
 // 状态变化时即时刷新红点：树果浇水/收获/种植、仓库宝可梦变化（捕获/孵化/交换）、交换波次刷新、成就领取，无需等 5 秒轮询
 window.addEventListener('berry-farm-changed', () => { updateBerryBadge(); updatePhoneBadge(); });
 window.addEventListener('roster-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
 window.addEventListener('trade-wave-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
-window.addEventListener('achievements-changed', () => { updateDataBadge(); updatePhoneBadge(); });
+window.addEventListener('achievements-changed', () => { updateAchievementBadge(); updatePhoneBadge(); });
 
 // 顶部系统时间，每秒刷新一次（仅启动一次）
 function startClock() {
@@ -126,7 +127,7 @@ export function showPhoneView() {
           ${page.map(a => `
             <div class="phone-app" data-app="${a.id}">
               <div class="phone-app-icon"><svg><use xlink:href="./icons/sprites.svg#${a.icon}"/></svg>
-                ${['incubator', 'trade', 'berry', 'data'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
+                ${['incubator', 'trade', 'berry', 'achievement'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
               </div>
               <div class="phone-app-name">${a.name}</div>
             </div>`).join('')}
@@ -137,7 +138,7 @@ export function showPhoneView() {
   updateIncubatorBadge();
   updateTradeBadge();
   updateBerryBadge();
-  updateDataBadge();
+  updateAchievementBadge();
   updatePhoneBadge();
   // 翻页：页码指示点点击 + 原生 scroll-snap 横向滑动
   let _page = 0;
@@ -176,6 +177,7 @@ export function showPhoneView() {
     const id = app.dataset.app;
     if (id === 'gps') import('./gps.js').then(m => { setPrevView('phoneView'); m.showGpsView(); });
     else if (id === 'data') import('./views.js').then(m => m.showDataView());
+    else if (id === 'achievement') import('./views.js').then(m => m.showAchievementView());
     else if (id === 'book') import('./pokedex.js').then(m => m.showPokedex());
     else if (id === 'incubator') showIncubatorView();
     else if (id === 'roster') import('./roster.js').then(m => m.showRosterView());

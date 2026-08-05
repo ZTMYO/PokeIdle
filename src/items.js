@@ -674,6 +674,7 @@ export function handleHoneyExpired() {
   setIdleCharacter('walk');
   particles.stop();
   setHoneyExpiryTimer(null);
+  addSystemLog('buff_expired', { item: 'sweet-honey' });
 }
 
 export function handleCharmExpired() {
@@ -698,6 +699,7 @@ export function handleCharmExpired() {
   setIdleCharacter('walk');
   particles.stop();
   setCharmExpiryTimer(null);
+  addSystemLog('buff_expired', { item: 'shiny-charm' });
 }
 
 export function startCharmCountdown() {

@@ -1,7 +1,7 @@
 // ===== 树果农场 =====
 // 6 块田地按真实时间生长；生长/湿度由 Date.now() 折算并随存档持久化（gameData.berryFarm）
 import { $, showView, tryLoadImage, getCharPrefix, updateStats } from './ui.js';
-import { phase, gameData, setPrevView, saveGame, randInt } from './state.js';
+import { phase, gameData, setPrevView, saveGame, randInt, addSystemLog } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { setupFoodTooltip } from './ui.js';
 import {
@@ -423,6 +423,7 @@ function openPicker(i) {
       gameData.items.candy -= PLANT_COST;
       gameData.stats.totalPlantings = (gameData.stats.totalPlantings || 0) + 1;
       ensureBerryFarm().plots[idx] = { type, grownMs: 0, water: 0, waterAt: Date.now(), totalMs: randInt(MATURE_MIN, MATURE_MAX) };
+      addSystemLog('berry_plant', { berry: type });
       saveGame();
       updatePlotDom(idx);
       updateStats(); // 同步底部糖果数量（种植扣费）
@@ -714,6 +715,7 @@ function tradeBoard(di) {
   gameData.items.candy = (gameData.items.candy || 0) + d.candy;
   if (gameData.stats?.totalItemsEarned) gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + d.candy;
   gameData.stats.totalBoardTrades = (gameData.stats.totalBoardTrades || 0) + 1;
+  addSystemLog('berry_trade', { berry: d.type, qty: d.qty, candy: d.candy });
   saveGame();
   refreshBoard();
 }
@@ -749,6 +751,7 @@ function harvest(i) {
   gameData.stats.totalBerriesHarvested = (gameData.stats.totalBerriesHarvested || 0) + qty;
   f.stock[p.type] = (f.stock[p.type] || 0) + qty;
   f.plots[i] = null;
+  addSystemLog('berry_harvest', { berry: p.type, qty });
   saveGame();
   // 树果飞向库存箱的动效播完再重绘（render 会清掉动效图标）
   _harvesting.add(i);
@@ -905,6 +908,7 @@ function recruitHelper() {
     restingMs: 0,
   };
   _helper.nextWorkAt = 0;
+  addSystemLog('berry_helper', { stages: _hireStages });
   saveGame();
   notifyBerryChanged();
   if ($('berryView')?.style.display !== 'none') {
@@ -964,6 +968,7 @@ export function helperTick() {
         // 连续工作时间用完，帮手下班离场，恢复可招募
         f.helper = null;
         _helper.nextWorkAt = 0;
+        addSystemLog('berry_helper_end', {});
         saveGame();
         notifyBerryChanged();
         // 无论页面是否可见都清理角色与动画（hidden 下移除无影响，下次进入由 render 重建）
@@ -982,6 +987,7 @@ export function helperTick() {
     if (h.restingMs <= 0) {
       f.helper = null;
       _helper.nextWorkAt = 0;
+      addSystemLog('berry_helper_end', {});
       saveGame();
       notifyBerryChanged();
       if (viewOpen) refreshHelperPanel();

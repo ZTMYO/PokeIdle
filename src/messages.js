@@ -364,7 +364,7 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
     if ((ach['bounty'] || 0) > 0) msgs.push(`赏金猎人成就已领 ${ach['bounty']} 级，悬赏之路稳步前行。`);
   }
   const pendingAch = ACHIEVEMENTS.filter(a => earnedTiers(a) > claimedTiers(a.id)).length;
-  if (pendingAch > 0) msgs.push(`有 ${pendingAch} 项成就达到领取条件，打开统计页领取奖励吧！`);
+  if (pendingAch > 0) msgs.push(`有 ${pendingAch} 项成就达到领取条件，打开手机里的「成就」应用领取奖励吧！`);
 
   // ——— 地区悬赏类 ———
   const bounty = gameData.bounty;

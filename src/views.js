@@ -151,6 +151,11 @@ function refreshDataStats() {
   $('dataBountyClaims').textContent = formatNum(stats.totalBountyClaims || 0);
   $('dataBountyToday').textContent = formatNum(stats.bountyClaimsToday || 0);
   $('dataBountyCandy').textContent = formatNum(stats.totalBountyCandy || 0);
+  $('dataNpcWins').textContent = formatNum(stats.totalNpcWins || 0);
+  $('dataNpcNoviceWins').textContent = formatNum(stats.totalNpcNoviceWins || 0);
+  $('dataNpcEliteWins').textContent = formatNum(stats.totalNpcEliteWins || 0);
+  $('dataNpcChampionWins').textContent = formatNum(stats.totalNpcChampionWins || 0);
+  $('dataNpcCandy').textContent = formatNum(stats.totalNpcCandy || 0);
   const earnedEl = $('dataEarned');
   if (earnedEl) {
     // 糖果置顶，其余保持原顺序
@@ -212,13 +217,17 @@ export function showDataView() {
       <div class="stat-row"><span>今日完成悬赏</span><span id="dataBountyToday"></span></div>
       <div class="stat-row"><span>悬赏糖果</span><span id="dataBountyCandy"></span></div>
 
+      <div class="stat-section">NPC 对战</div>
+      <div class="stat-row"><span>累计战胜训练家</span><span id="dataNpcWins"></span></div>
+      <div class="stat-row"><span>战胜普通训练家</span><span id="dataNpcNoviceWins"></span></div>
+      <div class="stat-row"><span>战胜精英</span><span id="dataNpcEliteWins"></span></div>
+      <div class="stat-row"><span>战胜冠军</span><span id="dataNpcChampionWins"></span></div>
+      <div class="stat-row"><span>对战糖果</span><span id="dataNpcCandy"></span></div>
+
       <div class="stat-section">道具累计获得</div>
       <div id="dataEarned"></div>
-
-      <div id="achievementList"></div>
     </div>
   `;
-  renderAchievements();
   // 初始填充 + 每秒实时刷新全部动态值；离开统计页后定时器自动停止
   refreshDataStats();
   if (showDataView._timer) clearInterval(showDataView._timer);
@@ -229,9 +238,28 @@ export function showDataView() {
       return;
     }
     refreshDataStats();
-    refreshAchievements();
   }, 1000);
   showView('dataView');
+}
+
+// ===== 成就独立页面 =====
+export function showAchievementView() {
+  setPrevView('phoneView');
+  const content = $('achievementContent');
+  if (!content) return;
+  content.innerHTML = '<div id="achievementList"></div>';
+  renderAchievements();
+  // 轻量刷新进度（挂机数据持续变化）；离开成就页后定时器自动停止
+  if (showAchievementView._timer) clearInterval(showAchievementView._timer);
+  showAchievementView._timer = setInterval(() => {
+    if ($('achievementView')?.style.display === 'none') {
+      clearInterval(showAchievementView._timer);
+      showAchievementView._timer = null;
+      return;
+    }
+    refreshAchievements();
+  }, 1000);
+  showView('achievementView');
 }
 
 // ===== 系统日志独立页面 =====
@@ -291,7 +319,19 @@ export function renderSystemLogs() {
         desc = `完成地区悬赏，获得糖果 ×${log.details.candy}`;
         break;
       case 'berry_helper':
-        desc = `招募了树果帮手`;
+        desc = `招募了树果帮手${log.details.stages ? `（工作 ${log.details.stages} 阶段）` : ''}`;
+        break;
+      case 'berry_helper_end':
+        desc = '树果帮手服务结束';
+        break;
+      case 'berry_plant':
+        desc = `种植了${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}`;
+        break;
+      case 'berry_harvest':
+        desc = `收获 ${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]} ×${log.details.qty}`;
+        break;
+      case 'berry_trade':
+        desc = `完成树果需求：交付${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}×${log.details.qty}，获得糖果 ×${log.details.candy}`;
         break;
       case '战斗':
         desc = typeof log.details === 'string' ? log.details : '未知战斗记录';
@@ -323,6 +363,30 @@ export function renderSystemLogs() {
         break;
       case 'mass_outbreak_end':
         desc = `大量出没结束：${logName(log)}${log.details.forced ? '（强制刷新）' : ''}`;
+        break;
+      case 'train_start':
+        desc = `开始训练 ${logName(log)}`;
+        break;
+      case 'train_end':
+        desc = `结束训练 ${logName(log)}`;
+        break;
+      case 'train_levelup':
+        desc = `${logName(log)} 训练升级至 Lv${log.details.level}`;
+        break;
+      case 'train_lazy':
+        desc = `${logName(log)} 开始偷懒了`;
+        break;
+      case 'train_wake':
+        desc = `叫醒了偷懒的 ${logName(log)}`;
+        break;
+      case 'train_feed':
+        desc = `${logName(log)} 吃掉一颗${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}补充饱食度`;
+        break;
+      case 'pokemon_release':
+        desc = `放生了${log.details.shiny ? '闪光' : ''}${logName(log)}`;
+        break;
+      case 'buff_expired':
+        desc = `${ITEM_NAMES[log.details.item] || log.details.item}的效果结束了`;
         break;
       default:
         desc = `未知事件 (${log.type})`;
@@ -855,7 +919,8 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '手机',
-    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>树果农场</b>、<b>交换</b>……），也可以查看当前系统时间。科学的力量真伟大！</p>`
+    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>树果农场</b>、<b>交换</b>、<b>成就</b>……），也可以查看当前系统时间。</p>`
+      + `<p>向左滑动或点击底部圆点可翻到<b>第二页</b>，那里放着<b>统计</b>、<b>训练</b>、<b>配队</b>与<b>对战</b>应用。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
@@ -868,12 +933,13 @@ const TUTORIAL_SECTIONS = [
     title: '统计',
     html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按每次遭遇的稀有度与捕获运气综合评价称号；数据总览以表格统一展示今日与累计的挂机时长、遭遇、捕获、逃跑、捕获率、闪光遇见/捕获、孵化与交换，每秒自动刷新。</p>`
       + `<p>其余板块按类别汇总：冒险进度（当前地区、行走距离、图鉴完成度）、消耗统计（精灵球使用与均耗）、农场与合成、地区悬赏与道具累计获得。</p>`
-      + `<p>页面最下方是<b>成就奖励</b>板块：每项累计统计达成等级即可领取糖果（详见「<b>成就</b>」章节）。</p>`,
+      + `<p><b>统计</b>应用位于手机<b>第二页</b>，向左滑动手机页面翻页即可找到。</p>`,
   },
   {
     title: '成就',
-    html: `<p>在<b>统计</b>页最下方的<b>成就奖励</b>板块领取：每项累计统计达标<b>一级</b>即可领一次糖果。</p>`
-      + `<p>等级按 <b>1-2-5</b> 规整序列无限递进，未领的等级会一直累计；除「图鉴收藏家」到上限完结外，其余成就等级<b>无限</b>。</p>`,
+    html: `<p>在<b>手机</b>页面打开<b>成就</b>应用领取：每项累计统计达标<b>一级</b>即可领一次糖果。</p>`
+      + `<p>等级按 <b>1-2-5</b> 规整序列无限递进，未领的等级会一直累计；除「图鉴收藏家」到上限完结外，其余成就等级<b>无限</b>。</p>`
+      + `<p>有可领取的奖励时，<b>成就</b>应用图标与标题栏手机图标会亮起红点提醒。</p>`,
   },
   {
     title: '地区',

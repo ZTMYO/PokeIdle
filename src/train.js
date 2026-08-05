@@ -2,7 +2,7 @@
 // 页面为 tile 地图铺满 + 告示牌入口：点击告示牌弹出配置/数据面板
 // 训练中的宝可梦会以像素图标在场地上随机走动
 import { $, showView, tryLoadImage, setupFoodTooltip } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, setPrevView } from './state.js';
+import { gameData, getPokemonByIndex, saveGame, setPrevView, addSystemLog } from './state.js';
 import {
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, MAX_LEVEL,
   TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT,
@@ -73,7 +73,7 @@ export function ensureTraining() {
 // 结算截至 now 已积累的经验：推进 startAt 并应用升级；返回是否发生过升级
 export function processTrainingXp(now = Date.now()) {
   const t = ensureTraining();
-  let leveled = false, fed = false;
+  let leveled = false, fed = false, lazyStarted = false;
   for (let i = 0; i < t.slots.length; i++) {
     const slot = t.slots[i];
     if (!slot) continue;
@@ -86,10 +86,15 @@ export function processTrainingXp(now = Date.now()) {
     const effMin = Math.min(10, elapsed / 60000); // 离线补算时长截断：饱食度/偷懒都与它一致，避免一次返回瞬间扣光
     entry.exp = (entry.exp || 0) + (elapsed / 1000) * (TRAIN_XP_PER_MIN / 60);
     slot.startAt = now;
+    const levelBefore = entry.level || 1;
     while ((entry.level || 1) < MAX_LEVEL && entry.exp >= expNeed(entry.level || 1)) {
       entry.exp -= expNeed(entry.level || 1);
       entry.level = (entry.level || 1) + 1;
       leveled = true;
+    }
+    // 一次补算可能连升多级：只记一条最终等级，避免刷屏
+    if ((entry.level || 1) > levelBefore) {
+      addSystemLog('train_levelup', { pokemon: entry.species, level: entry.level });
     }
     if ((entry.level || 1) >= MAX_LEVEL) entry.exp = 0; // 满级后不再积累经验
     // 饱食度：训练中随时间下降；低于阈值自动吃库存里爱吃的树果
@@ -101,9 +106,11 @@ export function processTrainingXp(now = Date.now()) {
     const hungerMult = 1 + (1 - slot.satiety / TRAIN_SATIETY_MAX) * (TRAIN_HUNGRY_LAZY_MULT - 1);
     if (TRAIN_LAZY.enabled && Math.random() < Math.min(0.8, TRAIN_LAZY.chancePerMin * hungerMult * effMin)) {
       slot.lazyUntil = now + randInt(TRAIN_LAZY.durationMin, TRAIN_LAZY.durationMax);
+      lazyStarted = true;
+      addSystemLog('train_lazy', { pokemon: entry.species });
     }
   }
-  if (leveled || fed) saveGame();
+  if (leveled || fed || lazyStarted) saveGame();
   return leveled;
 }
 
@@ -118,6 +125,7 @@ function eatFavorite(slot, entry) {
   stock[t] = (stock[t] || 0) - 1;
   if (stock[t] <= 0) delete stock[t];
   slot.satiety = Math.min(TRAIN_SATIETY_MAX, slot.satiety + TRAIN_SATIETY_PER_BERRY);
+  addSystemLog('train_feed', { pokemon: entry.species, berry: t });
   return true;
 }
 
@@ -143,6 +151,8 @@ export function removeTrainingByPokemon(id) {
   for (let i = 0; i < t.slots.length; i++) {
     if (t.slots[i] && t.slots[i].id === id) {
       saveSatietyToEntry(t.slots[i]);
+      const entry = (gameData.roster || []).find(x => x.id === id);
+      if (entry) addSystemLog('train_end', { pokemon: entry.species });
       t.slots[i] = null;
       changed = true;
     }
@@ -165,6 +175,7 @@ export function addToTraining(id, slot) {
   if (Array.isArray(gameData.team)) {
     gameData.team = gameData.team.filter(x => x !== id);
   }
+  if (entry) addSystemLog('train_start', { pokemon: entry.species, slot });
   saveGame();
   processTrainingXp();
   render();
@@ -343,6 +354,8 @@ function isLazy(slot) {
 function wakeUp(slot, img) {
   if (!slot || !slot.lazyUntil || Date.now() >= slot.lazyUntil) return;
   slot.lazyUntil = 0;
+  const entry = (gameData.roster || []).find(x => x.id === slot.id);
+  if (entry) addSystemLog('train_wake', { pokemon: entry.species });
   saveGame();
   if (img) {
     img.classList.remove('lazy');
@@ -583,6 +596,8 @@ function bindSlots(host) {
 function stopTraining(idx) {
   const t = ensureTraining();
   if (!t.slots[idx]) return;
+  const entry = (gameData.roster || []).find(x => x.id === t.slots[idx].id);
+  if (entry) addSystemLog('train_end', { pokemon: entry.species });
   saveSatietyToEntry(t.slots[idx]); // 取出时把当前饱食度记回个体，放回时沿用
   t.slots[idx] = null;
   saveGame();

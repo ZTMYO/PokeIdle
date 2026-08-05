@@ -2685,7 +2685,6 @@ body { margin: 0; padding: 0; cursor: default; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
   border: none;
   background: none;
   color: var(--ui-color);
@@ -3176,6 +3175,7 @@ body { margin: 0; padding: 0; cursor: default; }
 
 #shopView::-webkit-scrollbar,
 #dataView::-webkit-scrollbar,
+#achievementView::-webkit-scrollbar,
 #tutorialView::-webkit-scrollbar,
 #settingsView::-webkit-scrollbar,
 #systemLogView::-webkit-scrollbar,
@@ -3191,6 +3191,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 #shopView::-webkit-scrollbar-track,
 #dataView::-webkit-scrollbar-track,
+#achievementView::-webkit-scrollbar-track,
 #tutorialView::-webkit-scrollbar-track,
 #settingsView::-webkit-scrollbar-track,
 #systemLogView::-webkit-scrollbar-track,
@@ -3206,6 +3207,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 #shopView::-webkit-scrollbar-thumb,
 #dataView::-webkit-scrollbar-thumb,
+#achievementView::-webkit-scrollbar-thumb,
 #tutorialView::-webkit-scrollbar-thumb,
 #settingsView::-webkit-scrollbar-thumb,
 #systemLogView::-webkit-scrollbar-thumb,
@@ -3222,6 +3224,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 #shopView::-webkit-scrollbar-thumb:hover,
 #dataView::-webkit-scrollbar-thumb:hover,
+#achievementView::-webkit-scrollbar-thumb:hover,
 #tutorialView::-webkit-scrollbar-thumb:hover,
 #settingsView::-webkit-scrollbar-thumb:hover,
 #systemLogView::-webkit-scrollbar-thumb:hover,
