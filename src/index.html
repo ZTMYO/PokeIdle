@@ -127,6 +127,21 @@
             <div id="phoneContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
+          <!-- 对战（NPC 挑战） -->
+          <div id="battleView" style="display:none;flex-direction:column;overflow:hidden;">
+            <div id="battleContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
+          </div>
+
+          <!-- 配队 -->
+          <div id="teamView" style="display:none;flex-direction:column;overflow:hidden;">
+            <div id="teamContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
+          </div>
+
+          <!-- 宝可梦训练 -->
+          <div id="trainView" style="display:none;flex-direction:column;overflow:hidden;">
+            <div id="trainContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
+          </div>
+
           <!-- GPS 模拟导航 -->
           <div id="gpsView" style="display:none;flex-direction:column;overflow-y:auto;">
             <div id="gpsContent" style="flex:1;color:var(--ui-color);"></div>
@@ -253,10 +268,15 @@
               <span class="pokedex-star"></span>
               <span class="pokedex-idx" data-sort="index">#</span>
               <span class="pokedex-name" data-sort="name">名称</span>
+              <span class="roster-lv-col" data-sort="level">等级</span>
               <span class="roster-iv" data-sort="iv">个体值</span>
-              <span class="roster-src" data-sort="source">来源</span>
             </div>
             <div id="rosterList" class="list-scroll"></div>
+          </div>
+
+          <!-- 手动配招独立页面 -->
+          <div id="moveEditView" style="display:none;flex-direction:column;overflow:hidden;position:relative;">
+            <div id="moveEditContent" style="flex:1;min-height:0;display:flex;flex-direction:column;"></div>
           </div>
 
           <!-- 交换（宝可梦交换） -->
@@ -304,7 +324,6 @@
 
         </div>
 
-        <!-- 底部文字框（GBA风格） -->
         <div id="textBox" class="text-box" style="transform:translateY(100%);">
           <div id="textBoxContent" class="text-box-content"></div>
           <div id="textBoxArrow" class="text-box-arrow" style="display:none;">

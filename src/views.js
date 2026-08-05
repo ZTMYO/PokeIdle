@@ -1,6 +1,10 @@
 import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX,
   MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX,
-  MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE } from './config.js';
+  MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE,
+  TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY,
+  TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT,
+  TRAIN_SATIETY_PER_BERRY, TRAIN_HUNGRY_LAZY_MULT,
+  BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, setPrevView, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS } from './items.js';
@@ -8,6 +12,7 @@ import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch } from './battle.js';
 import { setVolume, setBattleMusic, setMusicEnabled, playBattle, endBattle } from './audio.js';
 import { renderAchievements, refreshAchievements } from './achievements.js';
+import { TEAM_MAX } from './team.js';
 
 // ===== 欧气综合评定 =====
 // 每场遭遇的欧气分（捕获用获得分 score，宝可梦挣脱逃跑用相遇分）取平均，映射到 9 档称号。
@@ -307,8 +312,12 @@ export function showSystemLogs() {
 }
 
 // ===== 商店视图 =====
+// 右键兑换按钮弹出的批量购买数量选项（×1 始终可用，其余按余额置灰）
+const BUY_QTY_OPTIONS = [1, 5, 10, 50];
+
 export function showShopView() {
   setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
+  hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
   const content = $('shopContent');
   const candy = gameData.items['candy'] || 0;
 
@@ -323,7 +332,7 @@ export function showShopView() {
         </div>
         <div class="shop-item-right">
           <span class="shop-cost"><img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ×${cost}</span>
-          <span class="shop-btn">兑换</span>
+          <span class="shop-btn" title="右键可批量购买">兑换</span>
         </div>
       </div>`;
   }
@@ -344,7 +353,57 @@ export function showShopView() {
     if (!item || item.classList.contains('disabled')) return;
     doCandyExchange(item.dataset.item);
   };
+  // 右键"兑换"按钮弹出批量购买菜单
+  content.oncontextmenu = (e) => {
+    const btn = e.target.closest('.shop-btn');
+    if (!btn) return;
+    const item = btn.closest('.shop-item');
+    if (!item || item.classList.contains('disabled')) return;
+    e.preventDefault();
+    showShopContextMenu(item.dataset.item, e.clientX, e.clientY);
+  };
   showView('shopView');
+}
+
+// 批量购买菜单：在右键位置弹出，钱不够的选项降透明度并禁用
+function showShopContextMenu(itemKey, x, y) {
+  hideShopContextMenu();
+  const cost = CANDY_EXCHANGE[itemKey];
+  const candy = gameData.items['candy'] || 0;
+  let menu = $('shopCtxMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'shopCtxMenu';
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+  }
+  menu.innerHTML = BUY_QTY_OPTIONS.map(q => {
+    const total = cost * q;
+    const ok = candy >= total;
+    return `<div class="shop-ctx-item${ok ? '' : ' disabled'}" data-item="${itemKey}" data-q="${q}">
+      <span class="shop-ctx-qty">×${q}</span>
+      <span class="shop-ctx-cost"><img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" /> ×${total}</span>
+    </div>`;
+  }).join('');
+  menu.style.display = '';
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = Math.max(0, Math.min(x - 24, window.innerWidth - mw - 4)) + 'px';
+  menu.style.top = Math.max(0, Math.min(y, window.innerHeight - mh - 4)) + 'px';
+  // 菜单内点击不触发外部关闭；点击外部任意位置关闭
+  menu.addEventListener('pointerdown', (e) => e.stopPropagation());
+  menu.onclick = (e) => {
+    const opt = e.target.closest('.shop-ctx-item');
+    if (!opt || opt.classList.contains('disabled')) return;
+    hideShopContextMenu();
+    doCandyExchange(opt.dataset.item, Number(opt.dataset.q));
+  };
+  document.addEventListener('pointerdown', hideShopContextMenu);
+}
+
+function hideShopContextMenu() {
+  const menu = $('shopCtxMenu');
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('pointerdown', hideShopContextMenu);
 }
 
 // ===== 设置视图 =====
@@ -720,7 +779,8 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '道具',
-    html: `<p>挂机时主角会拾取到道具，稀有度从低到高如下：</p>` + tutorialTable(ITEM_DROP_ROWS, ['道具', '概率（秒/个）'], [52, 'auto']),
+    html: `<p>挂机时主角会拾取到道具，稀有度从低到高如下：</p>` + tutorialTable(ITEM_DROP_ROWS, ['道具', '概率（秒/个）'], [52, 'auto'])
+      + `<p>拾取<b>糖果</b>时还有概率一次获得更多：×2、×5、×50 甚至一次 <b>×100</b> 颗，倍率越大越稀有。</p>`,
   },
   {
     title: '遭遇',
@@ -807,11 +867,13 @@ const TUTORIAL_SECTIONS = [
 
   {
     title: '糖果',
-    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`,
+    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
+      + `<p>挂机掉落的糖果可能<b>翻倍</b>获得，最高一次 <b>100</b> 颗。</p>`,
   },
   {
     title: '商店',
     html: `<p>点击标题栏右侧区域的商店按钮者点击主界面左下角的糖果数量文字进入<b>商店</b>。可以消耗<b>糖果</b>兑换基础道具。</p>`
+      + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 50 个，糖果不够的档位会置灰）。</p>`
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto']),
   },
@@ -873,6 +935,36 @@ const TUTORIAL_SECTIONS = [
       + `<p>点击个体列表项即可查看详情。</p>`
       + `<p>详情页右上角的<b>放生</b>按钮可移除该个体（确认后不可恢复）。</p>`
       + `<p>个体可用来提交地区悬赏——提交后该宝可梦会从仓库中移除（详见「<b>悬赏</b>」章节）。</p>`,
+  },
+  {
+    title: '配队',
+    html: `<p>在<b>手机</b>页面打开<b>配队</b>应用组建小队：点击<b>空位</b>从仓库选择宝可梦加入（最多 <b>${TEAM_MAX}</b> 只）。</p>`
+      + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>交换</b>（与队伍中另一只互换位置）、<b>移除</b>（放回仓库）；<b>右键</b>点击可隐藏菜单。</p>`
+      + `<p>加入队伍的宝可梦会从<b>训练</b>中自动撤下（训练/队伍<b>互斥</b>，详见「<b>训练</b>」章节）。</p>`,
+  },
+  {
+    title: '训练',
+    html: `<p>在<b>手机</b>页面打开<b>训练</b>应用即可进入训练场：</p>`
+      + `<p>面板顶部有 <b>${TRAIN_SLOTS}</b> 个格子（显示宝可梦图标）：点击<b>空位</b>去仓库选一只放入，再次点击即可<b>取出</b>；底部列出每只的训练<b>状态、经验进度条与饱食度</b>。</p>`
+      + `<p>挂机自动获得经验 <b>${TRAIN_XP_PER_MIN}</b>/分钟，不消耗糖果；放入训练后自动从<b>队伍</b>中撤下（互斥）。</p>`
+      + `<p>场地左上角的<b>纸箱</b>是<b>树果库存</b>（与树果农场共用一份库存，点击可查看）：训练中的宝可梦会<b>消耗树果补充饱食度</b>。</p>`
+      + `<p><b>饱食度</b>上限 <b>${TRAIN_SATIETY_MAX}</b>，训练时每分钟下降 <b>${TRAIN_SATIETY_DRAIN_PER_MIN}</b>；低于 <b>${TRAIN_SATIETY_EAT_AT}</b> 时会自动吃掉一颗它<b>爱吃</b>的树果（图鉴可查爱吃的食物），每颗补充 <b>${TRAIN_SATIETY_PER_BERRY}</b> 饱食度——没存货就只能饿着。</p>`
+      + `<p>鼠标<b>悬停</b>在场地上的宝可梦可查看<b>名字 · 等级 · 饱食 · 状态</b>。</p>`
+      + `<p>训练中偶尔会<b>偷懒</b>：约 <b>${Math.round(TRAIN_LAZY.chancePerMin * 100)}</b>%/分钟 触发一次，暂停训练 <b>${TRAIN_LAZY.durationMin / 1000 / 60}~${TRAIN_LAZY.durationMax / 1000 / 60}</b> 分钟（只暂停后续积累，已获得的经验保留）。</p>`
+      + `<p><b>饱食度越低越容易偷懒</b>：满饱食时偷懒概率为 <b>1</b> 倍，饿到 <b>0</b> 时最多放大到 <b>${TRAIN_HUNGRY_LAZY_MULT}</b> 倍，记得常备爱吃的树果！</p>`
+      + `<p>偷懒的宝可梦会<b>停止跳动</b>待在原地，鼠标移上去光标变成<b>手形</b>——点它一下就能把它<b>叫醒</b>，继续训练！</p>`,
+  },
+  {
+    title: '对战',
+    html: `<p>在<b>手机</b>页面打开<b>对战</b>应用，向路过的训练家发起挑战（NPC 队伍分<b>普通 / 精英 / 冠军</b>三档，每 <b>${BATTLE_REFRESH_MS / 60000}</b> 分钟刷新一波）。</p>`
+      + `<p>挑战失败可<b>再战一次</b>，随时都能重复挑战。</p>`
+      + `<p>各档挑战数量与队伍规模：普通 <b>${BATTLE_NPC_COUNTS.novice}</b> 名 / <b>${BATTLE_MONS_COUNT.novice}</b> 只、精英 <b>${BATTLE_NPC_COUNTS.veteran}</b> 名 / <b>${BATTLE_MONS_COUNT.veteran}</b> 只、冠军 <b>${BATTLE_NPC_COUNTS.champion}</b> 名 / <b>${BATTLE_MONS_COUNT.champion}</b> 只。</p>`,
+  },
+  {
+    title: '配招',
+    html: `<p>在<b>宝可梦</b>仓库的个体详情页配置招式（最多 <b>4</b> 个）：<b>自动</b>按等级搭配；<b>手动</b>进入独立的配招页自由调整。</p>`
+      + `<p>配招页<b>左侧</b>是可学习的招式（带<b>属性图标</b>，<b>高亮</b>=已配入），点一下在<b>右侧</b>查看<b>详细解释</b>；再点<b>顶部空槽位</b>就把这招放进去。</p>`
+      + `<p>槽位上的<b>叉号</b>可移除招式。</p>`,
   },
   {
     title: '混合器',

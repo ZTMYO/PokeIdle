@@ -18,7 +18,14 @@ const APPS = [
   { id: 'data', icon: 'icon-data', name: '统计' },
   { id: 'log', icon: 'icon-log', name: '日志' },
   { id: 'tutorial', icon: 'icon-tutorial', name: '教程' },
+  // 第二页：对战 + 配队 + 训练
+  { id: 'train', icon: 'icon-train', name: '训练' },
+  { id: 'team', icon: 'icon-edit', name: '配队' },
+  { id: 'battle', icon: 'icon-versus', name: '对战' },
 ];
+
+// 每页 App 数量（5 列 × 2 行）
+const PAGE_SIZE = 10;
 
 // 打开孵蛋器应用（从手机进入，返回回到手机主页）
 function showIncubatorView() {
@@ -109,22 +116,59 @@ export function showPhoneView() {
   setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
   startClock();
   const el = $('phoneContent');
+  // 分页：每页 PAGE_SIZE 个 App，横排平移翻页
+  const pages = [];
+  for (let i = 0; i < APPS.length; i += PAGE_SIZE) pages.push(APPS.slice(i, i + PAGE_SIZE));
   el.innerHTML = `
-    <div class="phone-apps">
-      ${APPS.map(a => `
-        <div class="phone-app" data-app="${a.id}">
-          <div class="phone-app-icon"><svg><use xlink:href="./icons/sprites.svg#${a.icon}"/></svg>
-            ${['incubator', 'trade', 'berry', 'data'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
-          </div>
-          <div class="phone-app-name">${a.name}</div>
+    <div class="phone-pages" id="phonePages">
+      ${pages.map(page => `
+        <div class="phone-page">
+          ${page.map(a => `
+            <div class="phone-app" data-app="${a.id}">
+              <div class="phone-app-icon"><svg><use xlink:href="./icons/sprites.svg#${a.icon}"/></svg>
+                ${['incubator', 'trade', 'berry', 'data'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
+              </div>
+              <div class="phone-app-name">${a.name}</div>
+            </div>`).join('')}
         </div>`).join('')}
-    </div>`;
+    </div>
+    ${pages.length > 1 ? `<div class="phone-dots">${pages.map((_, i) => `<span class="dot${i === 0 ? ' active' : ''}" data-page="${i}"></span>`).join('')}</div>` : ''}`;
   // 渲染后同步红点（页面重建后需重新应用）
   updateIncubatorBadge();
   updateTradeBadge();
   updateBerryBadge();
   updateDataBadge();
   updatePhoneBadge();
+  // 翻页：页码指示点点击 + 原生 scroll-snap 横向滑动
+  let _page = 0;
+  const pagesEl = $('phonePages');
+  const gotoPage = (i) => {
+    _page = Math.max(0, Math.min(pages.length - 1, i));
+    // scroll-snap 容器按整页宽度吸附，浏览器原生计算，无需手动换算 padding/宽度
+    pagesEl.scrollTo({ left: _page * pagesEl.clientWidth, behavior: 'smooth' });
+    el.querySelectorAll('.phone-dots .dot').forEach((d, di) => d.classList.toggle('active', di === _page));
+  };
+  el.querySelectorAll('.phone-dots .dot').forEach(d => {
+    d.addEventListener('click', () => gotoPage(Number(d.dataset.page)));
+  });
+  // 触摸滑动翻页由 scroll-snap 原生处理；监听 scroll 结束同步页码圆点
+  pagesEl.addEventListener('scroll', () => {
+    const idx = Math.round(pagesEl.scrollLeft / (pagesEl.clientWidth || 1));
+    if (idx !== _page) {
+      _page = idx;
+      el.querySelectorAll('.phone-dots .dot').forEach((d, di) => d.classList.toggle('active', di === _page));
+    }
+  }, { passive: true });
+  // 鼠标滚轮翻页（桌面端）：纵向滚轮映射为横向翻页，带节流防连翻
+  let _wheelLock = 0;
+  pagesEl.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return; // 横向滚轮交给原生滚动
+    e.preventDefault();
+    const now = Date.now();
+    if (now - _wheelLock < 400) return;
+    _wheelLock = now;
+    gotoPage(_page + (e.deltaY > 0 ? 1 : -1));
+  }, { passive: false });
   // 事件委托：点击应用进入对应页面
   el.onclick = (e) => {
     const app = e.target.closest('.phone-app');
@@ -135,6 +179,9 @@ export function showPhoneView() {
     else if (id === 'book') import('./pokedex.js').then(m => m.showPokedex());
     else if (id === 'incubator') showIncubatorView();
     else if (id === 'roster') import('./roster.js').then(m => m.showRosterView());
+    else if (id === 'battle') import('./battle-view.js').then(m => m.showBattleView());
+    else if (id === 'team') import('./team.js').then(m => m.showTeamView());
+    else if (id === 'train') import('./train.js').then(m => m.showTrainView());
     else if (id === 'trade') import('./trade.js').then(m => m.showTradeView());
     else if (id === 'mixer') import('./mixer.js').then(m => m.showMixerView());
     else if (id === 'berry') import('./berry.js').then(m => m.showBerryView());

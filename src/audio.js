@@ -92,6 +92,9 @@ function tryPlay(el) {
   if (_splashLocked) return; // splash 期间不实际发声（状态保留，放行后恢复）
   // 音乐关闭时全局阻断：地区曲/覆盖曲/瞬发音效（victory、孵蛋、交换等）一律不发声
   if (!_musicEnabled) return;
+  // 互斥兜底：播放覆盖曲前先暂停地区曲；覆盖曲实际发声时禁止地区曲起播，避免两首叠加
+  if (el === overlayAudio && !regionAudio.paused) regionAudio.pause();
+  if (el === regionAudio && _overlayActive && overlayAudio.src && !overlayAudio.paused) return;
   const p = el.play();
   if (p && typeof p.catch === 'function') {
     p.catch(() => { _pending = el; });
@@ -191,12 +194,8 @@ export function playRegion(name, firstTrack) {
 // ---------- 覆盖曲（战斗 / 骑行） ----------
 function playOverlay(type, src) {
   _overlayActive = true;
-  // 同类覆盖曲已在播放时不打断（避免道路切换时骑行曲重播）
-  if (_overlayType === type && overlayAudio.getAttribute('src') === src) {
-    tryPlay(overlayAudio);
-    return;
-  }
   _overlayType = type;
+  // 覆盖曲播放时保证地区曲暂停（同源重播也走此分支），避免两首叠加
   if (!regionAudio.paused) regionAudio.pause();
   if (overlayAudio.getAttribute('src') !== src) overlayAudio.src = src;
   applyTrackGain('overlay', type === 'battle' ? SFX.battle : SFX.cycling);
@@ -263,8 +262,10 @@ export function stopVictory() {
   if (sfxAudio.paused) return;
   sfxAudio.pause();
   sfxAudio.currentTime = 0;
-  if (_overlayActive && overlayAudio.getAttribute('src') && overlayAudio.paused) tryPlay(overlayAudio);
-  else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) tryPlay(regionAudio);
+  // 恢复背景曲：覆盖曲 > 地区曲（覆盖曲活跃时绝不恢复地区曲，避免叠加）
+  if (_overlayActive && overlayAudio.getAttribute('src')) {
+    if (overlayAudio.paused) tryPlay(overlayAudio);
+  } else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) tryPlay(regionAudio);
 }
 
 // ---------- 切歌提示 ----------
@@ -363,9 +364,12 @@ function resumeBackground() {
     return;
   }
   _sfxInterrupted = false;
-  // 恢复背景曲：覆盖曲 > 地区曲
-  if (_overlayActive && overlayAudio.getAttribute('src') && overlayAudio.paused) tryPlay(overlayAudio);
-  else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) { regionFadeIn(300); tryPlay(regionAudio); }
+  // 恢复背景曲：覆盖曲 > 地区曲（覆盖曲活跃时绝不恢复地区曲，避免叠加）
+  if (_overlayActive && overlayAudio.getAttribute('src')) {
+    if (overlayAudio.paused) tryPlay(overlayAudio);
+  } else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) {
+    regionFadeIn(300); tryPlay(regionAudio);
+  }
 }
 
 // 音乐开关（设置页与开场顶栏按钮共用）：关闭时暂停所有音频通道（含瞬发音效），重开恢复（覆盖曲 > 地区曲）

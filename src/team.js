@@ -1,0 +1,254 @@
+import { $, showView, tryLoadImage } from './ui.js';
+import { gameData, getPokemonByIndex, saveGame, setPrevView } from './state.js';
+
+export const TEAM_MAX = 6;
+
+// 升级经验需求（与对战结算一致）
+const expNeed = (lv) => 25 + lv * 20;
+
+export function teamIds() {
+  return Array.isArray(gameData.team) ? gameData.team : [];
+}
+
+let _selectedSlot = -1; // 调整顺序时选中的槽位（-1 = 未选中）
+let _hint = null;       // 底部提示文案（如对战前队伍为空跳转时给出引导）
+// 战斗中替换：非空时配队页处于"选择上场宝可梦"模式
+let _battleParty = null;   // 出战队伍 [{ entry, pd, mon }]
+let _battleFieldIdx = -1;  // 当前场上成员下标（不可替换给自己）
+let _battleCb = null;      // 选择回调：idx 为上场下标，-1 表示取消
+
+export function showTeamView(hint, prev) {
+  _hint = hint || null;
+  _selectedSlot = -1;
+  _battleCb = null; _battleParty = null; _battleFieldIdx = -1;
+  setPrevView(prev || 'phoneView');
+  render();
+  showView('teamView');
+}
+
+// 仓库选取取消/返回：回到配队页（不重置 _prevView，保住"对战列表→配队"的返回链）
+export function restoreTeamView() {
+  _selectedSlot = -1;
+  render();
+  showView('teamView');
+}
+
+// 战斗中替换：进入配队页面，点击成员直接替换场上宝可梦
+export function showTeamViewForBattle(party, fieldIdx, onPick) {
+  _battleParty = party;
+  _battleFieldIdx = fieldIdx;
+  _battleCb = onPick;
+  _selectedSlot = -1;
+  setPrevView('battleView'); // 标题栏返回回到战斗页
+  render();
+  showView('teamView');
+}
+
+// 仓库选取：从列表项加入队伍（空槽点击跳转仓库后由列表项触发），按被点击的槽位落位
+export function addToTeam(id, slot) {
+  const cur = teamIds();
+  // 按实际成员数判断满员（数组可能含空位）；已占用的槽位视为替换，不受满员限制
+  if ((!cur[slot] && cur.filter(Boolean).length >= TEAM_MAX) || cur.includes(id)) return;
+  const next = [...cur];
+  next[slot] = id;
+  gameData.team = next;
+  _selectedSlot = -1;
+  _hint = null; // 加入成员后不再提示"队伍为空"
+  saveGame();
+  // 训练/队伍互斥：入队后从训练槽移除
+  import('./train.js').then(m => m.removeTrainingByPokemon(id));
+  render();
+  showView('teamView');
+}
+
+function render() {
+  closeTeamMenu();
+  const box = $('teamContent');
+  const roster = (gameData.roster || []).filter(p => p.inRoster !== false);
+  const ids = teamIds();
+  const byId = new Map(roster.map(p => [p.id, p]));
+  const slotPokes = _battleCb
+    ? _battleParty.map(x => x.entry) // 战斗替换：直接显示出战队伍
+    : ids.map(id => byId.get(id) || null); // 已放生的失效 id 显示为空槽
+
+  box.innerHTML = `
+    <div class="team-app">
+      <div class="team-party">
+        ${[0, 1, 2, 3, 4, 5].map(i => {
+          const p = slotPokes[i];
+          const disabled = _battleCb && (!p || _battleParty[i].mon.hp <= 0 || i === _battleFieldIdx);
+          return slotHtml(i, p, disabled);
+        }).join('')}
+      </div>
+    </div>
+    ${footerHtml()}`;
+  // 加载个体图标
+  box.querySelectorAll('img[data-icon]').forEach(img => {
+    const poke = getPokemonByIndex(img.dataset.icon);
+    if (poke?.icon) tryLoadImage(img, poke.icon);
+  });
+  // 交换模式取消
+  $('teamSwapCancel')?.addEventListener('click', () => { _selectedSlot = -1; render(); });
+  // 战斗替换：返回战斗，不换人
+  $('teamBattleBack')?.addEventListener('click', () => {
+    const cb = _battleCb;
+    _battleCb = null; _battleParty = null; _battleFieldIdx = -1;
+    showView('battleView');
+    if (cb) cb(-1);
+  });
+  // 槽位点击：交换模式点击另一槽换位；空槽跳转仓库选择；否则弹出 交换/移除 菜单
+  box.querySelectorAll('[data-slot]').forEach(slot => {
+    slot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const i = Number(slot.dataset.slot);
+      if (_battleCb) {
+        const member = _battleParty[i];
+        if (!member || member.mon.hp <= 0 || i === _battleFieldIdx) return;
+        const cb = _battleCb;
+        _battleCb = null; _battleParty = null; _battleFieldIdx = -1;
+        showView('battleView');
+        cb(i);
+        return;
+      }
+      if (_selectedSlot >= 0) {
+        if (i === _selectedSlot) { _selectedSlot = -1; render(); return; }
+        swapSlots(_selectedSlot, i);
+        return;
+      }
+      if (!slotPokes[i]) {
+        import('./roster.js').then(m => m.showRosterPicker({ mode: 'team', slot: i, from: 'teamView', exclude: teamIds() }));
+        return;
+      }
+      openTeamMenu(e, i, slotPokes[i]);
+    });
+  });
+}
+
+// 单槽位渲染：统一布局（左侧图标占满高度 + 右侧名字/等级/经验三行）
+function slotHtml(i, p, disabled) {
+  const poke = p ? getPokemonByIndex(String(p.species)) : null;
+  const name = poke ? poke.name : p ? `#${p.species}` : '';
+  const shiny = p && p.shiny
+    ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
+    : '';
+  const selected = _selectedSlot === i ? ' selected' : '';
+  const dis = disabled ? ' swap-disabled' : '';
+  if (!p) return `<div class="team-member empty${selected}${dis}" data-slot="${i}">
+    <span class="member-empty">空</span>
+  </div>`;
+  const cur = p.exp || 0;
+  const need = expNeed(p.level || 1);
+  const ratio = Math.min(100, Math.max(0, (cur / need) * 100));
+  return `<div class="team-member${selected}${dis}" data-slot="${i}">
+    <img class="member-icon" data-icon="${p.species}" alt="">
+    <div class="member-body">
+      <div class="member-top"><span class="member-name">${name}${shiny}</span></div>
+      <div class="member-mid">
+        <span class="member-lv">Lv${p.level || 1}</span>
+        <span class="xp-nums">${Math.floor(cur)} / ${need}</span>
+      </div>
+      <div class="member-xp-row">
+        <span class="xp-label">XP</span>
+        <div class="xp-bar"><div class="xp-fill" style="width:${ratio.toFixed(1)}%"></div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function footerHtml() {
+  if (_battleCb) {
+    return `<div class="team-footer">
+      <span class="team-footer-text">点击要上场的宝可梦。</span>
+      <button class="team-footer-btn" id="teamBattleBack">返回</button>
+    </div>`;
+  }
+  if (_hint) {
+    return `<div class="team-footer">
+      <span class="team-footer-text">${_hint}</span>
+    </div>`;
+  }
+  if (_selectedSlot < 0) return '';
+  return `<div class="team-footer">
+    <span class="team-footer-text">点击要交换的宝可梦。</span>
+    <button class="team-footer-btn" id="teamSwapCancel">取消</button>
+  </div>`;
+}
+
+// 点击宝可梦时在点击位置弹出操作菜单（交换 / 移除）
+let _menuEl = null;
+let _menuSlot = -1;
+let _menuSlotEl = null;
+
+function closeTeamMenu() {
+  if (_menuEl) { _menuEl.remove(); _menuEl = null; }
+  if (_menuSlotEl) { _menuSlotEl.classList.remove('menu-open'); _menuSlotEl = null; }
+  _menuSlot = -1;
+}
+
+function openTeamMenu(e, i, p) {
+  closeTeamMenu();
+  if (!p) return; // 空槽不弹菜单
+  _menuSlot = i;
+  const slotEl = e.currentTarget; // 高亮被点击的槽位，标识菜单归属
+  slotEl.classList.add('menu-open');
+  _menuSlotEl = slotEl;
+  const box = $('teamContent');
+  const r = box.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'team-menu';
+  menu.innerHTML = `
+    <button data-menu-act="view">查看</button>
+    <button data-menu-act="replace">替换</button>
+    <button data-menu-act="swap">换位</button>
+    <button data-menu-act="remove">移除</button>`;
+  menu.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const act = ev.target.closest('[data-menu-act]');
+    if (!act) return;
+    const idx = _menuSlot;
+    closeTeamMenu();
+    if (act.dataset.menuAct === 'remove') removeFromTeam(idx);
+    else if (act.dataset.menuAct === 'view') {
+      // 查看个体详情（方便配队时配招），返回时恢复配队页
+      import('./roster.js').then(m => m.showRosterDetailFromList(p.id, () => restoreTeamView()));
+    } else if (act.dataset.menuAct === 'replace') {
+      // 从仓库选一只替换该位置（弹层保留配队页，选完回到配队）
+      import('./roster.js').then(m => m.showRosterPicker({ mode: 'team', slot: idx, from: 'teamView', exclude: teamIds() }));
+    } else { _selectedSlot = idx; render(); }
+  });
+  box.appendChild(menu);
+  // 追加后按实际尺寸定位（菜单内容变化时高度随按钮数浮动）
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(0, Math.min(e.clientX - r.left, r.width - mw - 4))}px`;
+  menu.style.top = `${Math.max(0, Math.min(e.clientY - r.top, r.height - mh - 4))}px`;
+  _menuEl = menu;
+}
+
+// 点击菜单外空白处关闭菜单（槽位/菜单点击均已 stopPropagation）
+document.addEventListener('click', () => { closeTeamMenu(); });
+// 右键隐藏菜单（同时屏蔽配队页的原生右键菜单）
+document.addEventListener('contextmenu', (e) => {
+  if ($('teamView')?.style.display !== 'none') e.preventDefault();
+  closeTeamMenu();
+});
+
+// 交换两个槽位（保留空位，维持成员所在位置）
+function swapSlots(a, b) {
+  const cur = teamIds();
+  const next = [...cur];
+  next[a] = cur[b];
+  next[b] = cur[a];
+  gameData.team = next;
+  _selectedSlot = -1;
+  saveGame();
+  render();
+}
+
+// 从队伍移除指定槽位
+function removeFromTeam(i) {
+  const cur = teamIds();
+  gameData.team = cur.filter((_, idx) => idx !== i);
+  _selectedSlot = -1;
+  saveGame();
+  render();
+}

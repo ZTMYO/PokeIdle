@@ -404,6 +404,13 @@ body { margin: 0; padding: 0; cursor: default; }
   margin-bottom: 2px;
   user-select: none;
 }
+/* 遇敌等级（无容器背景，纯文字） */
+.encounter-lv {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui-color);
+  flex-shrink: 0;
+}
 
 .encounter-types {
   position: absolute;
@@ -547,7 +554,6 @@ body { margin: 0; padding: 0; cursor: default; }
   transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* === 底部文字框（GBA 宝可梦风格） === */
 .text-box {
   position: absolute;
   bottom: 0;
@@ -1320,15 +1326,49 @@ body { margin: 0; padding: 0; cursor: default; }
 #phoneView.has-music .phone-clock { padding: 0 0 2px; }
 #phoneView.has-music .phone-clock .date { font-size: 9px; }
 #phoneView.has-music .phone-clock .time { font-size: 17px; line-height: 1.2; }
-#phoneContent { display: flex; flex-direction: column; }
-.phone-apps {
+#phoneContent { display: flex; flex-direction: column; min-height: 0; }
+/* 手机 App 分页：多页横排，scroll-snap 原生翻页（滚动条隐藏） */
+.phone-pages {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.phone-pages::-webkit-scrollbar { display: none; }
+.phone-page {
+  flex-shrink: 0;
+  width: 100%;
+  scroll-snap-align: start;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, 1fr);
   gap: 10px 4px;
   justify-items: center;
-  padding: 2px 2px 18px;
-  margin-top: auto;
+  align-content: center;
+  padding: 2px 2px 4px;
 }
+/* 页码指示点 */
+.phone-dots {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 0 1px;
+}
+.phone-dots .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(var(--ui-color-rgb), 0.28);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.phone-dots .dot.active { background: var(--ui-color); }
 /* 音乐栏平滑展开/收起：max-height+opacity 过渡，与时钟放大/压缩互补，过渡期间总高度恒定 */
 .phone-music {
   display: flex;
@@ -2171,7 +2211,6 @@ body { margin: 0; padding: 0; cursor: default; }
   position: absolute;
   left: 0;
   right: 0;
-  /* cube 高 44px 且 bottom:30px，其顶边在 74px，里程从 84px 起留 10px 间距 */
   bottom: 84px;
   text-align: center;
   font-size: 12px;
@@ -2580,7 +2619,6 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .bottom-dock:hover { filter: brightness(0.95); }
 .bottom-dock:disabled { opacity: 0.45; pointer-events: none; }
-/* 取消按钮绝对定位贴左：图标顶格对齐第一行，退出文字落底对齐第二行（预计到达时间） */
 .gps-bottom-cancel {
   position: absolute;
   left: 8px;
@@ -3135,7 +3173,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #mixerView::-webkit-scrollbar,
 #berryView::-webkit-scrollbar,
 #rosterList::-webkit-scrollbar,
-#tradeView::-webkit-scrollbar {
+#tradeView::-webkit-scrollbar,
+.battle-npc-list::-webkit-scrollbar {
   width: 4px;
 }
 #shopView::-webkit-scrollbar-track,
@@ -3149,7 +3188,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #mixerView::-webkit-scrollbar-track,
 #berryView::-webkit-scrollbar-track,
 #rosterList::-webkit-scrollbar-track,
-#tradeView::-webkit-scrollbar-track {
+#tradeView::-webkit-scrollbar-track,
+.battle-npc-list::-webkit-scrollbar-track {
   background: transparent;
 }
 #shopView::-webkit-scrollbar-thumb,
@@ -3163,7 +3203,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #mixerView::-webkit-scrollbar-thumb,
 #berryView::-webkit-scrollbar-thumb,
 #rosterList::-webkit-scrollbar-thumb,
-#tradeView::-webkit-scrollbar-thumb {
+#tradeView::-webkit-scrollbar-thumb,
+.battle-npc-list::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb), 0.3);
   border-radius: 2px;
 }
@@ -3178,7 +3219,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #mixerView::-webkit-scrollbar-thumb:hover,
 #berryView::-webkit-scrollbar-thumb:hover,
 #rosterList::-webkit-scrollbar-thumb:hover,
-#tradeView::-webkit-scrollbar-thumb:hover {
+#tradeView::-webkit-scrollbar-thumb:hover,
+.battle-npc-list::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--ui-color-rgb), 0.55);
 }
 .shop-item {
@@ -3229,6 +3271,32 @@ body { margin: 0; padding: 0; cursor: default; }
 .shop-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
 .shop-btn:active { transform: scale(0.95); }
 
+/* 商店批量兑换右键菜单（钱不够的选项降透明度并禁用） */
+.shop-ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--screen-bg-light);
+  border: 1px solid var(--screen-bg-dark);
+  border-radius: 5px;
+  padding: 3px;
+  transform: translateX(-20%);
+}
+.shop-ctx-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--ui-color);
+  cursor: pointer;
+}
+.shop-ctx-item:hover { background: rgba(var(--ui-color-rgb),0.12); }
+.shop-ctx-item.disabled { opacity: 0.35; pointer-events: none; }
+.shop-ctx-qty { font-weight: 700; }
+.shop-ctx-cost { color: var(--ui-color); }
+
 /* ===== 设置面板 ===== */
 #settingsView {
   padding: 4px 3px;
@@ -3242,7 +3310,11 @@ body { margin: 0; padding: 0; cursor: default; }
 #bountyView,
 #mixerView,
 #berryView,
-#tradeView {
+#tradeView,
+#battleView,
+#teamView,
+#trainView,
+#moveEditView {
   align-self: stretch;
   width: 100%;
   height: 100%;
@@ -3618,19 +3690,31 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 /* 行高固定，保证各行高度一致 */
 .roster-row { height: 30px; }
+/* 仓库列表独立等级列 */
+.roster-lv-col {
+  width: 38px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  font-variant-numeric: tabular-nums;
+}
+/* 详情页名字后的等级小字（与名字不同字体） */
+.roster-detail-lv {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color);
+  opacity: 0.75;
+  margin-left: 6px;
+  vertical-align: 1px;
+}
 .roster-iv {
   width: 34px;
   flex-shrink: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-.roster-src {
-  width: 40px;
-  flex-shrink: 0;
-  text-align: right;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 /* 个体详情 */
@@ -3694,6 +3778,195 @@ body { margin: 0; padding: 0; cursor: default; }
   height: 100%;
   background: var(--ui-color);
   border-radius: 2px;
+}
+
+/* 个体详情配招 */
+.roster-moves-block { padding-bottom: 10px; }
+/* 标题行：左"招式 X/4"，右"自动"按钮 */
+.roster-move-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.roster-move-title-row .roster-detail-title { margin-bottom: 0; }
+.roster-move-tools { display: flex; gap: 4px; }
+/* 招式槽 2 行 × 2 列 */
+.roster-moves-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+}
+.roster-move-slot {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  padding: 4px 5px;
+  background-color: transparent;
+  border: 1px solid rgba(var(--ui-color-rgb),0.25);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.roster-move-slot:hover { background: rgba(255,255,255,0.32); }
+.roster-move-slot.empty { border-style: dashed; }
+.roster-move-slot-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.roster-move-slot-name.slot-empty { opacity: 0.4; font-weight: 600; }
+.roster-auto-btn { flex-shrink: 0; padding: 3px 6px; }
+
+/* ---- 手动配招独立页 ---- */
+/* 顶部当前配招槽位：2 行 × 2 列 */
+.move-edit-slots {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb),0.15);
+  flex-shrink: 0;
+}
+.move-edit-slot {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 5px;
+  border: 1px solid rgba(var(--ui-color-rgb),0.3);
+  border-radius: 5px;
+  background: rgba(255,255,255,0.18);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ui-color);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.move-edit-slot:hover { background: rgba(255,255,255,0.32); }
+.move-edit-slot.empty { background: rgba(255,255,255,0.06); border-style: dashed; }
+.move-edit-slot-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.move-edit-slot-x {
+  flex-shrink: 0;
+  margin-left: auto;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.22);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+}
+.move-edit-slot-x:hover { background: #c9563c; }
+.move-edit-slot-x svg { width: 8px; height: 8px; fill: currentColor; }
+/* 左列表 + 右详情 */
+.move-edit-main { flex: 1; min-height: 0; display: flex; }
+.move-edit-list {
+  width: 48%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 4px;
+}
+.move-edit-list::-webkit-scrollbar { width: 3px; }
+.move-edit-list::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb),0.25); border-radius: 2px; }
+.move-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ui-color);
+  padding: 3px 6px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.12);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.move-edit-row:hover { background: rgba(255,255,255,0.25); }
+/* 招式类别图标（物理/特殊/变化）：详情面板「类别」行展示，hover 用自制 tooltip */
+.move-cat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.move-cat-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.move-edit-detail-stats b { display: inline-flex; align-items: center; }
+.move-edit-row.active { background: rgba(var(--ui-color-rgb),0.18); box-shadow: inset 2px 0 0 var(--ui-color); }
+.move-edit-row.sel { border: 1px solid var(--ui-color); background: rgba(var(--ui-color-rgb),0.22); }
+.move-edit-row-lv { flex-shrink: 0; margin-left: auto; font-size: 9px; color: var(--ui-color); }
+.move-edit-detail {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-left: 1px solid rgba(var(--ui-color-rgb),0.15);
+  overflow-y: auto;
+}
+.move-edit-detail::-webkit-scrollbar { width: 3px; }
+.move-edit-detail::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb),0.25); border-radius: 2px; }
+.move-edit-detail-empty {
+  margin: auto;
+  font-size: 11px;
+  color: var(--ui-color);
+  text-align: center;
+}
+.move-edit-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.b-move-type.big { width: 26px; height: 26px; border-radius: 8px; }
+.b-move-type.big .b-move-type-icon { width: 16px; height: 16px; }
+.move-edit-detail-name { font-size: 12px; font-weight: 700; color: var(--ui-color-dark); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.move-edit-detail-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.move-edit-detail-stats > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.12);
+}
+.move-edit-detail-stats span { font-size: 9px; color: var(--ui-color); }
+.move-edit-detail-stats b { font-size: 11px; font-weight: 700; color: var(--ui-color-dark); font-variant-numeric: tabular-nums; }
+.move-edit-detail-desc {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--ui-color);
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  padding: 5px 6px;
 }
 
 /* 悬赏提交列表 */
@@ -3853,11 +4126,12 @@ body { margin: 0; padding: 0; cursor: default; }
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.trade-give-name em { font-style: normal; font-size: 9px; font-weight: 400; color: var(--ui-color); }
 .trade-shiny {
   flex-shrink: 0;
   color: var(--ui-color);
 }
-/* 需求文字（可换行，字号稍大） */
+/* 需求文字 */
 .trade-text {
   flex: 1;
   min-width: 0;
@@ -4126,3 +4400,1060 @@ body { margin: 0; padding: 0; cursor: default; }
 /* 开场剧情期间隐藏全部 UI：底部背包/统计栏与顶部 4 个应用入口按钮（保留最小化/关闭），结束后随开机动画浮现 */
 body.boot-no-ui .backpack-bar { display: none; }
 body.boot-no-ui .control-btn.window-icon { display: none; }
+
+/* === 对战 App（NPC 挑战） === */
+#battleContent { position: relative; display: flex; flex-direction: column; }
+.battle-app {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  padding: 4px 3px;
+}
+#battleRefreshTip {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  padding: 2px 2px 6px;
+  opacity: 0.8;
+}
+.battle-npc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+  padding-right: 2px;
+}
+.npc-item {
+  background: var(--screen-bg-light);
+  border: 1px solid var(--item-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+.npc-item:hover { filter: brightness(0.97); }
+.npc-item:active { transform: scale(0.98); }
+.npc-info { display: flex; align-items: center; gap: 6px; }
+.npc-desc { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.npc-title-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.npc-title {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 6px;
+  line-height: 1.4;
+}
+.t-novice   { background: #57a86a; }
+.t-veteran  { background: #4a78c9; }
+.t-champion { background: #c9a13c; }
+.npc-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.npc-meta {
+  font-size: 9px;
+  opacity: 0.6;
+  margin-top: 2px;
+}
+.npc-reward {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  margin-top: 2px;
+}
+
+/* ---- 战斗页：上下两大分区（上区对战展示 / 下区技能操作面板，分割线隔开） ---- */
+.battle-fight {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* 战斗背景按 NPC 难度着色：普通绿 / 精英蓝 / 冠军金 */
+.battle-fight.t-novice, .battle-result.t-novice { background: #a9dcc0; }
+.battle-fight.t-veteran, .battle-result.t-veteran { background: #8fb6e0; }
+.battle-fight.t-champion, .battle-result.t-champion { background: #dcc06a; }
+/* 战斗期间屏幕边框按 NPC 难度着色（.screen 的 t- 类由战斗页挂载/清除） */
+.screen.t-novice { border-color: #57a86a; }
+.screen.t-veteran { border-color: #4a78c9; }
+.screen.t-champion { border-color: #c9a13c; }
+.battle-stage-top {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding:10px 0;
+}
+.b-enemy-box,
+.b-player-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 50px;
+  flex-shrink: 0;
+}
+.b-enemy-box .b-panel,
+.b-player-box .b-panel {
+  background: rgba(255, 255, 255, 0.32);
+  padding: 4px 10px;
+  flex-shrink: 0;
+}
+.b-enemy-box .b-panel {
+  border-radius: 0 4px 4px 0;
+}
+.b-player-box .b-panel {
+  border-radius: 4px 0 0 4px;
+}
+.b-enemy-box img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  flex-shrink: 0;
+  margin: 8px 14px 0 0; /* 与右上角留出间距 */
+}
+.b-player-box img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  flex-shrink: 0;
+  margin: 0 8px 14px 0; /* 与左下角留出间距 */
+}
+.b-base {
+  position: absolute;
+  z-index: 0;
+  width: 46px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #57a86a;
+  background: rgba(87, 168, 106, 0.3);
+  pointer-events: none;
+}
+/* 底座颜色随 NPC 难度：普通绿 / 精英蓝 / 冠军金 */
+.battle-fight.t-veteran .b-base { border-color: #4a78c9; background: rgba(74, 120, 201, 0.3); }
+.battle-fight.t-champion .b-base { border-color: #c9a13c; background: rgba(201, 161, 60, 0.3); }
+#be-base { right: 33px; top: 48px; transform: translate(50%, -50%); }
+#bp-base { left: 28px; top: 36px; transform: translate(-50%, -50%); }
+.b-enemy-box img { position: relative; z-index: 1; } /* 精灵盖在底座上层（我方 .b-flip 自带 transform 叠层） */
+.b-player-box .b-info { align-items: flex-end; }
+.b-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* 名字/等级一行，属性标签另起一行；行宽与血条一致保证名字与血条左端对齐 */
+.b-meta-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 96px;
+  flex-shrink: 0;
+}
+.b-name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+}
+.b-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ui-color-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.b-lv {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--ui-color-dark);
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+.b-types { display: flex; flex-wrap: wrap; gap: 3px; flex-shrink: 0; }
+.b-type {
+  font-size: 7px;
+  font-weight: 500;
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 5px;
+  line-height: 1.3;
+}
+/* 战斗属性 + 状态圆点容器 */
+.b-status-area { display: inline-flex; align-items: center; gap: 3px;cursor: pointer; }
+/* 异常状态圆点：属性后的小圆点，hover 用自制 tooltip 显示状态名 */
+.b-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+.b-hp {
+  width: 96px;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid #fff;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 1px;
+}
+.b-hp i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 3px;
+  transition: width 0.25s ease;
+}
+/* 队伍剩余数量：精灵球图标，剩几只显示几个 */
+.b-team {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 12px;
+}
+.b-ball {
+  width: 11px;
+  height: 11px;
+  color: var(--ui-color-dark);
+  flex-shrink: 0;
+}
+/* 底部操作区：左栏文案/技能 + 右栏操作/技能详情（高度对齐遭遇界面文案框） */
+.b-bottom {
+  flex-shrink: 0;
+  height: 56px;
+  display: flex;
+  background: var(--console-body);
+  border-top: 2px solid var(--console-border);
+  z-index: 3;
+}
+.b-left {
+  flex: 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 3px 5px;
+}
+.b-right {
+  flex: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 5px;
+  border-left: 2px solid var(--console-border);
+}
+/* 招式区：2×2 技能按钮 */
+.b-cmd {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 3px;
+}
+.b-move {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+  padding: 3px 5px;
+  background: var(--console-body);
+  border: 1px solid var(--console-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, transform 0.08s;
+}
+.b-move:hover { filter: brightness(1.1); }
+.b-move:active { transform: scale(0.95); }
+.b-move.disabled { opacity: 0.4; cursor: default; }
+.b-move.disabled:active { transform: none; }
+.b-move-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 属性标签：类型色圆形底 + 白色属性图标（取自 sprites.svg 的 icon-type-* symbol） */
+.b-move-type {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.b-move-type-icon {
+  width: 9px;
+  height: 9px;
+  color: #fff;
+}
+/* 战斗文案 */
+.b-text {
+  flex-shrink: 0;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #306230;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-all;
+}
+/* 右栏操作按钮 */
+/* 右栏上半：攻击/宝可梦/撤退 水平排列 */
+.b-actions {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+}
+/* 选招时右栏切换为：招式详情 + 返回按钮 */
+.b-actions.detail {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.b-actions.detail .b-act {
+  flex: none;
+  height: 18px;
+}
+/* 选招底部行：左侧克制提示小字，右侧返回按钮 */
+.b-act-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 18px;
+}
+.b-eff-hint {
+  font-size: 8px;
+  font-weight: 700;
+  color: #306230;
+}
+.b-eff-hint.weak { color: #9a8a5a; }
+.b-eff-hint.no { color: #a05050; }
+.b-eff-hint.strong { color: #c0392b; }
+.b-move-detail {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #306230;
+}
+/* hover 招式详情：两列——左列属性/类型，右列威力/命中 */
+.b-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+}
+.b-detail-col { display: flex; flex-direction: column; gap: 2px; }
+.b-detail-line { line-height: 1.5; font-size: 8px; }
+.b-detail-line span { opacity: 0.7; margin-right: 3px; }
+.b-detail-line b { opacity: 0.7; font-weight: 600; display: inline-flex; align-items: center; }
+.b-act {
+  flex: 1;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  color: #306230;
+  border: 1px solid #306230;
+  border-radius: 6px; /* 与文案区域技能按钮 .b-move 保持一致 */
+  padding: 0 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s;
+}
+.b-act:hover { background: rgba(48, 98, 48, 0.1); }
+.b-act:active { transform: scale(0.94); }
+/* 右栏下半：NPC 名字 + 回合数（仅操作按钮态显示） */
+.b-right-info {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+.b-npc-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 8px;
+  font-weight: 700;
+  color: #306230;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.b-round {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ui-color);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* 战斗动画 */
+/* 我方精灵水平翻转朝左（容器翻转，避免覆盖 img 上的 lunge/hit/faint 动画 transform） */
+.b-flip { transform: scaleX(-1); }
+#bp-img, #be-img { will-change: transform; }
+#bp-img.lunge { animation: bLungeR 0.4s cubic-bezier(0.3, 0.7, 0.4, 1); }
+#be-img.lunge { animation: bLungeL 0.4s cubic-bezier(0.3, 0.7, 0.4, 1); }
+@keyframes bLungeR {
+  0% { transform: translateX(0); }
+  45% { transform: translateX(42px) scale(1.06); }
+  100% { transform: translateX(0); }
+}
+@keyframes bLungeL {
+  0% { transform: translateX(0); }
+  45% { transform: translateX(-42px) scale(1.06); }
+  100% { transform: translateX(0); }
+}
+/* 物理攻击：图片冲向对方面前（我方右下→左上为向对方，敌方反之），冲至身前停留后归位 */
+#bp-img.lunge-attack { animation: bLungeAtkR 0.5s cubic-bezier(0.3, 0.7, 0.4, 1); }
+#be-img.lunge-attack { animation: bLungeAtkL 0.5s cubic-bezier(0.3, 0.7, 0.4, 1); }
+@keyframes bLungeAtkR {
+  0% { transform: translate(0, 0) scale(1); }
+  40% { transform: translate(-112px, -42px) scale(0.9); }
+  72% { transform: translate(-112px, -42px) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes bLungeAtkL {
+  0% { transform: translate(0, 0) scale(1); }
+  40% { transform: translate(-112px, 42px) scale(1.2); }
+  72% { transform: translate(-112px, 42px) scale(1.2); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+/* 受击：大幅横震 + 闪白（filter 只在受击瞬间提亮），强化打击感 */
+#bp-img.hit, #be-img.hit { animation: bHitShake 0.4s; }
+@keyframes bHitShake {
+  0% { transform: translateX(0); filter: brightness(1); }
+  20% { transform: translateX(-8px) scale(1.05); filter: brightness(2.3) saturate(0.1); }
+  40% { transform: translateX(6px); filter: brightness(2.3) saturate(0.1); }
+  60% { transform: translateX(-4px); filter: brightness(1.6); }
+  80% { transform: translateX(2px); filter: brightness(1); }
+  100% { transform: translateX(0); filter: brightness(1); }
+}
+#bp-img.faint, #be-img.faint { animation: bFaintFall 0.6s forwards; }
+@keyframes bFaintFall {
+  to { opacity: 0; transform: translateY(26px) rotate(-10deg); }
+}
+/* 受击火花：受击宝可梦中心迸发一圈白色像素火花 */
+.b-spark {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-spark i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+  animation: bSparkFly 0.45s ease-out forwards;
+}
+.b-spark i:nth-child(odd) { background: #ffd7a3; }
+@keyframes bSparkFly {
+  0% { transform: translate(0, 0) scale(1.2); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.15); opacity: 0; }
+}
+/* 重创（伤害占比高）：战斗画面整体震动 */
+.battle-fight.battle-shake { animation: bStageShake 0.4s; }
+@keyframes bStageShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 2px); }
+  40% { transform: translate(4px, -2px); }
+  60% { transform: translate(-3px, -1px); }
+  80% { transform: translate(3px, 1px); }
+}
+/* 受击侧 HP 面板红闪 */
+.b-hit-panel {
+  background: rgba(255, 90, 80, 0.55) !important;
+  transition: background 0.25s;
+}
+/* 伤害数字：弹出前小幅压缩再放大（更有力），重创加大变红 */
+.b-dmg {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5), 1px 1px 0 rgba(0, 0, 0, 0.35);
+  animation: bDmgPop 0.9s forwards;
+  pointer-events: none;
+  z-index: 5;
+}
+.b-dmg.heavy { color: #ff5252; font-size: 18px; } /* 重创（占比高）：红色加大 */
+.b-dmg.heal { color: #fff; } /* 回复：白色 */
+@keyframes bDmgPop {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(0.3); }
+  12% { opacity: 1; transform: translate(-50%, 2px) scale(1.35); }
+  26% { transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(1); }
+}
+
+/* ---- 结算页 ---- */
+.battle-result {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  position: relative;
+}
+/* 胜利结算页左上角返回按钮：贴近标题栏返回图标，回到对战列表 */
+.battle-result-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color);
+  padding: 2px 10px;
+  background: transparent;
+  cursor: pointer;
+  border:none;
+}
+.battle-result-back:hover {color: var(--ui-color-dark);}
+.battle-result-back:active { transform: scale(0.96); }
+.battle-result-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ui-color-dark);
+}
+.battle-result-detail {
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--ui-color);
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 0 8px;
+}
+.candy-gain {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ui-color-dark);
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.candy-gain .candy-icon {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+  vertical-align: -2px;
+}
+.battle-result-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.battle-btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ui-color);
+  border: 1px solid var(--ui-color);
+  border-radius: 999px;
+  padding: 6px 16px;
+  background: transparent;
+  cursor: pointer;
+}
+.battle-btn.main {
+  background: var(--ui-color);
+  color: var(--screen-bg);
+}
+.battle-btn:active { transform: scale(0.95); }
+
+/* === 配队 App === */
+.team-app {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* 底部预留 32px 给交换提示条（绝对定位浮层），避免压缩上方卡片 */
+  padding: 4px 3px 32px;
+  user-select: none;
+}
+.team-party {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px 8px;
+}
+.team-member {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--item-border);
+  cursor: pointer;
+}
+/* 左侧图标列：占满整行高度 */
+.team-member .member-icon {
+  align-self: stretch;
+  width: 26px;
+  flex-shrink: 0;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.team-member .member-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+.team-member .member-top {
+  min-width: 0;
+}
+.team-member .member-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ui-color-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 第二行：左等级 / 右经验数值 */
+.team-member .member-mid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+}
+.team-member .member-lv {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ui-color);
+}
+/* 第三行：XP 标签 + 全宽 XP 条，条宽不受名字长度影响 */
+.team-member .member-xp-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.team-member .xp-bar {
+  height: 4px;
+}
+.team-member .member-empty {
+  font-size: 10px;
+  color: var(--ui-color);
+  opacity: 0.45;
+}
+/* XP 通用元素：标签 / 进度条 / 数值 */
+.xp-label {
+  flex-shrink: 0;
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--ui-color);
+}
+.xp-bar {
+  flex: 1;
+  min-width: 0;
+  height: 5px;
+  background: rgba(var(--ui-color-rgb), 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.xp-fill {
+  height: 100%;
+  background: var(--ui-color);
+}
+.xp-nums {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ui-color);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* 空槽：虚线边框，居中显示「空」 */
+.team-member.empty {
+  border-style: dashed;
+  justify-content: center;
+  align-items: center;
+}
+/* 选中态：交换模式选中 / 菜单归属槽位 */
+.team-member.selected,
+.team-member.menu-open {
+  background: rgba(var(--ui-color-rgb), 0.16);
+  border-color: var(--ui-color);
+}
+/* 战斗中替换：不可上场（已倒下/当前场上）的成员置灰 */
+.team-member.swap-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.team-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 6px;
+  background: var(--console-body);
+  border-top: 2px solid var(--console-border);
+}
+.team-footer-text {
+  flex: 1;
+  min-width: 0;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #306230;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.team-footer-btn {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  color: #306230;
+  border: 1px solid #306230;
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.team-footer-btn:hover { background: rgba(48, 98, 48, 0.1); }
+.team-footer-btn:active { transform: scale(0.94); }
+
+/* 槽位操作菜单（查看/替换/交换/移除）：点击位置弹出 */
+.team-menu {
+  position: absolute;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 56px;
+  padding: 3px;
+  background: var(--screen-bg-light);
+  border: 1px solid var(--ui-color);
+  border-radius: 4px;
+}
+.team-menu button {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  padding: 4px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+.team-menu button:hover { background: rgba(var(--ui-color-rgb), 0.15); }
+.team-menu button:active { transform: scale(0.96); }
+#teamContent { position: relative; display: flex; flex-direction: column; }
+
+/* === 训练 App === */
+#trainView { position: relative; }
+.train-app {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  user-select: none;
+}
+/* 训练场 tile 地图 + 告示牌入口 */
+.train-field {
+  position: relative;
+  width: 264px;
+  height: 216px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.train-field-canvas {
+  display: block;
+  width: 264px;
+  height: 216px;
+  image-rendering: pixelated;
+}
+/* 场地上的训练宝可梦：随机走动 + 上下弹跳（转向用镜像） */
+.train-walkers {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.train-walker {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  z-index: 5;
+  pointer-events: auto;
+  transition: left 0.5s linear, top 0.5s linear;
+}
+/* 偷懒中的宝可梦：光标提示可点击（grab）叫醒 */
+.train-walker.lazy { cursor: grab; }
+.train-walker.lazy:active { cursor: grabbing; }
+.train-walker-flip {
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+}
+.train-walker-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  animation: pokeJump 0.5s steps(1, end) infinite;
+}
+/* 偷懒中的宝可梦：停止上下跳动画，原地待着 */
+.train-walker-img.lazy {
+  animation: none;
+}
+.train-board-sign {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 8;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.train-board-sign:hover { transform: scale(1.08); }
+.train-board-sign:active { transform: scale(0.92); }
+/* 场地角落树果箱：训练消耗的树果库存入口 */
+.train-box-sign {
+  position: absolute;
+  top: 15px;
+  right: 45px;
+  z-index: 8;
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.train-box-sign:hover { transform: scale(1.08); }
+.train-box-sign:active { transform: scale(0.92); }
+/* 训练面板：顶部一行 6 个槽位格 + 底部状态进度区 */
+.train-cell-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px 6px 4px;
+}
+.train-cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 2px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--ui-color);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s;
+}
+.train-cell:hover { background: rgba(255, 255, 255, 0.32); }
+.train-cell-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.train-cell.empty {
+  border-style: dashed;
+  opacity: 0.5;
+  font-size: 12px;
+}
+.train-cell.lazy { background: rgba(0, 0, 0, 0.08); }
+.train-status-empty {
+  padding: 8px 6px;
+  font-size: 10px;
+  color: var(--ui-color);
+  text-align: center;
+  opacity: 0.6;
+}
+/* 树果库存面板顶部的喂食说明 */
+.train-stock-note {
+  padding: 2px 8px 4px;
+  font-size: 9px;
+  color: var(--ui-color);
+  opacity: 0.75;
+}
+.train-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 2px 6px 6px;
+}
+.train-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  min-width: 0;
+}
+.train-status-name {
+  flex: 0 0 90px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--ui-color);
+  white-space: nowrap;
+}
+.train-status-name-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.train-status-name em { flex-shrink: 0; font-style: normal; font-weight: 700; }
+.train-status-bar {
+  flex: 1;
+  min-width: 0;
+  max-width: 110px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+}
+.train-status-bar .xp-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--ui-color);
+  transition: width 0.3s;
+}
+.train-status-nums {
+  flex-shrink: 0;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ui-color);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  width: 58px;
+  text-align: right;
+}
+/* 训练状态点：训练中绿色 / 偷懒中灰色，位于行首名字前 */
+.train-status-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2cb065;
+}
+.train-status-dot.lazy { background: var(--color-muted); }
+/* 饱食度：迷你进度条 + 数值，颜色随饥饿程度变化（满/中/低） */
+.train-status-satiety {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ui-color);
+  font-variant-numeric: tabular-nums;
+}
+.train-status-sat-track {
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+}
+.train-status-sat-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: #2cb065;
+  transition: width 0.3s;
+}
+.train-status-satiety.mid .train-status-sat-fill { background: #e0a33c; }
+.train-status-satiety.low .train-status-sat-fill { background: #e0503c; }
+.train-status-satiety em { font-style: normal; }
+/* 场地宝可梦 hover 提示（样式对齐农场树果提示） */
+.train-walker-tip {
+  position: fixed;
+  z-index: 9999;
+  background: var(--screen-bg-dark);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 3px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.train-walker-tip-status { margin-left: 5px; font-weight: 700; }
+.train-walker-tip-status.lazy { color: #ffd18a; }

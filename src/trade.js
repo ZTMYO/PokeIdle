@@ -2,7 +2,7 @@
 // 每半小时刷新一波：若干 NPC 在交换广场挂出「想要的宝可梦（可指定性格/某项个体值下限）」和
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
-import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_NATURE_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN } from './config.js';
+import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_NATURE_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, setPrevView, saveGame, addSystemLog, randInt, rollIvs, rollNature, addRosterEntry, setLastObtainedEntryId } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive } from './animation.js';
@@ -101,12 +101,14 @@ function makeOffer(npc) {
       species: String(wantPoke.index),
       nature: Math.random() < TRADE_NATURE_CHANCE ? rollNature() : null,
       iv: Math.random() < TRADE_IV_CHANCE ? { stat: IV_KEYS[randInt(0, IV_KEYS.length - 1)], min: randInt(TRADE_IV_MIN, 31) } : null,
+      level: Math.random() < TRADE_LEVEL_CHANCE ? randInt(TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX) : null,
     },
     give: {
       species: String(givePoke.index),
       shiny: Math.random() < TRADE_SHINY_CHANCE,
       nature: rollNature(),
       ivs: rollTradeIvs(),
+      level: randInt(1, TRADE_GIVE_LEVEL_MAX),
     },
     traded: false,
   };
@@ -130,10 +132,11 @@ export function ensureTrades() {
 }
 
 // ---------- 匹配 ----------
-// 在仓个体中找出符合 offer 要求（物种/性格/个体值下限）的个体
+// 在仓个体中找出符合 offer 要求（物种/等级/性格/个体值下限）的个体
 function eligible(o) {
   return (gameData.roster || []).filter(p => p.inRoster
     && String(p.species) === o.want.species
+    && (!o.want.level || (p.level || 1) >= o.want.level)
     && (!o.want.nature || p.nature === o.want.nature)
     && (!o.want.iv || !p.ivs || (p.ivs[o.want.iv.stat] ?? 0) >= o.want.iv.min));
 }
@@ -233,8 +236,9 @@ function offerCard(o) {
   const traded = !!o.traded;
   const count = eligible(o).length;
 
-  // 需求连成一句话：想要性格 怕寂寞 ，攻击 ≥ 26 的皮卡丘（性格与数值前后带空格）
+  // 需求连成一句话：想要 Lv30以上 性格 怕寂寞 ，攻击 ≥ 26 的皮卡丘（等级/性格与数值前后带空格）
   const wantParts = [
+    o.want.level ? `Lv${o.want.level}以上 ` : '',
     o.want.nature ? `性格 ${(getNature(o.want.nature) || { cn: '—' }).cn} ` : '',
     o.want.iv ? `${IV_LABELS[o.want.iv.stat]} ≥ ${o.want.iv.min} ` : '',
   ].filter(Boolean);
@@ -256,7 +260,7 @@ function offerCard(o) {
       </div>
       <div class="trade-footer">
         <span class="trade-npc-name">${npc.name}</span>
-        <span class="trade-give-name">${givePoke.name}${o.give.shiny ? ' <svg class="trade-shiny" viewBox="0 0 1024 1024" width="10" height="10"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
+        <span class="trade-give-name">${givePoke.name}${o.give.shiny ? ' <svg class="trade-shiny" viewBox="0 0 1024 1024" width="10" height="10"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''} <em>Lv${o.give.level || 1}</em></span>
       </div>
     </div>`;
 }
@@ -309,7 +313,7 @@ function renderGiveDetail(content, offerId) {
   }).join('');
   content.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span>${givePoke.name}${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
+      <span>${givePoke.name}<span class="roster-detail-lv">Lv${o.give.level || 1}</span>${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
     </div>
     <div class="roster-detail-head">
       <div class="poke-img-grid"><img id="tradeGiveDetailImg" class="poke-img-in-grid" alt="" /></div>
@@ -399,7 +403,7 @@ function doTrade(offerId, rid) {
       const arr = gameData.roster || [];
       const ri = arr.findIndex(r => r.id === rid);
       if (ri >= 0) arr.splice(ri, 1);
-      const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade' });
+      const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade', level: o.give.level || 1 });
       if (entry) { entry.ivs = o.give.ivs; entry.nature = o.give.nature; setLastObtainedEntryId(entry.id); }
       playCongratulation(); // 交换获得宝可梦 → 祝贺音效
       // 记录交换前的图鉴状态（右上角「已捕获/新发现」按交换前判定，与孵蛋一致）

@@ -2,10 +2,11 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, tryLoadImage, tryLoadPokemonImage } from './ui.js';
-import { phase, gameData, getPokemonByIndex, getNature, setPrevView, saveGame, setPokedexInLogView } from './state.js';
+import { phase, gameData, getPokemonByIndex, getNature, setPrevView, saveGame, setPokedexInLogView, _prevView } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
+import { chooseMoves } from './moves.js';
 
 // 获得来源 → 中文
 const SOURCE_NAMES = { normal: '野生', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
@@ -56,13 +57,14 @@ function ivHexagon(p) {
   </svg>`;
 }
 
-let _sortBy = 'time';  // 当前排序列：time | name | iv | source
+let _sortBy = 'time';  // 当前排序列：time | name | iv | level
 let _sortDir = -1;     // 1 升序 / -1 降序
 let _filter = '';      // 来源/闪光筛选（''=全部）
 let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
 let _detailFromView = null; // 详情跳转来源（捕获/孵蛋后“查看详情”进入时记录，返回列表后再返回时优先回来源）
 let _detailReturnFn = null; // 从悬赏提交/交换选择列表进入详情时注册的返回回调（返回时恢复来源列表）
 let _detailJumpedToPokedex = false; // 详情页跳转图鉴中（返回键应先回详情页，再按来源返回）
+let _picker = null; // 选取模式：配队/训练点击空位跳转仓库选择，{ mode:'team'|'train', slot, from, exclude[] }
 
 // 个体值总和
 function ivSum(p) {
@@ -106,14 +108,25 @@ function renderList() {
   else if (_filter) pool = pool.filter(p => p.source === _filter);
   // 搜索
   if (q) pool = pool.filter(p => matchesQuery(p, q));
+  // 选取模式：排除已在队伍/训练中的个体
+  if (_picker?.exclude?.length) {
+    const ex = new Set(_picker.exclude);
+    pool = pool.filter(p => !ex.has(p.id));
+  }
   // 进度显示（与图鉴顶部统计一致的样式）
   const prog = $('rosterProgress');
   if (prog) {
-    const total = inRoster().length;
-    const shinyCount = inRoster().filter(p => p.shiny).length;
-    prog.textContent = q || _filter
-      ? `共 ${total} 只 · 匹配 ${pool.length} 只`
-      : `共 ${total} 只 · 闪光 ${shinyCount} 只`;
+    if (_picker) {
+      prog.textContent = _picker.mode === 'team'
+        ? `选择加入队伍 · 共 ${pool.length} 只`
+        : `选择放入训练 · 共 ${pool.length} 只`;
+    } else {
+      const total = inRoster().length;
+      const shinyCount = inRoster().filter(p => p.shiny).length;
+      prog.textContent = q || _filter
+        ? `共 ${total} 只 · 匹配 ${pool.length} 只`
+        : `共 ${total} 只 · 闪光 ${shinyCount} 只`;
+    }
   }
   // 排序
   const sorted = [...pool].sort((a, b) => {
@@ -125,8 +138,8 @@ function renderList() {
       vb = getPokemonByIndex(String(b.species))?.name || '';
     } else if (_sortBy === 'iv') {
       va = ivSum(a); vb = ivSum(b);
-    } else if (_sortBy === 'source') {
-      va = srcName(a.source); vb = srcName(b.source);
+    } else if (_sortBy === 'level') {
+      va = a.level || 1; vb = b.level || 1;
     } else {
       va = a.obtainedAt; vb = b.obtainedAt;
     }
@@ -135,17 +148,20 @@ function renderList() {
   });
   // 渲染行（复用图鉴 .pokedex-entry 样式）
   list.innerHTML = sorted.length === 0
-    ? '<div class="roster-empty">仓库空空如也，去捕获一些宝可梦吧</div>'
+    ? `<div class="roster-empty">${_picker ? '没有可选择的宝可梦' : '仓库空空如也，去捕获一些宝可梦吧'}</div>`
     : sorted.map(rowHtml).join('');
   // 加载个体图标
   list.querySelectorAll('.roster-icon-img').forEach(img => {
     const poke = getPokemonByIndex(img.dataset.icon);
     if (poke?.icon) tryLoadImage(img, poke.icon);
   });
-  // 点击行 → 详情（从列表进入时清除"查看详情来源"，返回走回列表）
+  // 点击行：选取模式直接加入目标；否则进详情（从列表进入时清除"查看详情来源"）
   list.onclick = (e) => {
     const row = e.target.closest('.roster-row');
-    if (row) { _detailFromView = null; showRosterDetail(row.dataset.rid); }
+    if (!row) return;
+    if (_picker) { e.stopPropagation(); pickRow(row.dataset.rid); return; }
+    _detailFromView = null;
+    showRosterDetail(row.dataset.rid);
   };
   // 表头排序指示符（限定仓库视图，避免匹配到悬赏/交换列表的同名表头）
   const header = $('rosterView')?.querySelector('.roster-header');
@@ -166,8 +182,8 @@ function rowHtml(p) {
       <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
       <span class="pokedex-idx">#${p.species}</span>
       <span class="pokedex-name">${name}</span>
+      <span class="roster-lv-col">Lv${p.level || 1}</span>
       <span class="roster-iv">${ivSum(p)}</span>
-      <span class="roster-src">${srcName(p.source)}</span>
     </div>`;
 }
 
@@ -247,6 +263,288 @@ function setupHeaderSort() {
   };
 }
 
+// ---------- 配招 ----------
+let _moveData = null;   // moves.json（id2name + moves 详情）
+let _learnset = null;   // learnset.json（{ lv:[[等级,招式id]...], tm:[], egg:[] }）
+let _moveEditId = null; // 当前手动配招的个体 id（非空=处于配招独立页）
+let _moveSel = null;    // 配招页当前选中的候选招式 id
+
+async function ensureMoveData() {
+  if (_moveData && _learnset) return;
+  const [d, l] = await Promise.all([
+    fetch('./pokemon-data/moves.json').then((r) => r.json()),
+    fetch('./pokemon-data/learnset.json').then((r) => r.json()),
+  ]);
+  _moveData = d;
+  _learnset = l;
+}
+
+// 当前实际招式：已手动配过（p.moves）则直接使用（保留空位），否则按自动配招计算
+function currentMoveIds(p) {
+  if (Array.isArray(p.moves) && p.moves.length) {
+    return [0, 1, 2, 3].map((i) => {
+      const id = p.moves[i];
+      return id != null && _moveData.moves[id] && _moveData.moves[id].effect.kind !== 'unimplemented' ? id : null;
+    });
+  }
+  const pd = getPokemonByIndex(String(p.species));
+  return chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [] });
+}
+
+// 可学习候选：升级习得（≤当前等级）+ 蛋招式，过滤未实现/难度档，按学习等级升序
+function candidateMoves(p) {
+  const ls = _learnset[p.species] || { lv: [], tm: [], egg: [] };
+  const out = [];
+  for (const [lv, m] of ls.lv || []) {
+    if (lv <= (p.level || 1)) out.push({ id: m, lv, egg: false });
+  }
+  for (const m of ls.egg || []) out.push({ id: m, lv: null, egg: true });
+  const seen = new Set();
+  const res = [];
+  for (const c of out) {
+    if (seen.has(c.id)) continue;
+    const mv = _moveData.moves[c.id];
+    if (!mv || mv.effect.kind === 'unimplemented') continue;
+    if (mv.diff !== '易' && mv.diff !== '中') continue;
+    seen.add(c.id);
+    res.push(c);
+  }
+  res.sort((a, b) => (a.lv ?? 999) - (b.lv ?? 999));
+  return res;
+}
+
+function movesBlockHtml(p) {
+  const ids = currentMoveIds(p);
+  const slots = [0, 1, 2, 3].map((i) => {
+    const mv = ids[i] ? _moveData.moves[ids[i]] : null;
+    return `<div class="roster-move-slot${mv ? '' : ' empty'}" data-move="${mv ? ids[i] : ''}">
+      ${mv
+        ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
+             <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+           </span>
+           <span class="roster-move-slot-name">${mv.name}</span>`
+        : `<span class="roster-move-slot-name slot-empty">空</span>`}
+    </div>`;
+  }).join('');
+  return `
+    <div class="roster-move-title-row">
+      <div class="roster-detail-title">招式 <span style="opacity:0.6;">${ids.filter(m => m != null).length}/4</span></div>
+      <div class="roster-move-tools">
+        <button class="roster-release roster-auto-btn" id="rosterAutoSet">自动配招</button>
+        <button class="roster-release roster-auto-btn" id="rosterManualSet">手动配招</button>
+      </div>
+    </div>
+    <div class="roster-moves-grid">
+      ${slots}
+    </div>`;
+}
+
+function renderMovesBlock(id) {
+  const p = (gameData.roster || []).find((r) => r.id === id);
+  const box = $('rosterMovesBox');
+  if (!p || !box) return;
+  box.innerHTML = movesBlockHtml(p);
+  bindMovesBlock(id);
+}
+
+function bindMovesBlock(id) {
+  const box = $('rosterMovesBox');
+  if (!box) return;
+  const p = (gameData.roster || []).find((r) => r.id === id);
+  if (!p) return;
+  box.querySelector('#rosterAutoSet')?.addEventListener('click', () => {
+    const pd = getPokemonByIndex(String(p.species));
+    p.moves = chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [] });
+    saveGame();
+    renderMovesBlock(id);
+  });
+  box.querySelector('#rosterManualSet')?.addEventListener('click', () => {
+    openMoveEditor(id);
+  });
+  // 点击具体招式槽 → 跳转配招页并选中该招式
+  box.querySelectorAll('.roster-move-slot').forEach((el) => {
+    el.addEventListener('click', () => {
+      const mid = parseInt(el.dataset.move, 10);
+      if (mid) openMoveEditor(id, mid);
+    });
+  });
+}
+
+// ---------- 手动配招独立页 ----------
+const MOVE_STATUS_CN = { sleep: '睡眠', poison: '中毒', paralysis: '麻痹', burn: '灼伤', confusion: '混乱', flinch: '畏缩' };
+
+// 招式类别 → 图标文件与中文名（物理/特殊/变化；伤害类招式按 effect.cat 归类）
+const MOVE_CAT_ICON = { phys: 'physical.png', spec: 'special.png', status: 'status.png' };
+const MOVE_CAT_CN = { phys: '物理', spec: '特殊', status: '变化' };
+function moveCat(mv) {
+  const ef = mv.effect || {};
+  if (ef.kind === 'damage' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'fixed') {
+    return ef.cat === 'spec' ? 'spec' : 'phys';
+  }
+  return 'status';
+}
+function catIconHtml(mv) {
+  const c = moveCat(mv);
+  return `<span class="move-cat-icon"><img src="./icons/${MOVE_CAT_ICON[c]}" alt="${MOVE_CAT_CN[c]}" data-tip="${MOVE_CAT_CN[c]}"></span>`;
+}
+
+// 按 effect.kind 生成招式描述
+function moveDesc(mv) {
+  const ef = mv.effect || {};
+  switch (ef.kind) {
+    case 'damage': return '对目标造成伤害。';
+    case 'multihit': return `连续攻击 ${ef.hits?.[0]}~${ef.hits?.[1]} 次。`;
+    case 'status': return `使对手陷入「${MOVE_STATUS_CN[ef.status] || ef.status}」状态。`;
+    case 'stat': {
+      const parts = (ef.stats || []).map((s) => `${s.stat}${s.delta > 0 ? '+' : ''}${s.delta}`);
+      return `${ef.target === 'self' ? '提升自身' : '降低对手'} ${parts.join('、')}。`;
+    }
+    case 'drain': return `造成伤害，并回复造成伤害${ef.ratio ? Math.round(ef.ratio * 100) + '%' : ''}的HP。`;
+    case 'recoil': return `造成伤害，但自身也会承受${Math.round((ef.ratio || 0.25) * 100)}%的反噬伤害。`;
+    case 'fixed': return '无视对手防御，造成固定伤害。';
+    case 'heal': return `回复最大HP的${Math.round((ef.ratio || 0.5) * 100)}%。`;
+    case 'sleepRest': return '回复全部HP，同时陷入睡眠状态。';
+    case 'cure': return '治愈全队的异常状态。';
+    case 'unimplemented': return ef.note || '该招式暂未实装。';
+    default: return '';
+  }
+}
+
+// 把选中的招式装入指定槽位（已在其它槽则顺移，保留空位）
+function assignMove(p, moveId, slot) {
+  const cur = currentMoveIds(p); // 手动配过则基于 p.moves，否则基于自动配招（避免首次操作清空自动配招）
+  const arr = [0, 1, 2, 3].map((i) => cur[i] ?? null);
+  if (arr[slot] === moveId) return;
+  const oldIdx = arr.indexOf(moveId);
+  if (oldIdx >= 0) arr[oldIdx] = null;
+  arr[slot] = moveId;
+  p.moves = arr;
+}
+
+export function isRosterInMoveEdit() {
+  return _moveEditId != null;
+}
+
+export function openMoveEditor(id, moveId) {
+  _moveEditId = id;
+  _moveSel = moveId ?? null; // 从详情页招式槽跳入时选中该招式（在候选列表高亮并显示详情）
+  renderMoveEditor();
+  showView('moveEditView');
+}
+
+// 返回：刷新详情页配招块后回到个体详情
+export function leaveMoveEditor() {
+  const id = _moveEditId;
+  _moveEditId = null;
+  _moveSel = null;
+  if (id != null) {
+    renderMovesBlock(id);
+    showView('rosterView');
+  }
+}
+
+function renderMoveEditor() {
+  const p = (gameData.roster || []).find((r) => r.id === _moveEditId);
+  const box = $('moveEditContent');
+  if (!p || !box) return;
+  const ids = currentMoveIds(p); // 已配招（固定 4 格，空位为 null）
+  const cands = candidateMoves(p);
+  box.innerHTML = `
+    <div class="move-edit-slots">
+      ${Array.from({ length: 4 }, (_, i) => {
+        const mv = ids[i] ? _moveData.moves[ids[i]] : null;
+        return `<div class="move-edit-slot${mv ? '' : ' empty'}" data-slot="${i}"${mv ? '' : ' title="点击装入选中的招式"'}>
+          ${mv
+            ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
+                 <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+               </span>
+               <span class="move-edit-slot-name">${mv.name}</span>
+               <button class="move-edit-slot-x" data-slot="${i}" title="移出该招式">
+                 <svg viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-close"></use></svg>
+               </button>`
+            : `<span class="move-edit-slot-name slot-empty">空</span>`}
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="move-edit-main">
+      <div class="move-edit-list">
+        ${cands.map((c) => {
+          const mv = _moveData.moves[c.id];
+          const active = ids.includes(c.id);
+          const sel = c.id === _moveSel;
+          return `<button class="move-edit-row${active ? ' active' : ''}${sel ? ' sel' : ''}" data-move="${c.id}">
+            <span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
+              <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+            </span>
+            <span class="move-edit-row-name">${mv.name}</span>
+            <span class="move-edit-row-lv">${c.egg ? '蛋招式' : c.lv ? `Lv${c.lv}` : ''}</span>
+          </button>`;
+        }).join('')}
+      </div>
+      <div class="move-edit-detail">${renderMoveDetail(p, ids)}</div>
+    </div>`;
+  // 点击候选行 → 仅查看详情，不自动配招
+  box.querySelectorAll('.move-edit-row').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      _moveSel = parseInt(btn.dataset.move, 10);
+      renderMoveEditor();
+    });
+  });
+  // 槽位叉号 → 清空该槽（保留位置）；点击槽位 → 已有招式查看详情 / 空槽装入选中招式
+  box.querySelectorAll('.move-edit-slot-x').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cur = currentMoveIds(p); // 首次进入（p.moves 未初始化）时基于自动配招，避免叉一下清空全部
+      const arr = [0, 1, 2, 3].map((i) => cur[i] ?? null);
+      arr[parseInt(btn.dataset.slot, 10)] = null;
+      p.moves = arr;
+      if (_moveSel == null || !arr.includes(_moveSel)) _moveSel = null;
+      saveGame();
+      renderMoveEditor();
+    });
+  });
+  box.querySelectorAll('.move-edit-slot').forEach((el) => {
+    el.addEventListener('click', () => {
+      const slot = parseInt(el.dataset.slot, 10);
+      const mid = ids[slot];
+      if (mid != null) {
+        _moveSel = mid;
+      } else if (_moveSel != null) {
+        assignMove(p, _moveSel, slot);
+        saveGame();
+      }
+      renderMoveEditor();
+    });
+  });
+}
+
+function renderMoveDetail(p, ids) {
+  const mv = _moveSel != null ? _moveData.moves[_moveSel] : null;
+  if (!mv) {
+    return `<div class="move-edit-detail-empty">从左侧选择招式查看详情</div>`;
+  }
+  return `
+    <div class="move-edit-detail-head">
+      <span class="b-move-type big" style="background:${TYPE_COLORS[mv.type] || '#888'}">
+        <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+      </span>
+      <div class="move-edit-detail-name">${mv.name}</div>
+    </div>
+    <div class="move-edit-detail-stats">
+      <div><span>类别</span><b>${catIconHtml(mv)}</b></div>
+      <div><span>威力</span><b>${mv.power ?? '—'}</b></div>
+      <div><span>命中</span><b>${mv.accuracy ?? '—'}</b></div>
+    </div>
+    <div class="move-edit-detail-desc">${moveDesc(mv)}</div>`;
+}
+
+// 详情页数据就绪后渲染配招块（异步加载招式数据，避免阻塞详情首帧）
+async function loadMovesBlock(id) {
+  await ensureMoveData();
+  if (_detailId !== id) return; // 已切走则放弃
+  renderMovesBlock(id);
+}
+
 // ---------- 个体详情 ----------
 // 点击列表行进入；返回按钮（标题栏 back）→ restoreRosterList 回到列表
 function showRosterDetail(id) {
@@ -270,8 +568,8 @@ function showRosterDetail(id) {
   if (!list) return;
   list.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span>${name}${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
-      <div style="display:flex;flex-direction:row;align-items:flex-end;gap:2px;">
+      <span>${name}<span class="roster-detail-lv">Lv${p.level || 1}</span>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
+      <div style="display:flex;flex-direction:row;align-items:flex-end;gap:2px;flex-shrink:0;">
         <button class="roster-release" data-pokedex title="查看图鉴">图鉴</button>
         <button class="roster-release" data-release>放生</button>
       </div>
@@ -304,6 +602,7 @@ function showRosterDetail(id) {
         </div>
       </div>
     </div>
+    <div class="roster-detail-block roster-moves-block" id="rosterMovesBox"></div>
   `;
   const img = $('rosterDetailImg');
   if (img && poke) {
@@ -324,6 +623,7 @@ function showRosterDetail(id) {
       showView('pokedexView');
     });
   });
+  loadMovesBlock(id);
 }
 
 // 放生：确认后移除个体、播告别动画，结束后返回列表
@@ -414,6 +714,40 @@ export function leaveRosterDetailToSource() {
 
 // ---------- 页面入口 ----------
 let _uiBound = false; // 搜索/筛选/表头事件只需初始化一次
+
+// ---------- 选取模式（配队/训练） ----------
+// 配队/训练页点击空位跳转仓库列表，点击列表项直接把该宝可梦加入目标
+
+export function isRosterPicking() {
+  return _picker != null;
+}
+
+// 进入选取模式；picker.from 为返回目标视图（teamView / trainView）
+export function showRosterPicker(picker) {
+  _picker = picker || null;
+  _detailFromView = null;
+  const keepPrev = _prevView; // 保住来源链（如 对战列表→配队→仓库），showRosterView 会重写它
+  showRosterView();
+  setPrevView(keepPrev);
+}
+
+// 返回按钮：离开选取模式并恢复来源页（配队/训练重新渲染）
+export function leaveRosterPicker() {
+  const p = _picker;
+  _picker = null;
+  if (p?.mode === 'team') import('./team.js').then(m => m.restoreTeamView());
+  else if (p?.mode === 'train') import('./train.js').then(m => m.showTrainView());
+  else showView(p?.from || 'idleView');
+}
+
+// 点击列表项：直接加入目标（配队/训练）并返回来源页
+function pickRow(rid) {
+  const p = _picker;
+  _picker = null;
+  if (!p) return;
+  if (p.mode === 'team') import('./team.js').then(m => m.addToTeam(rid, p.slot));
+  else if (p.mode === 'train') import('./train.js').then(m => m.addToTraining(rid, p.slot));
+}
 
 export function showRosterView() {
   setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' || phase === 'caught') ? 'encounterView' : 'idleView');

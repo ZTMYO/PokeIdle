@@ -59,7 +59,7 @@ export function showView(id) {
     id = 'idleView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','introView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','tradeView'];
+  const views = ['idleView','introView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView'];
   views.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
@@ -85,7 +85,7 @@ export function showView(id) {
       });
     }, 0);
   }
-  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','berryView','mixerView','dataView','systemLogView','tutorialView','rosterView','tradeView']);
+  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','berryView','mixerView','dataView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView']);
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
     btn.classList.toggle('active', on);
@@ -132,7 +132,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', mixerView:'混合器', berryView:'树果农场', rosterView:'宝可梦', tradeView:'交换' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', mixerView:'混合器', berryView:'树果农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -602,10 +602,20 @@ export function showFoodTip(text, x, y) {
 }
 
 // 命中可弹自定义 tooltip 的元素并取文案；不支持的元素返回 null
-// 支持：树果图标（.berry-icon 的 dataset.tip）、大量出没地图标记（.gps-mass-marker，显示 宝可梦在 x#道路 大量出没 · 剩余时间/只数）
+// 支持：树果图标（.berry-icon 的 dataset.tip）、大量出没地图标记（.gps-mass-marker，显示 宝可梦在 x#道路 大量出没 · 剩余时间/只数）、战斗状态圆点（.b-status-dot 的 dataset.tip）、战斗血条（.b-hp 的 dataset.tip）
 function tooltipTextFor(target) {
   const icon = target && target.closest ? target.closest('.berry-icon') : null;
   if (icon) return icon.dataset.tip || '';
+  const stDot = target && target.closest ? target.closest('.b-status-dot') : null;
+  if (stDot) return stDot.dataset.tip || '';
+  const hpBar = target && target.closest ? target.closest('.b-hp') : null;
+  if (hpBar) return hpBar.dataset.tip || '';
+  const catWrap = target && target.closest ? target.closest('.move-cat-icon') : null;
+  if (catWrap) {
+    // hover 目标是类别图标图片本身（data-tip 在 img 上）
+    const catImg = catWrap.tagName === 'IMG' ? catWrap : catWrap.querySelector('img');
+    return (catImg && catImg.dataset.tip) || catWrap.dataset.tip || '';
+  }
   const mass = target && target.closest ? target.closest('.gps-mass-marker') : null;
   if (mass) {
     const mo = getMassOutbreak();

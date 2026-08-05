@@ -1,5 +1,5 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
+import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, setCurrentEncounter, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnGameView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
@@ -103,16 +103,27 @@ export function findBerryTarget(recipe) {
 // 掉落提示互斥恢复定时器（获得道具时短暂显示掉落信息，之后恢复自动模式状态）
 let _dropStatusTimer = null;
 
-// 道具入库：背包/统计/日志统一处理
-function grantItem(itemKey) {
-  gameData.items[itemKey] = (gameData.items[itemKey] || 0) + 1;
-  gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + 1;
-  addSystemLog('item_gain', { item: itemKey, qty: 1 });
+// 掉落糖果的数量倍率：按 CANDY_DROP_MULT 权重抽一次（掉落发生时即确定）
+function rollCandyMult() {
+  const total = CANDY_DROP_MULT.reduce((s, c) => s + c.weight, 0);
+  let r = Math.random() * total;
+  for (const c of CANDY_DROP_MULT) {
+    r -= c.weight;
+    if (r <= 0) return c.mult;
+  }
+  return 1;
+}
+
+// 道具入库：背包/统计/日志统一处理（qty 支持糖果翻倍掉落）
+function grantItem(itemKey, qty = 1) {
+  gameData.items[itemKey] = (gameData.items[itemKey] || 0) + qty;
+  gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + qty;
+  addSystemLog('item_gain', { item: itemKey, qty });
   updateBackpack(itemKey);
-  // 独立掉落提示：获得道具时显示「精灵球 + 1」，短暂停留后自动隐藏
+  // 独立掉落提示：获得道具时显示「精灵球 + 1」/「糖果 ×5」，短暂停留后自动隐藏
   const hint = $('statDropHint');
   if (hint) {
-    hint.textContent = `${ITEM_NAMES[itemKey] || itemKey} + 1`;
+    hint.textContent = `${ITEM_NAMES[itemKey] || itemKey} ${qty > 1 ? `×${qty}` : '+ 1'}`;
     hint.style.display = '';
   }
   // 互斥：掉落显示期间隐藏自动模式状态栏（自动捕捉/自动逃跑/佛系模式及其进度条）
@@ -132,13 +143,15 @@ function grantItem(itemKey) {
 // ---------- 道具随路面滚动进入 ----------
 export function spawnItemDrop(itemKey) {
   if (phase !== 'idle') return;
+  // 掉落糖果时先确定本次数量倍率（×1/×2/×5/×50/×100）
+  const qty = itemKey === 'candy' ? rollCandyMult() : 1;
   const screen = $('screen');
   const charEl = $('walkGif');
   if (!screen || !charEl) return;
 
   // 不在主界面（在其他页面挂机中）：后台直接模拟拾取入库，不播放滚动/拾取动画
   if ($('idleView')?.style.display === 'none') {
-    grantItem(itemKey);
+    grantItem(itemKey, qty);
     return;
   }
 
@@ -240,7 +253,7 @@ export function spawnItemDrop(itemKey) {
           el.remove();
           setItemDropActive(false);
           if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
-          grantItem(itemKey);
+          grantItem(itemKey, qty);
           showIdlePickup(ITEM_NAMES[itemKey], road.getPlace());
         }
       })(performance.now());
@@ -536,15 +549,15 @@ export function openCandyDialog() {
   dlg.classList.add('open');
 }
 
-export async function doCandyExchange(itemKey) {
+export async function doCandyExchange(itemKey, qty = 1) {
   const cost = CANDY_EXCHANGE[itemKey];
   if (!cost) return;
-  if ((gameData.items['candy']||0) < cost) return;
-  gameData.items['candy'] -= cost;
-  const qty = 1;
+  const total = cost * qty;
+  if ((gameData.items['candy']||0) < total) return;
+  gameData.items['candy'] -= total;
   gameData.items[itemKey] = (gameData.items[itemKey]||0) + qty;
   gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey]||0) + qty; // 商店购买也计入道具获得
-  addSystemLog('shop_purchase', { item: itemKey, qty, cost });
+  addSystemLog('shop_purchase', { item: itemKey, qty, cost: total });
   updateBackpack(itemKey);
   updateStats();
   const dlg = $('candyDialog');

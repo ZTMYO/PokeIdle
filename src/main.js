@@ -32,7 +32,7 @@ import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbr
 import {
   $, showView, updateTextBox, hideTextBox,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
-  renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge,
+  renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip,
 } from './ui.js';
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
@@ -46,7 +46,7 @@ import { helperTick, refreshBerryView } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown,
   showPokedex, setupPokedexSearch } from './pokedex.js';
-import { showRosterView, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex } from './roster.js';
+import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor } from './roster.js';
 import { isTradeInDetail, restoreTradeList } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs } from './views.js';
@@ -54,6 +54,7 @@ import { showPhoneView, updateTradeBadge, updateBerryBadge, updateDataBadge, upd
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
+import { retreatBattle, isBattleActive } from './battle-view.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -139,6 +140,16 @@ function _pickNextRoad() {
 
 // ---------- 返回按钮 ----------
 function goBack() {
+  stopVictory(); // 任何返回离开当前视图：若胜利/抓捕音效还在播则立即停止（无播放时无副作用）
+  // 战斗中点击标题栏返回 = 撤退（配队替换模式在 teamView，返回只取消替换）
+  if (isBattleActive() && $('battleView')?.style.display === 'flex') {
+    retreatBattle();
+    return;
+  }
+  // 仓库选取模式（配队/训练点击空位进入）：返回恢复来源页
+  if (isRosterPicking()) { leaveRosterPicker(); return; }
+  // 手动配招独立页：返回回个体详情
+  if (isRosterInMoveEdit()) { leaveMoveEditor(); return; }
   // 详情页跳转图鉴（第 4 层子页）：返回先回详情页，再按详情返回逻辑走
   if (isRosterDetailJumpedToPokedex()) { returnRosterDetailFromPokedex(); return; }
   if (_pokedexInLogView) { restorePokedex(); return; }
@@ -362,15 +373,26 @@ async function init() {
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
-  if (!gameDataRaw) setRoamEnabled(true); // 新档：默认开启漫游并自动规划首站路线（旧档保持原开关状态）
+  if (gameData.gps.roamEnabled && gameData.gps.destIdx == null) setRoamEnabled(true);
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
   initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
   // 旧档迁移：静音开关已并入「音乐」开关（默认播放音乐），清理孤立的 muted 字段
   if (gameData.settings?.muted !== undefined) delete gameData.settings.muted;
+  // 旧档迁移：战斗系统引入等级后，旧存档精灵没有 level 字段 → 统一按 1 级处理
+  if (Array.isArray(gameData.roster)) {
+    let upgraded = 0;
+    for (const p of gameData.roster) {
+      if (p && typeof p.level !== 'number') { p.level = 1; upgraded++; }
+      if (p && typeof p.exp !== 'number') p.exp = 0;
+      if (p && !p.evs) p.evs = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+    }
+    if (upgraded > 0) console.log(`[迁移] 为 ${upgraded} 只旧存档精灵补充默认等级 Lv1`);
+  }
   setMusicEnabled(gameData.settings?.musicEnabled !== false); // 音乐开关：沿用上次状态
   setBattleMusic(gameData.settings?.battleMusic !== false); // 战斗音乐开关：沿用上次状态
   ensureBounty();   // 生成/恢复当日地区悬赏
   ensureMassInitEvents(); // 大量出没事件：初始化下次生成时间
+  setupFoodTooltip(); // 游戏内自制 tooltip 委托：全局激活，配招/战斗等所有页面 hover 可用
   updateBountyBadge(); // 初始化标题栏悬赏红点
   updatePhoneBadge(); // 初始化标题栏手机聚合红点
 
@@ -418,10 +440,11 @@ async function init() {
     console.log(`__matureBerries: ${n} 棵树果已成熟，可以收获了`);
   };
 
-  // 调试辅助：DevTools 控制台清空当前 GPS 状态，恢复为默认丰缘
+  // 调试辅助：DevTools 控制台清空当前 GPS 状态，恢复为默认丰缘（含默认漫游自动规划首站）
   window.__resetGps = async () => {
     gameData.gps = defaultGpsState();
     ensureGpsState();
+    setRoamEnabled(true); // 默认开启漫游：无目的地时自动规划首站路线
     setLastRegionId(getCurrentRegion().id);
     await saveGame();
     updateStats();
@@ -443,11 +466,12 @@ async function init() {
   };
 
   // 调试：按宝可梦编号直接写入一只 6V 孵蛋宝可梦（如 window.__addPoke(25) 写入皮卡丘）
+  // 默认 Lv10（调试状态异常等招式时等级太低学不到招式）；__addPokeLv 可指定等级
   // __addShinyPoke 相同，但为蛋闪
-  async function addDebugPoke(idx, shiny) {
+  async function addDebugPoke(idx, shiny, level = 10) {
     const poke = getPokemonByIndex(String(idx).padStart(4, '0'));
     if (!poke) { console.warn(`__addPoke: 未找到编号 ${idx}`); return null; }
-    const entry = addRosterEntry({ species: poke.index, source: 'egg', shiny });
+    const entry = addRosterEntry({ species: poke.index, source: 'egg', shiny, level });
     if (entry) entry.ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
     // 同步解锁图鉴（与孵蛋流程一致）
     const pdx = String(poke.index);
@@ -478,11 +502,13 @@ async function init() {
     await saveGame();
     if (isRosterInDetail()) restoreRosterList();
     else if ($('rosterView')?.style.display === 'flex') showRosterView();
-    console.log(`__addPoke: 已添加 6V ${shiny ? '闪光 ' : ''}${poke.name}（${shiny ? '蛋闪' : '孵蛋'}）`);
+    console.log(`__addPoke: 已添加 6V Lv${level} ${shiny ? '闪光 ' : ''}${poke.name}（${shiny ? '蛋闪' : '孵蛋'}）`);
     return entry;
   }
   window.__addPoke = idx => addDebugPoke(idx, false);
   window.__addShinyPoke = idx => addDebugPoke(idx, true);
+  window.__addPokeLv = (idx, lv) => addDebugPoke(idx, false, lv);
+  window.__addShinyPokeLv = (idx, lv) => addDebugPoke(idx, true, lv);
 
   // 固定窗口
   if (gameData.settings?.windowPinned) {

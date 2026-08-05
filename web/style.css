@@ -222,7 +222,6 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   inset: 0;
 }
 
-/* GBA 文字框（复刻游戏内 .text-box） */
 .text-box {
   position: absolute;
   bottom: 0; left: 0; right: 0;

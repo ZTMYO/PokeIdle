@@ -12,6 +12,15 @@ export const ITEM_RATES = {
   'shiny-charm': 1 / 1000, // 闪耀护符
 };
 
+// 糖果掉落数量倍率：掉落糖果时按权重抽取一次（×1 最常见，×100 极小概率大奖）
+export const CANDY_DROP_MULT = [
+  { mult: 1, weight: 100 },
+  { mult: 2, weight: 30 },
+  { mult: 5, weight: 15 },
+  { mult: 50, weight: 4 },
+  { mult: 100, weight: 2 },
+];
+
 // 道具显示名称
 export const ITEM_NAMES = {
   'poke-ball': '精灵球', 'ultra-ball': '高级球',
@@ -93,8 +102,17 @@ export const TRADE_REFRESH_MS = 10 * 60 * 1000; // 刷新间隔（10 分钟）
 export const TRADE_NATURE_CHANCE = 0.4; // NPC 指定「想要宝可梦」性格的概率
 export const TRADE_IV_CHANCE = 0.35;    // NPC 指定某一项个体值下限的概率
 export const TRADE_IV_MIN = 24;         // 指定个体值下限的最低值（24~31）
+export const TRADE_LEVEL_CHANCE = 0.35; // NPC 指定「想要宝可梦」等级下限的概率
+export const TRADE_WANT_LEVEL_MIN = 15; // 需求等级下限随机范围（15~50）
+export const TRADE_WANT_LEVEL_MAX = 50;
+export const TRADE_GIVE_LEVEL_MAX = 60; // 给出宝可梦等级随机上限（1~60）
 export const TRADE_SHINY_CHANCE = 20 / 40; // NPC 给出闪光宝可梦的概率
 export const TRADE_IV_SUM_MIN = 100;    // 个体值总和过低时补强 1~2 项到 31
+
+// ---- 对战（NPC 挑战）----
+export const BATTLE_REFRESH_MS = 20 * 60 * 1000; // NPC 挑战刷新间隔（20 分钟）
+export const BATTLE_NPC_COUNTS = { novice: 3, veteran: 2, champion: 1 }; // 每波各档 NPC 数量
+export const BATTLE_MONS_COUNT = { novice: 3, veteran: 5, champion: 6 };  // 各档队伍宝可梦数量
 
 // 自动存档间隔（秒）
 export const SAVE_INTERVAL = 30;
@@ -149,6 +167,27 @@ export const BLOCK_QUALITY = {
   fair:    { label: '一般', chance: 0.50 },
   poor:    { label: '劣质', chance: 0.25 },
 };
+
+// ===== 训练场 =====
+// 宝可梦等级上限（训练挂机与 NPC 对战结算均不可超过）
+export const MAX_LEVEL = 100;
+
+// ---- 训练（训练场） ----
+export const TRAIN_SLOTS = 6;        // 训练槽位数
+export const TRAIN_XP_PER_MIN = 30;  // 每分钟获得经验（挂机，不消耗糖果）
+// 随机偷懒：类比农场帮手休息，但触发是随机的（不扣已结算经验，只暂停后续积累）
+export const TRAIN_LAZY = {
+  enabled: true,           // 是否启用随机偷懒
+  chancePerMin: 0.3,       // 训练中每分钟触发偷懒的概率
+  durationMin: 90 * 1000,  // 偷懒最短时长（毫秒）
+  durationMax: 240 * 1000, // 偷懒最长时长（毫秒）
+};
+// 饱食度（喂食系统）：训练中的宝可梦随时间消耗饱食度，饿了会自动吃掉库存里爱吃的树果补充；饱食度越低越容易偷懒
+export const TRAIN_SATIETY_MAX = 100;          // 饱食度上限
+export const TRAIN_SATIETY_DRAIN_PER_MIN = 2;  // 训练中每分钟下降量
+export const TRAIN_SATIETY_EAT_AT = 50;        // 饱食度低于该值自动进食
+export const TRAIN_SATIETY_PER_BERRY = 35;     // 每颗爱吃的树果补充的饱食度
+export const TRAIN_HUNGRY_LAZY_MULT = 3;       // 饱食度归零时偷懒概率的倍率上限（满饱食为 1 倍）
 
 // ===== 钓鱼 =====
 export const FISH_POKEMON_CHANCE = 0.1;   // 每次钓鱼钓到宝可梦的几率

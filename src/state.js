@@ -19,6 +19,7 @@ export let gameData = null;
 export let phase = 'idle'; // idle | encounter | caught | fled | eggResult
 export let currentEncounter = null;
 export let currentIsShiny = false;
+export let encounterLevel = 1; // 当前野生遇敌的等级（1~20，遇敌时随机生成）
 export let encounterBallsUsed = 0;
 export let currentEncounterBalls = {};
 export let nextEncounterTimer = null;
@@ -76,7 +77,11 @@ export let _prevBagCounts = {};
 // ---------- Setter 函数（跨模块同步） ----------
 export function setGameData(d) { gameData = d; }
 export function setPhase(p) { phase = p; }
-export function setCurrentEncounter(e) { currentEncounter = e; }
+export function setCurrentEncounter(e) {
+  currentEncounter = e;
+  // 新遇敌生成野生等级；结束遇敌（null）时重置
+  encounterLevel = e ? 1 + Math.floor(Math.random() * 20) : 1;
+}
 export function setCurrentIsShiny(s) { currentIsShiny = s; }
 export function setEncounterBallsUsed(n) { encounterBallsUsed = n; }
 export function setCurrentEncounterBalls(b) { currentEncounterBalls = b; }
@@ -208,8 +213,11 @@ export function getDefaultSave() {
     massOutbreak: null,     // 大量出没事件：{ edge:[a,b], t, pokemon, remain, expiresAt, nextSpawnAt, active }；null=无事件
     massNextGenAt: 0,       // 下一次大量出没生成时间戳（毫秒）
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
+    team: [], // 出战队伍：仓库条目 id 数组（首元素为首发），由仓库详情页管理
+    training: { slots: [] }, // 训练场：{ slots: [{ id, startAt } | null] }，随时间自动获得经验
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
+    battleNpcs: null, // NPC 挑战：{ refreshedAt: Date.now(), list: [{ id, tier, title, name, sprite, lvBonus, candy, mons }] }，由 npcs.js 管理
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
@@ -220,7 +228,7 @@ export function getDefaultSave() {
 }
 
 // ---------- 宝可梦仓库 ----------
-// 每只捕获/孵化的宝可梦 = 一个独立条目：{ id, species, shiny, ivs, nature, source, obtainedAt, inRoster }
+// 每只捕获/孵化的宝可梦 = 一个独立条目：{ id, species, level, shiny, ivs, nature, source, obtainedAt, inRoster }
 
 // 随机生成六围个体值（0~31）
 export function rollIvs() {
@@ -245,13 +253,16 @@ export function getNature(key) { return _natureMap.has(key) ? { cn: _natureMap.g
 export function rollNature() { return POKEMON_NATURES[randInt(0, POKEMON_NATURES.length - 1)][0]; }
 
 // 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
-export function addRosterEntry({ species, shiny = false, source = 'normal' }) {
+export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1 }) {
   if (!gameData) return null;
   if (!Array.isArray(gameData.roster)) gameData.roster = [];
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     species,
     shiny: !!shiny,
+    level, // 捕获/孵化即 Lv1（战斗系统）；野生捕获可传随机等级
+    exp: 0, // 经验（对战获得）
+    evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }, // 努力值（训练方向自动分配）
     ivs: rollIvs(),
     nature: rollNature(),
     source,
@@ -395,6 +406,10 @@ export function calcOffline(save) {
     // 树果农场：离线不生长、不干涸（告示牌每日需求属 0 点刷新，仍由 berry.js 按日期刷新）
     for (const p of save.berryFarm?.plots || []) {
       if (p && p.waterAt) p.waterAt += ms;
+    }
+    // 训练场：离线不训练（与树果农场/交换刷新同口径，离线期间不计时）
+    for (const s of save.training?.slots || []) {
+      if (s) s.startAt += ms;
     }
     // 交换广场：刷新倒计时只按在线时间累计，离线不刷新
     if (save.trades?.refreshedAt) save.trades.refreshedAt += ms;

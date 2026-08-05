@@ -92,7 +92,7 @@ function HELPER_COST_OF(stages) {
 let _timer = null;
 let _picking = null;
 
-function ensureBerryFarm() {
+export function ensureBerryFarm() {
   if (!gameData.berryFarm) gameData.berryFarm = { plots: Array(PLOT_COUNT).fill(null), stock: {} };
   const f = gameData.berryFarm;
   if (!Array.isArray(f.plots) || f.plots.length !== PLOT_COUNT) {
