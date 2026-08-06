@@ -2,7 +2,9 @@ mod game_data;
 mod window_manager;
 
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::image::Image;
+use tauri::Emitter;
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -35,6 +37,21 @@ fn set_tray_status(app: tauri::AppHandle, state: tauri::State<'_, TrayStatus>, t
     if let Some(tray) = app.tray_by_id("tray") {
         let _ = tray.set_tooltip(Some(text));
     }
+}
+
+static ALLOW_CLOSE: AtomicBool = AtomicBool::new(false);
+
+// 用户确认退出：置放行标志后触发真正关闭
+#[tauri::command]
+fn force_close_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    ALLOW_CLOSE.store(true, Ordering::Relaxed);
+    window.close().map_err(|e| e.to_string())
+}
+
+// 用户选择最小化到托盘：隐藏窗口，游戏继续后台挂机
+#[tauri::command]
+fn hide_to_tray(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.hide().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -218,19 +235,26 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                let _ = window.hide();
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // 未确认退出：拦截关闭并通知前端弹二次确认框（右上角叉 / 任务栏关闭均走此路径）
+                if !ALLOW_CLOSE.load(Ordering::Relaxed) {
+                    api.prevent_close();
+                    let _ = window.emit("close-requested", ());
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
             window_manager::set_ignore_blur,
             window_manager::set_window_pinned,
+            window_manager::set_window_scale,
             window_manager::mark_show,
             game_data::save_game_data,
             game_data::load_game_data,
             game_data::read_gif_base64,
             set_tray_frames,
             set_tray_status,
+            force_close_window,
+            hide_to_tray,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

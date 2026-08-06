@@ -248,6 +248,11 @@ export function showAchievementView() {
   if (!content) return;
   content.innerHTML = '<div id="achievementList"></div>';
   renderAchievements();
+  const av = $('achievementView');
+  av.onwheel = (e) => {
+    e.preventDefault();
+    av.scrollTop += e.deltaY * 0.4;
+  };
   // 轻量刷新进度（挂机数据持续变化）；离开成就页后定时器自动停止
   if (showAchievementView._timer) clearInterval(showAchievementView._timer);
   showAchievementView._timer = setInterval(() => {
@@ -502,12 +507,50 @@ function hideShopContextMenu() {
 }
 
 // ===== 设置视图 =====
+// 窗口倍率档位（相对 320×400 基础尺寸的等比缩放，尺寸换算在 Rust 侧 set_window_scale 完成）
+const WINDOW_SCALES = [1, 1.5, 2];
+
+// 按倍率等比缩放：窗口放大 + webview 内容缩放均在 Rust set_window_scale 内完成
+export async function applyWindowScale(scale) {
+  if (!window.__TAURI__?.core?.invoke) return;
+  const s = WINDOW_SCALES.includes(scale) ? scale : 1;
+  try {
+    await window.__TAURI__.core.invoke('set_window_scale', { scale: s });
+  } catch (_) {}
+}
+
+// 设置页选择窗口倍率：持久化到存档并立即缩放
+function setWindowScale(scale) {
+  ensureSettings();
+  gameData.settings.windowScale = scale;
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+  applyWindowScale(scale);
+}
+
+// 窗口倍率下拉：点击其它区域自动收起（模块级只绑定一次）
+document.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.window-scale-select')) return;
+  document.querySelectorAll('.window-scale-select').forEach(s => {
+    s.classList.remove('open');
+    const dd = s.querySelector('.region-dropdown');
+    if (dd) dd.style.display = 'none';
+  });
+});
+
 export function showSettingsView() {
   pushNav('settingsView');
   clearBattleTier(); // 战斗中进入设置：清除 NPC 难度边框色，让设置页恢复正常配色
   const content = $('settingsContent');
   const s = gameData.settings || {};
   renderSettings(content, s);
+  // 滚轮减速：设置项较多，避免原生滚动一次翻太多
+  const sv = $('settingsView');
+  sv.onwheel = (e) => {
+    e.preventDefault();
+    sv.scrollTop += e.deltaY * 0.4;
+  };
   showView('settingsView');
 }
 
@@ -516,6 +559,7 @@ export function renderSettings(container, s) {
   const autoCatch = s.autoCatch || false;
   const autoFlee = s.autoFlee || false;
   const windowPinned = s.windowPinned || false;
+  const windowScale = WINDOW_SCALES.includes(s.windowScale) ? s.windowScale : 1;
   const balls = s.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   const shinyStop = s.shinyStop || false;
   const legendStop = s.legendStop || false;
@@ -575,6 +619,18 @@ export function renderSettings(container, s) {
         </div>
       </div>
       <div class="auto-catch-row">
+        <div class="auto-catch-label">窗口倍率</div>
+        <div class="pokedex-region-select window-scale-select" id="windowScaleSelect">
+          <span class="scale-value">${windowScale} 倍</span>
+          <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+            <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+          </svg>
+          <div class="region-dropdown window-scale-dd" style="display:none;">
+            ${WINDOW_SCALES.map(s => `<div class="region-dropdown-item${s === windowScale ? ' active' : ''}" data-scale="${s}">${s} 倍</div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="auto-catch-row">
         <div class="auto-catch-label">音乐</div>
         <div class="toggle-switch" id="toggleMusicEnabled">
           <div class="toggle-track ${musicEnabled ? 'on' : ''}"></div>
@@ -621,6 +677,28 @@ export function renderSettings(container, s) {
   container.querySelector('#genderMay')?.addEventListener('click', () => toggleGender('may'));
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
+  // 窗口倍率下拉：展开/收起（同一时刻只开一个）
+  const scaleSel = container.querySelector('#windowScaleSelect');
+  scaleSel?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dd = scaleSel.querySelector('.region-dropdown');
+    const open = dd.style.display !== 'none';
+    document.querySelectorAll('.window-scale-select').forEach(s => {
+      s.classList.remove('open');
+      const d = s.querySelector('.region-dropdown');
+      if (d) d.style.display = 'none';
+    });
+    if (!open) {
+      dd.style.display = '';
+      scaleSel.classList.add('open');
+    }
+  });
+  scaleSel?.querySelectorAll('.region-dropdown-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setWindowScale(Number(el.dataset.scale));
+    });
+  });
   container.querySelector('#toggleBattleMusic')?.addEventListener('click', toggleBattleMusic);
   container.querySelector('#toggleShinyStop')?.addEventListener('click', toggleShinyStop);
   container.querySelector('#toggleLegendStop')?.addEventListener('click', toggleLegendStop);
@@ -679,6 +757,7 @@ export async function resetSave() {
 function ensureSettings() {
   if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
   if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
+  if (gameData.settings.windowScale == null) gameData.settings.windowScale = 1;
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
 }
@@ -1090,7 +1169,7 @@ const TUTORIAL_SECTIONS = [
     title: '对战',
     html: `<p>在<b>手机</b>页面打开<b>对战</b>应用，向路过的训练家发起挑战（NPC 队伍分<b>普通 / 精英 / 冠军</b>三档，每 <b>${BATTLE_REFRESH_MS / 60000}</b> 分钟刷新一波）。</p>`
       + `<p>NPC 的等级会<b>跟随你当前出战的队伍</b>：想练新宝可梦时只派<b>弱队</b>出战，NPC 也会跟着变弱，轻松取胜拿经验。</p>`
-      + `<p>战胜后经验只分给<b>上过场且存活</b>的宝可梦，并按<b>等级差</b>结算：低级打高级经验最多 <b>3 倍</b>，高级碾压低级时大幅缩水——压级刷怪没有意义。</p>`
+      + `<p>战胜后经验只分给<b>上过场且存活</b>的宝可梦，并按<b>等级差</b>结算：NPC 等级跟随你的队伍生成，基本都是<b>同级或低打高</b>，经验倍率最高 <b>3 倍</b>。</p>`
       + `<p>挑战失败可<b>再战一次</b>，随时都能重复挑战。</p>`
       + `<p>各档挑战数量与队伍规模：普通 <b>${BATTLE_NPC_COUNTS.novice}</b> 名 / <b>${BATTLE_MONS_COUNT.novice}</b> 只、精英 <b>${BATTLE_NPC_COUNTS.veteran}</b> 名 / <b>${BATTLE_MONS_COUNT.veteran}</b> 只、冠军 <b>${BATTLE_NPC_COUNTS.champion}</b> 名 / <b>${BATTLE_MONS_COUNT.champion}</b> 只。</p>`,
   },

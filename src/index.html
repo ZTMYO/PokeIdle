@@ -218,17 +218,15 @@
             </div>
           </div>
 
-          <!-- 糖果兑换弹窗 -->
-          <div id="candyDialog" class="candy-dialog">
-            <div class="candy-box">
-              <div class="candy-title">糖果兑换</div>
-              <div class="candy-opt" data-cost="10" data-item="poke-ball">10 糖果 → 精灵球</div>
-              <div class="candy-opt" data-cost="25" data-item="ultra-ball">25 糖果 → 高级球</div>
-              <div class="candy-opt" data-cost="200" data-item="master-ball">200 糖果 → 大师球</div>
-              <div class="candy-opt" data-cost="40" data-item="sweet-honey">40 糖果 → 甜甜蜜</div>
-              <div class="candy-opt" data-cost="100" data-item="mystery-egg">100 糖果 → 神秘蛋</div>
-              <div class="candy-opt" data-cost="1000" data-item="shiny-charm">1000 糖果 → 闪耀护符</div>
-              <div class="candy-close">关闭</div>
+          <!-- 关闭二次确认（右上角叉 / 任务栏关闭时弹出） -->
+          <div id="quitDialog" class="dialog">
+            <div class="dialog-box">
+              <button class="quit-close" id="quitClose" aria-label="关闭">
+                <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+              </button>
+              <div class="dialog-title">关闭口袋挂机</div>
+              <div class="dialog-opt" id="quitHide">最小化到托盘</div>
+              <div class="dialog-opt" id="quitExit">退出游戏</div>
             </div>
           </div>
 

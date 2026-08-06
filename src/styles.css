@@ -8,6 +8,7 @@
   --screen-bg-light: #96d0b9;
   --ui-color: #376d56;
   --ui-color-dark: #24563f;
+  --ui-color-darker: #1d4937;
   --ui-color-rgb: 48, 98, 48;
   --console-body: #e8dcc0;
   --console-border: #c4b692;
@@ -22,7 +23,7 @@ button { -webkit-tap-highlight-color: transparent; user-select: none; }
 button:focus { outline: none !important; box-shadow: none !important; }
 
 html, body {
-  height: 100vh; width: 100vw; overflow: hidden;
+  height: 100%; width: 100%; overflow: hidden;
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 13px;
   color: var(--color-text);
@@ -1205,8 +1206,8 @@ body { margin: 0; padding: 0; cursor: default; }
   font-weight: 700;
 }
 
-/* ===== 糖果兑换弹窗 ===== */
-.candy-dialog {
+/* ===== 关闭确认框（右上角叉 / 任务栏关闭时弹出） ===== */
+#quitDialog {
   position: absolute;
   inset: 0;
   z-index: 99;
@@ -1215,47 +1216,64 @@ body { margin: 0; padding: 0; cursor: default; }
   justify-content: center;
   background: rgba(0,0,0,0.25);
 }
-.candy-dialog.open { display: flex; }
+#quitDialog.open { display: flex; }
 
-.candy-box {
-  background: var(--screen-bg);
-  border: 2px solid var(--screen-bg-dark);
+/* 卡片：机身米黄色背景（与 control/console 一致） */
+#quitDialog .dialog-box {
+  position: relative;
+  background: var(--console-body);
+  border: 2px solid var(--ui-color-dark);
   border-radius: 6px;
-  padding: 12px;
-  min-width: 140px;
+  text-align: center;
+  padding: 12px 16px;
+  min-width: 160px;
 }
-.candy-title {
-  font-size: 11px;
+#quitDialog .dialog-title {
+  font-size: 12px;
   font-weight: 700;
   color: var(--ui-color);
   text-align: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
-.candy-opt {
-  padding: 4px 8px;
-  margin-bottom: 3px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 9px;
-  color: var(--ui-color);
-  background: rgba(var(--ui-color-rgb),0.1);
-  text-align: center;
-  transition: background 0.12s;
-}
-.candy-opt:hover { background: rgba(var(--ui-color-rgb),0.25); }
-.candy-opt:active { transform: scale(0.95); }
-.candy-opt.disabled { opacity: 0.35; cursor: default; }
-.candy-opt.disabled:active { transform: none; }
-.candy-close {
-  margin-top: 6px;
-  padding: 3px;
-  text-align: center;
-  font-size: 9px;
+/* 右上角关闭叉 */
+#quitDialog .quit-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--ui-color);
   opacity: 0.6;
   cursor: pointer;
+  transition: opacity 0.12s;
 }
-.candy-close:hover { opacity: 1; }
+#quitDialog .quit-close:hover { opacity: 1; }
+#quitDialog .quit-close svg { width: 11px; height: 11px; fill: currentColor; }
+/* 选项按钮：垂直居中摆放，深绿实心底 + 深色描边 + 白字圆角（复刻官网 .btn-primary） */
+#quitDialog .dialog-opt {
+  display: block;
+  width: fit-content;
+  margin: 0 auto 8px;
+  padding: 7px 16px;
+  border: 2px solid var(--ui-color-darker);
+  border-radius: 6px;
+  background: var(--ui-color);
+  color: #eafff4;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s, transform 0.06s;
+}
+#quitDialog .dialog-opt:last-of-type { margin-bottom: 0; }
+#quitDialog .dialog-opt:hover { background: var(--ui-color-dark); }
+#quitDialog .dialog-opt:active { transform: translateY(2px); }
 
 /* ===== 图鉴列表 ===== */
 #pokedexView, #rosterView {
@@ -3066,6 +3084,9 @@ body { margin: 0; padding: 0; cursor: default; }
   background: rgba(var(--ui-color-rgb),0.12);
   font-weight: 700;
 }
+/* 设置页窗口倍率下拉（复用 pokedex 下拉视觉） */
+.window-scale-select { position: relative; flex-shrink: 0; }
+.window-scale-dd { min-width: 110px; left: auto; right: 0; }
 /* 属性筛选下拉/标签里的属性色圆点 */
 .roster-type-dot {
   display: inline-block;

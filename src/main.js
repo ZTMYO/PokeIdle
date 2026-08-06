@@ -36,7 +36,7 @@ import {
 } from './ui.js';
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
-  closeCandyDialog, doCandyExchange } from './items.js';
+  doCandyExchange } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
   tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
@@ -49,7 +49,7 @@ import { restorePokedex, setupRegionDropdown,
 import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor } from './roster.js';
 import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs,
-  showTutorialView, renderSystemLogs } from './views.js';
+  showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
@@ -396,6 +396,8 @@ async function init() {
     }
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
+  // 应用存档中的窗口倍率（未设置时按 1 倍原尺寸）
+  applyWindowScale(gameData?.settings?.windowScale);
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
   if (gameData.gps.roamEnabled && gameData.gps.destIdx == null) setRoamEnabled(true);
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
@@ -882,17 +884,6 @@ async function init() {
   setupPokedexSearch();
   // 地区筛选
   setupRegionDropdown();
-  // 糖果弹窗
-  document.querySelectorAll('.candy-opt').forEach(el => {
-    el.addEventListener('click', () => doCandyExchange(el.dataset.item));
-  });
-  document.querySelector('.candy-close')?.addEventListener('click', closeCandyDialog);
-  document.addEventListener('click', e => {
-    const dlg = $('candyDialog');
-    if (dlg?.classList.contains('open') && !e.target.closest('.candy-box')) {
-      closeCandyDialog();
-    }
-  });
 
   // 标题栏拖拽窗口：覆盖 title-bar 全部区域（含 appTitle 与返回图标），排除窗口控制按钮。
   // Tauri 的 data-tauri-drag-region 只对 mousedown 目标自身带属性的元素生效，
@@ -929,13 +920,43 @@ async function init() {
     } catch (_) {}
   });
   document.querySelector('.control-btn.close')?.addEventListener('click', async () => {
-    await saveGame();
+    // 触发窗口关闭流程：Rust 拦截 close-requested 后弹出二次确认，存档在确认框出现前统一保存
     try {
       const tw = window.__TAURI__?.window;
       if (tw?.getCurrentWindow) await tw.getCurrentWindow().close();
       else if (tw?.appWindow?.close) await tw.appWindow.close();
     } catch (_) {}
   });
+
+  // 关闭二次确认（右上角叉 / 任务栏关闭共用，由 Rust 拦截后触发）
+  const openQuitDialog = () => $('quitDialog')?.classList.add('open');
+  const closeQuitDialog = () => $('quitDialog')?.classList.remove('open');
+  $('quitHide')?.addEventListener('click', async () => {
+    closeQuitDialog();
+    try { await window.__TAURI__.core.invoke('hide_to_tray'); } catch (_) {}
+  });
+  $('quitExit')?.addEventListener('click', async () => {
+    closeQuitDialog();
+    try { await window.__TAURI__.core.invoke('force_close_window'); } catch (_) {}
+  });
+  $('quitClose')?.addEventListener('click', closeQuitDialog);
+  // 点击空白遮罩处关闭确认框
+  $('quitDialog')?.addEventListener('click', (e) => {
+    if (e.target === $('quitDialog')) closeQuitDialog();
+  });
+  if (window.__TAURI__?.event?.listen) {
+    window.__TAURI__.event.listen('close-requested', async () => {
+      // 任务栏右键关闭时窗口可能已最小化，先恢复显示并聚焦再弹确认框
+      try {
+        const win = window.__TAURI__.window.getCurrentWindow();
+        await win.unminimize();
+        await win.show();
+        await win.setFocus();
+      } catch (_) {}
+      try { await saveGame(); } catch (_) {} // 先落盘；存档失败不阻塞确认框弹出
+      openQuitDialog();
+    }).catch(() => {});
+  }
 
   // 页面关闭前保存
   window.addEventListener('beforeunload', () => {

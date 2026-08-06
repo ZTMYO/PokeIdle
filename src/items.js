@@ -537,18 +537,6 @@ export async function hatchFromIncubator(slotIndex) {
   }
 }
 
-// ===== 糖果兑换弹窗 =====
-export function openCandyDialog() {
-  const dlg = $('candyDialog');
-  if (!dlg) return;
-  dlg.querySelectorAll('.candy-opt').forEach(el => {
-    const cost = parseInt(el.dataset.cost);
-    const enough = (gameData.items['candy']||0) >= cost;
-    el.classList.toggle('disabled', !enough);
-  });
-  dlg.classList.add('open');
-}
-
 export async function doCandyExchange(itemKey, qty = 1) {
   const cost = CANDY_EXCHANGE[itemKey];
   if (!cost) return;
@@ -560,16 +548,10 @@ export async function doCandyExchange(itemKey, qty = 1) {
   addSystemLog('shop_purchase', { item: itemKey, qty, cost: total });
   updateBackpack(itemKey);
   updateStats();
-  const dlg = $('candyDialog');
-  if (dlg?.classList.contains('open')) openCandyDialog();
   if ($('shopView')?.style.display === 'flex') {
     const { showShopView } = await import('./views.js');
     showShopView();
   }
-}
-
-export function closeCandyDialog() {
-  $('candyDialog')?.classList.remove('open');
 }
 
 // ===== 甜甜蜜 =====

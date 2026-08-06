@@ -1,5 +1,5 @@
 import { $, showView, tryLoadImage } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, setPrevView } from './state.js';
+import { gameData, getPokemonByIndex, saveGame, pushNav } from './state.js';
 
 export const TEAM_MAX = 6;
 
@@ -25,12 +25,12 @@ let _suppressClick = false; // 拖拽结束后抑制本次 click（避免误弹�
 export function showTeamView(hint, prev) {
   _hint = hint || null;
   _battleCb = null; _battleParty = null; _battleFieldIdx = -1; _battleCanCancel = false;
-  setPrevView(prev || 'phoneView');
+  pushNav('teamView'); // 返回由导航栈逐级回来源页（战斗列表/手机主页）
   render();
   showView('teamView');
 }
 
-// 仓库选取取消/返回：回到配队页（不重置 _prevView，保住"对战列表→配队"的返回链）
+// 仓库选取取消/返回：回到配队页（配队页仍在导航栈中，返回路径不受影响）
 export function restoreTeamView() {
   render();
   showView('teamView');
@@ -42,7 +42,6 @@ export function showTeamViewForBattle(party, fieldIdx, onPick, canCancel = true)
   _battleFieldIdx = fieldIdx;
   _battleCb = onPick;
   _battleCanCancel = canCancel;
-  setPrevView('battleView'); // 标题栏返回回到战斗页
   render();
   showView('teamView');
 }
