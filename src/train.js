@@ -2,7 +2,7 @@
 // 页面为 tile 地图铺满 + 告示牌入口：点击告示牌弹出配置/数据面板
 // 训练中的宝可梦会以像素图标在场地上随机走动
 import { $, showView, tryLoadImage, setupFoodTooltip } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, setPrevView, addSystemLog } from './state.js';
+import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog } from './state.js';
 import {
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, MAX_LEVEL,
   TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT,
@@ -137,7 +137,7 @@ function saveSatietyToEntry(slot) {
 }
 
 export function showTrainView() {
-  setPrevView('phoneView');
+  pushNav('trainView');
   processTrainingXp();
   render();
   showView('trainView');

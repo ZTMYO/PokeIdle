@@ -3309,6 +3309,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 .shop-ctx-item:hover { background: rgba(var(--ui-color-rgb),0.12); }
 .shop-ctx-item.disabled { opacity: 0.35; pointer-events: none; }
+.shop-ctx-item.sel { background: rgba(var(--ui-color-rgb),0.18); }
 .shop-ctx-qty { font-weight: 700; }
 .shop-ctx-cost { color: var(--ui-color); }
 
@@ -4681,9 +4682,33 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   flex-shrink: 0;
   height: 56px;
   display: flex;
+  position: relative; /* 自动战斗遮罩定位基准 */
   background: var(--console-body);
   border-top: 2px solid var(--console-border);
   z-index: 3;
+}
+/* 自动战斗遮罩：覆盖底部文案区，右下角闪烁提示，点击恢复手动 */
+.b-auto-mask {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: flex-end;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.1);
+  z-index: 6;
+  cursor: pointer;
+}
+.b-auto-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--ui-color-dark);
+  padding: 2px 10px 5px 0;
+  animation: autoBlink 1.2s ease-in-out infinite;
+}
+@keyframes autoBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 .b-left {
   flex: 3;
@@ -4773,8 +4798,8 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-direction: row;
-  gap: 4px;
+  flex-direction: column;
+  gap: 1px;
 }
 /* 选招时右栏切换为：招式详情 + 返回按钮 */
 .b-actions.detail {
@@ -4791,7 +4816,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
   min-height: 18px;
 }
 .b-eff-hint {
@@ -4843,7 +4868,8 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .b-act:hover { background: rgba(48, 98, 48, 0.1); }
 .b-act:active { transform: scale(0.94); }
-/* 右栏下半：NPC 名字 + 回合数（仅操作按钮态显示） */
+.b-act.auto { border-color: #a06161; color: #a06161; flex: none; }
+.b-act.auto:hover { background: rgba(100, 97, 97, 0.12); }
 .b-right-info {
   flex-shrink: 0;
   display: flex;

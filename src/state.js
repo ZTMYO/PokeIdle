@@ -82,11 +82,39 @@ export function setCurrentEncounter(e) {
   // 新遇敌生成野生等级；结束遇敌（null）时重置
   encounterLevel = e ? 1 + Math.floor(Math.random() * 20) : 1;
 }
+export function setEncounterLevel(lv) { encounterLevel = lv; }
 export function setCurrentIsShiny(s) { currentIsShiny = s; }
 export function setEncounterBallsUsed(n) { encounterBallsUsed = n; }
 export function setCurrentEncounterBalls(b) { currentEncounterBalls = b; }
 export function setGameTick(n) { gameTick = n; }
 export function setPrevView(v) { _prevView = v; }
+
+// 顶层页面导航栈：栈底为挂机页（不可弹出）。进入手机主页/各 App 页压栈，
+// apptitle 返回弹栈回上一级，实现逐级返回；
+// 悬赏/商店/设置同属一个平级组，互相跳转时替换栈顶而非叠加层级
+export let _navStack = ['idleView'];
+const PEER_VIEWS = ['bountyView', 'shopView', 'settingsView'];
+export function pushNav(viewId) {
+  if (!viewId) return;
+  const top = _navStack[_navStack.length - 1];
+  if (top === viewId) return; // 已在栈顶：不重复压栈
+  if (PEER_VIEWS.includes(viewId) && PEER_VIEWS.includes(top)) {
+    _navStack[_navStack.length - 1] = viewId; // 平级组内互跳：替换栈顶，不叠加层级
+    return;
+  }
+  // 从平级组页面进入其它页面：先把平级组弹出，使其不残留返回路径（跳过悬赏/商店/设置）
+  if (!PEER_VIEWS.includes(viewId) && PEER_VIEWS.includes(top)) {
+    _navStack.pop();
+  }
+  _navStack.push(viewId);
+}
+export function popNav() {
+  if (_navStack.length > 1) _navStack.pop();
+  return _navStack[_navStack.length - 1];
+}
+export function resetNav() {
+  _navStack = ['idleView'];
+}
 export function setLastRegionId(id) { _lastRegionId = id; }
 export function setHoneyBuffActive(v) { honeyBuffActive = v; window.__honeyBuffActive__ = v; }
 export function setHoneyCountdownEnd(t) { honeyCountdownEnd = t; }

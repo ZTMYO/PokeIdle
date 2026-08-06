@@ -5,7 +5,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, F
   TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT,
   TRAIN_SATIETY_PER_BERRY, TRAIN_HUNGRY_LAZY_MULT,
   BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, setPrevView, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
@@ -168,8 +168,7 @@ function refreshDataStats() {
 }
 
 export function showDataView() {
-  // 从手机主页进入时，返回应回到手机主页
-  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' ? 'encounterView' : 'idleView'));
+  pushNav('dataView');
 
   const content = $('dataContent');
   // 数值 span 由 refreshDataStats 按 id 填充，避免整页重建导致滚动位置丢失
@@ -244,7 +243,7 @@ export function showDataView() {
 
 // ===== 成就独立页面 =====
 export function showAchievementView() {
-  setPrevView('phoneView');
+  pushNav('achievementView');
   const content = $('achievementContent');
   if (!content) return;
   content.innerHTML = '<div id="achievementList"></div>';
@@ -400,7 +399,7 @@ export function renderSystemLogs() {
 }
 
 export function showSystemLogs() {
-  setPrevView('phoneView');
+  pushNav('systemLogView');
   showView('systemLogView');
   const sv = $('systemLogView');
   if (sv) sv.scrollTop = 0;
@@ -408,11 +407,11 @@ export function showSystemLogs() {
 }
 
 // ===== 商店视图 =====
-// 右键兑换按钮弹出的批量购买数量选项（×1 始终可用，其余按余额置灰）
-const BUY_QTY_OPTIONS = [1, 5, 10, 50];
+// 右键兑换按钮弹出的批量购买数量选项（按余额置灰）
+const BUY_QTY_OPTIONS = [5, 10, 20, 50];
 
 export function showShopView() {
-  setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
+  pushNav('shopView');
   hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
   const content = $('shopContent');
   const candy = gameData.items['candy'] || 0;
@@ -504,8 +503,7 @@ function hideShopContextMenu() {
 
 // ===== 设置视图 =====
 export function showSettingsView() {
-  // 战斗中进入设置：返回需回到战斗页（战斗锁定期间唯一可进入的设置页）
-  setPrevView(phase === 'encounter' ? 'encounterView' : phase === 'battle' ? 'battleView' : 'idleView');
+  pushNav('settingsView');
   clearBattleTier(); // 战斗中进入设置：清除 NPC 难度边框色，让设置页恢复正常配色
   const content = $('settingsContent');
   const s = gameData.settings || {};
@@ -1006,7 +1004,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '商店',
     html: `<p>点击标题栏右侧区域的商店按钮者点击主界面左下角的糖果数量文字进入<b>商店</b>。可以消耗<b>糖果</b>兑换基础道具。</p>`
-      + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 50 个，糖果不够的档位会置灰）。</p>`
+      + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 20 / 50 个，糖果不够的档位会置灰）。</p>`
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto']),
   },
@@ -1100,7 +1098,7 @@ const TUTORIAL_SECTIONS = [
     title: '配招',
     html: `<p>在<b>宝可梦</b>仓库的个体详情页配置招式（最多 <b>4</b> 个）：<b>自动</b>按等级搭配；<b>手动</b>进入独立的配招页自由调整。</p>`
       + `<p>配招页<b>左侧</b>是可学习的招式（带<b>属性图标</b>，<b>高亮</b>=已配入），点一下在<b>右侧</b>查看<b>详细解释</b>；再点<b>顶部空槽位</b>就把这招放进去。</p>`
-      + `<p><b>拖拽</b>操作可以快速配招。</p>`
+      + `<p><b>拖拽</b>操作可以快速配招，<b>右键点击</b>招式列表可以进行排序。</p>`
       + `<p>槽位上的<b>叉号</b>可移除招式。</p>`,
   },
   {
@@ -1157,7 +1155,7 @@ const TUTORIAL_SECTIONS = [
 ];
 
 export function showTutorialView() {
-  setPrevView('phoneView');
+  pushNav('tutorialView');
   const list = $('tutorialList');
   const content = $('tutorialContent');
   // 渲染左侧导航列表
@@ -1185,7 +1183,7 @@ export function showTutorialView() {
 
 // ===== 版权声明 =====
 export function showDeclarationView() {
-  setPrevView('settingsView');
+  pushNav('declarationView');
   const content = $('declarationContent');
   content.innerHTML = `
     <div style="text-align:center;padding:14px 0;">

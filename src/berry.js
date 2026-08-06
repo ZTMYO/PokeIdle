@@ -1,7 +1,7 @@
 // ===== 树果农场 =====
 // 6 块田地按真实时间生长；生长/湿度由 Date.now() 折算并随存档持久化（gameData.berryFarm）
 import { $, showView, tryLoadImage, getCharPrefix, updateStats } from './ui.js';
-import { phase, gameData, setPrevView, saveGame, randInt, addSystemLog } from './state.js';
+import { gameData, pushNav, saveGame, randInt, addSystemLog } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { setupFoodTooltip } from './ui.js';
 import {
@@ -211,7 +211,7 @@ function fmtRemain(ms) {
 
 // ---------- 页面入口 ----------
 export function showBerryView() {
-  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' || phase === 'caught') ? 'encounterView' : 'idleView');
+  pushNav('berryView');
   ensureBerryFarm();
   if (ensureBoard()) saveGame();
   setupFoodTooltip();

@@ -2,7 +2,7 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, tryLoadImage, tryLoadPokemonImage } from './ui.js';
-import { phase, gameData, getPokemonByIndex, getNature, setPrevView, saveGame, addSystemLog, setPokedexInLogView, _prevView } from './state.js';
+import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
@@ -321,6 +321,7 @@ let _moveData = null;   // moves.json（id2name + moves 详情）
 let _learnset = null;   // learnset.json（{ lv:[[等级,招式id]...], tm:[], egg:[] }）
 let _moveEditId = null; // 当前手动配招的个体 id（非空=处于配招独立页）
 let _moveSel = null;    // 配招页当前选中的候选招式 id
+let _moveSort = 'default'; // 候选列表排序：default 学习等级 / type 属性 / cat 类别（右键菜单切换）
 
 async function ensureMoveData() {
   if (_moveData && _learnset) return;
@@ -509,6 +510,7 @@ export function isRosterInMoveEdit() {
 export function openMoveEditor(id, moveId) {
   _moveEditId = id;
   _moveSel = moveId ?? null; // 从详情页招式槽跳入时选中该招式（在候选列表高亮并显示详情）
+  _moveSort = 'default';     // 每次进入恢复默认排序
   renderMoveEditor();
   showView('moveEditView');
 }
@@ -644,6 +646,66 @@ function bindMoveEditDrag(box) {
   });
 }
 
+// 候选列表排序：default 保持学习等级升序（TM 最后）/ type 按属性 / cat 按物理·特殊·变化
+const CAT_SORT_ORDER = { phys: 0, spec: 1, status: 2 };
+function sortMoveCands(cands) {
+  const list = cands.slice();
+  if (_moveSort === 'type') {
+    const order = new Map(Object.keys(TYPE_COLORS).map((t, i) => [t, i]));
+    list.sort((a, b) => {
+      const ta = order.get(_moveData.moves[a.id]?.type) ?? 99;
+      const tb = order.get(_moveData.moves[b.id]?.type) ?? 99;
+      return ta - tb || (a.lv ?? 999) - (b.lv ?? 999);
+    });
+  } else if (_moveSort === 'cat') {
+    list.sort((a, b) => {
+      const ca = CAT_SORT_ORDER[moveCat(_moveData.moves[a.id])] ?? 9;
+      const cb = CAT_SORT_ORDER[moveCat(_moveData.moves[b.id])] ?? 9;
+      return ca - cb || (a.lv ?? 999) - (b.lv ?? 999);
+    });
+  }
+  return list;
+}
+
+// 候选列表右键排序菜单（样式复用商店批量购买菜单）
+const MOVE_SORT_OPTIONS = [
+  { key: 'default', label: '默认排序' },
+  { key: 'type', label: '按属性排序' },
+  { key: 'cat', label: '按类别排序' },
+];
+function showMoveSortMenu(x, y) {
+  hideMoveSortMenu();
+  let menu = $('moveSortCtxMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'moveSortCtxMenu';
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+  }
+  menu.innerHTML = MOVE_SORT_OPTIONS.map((o) =>
+    `<div class="shop-ctx-item${_moveSort === o.key ? ' sel' : ''}" data-sort="${o.key}"><span class="shop-ctx-qty">${o.label}</span></div>`
+  ).join('');
+  menu.style.display = '';
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = Math.max(0, Math.min(x - 24, window.innerWidth - mw - 4)) + 'px';
+  menu.style.top = Math.max(0, Math.min(y, window.innerHeight - mh - 4)) + 'px';
+  // 菜单内点击不触发外部关闭；点击外部任意位置关闭
+  menu.addEventListener('pointerdown', (e) => e.stopPropagation());
+  menu.onclick = (e) => {
+    const opt = e.target.closest('.shop-ctx-item');
+    if (!opt) return;
+    hideMoveSortMenu();
+    _moveSort = opt.dataset.sort;
+    renderMoveEditor();
+  };
+  document.addEventListener('pointerdown', hideMoveSortMenu);
+}
+function hideMoveSortMenu() {
+  const menu = $('moveSortCtxMenu');
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('pointerdown', hideMoveSortMenu);
+}
+
 function renderMoveEditor() {
   const p = (gameData.roster || []).find((r) => r.id === _moveEditId);
   const box = $('moveEditContent');
@@ -651,7 +713,7 @@ function renderMoveEditor() {
   // innerHTML 重建会重置候选列表滚动位置：先记住再还原，避免点选招式后列表跳回顶部
   const prevScroll = box.querySelector('.move-edit-list')?.scrollTop || 0;
   const ids = currentMoveIds(p); // 已配招（固定 4 格，空位为 null）
-  const cands = candidateMoves(p);
+  const cands = sortMoveCands(candidateMoves(p));
   box.innerHTML = `
     <div class="move-edit-slots">
       ${Array.from({ length: 4 }, (_, i) => {
@@ -689,6 +751,11 @@ function renderMoveEditor() {
   // 还原候选列表滚动位置（内容重建后 scrollTop 已被清 0）
   const listEl = box.querySelector('.move-edit-list');
   if (listEl && prevScroll > 0) listEl.scrollTop = prevScroll;
+  // 右键候选列表 → 弹出排序菜单（默认 / 属性 / 类别）
+  listEl?.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showMoveSortMenu(e.clientX, e.clientY);
+  });
   // 点击候选行 → 仅查看详情，不自动配招
   box.querySelectorAll('.move-edit-row').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -888,8 +955,6 @@ export function restoreRosterList() {
   const prog = $('rosterProgress');
   if (prog) prog.style.display = '';
   showRosterView();
-  // 从“获得宝可梦→查看详情”进入时，返回列表后再返回优先回到来源页（孵蛋器/游戏页）
-  if (_detailFromView) { setPrevView(_detailFromView); _detailFromView = null; }
   // 恢复进入详情前的列表滚动位置
   const list = $('rosterList');
   if (list) requestAnimationFrame(() => { list.scrollTop = Number(list.dataset.savedScroll || 0); });
@@ -921,7 +986,7 @@ export function leaveRosterDetailToSource() {
   const target = _detailFromView || 'idleView';
   _detailFromView = null;
   showView(target);
-  setPrevView('idleView');
+  resetNav(); // 直接回来源页/挂机页，清空导航栈（等价于原先"返回回挂机页"）
 }
 
 // ---------- 页面入口 ----------
@@ -938,9 +1003,7 @@ export function isRosterPicking() {
 export function showRosterPicker(picker) {
   _picker = picker || null;
   _detailFromView = null;
-  const keepPrev = _prevView; // 保住来源链（如 对战列表→配队→仓库），showRosterView 会重写它
-  showRosterView();
-  setPrevView(keepPrev);
+  showRosterView(true); // 选取模式不压栈：返回由配队/训练页的返回链处理
 }
 
 // 返回按钮：离开选取模式并恢复来源页（配队/训练重新渲染）
@@ -961,8 +1024,9 @@ function pickRow(rid) {
   else if (p.mode === 'train') import('./train.js').then(m => m.addToTraining(rid, p.slot));
 }
 
-export function showRosterView() {
-  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' || phase === 'caught') ? 'encounterView' : 'idleView');
+export function showRosterView(noNav) {
+  // 正常入口压栈（返回回来源页）；选取/子流程模式传 true 跳过，避免污染导航栈
+  if (!noNav) pushNav('rosterView');
   if (!_uiBound) {
     setupSearch();
     setupFilter();

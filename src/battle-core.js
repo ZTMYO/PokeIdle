@@ -115,7 +115,7 @@ function hit(actor, target, mv, ef, events) {
     target.hitBySpec = true;
     target.specDmg = dmg;
   }
-  events.push({ t: 'dmg', who: target.name, amount: dmg, from: fromHp, to: target.hp, text: `${actor.name}使用${mv.name}！` });
+  events.push({ t: 'dmg', who: target.name, amount: dmg, from: fromHp, to: target.hp });
   if (m > 1) events.push(msg('效果绝佳！'));
   else if (m < 1) events.push(msg('收效甚微…'));
   // 概率附加状态 / 能力变化
@@ -154,7 +154,6 @@ function applyStat(mon, stats, events, moveType, chance = 100) {
 
 // 反击/镜面反射：本回合受到对应类别的伤害时返还其 2 倍（按自身属性走克制），成功后伤害记录清零
 function retaliate(actor, target, mv, events, spec) {
-  events.push(msg(`${actor.name}使用${mv.name}！`));
   const hit = spec ? actor.hitBySpec : actor.hitByPhys;
   const dmg = spec ? actor.specDmg : actor.physDmg;
   if (!hit || dmg <= 0) {
@@ -169,7 +168,7 @@ function retaliate(actor, target, mv, events, spec) {
   const final = Math.floor(dmg * 2 * m);
   const fromHp = target.hp;
   target.hp -= final;
-  events.push({ t: 'dmg', who: target.name, amount: final, from: fromHp, to: target.hp, text: `${actor.name}使用${mv.name}！` });
+  events.push({ t: 'dmg', who: target.name, amount: final, from: fromHp, to: target.hp });
   if (m > 1) events.push(msg('效果绝佳！'));
   else if (m < 1) events.push(msg('收效甚微…'));
   // 反击成功：对应伤害记录清零，需再次受到同类别伤害才能再次反击
@@ -194,7 +193,6 @@ export function useMove(actor, target, moveId, data, events = []) {
       break;
     case 'multihit': {
       const n = rand(ef.hits[0], ef.hits[1]);
-      events.push(msg(`${actor.name}使用${mv.name}！`));
       for (let i = 0; i < n; i++) {
         events.push({ t: 'step' });
         if (hit(actor, target, mv, ef, events) && target.hp <= 0) break;
@@ -206,7 +204,6 @@ export function useMove(actor, target, moveId, data, events = []) {
       const names = { 音爆: 20, 龙之怒: 40 };
       let dmg = names[mv.name];
       if (dmg == null) dmg = actor.level; // 地球上投/黑夜魔影：等值等级伤害
-      events.push(msg(`${actor.name}使用${mv.name}！`));
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
         events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
@@ -268,7 +265,6 @@ export function useMove(actor, target, moveId, data, events = []) {
       break;
     }
     case 'status': {
-      events.push(msg(`${actor.name}使用${mv.name}！`));
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
         events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
@@ -278,7 +274,6 @@ export function useMove(actor, target, moveId, data, events = []) {
       break;
     }
     case 'stat': {
-      events.push(msg(`${actor.name}使用${mv.name}！`));
       if (ef.target === 'foe') {
         const acc = mv.accuracy;
         if (acc != null && Math.random() * 100 > acc) {
@@ -290,17 +285,14 @@ export function useMove(actor, target, moveId, data, events = []) {
       break;
     }
     case 'protect': {
-      events.push(msg(`${actor.name}使用${mv.name}！`));
       actor.protected = true;
       break;
     }
     case 'endure': {
-      events.push(msg(`${actor.name}使用${mv.name}！`));
       actor.endure = true;
       break;
     }
     case 'leechSeed': {
-      events.push(msg(`${actor.name}使用${mv.name}！`));
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
         events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
@@ -320,7 +312,6 @@ export function useMove(actor, target, moveId, data, events = []) {
       break;
     }
     case 'substitute': {
-      events.push(msg(`${actor.name}使用${mv.name}！`));
       if (actor.subHp > 0) {
         events.push(msg(`${actor.name}已经有替身了。`));
         break;

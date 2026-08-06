@@ -5,7 +5,7 @@
 // 没有目的地时，定位图标在水平轴中央原地上下浮动。
 // 推进由主角实际移动驱动（gpsAddDistance），遇敌/钓鱼时道路暂停、导航也随之暂停。
 import { $, showView, setupFoodTooltip } from './ui.js';
-import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo, getMassOutbreak, getPokemonByIndex, inMassZone, walkedPxOnSegment, normalizeMassRemainToEnd } from './state.js';
+import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo, getMassOutbreak, getPokemonByIndex, inMassZone, walkedPxOnSegment, normalizeMassRemainToEnd, pushNav } from './state.js';
 import { REGION_CYCLE, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
 import { isFishing } from './fishing.js';
 import * as road from './road.js';
@@ -708,6 +708,7 @@ export function refreshGpsRender() {
 // 由 ui.js 的 setupFoodTooltip 事件委托统一处理，gps.js 无需维护定时器。
 
 export function showGpsView() {
+  pushNav('gpsView'); // 导航页入栈：返回逐级回来源页（手机主页/悬赏/挂机）
   render();
   showView('gpsView');
   // 确保游戏内自制 tooltip 委托已激活（大量出没标记悬停提示用，幂等）

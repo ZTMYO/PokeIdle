@@ -1,7 +1,7 @@
 // ===== 手机主页（主菜单） =====
 // 标题栏"手机"按钮进入，内含多个应用。
 import { $, showView, renderIncubatorView, updateIncubatorBadge } from './ui.js';
-import { phase, setPrevView, anyIncubatorReady } from './state.js';
+import { pushNav, anyIncubatorReady } from './state.js';
 import { hasTradableOffers, ensureTrades } from './trade.js';
 import { hasDryBerries } from './berry.js';
 import { hasClaimableAchievements } from './achievements.js';
@@ -30,7 +30,7 @@ const PAGE_SIZE = 10;
 
 // 打开孵蛋器应用（从手机进入，返回回到手机主页）
 function showIncubatorView() {
-  setPrevView('phoneView');
+  pushNav('incubatorView');
   showView('incubatorView');
   renderIncubatorView();
 }
@@ -114,7 +114,7 @@ function updatePhoneMusic() {
 }
 
 export function showPhoneView() {
-  setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
+  pushNav('phoneView'); // 手机主页入栈：返回逐级回挂机页
   startClock();
   const el = $('phoneContent');
   // 分页：每页 PAGE_SIZE 个 App，横排平移翻页
@@ -175,7 +175,7 @@ export function showPhoneView() {
     const app = e.target.closest('.phone-app');
     if (!app) return;
     const id = app.dataset.app;
-    if (id === 'gps') import('./gps.js').then(m => { setPrevView('phoneView'); m.showGpsView(); });
+    if (id === 'gps') import('./gps.js').then(m => { pushNav('gpsView'); m.showGpsView(); });
     else if (id === 'data') import('./views.js').then(m => m.showDataView());
     else if (id === 'achievement') import('./views.js').then(m => m.showAchievementView());
     else if (id === 'book') import('./pokedex.js').then(m => m.showPokedex());

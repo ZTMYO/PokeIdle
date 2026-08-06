@@ -453,6 +453,11 @@ const SHOT_CARDS = [
   { title: '地区悬赏', icon: 'icon-station', desc: '接取悬赏任务，提交指定宝可梦，换取丰厚奖励。' },
   { title: '钓鱼', icon: 'icon-fishing', desc: '途经水域自动垂钓，道具和宝可梦都可能上钩。' },
   { title: '闪光宝可梦', icon: 'icon-star', desc: '1/1000 概率遇见闪光，搭配闪耀护符大幅提升。' },
+  { title: '成就', icon: 'icon-achievement', desc: '累计统计达标即可领取糖果，1-2-5 规整序列无限递进。' },
+  { title: '大量出没', icon: 'icon-pin', desc: '随机路段事件点，锁定宝可梦连续遭遇，闪光率提升至 1/200。' },
+  { title: 'NPC 对战', icon: 'icon-versus', desc: '普通/精英/冠军三档队伍刷新，回合制赢取经验与糖果。' },
+  { title: '配队', icon: 'icon-edit', desc: '从仓库挑选六只组成出战小队。' },
+  { title: '训练', icon: 'icon-train', desc: '训练场挂机自动获得经验，树果补充饱食度持续升级。' },
 ];
 
 const shotStage = document.getElementById('shotStage');
@@ -463,13 +468,41 @@ if (shotStage) {
   let shotIndex = 0;
   let shotTimer = null;
 
-  // 右侧卡片（图标 + 标题 + 描述）
-  shotCards.innerHTML = SHOT_CARDS.map((c, i) => `
+  // 右侧卡片（图标 + 标题 + 描述）：3 行轮换，PC 上同时只显示 2 行
+  // 顶部行播完向上滚出、下一行从底部滚入；播放到第 3 行时第 1 行回到最底下，循环往复
+  const CARD_PER_ROW = 5;
+  const cardGap = 10; // 与 .shot-cards-stage 的 gap 一致
+  const cardStage = document.createElement('div');
+  cardStage.className = 'shot-cards-stage';
+  // 尾部补一行第 1 行副本，让第 3 行播放时第 1 行出现在底部
+  cardStage.innerHTML = SHOT_CARDS.concat(SHOT_CARDS.slice(0, CARD_PER_ROW)).map((c, i) => `
     <button class="shot-card${i === 0 ? ' active' : ''}" data-i="${i}" type="button">
       <span class="shot-card-icon"><svg><use href="./sprites.svg#${c.icon}" /></svg></span>
       <span class="shot-card-title">${c.title}</span>
       <span class="shot-card-desc">${c.desc}</span>
     </button>`).join('');
+  shotCards.appendChild(cardStage);
+
+  // 行高 = 单卡高度 + 行间距；视图区高度固定为 2 行（切换前测量，行高等高才滚动精准）
+  let rowH = 0;
+  function measureCardRows() {
+    const first = cardStage.firstElementChild;
+    if (!first) return;
+    rowH = first.offsetHeight + cardGap;
+    shotCards.style.height = (rowH * 2 - cardGap) + 'px';
+  }
+  measureCardRows();
+  window.addEventListener('resize', measureCardRows);
+
+  let topRow = 0;
+  // 行切换：向上滚动一行露出下一行；回绕到第 1 行时瞬间复位不滚动
+  function setCardRow(row, animate) {
+    if (row === topRow || !rowH) return;
+    topRow = row;
+    cardStage.classList.toggle('no-anim', !animate);
+    cardStage.style.transform = `translateY(${-row * rowH}px)`;
+    if (!animate) requestAnimationFrame(() => cardStage.classList.remove('no-anim'));
+  }
 
   // 移动端信息区（图标 + 标题 + 描述）
   function renderMobileInfo(i) {
@@ -484,8 +517,10 @@ if (shotStage) {
     shotIndex = (i + shots.length) % shots.length;
     // 图片渐淡切换
     [...shots].forEach((el, k) => el.classList.toggle('active', k === shotIndex));
-    // 高亮对应卡片
-    [...shotCards.children].forEach((card, k) => card.classList.toggle('active', k === shotIndex));
+    // 高亮对应卡片，跨行时行跟着滚动
+    const row = Math.floor(shotIndex / CARD_PER_ROW);
+    setCardRow(row, row > topRow);
+    [...cardStage.children].forEach((card, k) => card.classList.toggle('active', k === shotIndex));
     renderMobileInfo(shotIndex);
   }
 

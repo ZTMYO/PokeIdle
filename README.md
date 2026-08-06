@@ -46,6 +46,16 @@
 </tr>
 </table>
 
+<table align="center">
+<tr>
+<td align="center"><img src="web/public/images/成就.png" width="180"></td>
+<td align="center"><img src="web/public/images/大量出没.png" width="180"></td>
+<td align="center"><img src="web/public/images/对战.png" width="180"></td>
+<td align="center"><img src="web/public/images/配队.png" width="180"></td>
+<td align="center"><img src="web/public/images/训练.png" width="180"></td>
+</tr>
+</table>
+
 ## 玩法
 
 - **挂机冒险** — 九大地区陆路打通，挂机遇敌、自动拾取，目标完成全图鉴

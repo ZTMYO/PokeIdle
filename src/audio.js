@@ -92,6 +92,8 @@ function tryPlay(el) {
   if (_splashLocked) return; // splash 期间不实际发声（状态保留，放行后恢复）
   // 音乐关闭时全局阻断：地区曲/覆盖曲/瞬发音效（victory、孵蛋、交换等）一律不发声
   if (!_musicEnabled) return;
+  // 互斥兜底：背景曲/覆盖曲起播前，未播完的瞬发音效（victory 等）一律停掉，保证同时只响一路
+  if (el !== sfxAudio && !sfxAudio.paused && sfxAudio.getAttribute('src')) sfxAudio.pause();
   // 互斥兜底：播放覆盖曲前先暂停地区曲；覆盖曲实际发声时禁止地区曲起播，避免两首叠加
   if (el === overlayAudio && !regionAudio.paused) regionAudio.pause();
   if (el === regionAudio && _overlayActive && overlayAudio.src && !overlayAudio.paused) return;
@@ -232,10 +234,13 @@ function playSfx(path) {
   if (!path) return;
   const url = urlFor(path);
   _sfxInterrupted = false; // 新瞬发音效接管，清掉被中断的旧音效标记
-  const resumeOverlay = _overlayActive && !overlayAudio.paused;
-  const resumeRegion = _regionActive && !regionAudio.paused;
-  if (resumeOverlay) overlayAudio.pause();
-  if (resumeRegion) regionAudio.pause();
+  // 以"该响什么"为准决定播完恢复谁，而不是此刻的 paused 状态——
+  // endBattle 恢复地区曲紧接着 playVictory，region.play() 刚被调用时 paused 可能仍是 true，
+  // 若据此判断会漏暂停，导致地区曲与 victory 叠加。改为无条件让位（对已暂停元素 pause 无副作用）
+  const resumeOverlay = _overlayActive;
+  const resumeRegion = _regionActive;
+  if (resumeOverlay && overlayAudio.getAttribute('src')) overlayAudio.pause();
+  if (resumeRegion && regionAudio.getAttribute('src')) regionAudio.pause();
   if (sfxAudio.getAttribute('src') !== url) sfxAudio.src = url;
   applyTrackGain('sfx', path);
   sfxAudio.currentTime = 0;

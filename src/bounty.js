@@ -4,7 +4,7 @@
 // 仓库中拥有该宝可梦（在仓个体）即可提交（交出一只个体）。
 // 只有今日到访过的地区才显示悬赏内容（离开后仍可查看）；提交必须到达该地区。
 import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, phase, setPrevView, saveGame, addSystemLog } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog } from './state.js';
 import { $, showView, updateStats, tryLoadImage } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
 
@@ -327,7 +327,7 @@ function submitTrade(rid) {
 }
 
 export function showBountyView() {
-  setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
+  pushNav('bountyView');
   _tradeMode = null; // 重新打开悬赏页时退出提交列表
   _pageIdx = getCurrentRegion().id; // 打开时默认定位到当前地区
   renderBounty();
@@ -359,7 +359,7 @@ export function showBountyView() {
     const go = e.target.closest('.bounty-go');
     if (go) {
       if (go.disabled) return;
-      setPrevView('bountyView'); // 返回键回到悬赏页
+      pushNav('gpsView'); // 从悬赏前往地区：返回时回悬赏页
       import('./gps.js').then(m => { m.navigateToRegion(_pageIdx); m.showGpsView(); });
       return;
     }

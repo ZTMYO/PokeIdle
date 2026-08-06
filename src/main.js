@@ -13,11 +13,11 @@ import {
   _charmEncounterCount,
   _autoFleeTimer, _autoFleeBarInterval,
   _autoCatching,
-  _catchConfirmStep, _prevView, _pokedexInLogView, _idleMsgIdx,
+  _catchConfirmStep, _pokedexInLogView, _idleMsgIdx,
   _lastRegionId, gameTick, _fishing,
   setAllPokemon, setGameData, setPhase, setCurrentEncounter,
   setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls,
-  setGameTick, setPrevView, setLastRegionId,
+  setGameTick, pushNav, popNav, resetNav, setLastRegionId,
   setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd,
   setHoneyPausedRemaining, setCharmPausedRemaining,
   setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
@@ -54,7 +54,7 @@ import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBad
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
-import { retreatBattle, isBattleActive, renderBattleList, restoreBattleTier, clearBattleTier } from './battle-view.js';
+import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier } from './battle-view.js';
 import { backFromBattlePick } from './team.js';
 import { refreshNpcs } from './npcs.js';
 import * as road from './road.js';
@@ -169,13 +169,26 @@ function goBack() {
   if (isTradeInDetail()) { restoreTradeList(); return; }
   // 悬赏提交列表：标题栏返回先回悬赏列表
   if (isBountyInTrade()) { restoreBountyList(); return; }
-  const target = _prevView;
+  // 结算页返回：回 NPC 战斗列表（与「返回列表」按钮一致），不弹栈（列表页仍在 battleView 内）
+  if (isBattleSettled() && $('battleView')?.style.display === 'flex') {
+    import('./battle-view.js').then(m => m.showBattleView());
+    return;
+  }
+  const target = popNav();
+  if (target === 'battleView') {
+    // 战斗进行中：回到战斗页继续（不中断战斗）
+    if (isBattleActive()) {
+      showView('battleView');
+      restoreBattleTier(); // 战斗页重新显示：恢复 NPC 难度边框色
+    } else {
+      // 战斗已结束（结算页）或列表页：与「返回列表」按钮一致，回到 NPC 战斗列表
+      import('./battle-view.js').then(m => m.showBattleView());
+    }
+    return;
+  }
   showView(target);
-  setPrevView('idleView');
-  // 从设置返回战斗页：恢复 NPC 难度边框色（进入设置时已被清除）
-  if (target === 'battleView' && isBattleActive()) restoreBattleTier();
   // 其它情况（含挑战结算页返回）：清除屏幕难度背景色，避免其它页面沿用战斗配色
-  else clearBattleTier();
+  clearBattleTier();
   // 返回手机主页时兜底同步红点（showView 不重建页面，避免漏刷新）
   if (target === 'phoneView') { updateTradeBadge(); updateBerryBadge(); updateAchievementBadge(); updatePhoneBadge(); }
 }
@@ -530,6 +543,22 @@ async function init() {
     console.log('对战与交换已刷新');
   };
 
+  // 调试辅助：刷新一波对战 NPC，并让全部 NPC 的队伍都使用指定的宝可梦
+  // 用法：window.__npcTeam(25) 全部用皮卡丘；window.__npcTeam(25, 6, 149) 全部用这三只；也支持传数组
+  window.__npcTeam = (...ids) => {
+    const list = ids.length === 1 && Array.isArray(ids[0]) ? ids[0] : ids;
+    const mons = list.map((v) => String(v).padStart(4, '0'));
+    const bad = mons.filter((idx) => !getPokemonByIndex(idx));
+    if (!mons.length || bad.length) {
+      console.warn(`__npcTeam: 无效编号 ${bad.join(', ')}，用法如 __npcTeam(25, 6)`);
+      return;
+    }
+    refreshNpcs(); // 生成新一波并重置刷新倒计时
+    gameData.battleNpcs.list.forEach((n) => { n.mons = [...mons]; });
+    if ($('battleView')?.style.display !== 'none' && !isBattleActive()) renderBattleList();
+    console.log(`__npcTeam: 对战 NPC 已刷新，全部队伍=${mons.join(', ')}`);
+  };
+
   // 固定窗口
   if (gameData.settings?.windowPinned) {
     try {
@@ -822,7 +851,7 @@ async function init() {
         return;
       }
       if (btn.classList.contains('active')) {
-        setPrevView('idleView');
+        resetNav(); // 再次点击当前页图标：直接回挂机页并清空导航栈
         showView('idleView');
       } else {
         open();
@@ -839,12 +868,7 @@ async function init() {
   // 跳转时同步 prevView，保证标题栏返回按钮也回到挂机/战斗页。
   const footerNav = (open) => () => {
     if (isBattleActive()) return; // 战斗中锁定：底部三区同样禁止点击跳转
-    if (isOnGameView()) {
-      open();
-      setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
-    } else {
-      showView('idleView');
-    }
+    open(); // 打开目标页，返回目标由导航栈记录（从哪来回哪去）
   };
   $('statProgress')?.addEventListener('click', footerNav(showShopView));
   $('statAutoStatus')?.addEventListener('click', footerNav(showSystemLogs));

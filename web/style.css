@@ -584,14 +584,22 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   image-rendering: auto;
 }
 
-/* 右侧卡片：图标 + 标题 + 描述，充当指示器高亮当前截图 */
+/* 右侧卡片：图标 + 标题 + 描述，充当指示器高亮当前截图
+   3 行轮换：视图区只显示 2 行，行切换时向上滚动一行 */
 .shots-info { min-width: 0; }
 .shots-mobile-info { display: none; } /* 仅移动端显示 */
 .shots-cards {
+  position: relative;
+  overflow: hidden;
+}
+.shot-cards-stage {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
+  transition: transform .5s cubic-bezier(.4, 0, .2, 1);
+  will-change: transform;
 }
+.shot-cards-stage.no-anim { transition: none; }
 .shot-card {
   display: flex;
   flex-direction: column;
@@ -637,6 +645,10 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   font-size: 11px;
   color: #3f6a58;
   line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ---------- 全图鉴滚动 ---------- */

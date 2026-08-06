@@ -1,6 +1,6 @@
 // ===== 图鉴模块 =====
 import { ITEM_NAMES } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, _pokedexInLogView, _pokedexSortBy, _pokedexSortDir, pad, randInt, setPrevView, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, currentEncounter, _pokedexInLogView, _pokedexSortBy, _pokedexSortDir, pad, randInt, pushNav, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
 import { $, showView, tryLoadPokemonImage, tryLoadImage, fitPokemonImage, setupFoodTooltip } from './ui.js';
 import { TYPE_COLORS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
@@ -399,8 +399,7 @@ export function setupRegionDropdown() {
 
 // ===== 图鉴列表 =====
 export function showPokedex() {
-  // 从手机主页进入时，返回应回到手机主页
-  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' ? 'encounterView' : 'idleView'));
+  pushNav('pokedexView');
   const list = $('pokedexList');
   if (!list) return;
   delete list.dataset.savedHtml;

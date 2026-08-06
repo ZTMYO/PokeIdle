@@ -2,7 +2,7 @@
 // 从农场库存选树果（1~RECIPE_MAX 颗）作配方，确认后制成树果方块：按配方颜色混合着色，
 // 优先吸引当前地区与配方一致的宝可梦，被吃掉或再走满 BLOCK_DISTANCE 米后结束。
 import { $, showView, tryLoadImage } from './ui.js';
-import { phase, gameData, blockBuffActive, blockRecipe, blockStartWalk, blockQuality, qteState, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, saveSessionState, setIdleMsgIdx, setPrevView, addSystemLog, saveGame, randInt } from './state.js';
+import { phase, gameData, blockBuffActive, blockRecipe, blockStartWalk, blockQuality, qteState, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, saveSessionState, setIdleMsgIdx, pushNav, addSystemLog, saveGame, randInt } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES, BERRY_COLORS, findBerryTarget } from './items.js';
 import { BLOCK_DISTANCE, PX_PER_METER, BLOCK_QUALITY } from './config.js';
 import { playObtained } from './audio.js';
@@ -43,8 +43,7 @@ let _qteSpeed = 0;         // 当前轮内指针角速度
 
 // ---------- 页面入口 ----------
 export function showMixerView() {
-  // 从手机主页进入时，返回应回到手机主页
-  setPrevView($('phoneView')?.style.display !== 'none' ? 'phoneView' : (phase === 'encounter' || phase === 'caught') ? 'encounterView' : 'idleView');
+  pushNav('mixerView');
   showView('mixerView');
   render();
 }

@@ -51,6 +51,9 @@ export function showNowPlaying(title, artist) {
 }
 
 // ---------- 视图切换 ----------
+// 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
+const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView'];
+
 export function showView(id) {
   if (id === 'idleView' && phase === 'encounter') {
     id = 'encounterView';
@@ -59,8 +62,7 @@ export function showView(id) {
     id = 'idleView';
   }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
-  const views = ['idleView','introView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView'];
-  views.forEach(v => {
+  VIEW_IDS.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
@@ -72,15 +74,21 @@ export function showView(id) {
       renderIncubatorView();
     });
   }
-  if (!wasOnGameView && (id === 'idleView' || id === 'encounterView') && phase === 'encounter' && currentEncounter) {
+  if (!wasOnGameView && (id === 'idleView' || id === 'encounterView')) {
     setTimeout(() => {
       import('./battle.js').then(async m => {
-        const loadPromise = m.renderEncounterScene(currentEncounter);
-        if (gameData.settings?.autoCatch && !(currentIsShiny && gameData.settings?.shinyStop)) {
-          await loadPromise; // 等图片加载完再丢球，避免尺寸错乱
-          m.autoCatch();
-        } else if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
-          m.startAutoFleeTimer();
+        // 后台结算（遭遇被 NPC 对战打断）结果补播：切回游戏页时重放最终捕捉/逃跑动画
+        if (await m.replayBgResult()) return;
+        // 后台捕捉仍在进行：切回遭遇画面，后续丢球动画在可见状态下照常播放
+        if (await m.resumeBgEncounter()) return;
+        if (phase === 'encounter' && currentEncounter) {
+          const loadPromise = m.renderEncounterScene(currentEncounter);
+          if (gameData.settings?.autoCatch && !(currentIsShiny && gameData.settings?.shinyStop)) {
+            await loadPromise; // 等图片加载完再丢球，避免尺寸错乱
+            m.autoCatch();
+          } else if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
+            m.startAutoFleeTimer();
+          }
         }
       });
     }, 0);

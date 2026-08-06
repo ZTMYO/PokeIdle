@@ -1,6 +1,6 @@
 // NPC 挑战：每 20 分钟刷新一波训练家（3 普通 + 2 精英 + 1 冠军）
 // 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级随玩家出战队伍最高等级递进
-import { gameData, getPokemonByIndex, rollIvs, rollNature, randInt } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollNature, randInt } from './state.js';
 import { chooseMoves } from './moves.js';
 import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, MAX_LEVEL } from './config.js';
 
@@ -17,23 +17,29 @@ const NPC_FACES = [
   { sprite: 24, name: '女青年' }, { sprite: 25, name: '女青年' },
 ];
 
-// 各档宝可梦池（图鉴号字符串，learnset.json 均有覆盖）
-const MON_POOLS = {
-  novice: ['0016', '0019', '0023', '0027', '0032', '0041', '0043', '0050', '0052', '0056',
-           '0060', '0063', '0066', '0069', '0074', '0077', '0081', '0086', '0092', '0100',
-           '0104', '0118', '0129', '0133', '0163', '0179', '0194', '0209', '0263', '0265',
-           '0270', '0273', '0278', '0283', '0304', '0309', '0316', '0322', '0325', '0331',
-           '0333', '0363', '0399', '0401', '0403', '0420'],
-  veteran: ['0025', '0028', '0034', '0045', '0051', '0054', '0055', '0058', '0059', '0064',
-            '0065', '0067', '0068', '0071', '0073', '0075', '0078', '0082', '0085', '0087',
-            '0094', '0099', '0101', '0103', '0105', '0108', '0114', '0119', '0121', '0122',
-            '0123', '0127', '0130', '0134', '0135', '0136', '0142', '0148', '0164', '0171',
-            '0181', '0189', '0195', '0210', '0227', '0232', '0242'],
-  champion: ['0003', '0006', '0009', '0034', '0059', '0065', '0068', '0094', '0112', '0130',
-             '0143', '0145', '0146', '0149', '0150', '0248', '0380', '0381', '0384', '0445',
-             '0448', '0475', '0491', '0534', '0635', '0645', '0646', '0706', '0784', '0800',
-             '0809', '0887', '0892', '0908', '0911', '0914'],
-};
+// 各档宝可梦池：按种族值总和（BST）自动分档全国图鉴，三档区间交错重叠：
+// - novice   BST ≤ 480（低 → 中低，约 620 只）
+// - veteran  320 ≤ BST ≤ 570（中低 → 中高，约 690 只）
+// - champion BST ≥ 440 且 rarity ≥ 0.5（中高 → 顶，约 530 只，偏高端）
+// 覆盖与重叠：三档并集 = 全部 1025 只（全覆盖），低档的宝可梦在高档池里同样可能出现。
+// allPokemon 由 setAllPokemon 运行时注入，这里惰性构建、首次调用缓存
+let _npcPools = null;
+function buildNpcPools() {
+  const rows = allPokemon.map((p) => {
+    const stats = p.stats || [];
+    const bst = stats.length === 6 ? stats.reduce((a, b) => a + (+b || 0), 0) : 0;
+    return { idx: String(p.index), bst, rarity: p.rarity ?? 0.5 };
+  });
+  return {
+    novice: rows.filter((r) => r.bst <= 480).map((r) => r.idx),
+    veteran: rows.filter((r) => r.bst >= 320 && r.bst <= 570).map((r) => r.idx),
+    champion: rows.filter((r) => r.bst >= 440 && r.rarity >= 0.5).map((r) => r.idx),
+  };
+}
+function getNpcPools() {
+  if (!_npcPools) _npcPools = buildNpcPools();
+  return _npcPools;
+}
 
 const TIER_CFG = {
   novice:   { title: '普通', lvBonus: 0, candy: 5 },
@@ -66,7 +72,7 @@ function generateWave() {
         sprite: f.sprite,
         lvBonus: cfg.lvBonus,
         candy: cfg.candy,
-        mons: shuffle([...MON_POOLS[tier]]).slice(0, BATTLE_MONS_COUNT[tier]),
+        mons: shuffle([...getNpcPools()[tier]]).slice(0, BATTLE_MONS_COUNT[tier]),
       });
     }
   }
@@ -87,7 +93,8 @@ export function refreshNpcs() {
   gameData.battleNpcs = { refreshedAt: Date.now(), list: generateWave() };
 }
 
-// 按玩家出战队伍最高等级生成 NPC 队伍（首只=基准等级，往后逐只低一级）；带谁打 NPC 就跟随谁，上限 MAX_LEVEL
+// 按玩家出战队伍最高等级生成 NPC 队伍（首只=基准等级，往后逐只低一级）；带谁打 NPC 就跟随谁，上限 MAX_LEVEL。
+// 队伍物种取自生成波次时抽好的 npc.mons：刷新一波后同一 NPC 保持一套队伍不变（等级/个体/招式每次挑战仍会重 roll）
 export function buildNpcTeam(npc, data, learnset, maxLv) {
   const base = Math.max(3, Math.min(MAX_LEVEL, maxLv + npc.lvBonus));
   return npc.mons.map((idx, i) => {

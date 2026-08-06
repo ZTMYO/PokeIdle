@@ -3,7 +3,7 @@
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
 import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_NATURE_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getNature, setPrevView, saveGame, addSystemLog, randInt, rollIvs, rollNature, addRosterEntry, setLastObtainedEntryId } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollNature, addRosterEntry, setLastObtainedEntryId } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { computeObtainScore } from './scoring.js';
@@ -163,7 +163,7 @@ export function countTradableOffers() {
 
 // ---------- 渲染 ----------
 export function showTradeView() {
-  setPrevView('phoneView');
+  pushNav('tradeView');
   _tradeMode = null;
   _tradeDetail = null;
   _tradeListScroll = 0;

@@ -9,7 +9,7 @@ import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, curre
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
-import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch } from './battle.js';
+import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch, isLegendEncounter } from './battle.js';
 import { setVolume, setBattleMusic, setMusicEnabled, playBattle, endBattle } from './audio.js';
 import { renderAchievements, refreshAchievements } from './achievements.js';
 import { TEAM_MAX } from './team.js';
@@ -151,6 +151,11 @@ function refreshDataStats() {
   $('dataBountyClaims').textContent = formatNum(stats.totalBountyClaims || 0);
   $('dataBountyToday').textContent = formatNum(stats.bountyClaimsToday || 0);
   $('dataBountyCandy').textContent = formatNum(stats.totalBountyCandy || 0);
+  $('dataNpcWins').textContent = formatNum(stats.totalNpcWins || 0);
+  $('dataNpcNoviceWins').textContent = formatNum(stats.totalNpcNoviceWins || 0);
+  $('dataNpcEliteWins').textContent = formatNum(stats.totalNpcEliteWins || 0);
+  $('dataNpcChampionWins').textContent = formatNum(stats.totalNpcChampionWins || 0);
+  $('dataNpcCandy').textContent = formatNum(stats.totalNpcCandy || 0);
   const earnedEl = $('dataEarned');
   if (earnedEl) {
     // 糖果置顶，其余保持原顺序
@@ -212,13 +217,17 @@ export function showDataView() {
       <div class="stat-row"><span>今日完成悬赏</span><span id="dataBountyToday"></span></div>
       <div class="stat-row"><span>悬赏糖果</span><span id="dataBountyCandy"></span></div>
 
+      <div class="stat-section">NPC 对战</div>
+      <div class="stat-row"><span>累计战胜训练家</span><span id="dataNpcWins"></span></div>
+      <div class="stat-row"><span>战胜普通训练家</span><span id="dataNpcNoviceWins"></span></div>
+      <div class="stat-row"><span>战胜精英</span><span id="dataNpcEliteWins"></span></div>
+      <div class="stat-row"><span>战胜冠军</span><span id="dataNpcChampionWins"></span></div>
+      <div class="stat-row"><span>对战糖果</span><span id="dataNpcCandy"></span></div>
+
       <div class="stat-section">道具累计获得</div>
       <div id="dataEarned"></div>
-
-      <div id="achievementList"></div>
     </div>
   `;
-  renderAchievements();
   // 初始填充 + 每秒实时刷新全部动态值；离开统计页后定时器自动停止
   refreshDataStats();
   if (showDataView._timer) clearInterval(showDataView._timer);
@@ -229,9 +238,28 @@ export function showDataView() {
       return;
     }
     refreshDataStats();
-    refreshAchievements();
   }, 1000);
   showView('dataView');
+}
+
+// ===== 成就独立页面 =====
+export function showAchievementView() {
+  setPrevView('phoneView');
+  const content = $('achievementContent');
+  if (!content) return;
+  content.innerHTML = '<div id="achievementList"></div>';
+  renderAchievements();
+  // 轻量刷新进度（挂机数据持续变化）；离开成就页后定时器自动停止
+  if (showAchievementView._timer) clearInterval(showAchievementView._timer);
+  showAchievementView._timer = setInterval(() => {
+    if ($('achievementView')?.style.display === 'none') {
+      clearInterval(showAchievementView._timer);
+      showAchievementView._timer = null;
+      return;
+    }
+    refreshAchievements();
+  }, 1000);
+  showView('achievementView');
 }
 
 // ===== 系统日志独立页面 =====
@@ -291,7 +319,19 @@ export function renderSystemLogs() {
         desc = `完成地区悬赏，获得糖果 ×${log.details.candy}`;
         break;
       case 'berry_helper':
-        desc = `招募了树果帮手`;
+        desc = `招募了树果帮手${log.details.stages ? `（工作 ${log.details.stages} 阶段）` : ''}`;
+        break;
+      case 'berry_helper_end':
+        desc = '树果帮手服务结束';
+        break;
+      case 'berry_plant':
+        desc = `种植了${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}`;
+        break;
+      case 'berry_harvest':
+        desc = `收获 ${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]} ×${log.details.qty}`;
+        break;
+      case 'berry_trade':
+        desc = `完成树果需求：交付${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}×${log.details.qty}，获得糖果 ×${log.details.candy}`;
         break;
       case '战斗':
         desc = typeof log.details === 'string' ? log.details : '未知战斗记录';
@@ -324,6 +364,30 @@ export function renderSystemLogs() {
       case 'mass_outbreak_end':
         desc = `大量出没结束：${logName(log)}${log.details.forced ? '（强制刷新）' : ''}`;
         break;
+      case 'train_start':
+        desc = `开始训练 ${logName(log)}`;
+        break;
+      case 'train_end':
+        desc = `结束训练 ${logName(log)}`;
+        break;
+      case 'train_levelup':
+        desc = `${logName(log)} 训练升级至 Lv${log.details.level}`;
+        break;
+      case 'train_lazy':
+        desc = `${logName(log)} 开始偷懒了`;
+        break;
+      case 'train_wake':
+        desc = `叫醒了偷懒的 ${logName(log)}`;
+        break;
+      case 'train_feed':
+        desc = `${logName(log)} 吃掉一颗${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}补充饱食度`;
+        break;
+      case 'pokemon_release':
+        desc = `放生了${log.details.shiny ? '闪光' : ''}${logName(log)}`;
+        break;
+      case 'buff_expired':
+        desc = `${ITEM_NAMES[log.details.item] || log.details.item}的效果结束了`;
+        break;
       default:
         desc = `未知事件 (${log.type})`;
     }
@@ -344,8 +408,8 @@ export function showSystemLogs() {
 }
 
 // ===== 商店视图 =====
-// 右键兑换按钮弹出的批量购买数量选项（×1 始终可用，其余按余额置灰）
-const BUY_QTY_OPTIONS = [1, 5, 10, 50];
+// 右键兑换按钮弹出的批量购买数量选项（按余额置灰）
+const BUY_QTY_OPTIONS = [5, 10, 20, 50];
 
 export function showShopView() {
   setPrevView(phase === 'encounter' ? 'encounterView' : 'idleView');
@@ -456,6 +520,7 @@ export function renderSettings(container, s) {
   const windowPinned = s.windowPinned || false;
   const balls = s.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   const shinyStop = s.shinyStop || false;
+  const legendStop = s.legendStop || false;
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
   const gender = s.gender || 'brendan';
@@ -476,6 +541,13 @@ export function renderSettings(container, s) {
         <div class="auto-catch-label">闪光暂停</div>
         <div class="toggle-switch" id="toggleShinyStop">
           <div class="toggle-track ${shinyStop ? 'on' : ''}"></div>
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+      <div class="auto-catch-row" style="padding-left:8px;">
+        <div class="auto-catch-label">神兽暂停</div>
+        <div class="toggle-switch" id="toggleLegendStop">
+          <div class="toggle-track ${legendStop ? 'on' : ''}"></div>
           <div class="toggle-knob"></div>
         </div>
       </div>
@@ -553,6 +625,7 @@ export function renderSettings(container, s) {
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
   container.querySelector('#toggleBattleMusic')?.addEventListener('click', toggleBattleMusic);
   container.querySelector('#toggleShinyStop')?.addEventListener('click', toggleShinyStop);
+  container.querySelector('#toggleLegendStop')?.addEventListener('click', toggleLegendStop);
   // 重置存档：二次点击确认，防误触
   container.querySelector('#resetSaveBtn')?.addEventListener('click', (e) => {
     const btn = e.currentTarget;
@@ -606,7 +679,7 @@ export async function resetSave() {
 
 // 确保设置存在（旧存档可能缺 settings 或 autoCatchBalls）
 function ensureSettings() {
-  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
+  if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
   if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
@@ -755,6 +828,29 @@ export function toggleShinyStop() {
   updateStats(); // 开启/关闭闪光暂停会联动自动捕捉，立即刷新底部状态文字
 }
 
+export function toggleLegendStop() {
+  ensureSettings();
+  gameData.settings.legendStop = !gameData.settings.legendStop;
+  if (gameData.settings.legendStop) {
+    gameData.settings.autoCatch = true;
+    // 刚开启神兽暂停 → 中止当前极稀有的自动丢球（不跳转页面，用户留在设置页；
+    // 切回遭遇页时 fleeBtn 由渲染逻辑恢复显示）
+    if (isLegendEncounter() && phase === 'encounter') {
+      setAbortAutoCatch();
+    }
+  } else {
+    // 刚关闭神兽暂停 → 仅当遭遇页可见时立即接管；
+    // 在设置页时交给 showView 切回游戏页的统一接管（避免在隐藏页上丢球导致动画状态错乱）
+    if (isLegendEncounter() && phase === 'encounter' && isOnGameView()) {
+      import('./battle.js').then(m => m.autoCatch());
+    }
+  }
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+  updateStats(); // 开启/关闭神兽暂停会联动自动捕捉，立即刷新底部状态文字
+}
+
 export function toggleGender(g) {
   ensureSettings();
   gameData.settings.gender = g;
@@ -823,7 +919,8 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '手机',
-    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>树果农场</b>、<b>交换</b>……），也可以查看当前系统时间。科学的力量真伟大！</p>`
+    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>树果农场</b>、<b>交换</b>、<b>成就</b>……），也可以查看当前系统时间。</p>`
+      + `<p>向左滑动或点击底部圆点可翻到<b>第二页</b>，那里放着<b>统计</b>、<b>训练</b>、<b>配队</b>与<b>对战</b>应用。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
@@ -836,12 +933,13 @@ const TUTORIAL_SECTIONS = [
     title: '统计',
     html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按每次遭遇的稀有度与捕获运气综合评价称号；数据总览以表格统一展示今日与累计的挂机时长、遭遇、捕获、逃跑、捕获率、闪光遇见/捕获、孵化与交换，每秒自动刷新。</p>`
       + `<p>其余板块按类别汇总：冒险进度（当前地区、行走距离、图鉴完成度）、消耗统计（精灵球使用与均耗）、农场与合成、地区悬赏与道具累计获得。</p>`
-      + `<p>页面最下方是<b>成就奖励</b>板块：每项累计统计达成等级即可领取糖果（详见「<b>成就</b>」章节）。</p>`,
+      + `<p><b>统计</b>应用位于手机<b>第二页</b>，向左滑动手机页面翻页即可找到。</p>`,
   },
   {
     title: '成就',
-    html: `<p>在<b>统计</b>页最下方的<b>成就奖励</b>板块领取：每项累计统计达标<b>一级</b>即可领一次糖果。</p>`
-      + `<p>等级按 <b>1-2-5</b> 规整序列无限递进，未领的等级会一直累计；除「图鉴收藏家」到上限完结外，其余成就等级<b>无限</b>。</p>`,
+    html: `<p>在<b>手机</b>页面打开<b>成就</b>应用领取：每项累计统计达标<b>一级</b>即可领一次糖果。</p>`
+      + `<p>等级按 <b>1-2-5</b> 规整序列无限递进，未领的等级会一直累计；除「图鉴收藏家」到上限完结外，其余成就等级<b>无限</b>。</p>`
+      + `<p>有可领取的奖励时，<b>成就</b>应用图标与标题栏手机图标会亮起红点提醒。</p>`,
   },
   {
     title: '地区',
@@ -908,7 +1006,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '商店',
     html: `<p>点击标题栏右侧区域的商店按钮者点击主界面左下角的糖果数量文字进入<b>商店</b>。可以消耗<b>糖果</b>兑换基础道具。</p>`
-      + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 50 个，糖果不够的档位会置灰）。</p>`
+      + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 20 / 50 个，糖果不够的档位会置灰）。</p>`
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto']),
   },
@@ -974,7 +1072,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '配队',
     html: `<p>在<b>手机</b>页面打开<b>配队</b>应用组建小队：点击<b>空位</b>从仓库选择宝可梦加入（最多 <b>${TEAM_MAX}</b> 只）。</p>`
-      + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>交换</b>（与队伍中另一只互换位置）、<b>移除</b>（放回仓库）；<b>右键</b>点击可隐藏菜单。</p>`
+      + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>移除</b>（放回仓库）；<b>右键</b>点击可隐藏菜单。</p>`
+      + `<p><b>拖拽</b>可以对队伍中的宝可梦进行快速排序。</p>`
       + `<p>加入队伍的宝可梦会从<b>训练</b>中自动撤下（训练/队伍<b>互斥</b>，详见「<b>训练</b>」章节）。</p>`,
   },
   {
@@ -1001,6 +1100,7 @@ const TUTORIAL_SECTIONS = [
     title: '配招',
     html: `<p>在<b>宝可梦</b>仓库的个体详情页配置招式（最多 <b>4</b> 个）：<b>自动</b>按等级搭配；<b>手动</b>进入独立的配招页自由调整。</p>`
       + `<p>配招页<b>左侧</b>是可学习的招式（带<b>属性图标</b>，<b>高亮</b>=已配入），点一下在<b>右侧</b>查看<b>详细解释</b>；再点<b>顶部空槽位</b>就把这招放进去。</p>`
+      + `<p><b>拖拽</b>操作可以快速配招。</p>`
       + `<p>槽位上的<b>叉号</b>可移除招式。</p>`,
   },
   {
@@ -1028,7 +1128,8 @@ const TUTORIAL_SECTIONS = [
       + `<p>勾选球种：<b>自动捕获</b>（会根据捕获率智能选择勾选的球种）。</p>`
       + `<p>不勾选任何球种：<b>自动逃跑</b>（期间禁止手动丢球）。</p>`
       + `<p>勾选增益道具：增益结束后自动<b>续杯</b>（同时勾选优先甜甜蜜）。</p>`
-      + `<p>开启<b>闪光暂停</b>：闪光出现时不自动操作。</p>`,
+      + `<p>开启<b>闪光暂停</b>：闪光出现时不自动操作。</p>`
+      + `<p>开启<b>神兽暂停</b>：极稀有宝可梦（稀有度 0.8 以上，含多数神兽/幻兽）出现时不自动操作。</p>`,
   },
   {
     title: '佛系模式',
