@@ -281,6 +281,30 @@ export function getNature(key) { return _natureMap.has(key) ? { cn: _natureMap.g
 // 随机 roll 一个性格 key
 export function rollNature() { return POKEMON_NATURES[randInt(0, POKEMON_NATURES.length - 1)][0]; }
 
+// ---------- 性别 ----------
+// genderRate：-1=无性别；0-8=雌性概率/8（数据源：素材包 gender_ratio 转换，见 pokedex.json）
+export function rollGender(species) {
+  const rate = getPokemonByIndex(species)?.genderRate ?? 4; // 数据缺失兜底 50/50
+  if (rate === -1) return 'genderless';
+  return Math.random() * 8 < rate ? 'female' : 'male';
+}
+
+// 旧存档兼容：无 gender 字段的旧个体按物种比例补 roll 并写回
+export function ensureGender(entry) {
+  if (!entry || entry.gender) return entry?.gender || 'genderless';
+  const g = rollGender(entry.species);
+  entry.gender = g;
+  return g;
+}
+
+// 性别 → 雪碧图图标（♂ 蓝 / ♀ 粉，颜色由 .g-female/.g-male 控制）；无性别返回空串
+export function genderBadge(g) {
+  if (g === 'female') return '<svg class="g-sym g-female" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="./icons/sprites.svg#icon-female"/></svg>';
+  if (g === 'male') return '<svg class="g-sym g-male" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="./icons/sprites.svg#icon-male"/></svg>';
+  // 无性别：♂♀ 组合图标，同尺寸占位保证等级列 Lv 起点对齐
+  return '<svg class="g-sym g-genderless" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="./icons/sprites.svg#icon-genderless"/></svg>';
+}
+
 // 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
 export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1 }) {
   if (!gameData) return null;
@@ -289,6 +313,7 @@ export function addRosterEntry({ species, shiny = false, source = 'normal', leve
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     species,
     shiny: !!shiny,
+    gender: rollGender(species),
     level, // 捕获/孵化即 Lv1（战斗系统）；野生捕获可传随机等级
     exp: 0, // 经验（对战获得）
     evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }, // 努力值（训练方向自动分配）

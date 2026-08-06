@@ -15,18 +15,21 @@ export const NATURES = {
 export const STATUS_TEXT = {
   paralysis: '麻痹了', sleep: '睡着了', poison: '中毒了',
   burn: '灼伤了', freeze: '被冰冻了', confusion: '混乱了', flinch: '畏缩了',
+  infatuation: '着迷了',
 };
 export const STAT_INDEX = { 攻击: 0, 防御: 1, 特攻: 2, 特防: 3, 速度: 4, 命中率: 5, 闪避率: 6 };
 const STAGE_MULT = [2 / 8, 2 / 7, 2 / 6, 2 / 5, 2 / 4, 2 / 3, 1, 3 / 2, 4 / 2, 5 / 2, 6 / 2, 7 / 2, 8 / 2];
 
 const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const msg = (text) => ({ t: 'msg', text });
+// 战斗个体唯一标识：播放层优先用 uid 定位承受者，避免百变怪变身（改名为对手名）或双方同种时同名错位
+let _uidSeq = 0;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 // 清除异常状态：置空状态并推渲染事件（单纯 msg 不会刷新状态圆点/粒子特效）
 const clearStatus = (mon, events, text) => {
   mon.status = null;
   mon.sleepTurns = 0;
-  events.push({ t: 'status', who: mon.name, status: null, text });
+  events.push({ t: 'status', who: mon.name, uid: mon.uid, status: null, text });
 };
 
 // ---------- 能力值 ----------
@@ -52,6 +55,7 @@ export function createMon(pokeData, level, ivsObj, natureKey, moveIds) {
   return {
     idx: pokeData.index, name: pokeData.name, types: pokeData.types, level,
     ivs: ivsObj, nature: natureKey, moves: moveIds,
+    uid: ++_uidSeq, // 战斗个体唯一标识（变身只改外观，定位仍指向原个体）
     stats, maxHp: stats[0], hp: stats[0],
     stages: [0, 0, 0, 0, 0, 0, 0],
     stageTypes: [null, null, null, null, null, null, null], // 每项能力最近一次变化来源招式的属性（能力圆点按此着色）
@@ -86,7 +90,7 @@ function hit(actor, target, mv, ef, events, ctx = null) {
     // 命中率/闪避率等级修正：命中等级×2/8~8/2，闪避等级反向
     const accMult = STAGE_MULT[(actor.stages[5] || 0) - (target.stages[6] || 0) + 6];
     if (Math.random() * 100 > acc * accMult) {
-      events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
+      events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
       return false;
     }
   }
@@ -98,7 +102,7 @@ function hit(actor, target, mv, ef, events, ctx = null) {
   }
   // 守住：本回合免疫一切招式伤害（专用 block 事件让播放层做护盾挡下反馈）
   if (target.protected) {
-    events.push({ t: 'block', who: target.name, text: `${target.name}用守住挡住了${mv.name}！` });
+    events.push({ t: 'block', who: target.name, uid: target.uid, text: `${target.name}用守住挡住了${mv.name}！` });
     return false;
   }
   const stab = actor.types.includes(atkType) ? 1.5 : 1;
@@ -148,7 +152,7 @@ function hit(actor, target, mv, ef, events, ctx = null) {
     target.hitBySpec = true;
     target.specDmg = dmg;
   }
-  events.push({ t: 'dmg', who: target.name, amount: dmg, from: fromHp, to: target.hp });
+  events.push({ t: 'dmg', who: target.name, uid: target.uid, amount: dmg, from: fromHp, to: target.hp });
   if (m > 1) events.push(msg('效果绝佳！'));
   else if (m < 1) events.push(msg('收效甚微…'));
   // 概率附加状态 / 能力变化
@@ -157,7 +161,7 @@ function hit(actor, target, mv, ef, events, ctx = null) {
     applyStatus(target, st, events, ef.attach.chance, mv.type, ctx);
   }
   if (ef.stat && target.hp > 0) applyStat(ef.stat.target === 'self' ? actor : target, ef.stat.stats, events, mv.type, ef.stat.chance);
-  if (target.hp <= 0) events.push({ t: 'faint', who: target.name, text: `${target.name}倒下了！` });
+  if (target.hp <= 0) events.push({ t: 'faint', who: target.name, uid: target.uid, text: `${target.name}倒下了！` });
   return true;
 }
 
@@ -180,7 +184,7 @@ function applyStatus(mon, st, events, chance = 100, moveType = null, ctx = null)
   mon.statusType = moveType; // 记录来源招式属性，状态圆点按此着色
   if (st === 'sleep') mon.sleepTurns = rand(1, 3);
   if (st === 'confusion') mon.confusionTurns = rand(2, 4);
-  events.push({ t: 'status', who: mon.name, status: st, text: `${mon.name}${STATUS_TEXT[st]}！` });
+  events.push({ t: 'status', who: mon.name, uid: mon.uid, status: st, text: `${mon.name}${STATUS_TEXT[st]}！` });
 }
 
 function applyStat(mon, stats, events, moveType, chance = 100) {
@@ -192,7 +196,7 @@ function applyStat(mon, stats, events, moveType, chance = 100) {
     mon.stages[i] = ns;
     mon.stageTypes[i] = moveType; // 记录来源招式属性，能力圆点按此着色
     // stat 事件：让战斗界面刷新对应侧，属性后展示能力变化圆点
-    events.push({ t: 'stat', who: mon.name, text: `${mon.name}的${stat}${delta > 0 ? '提高了' : '降低了'}！` });
+    events.push({ t: 'stat', who: mon.name, uid: mon.uid, text: `${mon.name}的${stat}${delta > 0 ? '提高了' : '降低了'}！` });
   }
 }
 
@@ -212,13 +216,26 @@ function retaliate(actor, target, mv, events, spec) {
   const final = Math.floor(dmg * 2 * m);
   const fromHp = target.hp;
   target.hp -= final;
-  events.push({ t: 'dmg', who: target.name, amount: final, from: fromHp, to: target.hp });
+  events.push({ t: 'dmg', who: target.name, uid: target.uid, amount: final, from: fromHp, to: target.hp });
   if (m > 1) events.push(msg('效果绝佳！'));
   else if (m < 1) events.push(msg('收效甚微…'));
   // 反击成功：对应伤害记录清零，需再次受到同类别伤害才能再次反击
   if (spec) { actor.hitBySpec = false; actor.specDmg = 0; }
   else { actor.hitByPhys = false; actor.physDmg = 0; }
-  if (target.hp <= 0) events.push({ t: 'faint', who: target.name, text: `${target.name}倒下了！` });
+  if (target.hp <= 0) events.push({ t: 'faint', who: target.name, uid: target.uid, text: `${target.name}倒下了！` });
+}
+
+// ---------- 变身（百变怪） ----------
+// 复制对手外观：属性 / 能力值（HP 除外）/ 招式；保留自身 HP、等级、性别与异常状态。
+// 对自身或已变身的对手无效。
+export function transformMon(mon, source) {
+  if (!source || !source.idx || source.idx === mon.idx || source._transformOf) return false;
+  mon.types = source.types.slice();
+  mon.stats = [mon.stats[0], ...source.stats.slice(1)];
+  mon.moves = (source.moves || []).slice();
+  mon._transformOf = source.idx;
+  if (source.name) mon.name = source.name;
+  return true;
 }
 
 // ---------- 招式执行（返回事件数组） ----------
@@ -227,7 +244,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
   if (!mv) { events.push(msg(`${actor.name}没有可用招式！`)); return events; }
   // 蓄力回避：目标正处两回合招式离场蓄力（挖洞/飞翔/潜水/弹跳/潜灵奇袭），任何招式都无法命中
   if (target.chargeMove != null && target.chargeHidden) {
-    events.push({ t: 'miss', who: actor.name, text: `${actor.name}的攻击对${target.name}没有命中！` });
+    events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的攻击对${target.name}没有命中！` });
     return events;
   }
   const ef = mv.effect;
@@ -253,7 +270,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       if (dmg == null) dmg = actor.level; // 地球上投/黑夜魔影：等值等级伤害
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
-        events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
+        events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }
       // 属性免疫：固定伤害招式同样受克制表约束（音爆对幽灵、龙之怒对妖精等无效）
@@ -263,8 +280,8 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       }
       const fromHp = target.hp;
       target.hp -= dmg;
-      events.push({ t: 'dmg', who: target.name, amount: dmg, from: fromHp, to: target.hp, text: `造成了 ${dmg} 点伤害。` });
-      if (target.hp <= 0) events.push({ t: 'faint', who: target.name, text: `${target.name}倒下了！` });
+      events.push({ t: 'dmg', who: target.name, uid: target.uid, amount: dmg, from: fromHp, to: target.hp, text: `造成了 ${dmg} 点伤害。` });
+      if (target.hp <= 0) events.push({ t: 'faint', who: target.name, uid: target.uid, text: `${target.name}倒下了！` });
       break;
     }
     case 'drain': {
@@ -272,7 +289,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       if (hit(actor, target, mv, ef, events)) {
         const healed = Math.floor((before - Math.max(0, target.hp)) / 2);
         actor.hp = Math.min(actor.maxHp, actor.hp + healed);
-        events.push({ t: 'heal', who: actor.name, amount: healed, text: `${actor.name}吸收了 ${healed} 点HP！` });
+        events.push({ t: 'heal', who: actor.name, uid: actor.uid, amount: healed, text: `${actor.name}吸收了 ${healed} 点HP！` });
       }
       break;
     }
@@ -284,8 +301,8 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
         const fromHp = actor.hp;
         actor.hp -= recoil;
         // dmg 事件（含前后血量）让播放层刷新血条/弹伤害数字，否则只显示文字血条不动
-        events.push({ t: 'dmg', who: actor.name, amount: recoil, from: fromHp, to: actor.hp, text: `${actor.name}受到了 ${recoil} 点反作用力伤害！` });
-        if (actor.hp <= 0) events.push({ t: 'faint', who: actor.name, text: `${actor.name}倒下了！` });
+        events.push({ t: 'dmg', who: actor.name, uid: actor.uid, amount: recoil, from: fromHp, to: actor.hp, text: `${actor.name}受到了 ${recoil} 点反作用力伤害！` });
+        if (actor.hp <= 0) events.push({ t: 'faint', who: actor.name, uid: actor.uid, text: `${actor.name}倒下了！` });
       }
       break;
     }
@@ -298,7 +315,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     case 'heal': {
       const healed = Math.floor(actor.maxHp * ef.ratio);
       actor.hp = Math.min(actor.maxHp, actor.hp + healed);
-      events.push({ t: 'heal', who: actor.name, amount: healed, text: `${actor.name}回复了 ${healed} 点HP！` });
+      events.push({ t: 'heal', who: actor.name, uid: actor.uid, amount: healed, text: `${actor.name}回复了 ${healed} 点HP！` });
       break;
     }
     case 'sleepRest': {
@@ -306,7 +323,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       actor.status = 'sleep';
       actor.statusType = mv.type; // 睡觉：状态圆点按招式属性着色
       actor.sleepTurns = rand(2, 3);
-      events.push({ t: 'heal', who: actor.name, amount: actor.maxHp, text: `${actor.name}睡着了，并回复了全部HP！` });
+      events.push({ t: 'heal', who: actor.name, uid: actor.uid, amount: actor.maxHp, text: `${actor.name}睡着了，并回复了全部HP！` });
       break;
     }
     case 'cure': {
@@ -319,7 +336,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       const healed = Math.min(actor.maxHp - actor.hp, Math.floor(actor.maxHp / 4));
       if (healed > 0) {
         actor.hp += healed;
-        events.push({ t: 'heal', who: actor.name, amount: healed, text: `${actor.name}回复了 ${healed} 点HP！` });
+        events.push({ t: 'heal', who: actor.name, uid: actor.uid, amount: healed, text: `${actor.name}回复了 ${healed} 点HP！` });
       }
       if (actor.status) {
         clearStatus(actor, events, `${actor.name}的异常状态解除了！`);
@@ -354,8 +371,8 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       const fromHp = actor.hp;
       actor.hp = 0;
       // dmg 事件把血条扣到底，否则只播 faint 动画血条残留旧值
-      events.push({ t: 'dmg', who: actor.name, amount: fromHp, from: fromHp, to: 0, text: `${actor.name}倒下了！` });
-      events.push({ t: 'faint', who: actor.name, text: `${actor.name}倒下了！` });
+      events.push({ t: 'dmg', who: actor.name, uid: actor.uid, amount: fromHp, from: fromHp, to: 0, text: `${actor.name}倒下了！` });
+      events.push({ t: 'faint', who: actor.name, uid: actor.uid, text: `${actor.name}倒下了！` });
       applyStat(target, [{ stat: '攻击', delta: -2 }, { stat: '特攻', delta: -2 }], events, mv.type);
       break;
     }
@@ -385,10 +402,10 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       target.hp = Math.max(1, avg);
       events.push(msg(`${actor.name}与${target.name}分担了痛楚！`));
       // 双方 HP 变化分别推渲染事件（下降弹伤害、上升弹回复），否则血条不更新
-      if (aFrom > actor.hp) events.push({ t: 'dmg', who: actor.name, amount: aFrom - actor.hp, from: aFrom, to: actor.hp, text: '' });
-      else if (aFrom < actor.hp) events.push({ t: 'heal', who: actor.name, amount: actor.hp - aFrom, text: '' });
-      if (tFrom > target.hp) events.push({ t: 'dmg', who: target.name, amount: tFrom - target.hp, from: tFrom, to: target.hp, text: '' });
-      else if (tFrom < target.hp) events.push({ t: 'heal', who: target.name, amount: target.hp - tFrom, text: '' });
+      if (aFrom > actor.hp) events.push({ t: 'dmg', who: actor.name, uid: actor.uid, amount: aFrom - actor.hp, from: aFrom, to: actor.hp, text: '' });
+      else if (aFrom < actor.hp) events.push({ t: 'heal', who: actor.name, uid: actor.uid, amount: actor.hp - aFrom, text: '' });
+      if (tFrom > target.hp) events.push({ t: 'dmg', who: target.name, uid: target.uid, amount: tFrom - target.hp, from: tFrom, to: target.hp, text: '' });
+      else if (tFrom < target.hp) events.push({ t: 'heal', who: target.name, uid: target.uid, amount: target.hp - tFrom, text: '' });
       break;
     }
     case 'curse': {
@@ -396,7 +413,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       if (target.status) { events.push(msg('但是没有效果！（目标已有状态）')); break; }
       target.status = 'curse';
       target.statusType = mv.type;
-      events.push({ t: 'status', who: target.name, status: 'curse', text: `${target.name}被诅咒了！` });
+      events.push({ t: 'status', who: target.name, uid: target.uid, status: 'curse', text: `${target.name}被诅咒了！` });
       break;
     }
     case 'acupressure': {
@@ -508,17 +525,44 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     case 'status': {
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
-        events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
+        events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }
       applyStatus(target, ef.status, events, ef.chance, mv.type, ctx);
+      break;
+    }
+    case 'attract': {
+      // 诱惑：仅异性之间生效，任一方无性别则无效；成功后目标陷入"着迷"状态
+      const acc = mv.accuracy;
+      if (acc != null && Math.random() * 100 > acc) {
+        events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
+        break;
+      }
+      const ag = actor.gender, tg = target.gender;
+      if (!ag || !tg || ag === 'genderless' || tg === 'genderless' || ag === tg) {
+        events.push(msg(`${mv.name}对${target.name}没有效果…`));
+        break;
+      }
+      if (target.status) { events.push(msg(`${target.name}已经处于异常状态。`)); break; }
+      target.status = 'infatuation';
+      target.statusType = mv.type; // 记录来源招式属性，状态圆点按此着色
+      events.push({ t: 'status', who: target.name, uid: target.uid, status: 'infatuation', text: `${target.name}着迷了！` });
+      break;
+    }
+    case 'transform': {
+      // 变身：复制对手外观/属性/能力（HP 除外）/招式；对已变身者或同为百变怪无效
+      if (!transformMon(actor, target)) {
+        events.push(msg(`${mv.name}失败了！`));
+        break;
+      }
+      events.push({ t: 'transform', who: actor.name, uid: actor.uid, idx: actor.idx, of: target.idx, text: `${actor.name}变成了${target.name}的样子！` });
       break;
     }
     case 'stat': {
       if (ef.target === 'foe') {
         const acc = mv.accuracy;
         if (acc != null && Math.random() * 100 > acc) {
-          events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
+          events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
           break;
         }
       }
@@ -544,7 +588,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     case 'leechSeed': {
       const acc = mv.accuracy;
       if (acc != null && Math.random() * 100 > acc) {
-        events.push({ t: 'miss', who: actor.name, text: `${actor.name}的${mv.name}没有命中！` });
+        events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }
       if (target.types.includes('草')) {
@@ -557,7 +601,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       }
       target.seeded = true;
       target.seedSrc = actor;
-      events.push({ t: 'seed', who: target.name, text: `${target.name}被种下了寄生种子！` });
+      events.push({ t: 'seed', who: target.name, uid: target.uid, text: `${target.name}被种下了寄生种子！` });
       break;
     }
     case 'substitute': {
@@ -573,7 +617,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       const fromHp = actor.hp;
       actor.hp -= cost;
       actor.subHp = cost;
-      events.push({ t: 'dmg', who: actor.name, amount: cost, from: fromHp, to: actor.hp, text: `${actor.name}消耗 ${cost} 点体力，制造出替身！` });
+      events.push({ t: 'dmg', who: actor.name, uid: actor.uid, amount: cost, from: fromHp, to: actor.hp, text: `${actor.name}消耗 ${cost} 点体力，制造出替身！` });
       break;
     }
     case 'weather': {
@@ -616,10 +660,10 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       }
       const fromHp = actor.hp;
       actor.hp -= cost;
-      events.push({ t: 'dmg', who: actor.name, amount: cost, from: fromHp, to: actor.hp, text: `${actor.name}削减了 ${cost} 点HP！` });
+      events.push({ t: 'dmg', who: actor.name, uid: actor.uid, amount: cost, from: fromHp, to: actor.hp, text: `${actor.name}削减了 ${cost} 点HP！` });
       actor.stages[0] = 6;
       actor.stageTypes[0] = mv.type;
-      events.push({ t: 'stat', who: actor.name, text: `${actor.name}的攻击提升到了极限！` });
+      events.push({ t: 'stat', who: actor.name, uid: actor.uid, text: `${actor.name}的攻击提升到了极限！` });
       break;
     }
     case 'psychUp': {
@@ -662,7 +706,7 @@ export function preTurn(mon, events) {
   if (mon.hp <= 0) return false;
   if (mon.flinch) {
     mon.flinch = false;
-    events.push({ t: 'flinch', who: mon.name, text: `${mon.name}畏缩了，无法行动！` });
+    events.push({ t: 'flinch', who: mon.name, uid: mon.uid, text: `${mon.name}畏缩了，无法行动！` });
     return false;
   }
   if (mon.status === 'freeze') {
@@ -684,14 +728,18 @@ export function preTurn(mon, events) {
     events.push(msg(`${mon.name}因麻痹无法行动！`));
     return false;
   }
+  if (mon.status === 'infatuation' && Math.random() < 0.5) {
+    events.push(msg(`${mon.name}因着迷而无法行动！`));
+    return false;
+  }
   if (mon.status === 'confusion') {
     mon.confusionTurns--;
     if (Math.random() < 0.5) {
       events.push(msg(`${mon.name}混乱了，攻击了自己！`));
       const self = Math.max(1, Math.floor(mon.effStat(0) * 0.5));
       mon.hp -= self;
-      events.push({ t: 'dmg', who: mon.name, amount: self, text: `${mon.name}被自己打掉 ${self} 点HP。` });
-      if (mon.hp <= 0) events.push({ t: 'faint', who: mon.name, text: `${mon.name}倒下了！` });
+      events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: self, text: `${mon.name}被自己打掉 ${self} 点HP。` });
+      if (mon.hp <= 0) events.push({ t: 'faint', who: mon.name, uid: mon.uid, text: `${mon.name}倒下了！` });
     }
     if (mon.confusionTurns <= 0) clearStatus(mon, events, `${mon.name}清醒了过来！`);
     return mon.hp > 0;
@@ -705,18 +753,18 @@ export function postTurn(mon, events, ctx = null) {
   if (ctx && ctx.weather === 'sand' && !mon.types.some((t) => t === '岩石' || t === '地面' || t === '钢')) {
     const d = Math.floor(mon.maxHp / 16);
     mon.hp -= d;
-    events.push({ t: 'dmg', who: mon.name, amount: d, text: `${mon.name}被沙暴刮得生疼，受到 ${d} 点伤害！` });
+    events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: d, text: `${mon.name}被沙暴刮得生疼，受到 ${d} 点伤害！` });
   } else if (ctx && ctx.weather === 'hail' && !mon.types.includes('冰')) {
     const d = Math.floor(mon.maxHp / 16);
     mon.hp -= d;
-    events.push({ t: 'dmg', who: mon.name, amount: d, text: `${mon.name}被冰雹砸中，受到 ${d} 点伤害！` });
+    events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: d, text: `${mon.name}被冰雹砸中，受到 ${d} 点伤害！` });
   }
   // 青草场地：回合末回复 1/16
   if (ctx && ctx.field === 'grass') {
     const healed = Math.min(mon.maxHp - mon.hp, Math.floor(mon.maxHp / 16));
     if (healed > 0) {
       mon.hp += healed;
-      events.push({ t: 'heal', who: mon.name, amount: healed, text: `${mon.name}被青草场地滋养，回复了 ${healed} 点HP！` });
+      events.push({ t: 'heal', who: mon.name, uid: mon.uid, amount: healed, text: `${mon.name}被青草场地滋养，回复了 ${healed} 点HP！` });
     }
   }
   // 水流环：回合末回复 1/16
@@ -724,29 +772,29 @@ export function postTurn(mon, events, ctx = null) {
     const healed = Math.min(mon.maxHp - mon.hp, Math.floor(mon.maxHp / 16));
     if (healed > 0) {
       mon.hp += healed;
-      events.push({ t: 'heal', who: mon.name, amount: healed, text: `${mon.name}被水流环治愈，回复了 ${healed} 点HP！` });
+      events.push({ t: 'heal', who: mon.name, uid: mon.uid, amount: healed, text: `${mon.name}被水流环治愈，回复了 ${healed} 点HP！` });
     }
   }
   if (mon.status === 'poison') {
     const d = Math.floor(mon.maxHp / 8);
     mon.hp -= d;
-    events.push({ t: 'dmg', who: mon.name, amount: d, text: `${mon.name}因为中毒受到 ${d} 点伤害！` });
+    events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: d, text: `${mon.name}因为中毒受到 ${d} 点伤害！` });
   }
   if (mon.status === 'burn') {
     const d = Math.floor(mon.maxHp / 16);
     mon.hp -= d;
-    events.push({ t: 'dmg', who: mon.name, amount: d, text: `${mon.name}因为灼伤受到 ${d} 点伤害！` });
+    events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: d, text: `${mon.name}因为灼伤受到 ${d} 点伤害！` });
   }
   if (mon.status === 'curse') {
     const d = Math.floor(mon.maxHp / 4);
     mon.hp -= d;
-    events.push({ t: 'dmg', who: mon.name, amount: d, text: `${mon.name}因诅咒受到 ${d} 点伤害！` });
+    events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: d, text: `${mon.name}因诅咒受到 ${d} 点伤害！` });
   }
   if (mon.perishTurns > 0) {
     mon.perishTurns--;
     if (mon.perishTurns === 0) {
       // dmg 事件把血条扣到底，faint 由函数末尾统一追加
-      events.push({ t: 'dmg', who: mon.name, amount: mon.hp, from: mon.hp, to: 0, text: `${mon.name}被终焉之歌夺去了生命！` });
+      events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: mon.hp, from: mon.hp, to: 0, text: `${mon.name}被终焉之歌夺去了生命！` });
       mon.hp = 0;
     } else {
       events.push(msg(`${mon.name}的终焉之歌倒计时：${mon.perishTurns} 回合…`));
@@ -777,14 +825,14 @@ export function postTurn(mon, events, ctx = null) {
     const src = mon.seedSrc;
     events.push({ t: 'seedDrain', from: mon, to: src }); // 吸血粒子：绿色能量从被吸者身上吸回施种者
     mon.hp -= drain;
-    events.push({ t: 'dmg', who: mon.name, amount: drain, text: `${mon.name}被寄生种子吸走了 ${drain} 点HP！` });
+    events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: drain, text: `${mon.name}被寄生种子吸走了 ${drain} 点HP！` });
     const healed = Math.min(src.maxHp - src.hp, drain);
     if (healed > 0) {
       src.hp += healed;
-      events.push({ t: 'heal', who: src.name, amount: healed, text: `${src.name}回复了 ${healed} 点HP！` });
+      events.push({ t: 'heal', who: src.name, uid: src.uid, amount: healed, text: `${src.name}回复了 ${healed} 点HP！` });
     }
   }
-  if (mon.hp <= 0) events.push({ t: 'faint', who: mon.name, text: `${mon.name}倒下了！` });
+  if (mon.hp <= 0) events.push({ t: 'faint', who: mon.name, uid: mon.uid, text: `${mon.name}倒下了！` });
 }
 
 // 回合末倒计时：天气/场地剩余回合递减，光墙/反射壁剩余回合递减（只减当前出场宝可梦）
@@ -905,6 +953,10 @@ export function aiMove(actor, enemy, data) {
       score += Math.random() < 0.15 ? 3 : -7;
     } else if (ef.kind === 'hazard') {
       score += Math.random() < 0.4 ? 6 : -4;
+    } else if (ef.kind === 'attract') {
+      const ag = actor.gender, eg = enemy.gender;
+      const ok = ag && eg && ag !== 'genderless' && eg !== 'genderless' && ag !== eg;
+      score += ok && !enemy.status && Math.random() < 0.4 ? 8 : -8; // 诱惑：异性且对方无状态时施放
     } else {
       score -= 8;
     }

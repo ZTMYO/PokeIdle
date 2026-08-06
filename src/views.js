@@ -311,7 +311,7 @@ export function renderSystemLogs() {
         desc = log.details.auto ? '[自动] 你逃走了' : '你逃走了';
         break;
       case 'pokemon_escaped':
-        desc = `${log.details.auto ? '[自动] ' : ''}${logName(log)} 逃走了。`;
+        desc = `${log.details.auto ? '[自动] ' : ''}${logName(log)} 逃走了`;
         break;
       case 'egg_hatch':
         desc = `孵化出 ${log.details.shiny ? '闪光' : ''}${logName(log)}`;
@@ -395,6 +395,8 @@ export function renderSystemLogs() {
       default:
         desc = `未知事件 (${log.type})`;
     }
+    // 所有日志统一不以句号结尾（历史存档中的旧日志也会在展示时剥掉）
+    desc = desc.replace(/。\s*$/, '');
     return `<div style="font-size:10px;line-height:1.8;padding:1px 0;">
         <span style="opacity:0.6;">${time}</span>
         <span style="margin-left:6px;">${desc}</span>

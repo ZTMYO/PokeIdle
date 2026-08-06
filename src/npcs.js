@@ -1,6 +1,6 @@
 // NPC 挑战：每 20 分钟刷新一波训练家（3 普通 + 2 精英 + 1 冠军）
 // 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级随玩家出战队伍最高等级递进
-import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollNature, randInt } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollNature, rollGender, randInt } from './state.js';
 import { chooseMoves } from './moves.js';
 import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, MAX_LEVEL } from './config.js';
 
@@ -98,13 +98,13 @@ export function refreshNpcs() {
 // 之后每次挑战只按玩家等级重算等级——同一波次内 NPC 的速度/强度不再每局变化
 export function buildNpcTeam(npc, data, learnset, maxLv) {
   const base = Math.max(3, Math.min(MAX_LEVEL, maxLv + npc.lvBonus));
-  // 首次构建：roll 定个体/性格/招式并缓存（仅存可序列化字段，pd 每次从图鉴取）
+  // 首次构建：roll 定个体/性格/性别/招式并缓存（仅存可序列化字段，pd 每次从图鉴取）
   if (!Array.isArray(npc.team) || npc.team.length !== npc.mons.length) {
     npc.team = npc.mons.map((idx, i) => {
       const pd = getPokemonByIndex(idx);
       const level = Math.min(MAX_LEVEL, base - i);
       const moveIds = chooseMoves(learnset[idx], level, data, { types: pd.types, shuffle: true });
-      return { species: idx, level, ivs: rollIvs(), nature: rollNature(), moveIds };
+      return { species: idx, level, ivs: rollIvs(), nature: rollNature(), gender: rollGender(idx), moveIds };
     });
   }
   // 复用固定队伍数据，仅重算等级（跟随玩家出战队伍最高等级）
@@ -113,6 +113,7 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
     level: Math.min(MAX_LEVEL, base - i),
     ivs: m.ivs,
     nature: m.nature,
+    gender: m.gender,
     moveIds: m.moveIds,
   }));
 }

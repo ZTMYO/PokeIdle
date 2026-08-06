@@ -1,5 +1,5 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, _eggHatching, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId } from './state.js';
+import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, _eggHatching, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage } from './ui.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg } from './items.js';
 import { eatBlock } from './mixer.js';
@@ -53,6 +53,8 @@ let _bgResult = null;
 // 后台结果补播只是视觉回放，不允许再次参与真实遭遇结算。
 let _bgReplayActive = false;
 let _bgReplayToken = 0;
+// 当前遭遇宝可梦性别（每次遇敌 roll 一次；currentEncounter 是共享图鉴对象，直接写 gender 会污染数据源）
+let _encounterGender = 'male';
 
 // 保存后台结算结果（供切回游戏页后重放动画）
 function storeBgResult(outcome, breakRound, ballType, opts = {}) {
@@ -91,6 +93,15 @@ export function cancelBgResultReplay() {
   endBattle();
   cleanupEncounterState();
   if (phase !== 'battle') setPhase('idle');
+  return true;
+}
+
+// 手动捕获成功后停在"是否查看详情"确认框（phase='caught'）时离开游戏页（切图鉴/商店/对战列表等）：
+// 确认框随视图隐藏后无人点击，若不收尾，返回挂机页会停在"对战中"——道路暂停、不再遇敌，
+// 而捕获判定早已落库（宝可梦已在仓库/图鉴）。离开即视为放弃查看详情，直接收尾回空闲。
+export function finalizePendingCatch() {
+  if (phase !== 'caught' || _bgCatch || _autoCatching || _eggHatching) return false;
+  goIdle();
   return true;
 }
 
@@ -445,6 +456,8 @@ export function isLegendEncounter() {
 // ===== 显示遇敌 =====
 export function showEncounter(poke, opts = {}) {
   playBattle(); // 进入战斗 → 切换为战斗曲（覆盖地区曲）
+  // 每次遇敌 roll 定性别（同一遭遇内固定，供名字/后续"着迷"等性别机制使用）
+  _encounterGender = rollGender(poke.index);
   // 兼容旧调用 showEncounter(poke, true)：第二个参数传 true 表示跳过自动操作
   const skipAuto = opts === true || !!opts.skipAuto;
   const msg = opts && typeof opts === 'object' ? (opts.message || null) : null;
@@ -490,9 +503,10 @@ export function showEncounter(poke, opts = {}) {
 // ===== 渲染遭遇画面（可被回到游戏页时重新调用同步） =====
 export function renderEncounterScene(poke) {
   const _onHome = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
+  const gSpan = genderBadge(_encounterGender); // 性别图标（♂ 蓝 / ♀ 粉），放在 Lv 前（跟等级绑定，不跟名字）
   $('encounterName').innerHTML = (currentIsShiny
     ? '<span>' + poke.name + '</span><svg viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;color:var(--ui-color);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
-    : poke.name) + `<span class="encounter-lv">Lv${encounterLevel}</span>`;
+    : poke.name) + `<span class="encounter-lv">${gSpan}Lv${encounterLevel}</span>`;
   $('encounterName').style.display = '';
   const img = $('encounterGif');
   // 丢球/判定动画进行中（宝可梦在球里）：跳过图片重置与重新加载，
@@ -706,12 +720,12 @@ export async function throwBall(ballType) {
       }
       if (isOnGameView()) updateTextBox(msg, true);
       updateStats();
-      // 后台结算（遭遇曾被战斗打断）或自动捕捉：播完动画即统一收尾。
-      // 否则手动捕获在战斗打断后 phase 停在 'caught'、currentEncounter 不清理，
-      // 切回游戏页会被恢复流程当作活跃遭遇再次自动丢球
-      if (_bgCatch || _autoCatching) {
+      // 后台结算（遭遇曾被战斗打断）、自动捕捉，或丢球动画期间玩家已离开游戏页（如切到图鉴/商店）：
+      // 播完动画即统一收尾。否则手动捕获在离开游戏页后 phase 停在 'caught'、currentEncounter 不清理、
+      // 道路不恢复 → 切回挂机页会"主角在跑步但地块不动、不再遇敌"，而图鉴/日志早已记下捕获成功
+      if (_bgCatch || _autoCatching || !isOnGameView()) {
         await delay(300);
-        stopVictory(); // 自动捕捉成功：与手动捕获流程一致，关闭胜利音效并恢复背景曲
+        stopVictory(); // 与自动捕捉流程一致，关闭胜利音效并恢复背景曲（离开游戏页时确认框不可见，无人点按钮触发）
         // 孵蛋动画进行中：判定已落库，只清理现场不切视图，等孵蛋结束后统一回空闲
         if (_eggHatching || phase === 'eggResult') { cleanupEncounterState(); return; }
         goIdle();

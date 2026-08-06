@@ -423,6 +423,18 @@ body { margin: 0; padding: 0; cursor: default; }
   color: var(--ui-color);
   flex-shrink: 0;
 }
+.g-sym {
+  flex-shrink: 0;
+  vertical-align: -2px;
+  margin: 0 1px;
+  paint-order: stroke;
+  stroke: var(--ui-color);
+  stroke-width: 0.5;
+  stroke-linejoin: round;
+}
+.g-female { color: #ff6b9d; }
+.g-male { color: #4a9ff5; }
+.g-genderless { color: #72caae; }
 
 .encounter-types {
   position: absolute;
@@ -3718,7 +3730,7 @@ body { margin: 0; padding: 0; cursor: default; }
 /* 列表复用图鉴样式（.pokedex-entry/.pokedex-header/.pokedex-idx/.pokedex-name/.pokedex-star），
    仅图标/个体值/来源列按内容放宽列宽；滚动容器用共用类 .list-scroll */
 #rosterView .pokedex-name {
-  flex: 0 0 60px;
+  flex: 0 0 55px; /* 名称列固定宽：宝可梦名最多 5 字，超长省略 */
   max-width: none;
 }
 .roster-header, .roster-row { gap: 2px; }
@@ -3739,13 +3751,12 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 /* 行高固定，保证各行高度一致 */
 .roster-row { height: 30px; }
-/* 仓库列表独立等级列 */
+/* 仓库列表独立等级列：左对齐（紧贴名称列），不加粗 */
 .roster-lv-col {
   width: 38px;
   flex-shrink: 0;
-  text-align: right;
+  text-align: left;
   font-size: 10px;
-  font-weight: 700;
   color: var(--ui-color);
   font-variant-numeric: tabular-nums;
 }
@@ -4204,7 +4215,7 @@ body { margin: 0; padding: 0; cursor: default; }
 .trade-text {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
   word-break: break-all;
 }

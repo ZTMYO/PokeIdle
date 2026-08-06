@@ -8,6 +8,19 @@ import { startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 // 图鉴/统计页的地区筛选选项
 const REGION_OPTIONS = ['全部地区', '关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
 
+// 性别比例文案（genderRate: -1 无性别；0-8 雌性概率/8）
+function genderRatioText(poke) {
+  const rate = poke?.genderRate;
+  if (rate === undefined || rate === null) return '';
+  if (rate === -1) return '性别：无性别';
+  const fmt = (n) => (Number.isInteger(n) ? n : n.toFixed(1).replace(/\.0$/, ''));
+  const f = fmt(12.5 * rate);
+  const m = fmt(12.5 * (8 - rate));
+  if (rate === 0) return `性别：♂100%`;
+  if (rate === 8) return `性别：♀100%`;
+  return `性别：♂${m}% ♀${f}%`;
+}
+
 export function formatLogTime(ts) {
   const d = new Date(ts);
   return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -100,6 +113,7 @@ export function showEncounterLogs(pokemonIndex) {
           ${(poke && poke.types || []).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t]||'#888'}">${t}</span>`).join('')}
         </div>
         <div style="font-size:10px;line-height:1.5;">${poke && poke.region ? `<div>地区：${poke.region}</div>` : ''}
+        ${genderRatioText(poke) ? `<div>${genderRatioText(poke)}</div>` : ''}
         ${(() => {
           const r = (poke && poke.catchRate !== undefined) ? poke.catchRate : 0.5;
           const rarity = (poke && poke.rarity !== undefined) ? poke.rarity : 0.5;

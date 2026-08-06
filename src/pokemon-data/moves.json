@@ -3455,11 +3455,10 @@
             "power": null,
             "accuracy": null,
             "diff": "难",
-            "why": "",
-            "impl": false,
+            "why": "变身为对手的样子：复制属性、能力值（HP 除外）与招式；对已变身者或同为百变怪无效。",
+            "impl": true,
             "effect": {
-                "kind": "unimplemented",
-                "note": "变身成对手宝可梦的样子，能够使用和对手完全相同的招式。"
+                "kind": "transform"
             }
         },
         "145": {
@@ -4699,9 +4698,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "status",
-                "status": "confusion",
-                "chance": 100,
+                "kind": "attract",
+                "target": "foe",
                 "note": "♂诱惑♀或♀诱惑♂，让对手着迷。对手将很难使出招式。"
             }
         },
@@ -8739,17 +8737,11 @@
             "power": null,
             "accuracy": 100,
             "diff": "中",
-            "why": "",
+            "why": "让目标陷入着迷状态（仅异性生效，无性别免疫），每回合 50% 概率无法行动。",
             "impl": true,
             "effect": {
-                "kind": "stat",
-                "target": "foe",
-                "stats": [
-                    {
-                        "stat": "特攻",
-                        "delta": -2
-                    }
-                ]
+                "kind": "attract",
+                "target": "foe"
             }
         },
         "446": {

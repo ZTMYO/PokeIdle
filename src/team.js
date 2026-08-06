@@ -1,5 +1,5 @@
 import { $, showView, tryLoadImage } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, pushNav } from './state.js';
+import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge } from './state.js';
 
 export const TEAM_MAX = 6;
 
@@ -243,7 +243,7 @@ function slotHtml(i, p, disabled) {
     <div class="member-body">
       <div class="member-top"><span class="member-name">${name}${shiny}</span></div>
       <div class="member-mid">
-        <span class="member-lv">Lv${p.level || 1}</span>
+        <span class="member-lv">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
         <span class="xp-nums">${Math.floor(cur)} / ${need}</span>
       </div>
       <div class="member-xp-row">

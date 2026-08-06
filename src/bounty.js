@@ -4,7 +4,7 @@
 // 仓库中拥有该宝可梦（在仓个体）即可提交（交出一只个体）。
 // 只有今日到访过的地区才显示悬赏内容（离开后仍可查看）；提交必须到达该地区。
 import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge } from './state.js';
 import { $, showView, updateStats, tryLoadImage } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
 
@@ -271,7 +271,7 @@ function renderBountyTrade(content, regionIdx, bi) {
           <span class="roster-icon">${icon}</span>
           <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
           <span class="roster-ivs">${ivsText}</span>
-          <span class="roster-nature">Lv${p.level || 1}</span>
+          <span class="roster-nature">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">提交</button></span>
         </div>`;
       }).join('');

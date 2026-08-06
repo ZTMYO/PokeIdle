@@ -72,7 +72,12 @@ export function showView(id) {
     import('./items.js').then(m => m.finalizeEggResultContext());
   }
   if (wasOnGameView && id !== 'idleView' && id !== 'encounterView') {
-    import('./battle.js').then(m => m.cancelBgResultReplay());
+    import('./battle.js').then(m => {
+      m.cancelBgResultReplay();
+      // 离开游戏页时若正停在手动捕获的"是否查看详情"确认框（phase='caught'）：
+      // 确认框随视图隐藏后无人点击，不清理会导致返回挂机页时道路不移动、不再遇敌
+      m.finalizePendingCatch();
+    });
   }
   if (!wasOnGameView && (id === 'idleView' || id === 'encounterView')) {
     setTimeout(() => {

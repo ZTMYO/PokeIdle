@@ -2,7 +2,7 @@
 // 页面为 tile 地图铺满 + 告示牌入口：点击告示牌弹出配置/数据面板
 // 训练中的宝可梦会以像素图标在场地上随机走动
 import { $, showView, tryLoadImage, setupFoodTooltip } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog } from './state.js';
+import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog, ensureGender, genderBadge } from './state.js';
 import {
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, MAX_LEVEL,
   TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT,
@@ -389,7 +389,7 @@ function showWalkerTip(el, slot) {
     ? ' <svg viewBox="0 0 1024 1024" width="10" height="10" style="vertical-align:-1px;color:#fff;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
     : '';
   const sat = slot.satiety == null ? TRAIN_SATIETY_MAX : Math.round(slot.satiety);
-  tip.innerHTML = `${poke ? poke.name : '#' + entry.species}${shiny} · Lv${entry.level || 1} · 饱食${sat}
+  tip.innerHTML = `${poke ? poke.name : '#' + entry.species}${shiny} · ${genderBadge(ensureGender(entry))}Lv${entry.level || 1} · 饱食${sat}
     <span class="train-walker-tip-status${lazy ? ' lazy' : ''}">${lazy ? '偷懒中' : '训练中'}</span>`;
   tip.style.display = '';
   const er = el.getBoundingClientRect();
@@ -569,7 +569,7 @@ function statusRowHtml(slot, i) {
     : '';
   return `<div class="train-status-row" data-slot="${i}">
     <span class="train-status-dot${lazy ? ' lazy' : ''}"></span>
-    <span class="train-status-name"><span class="train-status-name-text">${name}</span>${shiny}<em>Lv${lv}</em></span>
+    <span class="train-status-name"><span class="train-status-name-text">${name}</span>${shiny}<em>${genderBadge(ensureGender(entry))}Lv${lv}</em></span>
     <div class="train-status-bar"><div class="xp-fill" style="width:${ratio.toFixed(1)}%"></div></div>
     <span class="train-status-satiety ${satCls}" title="饱食度"><span class="train-status-sat-track"><span class="train-status-sat-fill" style="width:${sat}%"></span></span><em class="train-status-sat-num">${sat}</em></span>
     <span class="train-status-nums">${Math.floor(cur)} / ${need}</span>
@@ -655,7 +655,7 @@ function refreshSlots() {
       const nums = el.querySelector('.train-status-nums');
       if (nums) nums.textContent = `${Math.floor(cur)} / ${need}`;
       const lv = el.querySelector('.train-status-name em');
-      if (lv) lv.textContent = `Lv${entry.level || 1}`;
+      if (lv) lv.innerHTML = `${genderBadge(ensureGender(entry))}Lv${entry.level || 1}`;
       const st = el.querySelector('.train-status-dot');
       if (st) st.classList.toggle('lazy', isLazy(slot));
       // 饱食度条与数字：随每秒结算同步（吃到树果时数值会上涨）

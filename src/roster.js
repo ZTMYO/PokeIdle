@@ -2,7 +2,7 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, tryLoadImage, tryLoadPokemonImage } from './ui.js';
-import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView } from './state.js';
+import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
@@ -181,6 +181,7 @@ function renderList() {
 function rowHtml(p) {
   const poke = getPokemonByIndex(String(p.species));
   const name = poke ? poke.name : `#${p.species}`;
+  const gSpan = genderBadge(ensureGender(p)); // 性别图标（♂ 蓝 / ♀ 粉），紧跟 Lv 前
   const icon = poke?.icon ? `<img class="roster-icon-img" data-icon="${p.species}" alt="" />` : '';
   return `
     <div class="pokedex-entry roster-row" data-rid="${p.id}">
@@ -188,7 +189,7 @@ function rowHtml(p) {
       <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
       <span class="pokedex-idx">#${p.species}</span>
       <span class="pokedex-name">${name}</span>
-      <span class="roster-lv-col">Lv${p.level || 1}</span>
+      <span class="roster-lv-col">${gSpan}Lv${p.level || 1}</span>
       <span class="roster-iv">${ivSum(p)}</span>
     </div>`;
 }
@@ -849,12 +850,13 @@ function showRosterDetail(id) {
 
   const poke = getPokemonByIndex(String(p.species));
   const name = poke ? poke.name : `#${p.species}`;
+  const dGSpan = genderBadge(ensureGender(p)); // 性别图标（♂ 蓝 / ♀ 粉），放在 Lv 前（跟等级绑定，不跟名字）
   const lastLog = latestLogLine(String(p.species));
   const list = $('rosterList');
   if (!list) return;
   list.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span>${name}<span class="roster-detail-lv">Lv${p.level || 1}</span>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
+      <span>${name}<span class="roster-detail-lv">${dGSpan}Lv${p.level || 1}</span>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
       <div style="display:flex;flex-direction:row;align-items:flex-end;gap:2px;flex-shrink:0;">
         <button class="roster-release" data-pokedex title="查看图鉴">图鉴</button>
         <button class="roster-release" data-release>放生</button>

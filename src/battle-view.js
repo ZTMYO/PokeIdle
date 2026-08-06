@@ -1,8 +1,8 @@
 // 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
 import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
-import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase } from './state.js';
-import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns } from './battle-core.js';
+import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge } from './state.js';
+import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon } from './battle-core.js';
 import { typeMult } from './type-chart.js';
 import { chooseMoves } from './moves.js';
 import { ensureNpcs, buildNpcTeam } from './npcs.js';
@@ -45,7 +45,7 @@ const STALL_LIMIT = 10;
 // 异常状态 → 展示名称（状态圆点颜色取造成该状态的招式属性色，见 renderMon）
 const STATUS_NAMES = {
   paralysis: '麻痹', sleep: '睡眠', poison: '中毒',
-  burn: '灼伤', freeze: '冰冻', confusion: '混乱', curse: '诅咒',
+  burn: '灼伤', freeze: '冰冻', confusion: '混乱', curse: '诅咒', infatuation: '着迷',
 };
 // 能力等级顺序（与 createMon 的 stages 数组一致）：0攻 1防 2特攻 3特防 4速 5命中率 6闪避率
 const STAT_NAMES = ['攻击', '防御', '特攻', '特防', '速度', '命中率', '闪避率'];
@@ -110,7 +110,7 @@ function doRetreat(battle) {
   setPhase('idle'); // 撤退恢复主界面挂机状态
   endBattle(); // 撤退 → 停止战斗曲，恢复地区曲
   showBattleView();
-  addSystemLog('战斗', `与「${battle.preset.name}」的战斗中撤退了。`);
+  addSystemLog('战斗', `与「${battle.preset.name}」的战斗中撤退了`);
 }
 
 // 可中断暂停：撤退请求时抛错中断战斗循环，避免继续操作已销毁的战斗 DOM
@@ -311,6 +311,7 @@ function buildPlayerTeam() {
     return (() => {
       const mon = createMon(pd, entry.level || 1, entry.ivs, entry.nature, moveIds);
       mon.shiny = !!entry.shiny; // 战斗大图按闪光贴图（_shiny 后缀）加载
+      mon.gender = ensureGender(entry); // 玩家个体性别（旧存档无 gender 字段则按物种比例补 roll 并写回）
       mon.participated = false; // 经验结算条件：参战（上过场）且存活
       return { entry, pd, mon };
     })();
@@ -330,9 +331,11 @@ async function startNpcBattle(npcId, startAuto = false) {
   }
   const pTeam = buildPlayerTeam();
   if (!pTeam.length) return;
-  const eTeam = buildNpcTeam(npc, _data, _learnset, battleMaxLv()).map((x) => ({
-    pd: x.pd, mon: createMon(x.pd, x.level, x.ivs, x.nature, x.moveIds),
-  }));
+  const eTeam = buildNpcTeam(npc, _data, _learnset, battleMaxLv()).map((x) => {
+    const mon = createMon(x.pd, x.level, x.ivs, x.nature, x.moveIds);
+    mon.gender = x.gender || rollGender(x.pd.index); // NPC 性别：正常由 buildNpcTeam 缓存，旧缓存缺失时按物种补 roll
+    return { pd: x.pd, mon };
+  });
   const battle = { preset: npc, pTeam, eTeam, pIdx: 0, eIdx: 0, winner: null, round: 1,
     weather: null, weatherTurns: 0, field: null, fieldTurns: 0, // 天气/场地（useMove 的 ctx）
     hazards: { p: { spikes: 0, toxic: 0, rock: false }, e: { spikes: 0, toxic: 0, rock: false } }, // 撒菱/毒菱/隐形岩
@@ -361,6 +364,9 @@ async function startNpcBattle(npcId, startAuto = false) {
   const pageReady = renderBattlePage(battle);
   playBattle(); // 进入 NPC 挑战 → 切换为战斗曲（覆盖地区曲）
   await pageReady; // 等双方精灵球登场动画播完再进入回合
+  // 开场自动变身：双方若有百变怪在场上立即变身成对手
+  autoTransform(battle, 'p');
+  autoTransform(battle, 'e');
   // 重试自动：开局直接铺自动遮罩，进入自动出招
   if (startAuto) {
     const mask = $('b-auto-mask');
@@ -407,7 +413,7 @@ function applyEntryHazards(battle, side, events) {
     d = Math.max(1, Math.floor(d));
     const before = mon.hp;
     mon.hp = Math.max(1, mon.hp - d); // 保底 1 HP，防止钉子直接击倒
-    events.push({ t: 'dmg', who: mon.name, amount: before - mon.hp, from: before, to: mon.hp, text });
+    events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: before - mon.hp, from: before, to: mon.hp, text });
   };
   let stepped = false; // 是否实际踩中钉子（隐形岩被免疫/毒菱免疫时不触发碎片高亮）
   if (hz.rock) {
@@ -423,12 +429,28 @@ function applyEntryHazards(battle, side, events) {
   if (hz.toxic > 0 && !mon.types.some((t) => t === '毒' || t === '钢') && !mon.status) {
     mon.status = 'poison';
     mon.statusType = '毒';
-    events.push({ t: 'status', who: mon.name, status: 'poison', text: `${mon.name}被毒菱刺中，中毒了！` });
+    events.push({ t: 'status', who: mon.name, uid: mon.uid, status: 'poison', text: `${mon.name}被毒菱刺中，中毒了！` });
     stepped = true;
   }
   if (stepped) {
     const color = hz.toxic > 0 ? '#a23df0' : hz.spikes > 0 ? '#b98f5e' : '#b59162';
     hzHitFx(side === 'p' ? 'bp' : 'be', color);
+  }
+}
+
+// 百变怪登场自动变身：复制对手外观/招式（对手同为百变怪或已变身则无效，HP 不复制）
+function autoTransform(battle, side) {
+  const me = curMon(battle, side);
+  const foe = curMon(battle, side === 'p' ? 'e' : 'p');
+  if (!me || !foe || me.hp <= 0 || foe.hp <= 0) return;
+  if (String(me.idx) !== '0132' || me._transformOf) return; // 仅百变怪，且未变身
+  if (String(foe.idx) === '0132' || foe._transformOf) return; // 对手同为百变怪/已变身则不生效
+  const panel = side === 'p' ? 'bp' : 'be';
+  const before = me.name;
+  if (transformMon(me, foe)) {
+    setText(`${before}变成了${foe.name}的样子！`);
+    renderMon(me, panel);
+    renderTeamInfo(battle);
   }
 }
 
@@ -462,6 +484,7 @@ async function doForcedSwitch(battle, side, keepStats) {
   applyEntryHazards(battle, side, hazEvs);
   if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, side));
   await battleSleep(400);
+  autoTransform(battle, side); // 强制换上场的若是百变怪，登场后立即变身
   return true;
 }
 // 自动换人：取当前下标之后下一只存活（队尾回绕），无存活返回 -1
@@ -621,7 +644,8 @@ function animateHpBar(side, from, to, maxHp) {
 }
 
 function renderMon(mon, side, enter) {
-  const pd = getPokemonByIndex(mon.idx);
+  // 变身后的百变怪：以复制对象的外观渲染（图片/属性随 _transformOf 切换）
+  const pd = getPokemonByIndex(mon._transformOf || mon.idx);
   const img = $(`${side}-img`);
   // 清除上一只残留的战斗动画类（faint 带 forwards 会停在不可见状态；其余互斥类按 CSS 后定义覆盖）
   img.classList.remove(...B_ANIM_CLS);
@@ -642,7 +666,8 @@ function renderMon(mon, side, enter) {
   if (mon.shiny) { // 闪光个体：名字后追加星标（复用图鉴/仓库的闪光星 SVG）
     nameEl.insertAdjacentHTML('beforeend', '<svg class="roster-shiny" viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>');
   }
-  $(`${side}-lv`).textContent = `Lv${mon.level}`;
+  // 等级区：性别图标（♂ 蓝 / ♀ 粉）跟在 Lv 前（跟等级绑定，不跟名字）
+  $(`${side}-lv`).innerHTML = `${genderBadge(mon.gender)}Lv${mon.level}`;
   // 属性后追加异常状态圆点（自制 tooltip 显示状态名，跟随鼠标）；颜色取造成该状态的招式属性
   const stName = mon.status ? STATUS_NAMES[mon.status] : null;
   const statusDot = stName ? `<span class="b-status-dot" style="background:${TYPE_COLORS[mon.statusType] || '#888'}" data-tip="${stName}"></span>` : '';
@@ -1873,6 +1898,25 @@ function askPlayerMove(battle) {
 
 // 播放事件：hitRef 为承受伤害方（我方回合=敌方、敌方回合=我方、preTurn/postTurn=自身）；
 // hitType 为造成该伤害的招式属性（攻击出招时传入，用于属性专属命中特效；状态/回合伤害不传则用默认白火花）
+// 事件承受者定位：优先按 uid（百变怪变身/双方同种时名字撞车会定位错侧），名字匹配兜底
+function evMon(battle, ev) {
+  const p = curMon(battle, 'p');
+  const e = curMon(battle, 'e');
+  if (ev.uid != null) {
+    if (p.uid === ev.uid) return p;
+    if (e.uid === ev.uid) return e;
+  }
+  if (ev.who === p.name && ev.who !== e.name) return p;
+  if (ev.who === e.name && ev.who !== p.name) return e;
+  return null;
+}
+// 事件承受者所在侧：uid 优先，名字按 hitRef 二分兜底
+function evSide(battle, ev, hitRef, hitSide, otherSide) {
+  const m = evMon(battle, ev);
+  if (m) return m === curMon(battle, 'p') ? 'bp' : 'be';
+  return ev.who === hitRef.name ? hitSide : otherSide;
+}
+
 async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts) {
   const hitSide = hitRef === curMon(battle, 'p') ? 'bp' : 'be';
   const otherSide = hitSide === 'bp' ? 'be' : 'bp';
@@ -1922,10 +1966,8 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
     }
     if (ev.t === 'dmg') {
       // 按承受者定位播放侧：攻击伤害=目标侧，替身消耗/混乱自伤/回合伤害=自身侧
-      const pCur = curMon(battle, 'p');
-      const eCur = curMon(battle, 'e');
-      const dMon = ev.who === pCur.name ? pCur : ev.who === eCur.name ? eCur : null;
-      const dSide = dMon === pCur ? 'bp' : 'be';
+      const dMon = evMon(battle, ev);
+      const dSide = dMon === curMon(battle, 'p') ? 'bp' : 'be';
       if (!dMon) { setText(ev.text || `${ev.who}受到 ${ev.amount} 点伤害！`); await battleSleep(300); continue; }
       popDmg(dSide, ev.amount, dMon);
       setText(ev.text || `${ev.who}受到 ${ev.amount} 点伤害！`);
@@ -1942,7 +1984,7 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       // 普通单发伤害保留 750ms，维持重创一击的停顿感
       await battleSleep(nSteps ? 300 : 500);
     } else if (ev.t === 'heal') {
-      const side = ev.who === hitRef.name ? hitSide : otherSide;
+      const side = evSide(battle, ev, hitRef, hitSide, otherSide);
       popHeal(side, ev.amount);
       spawnHealFx(side); // 回复加号粒子：绿色十字能量向上飘散
       setText(ev.text);
@@ -1950,39 +1992,43 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       await battleSleep(500);
     } else if (ev.t === 'seed') {
       // 寄生种子种下：刷新目标侧精灵，触发脚下幼芽特效挂载
-      const pCur = curMon(battle, 'p');
-      const eCur = curMon(battle, 'e');
-      const dMon = ev.who === pCur.name ? pCur : ev.who === eCur.name ? eCur : null;
-      if (dMon) renderMon(dMon, dMon === pCur ? 'bp' : 'be');
+      const dMon = evMon(battle, ev);
+      if (dMon) renderMon(dMon, dMon === curMon(battle, 'p') ? 'bp' : 'be');
       setText(ev.text);
       await battleSleep(450);
     } else if (ev.t === 'faint') {
       // 换人后旧宠残留的 faint 事件：只播文本，避免把新上场的宝可梦闪掉
-      if (ev.who === hitRef.name && !onField) { setText(ev.text); await battleSleep(850); continue; }
-      faintAnim(ev.who === hitRef.name ? hitSide : otherSide);
+      if (ev.uid === hitRef.uid && !onField) { setText(ev.text); await battleSleep(850); continue; }
+      faintAnim(ev.uid === hitRef.uid ? hitSide : otherSide);
       setText(ev.text);
       await battleSleep(600);
     } else if (ev.t === 'status') {
       // 换人后旧宠残留的 status 事件：只播文本，避免震动误震新上场的宝可梦
-      if (ev.who === hitRef.name && !onField) { setText(ev.text); await battleSleep(700); continue; }
+      if (ev.uid === hitRef.uid && !onField) { setText(ev.text); await battleSleep(700); continue; }
       setText(ev.text);
       renderMon(hitRef, hitSide); // 立即刷新，属性后显示状态圆点
       shake(hitSide); // 渲染后再震，避免被 renderMon 清掉动画类
       await battleSleep(450);
+    } else if (ev.t === 'transform') {
+      // 变身成功：立即切换对应侧外观/属性/招式（手动使用变身招式时触发；登场自动变身走 autoTransform）
+      const side = evSide(battle, ev, hitRef, hitSide, otherSide);
+      const mon = side === 'bp' ? curMon(battle, 'p') : curMon(battle, 'e');
+      setText(ev.text);
+      renderMon(mon, side);
+      renderTeamInfo(battle);
+      await battleSleep(700);
     } else if (ev.t === 'stat') {
       // 能力升降：立即刷新对应侧，属性后显示能力变化圆点（buff/debuff）
-      const side = ev.who === curMon(battle, 'p').name ? 'bp' : 'be';
+      const side = evSide(battle, ev, hitRef, hitSide, otherSide);
       const mon = side === 'bp' ? curMon(battle, 'p') : curMon(battle, 'e');
       setText(ev.text);
       renderMon(mon, side);
       await battleSleep(450);
     } else if (ev.t === 'block') {
       // 守住系护盾挡下招式：目标侧护盾白光一闪（换人后旧宠残留事件只播文本）
-      if (ev.who === hitRef.name && !onField) { setText(ev.text); await battleSleep(450); continue; }
-      const pCur = curMon(battle, 'p');
-      const eCur = curMon(battle, 'e');
-      const dMon = ev.who === pCur.name ? pCur : ev.who === eCur.name ? eCur : null;
-      if (dMon) shieldHit(dMon === pCur ? 'bp' : 'be');
+      if (ev.uid === hitRef.uid && !onField) { setText(ev.text); await battleSleep(450); continue; }
+      const dMon = evMon(battle, ev);
+      if (dMon) shieldHit(dMon === curMon(battle, 'p') ? 'bp' : 'be');
       setText(ev.text);
       await battleSleep(500);
     } else {
@@ -2394,6 +2440,7 @@ async function battleLoop(battle) {
         applyEntryHazards(battle, 'p', hazEvs);
         if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, 'p'));
         await battleSleep(400);
+        autoTransform(battle, 'p'); // 换上的若是百变怪，登场后立即变身
         pAct = null; // 本回合行动已消耗在换人上
       }
 
@@ -2457,11 +2504,11 @@ async function battleLoop(battle) {
       const beMon = curMon(battle, 'e');
       if (bpMon.destinyBond && bpMon.hp <= 0 && beMon.hp > 0) {
         beMon.hp = 0;
-        turnEvs.push({ t: 'faint', who: beMon.name, text: `${beMon.name}被同命带走了！` });
+        turnEvs.push({ t: 'faint', who: beMon.name, uid: beMon.uid, text: `${beMon.name}被同命带走了！` });
       }
       if (beMon.destinyBond && beMon.hp <= 0 && bpMon.hp > 0) {
         bpMon.hp = 0;
-        turnEvs.push({ t: 'faint', who: bpMon.name, text: `${bpMon.name}被同命带走了！` });
+        turnEvs.push({ t: 'faint', who: bpMon.name, uid: bpMon.uid, text: `${bpMon.name}被同命带走了！` });
       }
       if (turnEvs.length) await playEvents(turnEvs, battle, curMon(battle, 'p'));
 
@@ -2484,6 +2531,7 @@ async function battleLoop(battle) {
         applyEntryHazards(battle, 'p', hazEvs);
         if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, 'p'));
         await battleSleep(400);
+        autoTransform(battle, 'p'); // 换上的若是百变怪，登场后立即变身
       }
       if (curMon(battle, 'e').hp <= 0) {
         if (!nextMon(battle, 'e')) { battle.winner = 'p'; break; }
@@ -2497,6 +2545,7 @@ async function battleLoop(battle) {
         applyEntryHazards(battle, 'e', hazEvs);
         if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, 'e'));
         await battleSleep(400);
+        autoTransform(battle, 'e'); // 换上的若是百变怪，登场后立即变身
       }
       if (battle.winner) break;
 
@@ -2593,7 +2642,7 @@ function finishBattle(battle) {
     }
   }
   saveGame();
-  addSystemLog('战斗', `${win ? '战胜' : '输给'}了「${battle.preset.name}」${win ? `，获得 ${battle.preset.candy} 糖果` : ''}。`);
+  addSystemLog('战斗', `${win ? '战胜' : '输给'}了「${battle.preset.name}」${win ? `，获得 ${battle.preset.candy} 糖果` : ''}`);
   endBattle(); // 战斗结束 → 停止战斗曲，恢复地区曲
   if (win) playVictory(); // 胜利音效（播完自动恢复地区曲）
   if (win) window.dispatchEvent(new Event('achievements-changed')); // 胜利可能解锁对战成就，即时刷新手机红点
