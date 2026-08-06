@@ -21,7 +21,7 @@
       <!-- 像素主角：顶栏中间轨道来回行走（不覆盖左右 UI） -->
       <div class="pv-track"><div class="pv-walk" id="pvBrendan"></div></div>
       <nav>
-        <button class="topbar-tut" id="openTutorialBtn" type="button">游戏教程</button>
+        <button class="topbar-tut" id="openTutorialBtn" type="button">教程</button>
         <a class="topbar-gh" href="https://github.com/ZTMYO/PokeIdle" target="_blank" rel="noopener" title="GitHub" aria-label="GitHub"><svg class="gh-icon"><use href="./sprites.svg#icon-github" /></svg></a>
       </nav>
     </div>
@@ -214,12 +214,27 @@
   <!-- ============ 游戏教程子页面（内容解析自游戏源码 src/views.js） ============ -->
   <div class="tutorial-page" id="tutorialPage" hidden>
     <div class="tut-head">
-      <div class="tut-head-title">游戏教程</div>
+      <div class="tut-head-left">
+        <button class="tut-menu-btn" id="tutMenu" type="button" aria-label="章节菜单" title="章节菜单">☰</button>
+        <div class="tut-head-title">游戏教程</div>
+      </div>
+      <div class="tut-head-center">
+        <div class="tut-search">
+          <svg class="tut-search-icon" aria-hidden="true"><use href="./sprites.svg#icon-search"/></svg>
+          <input id="tutSearchInput" type="text" placeholder="搜索章节内容…" autocomplete="off" spellcheck="false">
+          <button class="tut-search-clear" id="tutSearchClear" type="button" aria-label="清空搜索" hidden>✕</button>
+          <div class="tut-search-drop" id="tutSearchDrop" hidden></div>
+        </div>
+      </div>
       <button class="tut-close" id="tutClose" type="button" aria-label="关闭教程">✕</button>
     </div>
     <div class="tut-body">
+      <div class="tut-mask" id="tutMask"></div>
       <div class="tut-list" id="tutList"></div>
-      <div class="tut-content" id="tutContent"></div>
+      <div class="tut-main">
+        <div class="tut-content" id="tutContent"></div>
+        <div class="tut-foot" id="tutFoot"></div>
+      </div>
     </div>
   </div>
 

@@ -53,6 +53,29 @@ export function chooseMoves(learnsetEntry, level, data, opts = {}) {
     return { m, s };
   }).sort((a, b) => b.s - a.s);
 
+  // 洗牌模式（NPC 队伍）：按评分加权随机选招——同品种同等级也会配出不同招式，
+  // 评分越高越常被选中，仍受属性去重约束，保证质量下限
+  if (opts.shuffle) {
+    const picked = [];
+    const typeCount = {};
+    while (picked.length < 4) {
+      // 属性去重：已选 2 招后，同属性攻击招限 1 个（与确定性分支一致）
+      const pool = scored.filter(({ m }) =>
+        !picked.includes(m) && !(picked.length >= 2 && (typeCount[moves[m].type] || 0) >= 1));
+      if (!pool.length) break;
+      const total = pool.reduce((a, b) => a + Math.max(b.s, 0) + 1, 0);
+      let r = Math.random() * total;
+      let pick = pool[pool.length - 1];
+      for (const it of pool) {
+        r -= Math.max(it.s, 0) + 1;
+        if (r <= 0) { pick = it; break; }
+      }
+      picked.push(pick.m);
+      typeCount[moves[pick.m].type] = (typeCount[moves[pick.m].type] || 0) + 1;
+    }
+    return picked;
+  }
+
   // 打击面去重：贪心选 4，攻击招尽量不同属性（同属性最多 2 个）
   const picked = [];
   const typeCount = {};

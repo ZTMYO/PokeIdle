@@ -2,7 +2,7 @@
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
 import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
 import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase } from './state.js';
-import { createMon, useMove, preTurn, postTurn, aiMove } from './battle-core.js';
+import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns } from './battle-core.js';
 import { typeMult } from './type-chart.js';
 import { chooseMoves } from './moves.js';
 import { ensureNpcs, buildNpcTeam } from './npcs.js';
@@ -34,14 +34,21 @@ let _settled = false;     // 结算页显示中（goBack 判断返回应回 NPC 
 let _pendingAsk = null;   // 挂起的玩家选择 resolve（撤退时强制结束）
 let _fleeing = false;     // 已请求撤退
 let _auto = false;        // 自动战斗模式：点操作栏「自动」按钮启动，点遮罩恢复手动
+let _retryAuto = false;   // 记住上一把战斗结束时的自动状态（「再战一次」沿用）
+let _battleLogs = [];     // 本次对战的完整文本日志（右键文案区可查看）
+let _logCtx = null;       // 本局日志上下文（双方宝可梦名 + NPC 名），结算后「回顾」仍可正确渲染敌我
+let _logMenu = null;      // 右键菜单元素
+
+// 僵局判定：连续多少回合双方均未造成伤害（回合首尾 HP 均无变化）视为死循环，自动战斗主动换人/判负
+const STALL_LIMIT = 10;
 
 // 异常状态 → 展示名称（状态圆点颜色取造成该状态的招式属性色，见 renderMon）
 const STATUS_NAMES = {
   paralysis: '麻痹', sleep: '睡眠', poison: '中毒',
-  burn: '灼伤', freeze: '冰冻', confusion: '混乱',
+  burn: '灼伤', freeze: '冰冻', confusion: '混乱', curse: '诅咒',
 };
-// 能力等级顺序（与 createMon 的 stages 数组一致）：0攻 1防 2特攻 3特防 4速
-const STAT_NAMES = ['攻击', '防御', '特攻', '特防', '速度'];
+// 能力等级顺序（与 createMon 的 stages 数组一致）：0攻 1防 2特攻 3特防 4速 5命中率 6闪避率
+const STAT_NAMES = ['攻击', '防御', '特攻', '特防', '速度', '命中率', '闪避率'];
 
 // 招式类别中文名与判定（物理/特殊/变化；伤害类招式按 effect.cat 归类），与配招页同款
 const MOVE_CAT_CN = { phys: '物理', spec: '特殊', status: '变化' };
@@ -65,10 +72,13 @@ function resetCounter(mon) {
   if (!mon) return;
   mon.hitByPhys = false; mon.physDmg = 0;
   mon.hitBySpec = false; mon.specDmg = 0;
-  mon.protected = false; mon.endure = false;
+  mon.protected = false; mon.endure = false; mon.protectStreak = 0;
   mon.subHp = 0;
   mon.seeded = false; mon.seedSrc = null;
   mon.chargeMove = null; mon.chargeHidden = false; // 换人中断两回合蓄力
+  mon.disabledMove = null; mon.disableTurns = 0;   // 定身法/无理取闹：换人后解除
+  mon.lockedMove = null; mon.encoreTurns = 0;      // 再来一次：换人后解除
+  mon.tauntTurns = 0;                              // 挑衅：换人后解除
 }
 
 // 战斗是否进行中（标题栏返回判断）
@@ -150,6 +160,12 @@ function applySpriteSize(img, side, pd) {
     if (side === 'be') base.style.right = (14 + w / 2) + 'px';
     else base.style.left = (8 + w / 2) + 'px';
   }
+  // 钉子容器与底座同一锚点（底座按图片宽度动态定位，固定 CSS 坐标会随体型错位）
+  const hz = $(side === 'be' ? 'be-hazards' : 'bp-hazards');
+  if (hz) {
+    if (side === 'be') hz.style.right = (14 + w / 2) + 'px';
+    else hz.style.left = (8 + w / 2) + 'px';
+  }
 }
 const battleSleep = (ms) => new Promise((res, rej) => {
   setTimeout(() => {
@@ -184,6 +200,8 @@ export async function showBattleView() {
   await ensureData();
   pushNav('battleView');
   _settled = false; // 回到列表页：清除结算标志，后续返回按普通逐级弹栈
+  _battleLogs = []; // 彻底离开本局：清空对战记录缓存
+  _logCtx = null;
   // 回到对战列表：清除战斗期间的屏幕难度边框色
   const sc = $('screen');
   sc.classList.remove('t-novice', 't-veteran', 't-champion');
@@ -196,6 +214,8 @@ export async function showBattleView() {
 export function renderBattleList() {
   const box = $('battleContent');
   if (!box) return;
+  clearBattleTier(); // 列表页无难度边框：清除结算页残留的难度边框色（到点刷新直接落在结算页时）
+  _settled = false; // 列表已渲染，不再处于结算状态（结算页被强制替换后返回不再走结算路径）
   const { list } = ensureNpcs();
   box.innerHTML = `
     <div class="battle-app">
@@ -227,6 +247,7 @@ function startRefreshCountdown() {
       return;
     }
     if (_busy) return; // 战斗中不刷新
+    if (_settled) return; // 结算页展示中不强制替换，返回列表时自动生成新一波
     if (BATTLE_REFRESH_MS - (Date.now() - (gameData.battleNpcs?.refreshedAt || 0)) <= 0) {
       renderBattleList(); // 到点生成新一波
       return;
@@ -297,7 +318,7 @@ function buildPlayerTeam() {
 }
 
 // ---------- 战斗 ----------
-async function startNpcBattle(npcId) {
+async function startNpcBattle(npcId, startAuto = false) {
   await ensureData();
   if (_busy) return;
   const npc = (ensureNpcs().list || []).find((n) => n.id === npcId);
@@ -312,7 +333,11 @@ async function startNpcBattle(npcId) {
   const eTeam = buildNpcTeam(npc, _data, _learnset, battleMaxLv()).map((x) => ({
     pd: x.pd, mon: createMon(x.pd, x.level, x.ivs, x.nature, x.moveIds),
   }));
-  const battle = { preset: npc, pTeam, eTeam, pIdx: 0, eIdx: 0, winner: null, round: 1 };
+  const battle = { preset: npc, pTeam, eTeam, pIdx: 0, eIdx: 0, winner: null, round: 1,
+    weather: null, weatherTurns: 0, field: null, fieldTurns: 0, // 天气/场地（useMove 的 ctx）
+    hazards: { p: { spikes: 0, toxic: 0, rock: false }, e: { spikes: 0, toxic: 0, rock: false } }, // 撒菱/毒菱/隐形岩
+    stall: 0, // 僵局连续回合计数（双方 HP 均无变化），见 battleLoop
+  };
   // 进战斗前存在进行中的野生遭遇：转后台异步结算（自动捕捉继续丢球 / 或记录逃跑），
   // 避免 setPhase('battle') 中断遭遇流程导致遇敌直接丢失。
   // 记录打断前的遭遇 phase（setPhase('battle') 后已不可再取）：'encounter' 未出结果，
@@ -322,7 +347,9 @@ async function startNpcBattle(npcId) {
   battle._pendingEncounterPhase = pendingEncounter ? phase : null;
   _activeBattle = battle;
   _fleeing = false;
-  _auto = false; // 新战斗默认手动模式
+  _auto = startAuto; // 新战斗默认手动模式；「再战一次」沿袭上一把结束时的自动状态
+  _battleLogs = []; // 新战斗清空上一把的对战记录
+  _logCtx = { p: pTeam.map((x) => x.mon.name), e: eTeam.map((x) => x.mon.name), npc: npc.name };
   setPhase('battle'); // 战斗中：主界面道路暂停切段/骑行切换，避免挂机 BGM 覆盖战斗曲
   if (battle._hadPendingEncounter) {
     import('./battle.js').then(m => m.handoffEncounterToBackground(battle._pendingEncounterPhase));
@@ -331,6 +358,12 @@ async function startNpcBattle(npcId) {
   const pageReady = renderBattlePage(battle);
   playBattle(); // 进入 NPC 挑战 → 切换为战斗曲（覆盖地区曲）
   await pageReady; // 等双方精灵球登场动画播完再进入回合
+  // 重试自动：开局直接铺自动遮罩，进入自动出招
+  if (startAuto) {
+    const mask = $('b-auto-mask');
+    if (mask) mask.style.display = 'flex';
+    setText(`${curMon(battle, 'p').name} 进入自动战斗`);
+  }
   await battleLoop(battle);
 }
 
@@ -361,17 +394,87 @@ function markParticipated(battle, side) {
   const m = team[i]?.mon;
   if (m) m.participated = true;
 }
+// 新宝可梦上场时结算对方场地的钉子：隐形岩按属性克制倍率扣血、撒菱按层数扣血、毒菱施加中毒。
+// 钉子伤害保底 1 HP（避免"上场即倒下"的连锁替换），毒菱对毒系/钢系免疫
+function applyEntryHazards(battle, side, events) {
+  const hz = side === 'p' ? battle.hazards.p : battle.hazards.e;
+  const mon = curMon(battle, side);
+  if (!mon || mon.hp <= 0) return;
+  const hurt = (d, text) => {
+    d = Math.max(1, Math.floor(d));
+    const before = mon.hp;
+    mon.hp = Math.max(1, mon.hp - d); // 保底 1 HP，防止钉子直接击倒
+    events.push({ t: 'dmg', who: mon.name, amount: before - mon.hp, from: before, to: mon.hp, text });
+  };
+  let stepped = false; // 是否实际踩中钉子（隐形岩被免疫/毒菱免疫时不触发碎片高亮）
+  if (hz.rock) {
+    const m = typeMult('岩石', mon.types);
+    if (m > 0) { hurt((mon.maxHp / 8) * m, `${mon.name}受到了隐形岩的伤害！`); stepped = true; }
+    else events.push({ t: 'msg', text: `隐形岩对${mon.name}没有效果！` });
+  }
+  if (hz.spikes > 0) {
+    const ratio = { 1: 1 / 8, 2: 1 / 6, 3: 1 / 4 }[hz.spikes];
+    hurt(mon.maxHp * ratio, `${mon.name}踩中了撒菱，受到了伤害！`);
+    stepped = true;
+  }
+  if (hz.toxic > 0 && !mon.types.some((t) => t === '毒' || t === '钢') && !mon.status) {
+    mon.status = 'poison';
+    mon.statusType = '毒';
+    events.push({ t: 'status', who: mon.name, status: 'poison', text: `${mon.name}被毒菱刺中，中毒了！` });
+    stepped = true;
+  }
+  if (stepped) {
+    const color = hz.toxic > 0 ? '#a23df0' : hz.spikes > 0 ? '#b98f5e' : '#b59162';
+    hzHitFx(side === 'p' ? 'bp' : 'be', color);
+  }
+}
+
+// 强制换人（吹飞/吼叫的随机替换、接棒的能力传递）：随机选一只存活后备登场
+async function doForcedSwitch(battle, side, keepStats) {
+  const team = side === 'p' ? battle.pTeam : battle.eTeam;
+  const i = side === 'p' ? battle.pIdx : battle.eIdx;
+  const alive = team.map((x, idx) => ({ idx, mon: x.mon })).filter((x) => x.idx !== i && x.mon.hp > 0);
+  if (!alive.length) return false;
+  const pick = alive[Math.floor(Math.random() * alive.length)];
+  // 接棒：把当前宝可梦的能力变化原样传给新上场者
+  const stages = keepStats ? team[i].mon.stages.slice() : null;
+  const stageTypes = keepStats ? team[i].mon.stageTypes.slice() : null;
+  const panel = side === 'p' ? 'bp' : 'be';
+  panelOut(panel);
+  await battleSleep(260);
+  if (side === 'p') battle.pIdx = pick.idx; else battle.eIdx = pick.idx;
+  const mon = curMon(battle, side);
+  markParticipated(battle, side);
+  resetCounter(mon);
+  if (keepStats) {
+    mon.stages = stages;
+    mon.stageTypes = stageTypes;
+  }
+  setText(`${mon.name}上场了！`);
+  const ball = renderMon(mon, panel, true);
+  renderTeamInfo(battle);
+  panelIn(panel);
+  if (ball) await ball;
+  const hazEvs = [];
+  applyEntryHazards(battle, side, hazEvs);
+  if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, side));
+  await battleSleep(400);
+  return true;
+}
+// 自动换人：取当前下标之后下一只存活（队尾回绕），无存活返回 -1
+function nextAliveIdx(battle, side) {
+  const team = side === 'p' ? battle.pTeam : battle.eTeam;
+  const cur = side === 'p' ? battle.pIdx : battle.eIdx;
+  for (let i = cur + 1; i < team.length; i++) if (team[i].mon.hp > 0) return i;
+  for (let i = 0; i < cur; i++) if (team[i].mon.hp > 0) return i;
+  return -1;
+}
 // 我方倒下后弹出队伍选择下一只上场（复用配队页替换逻辑）；撤退时以 -1 强制结束
 function promptSwitchAfterFaint(battle) {
   return new Promise((resolve) => {
     // 自动战斗：不弹队伍选择，直接换上当前下标之后下一只存活（队尾之后回绕）
     if (_auto) {
-      const team = battle.pTeam;
-      const cur = battle.pIdx;
-      let idx = -1;
-      for (let i = cur + 1; i < team.length; i++) if (team[i].mon.hp > 0) { idx = i; break; }
-      if (idx < 0) for (let i = 0; i < cur; i++) if (team[i].mon.hp > 0) { idx = i; break; }
-      resolve(idx);
+      resolve(nextAliveIdx(battle, 'p'));
       return;
     }
     _pendingAsk = () => { // 撤退：结束挂起的选择，交由循环判定
@@ -427,10 +530,12 @@ async function renderBattlePage(battle) {
             <div class="b-team" id="be-team"></div>
           </div>
           <span class="b-base" id="be-base"></span>
+          <span class="b-hazards" id="be-hazards"></span>
           <img id="be-img" alt="">
         </div>
         <div class="b-player-box" id="bp-box">
           <span class="b-base" id="bp-base"></span>
+          <span class="b-hazards" id="bp-hazards"></span>
           <div class="b-flip"><img id="bp-img" alt=""></div>
           <div class="b-info">
             <div class="b-panel">
@@ -470,6 +575,14 @@ async function renderBattlePage(battle) {
     showRight();
     setText('已切回手动操作');
   });
+  // 右键文案区（含自动战斗遮罩覆盖时）→ 弹出菜单（查看本次对战记录）
+  const onLogCtx = (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // 阻止冒泡到全局右键禁用监听
+    showLogMenu(e.clientX, e.clientY);
+  };
+  box.querySelector('.b-left')?.addEventListener('contextmenu', onLogCtx);
+  box.querySelector('.b-auto-mask')?.addEventListener('contextmenu', onLogCtx);
   const balls = [
     renderMon(curMon(battle, 'p'), 'bp', true),
     renderMon(curMon(battle, 'e'), 'be', true),
@@ -547,6 +660,7 @@ function renderMon(mon, side, enter) {
   if (hpBox) hpBox.dataset.tip = `${Math.max(0, mon.hp)}/${mon.maxHp}`;
   syncStatusFx(side, mon); // 异常状态粒子（睡眠 Zzz / 混乱旋星 / 麻痹火花 / 灼伤火焰 / 中毒毒泡 / 冰冻冰晶）
   syncSeedFx(side, mon); // 寄生种子幼芽（被寄生期间常驻脚下，换宠/解除后移除）
+  syncShieldFx(side, mon); // 守住系护盾（当前回合 protected 才显示，回合重置/换人自动撤下）
   // 上阵/换人：等图片加载完成（此时尺寸才是最终尺寸）再放球，落点为精灵图片底部居中
   return enter ? loaded.then(() => ballEntry(side, img)) : loaded;
 }
@@ -614,10 +728,154 @@ function ballEntry(side, img) {
 function setText(t) {
   hideRight(); // 动画播放期间隐藏右栏（操作按钮 + NPC 信息），左栏拉满全宽显示文本
   $('b-text').textContent = t;
+  if (t) {
+    _battleLogs.push(t); // 收集本次对战日志（右键文案区可查看）
+    appendLogLine(t); // 记录页打开时实时追加新日志并滚到底部
+  }
+}
+// 日志实时追加：记录页开着时战斗仍在后台推进，新日志逐条插入列表
+function appendLogLine(t) {
+  const list = $('battleContent')?.querySelector('.battle-fight .b-log-list');
+  if (!list) return;
+  const line = document.createElement('div');
+  line.className = 'b-log-line ' + logSide(t);
+  line.innerHTML = renderLogLine(t);
+  list.appendChild(line);
+  list.scrollTop = list.scrollHeight;
+}
+
+// 日志行敌我判定：以我方/敌方宝可梦名开头的行动归对应方，NPC 宣言归敌方，其余为中立提示
+function logSide(t) {
+  const c = _logCtx;
+  if (!c) return 'n';
+  if (c.p.some((n) => t.startsWith(n))) return 'p';
+  if (c.e.some((n) => t.startsWith(n))) return 'e';
+  if (t.startsWith(c.npc)) return 'e';
+  return 'n';
+}
+// 日志行渲染：宝可梦名加粗，招式名前置属性图标并加粗（长名优先，避免短招名截断长名）
+function renderLogLine(t) {
+  const esc = t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const nameSet = new Set();
+  if (_logCtx) {
+    _logCtx.p.forEach((n) => nameSet.add(n));
+    _logCtx.e.forEach((n) => nameSet.add(n));
+  }
+  const moveByName = new Map();
+  if (_data) {
+    for (const id in _data.moves) {
+      const mv = _data.moves[id];
+      if (mv && mv.name) {
+        nameSet.add(mv.name);
+        moveByName.set(mv.name, mv);
+      }
+    }
+  }
+  const arr = [...nameSet].filter(Boolean).sort((a, b) => b.length - a.length);
+  let html = esc;
+  if (arr.length) {
+    const re = new RegExp(arr.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+    html = esc.replace(re, (m) => {
+      const mv = moveByName.get(m);
+      const icon = mv
+        ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};transform:scale(0.8)"><svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg></span>`
+        : '';
+      return icon + '<b>' + m + '</b>';
+    });
+  }
+  return `<span class="b-log-dot"></span><span class="b-log-text">${html}</span>`;
 }
 // 底部右栏（操作按钮 + NPC/回合信息）：仅玩家需要操作时显示，动画播放期间整体隐藏
 function showRight() { const el = $('b-right'); if (el) el.style.display = ''; }
 function hideRight() { const el = $('b-right'); if (el) el.style.display = 'none'; }
+
+// 右键菜单：位置贴近光标，菜单内点击不触发外部关闭，点击外部任意位置关闭
+function showLogMenu(x, y) {
+  hideLogMenu();
+  let menu = _logMenu;
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+    _logMenu = menu;
+  }
+  menu.innerHTML = '<div class="shop-ctx-item"><span class="shop-ctx-qty">查看对战记录</span></div>';
+  menu.style.display = '';
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = Math.max(0, Math.min(x - 24, window.innerWidth - mw - 4)) + 'px';
+  menu.style.top = Math.max(0, Math.min(y, window.innerHeight - mh - 4)) + 'px';
+  menu.addEventListener('pointerdown', (e) => e.stopPropagation());
+  menu.onclick = (e) => {
+    if (!e.target.closest('.shop-ctx-item')) return;
+    hideLogMenu();
+    showBattleLogs();
+  };
+  document.addEventListener('pointerdown', hideLogMenu);
+}
+function hideLogMenu() {
+  const menu = _logMenu;
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('pointerdown', hideLogMenu);
+}
+
+// 记录页承载容器：战斗页为 .battle-fight，结算页回顾为 .battle-result
+function logContainer() {
+  return $('battleContent')?.querySelector('.battle-fight, .battle-result');
+}
+
+// 对战记录页：全屏覆盖当前页面（遮住全部按钮 = 锁 UI），滚动列出本次对战全部日志。
+// 标题栏替换为「对战记录」，点击 appTitle 返回（由 main.js 的标题返回逻辑调用 closeLogPage）
+let _logTitlePrev = null; // 打开记录页前的标题栏内容（关闭时还原）
+function showBattleLogs() {
+  const host = logContainer();
+  if (!host || host.querySelector('.b-log-page')) return;
+  hideLogMenu();
+  const wrap = document.createElement('div');
+  wrap.className = 'b-log-page';
+  const list = document.createElement('div');
+  list.className = 'b-log-list';
+  if (!_battleLogs.length) {
+    const empty = document.createElement('div');
+    empty.className = 'b-log-empty';
+    empty.textContent = '暂无对战记录';
+    list.appendChild(empty);
+  } else {
+    for (const t of _battleLogs) {
+      const line = document.createElement('div');
+      line.className = 'b-log-line ' + logSide(t);
+      line.innerHTML = renderLogLine(t);
+      list.appendChild(line);
+    }
+  }
+  wrap.appendChild(list);
+  host.appendChild(wrap);
+  setLogTitle();
+}
+// 标题栏切为「对战记录」（记录页打开时调用；从设置等页面返回战斗页时由 syncLogTitle 重新断言）
+function setLogTitle() {
+  const t = $('appTitle');
+  if (!t) return;
+  _logTitlePrev = t.innerHTML;
+  t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 对战记录';
+  t.dataset.action = 'back';
+}
+// 从设置等其它页面返回战斗页时：记录页若还开着，重新把标题栏切回「对战记录」
+export function syncLogTitle() {
+  if (isLogOpen()) setLogTitle();
+}
+// 对战记录页是否打开（main.js 标题返回时判断：开 → 只关记录页，不走返回）
+export function isLogOpen() {
+  return !!logContainer()?.querySelector('.b-log-page');
+}
+// 关闭记录页并还原标题栏（仅在战斗视图上还原，避免覆盖设置等页面的标题）
+export function closeLogPage() {
+  logContainer()?.querySelector('.b-log-page')?.remove();
+  const t = $('appTitle');
+  if (t && _logTitlePrev != null && $('battleView')?.style.display === 'flex') {
+    t.innerHTML = _logTitlePrev;
+    _logTitlePrev = null;
+  }
+}
 // 战斗动画互斥：lunge/hit/faint 同时存在时会按 CSS 后定义者覆盖，取动画前必须清掉全部
 const B_ANIM_CLS = ['lunge', 'lunge-attack', 'hit', 'faint', 'lunge-stay', 'b-strike', 'flinch', 'b-enter',
   'cg-sink', 'cg-rise', 'cg-vanish', 'cg-glow', 'cg-out-sink', 'cg-out-rise', 'cg-out-vanish'];
@@ -1359,6 +1617,85 @@ function syncSeedFx(side, mon, force) {
   }
   box.appendChild(fx);
 }
+// 守住系护盾特效：宝可梦当前回合带 protected 标记时，周身罩一层淡蓝护盾光圈（扁平样式）。
+// 生命周期与 syncStatusFx 一致：回合重置（protected=false）或换人后自动撤下
+function syncShieldFx(side, mon) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img || !mon) return;
+  let fx = box.querySelector('.b-shield');
+  if (mon.protected) {
+    if (fx && fx._mon === mon) return; // 同宠护盾已挂载：不重建，避免重触发入场动画
+    if (fx) fx.remove();
+    const ir = img.getBoundingClientRect();
+    const br = box.getBoundingClientRect();
+    fx = document.createElement('span');
+    fx.className = 'b-shield';
+    fx._mon = mon;
+    fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+    fx.style.top = (ir.top - br.top + ir.height / 2) + 'px';
+    fx.style.width = Math.max(48, ir.width + 26) + 'px';
+    fx.style.height = Math.max(48, ir.height + 26) + 'px';
+    box.appendChild(fx);
+  } else if (fx) {
+    fx.remove();
+  }
+}
+// 护盾挡下攻击（block 事件）：白光一闪 + 光圈扩张，短暂覆盖常驻的脉冲动画后复原
+function shieldHit(side) {
+  const fx = $(`${side}-box`)?.querySelector('.b-shield');
+  if (!fx) return;
+  fx.classList.remove('b-shield-hit');
+  void fx.offsetWidth;
+  fx.classList.add('b-shield-hit');
+  setTimeout(() => fx.classList.remove('b-shield-hit'), 420);
+}
+// 钉子图标：撒菱每层 4 枚尖刺、毒菱每层 2 枚毒滴、隐形岩 3 枚岩块，
+// 整组渲染在椭圆底座上，每颗错峰掉落入场；层数为 0 时不渲染任何图标
+function hazardHtml(hz) {
+  let h = '';
+  let d = 0;
+  const add = (cls, n) => {
+    for (let k = 0; k < n; k++) h += `<i class="b-hz ${cls}" style="animation-delay:${(d++ * 0.045).toFixed(2)}s"></i>`;
+  };
+  add('spk', (hz.spikes || 0) * 4); // 撒菱每层 4 枚
+  add('tox', (hz.toxic || 0) * 2);  // 毒菱每层 2 枚
+  if (hz.rock) add('rck', 3);       // 隐形岩 3 枚岩块
+  return h;
+}
+// 同步双方场地钉子图标：种类/层数变化时重建容器并播放掉落入场动画
+function syncHazards(battle) {
+  for (const [boxSide, key] of [['bp', 'p'], ['be', 'e']]) {
+    const el = $(`${boxSide}-hazards`);
+    if (!el) continue;
+    const hz = battle.hazards[key] || { spikes: 0, toxic: 0, rock: false };
+    const sig = `${hz.spikes}|${hz.toxic}|${hz.rock ? 1 : 0}`;
+    if (el.dataset.sig === sig) continue;
+    el.dataset.sig = sig;
+    el.innerHTML = `<span class="b-hz-stack">${hazardHtml(hz)}</span>`;
+    if (sig !== '0|0|0') {
+      el.classList.remove('b-hz-pop');
+      void el.offsetWidth;
+      el.classList.add('b-hz-pop');
+    }
+  }
+}
+// 踩中钉子：对应侧图标白亮一瞬，脚底溅起同色碎片
+function hzHitFx(boxSide, color) {
+  const el = $(`${boxSide}-hazards`);
+  if (el) {
+    el.classList.remove('b-hz-hit');
+    void el.offsetWidth;
+    el.classList.add('b-hz-hit');
+  }
+  spawnGroundBurst(boxSide, color, 6);
+}
+// 每回合开/出招结算后统一刷新护盾与钉子表现
+function syncFieldFx(battle) {
+  syncShieldFx('bp', curMon(battle, 'p'));
+  syncShieldFx('be', curMon(battle, 'e'));
+  syncHazards(battle);
+}
 // 重踏/地震：攻击方原地跳起后砸地，落地瞬间整个战斗画面震动
 function quakeAttack(side) {
   const img = $(`${side}-img`);
@@ -1372,6 +1709,7 @@ function quakeAttack(side) {
 }
 // 重创（伤害 ≥25% 最大 HP）：战斗画面整体震动一下
 function stageShake() {
+  if (isLogOpen()) return; // 查看对战记录时不做全屏震动
   const st = $('battleContent')?.querySelector('.battle-fight');
   if (!st) return;
   st.classList.remove('battle-shake');
@@ -1473,8 +1811,14 @@ function askPlayerMove(battle) {
       $('b-right-info').style.display = 'none'; // 选招态隐藏 NPC 名 + 回合数
       cmd.innerHTML = moves.map((m) => {
         const mv = m != null ? _data.moves[m] : null;
-        const dis = !mv || mv.effect.kind === 'unimplemented' ? ' disabled' : '';
-        return `<button class="b-move${dis}" data-move="${m}">
+        const ef = mv && mv.effect;
+        // 行动限制：再来一次锁定 / 定身法封印 / 挑衅只能攻击，不可选招式置灰并附说明
+        let dis = '', tip = '';
+        if (!mv || !ef || ef.kind === 'unimplemented') { dis = ' disabled'; tip = '招式未实现'; }
+        else if (pMon.lockedMove != null && String(m) !== pMon.lockedMove) { dis = ' disabled'; tip = '被「再来一次」锁定'; }
+        else if (pMon.disabledMove != null && String(m) === pMon.disabledMove) { dis = ' disabled'; tip = '招式被封印'; }
+        else if (pMon.tauntTurns > 0 && moveCat(mv) === 'status') { dis = ' disabled'; tip = '被挑衅，只能使用攻击招式'; }
+        return `<button class="b-move${dis}" data-move="${m}" title="${tip}">
           <span class="b-move-name">${mv ? mv.name : '—'}</span>
           ${mv ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type]}">
             <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
@@ -1579,9 +1923,9 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       const eCur = curMon(battle, 'e');
       const dMon = ev.who === pCur.name ? pCur : ev.who === eCur.name ? eCur : null;
       const dSide = dMon === pCur ? 'bp' : 'be';
-      if (!dMon) { setText(ev.text || `${ev.who} 受到 ${ev.amount} 点伤害！`); await battleSleep(300); continue; }
+      if (!dMon) { setText(ev.text || `${ev.who}受到 ${ev.amount} 点伤害！`); await battleSleep(300); continue; }
       popDmg(dSide, ev.amount, dMon);
-      setText(ev.text || `${ev.who} 受到 ${ev.amount} 点伤害！`);
+      setText(ev.text || `${ev.who}受到 ${ev.amount} 点伤害！`);
       renderMon(dMon, dSide);
       // 连击等多次伤害：useMove 提前把 HP 全部扣光，renderMon 读到的是最终值；
       // 这里按本次命中前后的 HP 回放血条过渡，逐段扣血，不一次扣完
@@ -1629,6 +1973,15 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       setText(ev.text);
       renderMon(mon, side);
       await battleSleep(450);
+    } else if (ev.t === 'block') {
+      // 守住系护盾挡下招式：目标侧护盾白光一闪（换人后旧宠残留事件只播文本）
+      if (ev.who === hitRef.name && !onField) { setText(ev.text); await battleSleep(450); continue; }
+      const pCur = curMon(battle, 'p');
+      const eCur = curMon(battle, 'e');
+      const dMon = ev.who === pCur.name ? pCur : ev.who === eCur.name ? eCur : null;
+      if (dMon) shieldHit(dMon === pCur ? 'bp' : 'be');
+      setText(ev.text);
+      await battleSleep(500);
     } else {
       setText(ev.text);
       await battleSleep(450);
@@ -1774,7 +2127,7 @@ async function playChargeAttack(actor, side, moveId, battle) {
   lungeAttack(side); // 两回合招式均为物理攻击：冲撞对手
   await battleSleep(280);
   const evs = [];
-  useMove(actor, foe, moveId, _data, evs);
+  useMove(actor, foe, moveId, _data, evs, battle);
   await playEvents(evs, battle, foe, mv.type);
 }
 // 尘土/水花：精灵脚部向两侧溅起一圈小颗粒（挖洞钻地/破土、潜水入水/跃出用）
@@ -1973,10 +2326,11 @@ async function doAttack(actor, side, moveId, battle) {
     }
   }
   const evs = [];
-  useMove(actor, foe, moveId, _data, evs);
+  useMove(actor, foe, moveId, _data, evs, battle);
   if (rangedPhys) raiseAttacker(side); // 远程连击：攻击方留在原位，期间置顶层
   // 近战多段：各击在 playEvents 的 step 里逐击摆动；远程多段：逐击喷射粒子，弹到即结算伤害
   await playEvents(evs, battle, foe, mv.type, multiPhys ? side : null, rangedPhys || null);
+  syncFieldFx(battle); // 出招结算后刷新护盾/钉子表现（守住生效、撒菱/毒菱/隐形岩落场）
 }
 
 async function battleLoop(battle) {
@@ -1986,12 +2340,16 @@ async function battleLoop(battle) {
       // 每回合开始标记当前出战宝可梦为"参战"（含开场首只与换人上场的，供经验结算判定）
       markParticipated(battle, 'p');
 
+      // 僵局检测：记录回合开始双方 HP，回合末对比是否互不造成伤害
+      battle._turnHp = { p: curMon(battle, 'p').hp, e: curMon(battle, 'e').hp };
+
       // ---------- 双方选择行动：换人优先执行，出招按速度决定先后 ----------
       let pMon = curMon(battle, 'p');
       let eMon = curMon(battle, 'e');
-      // 每回合开始清零：双倍奉还记录（严格同回合）+ 守住/挺住标记（先制防护仅当回合生效）
-      pMon.hitByPhys = false; pMon.physDmg = 0; pMon.hitBySpec = false; pMon.specDmg = 0; pMon.protected = false; pMon.endure = false;
-      eMon.hitByPhys = false; eMon.physDmg = 0; eMon.hitBySpec = false; eMon.specDmg = 0; eMon.protected = false; eMon.endure = false;
+      // 每回合开始清零：双倍奉还记录（严格同回合）+ 守住/挺住/同命标记（先制防护仅当回合生效）
+      pMon.hitByPhys = false; pMon.physDmg = 0; pMon.hitBySpec = false; pMon.specDmg = 0; pMon.protected = false; pMon.endure = false; pMon.destinyBond = false; pMon.whirlwinded = false; pMon.batonPass = false;
+      eMon.hitByPhys = false; eMon.physDmg = 0; eMon.hitBySpec = false; eMon.specDmg = 0; eMon.protected = false; eMon.endure = false; eMon.destinyBond = false; eMon.whirlwinded = false; eMon.batonPass = false;
+      syncFieldFx(battle); // 回合重置：撤掉上一回合的守住护盾
       const pPre = []; // 我方回合前状态事件（睡眠/麻痹/畏缩/混乱自伤等）
       const ePre = []; // 敌方回合前状态事件
       let pAct = null; // 我方选择：{type:'move',id} / {type:'switch',idx}
@@ -2024,11 +2382,14 @@ async function battleLoop(battle) {
         pMon = curMon(battle, 'p');
         markParticipated(battle, 'p');
         resetCounter(pMon);
-        setText(`${pMon.name} 上场了！`);
+        setText(`${pMon.name}上场了！`);
         const ballP = renderMon(pMon, 'bp', true);
         renderTeamInfo(battle);
         panelIn('bp'); // 新宝可梦上场：信息卡片滑入屏幕
         if (ballP) await ballP; // 等精灵球登场动画播完，避免对手在动画期间行动
+        const hazEvs = [];
+        applyEntryHazards(battle, 'p', hazEvs);
+        if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, 'p'));
         await battleSleep(400);
         pAct = null; // 本回合行动已消耗在换人上
       }
@@ -2058,14 +2419,48 @@ async function battleLoop(battle) {
         await sleepCheckAttack(pMon, 'bp', pMove, battle);
       }
 
+      // 出招后强制换人：吹飞/吼叫将目标吹下（敌方对我方=我方换人，反之亦然）、
+      // 接棒主动下场并传递能力；换人动作发生在回合末结算之前，新上场者本回合不再行动
+      if (curMon(battle, 'p').whirlwinded) {
+        curMon(battle, 'p').whirlwinded = false;
+        await doForcedSwitch(battle, 'p', false);
+      }
+      if (curMon(battle, 'e').whirlwinded) {
+        curMon(battle, 'e').whirlwinded = false;
+        await doForcedSwitch(battle, 'e', false);
+      }
+      if (curMon(battle, 'p').batonPass) {
+        curMon(battle, 'p').batonPass = false;
+        await doForcedSwitch(battle, 'p', true);
+      }
+      if (curMon(battle, 'e').batonPass) {
+        curMon(battle, 'e').batonPass = false;
+        await doForcedSwitch(battle, 'e', true);
+      }
+
       // 回合末持续伤害：作用于本回合结束时在场（含昏厥）的宝可梦；
-      // 昏厥者 hp=0 由 postTurn 自动跳过，未倒下的正常结算中毒/灼伤等
+      // 昏厥者 hp=0 由 postTurn 自动跳过，未倒下的正常结算中毒/灼伤/天气/场地/水流环等
       const pEvs = [];
       const eEvs = [];
-      postTurn(curMon(battle, 'p'), pEvs);
-      postTurn(curMon(battle, 'e'), eEvs);
+      postTurn(curMon(battle, 'p'), pEvs, battle);
+      postTurn(curMon(battle, 'e'), eEvs, battle);
       await playEvents(pEvs, battle, curMon(battle, 'p'));
       await playEvents(eEvs, battle, curMon(battle, 'e'));
+      // 天气/场地/光墙剩余回合倒计时
+      const turnEvs = [];
+      tickBattleTurns(battle, turnEvs);
+      // 同命结算：本回合内使用方倒下，对手一并倒下（追加到同一事件流）
+      const bpMon = curMon(battle, 'p');
+      const beMon = curMon(battle, 'e');
+      if (bpMon.destinyBond && bpMon.hp <= 0 && beMon.hp > 0) {
+        beMon.hp = 0;
+        turnEvs.push({ t: 'faint', who: beMon.name, text: `${beMon.name}被同命带走了！` });
+      }
+      if (beMon.destinyBond && beMon.hp <= 0 && bpMon.hp > 0) {
+        bpMon.hp = 0;
+        turnEvs.push({ t: 'faint', who: bpMon.name, text: `${bpMon.name}被同命带走了！` });
+      }
+      if (turnEvs.length) await playEvents(turnEvs, battle, curMon(battle, 'p'));
 
       // 回合结束强制替换：昏厥宝可梦留在场上直到本回合全部结算完毕（含回合末伤害），
       // 之后才替换；新上场者本回合无行动指令，下一回合起才能自由操作
@@ -2077,24 +2472,61 @@ async function battleLoop(battle) {
         battle.pIdx = idx;
         markParticipated(battle, 'p');
         resetCounter(curMon(battle, 'p'));
-        setText(`${curMon(battle, 'p').name} 上场了！`);
+        setText(`${curMon(battle, 'p').name}上场了！`);
         const ballP = renderMon(curMon(battle, 'p'), 'bp', true);
         renderTeamInfo(battle);
         panelIn('bp'); // 新宝可梦上场：信息卡片滑入屏幕
         if (ballP) await ballP; // 等精灵球登场动画播完，避免对手在动画期间行动
+        const hazEvs = [];
+        applyEntryHazards(battle, 'p', hazEvs);
+        if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, 'p'));
         await battleSleep(400);
       }
       if (curMon(battle, 'e').hp <= 0) {
         if (!nextMon(battle, 'e')) { battle.winner = 'p'; break; }
         resetCounter(curMon(battle, 'e'));
-        setText(`${curMon(battle, 'e').name} 上场了！`);
+        setText(`${curMon(battle, 'e').name}上场了！`);
         const ballE = renderMon(curMon(battle, 'e'), 'be', true);
         renderTeamInfo(battle);
         panelIn('be'); // 新宝可梦上场：信息卡片滑入屏幕
         if (ballE) await ballE; // 等精灵球登场动画播完，避免对手在动画期间行动
+        const hazEvs = [];
+        applyEntryHazards(battle, 'e', hazEvs);
+        if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, 'e'));
         await battleSleep(400);
       }
       if (battle.winner) break;
+
+      // 僵局脱出：连续多回合双方 HP 均无变化视为死循环（如双方只会用强化/变化招式），
+      // 自动战斗时主动换人打破僵局，无宝可梦可换则直接结算失败
+      const pNow = curMon(battle, 'p').hp;
+      const eNow = curMon(battle, 'e').hp;
+      battle.stall = (pNow === battle._turnHp.p && eNow === battle._turnHp.e) ? battle.stall + 1 : 0;
+      if (battle.stall >= STALL_LIMIT && _auto) {
+        battle.stall = 0;
+        const nextIdx = nextAliveIdx(battle, 'p');
+        if (nextIdx < 0) {
+          setText('双方僵持不下，无宝可梦可换，自动认输……');
+          battle.winner = 'e';
+          break;
+        }
+        setText('双方僵持不下，自动切换宝可梦！');
+        panelOut('bp');
+        await battleSleep(260);
+        battle.pIdx = nextIdx;
+        const mon = curMon(battle, 'p');
+        markParticipated(battle, 'p');
+        resetCounter(mon);
+        setText(`${mon.name}上场了！`);
+        const ballP = renderMon(mon, 'bp', true);
+        renderTeamInfo(battle);
+        panelIn('bp');
+        if (ballP) await ballP;
+        const hazEvs = [];
+        applyEntryHazards(battle, 'p', hazEvs);
+        if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, 'p'));
+        await battleSleep(400);
+      }
 
       battle.round++;
       $('b-round').textContent = battle.round;
@@ -2108,6 +2540,8 @@ async function battleLoop(battle) {
     _busy = false;
     _fleeing = false;
     _auto = false; // 战斗结束（含撤退/异常）自动战斗一并复位
+    hideLogMenu(); // 战斗结束时若右键菜单还开着，一并收起
+    closeLogPage(); // 记录页开着则关闭并还原标题栏（战斗已结束，无返回战斗一说）
     if (_activeBattle === battle) _activeBattle = null;
     setPhase('idle'); // 战斗结束（含撤退/异常）恢复主界面挂机状态
     road.resume(); // 若进战斗前道路被其他流程暂停（如挂机遇敌）未恢复，回到主界面需恢复滚动
@@ -2120,6 +2554,7 @@ async function battleLoop(battle) {
 
 // ---------- 结算 ----------
 function finishBattle(battle) {
+  _retryAuto = _auto; // 记住战斗结束时的自动状态：「再战一次」沿袭（战斗中切回手动的则手动重试）
   const win = battle.winner === 'p';
   _activeBattle = null; // 战斗已结束：清空活动战斗（后续返回走普通视图切换，不再误判为撤退）
   _settled = true; // 结算页显示中：标题栏返回应回 NPC 战斗列表
@@ -2163,19 +2598,23 @@ function finishBattle(battle) {
   const box = $('battleContent');
   box.innerHTML = `
     <div class="battle-app battle-result t-${battle.preset.tier}">
-      ${win ? '<button class="battle-result-back" id="b-result-back">返回</button>' : ''}
       <div class="battle-result-title">${win ? '挑战成功！' : '挑战失败…'}</div>
       <div class="battle-result-detail">
         ${win ? results.map((r) => `<div>${r.name} 升级到 Lv${r.lv}${r.up ? `（+${r.up}级）` : ''}</div>`).join('') : '<div>失败无经验，调整队伍或招式再来试试吧！</div>'}
         ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/candy.png" alt=""> × ${battle.preset.candy}</div>` : ''}
       </div>
-      ${win ? '' : `<div class="battle-result-btns">
-        <button class="battle-btn" id="b-retry">再战一次</button><button class="battle-btn main" id="b-back">返回列表</button>
-      </div>`}
+      ${win
+        ? `<div class="battle-result-btns"><button class="battle-btn" id="b-review">回顾</button><button class="battle-btn main" id="b-confirm">确认</button></div>`
+        : `<div class="battle-result-btns">
+            <button class="battle-btn" id="b-retry">重试</button>
+            <button class="battle-btn" id="b-review">回顾</button>
+            <button class="battle-btn main" id="b-back">返回</button>
+          </div>`}
     </div>`;
-  $('b-retry')?.addEventListener('click', () => startNpcBattle(battle.preset.id));
+  $('b-retry')?.addEventListener('click', () => startNpcBattle(battle.preset.id, _retryAuto));
   $('b-back')?.addEventListener('click', () => showBattleView());
-  // 胜利结算页左上角返回按钮：返回对战列表
-  $('b-result-back')?.addEventListener('click', () => showBattleView());
+  $('b-confirm')?.addEventListener('click', () => showBattleView());
+  // 回顾：打开本局对战记录，返回仍回到结算页
+  $('b-review')?.addEventListener('click', () => showBattleLogs());
 }
 

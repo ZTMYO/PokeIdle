@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX,
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX,
   MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX,
   MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE,
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY,
@@ -977,7 +977,7 @@ const TUTORIAL_SECTIONS = [
     title: '序章',
     html: `<p>你是在丰缘长大的训练家，早已帮助小田卷博士完成了丰缘地区的图鉴，身经百战，是这片地区公认的冠军级训练家。</p>`
       + `<p>然而世界远比丰缘辽阔——如今九大地区（关都、城都、丰缘、神奥、合众、卡洛斯、阿罗拉、伽勒尔、帕底亚）早已打通陆路，各地的宝可梦正等着被收录进更完整的图鉴。</p>`
-      + `<p>出发之前，小田卷博士将一部<b>手机</b>交到你手中：<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>树果农场</b>……里面的应用足以支撑一场全新的旅行。</p>`
+      + `<p>出发之前，小田卷博士将一部<b>手机</b>交到你手中：<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>农场</b>……里面的应用足以支撑一场全新的旅行。</p>`
       + `<p>你背起行囊再次出发。前方的每一条道路、每一次遭遇，都将写下属于你的冒险故事。</p>`,
   },
   {
@@ -992,25 +992,22 @@ const TUTORIAL_SECTIONS = [
   {
     title: '遭遇',
     html: `<p>拥有精灵球时，每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只野生宝可梦。</p>`
-      + `<p>没有<b>精灵球</b>时不触发遇敌。</p>`,
   },
   {
     title: '手机',
-    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>树果农场</b>、<b>交换</b>、<b>成就</b>……），也可以查看当前系统时间。</p>`
-      + `<p>向左滑动或点击底部圆点可翻到<b>第二页</b>，那里放着<b>统计</b>、<b>训练</b>、<b>配队</b>与<b>对战</b>应用。科学的力量真伟大！</p>`
+    html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>农场</b>、<b>交换</b>、<b>成就</b>、<b>统计</b>……），也可以查看当前系统时间。</p>`
+      + `<p>滚动滚轮或点击底部圆点可翻到<b>第二页</b>，那里放着<b>日志</b>、<b>训练</b>、<b>配队</b>与<b>对战</b>应用。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
     html: `<p>在<b>手机</b>页面打开<b>图鉴</b>应用，支持<b>搜索</b>（输入名称快速检索）与地区筛选。点击表头可按相应字段排序，再次点击同一表头切换升/降序。</p>`
-      + `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据（详见「<b>统计</b>」章节）。</p>`
       + `<p>点击条目查看详情：未遇到过显示"？？？"且不可点击；遇到过未捕获显示基础信息+完整日志；已捕获额外解锁精确数值、种族值条、图鉴描述与爱吃的食物。</p>`
   },
 
   {
     title: '统计',
-    html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按每次遭遇的稀有度与捕获运气综合评价称号；数据总览以表格统一展示今日与累计的挂机时长、遭遇、捕获、逃跑、捕获率、闪光遇见/捕获、孵化与交换，每秒自动刷新。</p>`
-      + `<p>其余板块按类别汇总：冒险进度（当前地区、行走距离、图鉴完成度）、消耗统计（精灵球使用与均耗）、农场与合成、地区悬赏与道具累计获得。</p>`
-      + `<p><b>统计</b>应用位于手机<b>第二页</b>，向左滑动手机页面翻页即可找到。</p>`,
+    html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按每次遭遇的稀有度与捕获运气综合评价称号；</p>`
+      + `<p>板块分为：数据总览、冒险进度、消耗统计、农场与合成、地区悬赏、NPC对战、道具累计获得。</p>`
   },
   {
     title: '成就',
@@ -1020,11 +1017,13 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '地区',
-    html: `<p>游戏共 <b>${REGION_CYCLE.length}</b> 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。不同地区遇到的宝可梦各不相同：对于地区之间的道路，每段路<b>前半程</b>算出发地区、<b>后半程</b>算目标地区。</p>`
+    html: `<p>游戏共 <b>${REGION_CYCLE.length}</b> 个地区：${REGION_CYCLE.map(r => `<b>${r}</b>`).join('、')}。</p>`
+      + `<p>不同地区遇到的宝可梦各不相同：对于地区之间的道路，每段路<b>前半程</b>算出发地区、<b>后半程</b>算目标地区。</p>`
   },
   {
     title: '导航',
-    html: `<p>在<b>手机</b>页面打开<b>导航</b>应用或点击主界面右下角的位置文字：选择目的地即可手动导航；开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→帕底亚→阿罗拉→丰缘→关都→城都→神奥→卡洛斯→伽勒尔→合众…循环）选择下一站。</p>`
+    html: `<p>在<b>手机</b>页面打开<b>导航</b>应用或点击主界面右下角的位置文字：选择目的地即可手动导航。</p>`
+      + `<p>开启<b>漫游</b>后，没有目的地时会自动沿<b>环国路线</b>（合众→帕底亚→阿罗拉→丰缘→关都→城都→神奥→卡洛斯→伽勒尔→合众…循环）选择下一站。</p>`
       + `<p>到达目的地后导航结束（若开启<b>漫游</b>，会自动选择下一站）。</p>`
       + `<p>进度由主角实际移动驱动——跑步更快，遇敌或钓鱼时暂停（详见「<b>钓鱼</b>」章节）。</p>`
       + `<p>导航推进的是<b>所在地区</b>（决定遇敌池、地区悬赏、大量出没事件）；<b>孵蛋</b>与<b>树果方块</b>按<b>行走里程</b>计算，与是否导航<b>无关</b>。</p>`
@@ -1052,7 +1051,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '场景',
-    html: `<p>挂机时场景会自动轮换：每段场景的长度随机生成，整段滚动 <b>${ROAD_SWITCH_CYCLES}</b> 遍后切换到下一个随机场景。</p>`
+    html: `<p>挂机时场景会自动轮换：每段场景的长度随机生成，结束后切换到下一个随机场景。</p>`
       + `<p>生成下一个场景时，有 <b>${Math.round(ROAD_SPECIAL_CHANCE * 100)}</b>% 的概率是<b>特殊场景</b>（可钓鱼的水域或自行车道，各占一半概率），其余 <b>${Math.round((1 - ROAD_SPECIAL_CHANCE) * 100)}</b>% 为普通场景。</p>`
       + `<p>水域场景有<b>垂钓点</b>（详见「<b>钓鱼</b>」章节）；<b>自行车道</b>快速推进里程，但不触发遭遇与道具拾取。</p>`,
   },
@@ -1077,8 +1076,7 @@ const TUTORIAL_SECTIONS = [
 
   {
     title: '糖果',
-    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
-      + `<p>挂机掉落的糖果可能<b>翻倍</b>获得，最高一次 <b>100</b> 颗。</p>`,
+    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托、完成悬赏、对战、成就等获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
   },
   {
     title: '商店',
@@ -1105,6 +1103,12 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>主页打开<b>孵蛋器</b>应用，将背包里的<b>神秘蛋</b>放入空闲槽位开始<b>孵化</b>。</p>`
       + `<p>孵化里程由宝可梦的体重和稀有度决定（<b>${HATCH_DIST_MIN / 1000}~${HATCH_DIST_MAX / 1000}</b> 公里）。</p>`
       + `<p>主角行走累计到所需里程即孵化完成——停下不走不推进，跑步/骑车走得更快。</p>`
+      + `<p>不同移动方式的推进速度（走完 <b>1 公里</b>所需时间）：</p>`
+      + tutorialTable([
+        ['走路（挂机默认）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_WALK * 60) / 60 * 10) / 10}</b> 分钟`],
+        ['跑步（增益生效）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_RUN * 60) / 60 * 10) / 10}</b> 分钟`],
+        ['自行车道骑行', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_BIKE * 60) / 60 * 10) / 10}</b> 分钟`],
+      ], ['移动方式', '1 公里耗时'], [130, 'auto'])
       + `<p>孵化完成后点击孵化按钮即可获得宝可梦，结果完全随机，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`,
   },
   {
@@ -1126,17 +1130,17 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '树果',
-    html: `<p><b>树果</b>是<b>树果农场</b>收获的作物，也是<b>树果混合器</b>的唯一原料，更是宝可梦爱吃的食物。</p>`
+    html: `<p><b>树果</b>是<b>农场</b>收获的作物，也是<b>树果混合器</b>的唯一原料，更是宝可梦爱吃的食物。</p>`
       + `<p>获取：种下种子、浇水养护，成熟后收获（详见「<b>农场</b>」章节）。</p>`
-      + `<p>用途：作为配方制成<b>树果方块</b>（详见「<b>树果方块</b>」章节），或出售换糖果。</p>`,
+      + `<p>用途：作为配方制成<b>树果方块</b>（详见「<b>树果方块</b>」章节），喂食训练中的宝可梦（详见「<b>训练</b>」章节），或在树果委托出售换糖果（详见「<b>农场</b>」章节）。</p>`,
   },
   {
     title: '农场',
-    html: `<p>在<b>手机</b>主页打开<b>树果农场</b>，点击空地种下树果种子（消耗 <b>${FARM_PLANT_COST}</b> 糖果）。</p>`
+    html: `<p>在<b>手机</b>主页打开<b>农场</b>，点击空地种下树果种子（消耗 <b>${FARM_PLANT_COST}</b> 糖果）。</p>`
       + `<p>刚种下<b>湿度</b>为 <b>0</b>，点击<b>浇水</b>才会生长；湿度随时间下降（每 <b>${Math.round(1 / FARM_WATER_DROP)}</b> 秒降 <b>1</b> 点，满湿度可撑 <b>${Math.round(FARM_MAX_WATER / FARM_WATER_DROP / 60)}</b> 分钟），归 <b>0</b> 停止生长，需及时补浇。</p>`
       + `<p>历经刚种下→发芽→成长→开花结果后成熟（每棵 <b>${Math.round(FARM_MATURE_MIN / 60000)}~${Math.round(FARM_MATURE_MAX / 60000)}</b> 分钟随机），点击收获得 <b>${FARM_HARVEST_MIN}~${FARM_HARVEST_MAX}</b> 颗树果。</p>`
       + `<p>收获的树果存入库存（点田地左上角库存箱查看）；库存的树果不能当种子，种地只能另买新种子。</p>`
-      + `<p>树果可以出售换糖果：点田地右上角告示牌查看树果委托（每天刷新 <b>${FARM_BOARD_DEMANDS}</b> 条，其中第 <b>1</b> 条为大量需求 <b>${FARM_BOARD_BIG_QTY_MIN}~${FARM_BOARD_BIG_QTY_MAX}</b> 颗，需专门种植较久；需求越多报酬越高）。</p>`,
+      + `<p>点田地右上角告示牌查看树果委托（每天刷新 <b>${FARM_BOARD_DEMANDS}</b> 条，其中第 <b>1</b> 条为大量需求 <b>${FARM_BOARD_BIG_QTY_MIN}~${FARM_BOARD_BIG_QTY_MAX}</b> 颗，需专门种植较久；需求越多报酬越高）。也可以在此面板招募帮手（详见「<b>招募帮手</b>」章节）。</p>`,
   },  
   {
     title: '宝可梦',
@@ -1150,20 +1154,17 @@ const TUTORIAL_SECTIONS = [
     title: '配队',
     html: `<p>在<b>手机</b>页面打开<b>配队</b>应用组建小队：点击<b>空位</b>从仓库选择宝可梦加入（最多 <b>${TEAM_MAX}</b> 只）。</p>`
       + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>移除</b>（放回仓库）；<b>右键</b>点击可隐藏菜单。</p>`
-      + `<p><b>拖拽</b>可以对队伍中的宝可梦进行快速排序。</p>`
+      + `<p><b>拖拽</b>可以对队伍中的宝可梦进行快速排序。<b>右键</b>空白处可随机配队或清空队伍。</p>`
       + `<p>加入队伍的宝可梦会从<b>训练</b>中自动撤下（训练/队伍<b>互斥</b>，详见「<b>训练</b>」章节）。</p>`,
   },
   {
     title: '训练',
-    html: `<p>在<b>手机</b>页面打开<b>训练</b>应用即可进入训练场：</p>`
-      + `<p>面板顶部有 <b>${TRAIN_SLOTS}</b> 个格子（显示宝可梦图标）：点击<b>空位</b>去仓库选一只放入，再次点击即可<b>取出</b>；底部列出每只的训练<b>状态、经验进度条与饱食度</b>。</p>`
-      + `<p>挂机自动获得经验 <b>${TRAIN_XP_PER_MIN}</b>/分钟，不消耗糖果；放入训练后自动从<b>队伍</b>中撤下（互斥）。</p>`
-      + `<p>场地左上角的<b>纸箱</b>是<b>树果库存</b>（与树果农场共用一份库存，点击可查看）：训练中的宝可梦会<b>消耗树果补充饱食度</b>。</p>`
-      + `<p><b>饱食度</b>上限 <b>${TRAIN_SATIETY_MAX}</b>，训练时每分钟下降 <b>${TRAIN_SATIETY_DRAIN_PER_MIN}</b>；低于 <b>${TRAIN_SATIETY_EAT_AT}</b> 时会自动吃掉一颗它<b>爱吃</b>的树果（图鉴可查爱吃的食物），每颗补充 <b>${TRAIN_SATIETY_PER_BERRY}</b> 饱食度——没存货就只能饿着。</p>`
-      + `<p>鼠标<b>悬停</b>在场地上的宝可梦可查看<b>名字 · 等级 · 饱食 · 状态</b>。</p>`
-      + `<p>训练中偶尔会<b>偷懒</b>：约 <b>${Math.round(TRAIN_LAZY.chancePerMin * 100)}</b>%/分钟 触发一次，暂停训练 <b>${TRAIN_LAZY.durationMin / 1000 / 60}~${TRAIN_LAZY.durationMax / 1000 / 60}</b> 分钟（只暂停后续积累，已获得的经验保留）。</p>`
-      + `<p><b>饱食度越低越容易偷懒</b>：满饱食时偷懒概率为 <b>1</b> 倍，饿到 <b>0</b> 时最多放大到 <b>${TRAIN_HUNGRY_LAZY_MULT}</b> 倍，记得常备爱吃的树果！</p>`
-      + `<p>偷懒的宝可梦会<b>停止跳动</b>待在原地，鼠标移上去光标变成<b>手形</b>——点它一下就能把它<b>叫醒</b>，继续训练！</p>`,
+    html: `<p>在<b>手机</b>页面打开<b>训练</b>应用即可进入训练场。</p>`
+      + `<p>点场地上的<b>告示牌</b>打开管理面板：顶部 <b>${TRAIN_SLOTS}</b> 个槽位，点空位去仓库放入一只、再点已有取出；底部可查看每只的状态（名字前的灰色点代表在偷懒）。</p>`
+      + `<p>挂机自动获得经验 <b>${TRAIN_XP_PER_MIN}</b>/分钟，不消耗糖果；放入训练后自动从<b>队伍</b>中撤下（训练/队伍互斥）。</p>`
+      + `<p>训练会消耗<b>饱食度</b>（上限 <b>${TRAIN_SATIETY_MAX}</b>、每分钟降 <b>${TRAIN_SATIETY_DRAIN_PER_MIN}</b>）：低于 <b>${TRAIN_SATIETY_EAT_AT}</b> 时自动吃掉库存里它爱吃的树果补充 <b>${TRAIN_SATIETY_PER_BERRY}</b> 点（<b>图鉴</b>可查爱吃的食物），没存货就只能饿着——点场地右上角的<b>纸箱</b>查看库存。</p>`
+      + `<p>训练中偶尔会<b>偷懒</b>（约 <b>${Math.round(TRAIN_LAZY.chancePerMin * 100)}</b>%/分钟，暂停 <b>${TRAIN_LAZY.durationMin / 1000 / 60}~${TRAIN_LAZY.durationMax / 1000 / 60}</b> 分钟）；饱食度越低越容易偷懒，最多放大 <b>${TRAIN_HUNGRY_LAZY_MULT}</b> 倍。</p>`
+      + `<p>偷懒的宝可梦会停止跳动，鼠标移上去点一下即可叫醒；</p>`,
   },
   {
     title: '对战',
@@ -1171,18 +1172,17 @@ const TUTORIAL_SECTIONS = [
       + `<p>NPC 的等级会<b>跟随你当前出战的队伍</b>：想练新宝可梦时只派<b>弱队</b>出战，NPC 也会跟着变弱，轻松取胜拿经验。</p>`
       + `<p>战胜后经验只分给<b>上过场且存活</b>的宝可梦，并按<b>等级差</b>结算：NPC 等级跟随你的队伍生成，基本都是<b>同级或低打高</b>，经验倍率最高 <b>3 倍</b>。</p>`
       + `<p>挑战失败可<b>再战一次</b>，随时都能重复挑战。</p>`
-      + `<p>各档挑战数量与队伍规模：普通 <b>${BATTLE_NPC_COUNTS.novice}</b> 名 / <b>${BATTLE_MONS_COUNT.novice}</b> 只、精英 <b>${BATTLE_NPC_COUNTS.veteran}</b> 名 / <b>${BATTLE_MONS_COUNT.veteran}</b> 只、冠军 <b>${BATTLE_NPC_COUNTS.champion}</b> 名 / <b>${BATTLE_MONS_COUNT.champion}</b> 只。</p>`,
+      + `<p>右键点击底部文字区域可查看实时<b>对战记录</b>。</p>`,
   },
   {
     title: '配招',
     html: `<p>在<b>宝可梦</b>仓库的个体详情页配置招式（最多 <b>4</b> 个）：<b>自动</b>按等级搭配；<b>手动</b>进入独立的配招页自由调整。</p>`
-      + `<p>配招页<b>左侧</b>是可学习的招式（带<b>属性图标</b>，<b>高亮</b>=已配入），点一下在<b>右侧</b>查看<b>详细解释</b>；再点<b>顶部空槽位</b>就把这招放进去。</p>`
+      + `<p>配招页左侧是可学习的招式，点一下在右侧查看详细解释；点顶部空槽位就可以把这招放进去。</p>`
       + `<p><b>拖拽</b>操作可以快速配招，<b>右键点击</b>招式列表可以进行排序。</p>`
-      + `<p>槽位上的<b>叉号</b>可移除招式。</p>`,
   },
   {
     title: '混合器',
-    html: `<p>在<b>手机</b>主页打开<b>混合器</b>，从农场库存选 <b>1~4</b> 颗树果作为<b>配方</b>，确认后消耗它们制成<b>树果方块</b>（效果详见「<b>树果方块</b>」章节）。</p>`
+    html: `<p>在<b>手机</b>主页打开<b>混合器</b>，从农场库存选 <b>1~4</b> 颗树果作为<b>配方</b>，确认后消耗它们制成<b>树果方块</b>（详见「<b>树果方块</b>」章节）。</p>`
       + `<p>开始混合：确认后进入<b>转盘 QTE</b>——内指针旋转，内圈顶部有一段色带（中间完美、两侧良好），在内指针扫过色带中央的瞬间按下按钮，共 <b>5</b> 轮、速度渐快；按五轮总分评定方块品质（${Object.values(BLOCK_QUALITY).map(q => q.label).join(' / ')}）。</p>`,
   },
   {
@@ -1215,7 +1215,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '系统日志',
-    html: `<p>在<b>手机</b>页面打开<b>日志</b>应用或点击主界面底部中间的状态文字即可查看记录最近的活动（获得道具、遇敌、捕捉等），最多存储 <b>50</b> 条记录。</p>`
+    html: `<p>在<b>手机</b>第二页打开<b>日志</b>应用或点击主界面底部中间的状态文字即可查看记录最近的活动（获得道具、遇敌、捕捉等），最多存储 <b>50</b> 条记录。</p>`
   },
   {
     title: '宝可梦难度',

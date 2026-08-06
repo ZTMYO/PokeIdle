@@ -1,4 +1,4 @@
-// ===== 树果农场 =====
+// ===== 农场 =====
 // 6 块田地按真实时间生长；生长/湿度由 Date.now() 折算并随存档持久化（gameData.berryFarm）
 import { $, showView, tryLoadImage, getCharPrefix, updateStats } from './ui.js';
 import { gameData, pushNav, saveGame, randInt, addSystemLog } from './state.js';

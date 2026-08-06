@@ -107,11 +107,11 @@ export async function tryEncounter() {
     }
   }
 
-  // 无精灵球时不触发遇敌（自动操作模式例外，由自动逻辑处理逃跑）
-  if (!gameData.settings?.autoCatch && !hasAnyBall()) {
-    scheduleNextEncounter(rand(ENCOUNTER_MIN, ENCOUNTER_MAX) * 1000);
-    return;
-  }
+  // // 无精灵球时不触发遇敌（自动操作模式例外，由自动逻辑处理逃跑）
+  // if (!gameData.settings?.autoCatch && !hasAnyBall()) {
+  //   scheduleNextEncounter(rand(ENCOUNTER_MIN, ENCOUNTER_MAX) * 1000);
+  //   return;
+  // }
 
   let poke;
 
@@ -687,7 +687,10 @@ export async function throwBall(ballType) {
       }
       if (isOnGameView()) updateTextBox(msg, true);
       updateStats();
-      if (_autoCatching) {
+      // 后台结算（遭遇曾被战斗打断）或自动捕捉：播完动画即统一收尾。
+      // 否则手动捕获在战斗打断后 phase 停在 'caught'、currentEncounter 不清理，
+      // 切回游戏页会被恢复流程当作活跃遭遇再次自动丢球
+      if (_bgCatch || _autoCatching) {
         await delay(300);
         stopVictory(); // 自动捕捉成功：与手动捕获流程一致，关闭胜利音效并恢复背景曲
         goIdle();
@@ -728,6 +731,7 @@ export async function fleeEncounter(isAutoFlee) {
   if ((phase !== 'encounter' && !_bgCatch) || !currentEncounter) return;
   if (_throwing) return;
   if (phase === 'fled') return; // 防重入
+  if (phase === 'caught') return; // 已捕获落库的遭遇不得再标记逃跑，防止覆盖捕获结果
   stopAutoFleeTimer();
   stopShinySparkleLoop();
   if (!_bgCatch) setPhase('fled'); // 立即阻止后续丢球
@@ -908,6 +912,7 @@ export function setAbortAutoCatch() { _abortAutoCatch = true; }
 export async function autoCatch() {
   if (_autoCatching || !currentEncounter) return;
   if (!gameData.settings?.autoCatch) return;
+  if (phase === 'caught' || phase === 'fled') return; // 判定已落库（捕获/逃跑）的遭遇不再重复捕捉
   const bg = phase !== 'encounter'; // 遭遇被 NPC 对战等打断时进入后台结算模式
   if (bg) _bgCatch = true;
   setAutoCatching(true);

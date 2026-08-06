@@ -13,7 +13,7 @@ const APPS = [
   { id: 'roster', icon: 'icon-owned', name: '宝可梦' },
   { id: 'trade', icon: 'icon-trade', name: '交换' },
   { id: 'incubator', icon: 'icon-egg', name: '孵蛋器' },
-  { id: 'berry', icon: 'icon-tree', name: '树果农场' },
+  { id: 'berry', icon: 'icon-tree', name: '农场' },
   { id: 'mixer', icon: 'icon-mixer', name: '混合器' },
   { id: 'achievement', icon: 'icon-achievement', name: '成就' },
   { id: 'data', icon: 'icon-data', name: '统计' },
@@ -35,7 +35,7 @@ function showIncubatorView() {
   renderIncubatorView();
 }
 
-// 手机主页红点：有可交换的宝可梦（交换）/ 有干涸树果（树果农场）
+// 手机主页红点：有可交换的宝可梦（交换）/ 有干涸树果（农场）
 // 每次直接设置 display：手机页每次重绘都会重建红点节点，缓存状态会漏刷。
 function updateTradeBadge() {
   const badge = $('phone-badge-trade');

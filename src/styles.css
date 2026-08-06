@@ -4731,6 +4731,56 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+/* 对战记录页：全屏覆盖战斗界面（遮住全部按钮 = 锁 UI），滚动列出本次对战日志 */
+.b-log-page {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--screen-bg-light);
+  text-align: left;
+}
+.b-log-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 8px;
+}
+.b-log-list::-webkit-scrollbar { width: 4px; }
+.b-log-list::-webkit-scrollbar-track { background: transparent; }
+.b-log-list::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb), 0.3); border-radius: 2px; }
+.b-log-list::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.4); }
+.b-log-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #306230;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+  padding: 2px 0;
+}
+.b-log-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 4px;
+}
+.b-log-line.p .b-log-dot { background: #38926e; } /* 我方行动：蓝 */
+.b-log-line.e .b-log-dot { background: #c57373; } /* 敌方行动：红 */
+.b-log-line.n .b-log-dot { background: #73b7c5; } /* 中立提示：战斗绿 */
+.b-log-text { flex: 1; min-width: 0; word-break: break-all; }
+.b-log-text b { font-weight: 800; color: var(--ui-color-dark); }
+.b-log-text .b-move-type { margin-right: 2px; vertical-align: -1px; }
+.b-log-empty {
+  font-size: 11px;
+  color: #888;
+  text-align: center;
+  padding: 20px 0;
+}
 .b-left {
   flex: 3;
   min-width: 0;
@@ -4924,22 +4974,6 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   text-align: center;
   position: relative;
 }
-/* 胜利结算页左上角返回按钮：贴近标题栏返回图标，回到对战列表 */
-.battle-result-back {
-  position: absolute;
-  top: 0;
-  left: 0;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--ui-color);
-  padding: 2px 10px;
-  background: transparent;
-  cursor: pointer;
-  border:none;
-}
-.battle-result-back:hover {color: var(--ui-color-dark);}
-.battle-result-back:active { transform: scale(0.96); }
 .battle-result-title {
   font-size: 16px;
   font-weight: 800;
@@ -5221,6 +5255,36 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .team-menu button:hover { background: rgba(var(--ui-color-rgb), 0.15); }
 .team-menu button:active { transform: scale(0.96); }
+
+/* 拖拽移除停靠区：全宽底部横条，拖入即移除 */
+.team-trash-dock {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  border: 1px dashed var(--item-border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.3);
+  color: var(--ui-color);
+  opacity: 0.55;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  font-size: 10px;
+  font-weight: 700;
+}
+.team-trash-dock.active {
+  opacity: 0.95;
+}
+.team-trash-dock.remove-over {
+  opacity: 1;
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.14);
+  border-color: #e74c3c;
+}
 #teamContent { position: relative; display: flex; flex-direction: column; }
 
 /* === 训练 App === */

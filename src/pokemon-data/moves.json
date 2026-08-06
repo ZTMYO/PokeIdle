@@ -1178,7 +1178,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "whirlwind",
                 "note": "吹飞对手，强制拉后备宝可梦上场。如果对手为野生宝可梦，战斗将直接结束。"
             }
         },
@@ -1350,7 +1350,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "命中率",
+                        "delta": -1
+                    }
+                ],
                 "note": "向对手脸上泼沙子，从而降低命中率。"
             }
         },
@@ -1485,7 +1492,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.25,
                 "cat": "phys",
                 "power": 90
             }
@@ -1517,7 +1525,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.33,
                 "cat": "phys",
                 "power": 120
             }
@@ -1676,7 +1685,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "whirlwind",
                 "note": "放走对手，强制拉后备宝可梦上场。如果对手为野生宝可梦，战斗将直接结束。"
             }
         },
@@ -1741,7 +1750,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "disable",
                 "note": "阻碍对手行动，之前使出的招式将在４回合内无法使用。"
             }
         },
@@ -1821,7 +1830,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "特防",
+                        "delta": 1
+                    }
+                ],
                 "note": "用白雾覆盖身体。在５回合内不会让对手降低自己的能力。"
             }
         },
@@ -2042,7 +2058,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.25,
                 "cat": "phys",
                 "power": 80
             }
@@ -2635,7 +2652,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "闪避率",
+                        "delta": 1
+                    }
+                ],
                 "note": "当有后备宝可梦时使用，就可以进行替换。野生的宝可梦使用则会逃走。"
             }
         },
@@ -2666,7 +2690,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "mimic",
                 "note": "可以将对手最后使用的招式，在战斗内变成自己的招式。"
             }
         },
@@ -2702,7 +2726,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "闪避率",
+                        "delta": 1
+                    }
+                ],
                 "note": "通过快速移动来制造分身，扰乱对手，从而提高闪避率。"
             }
         },
@@ -2753,7 +2784,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "闪避率",
+                        "delta": 2
+                    }
+                ],
                 "note": "蜷缩身体显得很小，从而大幅提高自己的闪避率。"
             }
         },
@@ -2768,7 +2806,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "命中率",
+                        "delta": -1
+                    }
+                ],
                 "note": "向对手喷出烟或墨汁等，从而降低对手的命中率。"
             }
         },
@@ -2863,7 +2908,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "wall",
+                "wall": "spec",
                 "note": "保护自己一方，5回合内受到的特殊攻击伤害减半。"
             }
         },
@@ -2878,7 +2924,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "haze",
                 "note": "升起黑雾，将正在场上战斗的全体宝可梦的能力变回原点。"
             }
         },
@@ -2893,7 +2939,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "wall",
+                "wall": "phys",
                 "note": "保护自己一方，5回合内受到的物理攻击伤害减半。"
             }
         },
@@ -2929,7 +2976,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "endure",
                 "note": "受到致命攻击时，保留至少1点HP。"
             }
         },
@@ -2944,8 +2991,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
-                "note": "随机使用任意一个招式。"
+                "kind": "metronome",
+                "note": "随机使用一个招式。"
             }
         },
         "119": {
@@ -3236,7 +3283,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "命中率",
+                        "delta": -1
+                    }
+                ],
                 "note": "折弯汤匙引开注意，从而降低对手的命中率。"
             }
         },
@@ -3481,7 +3535,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "命中率",
+                        "delta": -1
+                    }
+                ],
                 "note": "使出光芒，从而降低对手的命中率。也可在阴暗的洞窟里照亮四周。"
             }
         },
@@ -3786,7 +3847,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.25,
                 "cat": "phys",
                 "power": 50
             }
@@ -3945,7 +4007,7 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "curse",
                 "note": "使用该招式的宝可梦，其属性是幽灵属性或其他属性时，效果会不一样。"
             }
         },
@@ -4044,7 +4106,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": -1
+                    }
+                ],
                 "note": "对对手最后使用的招式怀有怨恨，减少４ＰＰ该招式。"
             }
         },
@@ -4163,7 +4232,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "bellyDrum",
                 "note": "减少自己最大HP的一半，将攻击提升到最高。"
             }
         },
@@ -4230,7 +4299,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "hazard",
+                "hazard": "spikes",
                 "note": "在对手的脚下扔撒菱。对替换出场的对手的宝可梦给予伤害。"
             }
         },
@@ -4286,7 +4356,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "destinyBond",
                 "note": "如果自己被击倒，对手也会一并倒下。"
             }
         },
@@ -4301,7 +4371,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "perishSong",
                 "note": "倾听歌声的宝可梦经过３回合陷入昏厥。替换后效果消失。"
             }
         },
@@ -4341,7 +4411,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "protect",
                 "note": "本回合内，自己不会受到任何招式的攻击。"
             }
         },
@@ -4413,7 +4483,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "weather",
+                "weather": "sand",
                 "note": "发动沙暴天气，除岩石/地面/钢属性外，每回合受到伤害。"
             }
         },
@@ -4606,7 +4677,14 @@
             "why": "蓄力",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "速度",
+                        "delta": -1
+                    }
+                ],
                 "note": "用好似要勾人心魂的黑色目光一动不动地凝视对手，使其不能从战斗中逃走。"
             }
         },
@@ -4621,7 +4699,9 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "status",
+                "status": "confusion",
+                "chance": 100,
                 "note": "♂诱惑♀或♀诱惑♂，让对手着迷。对手将很难使出招式。"
             }
         },
@@ -4732,7 +4812,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "painSplit",
                 "note": "将自己的ＨＰ和对手的ＨＰ相加，然后自己和对手友好地平分。"
             }
         },
@@ -4839,7 +4919,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "batonPass",
                 "note": "交换宝可梦，并延续自身的能力变化。"
             }
         },
@@ -4854,7 +4934,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "encore",
                 "note": "让对手接受再来一次，连续３次使出最后使用的招式。"
             }
         },
@@ -4901,7 +4981,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "闪避率",
+                        "delta": -2
+                    }
+                ],
                 "note": "用香气大幅降低对手的闪避率。"
             }
         },
@@ -5080,7 +5167,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "weather",
+                "weather": "rain",
                 "note": "发动下雨天气，水属性招式威力提升。"
             }
         },
@@ -5095,7 +5183,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "weather",
+                "weather": "sun",
                 "note": "发动大晴天天气，火属性招式威力提升。"
             }
         },
@@ -5148,7 +5237,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "psychUp",
                 "note": "向自己施以自我暗示，将能力变化的状态变得和对手一样。"
             }
         },
@@ -5390,7 +5479,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "weather",
+                "weather": "hail",
                 "note": "发动冰雹天气，除冰属性外每回合受到伤害。"
             }
         },
@@ -5405,7 +5495,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "disable",
                 "note": "向对手无理取闹，令其不能连续２次使出相同招式。"
             }
         },
@@ -5454,7 +5544,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "memento",
                 "note": "自己倒下，并大幅降低对手的攻击和防御。"
             }
         },
@@ -5580,7 +5670,7 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "taunt",
                 "note": "使对手愤怒。在３回合内让对手只能使出给予伤害的招式。"
             }
         },
@@ -5595,7 +5685,18 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": 1
+                    },
+                    {
+                        "stat": "特攻",
+                        "delta": 1
+                    }
+                ],
                 "note": "本回合内，队友的招式威力提升。"
             }
         },
@@ -5610,7 +5711,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "命中率",
+                        "delta": -1
+                    }
+                ],
                 "note": "抓住对手的空隙，交换自己和对手的持有物。"
             }
         },
@@ -5670,7 +5778,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "regen",
                 "note": "扎根于地面，每回合回复少量HP。"
             }
         },
@@ -5716,7 +5824,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "heal",
+                "ratio": 0.25,
                 "note": "回收已经使用过的道具。"
             }
         },
@@ -5843,7 +5952,18 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": -1
+                    },
+                    {
+                        "stat": "特攻",
+                        "delta": -1
+                    }
+                ],
                 "note": "如果对手有和自己相同的招式，那么只有对手无法使用该招式。"
             }
         },
@@ -5873,7 +5993,14 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": -1
+                    }
+                ],
                 "note": "因对手的招式而陷入昏厥时给对手施加怨念，让该招式的ＰＰ变成０。"
             }
         },
@@ -6372,8 +6499,7 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "recoil",
-                "ratio": 0.25,
+                "kind": "damage",
                 "cat": "spec",
                 "power": 130
             }
@@ -6770,7 +6896,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "速度",
+                        "delta": -1
+                    }
+                ],
                 "note": "张开双手进行阻挡，封住对手的退路，使其不能逃走。"
             }
         },
@@ -6936,7 +7069,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.33,
                 "cat": "phys",
                 "power": 120
             }
@@ -7113,8 +7247,7 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "recoil",
-                "ratio": 0.25,
+                "kind": "damage",
                 "cat": "spec",
                 "power": 140
             }
@@ -7145,7 +7278,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "闪避率",
+                        "delta": -1
+                    }
+                ],
                 "note": "在５回合内，飘浮特性和飞行属性的宝可梦会被地面属性的招式击中。飞向空中的招式也将"
             }
         },
@@ -7323,7 +7463,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "acupressure",
                 "note": "通过点穴让身体舒筋活络。大幅提高某１项能力。"
             }
         },
@@ -7449,7 +7589,9 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "status",
+                "status": "confusion",
+                "chance": 100,
                 "note": "利用超能力施以暗示，从而将自己受到的异常状态转移给对手。"
             }
         },
@@ -7511,7 +7653,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "powerTrick",
                 "note": "利用超能力交换自己的攻击和防御的力量。"
             }
         },
@@ -7571,7 +7713,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "mimic",
                 "note": "模仿对手刚才使出的招式，并使出相同招式。如果对手还没出招则会失败。"
             }
         },
@@ -7586,7 +7728,11 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "swapStats",
+                "stats": [
+                    "攻击",
+                    "特攻"
+                ],
                 "note": "利用超能力互换自己和对手的攻击以及特攻的能力变化。"
             }
         },
@@ -7601,7 +7747,11 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "swapStats",
+                "stats": [
+                    "防御",
+                    "特防"
+                ],
                 "note": "利用超能力互换自己和对手的防御以及特防的能力变化。"
             }
         },
@@ -7679,7 +7829,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "hazard",
+                "hazard": "toxic",
                 "note": "在对手的脚下撒毒菱。使对手替换出场的宝可梦中毒。"
             }
         },
@@ -7694,7 +7845,16 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "swapStats",
+                "stats": [
+                    "攻击",
+                    "防御",
+                    "特攻",
+                    "特防",
+                    "速度",
+                    "命中率",
+                    "闪避率"
+                ],
                 "note": "利用超能力互换自己和对手之间的能力变化。"
             }
         },
@@ -7709,7 +7869,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "regen",
                 "note": "在自己身体的周围覆盖用水制造的幕。每回合回复ＨＰ。"
             }
         },
@@ -7724,7 +7884,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "闪避率",
+                        "delta": 1
+                    }
+                ],
                 "note": "利用电气产生的磁力浮在空中。在５回合内可以飘浮。"
             }
         },
@@ -7739,7 +7906,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.33,
                 "cat": "phys",
                 "power": 120
             }
@@ -8049,7 +8217,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.33,
                 "cat": "phys",
                 "power": 120
             }
@@ -8081,7 +8250,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "命中率",
+                        "delta": -1
+                    }
+                ],
                 "note": "用一闪而过的速度交换自己和对手的持有物。"
             }
         },
@@ -8357,7 +8533,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "defog",
                 "note": "用强风吹开对手的反射壁或光墙等。也会降低对手的闪避率。"
             }
         },
@@ -8372,7 +8548,10 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "swapStats",
+                "stats": [
+                    "速度"
+                ],
                 "note": "制造出离奇的空间。在５回合内速度慢的宝可梦可以先行动。"
             }
         },
@@ -8387,8 +8566,7 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "recoil",
-                "ratio": 0.25,
+                "kind": "damage",
                 "cat": "spec",
                 "power": 130
             }
@@ -8436,8 +8614,7 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "recoil",
-                "ratio": 0.25,
+                "kind": "damage",
                 "cat": "spec",
                 "power": 130
             }
@@ -8586,7 +8763,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "hazard",
+                "hazard": "rock",
                 "note": "将无数岩石悬浮在对手的周围，从而对替换出场的对手的宝可梦给予伤害。"
             }
         },
@@ -8681,7 +8859,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.33,
                 "cat": "phys",
                 "power": 120
             }
@@ -8765,7 +8944,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.5,
                 "cat": "phys",
                 "power": 150
             }
@@ -8876,7 +9056,9 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "status",
+                "status": "sleep",
+                "chance": 100,
                 "note": "将对手强制拖入黑暗的世界，从而让对手陷入睡眠状态。"
             }
         },
@@ -8960,7 +9142,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "protect",
                 "note": "在１回合内防住击打我方全员的攻击。"
             }
         },
@@ -8975,7 +9157,11 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "averageStats",
+                "stats": [
+                    "防御",
+                    "特防"
+                ],
                 "note": "利用超能力将自己和对手的防御和特防相加，再进行平分。"
             }
         },
@@ -9073,7 +9259,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "闪避率",
+                        "delta": 1
+                    }
+                ],
                 "note": "将令人烦躁的粉末撒在自己身上，用以吸引对手的注意。使对手的攻击全部指向自己。"
             }
         },
@@ -9476,7 +9669,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "protect",
                 "note": "守护自己和同伴，以防对手的先制攻击。"
             }
         },
@@ -9543,7 +9736,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "heal",
+                "ratio": 0.5,
                 "note": "放出治愈波动，从而回复对手最大ＨＰ的一半。"
             }
         },
@@ -9917,7 +10111,8 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "recoil",
+                "ratio": 0.25,
                 "cat": "phys",
                 "power": 90
             }
@@ -10711,7 +10906,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "topsyTurvy",
                 "note": "颠倒对手身上的所有能力变化，变成和原来相反的状态。"
             }
         },
@@ -10779,7 +10974,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "field",
+                "field": "grass",
                 "note": "在５回合内变成青草场地。地面上的宝可梦每回合都能回复。草属性的招式威力还会提高。"
             }
         },
@@ -10794,7 +10990,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "field",
+                "field": "mist",
                 "note": "在５回合内，地面上的宝可梦不会陷入异常状态。龙属性招式的伤害也会减半。"
             }
         },
@@ -10888,7 +11085,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "速度",
+                        "delta": -1
+                    }
+                ],
                 "note": "通过封锁，下一回合所有的宝可梦都无法逃走。"
             }
         },
@@ -11050,7 +11254,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "protect",
                 "note": "防住对手攻击的同时，削减接触到自己的对手的体力。"
             }
         },
@@ -11200,7 +11404,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "field",
+                "field": "electric",
                 "note": "在５回合内变成电气场地。地面上的宝可梦将无法入眠。电属性的招式威力还会提高。"
             }
         },
@@ -12118,7 +12323,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "protect",
                 "note": "防住对手攻击的同时，让接触到自己的对手中毒。"
             }
         },
@@ -12197,7 +12402,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "heal",
+                "ratio": 0.5,
                 "note": "回复对手最大ＨＰ的一半。在青草场地时，效果会提高。"
             }
         },
@@ -12317,7 +12523,14 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "命中率",
+                        "delta": 1
+                    }
+                ],
                 "note": "集中精神，下次攻击必定会击中要害。"
             }
         },
@@ -12486,7 +12699,10 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "swapStats",
+                "stats": [
+                    "速度"
+                ],
                 "note": "将对手和自己的速度进行互换。"
             }
         },
@@ -12517,7 +12733,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "healCure",
                 "note": "治愈对手的异常状态。治愈后可以回复自己的ＨＰ。"
             }
         },
@@ -12580,7 +12796,18 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": 1
+                    },
+                    {
+                        "stat": "特攻",
+                        "delta": 1
+                    }
+                ],
                 "note": "向对手下达指示，让其再次使出刚才的招式。"
             }
         },
@@ -12659,7 +12886,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "wall",
+                "wall": "aura",
                 "note": "在５回合内减弱物理和特殊的伤害。只有下雪时才能使出。"
             }
         },
@@ -13530,7 +13758,30 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": 2
+                    },
+                    {
+                        "stat": "特攻",
+                        "delta": 2
+                    },
+                    {
+                        "stat": "防御",
+                        "delta": -1
+                    },
+                    {
+                        "stat": "特防",
+                        "delta": -1
+                    },
+                    {
+                        "stat": "速度",
+                        "delta": -1
+                    }
+                ],
                 "note": "提高自己的所有能力，但无法替换或逃走。"
             }
         },
@@ -13597,7 +13848,18 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "foe",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": -1
+                    },
+                    {
+                        "stat": "特攻",
+                        "delta": -1
+                    }
+                ],
                 "note": "举办一场茶会，场上的所有宝可梦都会吃掉自己携带的树果。"
             }
         },
@@ -13968,7 +14230,30 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": 1
+                    },
+                    {
+                        "stat": "防御",
+                        "delta": 1
+                    },
+                    {
+                        "stat": "特攻",
+                        "delta": 1
+                    },
+                    {
+                        "stat": "特防",
+                        "delta": 1
+                    },
+                    {
+                        "stat": "速度",
+                        "delta": 1
+                    }
+                ],
                 "note": "削减少许自己的ＨＰ，使所有能力都提高。"
             }
         },
@@ -14228,7 +14513,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "heal",
+                "ratio": 0.25,
                 "note": "喷洒出神奇的水，回复自己和场上同伴的ＨＰ。"
             }
         },
@@ -14640,7 +14926,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "healCure",
                 "note": "与丛林融为一体，回复自己和场上同伴的ＨＰ和状态。"
             }
         },
@@ -15180,7 +15466,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "healCure",
                 "note": "向新月献上祈祷，回复自己和场上同伴的ＨＰ和状态。"
             }
         },
@@ -15481,7 +15767,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "mimic",
                 "note": "把握并映射出对手的本质，让自己和同伴宝可梦的特性变得和对手相同。"
             }
         },
@@ -15708,7 +15994,8 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "weather",
+                "weather": "hail",
                 "note": "留下冷场的冷笑话后，和后备宝可梦进行替换。在５回合内会下雪。"
             }
         },
@@ -16151,7 +16438,7 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "protect",
                 "note": "用超高温的体毛防住对手攻击的同时，让接触到自己的对手灼伤。"
             }
         },
@@ -16230,7 +16517,18 @@
             "why": "",
             "impl": false,
             "effect": {
-                "kind": "unimplemented",
+                "kind": "stat",
+                "target": "self",
+                "stats": [
+                    {
+                        "stat": "攻击",
+                        "delta": 1
+                    },
+                    {
+                        "stat": "特攻",
+                        "delta": 1
+                    }
+                ],
                 "note": "以龙之鼓舞提高士气，让我方的招式变得容易击中要害。对龙属性的鼓舞效果会更强。"
             }
         },

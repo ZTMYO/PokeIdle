@@ -94,5 +94,5 @@ for (const fam of famOrder) {
   lines.push('');
 }
 
-writeFileSync('tools/补全清单.md', lines.join('\n'), 'utf8');
+writeFileSync('docs/补全清单.md', lines.join('\n'), 'utf8');
 console.log('families:', famOrder.length, 'moves:', used.size);

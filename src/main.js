@@ -54,8 +54,8 @@ import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBad
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
-import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier } from './battle-view.js';
-import { backFromBattlePick } from './team.js';
+import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle } from './battle-view.js';
+import { backFromBattlePick, isBattlePicking } from './team.js';
 import { refreshNpcs } from './npcs.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
@@ -148,9 +148,9 @@ function goBack() {
     retreatBattle();
     return;
   }
-  // 宝可梦倒下换人选择页：标题栏返回 = 没选任何宝可梦，不用回对战了，直接撤退回对战列表
-  if (backFromBattlePick()) {
-    retreatBattle();
+  // 战斗替换选择页（teamView）：主动替换 → 取消选择回战斗操作界面；倒下换人 → 直接撤退回对战列表
+  if (isBattlePicking()) {
+    if (backFromBattlePick()) retreatBattle();
     return;
   }
   // 仓库选取模式（配队/训练点击空位进入）：返回恢复来源页
@@ -180,6 +180,7 @@ function goBack() {
     if (isBattleActive()) {
       showView('battleView');
       restoreBattleTier(); // 战斗页重新显示：恢复 NPC 难度边框色
+      syncLogTitle(); // 记录页还开着则恢复「对战记录」标题（设置页返回场景）
     } else {
       // 战斗已结束（结算页）或列表页：与「返回列表」按钮一致，回到 NPC 战斗列表
       import('./battle-view.js').then(m => m.showBattleView());
@@ -450,10 +451,10 @@ async function init() {
     console.log('所有孵蛋中的蛋已标记为孵化完成');
   };
 
-  // 调试辅助：DevTools 控制台一键让树果农场所有已种植地块成熟（window.__matureBerries()）
+  // 调试辅助：DevTools 控制台一键让农场所有已种植地块成熟（window.__matureBerries()）
   window.__matureBerries = () => {
     const f = gameData.berryFarm;
-    if (!f || !Array.isArray(f.plots)) { console.warn('__matureBerries: 尚未开启树果农场'); return; }
+    if (!f || !Array.isArray(f.plots)) { console.warn('__matureBerries: 尚未开启农场'); return; }
     let n = 0;
     f.plots.forEach(p => {
       if (!p) return;
@@ -877,7 +878,10 @@ async function init() {
   $('statDropHint')?.addEventListener('click', footerNav(showSystemLogs));
   $('statTime')?.addEventListener('click', footerNav(showGpsView));
   $('appTitle')?.addEventListener('click', () => {
-    if ($('appTitle').dataset.action === 'back') goBack();
+    if ($('appTitle').dataset.action !== 'back') return;
+    // 对战记录页打开且正处战斗视图：点击标题只关记录页，否则走正常返回
+    if (isLogOpen() && $('battleView')?.style.display === 'flex') { closeLogPage(); return; }
+    goBack();
   });
 
   // 图鉴搜索

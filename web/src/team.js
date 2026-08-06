@@ -57,6 +57,11 @@ export function backFromBattlePick() {
   return forced;
 }
 
+// 是否处于战斗替换选择模式（主动替换 / 宝可梦倒下换人）
+export function isBattlePicking() {
+  return !!_battleCb;
+}
+
 // 仓库选取：从列表项加入队伍（空槽点击跳转仓库后由列表项触发），按被点击的槽位落位
 export function addToTeam(id, slot) {
   const cur = teamIds();
@@ -128,7 +133,66 @@ function render() {
       openTeamMenu(e, i, slotPokes[i]);
     });
   });
+  // 空白区域右键：弹出队伍管理菜单（随机配队 / 清空）；战斗替换模式下不提供
+  if (!_battleCb) {
+    const app = box.querySelector('.team-app');
+    app?.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // 阻止冒泡到全局右键监听
+      if (e.target.closest('.team-member')) return; // 卡片上右键不弹，保持原有行为
+      openTeamCtxMenu(e);
+    });
+  }
   bindDrag(box);
+}
+
+// 配队页空白区域右键菜单
+function openTeamCtxMenu(e) {
+  closeTeamMenu();
+  const box = $('teamContent');
+  const r = box.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'team-menu';
+  menu.innerHTML = `
+    <button data-menu-act="auto">随机配队</button>
+    <button data-menu-act="clear">清空</button>`;
+  menu.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const act = ev.target.closest('[data-menu-act]');
+    if (!act) return;
+    closeTeamMenu();
+    if (act.dataset.menuAct === 'auto') autoBuildTeam();
+    else if (act.dataset.menuAct === 'clear') clearTeam();
+  });
+  box.appendChild(menu);
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(0, Math.min(e.clientX - r.left, r.width - mw - 4))}px`;
+  menu.style.top = `${Math.max(0, Math.min(e.clientY - r.top, r.height - mh - 4))}px`;
+  _menuEl = menu;
+}
+
+// 随机配队：随机抽 6 只等级相近的宝可梦入队（以仓库平均等级为基准，正在训练的排除在外）
+function autoBuildTeam() {
+  const trainingIds = new Set((gameData.training?.slots || []).map((s) => s && s.id).filter(Boolean));
+  const roster = (gameData.roster || []).filter((p) => p.inRoster !== false && !trainingIds.has(p.id));
+  if (!roster.length) return;
+  const avg = roster.reduce((s, p) => s + (p.level || 1), 0) / roster.length;
+  // 相近档：与平均等级差 ≤8 优先；不够 6 只时按距离就近补齐
+  const inBand = roster.filter((p) => Math.abs((p.level || 1) - avg) <= 8);
+  const rest = roster.filter((p) => Math.abs((p.level || 1) - avg) > 8)
+    .sort((a, b) => Math.abs((a.level || 1) - avg) - Math.abs((b.level || 1) - avg));
+  const pool = [...inBand, ...rest].sort(() => Math.random() - 0.5).slice(0, TEAM_MAX);
+  if (!pool.length) return;
+  gameData.team = pool.map((p) => p.id);
+  saveGame();
+  render();
+}
+
+// 清空配队
+function clearTeam() {
+  gameData.team = [];
+  saveGame();
+  render();
 }
 
 // 单槽位渲染：统一布局（左侧图标占满高度 + 右侧名字/等级/经验三行）

@@ -488,7 +488,7 @@ function moveDesc(mv) {
     case 'leechSeed': return '在对手脚下种下寄生种子，每回合吸取其 HP 回复自己。对草系无效。';
     case 'substitute': return '消耗 1/4 最大 HP 制造替身，替身替自己承受伤害。';
     case 'unimplemented': return ef.note || '该招式暂未实装。';
-    default: return '';
+    default: return ef.note || ''; // 其余已实现机制（场地/天气/吹飞/接棒等）直接展示官方描述
   }
 }
 
@@ -646,7 +646,7 @@ function bindMoveEditDrag(box) {
   });
 }
 
-// 候选列表排序：default 保持学习等级升序（TM 最后）/ type 按属性 / cat 按物理·特殊·变化
+// 候选列表排序：default 保持学习等级升序（TM 最后）/ type 按属性 / cat 按物理·特殊·变化 / power 按威力降序
 const CAT_SORT_ORDER = { phys: 0, spec: 1, status: 2 };
 function sortMoveCands(cands) {
   const list = cands.slice();
@@ -663,6 +663,13 @@ function sortMoveCands(cands) {
       const cb = CAT_SORT_ORDER[moveCat(_moveData.moves[b.id])] ?? 9;
       return ca - cb || (a.lv ?? 999) - (b.lv ?? 999);
     });
+  } else if (_moveSort === 'power') {
+    // 威力降序；变化/回复类无威力视为 0 排最后，同威力按学习等级升序
+    list.sort((a, b) => {
+      const pa = _moveData.moves[a.id]?.power ?? 0;
+      const pb = _moveData.moves[b.id]?.power ?? 0;
+      return (pb - pa) || (a.lv ?? 999) - (b.lv ?? 999);
+    });
   }
   return list;
 }
@@ -672,6 +679,7 @@ const MOVE_SORT_OPTIONS = [
   { key: 'default', label: '默认排序' },
   { key: 'type', label: '按属性排序' },
   { key: 'cat', label: '按类别排序' },
+  { key: 'power', label: '按威力排序' },
 ];
 function showMoveSortMenu(x, y) {
   hideMoveSortMenu();

@@ -1038,3 +1038,85 @@
   25% { opacity: 1; }
   100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.8); }
 }
+/* 守住系护盾：宝可梦周身淡蓝护盾光圈（常驻轻缓脉冲），挡下攻击（block 事件）时白光一闪 + 光圈扩张 */
+.b-shield {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2.5px solid rgba(150, 225, 255, 0.8);
+  background: radial-gradient(circle, rgba(170, 230, 255, 0.18) 55%, rgba(150, 225, 255, 0.06));
+  box-shadow: 0 0 12px rgba(150, 225, 255, 0.5), inset 0 0 14px rgba(180, 235, 255, 0.3);
+  z-index: 4;
+  pointer-events: none;
+  animation: bShieldPulse 1.1s ease-in-out infinite;
+}
+@keyframes bShieldPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+  50% { transform: translate(-50%, -50%) scale(1.02); opacity: 1; }
+}
+.b-shield.b-shield-hit { animation: bShieldHit 0.4s ease-out; }
+@keyframes bShieldHit {
+  0% { transform: translate(-50%, -50%) scale(1); filter: brightness(1.5); }
+  35% { transform: translate(-50%, -50%) scale(1.12); filter: brightness(2.8); }
+  100% { transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
+}
+/* 场地钉子：撒菱尖刺 / 毒菱毒滴 / 隐形岩岩块，扁平图标，成组渲染在双方椭圆底座上 */
+.b-hazards {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  max-width: 52px;
+  z-index: 2;
+  pointer-events: none;
+}
+/* 与底座同锚点（be-base 右 33 / bp-base 左 28），保证图标落在底座椭圆上 */
+#be-hazards { right: 33px; top: 48px; transform: translate(50%, -50%); }
+#bp-hazards { left: 28px; top: 36px; transform: translate(-50%, -50%); }
+.b-hz-stack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 1px;
+}
+.b-hz {
+  animation: bHzDrop 0.35s cubic-bezier(0.3, 0.9, 0.4, 1) backwards;
+}
+@keyframes bHzDrop {
+  from { opacity: 0; transform: translateY(-5px) scale(0.4); }
+}
+.b-hz.spk {
+  width: 5px;
+  height: 0;
+  border-left: 2.5px solid transparent;
+  border-right: 2.5px solid transparent;
+  border-bottom: 7px solid #b98f5e;
+  border-radius: 1px;
+}
+.b-hz.tox {
+  width: 6px;
+  height: 6px;
+  background: #a23df0;
+  clip-path: polygon(50% 100%, 92% 48%, 74% 14%, 50% 0%, 26% 14%, 8% 48%);
+}
+.b-hz.rck {
+  width: 7px;
+  height: 6px;
+  background: #b59162;
+  clip-path: polygon(20% 0%, 60% 0%, 86% 24%, 100% 62%, 76% 100%, 38% 84%, 4% 68%, 0 30%);
+}
+/* 钉子落下：新增层/新增种类时整组掉落入场 */
+.b-hazards.b-hz-pop .b-hz-stack { animation: bHzPop 0.4s cubic-bezier(0.3, 0.9, 0.4, 1); }
+@keyframes bHzPop {
+  0% { opacity: 0; transform: translateY(6px) scale(0.4); }
+  55% { opacity: 1; transform: translateY(0) scale(1.18); }
+  100% { transform: translateY(0) scale(1); }
+}
+/* 钉子踩中：整组白亮一瞬 + 轻微上弹 */
+.b-hazards.b-hz-hit .b-hz-stack { animation: bHzHit 0.3s ease-out; }
+@keyframes bHzHit {
+  0%, 100% { opacity: 0.95; filter: brightness(1); }
+  40% { opacity: 1; filter: brightness(2.2); transform: translateY(-2px); }
+}

@@ -94,13 +94,25 @@ export function refreshNpcs() {
 }
 
 // 按玩家出战队伍最高等级生成 NPC 队伍（首只=基准等级，往后逐只低一级）；带谁打 NPC 就跟随谁，上限 MAX_LEVEL。
-// 队伍物种取自生成波次时抽好的 npc.mons：刷新一波后同一 NPC 保持一套队伍不变（等级/个体/招式每次挑战仍会重 roll）
+// 队伍物种取自生成波次时抽好的 npc.mons；个体/性格/招式在首次构建时 roll 定并缓存到 npc.team，
+// 之后每次挑战只按玩家等级重算等级——同一波次内 NPC 的速度/强度不再每局变化
 export function buildNpcTeam(npc, data, learnset, maxLv) {
   const base = Math.max(3, Math.min(MAX_LEVEL, maxLv + npc.lvBonus));
-  return npc.mons.map((idx, i) => {
-    const pd = getPokemonByIndex(idx);
-    const level = Math.min(MAX_LEVEL, base - i);
-    const moveIds = chooseMoves(learnset[idx], level, data, { types: pd.types });
-    return { pd, level, ivs: rollIvs(), nature: rollNature(), moveIds };
-  });
+  // 首次构建：roll 定个体/性格/招式并缓存（仅存可序列化字段，pd 每次从图鉴取）
+  if (!Array.isArray(npc.team) || npc.team.length !== npc.mons.length) {
+    npc.team = npc.mons.map((idx, i) => {
+      const pd = getPokemonByIndex(idx);
+      const level = Math.min(MAX_LEVEL, base - i);
+      const moveIds = chooseMoves(learnset[idx], level, data, { types: pd.types, shuffle: true });
+      return { species: idx, level, ivs: rollIvs(), nature: rollNature(), moveIds };
+    });
+  }
+  // 复用固定队伍数据，仅重算等级（跟随玩家出战队伍最高等级）
+  return npc.team.map((m, i) => ({
+    pd: getPokemonByIndex(m.species),
+    level: Math.min(MAX_LEVEL, base - i),
+    ivs: m.ivs,
+    nature: m.nature,
+    moveIds: m.moveIds,
+  }));
 }
