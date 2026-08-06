@@ -2,13 +2,15 @@
 口袋挂机 · 数值平衡性期望分析
 ================================
 按 src/config.js 的当前数值，计算各系统的单位时间期望：
-  1) 掉落系统（每秒累积器）每小时获得数 + 折糖当量
-  2) 移动速度与孵蛋里程耗时
-  3) 糖果每小时收入（掉落 / 农场 / 告示牌 / 悬赏）
+  1) 掉落系统（每秒累积器）每小时获得数 + 折糖当量（糖果按 ×1~×100 数量倍率加权）
+  2) 移动速度与孵蛋里程耗时（截断正态，峰值按体重/稀有度对数均匀）
+  3) 糖果每小时收入（掉落 / 农场 / 告示牌 / 悬赏 / 钓鱼单杆）
   4) 糖果每小时消耗（捕获球缺口 / buff / 蛋）
   5) 捕获成本分档（复用 catch_sim 模拟，含逃跑损耗）
   6) 闪光获取效率对比（野生 / 大量出没 / 交换 offer / 护符）
+  7) 糖果商店兑换性价比
 输出：控制台详细报告 + econ_analysis.png（2×2 图）
+数值核对来源：src/config.js / src/battle.js / src/scoring.js / src/items.js / src/fishing.js / src/berry.js
 """
 import json
 import os
@@ -39,6 +41,9 @@ CANDY_EXCHANGE = {'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 500,
                   'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 1000}
 CATCH_RATES = {'poke-ball': 0.35, 'ultra-ball': 0.70, 'master-ball': 1.00}
 BALL_PRICE = {'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 500}
+# 糖果掉落数量倍率（权重）：掉落糖果时按此抽一次倍率（src/config.js CANDY_DROP_MULT）
+CANDY_DROP_MULT = [(1, 100), (2, 30), (5, 15), (50, 4), (100, 2)]
+CANDY_MULT_EXPECT = sum(m * w for m, w in CANDY_DROP_MULT) / sum(w for _, w in CANDY_DROP_MULT)
 
 ENCOUNTER_MIN, ENCOUNTER_MAX = 120, 240        # 普通遇敌间隔（秒）
 BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX = 15, 30  # buff 遇敌间隔（秒）
@@ -52,6 +57,10 @@ MASS_COUNT_MIN, MASS_COUNT_MAX = 10, 20
 TRADE_SHINY_CHANCE = 20 / 40
 TRADE_COUNT, TRADE_REFRESH_S = 6, 10 * 60
 BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX = 5, 30, 500
+BOUNTY_JITTER = 0.25             # 悬赏糖果奖励随机浮动 ±25%
+BOUNTY_RARE_WEIGHT = 0.7         # 悬赏选角稀有度权重（选角权重 = 0.3 + rarity×0.7）
+BATTLE_REFRESH_S = 20 * 60       # NPC 对战刷新间隔（秒）
+BATTLE_WAVE_CANDY = 3 * 5 + 2 * 10 + 1 * 20  # 每波满胜糖果：普通×3(5糖)+精英×2(10糖)+冠军×1(20糖)
 REGIONS = 9
 FARM_PLOT = 6
 FARM_MATURE_MIN, FARM_MATURE_MAX = 30, 60      # 分钟
@@ -61,6 +70,8 @@ BOARD_DEMANDS, BOARD_QTY_MIN, BOARD_QTY_MAX, BIG_QTY_MIN, BIG_QTY_MAX = 5, 3, 10
 HATCH_MIN, HATCH_MAX = 2000, 30000             # 米
 PX_PER_METER = 26
 ROAD_SPEED = {'走路': 0.5, '跑步': 1.0, '骑车': 2.0}  # px/帧 @60fps
+FISH_POKEMON_CHANCE = 0.1                      # 每次钓鱼钓到宝可梦的几率
+FISH_QTY_MIN, FISH_QTY_MAX = 1, 15             # 钓到道具最少/最多数量
 
 
 def km_per_h(px_per_frame):
@@ -77,48 +88,69 @@ def main():
     print("=" * 74)
 
     # ---------- 1) 掉落系统 ----------
-    print("\n【1】掉落系统（每秒累积器：每 tick +rate，满 1 掉落）")
+    print("\n【1】掉落系统（每秒累积器：每 tick +rate，满 1 掉落；糖果按倍率加权）")
     print(f"{'道具':<6}{'概率':>10}{'平均间隔':>10}{'每小时':>9}{'兑换价':>8}{'折糖当量/h':>12}")
     drop_sugar = {}
     for k, rate in ITEM_RATES.items():
-        per_h = rate * 3600
+        mult = CANDY_MULT_EXPECT if k == 'candy' else 1  # 掉落糖果时按 ×1~×100 权重抽取数量
+        per_h = rate * 3600 * mult
         sugar = per_h * (CANDY_EXCHANGE.get(k, 1))  # 糖果本身 = 1 糖/个
         drop_sugar[k] = sugar
-        print(f"{ITEM_NAMES[k]:<8}{rate:>10.5f}{3600/per_h:>9.0f}s{per_h:>9.1f}{CANDY_EXCHANGE.get(k, '-'):>8}{sugar:>12.0f}")
+        print(f"{ITEM_NAMES[k]:<8}{rate:>10.5f}{3600/(rate*3600):>9.0f}s{per_h:>9.1f}{CANDY_EXCHANGE.get(k, '-'):>8}{sugar:>12.0f}")
     total_drop_sugar = sum(drop_sugar.values())
     print(f"掉落总折糖当量: {total_drop_sugar:.0f} 糖/h（若全部按兑换价变现/使用）")
-    print("  注：闪耀护符 1/1000 = 16.7 分钟/个 ≈ 3.6 个/h，折糖 3600/h，是所有掉落价值大头")
+    print(f"  注：糖果掉落数量 ×1/×2/×5/×50/×100（权重 100/30/15/4/2，期望倍率 ×{CANDY_MULT_EXPECT:.1f}）；闪耀护符 1/1000 = 16.7 分钟/个 ≈ 3.6 个/h")
 
     # ---------- 2) 移动速度与孵蛋 ----------
     print("\n【2】移动速度与孵蛋里程")
     speeds = {name: km_per_h(px) for name, px in ROAD_SPEED.items()}
     for name, v in speeds.items():
         print(f"  {name}: {v:.2f} km/h")
-    hatch_avg_m = (HATCH_MIN + HATCH_MAX) / 2
+    # 孵蛋里程：峰值按体重/稀有度在对数区间均匀分布（轻/常见→2km，重/稀有→30km），
+    # 截断正态采样（标准差 = 峰值 × 0.2）；平均因子 0.5 时峰值约 7.7km
+    hatch_avg_m = 2000 * (30000 / 2000) ** 0.5
     for name, v in speeds.items():
         h = hatch_avg_m / 1000 / v
-        print(f"  孵蛋期望里程 {hatch_avg_m/1000:.0f} km（{HATCH_MIN/1000:.0f}~{HATCH_MAX/1000:.0f} km）：{name} {h:.1f} 小时")
+        print(f"  孵蛋期望里程 ≈ {hatch_avg_m/1000:.0f} km（2~30km，按体重/稀有度分布，平均因子取 0.5）：{name} {h:.1f} 小时")
 
     # ---------- 3) 糖果每小时收入 ----------
     print("\n【3】糖果每小时收入（估算）")
-    drop_candy = ITEM_RATES['candy'] * 3600
+    drop_candy = ITEM_RATES['candy'] * 3600 * CANDY_MULT_EXPECT  # 糖果掉落按数量倍率加权
     farm_net_per_cycle = (FARM_HARVEST_MIN + FARM_HARVEST_MAX) / 2 * FARM_CANDY_PER_BERRY - FARM_PLANT_COST
     farm_cycle_min = (FARM_MATURE_MIN + FARM_MATURE_MAX) / 2
     farm_per_h = FARM_PLOT * farm_net_per_cycle / (farm_cycle_min / 60)
-    # 告示牌：5 条/天，普通 3~10 颗 + big 25~45 颗（假设 1 条 big）
+    # 告示牌：5 条/天，末条为大量需求(25~45颗)；奖励 = qty×8 + randInt(0, big?30:8)
     board_norm = BOARD_DEMANDS - 1
     board_day = board_norm * ((BOARD_QTY_MIN + BOARD_QTY_MAX) / 2 * FARM_CANDY_PER_BERRY + 4) \
         + 1 * ((BIG_QTY_MIN + BIG_QTY_MAX) / 2 * FARM_CANDY_PER_BERRY + 15)
     board_per_h = board_day / 24
-    bounty_day = REGIONS * BOARD_DEMANDS if False else REGIONS * BOUNTY_PER_REGION
-    bounty_per_h_full = bounty_day * (BOUNTY_CANDY_MIN + BOUNTY_CANDY_MAX) / 2 / 24
-    print(f"  掉落糖果:            {drop_candy:>6.0f} 糖/h（20s/个）")
+    # 悬赏：按真实图鉴 rarity/catchRate 分布 + 选角权重(0.3+0.7×rarity) 计算期望奖励；
+    # 奖励公式与 src/bounty.js calcBountyCandy 一致：diff=0.5×(1-catchRate)+0.5×rarity
+    def bounty_candy(p):
+        cr = min(max(p.get("catchRate") or 0.5, 0), 1)
+        r = min(max(p.get("rarity") or 0.5, 0), 1)
+        diff = 0.5 * (1 - cr) + 0.5 * r
+        base = BOUNTY_CANDY_MIN + (BOUNTY_CANDY_MAX - BOUNTY_CANDY_MIN) * diff
+        return min(BOUNTY_CANDY_MAX, max(BOUNTY_CANDY_MIN, round(base)))  # jitter ±25% 均值≈1
+    _dex = json.load(open(POKEDEX_PATH, encoding="utf-8-sig"))
+    _bw = sum((0.3 + min(max(p.get("rarity", 0.5), 0), 1) * BOUNTY_RARE_WEIGHT) for p in _dex if p.get("rarity") is not None)
+    bounty_avg = sum((0.3 + min(max(p.get("rarity", 0.5), 0), 1) * BOUNTY_RARE_WEIGHT) / _bw * bounty_candy(p) for p in _dex if p.get("rarity") is not None)
+    bounty_day = REGIONS * BOUNTY_PER_REGION
+    bounty_per_h_full = bounty_day * bounty_avg / 24
+    # NPC 对战：每 20min 一波满胜 55 糖（胜后该 NPC 移出列表），胜率不足时按比例打折
+    battle_per_h = BATTLE_WAVE_CANDY / (BATTLE_REFRESH_S / 3600)
+    # 钓鱼：单杆 90% 道具(1~15个，按 ITEM_RATES 权重) + 10% 宝可梦战斗；收益受水域路段频率限制
+    fish_total_rate = sum(ITEM_RATES.values())
+    fish_item_sugar_exp = sum(r / fish_total_rate * CANDY_EXCHANGE.get(k, 1) for k, r in ITEM_RATES.items())
+    print(f"  掉落糖果(含倍率):    {drop_candy:>6.0f} 糖/h（20s/个 × {CANDY_MULT_EXPECT:.1f} 倍率）")
     print(f"  树果农场(6地手动):   {farm_per_h:>6.0f} 糖/h（净 {farm_net_per_cycle:.0f} 糖/轮/地 × {FARM_PLOT} 地 ÷ {farm_cycle_min:.0f}min）")
     print(f"  告示牌委托(全做):    {board_per_h:>6.0f} 糖/h（约 {board_day:.0f} 糖/天）")
-    print(f"  地区悬赏(9区全做):   {bounty_per_h_full:>6.0f} 糖/h（{bounty_day} 条/天 × 平均 265 糖）")
-    print(f"  钓鱼道具: 少量（仅水域路段，按 ITEM_RATES 权重随机 1~15 个/次）")
+    print(f"  地区悬赏(9区全做):   {bounty_per_h_full:>6.0f} 糖/h（{bounty_day} 条/天 × 平均 {bounty_avg:.0f} 糖，按真实图鉴稀有度加权）")
+    print(f"  NPC 对战(满胜上限): {battle_per_h:>6.0f} 糖/h（每 20min 一波 55 糖；胜率<100% 按比例打折）")
+    print(f"  钓鱼: 单杆期望 ≈ {0.9 * ((FISH_QTY_MIN + FISH_QTY_MAX) / 2) * fish_item_sugar_exp:.0f} 糖（道具，"
+          f"每杆 {(FISH_QTY_MIN + FISH_QTY_MAX) / 2:.0f} 个 × 加权 {fish_item_sugar_exp:.0f} 糖），另 10% 概率进宝可梦战斗")
     idle_sugar = drop_candy + farm_per_h + board_per_h
-    print(f"  → 纯挂机(不悬赏) ≈ {idle_sugar:.0f} 糖/h；全力(悬赏全做) ≈ {idle_sugar + bounty_per_h_full:.0f} 糖/h")
+    print(f"  → 纯挂机(不悬赏) ≈ {idle_sugar:.0f} 糖/h；全力(悬赏+对战满胜) ≈ {idle_sugar + bounty_per_h_full + battle_per_h:.0f} 糖/h")
 
     # ---------- 4) 糖果消耗与球缺口 ----------
     print("\n【4】糖果消耗与球供给缺口")
@@ -180,7 +212,7 @@ def main():
 
     # ---------- 7) 各兑换性价比 ----------
     print("\n【7】糖果商店兑换性价比")
-    candy_sec = ITEM_RATES['candy']
+    candy_sec = ITEM_RATES['candy'] * CANDY_MULT_EXPECT  # 每秒期望糖果（含掉落倍率）
     for k, price in CANDY_EXCHANGE.items():
         if k == 'shiny-charm':
             continue
@@ -220,10 +252,11 @@ def main():
 
     # 图2：糖果收支
     ax = axes[0, 1]
-    inc = {"掉落糖果": drop_candy, "农场(6地)": farm_per_h, "告示牌": board_per_h, "悬赏(9区全做)": bounty_per_h_full}
+    inc = {"掉落糖果": drop_candy, "农场(6地)": farm_per_h, "告示牌": board_per_h,
+           "悬赏(9区)": bounty_per_h_full, "对战(满胜)": battle_per_h}
     labels = list(inc.keys())
     vals = list(inc.values())
-    inc_colors = ["#55b573", "#9ac15c", "#e2b93d", "#f8d038"]
+    inc_colors = ["#55b573", "#9ac15c", "#e2b93d", "#f8d038", "#f09058"]
     bars = ax.barh(labels, vals, 0.55, color=inc_colors, edgecolor="#5a5a5a", lw=0.6, zorder=3)
     for b, v in zip(bars, vals):
         ax.text(v + 12, b.get_y() + b.get_height() / 2, f"{v:.0f}", va="center", fontsize=11, fontweight="bold")
