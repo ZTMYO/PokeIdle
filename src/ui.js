@@ -52,7 +52,7 @@ export function showNowPlaying(title, artist) {
 
 // ---------- 视图切换 ----------
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
-const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView'];
+const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView'];
 
 export function showView(id) {
   if (id === 'idleView' && phase === 'encounter') {
@@ -61,18 +61,18 @@ export function showView(id) {
   if (id === 'encounterView' && phase === 'idle') {
     id = 'idleView';
   }
-  const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
+  const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none' || $('hatchView')?.style.display !== 'none';
   VIEW_IDS.forEach(v => {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
-  // 孵蛋动画结束后的「查看详情」确认页：玩家离开游戏页 → 后台完成流程（回到空闲），
-  // 避免 phase 停留在 eggResult 导致孵蛋按钮一直禁用
+  // 孵蛋结果确认页离开游戏页时：若期间挂起过野生遭遇则恢复该遭遇，
+  // 否则按原流程回到空闲，避免 phase 停留在 eggResult。
   if (wasOnGameView && phase === 'eggResult' && !_eggHatching && id !== 'encounterView') {
-    import('./battle.js').then(m => {
-      m.goIdle();
-      renderIncubatorView();
-    });
+    import('./items.js').then(m => m.finalizeEggResultContext());
+  }
+  if (wasOnGameView && id !== 'idleView' && id !== 'encounterView') {
+    import('./battle.js').then(m => m.cancelBgResultReplay());
   }
   if (!wasOnGameView && (id === 'idleView' || id === 'encounterView')) {
     setTimeout(() => {
@@ -93,7 +93,7 @@ export function showView(id) {
       });
     }, 0);
   }
-  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView']);
+  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView']);
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
     btn.classList.toggle('active', on);
@@ -107,9 +107,9 @@ export function showView(id) {
     road.refreshSize();
   }
 
-  if (id !== 'encounterView') {
+  if (id !== 'encounterView' && id !== 'hatchView') {
     hideTextBox();
-  } else if (phase === 'encounter' && currentEncounter) {
+  } else if (id === 'encounterView' && phase === 'encounter' && currentEncounter) {
     const box = $('textBox');
     const tc = $('animThrowChar');
     if (box && !box.classList.contains('show')) {
@@ -140,7 +140,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', hatchView:'孵化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -148,7 +148,9 @@ export function showView(id) {
 
 // ---------- 底部文字框 ----------
 export function updateTextBox(text, showArrow) {
-  if (!isOnGameView()) return;
+  // 底部文字框只在游戏页（挂机/遇敌）或孵蛋页显示；孵蛋页文案由孵蛋流程显式调用，
+  // 其他页面一律隐藏。遭遇页的文案调用方都用 isOnGameView() 先做判断，不会漏到孵蛋页。
+  if (!isOnGameView() && !isOnHatchView()) return;
   const box = $('textBox');
   const content = $('textBoxContent');
   const arrow = $('textBoxArrow');
@@ -175,7 +177,13 @@ export function hideTextBox() {
 }
 
 export function isOnGameView() {
+  // 仅主界面 / 遇敌页属于"游戏页"：孵蛋页是独立页面，遭遇/丢球文案、动画与视图切换都不得作用其上
   return $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
+}
+
+// 是否在孵蛋独立页（hatchView）：孵蛋动画/结果文案的可见性判断专用，与游戏页完全隔离
+export function isOnHatchView() {
+  return $('hatchView')?.style.display !== 'none';
 }
 
 // ---------- 角色系统 ----------
@@ -280,7 +288,7 @@ export function fitPokemonImage(img) {
   img.style.width = '';
   img.style.height = '';
   img.style.objectFit = '';
-  if (!img.closest('#encounterView')) return;
+  if (!img.closest('#encounterView') && !img.closest('#hatchView')) return;
   const { h: stageH } = getStageSize();
   const maxH = stageH * 0.58;
   if (img.naturalHeight > maxH) {
@@ -460,7 +468,9 @@ export function renderIncubatorView() {
   if (!incubators.length) return;
   const unlocked = gameData.incubatorUnlockedSlots ?? 0;
   const hatchBtnHtml = (i, disabled) => `<span class="incubator-hatch-text hatched${disabled ? ' disabled' : ''}" data-slot="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>孵化</span>`;
-  const inBattle = phase !== 'idle';
+  // 野生遭遇期间允许保留孵蛋入口：点击时优先切回遭遇画面处理；
+  // 仅在 NPC 对战 / 孵蛋动画自身进行中时真正禁用，避免复用 encounterView 互相覆盖。
+  const hatchLocked = phase === 'battle' || phase === 'eggResult' || _eggHatching;
   let html = '';
   for (let i = 0; i < Math.min(incubators.length, 8); i++) {
     const s = incubators[i];
@@ -481,7 +491,7 @@ export function renderIncubatorView() {
       html += `<div class="incubator-row">
         <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
         <div class="incubator-info"><div class="incubator-name">蛋</div></div>
-        ${hatchBtnHtml(i, inBattle)}
+        ${hatchBtnHtml(i, hatchLocked)}
       </div>`;
     } else if (hasEgg) {
       const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
@@ -496,7 +506,7 @@ export function renderIncubatorView() {
         html += `<div class="incubator-row">
           <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
           <div class="incubator-info"><div class="incubator-name">蛋</div></div>
-          ${hatchBtnHtml(i, inBattle)}
+          ${hatchBtnHtml(i, hatchLocked)}
         </div>`;
         continue;
       }

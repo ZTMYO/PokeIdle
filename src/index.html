@@ -218,6 +218,23 @@
             </div>
           </div>
 
+          <!-- 孵蛋动画（独立页面：与遇敌页解耦，返回回孵蛋器） -->
+          <div id="hatchView" style="display:none;">
+            <div class="encounter-name" id="hatchName"></div>
+            <div class="encounter-types" id="hatchTypes"></div>
+            <div class="encounter-right">
+              <span id="hatchOwnedWrap" class="encounter-owned-wrap" style="display:none;">
+                <svg id="hatchOwnedIcon" class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18">
+                  <use xlink:href="./icons/sprites.svg#icon-owned" />
+                </svg>
+                <span class="encounter-tooltip" id="hatchOwnedTip"></span>
+              </span>
+              <div id="hatchCatchRate" class="encounter-catch-rate"></div>
+              <div id="hatchNewLabel" class="encounter-new-label" style="display:none;">新发现！</div>
+            </div>
+            <img id="hatchGif" class="encounter-gif" src="" alt="" />
+          </div>
+
           <!-- 关闭二次确认（右上角叉 / 任务栏关闭时弹出） -->
           <div id="quitDialog" class="dialog">
             <div class="dialog-box">

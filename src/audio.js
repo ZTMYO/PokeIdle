@@ -273,6 +273,18 @@ export function stopVictory() {
   } else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) tryPlay(regionAudio);
 }
 
+// 停止祝贺音效并恢复背景曲（孵蛋/交换页离开时立即停，避免音效残留到其他页面）
+export function stopCongratulation() {
+  if (sfxAudio.getAttribute('src') !== urlFor(SFX.congratulation)) return;
+  _sfxInterrupted = false;
+  if (sfxAudio.paused) return;
+  sfxAudio.pause();
+  sfxAudio.currentTime = 0;
+  if (_overlayActive && overlayAudio.getAttribute('src')) {
+    if (overlayAudio.paused) tryPlay(overlayAudio);
+  } else if (_regionActive && regionAudio.getAttribute('src') && regionAudio.paused) tryPlay(regionAudio);
+}
+
 // ---------- 切歌提示 ----------
 // 从 MP3 的 ID3v2 标签读标题/艺术家（文件已重命名为序号）
 const _metaCache = {}; // path -> { title, artist }

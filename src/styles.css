@@ -378,6 +378,18 @@ body { margin: 0; padding: 0; cursor: default; }
   height: 100%;
 }
 
+/* === 孵蛋动画（独立页面） === */
+/* 与遇敌页共用精灵位/角标样式，但自身铺满屏幕内层（同样用显式定位兼容旧 WebView） */
+#hatchView {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .encounter-gif {
   position: absolute;
   left: 50%;

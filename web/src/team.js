@@ -20,6 +20,7 @@ let _battleCanCancel = false; // 战斗中替换是否可取消：主动替换�
 let _dragFrom = -1;      // 正在拖拽的源槽位（-1 = 未拖拽）
 let _dragTarget = -1;    // 指针当前悬停的目标槽位
 let _dragGhost = null;   // 跟随指针的幽灵卡片
+let _dragOnTrash = false; // 指针是否位于底部移除停靠区
 let _suppressClick = false; // 拖拽结束后抑制本次 click（避免误弹菜单）
 
 export function showTeamView(hint, prev) {
@@ -98,6 +99,7 @@ function render() {
         }).join('')}
       </div>
     </div>
+    ${_battleCb || _hint ? '' : trashDockHtml()}
     ${footerHtml()}`;
   // 加载个体图标
   box.querySelectorAll('img[data-icon]').forEach(img => {
@@ -144,6 +146,20 @@ function render() {
     });
   }
   bindDrag(box);
+  // 拖拽移除停靠区定位：无页脚时贴底，有页脚（提示条）时停在页脚上方
+  const dockEl = $('teamTrashDock');
+  if (dockEl) {
+    const footer = box.querySelector('.team-footer');
+    dockEl.style.bottom = footer ? `${footer.offsetHeight + 2}px` : '0px';
+  }
+}
+
+// 底部移除停靠区：全宽横条，拖拽宝可梦进入即相当于菜单「移除」
+function trashDockHtml() {
+  return `<div class="team-trash-dock" id="teamTrashDock">
+    <svg viewBox="0 0 1024 1024" width="13" height="13"><use xlink:href="./icons/sprites.svg#icon-delete"/></svg>
+    <span>拖到此处移除</span>
+  </div>`;
 }
 
 // 配队页空白区域右键菜单
@@ -171,19 +187,32 @@ function openTeamCtxMenu(e) {
   _menuEl = menu;
 }
 
-// 随机配队：随机抽 6 只等级相近的宝可梦入队（以仓库平均等级为基准，正在训练的排除在外）
+// 随机配队：从非训练状态的宝可梦中取一组合计等级差最小的 6 只入队。
+// 做法：按等级升序排序后滑窗取连续 6 只，使（最高级 - 最低级）最小；
+// 多个窗口并列最小时随机挑一个，组内顺序再随机打散（打头阵的宝可梦不固定）。
 function autoBuildTeam() {
   const trainingIds = new Set((gameData.training?.slots || []).map((s) => s && s.id).filter(Boolean));
   const roster = (gameData.roster || []).filter((p) => p.inRoster !== false && !trainingIds.has(p.id));
   if (!roster.length) return;
-  const avg = roster.reduce((s, p) => s + (p.level || 1), 0) / roster.length;
-  // 相近档：与平均等级差 ≤8 优先；不够 6 只时按距离就近补齐
-  const inBand = roster.filter((p) => Math.abs((p.level || 1) - avg) <= 8);
-  const rest = roster.filter((p) => Math.abs((p.level || 1) - avg) > 8)
-    .sort((a, b) => Math.abs((a.level || 1) - avg) - Math.abs((b.level || 1) - avg));
-  const pool = [...inBand, ...rest].sort(() => Math.random() - 0.5).slice(0, TEAM_MAX);
-  if (!pool.length) return;
-  gameData.team = pool.map((p) => p.id);
+  const sorted = [...roster].sort((a, b) => (a.level || 1) - (b.level || 1));
+  let pick;
+  if (sorted.length <= TEAM_MAX) {
+    pick = sorted;
+  } else {
+    // 滑窗寻找等级跨度最小的连续 6 只
+    let best = Infinity;
+    const bestStarts = [];
+    for (let i = 0; i + TEAM_MAX <= sorted.length; i++) {
+      const spread = (sorted[i + TEAM_MAX - 1].level || 1) - (sorted[i].level || 1);
+      if (spread < best) { best = spread; bestStarts.length = 0; bestStarts.push(i); }
+      else if (spread === best) bestStarts.push(i);
+    }
+    const start = bestStarts[Math.floor(Math.random() * bestStarts.length)];
+    pick = sorted.slice(start, start + TEAM_MAX);
+  }
+  // 组内顺序随机打散
+  const team = pick.slice().sort(() => Math.random() - 0.5);
+  gameData.team = team.map((p) => p.id);
   saveGame();
   render();
 }
@@ -337,8 +366,11 @@ function bindDrag(host) {
       startX = e.clientX; startY = e.clientY; moved = false;
       _dragFrom = i;
       _dragTarget = -1;
+      _dragOnTrash = false;
       slot.setPointerCapture(e.pointerId);
       slot.classList.add('dragging');
+      // 开始拖拽：点亮底部移除停靠区
+      host.querySelector('#teamTrashDock')?.classList.add('active');
       // 幽灵卡片：复制图标 + 名字跟随指针
       _dragGhost = document.createElement('div');
       _dragGhost.className = 'team-drag-ghost';
@@ -368,16 +400,30 @@ function bindDrag(host) {
           el.classList.add('drag-over');
         }
       }
+      // 移除停靠区命中检测：指针进入底部横条范围 → 高亮，松开即移除
+      const dock = host.querySelector('#teamTrashDock');
+      if (dock) {
+        const r = dock.getBoundingClientRect();
+        const over = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        if (over !== _dragOnTrash) {
+          _dragOnTrash = over;
+          dock.classList.toggle('remove-over', over);
+        }
+      }
     });
     const endDrag = (e) => {
       if (_dragFrom < 0) return;
       const from = _dragFrom, to = _dragTarget;
+      const onTrash = _dragOnTrash;
+      _dragOnTrash = false;
       _dragFrom = -1;
       clearDragTarget();
+      host.querySelector('#teamTrashDock')?.classList.remove('active', 'remove-over');
       slot.classList.remove('dragging');
       if (_dragGhost) { _dragGhost.remove(); _dragGhost = null; }
       if (moved) { _suppressClick = true; setTimeout(() => { _suppressClick = false; }, 0); } // 拖拽过就吞掉收尾 click
-      if (to >= 0 && to !== from) swapSlots(from, to);
+      if (onTrash) removeFromTeam(from);
+      else if (to >= 0 && to !== from) swapSlots(from, to);
     };
     slot.addEventListener('pointerup', endDrag);
     slot.addEventListener('pointercancel', endDrag);

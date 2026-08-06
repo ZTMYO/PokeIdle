@@ -338,6 +338,9 @@ async function startNpcBattle(npcId, startAuto = false) {
     hazards: { p: { spikes: 0, toxic: 0, rock: false }, e: { spikes: 0, toxic: 0, rock: false } }, // 撒菱/毒菱/隐形岩
     stall: 0, // 僵局连续回合计数（双方 HP 均无变化），见 battleLoop
   };
+  // 后台结果补播只是视觉回放；开始 NPC 对战前若仍在补播，直接取消，
+  // 避免把已结算的遭遇再次交给后台继续捕捉/逃跑。
+  await import('./battle.js').then(m => m.cancelBgResultReplay());
   // 进战斗前存在进行中的野生遭遇：转后台异步结算（自动捕捉继续丢球 / 或记录逃跑），
   // 避免 setPhase('battle') 中断遭遇流程导致遇敌直接丢失。
   // 记录打断前的遭遇 phase（setPhase('battle') 后已不可再取）：'encounter' 未出结果，
@@ -2617,4 +2620,3 @@ function finishBattle(battle) {
   // 回顾：打开本局对战记录，返回仍回到结算页
   $('b-review')?.addEventListener('click', () => showBattleLogs());
 }
-

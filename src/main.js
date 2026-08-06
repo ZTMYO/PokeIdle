@@ -52,7 +52,7 @@ import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
-import { initAudio, playRegion, playCycling, endCycling, stopVictory, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
+import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle } from './battle-view.js';
 import { backFromBattlePick, isBattlePicking } from './team.js';
@@ -146,6 +146,16 @@ function goBack() {
   // 战斗中点击标题栏返回 = 撤退（配队替换模式在 teamView，返回只取消替换）
   if (isBattleActive() && $('battleView')?.style.display === 'flex') {
     retreatBattle();
+    return;
+  }
+  // 孵蛋动画独立页（appTitle 显示"孵化"）：返回回孵蛋器页面，不弹导航栈（孵化页未压栈）；
+  // 动画进行中则由 hatchFromIncubator 的后台结算兜底，完成后自动恢复挂起遭遇 / 回到空闲
+  if ($('hatchView')?.style.display === 'flex') {
+    stopCongratulation(); // 立即停止祝贺音效，避免残留
+    $('catchConfirmBtns').style.display = 'none';
+    setCatchConfirmStep(false);
+    renderIncubatorView();
+    showView('incubatorView');
     return;
   }
   // 战斗替换选择页（teamView）：主动替换 → 取消选择回战斗操作界面；倒下换人 → 直接撤退回对战列表
@@ -821,10 +831,16 @@ async function init() {
     setCatchConfirmStep(false);
     const entryId = getLastObtainedEntryId();
     const fromEgg = phase === 'eggResult'; // 必须在 goIdle 前判断（goIdle 会把 phase 置回 idle）
+    if (fromEgg) {
+      import('./items.js').then(async items => {
+        await items.finalizeEggResultContext();
+        if (entryId) import('./roster.js').then(m => m.showRosterDetailById(entryId, 'incubatorView'));
+      });
+      return;
+    }
     goIdle();
-    if (fromEgg) renderIncubatorView(); // 预刷新孵蛋器 DOM，详情返回时直接显示最新槽位
     if (entryId) {
-      import('./roster.js').then(m => m.showRosterDetailById(entryId, fromEgg ? 'incubatorView' : 'idleView'));
+      import('./roster.js').then(m => m.showRosterDetailById(entryId, 'idleView'));
     }
   });
   $('confirmNo')?.addEventListener('click', () => {
@@ -832,12 +848,14 @@ async function init() {
     $('catchConfirmBtns').style.display = 'none';
     setCatchConfirmStep(false);
     const fromEgg = phase === 'eggResult'; // 必须在 goIdle 前判断（goIdle 会把 phase 置回 idle）
-    goIdle();
     if (fromEgg) {
-      // 孵蛋流程：取消查看详情后回到孵蛋器页面（先刷新，避免显示已取走蛋的旧状态）
-      renderIncubatorView();
-      showView('incubatorView');
+      import('./items.js').then(async items => {
+        await items.finalizeEggResultContext();
+        showView('incubatorView');
+      });
+      return;
     }
+    goIdle();
   });
 
   // 逃跑

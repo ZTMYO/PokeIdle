@@ -187,19 +187,32 @@ function openTeamCtxMenu(e) {
   _menuEl = menu;
 }
 
-// 随机配队：随机抽 6 只等级相近的宝可梦入队（以仓库平均等级为基准，正在训练的排除在外）
+// 随机配队：从非训练状态的宝可梦中取一组合计等级差最小的 6 只入队。
+// 做法：按等级升序排序后滑窗取连续 6 只，使（最高级 - 最低级）最小；
+// 多个窗口并列最小时随机挑一个，组内顺序再随机打散（打头阵的宝可梦不固定）。
 function autoBuildTeam() {
   const trainingIds = new Set((gameData.training?.slots || []).map((s) => s && s.id).filter(Boolean));
   const roster = (gameData.roster || []).filter((p) => p.inRoster !== false && !trainingIds.has(p.id));
   if (!roster.length) return;
-  const avg = roster.reduce((s, p) => s + (p.level || 1), 0) / roster.length;
-  // 相近档：与平均等级差 ≤8 优先；不够 6 只时按距离就近补齐
-  const inBand = roster.filter((p) => Math.abs((p.level || 1) - avg) <= 8);
-  const rest = roster.filter((p) => Math.abs((p.level || 1) - avg) > 8)
-    .sort((a, b) => Math.abs((a.level || 1) - avg) - Math.abs((b.level || 1) - avg));
-  const pool = [...inBand, ...rest].sort(() => Math.random() - 0.5).slice(0, TEAM_MAX);
-  if (!pool.length) return;
-  gameData.team = pool.map((p) => p.id);
+  const sorted = [...roster].sort((a, b) => (a.level || 1) - (b.level || 1));
+  let pick;
+  if (sorted.length <= TEAM_MAX) {
+    pick = sorted;
+  } else {
+    // 滑窗寻找等级跨度最小的连续 6 只
+    let best = Infinity;
+    const bestStarts = [];
+    for (let i = 0; i + TEAM_MAX <= sorted.length; i++) {
+      const spread = (sorted[i + TEAM_MAX - 1].level || 1) - (sorted[i].level || 1);
+      if (spread < best) { best = spread; bestStarts.length = 0; bestStarts.push(i); }
+      else if (spread === best) bestStarts.push(i);
+    }
+    const start = bestStarts[Math.floor(Math.random() * bestStarts.length)];
+    pick = sorted.slice(start, start + TEAM_MAX);
+  }
+  // 组内顺序随机打散
+  const team = pick.slice().sort(() => Math.random() - 0.5);
+  gameData.team = team.map((p) => p.id);
   saveGame();
   render();
 }

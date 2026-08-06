@@ -314,7 +314,7 @@ export function renderSystemLogs() {
         desc = `${log.details.auto ? '[自动] ' : ''}${logName(log)} 逃走了。`;
         break;
       case 'egg_hatch':
-        desc = `孵化出${log.details.shiny ? '闪光' : ''}${logName(log)}`;
+        desc = `孵化出 ${log.details.shiny ? '闪光' : ''}${logName(log)}`;
         break;
       case 'region_change':
         desc = `进入 ${log.details.region} 地区`;
