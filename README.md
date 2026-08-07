@@ -41,7 +41,7 @@
 <td align="center"><img src="web/public/images/树果混合.png" width="180"></td>
 <td align="center"><img src="web/public/images/交换广场.png" width="180"></td>
 <td align="center"><img src="web/public/images/地区悬赏.png" width="180"></td>
-<td align="center"><img src="web/public/images/钓鱼.png" width="180"></td>
+<td align="center"><img src="web/public/images/培育.png" width="180"></td>
 <td align="center"><img src="web/public/images/闪光宝可梦.png" width="180"></td>
 </tr>
 </table>

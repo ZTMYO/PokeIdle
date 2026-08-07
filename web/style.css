@@ -250,12 +250,36 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 .enc-name {
   position: absolute;
   top: 6px; left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
   font-size: 14px;
   font-weight: 600;
   color: var(--ui-color);
   z-index: 2;
   animation: encFlyTL .8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+/* 名字行内的性别 + 等级（同行展示） */
+.enc-name .encounter-lv {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui-color);
+}
+.g-sym {
+  display: inline-block; /* 覆盖全局 img,canvas,svg{display:block}，避免性别图标被顶到单独一行 */
+  flex-shrink: 0;
+  vertical-align: -2px;
+  margin: 0 1px;
+  paint-order: stroke;
+  stroke: var(--ui-color);
+  stroke-width: 0.5;
+  stroke-linejoin: round;
+}
+.g-female { color: #ff6b9d; }
+.g-male { color: #4a9ff5; }
+.g-genderless { color: #72caae; }
 .enc-types {
   position: absolute;
   top: 28px; left: 6px;

@@ -142,6 +142,20 @@ function rarityLabel(catchRate) {
   return '极稀有';
 }
 
+// 复刻游戏内 rollGender：性别按物种比例（genderRate，-1=无性别；0~8=雌性概率/8）
+function rollGender(p) {
+  const rate = p?.genderRate ?? 4; // 数据缺失兜底 50/50
+  if (rate === -1) return 'genderless';
+  return Math.random() * 8 < rate ? 'female' : 'male';
+}
+
+// 复刻游戏内 genderBadge：性别 → 雪碧图图标（♂ 蓝 / ♀ 粉；无性别用 ♂♀ 组合图标，同尺寸占位）
+function genderBadge(g) {
+  if (g === 'female') return '<svg class="g-sym g-female" viewBox="0 0 24 24" width="12" height="12"><use href="./sprites.svg#icon-female"/></svg>';
+  if (g === 'male') return '<svg class="g-sym g-male" viewBox="0 0 24 24" width="12" height="12"><use href="./sprites.svg#icon-male"/></svg>';
+  return '<svg class="g-sym g-genderless" viewBox="0 0 24 24" width="12" height="12"><use href="./sprites.svg#icon-genderless"/></svg>';
+}
+
 const encName = document.getElementById('encName');
 const encTypes = document.getElementById('encTypes');
 const encCr = document.getElementById('encCr');
@@ -170,7 +184,9 @@ function showEncounter(p) {
   current = p;
   ballsUsed = 0;
   const file = p.image.split('/').pop();
-  encName.textContent = p.name;
+  // 复刻游戏内 renderEncounterScene：名字后跟性别图标 + Lv（性别每场 roll、等级 1~20）
+  const gSpan = genderBadge(rollGender(p));
+  encName.innerHTML = `${p.name}<span class="encounter-lv">${gSpan}Lv${1 + Math.floor(Math.random() * 20)}</span>`;
   encTypes.innerHTML = p.types.map(t =>
     `<span class="type-badge" style="background:${TYPE_COLORS[t]}">${t}</span>`
   ).join('');
@@ -451,7 +467,7 @@ const SHOT_CARDS = [
   { title: '树果混合器', icon: 'icon-mixer', desc: '按配方混合树果制成树果方块，吸引特定宝可梦。' },
   { title: '交换广场', icon: 'icon-trade', desc: '与 NPC 训练家交换个体，补全图鉴更快一步。' },
   { title: '地区悬赏', icon: 'icon-station', desc: '接取悬赏任务，提交指定宝可梦，换取丰厚奖励。' },
-  { title: '钓鱼', icon: 'icon-fishing', desc: '途经水域自动垂钓，道具和宝可梦都可能上钩。' },
+  { title: '培育', icon: 'icon-heart', desc: '饲育屋配对繁育，个体值遗传可锁定，培养高个体后代。' },
   { title: '闪光宝可梦', icon: 'icon-star', desc: '1/1000 概率遇见闪光，搭配闪耀护符大幅提升。' },
   { title: '成就', icon: 'icon-achievement', desc: '累计统计达标即可领取糖果，1-2-5 规整序列无限递进。' },
   { title: '大量出没', icon: 'icon-pin', desc: '随机路段事件点，锁定宝可梦连续遭遇，闪光率提升至 1/200。' },
