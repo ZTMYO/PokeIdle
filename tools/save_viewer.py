@@ -112,6 +112,7 @@ LOG_TYPE_CN = {
     "mass_outbreak_start": "大量出没开始", "mass_outbreak_end": "大量出没结束",
     "train_start": "开始训练", "train_end": "结束训练", "train_levelup": "训练升级",
     "train_lazy": "开始偷懒", "train_wake": "叫醒偷懒", "train_feed": "进食树果",
+    "nursery_breed_start": "开始繁殖", "nursery_egg": "产蛋",
     "pokemon_release": "放生", "buff_expired": "增益结束", "战斗": "NPC对战",
 }
 

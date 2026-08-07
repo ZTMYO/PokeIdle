@@ -958,6 +958,7 @@ export async function autoCatch() {
   if (_bgReplayActive) return;
   if (_autoCatching || !currentEncounter) return;
   if (!gameData.settings?.autoCatch) return;
+  if ((currentIsShiny && gameData.settings?.shinyStop) || (isLegendEncounter() && gameData.settings?.legendStop)) return;
   if (phase === 'eggResult' || _eggHatching) return; // 孵蛋动画进行中不自动捕捉
   if (phase === 'caught' || phase === 'fled') return; // 判定已落库（捕获/逃跑）的遭遇不再重复捕捉
   const bg = phase !== 'encounter'; // 遭遇被 NPC 对战等打断时进入后台结算模式

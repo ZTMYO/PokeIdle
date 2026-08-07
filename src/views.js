@@ -380,6 +380,15 @@ export function renderSystemLogs() {
       case 'train_feed':
         desc = `${logName(log)} 吃掉一颗${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}补充饱食度`;
         break;
+      case 'nursery_breed_start': {
+        const na = getPokemonByIndex(String(log.details.a));
+        const nb = getPokemonByIndex(String(log.details.b));
+        desc = `开始繁殖 ${na ? na.name : '#' + log.details.a} × ${nb ? nb.name : '#' + log.details.b}`;
+        break;
+      }
+      case 'nursery_egg':
+        desc = `产下 ${log.details.shiny ? '闪光' : ''}${logName(log)} 的蛋`;
+        break;
       case 'pokemon_release':
         desc = `放生了${log.details.shiny ? '闪光' : ''}${logName(log)}`;
         break;
