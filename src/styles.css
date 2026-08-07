@@ -3863,6 +3863,11 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 10px;
   padding-left: 10px;
 }
+/* 从属行（普通宝可梦的等级/未捕获条件）：进一步缩进 + 弱化，表达「只对普通生效」 */
+.filter-row-sub {
+  padding-left: 22px;
+  opacity: 0.85;
+}
 .filter-label {
   font-size: 10px;
   font-weight: 700;

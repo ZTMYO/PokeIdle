@@ -998,11 +998,12 @@ function pickAutoBallType(availableBalls) {
 }
 
 // 遇敌过滤（设置-遇敌过滤）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
-// 优先级：闪光/神兽的「逃跑/暂停」策略 > 闪光/神兽「捕捉」豁免等级 > 等级范围过滤（仅约束常规遇敌）。
+// 优先级：闪光/神兽的「逃跑/暂停」策略 > 闪光/神兽「捕捉」豁免（普通三态/未捕获/等级均不拦截）>
+//         普通三态（逃跑/暂停）> 「仅捕捉未捕获过的」> 等级范围过滤（仅约束常规遇敌）。
 // 例：限制 20~30 级 + 闪光设为「捕捉」→ 10 级闪光仍会捕捉，不会被等级过滤误放跑。
 export function catchFilterResult() {
   const f = gameData.settings?.catchFilter || {};
-  // 特殊遇敌（闪光/神兽）：「逃跑/暂停」策略优先于等级过滤生效
+  // 特殊遇敌（闪光/神兽）：「逃跑/暂停」策略优先于一切过滤生效
   if (currentIsShiny) {
     if (f.shiny === 'flee') return 'flee';
     if (f.shiny === 'stop') return 'stop';
@@ -1011,9 +1012,17 @@ export function catchFilterResult() {
     if (f.legend === 'flee') return 'flee';
     if (f.legend === 'stop') return 'stop';
   }
-  // 闪光/神兽策略为「捕捉」（含默认）：豁免等级范围，稀有闪光/神兽不被等级过滤拦截
+  // 闪光/神兽策略为「捕捉」（含默认）：豁免普通/未捕获/等级过滤，稀有闪光/神兽不被拦截
   if (currentIsShiny && f.shiny !== 'flee' && f.shiny !== 'stop') return 'catch';
   if (isLegendEncounter() && f.legend !== 'flee' && f.legend !== 'stop') return 'catch';
+  // 常规遇敌：普通三态（默认捕捉；设为逃跑=只抓闪光/神兽等特殊遇敌）
+  if (f.normal === 'flee') return 'flee';
+  if (f.normal === 'stop') return 'stop';
+  // 「仅捕捉未捕获过的」：图鉴已捕获的普通宝可梦直接放跑
+  if (f.uncaughtOnly) {
+    const caught = (gameData.pokedex?.[String(currentEncounter?.index)]?.caught || 0) > 0;
+    if (caught) return 'flee';
+  }
   // 常规遇敌：应用等级范围过滤
   const lvMin = f.levelMin || 0;
   const lvMax = f.levelMax || 0;

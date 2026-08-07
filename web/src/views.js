@@ -581,7 +581,7 @@ export function renderSettings(container, s) {
   const refillBalls = s.autoRefillBalls || { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
   const order = (Array.isArray(s.autoRefillOrder) && s.autoRefillOrder.length === 3)
     ? s.autoRefillOrder : ['poke-ball', 'ultra-ball', 'master-ball'];
-  const cf = s.catchFilter || { levelMin: 0, levelMax: 0, shiny: 'catch', legend: 'catch' };
+  const cf = s.catchFilter || { levelMin: 0, levelMax: 0, shiny: 'catch', legend: 'catch', normal: 'catch', uncaughtOnly: false };
   const gender = s.gender || 'brendan';
   const musicVolume = s.musicVolume ?? 0.6;
   const musicEnabled = s.musicEnabled !== false;
@@ -621,12 +621,6 @@ export function renderSettings(container, s) {
         <div class="filter-panel">
           <div class="settings-sub-title">捕捉条件</div>
           <div class="filter-row">
-            <span class="filter-label">等级</span>
-            <input type="text" class="filter-lv-input" id="filterLevelMin" inputmode="numeric" autocomplete="off" maxlength="2" value="${cf.levelMin || 0}" />
-            <span style="opacity:.5;">~</span>
-            <input type="text" class="filter-lv-input" id="filterLevelMax" inputmode="numeric" autocomplete="off" maxlength="2" value="${cf.levelMax || 20}" />
-          </div>
-          <div class="filter-row">
             <span class="filter-label">闪光</span>
             <div class="filter-chips">${filterChips('shiny')}</div>
           </div>
@@ -634,8 +628,22 @@ export function renderSettings(container, s) {
             <span class="filter-label">神兽</span>
             <div class="filter-chips">${filterChips('legend')}</div>
           </div>
-          <div class="filter-hint">闪光 / 神兽设为「捕捉」时不受等级范围限制</div>
-        </div>
+          <div class="filter-row">
+            <span class="filter-label">普通</span>
+            <div class="filter-chips">${filterChips('normal')}</div>
+          </div>
+          ${cf.normal === 'catch' ? `
+          <div class="filter-row filter-row-sub">
+            <span class="filter-label">等级</span>
+            <input type="text" class="filter-lv-input" id="filterLevelMin" inputmode="numeric" autocomplete="off" maxlength="2" value="${cf.levelMin || 0}" />
+            <span style="opacity:.5;">~</span>
+            <input type="text" class="filter-lv-input" id="filterLevelMax" inputmode="numeric" autocomplete="off" maxlength="2" value="${cf.levelMax || 20}" />
+          </div>
+          <div class="filter-row filter-row-sub">
+            <span class="filter-label">未捕获</span>
+            <span class="ball-check ${cf.uncaughtOnly ? 'on' : ''}" id="toggleUncaughtOnly">${cf.uncaughtOnly ? '☑' : '☐'}仅捕捉未捕获过的</span>
+          </div>` : ''}
+         </div>
         ` : ''}
         <div class="auto-catch-row">
           <div class="auto-catch-label">佛系模式</div>
@@ -803,7 +811,7 @@ export function renderSettings(container, s) {
   container.querySelectorAll('.ball-check[data-refill-ball]').forEach(el => {
     el.addEventListener('click', () => toggleAutoRefillBall(el.dataset.refillBall));
   });
-  // 遇敌过滤：闪光/神兽三态 chips
+  // 遇敌过滤：闪光/神兽/普通三态 chips
   container.querySelectorAll('.filter-chip').forEach(el => {
     el.addEventListener('click', () => {
       gameData.settings.catchFilter[el.dataset.filterKey] = el.dataset.filterVal;
@@ -811,6 +819,15 @@ export function renderSettings(container, s) {
       saveGame();
     });
   });
+  // 遇敌过滤：「仅捕捉未捕获过的」开关
+  const uncaughtEl = container.querySelector('#toggleUncaughtOnly');
+  if (uncaughtEl) {
+    uncaughtEl.addEventListener('click', () => {
+      gameData.settings.catchFilter.uncaughtOnly = !gameData.settings.catchFilter.uncaughtOnly;
+      renderSettings(container, gameData.settings);
+      saveGame();
+    });
+  }
   // 遇敌过滤：等级范围（野生等级 1~20）。实时过滤输入（只留数字、最多 2 位、超 20 截断），change 时落库
   const bindLv = (id, key) => {
     const el = container.querySelector('#' + id);
@@ -887,8 +904,11 @@ function ensureSettings() {
     gameData.settings.autoRefillOrder = ['poke-ball', 'ultra-ball', 'master-ball']; // 默认便宜优先
   }
   if (!gameData.settings.catchFilter) {
-    gameData.settings.catchFilter = { levelMin: 0, levelMax: 0, shiny: 'catch', legend: 'catch' };
+    gameData.settings.catchFilter = { levelMin: 0, levelMax: 0, shiny: 'catch', legend: 'catch', normal: 'catch', uncaughtOnly: false };
   }
+  // 旧档缺新字段：普通=捕捉、仅未捕获=关（不迁移旧策略，缺失按默认）
+  if (gameData.settings.catchFilter.normal == null) gameData.settings.catchFilter.normal = 'catch';
+  if (gameData.settings.catchFilter.uncaughtOnly == null) gameData.settings.catchFilter.uncaughtOnly = false;
   // 野生等级上限为 20：旧版本等级范围曾允许填 100，超出部分按 20 收敛（0 仍表示不限制）
   if ((gameData.settings.catchFilter.levelMax || 0) > 20) gameData.settings.catchFilter.levelMax = 20;
   if ((gameData.settings.catchFilter.levelMin || 0) > 20) gameData.settings.catchFilter.levelMin = 20;
@@ -1328,8 +1348,8 @@ const TUTORIAL_SECTIONS = [
       + `<p>勾选球种：<b>自动捕获</b>（会根据捕获率智能选择勾选的球种）。</p>`
       + `<p>不勾选任何球种：<b>自动逃跑</b>（期间禁止手动丢球）。</p>`
       + `<p>勾选增益道具：增益结束后自动<b>续杯</b>（同时勾选优先甜甜蜜）。</p>`
-      + `<p><b>捕捉条件</b>（遇敌过滤）：可设<b>等级范围</b>，闪光与神兽各自选择<b>捕捉 / 暂停 / 逃跑</b>三态——不匹配的遇敌自动逃跑，设为「暂停」则停手切回战斗页留给你手动丢球。</p>`
-      + `<p>优先级：闪光 / 神兽设为「捕捉」时<b>不受等级范围限制</b>（稀有闪光必抓）；设为「逃跑 / 暂停」则优先于等级生效。</p>`
+      + `<p><b>捕捉条件</b>：普通 / 闪光 / 神兽各自选<b>捕捉 / 暂停 / 逃跑</b>——「逃跑」自动放跑，「暂停」停手交给你手动丢球。</p>`
+      + `<p>普通宝可梦还能设<b>等级范围</b>、勾选<b>仅捕捉未捕获过的</b>；这两项对闪光 / 神兽无效——闪光 / 神兽设为「捕捉」时，任何等级、是否捕获过都会照常捕捉。</p>`
       + `<p>开启<b>自动补球</b>：勾选精灵球/高级球/大师球后，对应球数量为 0 时自动用糖果补 1 个；可点「<b>‹ ›</b>」调整补球优先级、点格子切换该球是否自动补。</p>`,
   },
   {
