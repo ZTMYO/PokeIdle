@@ -101,12 +101,14 @@ export function showView(id) {
         if (await m.resumeBgEncounter()) return;
         if (phase === 'encounter' && currentEncounter) {
           const loadPromise = m.renderEncounterScene(currentEncounter);
-          if (gameData.settings?.autoCatch
-              && !(currentIsShiny && gameData.settings?.shinyStop)
-              && !(m.isLegendEncounter() && gameData.settings?.legendStop)) {
+          const fr = m.catchFilterResult();
+          if (gameData.settings?.autoCatch && fr === 'catch') {
             await loadPromise; // 等图片加载完再丢球，避免尺寸错乱
             m.autoCatch();
-          } else if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
+          } else if (gameData.settings?.autoCatch && fr === 'flee') {
+            await loadPromise; // 等图片加载完再逃跑，避免画面残留
+            m.fleeEncounter(true);
+          } else if (gameData.settings?.autoFlee && !gameData.settings?.autoCatch && fr !== 'stop') {
             m.startAutoFleeTimer();
           }
         }

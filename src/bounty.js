@@ -208,10 +208,27 @@ function toggleIgnoreBounty(regionIdx, bi) {
   renderBounty();
 }
 
+// 悬赏提示浮层：淡入显示、短暂停留后淡出（连续触发时重置计时）
+let _bountyToastTimer = null;
+function showBountyToast(msg) {
+  const t = $('bountyToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  if (_bountyToastTimer) clearTimeout(_bountyToastTimer);
+  _bountyToastTimer = setTimeout(() => {
+    _bountyToastTimer = null;
+    t.classList.remove('show');
+  }, 2000);
+}
+
 function claimBounty(regionIdx, bi) {
   ensureBounty();
   const cur = getCurrentRegion();
-  if (regionIdx !== cur.id) return; // 必须到达该地区才能提交
+  if (regionIdx !== cur.id) {
+    showBountyToast(`前往${REGION_CYCLE[regionIdx] || '对应地区'}即可提交`);
+    return; // 必须到达该地区才能提交
+  }
   const b = (gameData.bounty?.rewards || [])[regionIdx]?.[bi] || null;
   if (!b || b.claimed) return;
   if (!hasInRoster(b.pokemon)) return;

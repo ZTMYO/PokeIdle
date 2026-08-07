@@ -258,7 +258,7 @@ export function getDefaultSave() {
     incubatorLogs: [], // 孵蛋记录（仅孵化成功事件，最多 50 条）：{ time, species, gender, shiny }
     achievements: {}, // 成就进度：{ 成就id: 已领取档位数 }，由 achievements.js 管理
     introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）
-    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, autoRefill: false, autoRefillBalls: { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false }, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
+    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, autoRefill: false, autoRefillBalls: { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false }, autoRefillOrder: ['poke-ball', 'ultra-ball', 'master-ball'], catchFilter: { levelMin: 0, levelMax: 100, shiny: 'catch', legend: 'catch' }, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
   };
 }
 

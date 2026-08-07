@@ -155,8 +155,10 @@
 
           <!-- 地区悬赏 -->
           <div id="bountyView"
-            style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;position:relative;">
-            <div id="bountyContent" style="flex:1;color:var(--ui-color);"></div>
+            style="display:none;flex-direction:column;overflow:hidden;padding:4px 3px;position:relative;">
+            <div id="bountyContent" style="flex:1;color:var(--ui-color);overflow-y:auto;"></div>
+            <!-- 悬赏提示浮层：非当前地区点「可提交」时提示前往对应地区（固定于页面右上角） -->
+            <div id="bountyToast" class="bounty-toast"></div>
           </div>
 
           <!-- 数据统计 -->

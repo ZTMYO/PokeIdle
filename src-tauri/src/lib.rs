@@ -122,7 +122,9 @@ pub fn run() {
                 eprintln!("注册快捷键失败: {}", e);
             }
 
-            // Acrylic blur effect on Windows
+            // Windows: 系统圆角 + 窗口阴影
+            // 注意：不用透明窗口（transparent=false）。透明窗口在 Windows 是 layered window，
+            // WebView2 会退化为软件合成，拖拽窗口明显卡顿；亚克力效果也被不透明外壳完全遮挡，故一并移除。
             #[cfg(target_os = "windows")]
             {
                 if let Some(window) = app.get_webview_window("main") {
@@ -134,7 +136,6 @@ pub fn run() {
 
                     if let Ok(hwnd) = window.hwnd() {
                         let hwnd = HWND(hwnd.0 as _);
-                        let _ = window_vibrancy::clear_vibrancy(&window);
                         unsafe {
                             let corner_pref = DWM_WINDOW_CORNER_PREFERENCE(DWMWCP_ROUND.0);
                             let _ = DwmSetWindowAttribute(
@@ -144,7 +145,6 @@ pub fn run() {
                                 std::mem::size_of::<DWM_WINDOW_CORNER_PREFERENCE>() as u32,
                             );
                         }
-                        let _ = window_vibrancy::apply_acrylic(&window, Some((255, 255, 255, 20)));
                         let _ = window.set_shadow(true);
                     }
                 }

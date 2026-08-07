@@ -80,6 +80,11 @@ export function addToTeam(id, slot) {
   showView('teamView');
 }
 
+// 重新渲染配队页（恢复替换选择页用，状态仍保留在模块内）
+export function rerenderTeamView() {
+  render();
+}
+
 function render() {
   closeTeamMenu();
   const box = $('teamContent');

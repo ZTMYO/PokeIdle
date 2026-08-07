@@ -40,7 +40,7 @@ import { spawnItemDrop, activateHoney, activateShinyCharm,
   doCandyExchange, grantItem, cancelItemDrop } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
-  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill } from './battle.js';
+  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill, catchFilterResult } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
 import { helperTick, refreshBerryView } from './berry.js';
@@ -175,6 +175,12 @@ function _pickNextRoad() {
 // ---------- 返回按钮 ----------
 function goBack() {
   stopVictory(); // 任何返回离开当前视图：若胜利/抓捕音效还在播则立即停止（无播放时无副作用）
+  // 手机页面是导航的"安全出口"：无论之前从哪进来、栈里压了什么，在手机页点返回一律回挂机页
+  if ($('phoneView')?.style.display === 'flex') {
+    resetNav();
+    showView('idleView');
+    return;
+  }
   // 战斗中点击标题栏返回 = 撤退（配队替换模式在 teamView，返回只取消替换）
   if (isBattleActive() && $('battleView')?.style.display === 'flex') {
     retreatBattle();
@@ -191,26 +197,27 @@ function goBack() {
     return;
   }
   // 战斗替换选择页（teamView）：主动替换 → 取消选择回战斗操作界面；倒下换人 → 直接撤退回对战列表
-  if (isBattlePicking()) {
+  if (isBattlePicking() && $('teamView')?.style.display === 'flex') {
     if (backFromBattlePick()) retreatBattle();
     return;
   }
   // 仓库选取模式（配队/训练点击空位进入）：返回恢复来源页
-  if (isRosterPicking()) { leaveRosterPicker(); return; }
+  if (isRosterPicking() && $('rosterView')?.style.display === 'flex') { leaveRosterPicker(); return; }
   // 手动配招独立页：返回回个体详情
-  if (isRosterInMoveEdit()) { leaveMoveEditor(); return; }
+  if (isRosterInMoveEdit() && $('moveEditView')?.style.display === 'flex') { leaveMoveEditor(); return; }
   // 详情页跳转图鉴（第 4 层子页）：返回先回详情页，再按详情返回逻辑走
   if (isRosterDetailJumpedToPokedex()) { returnRosterDetailFromPokedex(); return; }
-  if (_pokedexInLogView) { restorePokedex(); return; }
-  if (isRosterInDetail()) {
+  if (_pokedexInLogView && $('pokedexView')?.style.display === 'flex') { restorePokedex(); return; }
+  if (isRosterInDetail() && $('rosterView')?.style.display === 'flex') {
+    // 仅当正显示仓库详情时按返回才离开详情；从详情跳设置/商店等压栈页面返回时走 popNav 回到详情本身
     if (isRosterDetailFromList()) { leaveRosterDetailToList(); }
     else if (isRosterDetailFromObtain()) { leaveRosterDetailToSource(); }
     else { restoreRosterList(); }
     return;
   }
-  if (isTradeInDetail()) { restoreTradeList(); return; }
+  if (isTradeInDetail() && $('tradeView')?.style.display === 'flex') { restoreTradeList(); return; }
   // 悬赏提交列表：标题栏返回先回悬赏列表
-  if (isBountyInTrade()) { restoreBountyList(); return; }
+  if (isBountyInTrade() && $('bountyView')?.style.display === 'flex') { restoreBountyList(); return; }
   // 饲育屋放入列表：标题栏返回回饲育屋场地（选取页未压栈）
   if (isNurseryPicking()) { leaveNurseryPick(); return; }
   // 结算页返回：回 NPC 战斗列表（与「返回列表」按钮一致），不弹栈（列表页仍在 battleView 内）
@@ -220,6 +227,11 @@ function goBack() {
   }
   const target = popNav();
   if (target === 'battleView') {
+    // 战斗替换选择中从 teamView 跳设置/商店返回：恢复替换选择页，不打断替换
+    if (isBattlePicking()) {
+      import('./team.js').then(m => { m.rerenderTeamView(); showView('teamView'); });
+      return;
+    }
     // 战斗进行中：回到战斗页继续（不中断战斗）
     if (isBattleActive()) {
       showView('battleView');
@@ -229,6 +241,11 @@ function goBack() {
       // 战斗已结束（结算页）或列表页：与「返回列表」按钮一致，回到 NPC 战斗列表
       import('./battle-view.js').then(m => m.showBattleView());
     }
+    return;
+  }
+  if (target === 'rosterView' && isRosterInMoveEdit()) {
+    // 配招独立页跳设置/商店返回：恢复配招页（配招页未压栈）
+    import('./roster.js').then(m => { m.renderMoveEditor(); showView('moveEditView'); });
     return;
   }
   showView(target);
@@ -265,9 +282,8 @@ function onBagClick(itemKey) {
     }
     // 遇敌中不可点击自行车（与甜甜蜜/护符同规则，防止误触放弃当前宝可梦）
     if (gameData.settings?.autoCatch) {
-      // 闪光暂停/神兽暂停命中的遭遇：停在战斗页等玩家手动丢球，不受自动选球配置限制
-      const stoppedForManual = (currentIsShiny && gameData.settings?.shinyStop)
-        || (isLegendEncounter() && gameData.settings?.legendStop);
+      // 遇敌过滤设为"暂停"的遭遇：停在战斗页等玩家手动丢球，不受自动选球配置限制
+      const stoppedForManual = catchFilterResult() === 'stop';
       if (!stoppedForManual) {
         const balls = gameData.settings?.autoCatchBalls || {};
         const hasStock = ['poke-ball', 'ultra-ball', 'master-ball'].some(b => balls[b] !== false && (gameData.items[b] || 0) > 0);

@@ -1419,11 +1419,10 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 #quitDialog.open { display: flex; }
 
-/* 卡片：机身米黄色背景（与 control/console 一致） */
 #quitDialog .dialog-box {
   position: relative;
   background: var(--console-body);
-  border: 2px solid var(--ui-color-dark);
+  border: 2px solid var(--ui-color);
   border-radius: 6px;
   text-align: center;
   padding: 12px 16px;
@@ -1456,24 +1455,24 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 #quitDialog .quit-close:hover { opacity: 1; }
 #quitDialog .quit-close svg { width: 11px; height: 11px; fill: currentColor; }
-/* 选项按钮：垂直居中摆放，深绿实心底 + 深色描边 + 白字圆角（复刻官网 .btn-primary） */
 #quitDialog .dialog-opt {
   display: block;
   width: fit-content;
   margin: 0 auto 8px;
   padding: 7px 16px;
-  border: 2px solid var(--ui-color-darker);
+  border: 2px solid var(--ui-color);
   border-radius: 6px;
-  background: var(--ui-color);
-  color: #eafff4;
+  background: var(--screen-bg);
+  opacity: 0.8;
+  color: #235a42;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   user-select: none;
   transition: background 0.12s, transform 0.06s;
 }
 #quitDialog .dialog-opt:last-of-type { margin-bottom: 0; }
-#quitDialog .dialog-opt:hover { background: var(--ui-color-dark); }
+#quitDialog .dialog-opt:hover { opacity: 1; }
 #quitDialog .dialog-opt:active { transform: translateY(2px); }
 
 /* ===== 图鉴列表 ===== */
@@ -3061,14 +3060,38 @@ body { margin: 0; padding: 0; cursor: default; }
   text-align: center;
   margin-top: 6px;
 }
-/* 悬赏页面滚动条美化 */
-#bountyView::-webkit-scrollbar { width: 6px; }
-#bountyView::-webkit-scrollbar-track { background: transparent; }
-#bountyView::-webkit-scrollbar-thumb {
+/* 悬赏列表滚动条美化 */
+#bountyContent::-webkit-scrollbar { width: 6px; }
+#bountyContent::-webkit-scrollbar-track { background: transparent; }
+#bountyContent::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb), 0.25);
   border-radius: 3px;
 }
-#bountyView::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.4); }
+#bountyContent::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.4); }
+/* 悬赏提示浮层：非当前地区点「可提交」时提示前往对应地区（固定于页面右上角，从右侧滑入淡入） */
+.bounty-toast {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 40;
+  color: var(--ui-color);
+  background: rgba(0, 0, 0, 0.07);
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 600;
+  padding: 4px 8px;
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(30px);
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s;
+}
+.bounty-toast.show {
+  opacity: 0.7;
+  visibility: visible;
+  transform: translateX(0);
+}
 
 .pokedex-entry {
   display: flex;
@@ -3657,6 +3680,67 @@ body { margin: 0; padding: 0; cursor: default; }
   padding-bottom: 3px;
   margin-bottom: 6px;
 }
+.settings-group {
+  padding: 0 0 6px;
+}
+/* 板块之间用分割线分隔 */
+.settings-group + .settings-group {
+  border-top: 1px solid rgba(var(--ui-color-rgb),0.15);
+  padding-top: 8px;
+}
+.settings-group-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 4px 6px;
+}
+/* 左侧竖条装饰，与行标签区分 */
+.settings-group-title::before {
+  content: '';
+  width: 3px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--ui-color);
+  opacity: 0.75;
+}
+/* 三级子标题：板块标题 > 行标签 > 子标题（更小更轻、半透明） */
+.settings-sub-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui-color);
+  opacity: 0.8;
+  user-select: none;
+  padding: 2px 4px 3px;
+}
+/* 设置页底部 GitHub 链接：颜色与「版权声明」一致（默认文字色 + 半透明），hover 变主题绿 */
+.settings-footer-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 6px 0;
+  color: var(--color-text);
+  opacity: 0.55;
+  text-decoration: none;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s, opacity 0.15s;
+}
+.settings-footer-link:hover {
+  opacity: 1;
+  color: var(--ui-color);
+}
+/* 版本号：小字半透明居中，与版权声明同一字号层级 */
+.settings-version {
+  text-align: center;
+  font-size: 9px;
+  opacity: 0.5;
+  padding: 0 0 2px;
+  user-select: none;
+}
 .auto-catch-row {
   display: flex;
   align-items: center;
@@ -3765,6 +3849,137 @@ body { margin: 0; padding: 0; cursor: default; }
   font-weight: 700;
 }
 
+/* 遇敌过滤面板（自动操作开启后展开） */
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 4px 2px;
+}
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  padding-left: 10px;
+}
+.filter-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  width: 32px;
+  flex-shrink: 0;
+}
+.filter-chips {
+  display: flex;
+  gap: 4px;
+}
+.filter-chip {
+  font-size: 10px;
+  color: var(--ui-color);
+  cursor: pointer;
+  user-select: none;
+  padding: 1px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(var(--ui-color-rgb),0.35);
+  transition: background 0.12s, color 0.12s;
+}
+.filter-chip:hover {
+  background: rgba(var(--ui-color-rgb),0.1);
+}
+.filter-chip.on {
+  background: var(--ui-color);
+  color: var(--screen-bg);
+  border-color: var(--ui-color);
+  font-weight: 700;
+}
+.filter-hint {
+  font-size: 9px;
+  color: rgba(var(--ui-color-rgb),0.45);
+  padding: 2px 4px 0 10px;
+  line-height: 1.5;
+}
+.filter-lv-input {
+  width: 42px;
+  height: 18px;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid rgba(var(--ui-color-rgb),0.4);
+  border-radius: 3px;
+  color: var(--ui-color);
+  font-size: 10px;
+  font-weight: 400;
+  text-align: center;
+  font-family: inherit;
+  padding: 0 2px;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.filter-lv-input:focus {
+  border-color: var(--ui-color);
+}
+/* 隐藏 number 输入框上下箭头，保持干净 */
+.filter-lv-input::-webkit-inner-spin-button,
+.filter-lv-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* 补球优先级：水平三格，从左到右优先级从高到低。
+   左右箭头调序，点击格子启用/禁用该球补球 */
+.refill-order-row {
+  display: flex;
+  gap: 4px;
+  padding: 2px 4px 4px 10px;
+}
+.refill-order-item {
+  flex: 0 0 auto;
+  width: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 400;
+  padding: 4px 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: rgba(var(--ui-color-rgb),0.06);
+  border: 1.5px solid rgba(var(--ui-color-rgb),0.5); /* 勾选状态边框加深 */
+  user-select: none;
+  transition: background 0.12s, opacity 0.12s;
+}
+.refill-order-item:hover {
+  background: rgba(var(--ui-color-rgb),0.12);
+}
+.refill-order-item.off {
+  opacity: 0.4;
+  text-decoration: line-through;
+  border-color: rgba(var(--ui-color-rgb),0.15);
+}
+.refill-order-name {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+.refill-order-arrow {
+  width: 14px;
+  flex-shrink: 0;
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+  color: var(--ui-color);
+  opacity: 0.7;
+  cursor: pointer;
+  user-select: none;
+}
+.refill-order-arrow:hover {
+  opacity: 1;
+}
+.refill-order-arrow.hidden {
+  visibility: hidden;
+}
+
 /* 重置存档（二次点击确认） */
 .reset-save-row {
   display: flex;
@@ -3773,7 +3988,6 @@ body { margin: 0; padding: 0; cursor: default; }
   gap: 8px;
   margin-top: 8px;
   padding: 5px 0;
-  border-top: 1px solid rgba(var(--ui-color-rgb),0.15);
 }
 .reset-save-label { font-size: 11px; font-weight: 700; }
 .reset-save-btn {
@@ -3972,32 +4186,31 @@ body { margin: 0; padding: 0; cursor: default; }
 /* 个体详情 */
 .roster-detail-head {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  padding: 4px 6px 8px;
+  padding: 2px 6px 6px;
 }
 .roster-detail-head .poke-img-grid {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
 }
 .roster-detail-head .poke-img-grid img {
-  max-width: 60px;
-  max-height: 60px;
+  max-width: 48px;
+  max-height: 48px;
 }
 .roster-detail-block {
   border-top: 1px solid rgba(var(--ui-color-rgb),0.1);
-  padding: 8px 10px;
+  padding: 6px 10px;
 }
 .roster-detail-title {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  margin-bottom: 6px;
 }
 .roster-iv-flex {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .roster-hex {
   width: 90px;
@@ -4005,23 +4218,23 @@ body { margin: 0; padding: 0; cursor: default; }
   flex-shrink: 0;
   display: block;
 }
-.roster-iv-bars { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.roster-iv-bars { flex: 1; display: flex; flex-direction: column; gap: 1px; }
 .roster-iv-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
+  gap: 4px;
+  font-size: 9px;
 }
-.roster-iv-item > span:first-child { width: 26px; flex-shrink: 0; }
+.roster-iv-item > span:first-child { width: 22px; flex-shrink: 0; }
 .roster-iv-item > span:last-child {
-  width: 18px;
+  width: 16px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 .roster-iv-bar {
   flex: 1;
-  height: 4px;
+  height: 3px;
   background: rgba(var(--ui-color-rgb),0.12);
   border-radius: 2px;
   overflow: hidden;
@@ -4765,6 +4978,46 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   height: 11px;
   image-rendering: pixelated;
   vertical-align: -2px;
+}
+
+/* 打完所有 NPC：空列表状态（提交 50 糖果强制刷新下一波） */
+.battle-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+}
+.battle-empty-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ui-color);
+}
+.battle-refresh-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.2;
+  min-width: 88px;
+  border-radius: 8px;
+}
+.battle-refresh-btn:hover { filter: brightness(1.06); }
+.battle-refresh-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.battle-refresh-cost .candy-icon {
+  width: 10px;
+  height: 10px;
+  image-rendering: pixelated;
 }
 
 /* ---- 战斗页：上下两大分区（上区对战展示 / 下区技能操作面板，分割线隔开） ---- */

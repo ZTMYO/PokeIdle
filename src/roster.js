@@ -719,7 +719,7 @@ function hideMoveSortMenu() {
   document.removeEventListener('pointerdown', hideMoveSortMenu);
 }
 
-function renderMoveEditor() {
+export function renderMoveEditor() {
   const p = (gameData.roster || []).find((r) => r.id === _moveEditId);
   const box = $('moveEditContent');
   if (!p || !box) return;
@@ -859,7 +859,7 @@ function showRosterDetail(id) {
   const list = $('rosterList');
   if (!list) return;
   list.innerHTML = `
-    <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-size:13px;font-weight:700;padding:4px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
       <span>${name}<span class="roster-detail-lv">${dGSpan}Lv${p.level || 1}</span>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
       <div style="display:flex;flex-direction:row;align-items:flex-end;gap:2px;flex-shrink:0;">
         <button class="roster-release" data-pokedex title="查看图鉴">图鉴</button>
@@ -872,11 +872,9 @@ function showRosterDetail(id) {
         <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:3px;">
           ${(poke && poke.types || []).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t] || '#888'}">${t}</span>`).join('')}
         </div>
-        <div style="font-size:10px;opacity:0.7;line-height:1.5;">
-          <div>性格：${natureText(p.nature)}</div>
-          <div>来源：${srcName(p.source)}</div>
-          <div>获得时间：${fmtTime(p.obtainedAt)}</div>
-          ${lastLog ? `<div>${lastLog}</div>` : ''}
+        <div style="font-size:10px;opacity:0.7;line-height:1.6;">
+          <div style="display:flex;flex-wrap:wrap;column-gap:8px;">性格：${natureText(p.nature)}<span>来源：${srcName(p.source)}</span></div>
+          <div style="display:flex;flex-wrap:wrap;column-gap:8px;">获得时间：${fmtTime(p.obtainedAt)}${lastLog ? `<span>${lastLog}</span>` : ''}</div>
         </div>
       </div>
     </div>

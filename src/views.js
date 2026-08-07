@@ -9,7 +9,7 @@ import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, curre
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
-import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch, setAbortAutoCatch, isLegendEncounter } from './battle.js';
+import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
 import { setVolume, setBattleMusic, setMusicEnabled, playBattle, endBattle } from './audio.js';
 import { renderAchievements, refreshAchievements } from './achievements.js';
 import { TEAM_MAX } from './team.js';
@@ -575,132 +575,170 @@ export function renderSettings(container, s) {
   const windowPinned = s.windowPinned || false;
   const windowScale = WINDOW_SCALES.includes(s.windowScale) ? s.windowScale : 1;
   const balls = s.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
-  const shinyStop = s.shinyStop || false;
-  const legendStop = s.legendStop || false;
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
   const autoRefill = s.autoRefill || false;
   const refillBalls = s.autoRefillBalls || { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
+  const order = (Array.isArray(s.autoRefillOrder) && s.autoRefillOrder.length === 3)
+    ? s.autoRefillOrder : ['poke-ball', 'ultra-ball', 'master-ball'];
+  const cf = s.catchFilter || { levelMin: 0, levelMax: 0, shiny: 'catch', legend: 'catch' };
   const gender = s.gender || 'brendan';
   const musicVolume = s.musicVolume ?? 0.6;
   const musicEnabled = s.musicEnabled !== false;
   const battleMusic = s.battleMusic !== false;
+  // 遇敌过滤三态 chips（捕捉/暂停/逃跑）
+  const filterChips = key => ['catch', 'stop', 'flee'].map(v => {
+    const label = v === 'catch' ? '捕捉' : v === 'stop' ? '暂停' : '逃跑';
+    return `<span class="filter-chip ${cf[key] === v ? 'on' : ''}" data-filter-key="${key}" data-filter-val="${v}">${label}</span>`;
+  }).join('');
   container.innerHTML = `
     <div style="padding:6px 8px;">
-      <div class="auto-catch-row">
-        <div class="auto-catch-label">自动操作</div>
-        <div class="toggle-switch" id="toggleAutoCatch">
-          <div class="toggle-track ${autoCatch ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
+      <div class="settings-group">
+        <div class="settings-group-title">遇敌与捕捉</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">自动操作</div>
+          <div class="toggle-switch" id="toggleAutoCatch">
+            <div class="toggle-track ${autoCatch ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
         </div>
-      </div>
-      ${autoCatch ? `
-      <div class="auto-catch-row" style="padding-left:8px;">
-        <div class="auto-catch-label">闪光暂停</div>
-        <div class="toggle-switch" id="toggleShinyStop">
-          <div class="toggle-track ${shinyStop ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
+        ${autoCatch ? `
+        <div style="padding:4px 4px 2px;">
+          <div class="settings-sub-title">自动使用精灵球</div>
+          <div class="ball-check-row">
+            ${['poke-ball', 'ultra-ball', 'master-ball'].map(b => `
+              <span class="ball-check ${(balls[b] !== false) ? 'on' : ''}" data-ball="${b}">${(balls[b] !== false) ? '☑' : '☐'}${ballLabels[b]}</span>
+            `).join('')}
+          </div>
         </div>
-      </div>
-      <div class="auto-catch-row" style="padding-left:8px;">
-        <div class="auto-catch-label">神兽暂停</div>
-        <div class="toggle-switch" id="toggleLegendStop">
-          <div class="toggle-track ${legendStop ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
+        <div style="padding:4px 4px 2px;">
+          <div class="settings-sub-title">自动使用增益道具</div>
+          <div class="ball-check-row">
+            <span class="ball-check ${autoBuffHoney ? 'on' : ''}" id="toggleBuffHoney">${autoBuffHoney ? '☑' : '☐'}甜甜蜜</span>
+            <span class="ball-check ${autoBuffCharm ? 'on' : ''}" id="toggleBuffCharm">${autoBuffCharm ? '☑' : '☐'}闪耀护符</span>
+          </div>
         </div>
-      </div>
-      <div style="padding:4px 4px 2px;">
-        <div class="auto-catch-label" style="padding:2px 0 2px 4px;">自动使用</div>
-        <div class="ball-check-row">
-          ${['poke-ball', 'ultra-ball', 'master-ball'].map(b => `
-            <span class="ball-check ${(balls[b] !== false) ? 'on' : ''}" data-ball="${b}">${(balls[b] !== false) ? '☑' : '☐'}${ballLabels[b]}</span>
-          `).join('')}
+        <div class="filter-panel">
+          <div class="settings-sub-title">捕捉条件</div>
+          <div class="filter-row">
+            <span class="filter-label">等级</span>
+            <input type="text" class="filter-lv-input" id="filterLevelMin" inputmode="numeric" autocomplete="off" maxlength="2" value="${cf.levelMin || 0}" />
+            <span style="opacity:.5;">~</span>
+            <input type="text" class="filter-lv-input" id="filterLevelMax" inputmode="numeric" autocomplete="off" maxlength="2" value="${cf.levelMax || 20}" />
+          </div>
+          <div class="filter-row">
+            <span class="filter-label">闪光</span>
+            <div class="filter-chips">${filterChips('shiny')}</div>
+          </div>
+          <div class="filter-row">
+            <span class="filter-label">神兽</span>
+            <div class="filter-chips">${filterChips('legend')}</div>
+          </div>
+          <div class="filter-hint">闪光 / 神兽设为「捕捉」时不受等级范围限制</div>
         </div>
-        <div class="ball-check-row" style="margin-top:3px;">
-          <span class="ball-check ${autoBuffHoney ? 'on' : ''}" id="toggleBuffHoney">${autoBuffHoney ? '☑' : '☐'}甜甜蜜</span>
-          <span class="ball-check ${autoBuffCharm ? 'on' : ''}" id="toggleBuffCharm">${autoBuffCharm ? '☑' : '☐'}闪耀护符</span>
-        </div>
-      </div>
-      ` : ''}
-      <div class="auto-catch-row">
-        <div class="auto-catch-label">佛系模式</div>
-        <div class="toggle-switch" id="toggleAutoFlee">
-          <div class="toggle-track ${autoFlee ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
-        </div>
-      </div>
-      ${autoFlee ? '<div style="font-size:9px;color:var(--color-ui);padding:2px 0 4px 8px;">遇敌后 30 秒未操作，宝可梦会自行逃跑</div>' : ''}
-      <div class="auto-catch-row" style="margin-top:2px;">
-        <div class="auto-catch-label">自动补球</div>
-        <div class="toggle-switch" id="toggleAutoRefill">
-          <div class="toggle-track ${autoRefill ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
-        </div>
-      </div>
-      ${autoRefill ? `
-      <div class="ball-check-row" style="padding-left:8px;">
-        ${['poke-ball', 'ultra-ball', 'master-ball'].map(b => `
-          <span class="ball-check refill-check ${(refillBalls[b] !== false) ? 'on' : ''}" data-refill-ball="${b}">${(refillBalls[b] !== false) ? '☑' : '☐'}${ballLabels[b]}</span>
-        `).join('')}
-      </div>
-      ` : ''}
-      <div class="auto-catch-row">
-        <div class="auto-catch-label">固定窗口</div>
-        <div class="toggle-switch" id="toggleWindowPinned">
-          <div class="toggle-track ${windowPinned ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
-        </div>
-      </div>
-      <div class="auto-catch-row">
-        <div class="auto-catch-label">窗口倍率</div>
-        <div class="pokedex-region-select window-scale-select" id="windowScaleSelect">
-          <span class="scale-value">${windowScale} 倍</span>
-          <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
-            <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
-          </svg>
-          <div class="region-dropdown window-scale-dd" style="display:none;">
-            ${WINDOW_SCALES.map(s => `<div class="region-dropdown-item${s === windowScale ? ' active' : ''}" data-scale="${s}">${s} 倍</div>`).join('')}
+        ` : ''}
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">佛系模式</div>
+          <div class="toggle-switch" id="toggleAutoFlee">
+            <div class="toggle-track ${autoFlee ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
           </div>
         </div>
       </div>
-      <div class="auto-catch-row">
-        <div class="auto-catch-label">音乐</div>
-        <div class="toggle-switch" id="toggleMusicEnabled">
-          <div class="toggle-track ${musicEnabled ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">背包与补球</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">自动补球</div>
+          <div class="toggle-switch" id="toggleAutoRefill">
+            <div class="toggle-track ${autoRefill ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        ${autoRefill ? `
+        <div style="padding:6px 4px 2px 8px;">
+          <div class="settings-sub-title">补球优先级</div>
+          <div class="refill-order-row" id="refillOrderList">
+            ${order.map((b, i) => `
+              <span class="refill-order-item${refillBalls[b] === false ? ' off' : ''}" data-ball="${b}">
+                <span class="refill-order-arrow left ${i === 0 ? 'hidden' : ''}" data-dir="-1">‹</span>
+                <span class="refill-order-name">${ballLabels[b]}</span>
+                <span class="refill-order-arrow right ${i === order.length - 1 ? 'hidden' : ''}" data-dir="1">›</span>
+              </span>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">窗口</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">固定窗口</div>
+          <div class="toggle-switch" id="toggleWindowPinned">
+            <div class="toggle-track ${windowPinned ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">窗口倍率</div>
+          <div class="pokedex-region-select window-scale-select" id="windowScaleSelect">
+            <span class="scale-value">${windowScale} 倍</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div class="region-dropdown window-scale-dd" style="display:none;">
+              ${WINDOW_SCALES.map(s => `<div class="region-dropdown-item${s === windowScale ? ' active' : ''}" data-scale="${s}">${s} 倍</div>`).join('')}
+            </div>
+          </div>
         </div>
       </div>
-      ${musicEnabled ? `
-      <div class="auto-catch-row" style="padding-left:8px;">
-        <div class="auto-catch-label">音乐音量</div>
-        <div class="volume-row">
-          <input type="range" class="volume-slider" id="musicVolumeSlider" min="0" max="1" step="0.05" value="${musicVolume}" />
+
+      <div class="settings-group">
+        <div class="settings-group-title">声音</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">音乐</div>
+          <div class="toggle-switch" id="toggleMusicEnabled">
+            <div class="toggle-track ${musicEnabled ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        ${musicEnabled ? `
+        <div class="auto-catch-row" style="padding-left:8px;">
+          <div class="auto-catch-label">音乐音量</div>
+          <div class="volume-row">
+            <input type="range" class="volume-slider" id="musicVolumeSlider" min="0" max="1" step="0.05" value="${musicVolume}" />
+          </div>
+        </div>
+        <div class="auto-catch-row" style="padding-left:8px;">
+          <div class="auto-catch-label">战斗音乐</div>
+          <div class="toggle-switch" id="toggleBattleMusic">
+            <div class="toggle-track ${battleMusic ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        ` : ''}
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">角色与存档</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">角色</div>
+          <div class="gender-check-row">
+            <span class="ball-check ${gender === 'brendan' ? 'on' : ''}" id="genderBrendan">${gender === 'brendan' ? '☑' : '☐'}小悠</span>
+            <span class="ball-check ${gender === 'may' ? 'on' : ''}" id="genderMay">${gender === 'may' ? '☑' : '☐'}小遥</span>
+          </div>
+        </div>
+        <div class="reset-save-row">
+          <span class="reset-save-label">重置存档</span>
+          <span class="reset-save-btn" id="resetSaveBtn">重置</span>
         </div>
       </div>
-      <div class="auto-catch-row" style="padding-left:8px;">
-        <div class="auto-catch-label">战斗音乐</div>
-        <div class="toggle-switch" id="toggleBattleMusic">
-          <div class="toggle-track ${battleMusic ? 'on' : ''}"></div>
-          <div class="toggle-knob"></div>
-        </div>
-      </div>
-      ` : ''}
-      <div class="auto-catch-row">
-        <div class="auto-catch-label">角色</div>
-        <div class="gender-check-row">
-          <span class="ball-check ${gender === 'brendan' ? 'on' : ''}" id="genderBrendan">${gender === 'brendan' ? '☑' : '☐'}小悠</span>
-          <span class="ball-check ${gender === 'may' ? 'on' : ''}" id="genderMay">${gender === 'may' ? '☑' : '☐'}小遥</span>
-        </div>
-      </div>
-      <div class="reset-save-row">
-        <span class="reset-save-label">重置存档</span>
-        <span class="reset-save-btn" id="resetSaveBtn">重置</span>
-      </div>
-      <a href="https://github.com/ZTMYO/PokeIdle" id="githubLink" target="_blank" rel="noopener"
-         style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;padding:6px 0;color:var(--ui-color);text-decoration:none;font-size:12px;cursor:pointer;">
+      <a href="https://github.com/ZTMYO/PokeIdle" id="githubLink" class="settings-footer-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 1024 1024" width="16" height="16" style="flex-shrink:0;"><use xlink:href="./icons/sprites.svg#icon-github"/></svg>
         <span style="font-weight:600;">ZTMYO</span>
       </a>
+      <div class="settings-version" id="settingsVersion"></div>
       <div id="declarationBtn" style="text-align:center;font-size:9px;opacity:0.5;padding:2px 0 4px;cursor:pointer;">版权声明</div>
     </div>
   `;
@@ -733,8 +771,6 @@ export function renderSettings(container, s) {
     });
   });
   container.querySelector('#toggleBattleMusic')?.addEventListener('click', toggleBattleMusic);
-  container.querySelector('#toggleShinyStop')?.addEventListener('click', toggleShinyStop);
-  container.querySelector('#toggleLegendStop')?.addEventListener('click', toggleLegendStop);
   // 重置存档：二次点击确认，防误触
   container.querySelector('#resetSaveBtn')?.addEventListener('click', (e) => {
     const btn = e.currentTarget;
@@ -767,6 +803,51 @@ export function renderSettings(container, s) {
   container.querySelectorAll('.ball-check[data-refill-ball]').forEach(el => {
     el.addEventListener('click', () => toggleAutoRefillBall(el.dataset.refillBall));
   });
+  // 遇敌过滤：闪光/神兽三态 chips
+  container.querySelectorAll('.filter-chip').forEach(el => {
+    el.addEventListener('click', () => {
+      gameData.settings.catchFilter[el.dataset.filterKey] = el.dataset.filterVal;
+      renderSettings(container, gameData.settings);
+      saveGame();
+    });
+  });
+  // 遇敌过滤：等级范围（野生等级 1~20）。实时过滤输入（只留数字、最多 2 位、超 20 截断），change 时落库
+  const bindLv = (id, key) => {
+    const el = container.querySelector('#' + id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      let v = el.value.replace(/\D/g, '').slice(0, 2);
+      if (v !== '' && Number(v) > 20) v = '20';
+      el.value = v;
+    });
+    el.addEventListener('change', () => {
+      gameData.settings.catchFilter[key] = Math.max(0, Math.min(20, Number(el.value) || 0));
+      saveGame();
+    });
+  };
+  bindLv('filterLevelMin', 'levelMin');
+  bindLv('filterLevelMax', 'levelMax');
+  // 补球优先级：左右箭头调整顺序（从左到右优先级从高到低），点击格子切换启用/禁用
+  const orderList = container.querySelector('#refillOrderList');
+  if (orderList) {
+    const moveInOrder = (ball, dir) => {
+      const arr = [...(gameData.settings.autoRefillOrder || [])];
+      const i = arr.indexOf(ball);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= arr.length) return;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      gameData.settings.autoRefillOrder = arr;
+      renderSettings(container, gameData.settings);
+      saveGame();
+    };
+    orderList.querySelectorAll('.refill-order-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const arrow = e.target.closest('.refill-order-arrow');
+        if (arrow) { moveInOrder(el.dataset.ball, Number(arrow.dataset.dir)); return; }
+        toggleAutoRefillBall(el.dataset.ball); // 点击格子本体：切换该球是否自动补
+      });
+    });
+  }
   // GitHub 仓库链接：Tauri 下用 opener 插件在系统浏览器打开
   container.querySelector('#githubLink')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -774,6 +855,12 @@ export function renderSettings(container, s) {
     if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
     else window.open(url, '_blank');
   });
+  (async () => {
+    let v = '';
+    try { v = await window.__TAURI__?.app?.getVersion?.(); } catch (_) {}
+    const el = container.querySelector('#settingsVersion');
+    if (el) el.textContent = v ? `v${v}` : 'v1.0.4';
+  })();
   // 版权声明：跳转声明视图
   container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
 }
@@ -796,6 +883,15 @@ function ensureSettings() {
   if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   if (gameData.settings.autoRefill == null) gameData.settings.autoRefill = false;
   if (!gameData.settings.autoRefillBalls) gameData.settings.autoRefillBalls = { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
+  if (!Array.isArray(gameData.settings.autoRefillOrder) || gameData.settings.autoRefillOrder.length !== 3) {
+    gameData.settings.autoRefillOrder = ['poke-ball', 'ultra-ball', 'master-ball']; // 默认便宜优先
+  }
+  if (!gameData.settings.catchFilter) {
+    gameData.settings.catchFilter = { levelMin: 0, levelMax: 0, shiny: 'catch', legend: 'catch' };
+  }
+  // 野生等级上限为 20：旧版本等级范围曾允许填 100，超出部分按 20 收敛（0 仍表示不限制）
+  if ((gameData.settings.catchFilter.levelMax || 0) > 20) gameData.settings.catchFilter.levelMax = 20;
+  if ((gameData.settings.catchFilter.levelMin || 0) > 20) gameData.settings.catchFilter.levelMin = 20;
   if (gameData.settings.windowScale == null) gameData.settings.windowScale = 1;
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
@@ -937,52 +1033,6 @@ export function toggleAutoRefillBall(ballType) {
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
-}
-
-export function toggleShinyStop() {
-  ensureSettings();
-  gameData.settings.shinyStop = !gameData.settings.shinyStop;
-  if (gameData.settings.shinyStop) {
-    gameData.settings.autoCatch = true;
-    // 刚开启闪光暂停 → 中止当前闪光的自动丢球（不跳转页面，用户留在设置页；
-    // 切回遭遇页时 fleeBtn 由渲染逻辑恢复显示）
-    if (currentIsShiny && phase === 'encounter') {
-      setAbortAutoCatch();
-    }
-  } else {
-    // 刚关闭闪光暂停 → 仅当遭遇页可见时立即接管；
-    // 在设置页时交给 showView 切回游戏页的统一接管（避免在隐藏页上丢球导致动画状态错乱）
-    if (currentIsShiny && phase === 'encounter' && isOnGameView()) {
-      import('./battle.js').then(m => m.autoCatch());
-    }
-  }
-  const container = $('settingsContent');
-  renderSettings(container, gameData.settings);
-  saveGame();
-  updateStats(); // 开启/关闭闪光暂停会联动自动捕捉，立即刷新底部状态文字
-}
-
-export function toggleLegendStop() {
-  ensureSettings();
-  gameData.settings.legendStop = !gameData.settings.legendStop;
-  if (gameData.settings.legendStop) {
-    gameData.settings.autoCatch = true;
-    // 刚开启神兽暂停 → 中止当前极稀有的自动丢球（不跳转页面，用户留在设置页；
-    // 切回遭遇页时 fleeBtn 由渲染逻辑恢复显示）
-    if (isLegendEncounter() && phase === 'encounter') {
-      setAbortAutoCatch();
-    }
-  } else {
-    // 刚关闭神兽暂停 → 仅当遭遇页可见时立即接管；
-    // 在设置页时交给 showView 切回游戏页的统一接管（避免在隐藏页上丢球导致动画状态错乱）
-    if (isLegendEncounter() && phase === 'encounter' && isOnGameView()) {
-      import('./battle.js').then(m => m.autoCatch());
-    }
-  }
-  const container = $('settingsContent');
-  renderSettings(container, gameData.settings);
-  saveGame();
-  updateStats(); // 开启/关闭神兽暂停会联动自动捕捉，立即刷新底部状态文字
 }
 
 export function toggleGender(g) {
@@ -1274,18 +1324,18 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '自动操作',
-    html: `<p>开启后遇敌自动处理：</p>`
+    html: `<p>设置页按功能域分组：「<b>遇敌与捕捉</b> / 背包与补球 / 窗口 / 声音 / 角色与存档」。开启<b>自动操作</b>后遇敌自动处理：</p>`
       + `<p>勾选球种：<b>自动捕获</b>（会根据捕获率智能选择勾选的球种）。</p>`
       + `<p>不勾选任何球种：<b>自动逃跑</b>（期间禁止手动丢球）。</p>`
       + `<p>勾选增益道具：增益结束后自动<b>续杯</b>（同时勾选优先甜甜蜜）。</p>`
-      + `<p>开启<b>闪光暂停</b>：闪光出现时不自动操作。</p>`
-      + `<p>开启<b>神兽暂停</b>：神兽/幻兽/悖谬宝可梦出现时不自动操作。</p>`
-      + `<p>开启<b>自动补球</b>：勾选精灵球/高级球/大师球后，对应球数量为 0 时自动用糖果补 1 个（多种球归零时便宜优先）；不依赖上述自动丢球，手动丢球同样生效。</p>`,
+      + `<p><b>捕捉条件</b>（遇敌过滤）：可设<b>等级范围</b>，闪光与神兽各自选择<b>捕捉 / 暂停 / 逃跑</b>三态——不匹配的遇敌自动逃跑，设为「暂停」则停手切回战斗页留给你手动丢球。</p>`
+      + `<p>优先级：闪光 / 神兽设为「捕捉」时<b>不受等级范围限制</b>（稀有闪光必抓）；设为「逃跑 / 暂停」则优先于等级生效。</p>`
+      + `<p>开启<b>自动补球</b>：勾选精灵球/高级球/大师球后，对应球数量为 0 时自动用糖果补 1 个；可点「<b>‹ ›</b>」调整补球优先级、点格子切换该球是否自动补。</p>`,
   },
   {
     title: '佛系模式',
     html: `<p>与<b>自动操作</b>互斥，开启后遇敌不自动处理。</p>`
-      + `<p><b>${AUTO_FLEE_TIMEOUT / 1000}</b> 秒内未操作则宝可梦自行逃跑，不会卡住进度，适合挂后台偶尔手动抓两把的场合。</p>`,
+      + `<p><b>${AUTO_FLEE_TIMEOUT / 1000}</b> 秒内未操作则你自动逃跑（放走宝可梦），不会卡住进度，适合挂后台偶尔手动抓两把的场合。</p>`,
   },
   {
     title: '系统日志',

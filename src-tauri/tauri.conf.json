@@ -16,7 +16,7 @@
         "height": 400,
         "resizable": false,
         "fullscreen": false,
-        "transparent": true,
+        "transparent": false,
         "decorations": false,
         "visible": true,
         "dragDropEnabled": true,

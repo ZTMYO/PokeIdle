@@ -398,8 +398,8 @@ export function startMassEncounter(poke, shiny) {
 export function startAutoFleeTimer() {
   stopAutoFleeTimer();
   if (!gameData.settings?.autoFlee) return;
-  // 闪光暂停 / 神兽暂停：禁止自动逃跑，停在战斗页等玩家手动丢球
-  if ((currentIsShiny && gameData.settings?.shinyStop) || (isLegendEncounter() && gameData.settings?.legendStop)) return;
+  // 遇敌过滤设为"暂停"：禁止自动逃跑，停在战斗页等玩家手动丢球
+  if (catchFilterResult() === 'stop') return;
   setAutoFleeStartTime(Date.now());
   setAutoFleeTimer(setTimeout(() => {
     setAutoFleeTimer(null);
@@ -408,9 +408,9 @@ export function startAutoFleeTimer() {
     // 进度条归零
     const bar = $('statAutoBar');
     if (bar) bar.style.width = '0%';
-    // 倒计时结束前复查：期间若已开启闪光/神兽暂停则不逃跑，保留手动丢球机会
+    // 倒计时结束前复查：期间若开启闪光/神兽暂停则不逃跑，保留手动丢球机会
     if (phase === 'encounter' && currentEncounter
-        && !((currentIsShiny && gameData.settings?.shinyStop) || (isLegendEncounter() && gameData.settings?.legendStop))) {
+        && catchFilterResult() !== 'stop') {
       fleeEncounter(true);
     }
   }, AUTO_FLEE_TIMEOUT));
@@ -507,10 +507,16 @@ export function showEncounter(poke, opts = {}) {
   // 遇敌后同样立即自动处理，无需切回战斗页才触发。
   if (!skipAuto) {
     if (gameData.settings?.autoCatch) {
-      // 闪光暂停 / 神兽暂停优先 — 如果开启则不自动处理，强制切到战斗页让用户手动
-      if ((currentIsShiny && gameData.settings?.shinyStop) || (poke.legend === true && gameData.settings?.legendStop)) {
+      // 遇敌过滤优先 — "暂停"则强制切到战斗页让用户手动；"逃跑"则不匹配直接逃跑
+      const fr = catchFilterResult();
+      if (fr === 'stop') {
         showView('encounterView');
         $('fleeBtn').style.display = '';
+      } else if (fr === 'flee') {
+        setTimeout(async () => {
+          await loadPromise; // 等图片加载完再逃，避免画面残留
+          fleeEncounter(true);
+        }, 800);
       } else {
         const waitMs = hasAnyBall() ? 1500 : 2000;
         setTimeout(async () => {
@@ -819,20 +825,14 @@ export async function fleeEncounter(isAutoFlee) {
   };
   if (!isAutoFlee) logEntry.manual = true;
   gameData.encounterLogs[idx].push(logEntry);
-  if (isAutoFlee) {
-    addSystemLog('pokemon_escaped', { pokemon: idx, shiny: currentIsShiny });
-    if (isOnGameView()) updateTextBox(currentEncounter.name + '逃走了！', false);
-    // 宝可梦水平翻转并向右下平移出屏的逃跑动画
-    if (isOnGameView()) await playFleeAnim();
-  } else {
-    addSystemLog('player_fled', { pokemon: idx, shiny: currentIsShiny, auto: false });
-    if (isOnGameView()) updateTextBox('你逃走了！', false);
-  }
+  // 自动/手动逃跑都是玩家主动离开：放走宝可梦，不发生精灵逃走动画
+  addSystemLog('player_fled', { pokemon: idx, shiny: currentIsShiny, auto: !!isAutoFlee });
+  if (isOnGameView()) updateTextBox('你逃走了！', false);
   await saveGame();
   updateStats();
   if (_bgCatch && !isOnGameView()) {
-    // 后台结算：判定已落库，快照结果供玩家切回游戏页时补播逃跑动画
-    storeBgResult('fled', 0, null, { noBall: true, fleeMsg: currentEncounter.name + '逃走了！', fleeAnim: true });
+    // 后台结算：判定已落库，快照结果供玩家切回游戏页时补播逃跑文案
+    storeBgResult('fled', 0, null, { noBall: true, fleeMsg: '你逃走了！' });
     cleanupEncounterState();
     return;
   }
@@ -963,8 +963,8 @@ export function handoffEncounterToBackground(prevPhase) {
     if (prevPhase === 'caught' && !_throwing) cleanupEncounterState();
     return;
   }
-  if (!gameData.settings?.autoCatch || (currentIsShiny && gameData.settings?.shinyStop) || (isLegendEncounter() && gameData.settings?.legendStop)) {
-    // 非自动捕捉（或闪光暂停 / 神兽暂停）：后台直接记录逃跑
+  if (!gameData.settings?.autoCatch || catchFilterResult() !== 'catch') {
+    // 非自动捕捉（或遇敌过滤命中）：后台直接记录逃跑
     handoffFlee();
     return;
   }
@@ -997,8 +997,32 @@ function pickAutoBallType(availableBalls) {
   return availableBalls[0] || null;
 }
 
-// 自动补球：勾选的球数量为 0 时，用糖果按便宜优先补 1 个（手动/自动丢球都生效）。
-// onlyBall 指定时只补该球（手动点击丢球用）；否则在勾选且为 0 的球里挑最便宜的补。
+// 遇敌过滤（设置-遇敌过滤）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
+// 优先级：闪光/神兽的「逃跑/暂停」策略 > 闪光/神兽「捕捉」豁免等级 > 等级范围过滤（仅约束常规遇敌）。
+// 例：限制 20~30 级 + 闪光设为「捕捉」→ 10 级闪光仍会捕捉，不会被等级过滤误放跑。
+export function catchFilterResult() {
+  const f = gameData.settings?.catchFilter || {};
+  // 特殊遇敌（闪光/神兽）：「逃跑/暂停」策略优先于等级过滤生效
+  if (currentIsShiny) {
+    if (f.shiny === 'flee') return 'flee';
+    if (f.shiny === 'stop') return 'stop';
+  }
+  if (isLegendEncounter()) {
+    if (f.legend === 'flee') return 'flee';
+    if (f.legend === 'stop') return 'stop';
+  }
+  // 闪光/神兽策略为「捕捉」（含默认）：豁免等级范围，稀有闪光/神兽不被等级过滤拦截
+  if (currentIsShiny && f.shiny !== 'flee' && f.shiny !== 'stop') return 'catch';
+  if (isLegendEncounter() && f.legend !== 'flee' && f.legend !== 'stop') return 'catch';
+  // 常规遇敌：应用等级范围过滤
+  const lvMin = f.levelMin || 0;
+  const lvMax = f.levelMax || 0;
+  if ((lvMin > 0 && encounterLevel < lvMin) || (lvMax > 0 && encounterLevel > lvMax)) return 'flee';
+  return 'catch';
+}
+
+// 自动补球：勾选的球数量为 0 时，用糖果按补球优先级补 1 个（手动/自动丢球都生效）。
+// onlyBall 指定时只补该球（手动点击丢球用）；否则在勾选且为 0 的球里按 autoRefillOrder 顺序补。
 // 返回是否补到了球
 export function tryAutoRefill(onlyBall = null) {
   if (!gameData.settings?.autoRefill) return false;
@@ -1007,9 +1031,10 @@ export function tryAutoRefill(onlyBall = null) {
   if (onlyBall) {
     targets = refillBalls[onlyBall] !== false ? [onlyBall] : [];
   } else {
-    targets = ['poke-ball', 'ultra-ball', 'master-ball']
-      .filter(b => refillBalls[b] !== false && (gameData.items[b] || 0) === 0)
-      .sort((a, b) => (CANDY_EXCHANGE[a] ?? 9999) - (CANDY_EXCHANGE[b] ?? 9999)); // 便宜优先
+    const order = Array.isArray(gameData.settings?.autoRefillOrder) && gameData.settings.autoRefillOrder.length === 3
+      ? gameData.settings.autoRefillOrder
+      : ['poke-ball', 'ultra-ball', 'master-ball']; // 默认便宜优先
+    targets = order.filter(b => refillBalls[b] !== false && (gameData.items[b] || 0) === 0);
   }
   for (const b of targets) {
     const price = CANDY_EXCHANGE[b];
@@ -1029,7 +1054,10 @@ export async function autoCatch() {
   if (_bgReplayActive) return;
   if (_autoCatching || !currentEncounter) return;
   if (!gameData.settings?.autoCatch) return;
-  if ((currentIsShiny && gameData.settings?.shinyStop) || (isLegendEncounter() && gameData.settings?.legendStop)) return;
+  // 遇敌过滤：不匹配直接逃跑；设为"暂停"则停手等手动丢球
+  const fr = catchFilterResult();
+  if (fr === 'flee') { stopAutoFleeTimer(); await fleeEncounter(true); return; }
+  if (fr === 'stop') return;
   if (phase === 'eggResult' || _eggHatching) return; // 孵蛋动画进行中不自动捕捉
   if (phase === 'caught' || phase === 'fled') return; // 判定已落库（捕获/逃跑）的遭遇不再重复捕捉
   const bg = phase !== 'encounter'; // 遭遇被 NPC 对战等打断时进入后台结算模式

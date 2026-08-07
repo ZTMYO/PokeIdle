@@ -1,11 +1,11 @@
 // 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
-import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
+import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats } from './ui.js';
 import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon } from './state.js';
 import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon } from './battle-core.js';
 import { typeMult } from './type-chart.js';
 import { chooseMoves } from './moves.js';
-import { ensureNpcs, buildNpcTeam } from './npcs.js';
+import { ensureNpcs, refreshNpcs, buildNpcTeam } from './npcs.js';
 import { BATTLE_REFRESH_MS, MAX_LEVEL, SPECIAL_SPRITE_SCALE } from './config.js';
 import { playBattle, endBattle, playVictory, stopVictory } from './audio.js';
 import * as road from './road.js';
@@ -217,6 +217,24 @@ export function renderBattleList() {
   clearBattleTier(); // 列表页无难度边框：清除结算页残留的难度边框色（到点刷新直接落在结算页时）
   _settled = false; // 列表已渲染，不再处于结算状态（结算页被强制替换后返回不再走结算路径）
   const { list } = ensureNpcs();
+  if (list.length === 0) {
+    // 打完所有 NPC：空列表状态，糖果充足（≥50）时显示「强制刷新」按钮
+    const hasCandy = (gameData.items.candy || 0) >= 50;
+    box.innerHTML = `
+      <div class="battle-app">
+        <div id="battleRefreshTip">距离下一波刷新：${refreshText()}</div>
+        <div class="battle-empty">
+          <div class="battle-empty-text">这波NPC都被你打败啦！</div>
+          ${hasCandy ? `
+          <button class="battle-btn main battle-refresh-btn" id="bForceRefresh">
+            强制刷新
+            <span class="battle-refresh-cost"><img class="candy-icon" src="./items/candy.png" alt="">×50</span>
+          </button>` : ''}
+        </div>
+      </div>`;
+    if (hasCandy) $('bForceRefresh').addEventListener('click', forceRefreshWave);
+    return;
+  }
   box.innerHTML = `
     <div class="battle-app">
       <div id="battleRefreshTip">距离下一波刷新：${refreshText()}</div>
@@ -228,6 +246,24 @@ export function renderBattleList() {
     el.addEventListener('click', () => startNpcBattle(el.dataset.id));
   });
 }
+
+// 打完所有 NPC：提交 50 糖果强制刷新下一波（复用 refreshNpcs，刷新时间一并重置）
+async function forceRefreshWave() {
+  const gd = gameData;
+  if ((gd.items.candy || 0) < 50) return; // 按钮仅在糖果充足时渲染，此处为兜底
+  gd.items.candy -= 50;
+  refreshNpcs();
+  await saveGame();
+  updateStats(); // 顶部糖果计数即时刷新
+  renderBattleList();
+}
+
+// 调试：一键清空 NPC 列表（F12 控制台调用 window.__debugClearNpcs() 后回列表页即显示空状态）
+window.__debugClearNpcs = () => {
+  if (gameData.battleNpcs?.list) gameData.battleNpcs.list = [];
+  renderBattleList();
+  return 'NPC 列表已清空';
+};
 
 // 距下一波刷新剩余时间文案（与交换页同款）
 function refreshText() {
@@ -248,6 +284,14 @@ function startRefreshCountdown() {
     }
     if (_busy) return; // 战斗中不刷新
     if (_settled) return; // 结算页展示中不强制替换，返回列表时自动生成新一波
+    // 空列表时按当前糖果实时同步「强制刷新」按钮的显示/隐藏（糖果增减不触发列表重渲染）
+    if (document.querySelector('.battle-empty')) {
+      const hasCandy = (gameData.items.candy || 0) >= 50;
+      if (hasCandy !== !!$('bForceRefresh')) {
+        renderBattleList();
+        return;
+      }
+    }
     if (BATTLE_REFRESH_MS - (Date.now() - (gameData.battleNpcs?.refreshedAt || 0)) <= 0) {
       renderBattleList(); // 到点生成新一波
       return;
