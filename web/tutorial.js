@@ -84,7 +84,7 @@ const TUT_ICONS = {
   交换: 'icon-trade', 场景: 'icon-scene', 捕捉: 'icon-owned', 闪光: 'icon-star',
   糖果: 'icon-candy', 商店: 'icon-shop', 增益: 'icon-buff', 孵蛋: 'icon-egg',
   钓鱼: 'icon-fishing', 树果: 'icon-berry', 农场: 'icon-tree', 宝可梦: 'icon-owned',
-  配队: 'icon-edit', 训练: 'icon-train', 对战: 'icon-versus', 配招: 'icon-moves',
+  配队: 'icon-edit', 训练: 'icon-train', 对战: 'icon-versus', 配招: 'icon-moves', 培育: 'icon-heart',
   混合器: 'icon-mixer', '树果方块': 'icon-poffin', '招募帮手': 'icon-emoji',
   自动操作: 'icon-auto', 佛系模式: 'icon-zen', 系统日志: 'icon-log',
   宝可梦难度: 'icon-type-chart', 状态栏图标: 'icon-pin',
