@@ -1936,6 +1936,7 @@ body { margin: 0; padding: 0; cursor: default; }
   cursor: pointer;
   z-index: 8;
 }
+.berry-box-sign:hover { transform: scale(1.08); }
 .berry-box-sign:active { transform: scale(0.92); }
 .berry-board-sign {
   position: absolute;
@@ -1948,6 +1949,7 @@ body { margin: 0; padding: 0; cursor: default; }
   cursor: pointer;
   z-index: 8;
 }
+.berry-board-sign:hover { transform: scale(1.08); }
 .berry-board-sign:active { transform: scale(0.92); }
 
 /* 告示牌弹窗：整体增高，分区内部滚动，避免委托条数翻倍后溢出 */
@@ -3581,6 +3583,9 @@ body { margin: 0; padding: 0; cursor: default; }
 #teamView,
 #trainView,
 #nurseryView,
+#casinoView,
+#casinoGameView,
+#mahjongView,
 #moveEditView {
   align-self: stretch;
   width: 100%;
@@ -4965,7 +4970,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .npc-name {
   font-size: 12px;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--ui-color-dark);
 }
 .npc-meta {
   font-size: 9px;
@@ -5023,6 +5028,350 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   width: 10px;
   height: 10px;
   image-rendering: pixelated;
+}
+
+/* ===== 赌场（21 点） ===== */
+.casino-app {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--ui-color);
+  overflow-y: auto; /* 内容超高时兜底滚动，避免被容器裁掉 */
+  overflow-x: hidden; /* 发牌飞入在容器左侧外，禁止横向滚动条闪动 */
+}
+/* 赌场首页：仿训练/饲育屋整页场景布局 + 赌桌热区 */
+.casino-scene-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  user-select: none;
+}
+.casino-scene {
+  position: relative;
+  width: 264px;
+  height: 216px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.casino-scene-canvas {
+  display: block;
+  width: 264px;
+  height: 216px;
+  image-rendering: pixelated;
+}
+.casino-scene-hot {
+  position: absolute;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.casino-scene-hot:hover {
+  background: rgba(46, 204, 113, 0.22);
+  box-shadow: inset 0 0 0 1px var(--ui-color);
+}
+.casino-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.casino-placeholder-title {
+  font-size: 14px;
+  font-weight: 800;
+}
+.casino-placeholder-sub {
+  font-size: 10px;
+  opacity: 0.6;
+}
+/* 下注区：仿混合器布局——内容居中，开始对局 dock 贴底全宽 */
+.casino-bet-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.casino-bet-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 2px;
+  max-width: 300px;
+  margin: 0 auto;
+  width: 100%;
+}
+.casino-bet-label {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.85;
+  text-align: center;
+}
+/* 下注档位：点击式刻度条（圆点可点击选择，选中档位上方浮出糖果 icon） */
+.casino-bet-slider {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 0;
+}
+.casino-bet-slider.disabled { opacity: 0.45; pointer-events: none; }
+.casino-bet-ticks {
+  position: relative;
+  height: 44px;
+  margin: 0 10px; /* 两端留出首尾刻度标注的空间 */
+}
+.casino-bet-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.casino-bet-candy {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  opacity: 0;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+.casino-bet-tick.sel .casino-bet-candy {
+  opacity: 1;
+  animation: casino-candy-pop 0.22s ease-out;
+}
+@keyframes casino-candy-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  70% { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 1; transform: scale(1.1); }
+}
+.casino-bet-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: rgba(var(--ui-color-rgb), 0.45);
+  border: 1.5px solid var(--ui-color);
+  box-sizing: border-box;
+  transition: transform 0.1s, background 0.12s, box-shadow 0.12s;
+}
+.casino-bet-value {
+  font-size: 9px;
+  font-weight: 700;
+  margin-top: 3px;
+  opacity: 0.55;
+  white-space: nowrap;
+}
+.casino-bet-tick.off { cursor: default; }
+.casino-bet-tick.off .casino-bet-dot,
+.casino-bet-tick.off .casino-bet-value { opacity: 0.3; }
+.casino-bet-tick.sel .casino-bet-dot {
+  background: var(--ui-color);
+  box-shadow: 0 0 0 2.5px rgba(var(--ui-color-rgb), 0.25);
+}
+.casino-bet-tick.sel .casino-bet-value { opacity: 1; color: var(--ui-color); }
+.casino-bet-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.casino-bet-amount {
+  font-size: 10px;
+  opacity: 0.85;
+}
+.casino-bet-amount b { font-size: 12px; }
+.casino-last {
+  font-size: 9px;
+  opacity: 0.55;
+  text-align: center;
+}
+/* 通用按钮（与 .battle-btn 一致规格） */
+.casino-btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 16px;
+  border: 1px solid var(--ui-color);
+  border-radius: 999px;
+  color: var(--ui-color);
+  background: transparent;
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+.casino-btn.main {
+  background: var(--ui-color);
+  color: var(--screen-bg);
+}
+.casino-btn:hover:not(:disabled) { background: rgba(var(--ui-color-rgb), 0.12); }
+.casino-btn.main:hover:not(:disabled) { background: var(--ui-color);filter: brightness(1.08);}
+.casino-btn:active:not(:disabled) { transform: scale(0.95); }
+.casino-btn:disabled { opacity: 0.35; cursor: default; }
+/* 牌桌（flex 撑满全屏：结算横幅顶部、手牌区中部居中、操作/再来一局按钮吸底固定，
+   保证结算横幅出现时按钮行不会被往下挤压） */
+.casino-table {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+  width: 100%;
+}
+/* 结算横幅：悬浮在牌桌顶部，不参与布局，按钮行保持贴底、页面不挤压 */
+.casino-result {
+  position: absolute;
+  top: 14px; /* 手牌区靠下后顶部空间充足，结果文字稍下移 */
+  left: 0;
+  right: 0;
+  z-index: 3;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--ui-color); /* 胜负/平局统一主题色 */
+  pointer-events: none;
+}
+/* 手牌区：占据剩余空间并整体靠下对齐，贴近底部操作按钮行 */
+.casino-hands {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end; /* 手牌整体靠下，与按钮行更近 */
+  gap: 8px;
+  width: 100%;
+}
+.casino-hand {
+  min-height: 53px; /* label 行 + 一张牌的高度，多牌换行前牌区高度恒定 */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* 手牌水平居中 */
+  justify-content: flex-start;
+}
+.casino-hand-label {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.casino-hand-value { opacity: 0.7; }
+.casino-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* 多牌换行时整体居中 */
+  align-content: flex-start;
+  gap: 4px;
+  min-height: 40px; /* 单行牌高固定：结算翻开暗牌、补牌都不改变牌位 */
+}
+.casino-card {
+  box-sizing: border-box;
+  width: 29px;
+  height: 40px;
+  border-radius: 4px;
+  background: #fff;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.casino-card.red { color: #d33; }
+.casino-card-rank { font-size: 11px; line-height: 1; }
+.casino-card-suit { font-size: 9px; line-height: 1.2; }
+/* PTCG 风牌背：深蓝渐变底 + 黄色边框 + 中央精灵球图案 */
+.casino-card.back {
+  background: linear-gradient(135deg, #2e6db4 0%, #1c4e8f 100%);
+  border: 2px solid #ffcb05;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.casino-card-back-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+/* 发牌动画：牌从左上牌堆处飞入，轻微上抛落地（时长与发牌间隔 230ms 匹配） */
+@keyframes casino-deal-in {
+  0% {
+    transform: translate(-90px, -60px) rotate(-10deg) scale(1.25);
+    opacity: 0;
+  }
+  55% {
+    transform: translate(5px, -5px) rotate(2deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+.casino-card.dealing {
+  animation: casino-deal-in 0.23s ease-out both;
+}
+/* 结算翻牌：庄家暗牌从牌背 180° 翻成明牌（纯 transform，不改变牌位） */
+@keyframes casino-flip {
+  0% {
+    transform: perspective(240px) rotateY(-180deg);
+    background: linear-gradient(135deg, #2e6db4 0%, #1c4e8f 100%);
+    border: 2px solid #ffcb05;
+  }
+  55% {
+    background: linear-gradient(135deg, #2e6db4 0%, #1c4e8f 100%);
+    border: 2px solid #ffcb05;
+  }
+  100% {
+    transform: perspective(240px) rotateY(0deg);
+    background: #fff;
+    border: 0 solid transparent;
+  }
+}
+.casino-card.flip {
+  animation: casino-flip 0.4s ease-in-out both;
+}
+/* 翻牌期间牌面文字跟随翻转进度淡入：转过 90°（约 50% 进度）后才出现，
+   避免起步时牌背背景上透出镜像牌面 */
+.casino-card.flip .casino-card-rank,
+.casino-card.flip .casino-card-suit {
+  animation: casino-flip-face 0.4s ease-in-out both;
+}
+@keyframes casino-flip-face {
+  0%, 50% { opacity: 0; }
+  60%, 100% { opacity: 1; }
+}
+.casino-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  margin-bottom: 10px;
+}
+/* 玩家爆牌：牌桌左右震动 */
+@keyframes casino-bust-shake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-7px) rotate(-0.4deg); }
+  25% { transform: translateX(6px) rotate(0.3deg); }
+  40% { transform: translateX(-5px); }
+  55% { transform: translateX(4px); }
+  70% { transform: translateX(-3px); }
+  85% { transform: translateX(2px); }
+}
+.casino-app.bust {
+  animation: casino-bust-shake 0.5s ease-in-out;
 }
 
 /* ---- 战斗页：上下两大分区（上区对战展示 / 下区技能操作面板，分割线隔开） ---- */

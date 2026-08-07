@@ -404,6 +404,12 @@ export function renderSystemLogs() {
       case 'auto_refill':
         desc = `[自动] 补了${ITEM_NAMES[log.details.ball] || log.details.ball} ×1`;
         break;
+      case 'casino': {
+        const p = log.details.profit;
+        const t = { blackjack: '黑杰克', win: '你赢了', lose: '输了', push: '平局' }[log.details.action] || '一局';
+        desc = `赌场：${t} ${p > 0 ? '+' + p : p} 糖果`;
+        break;
+      }
       default:
         desc = `未知事件 (${log.type})`;
     }
@@ -876,7 +882,7 @@ export function renderSettings(container, s) {
     let v = '';
     try { v = await window.__TAURI__?.app?.getVersion?.(); } catch (_) {}
     const el = container.querySelector('#settingsVersion');
-    if (el) el.textContent = v ? `v${v}` : 'v1.0.4';
+    if (el) el.textContent = v ? `v${v}` : 'v1.0.5';
   })();
   // 版权声明：跳转声明视图
   container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
@@ -1123,7 +1129,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '手机',
     html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>农场</b>、<b>交换</b>、<b>成就</b>、<b>统计</b>……），也可以查看当前系统时间。</p>`
-      + `<p>滚动滚轮或点击底部圆点可翻到<b>第二页</b>，那里放着<b>日志</b>、<b>训练</b>、<b>配队</b>与<b>对战</b>应用。科学的力量真伟大！</p>`
+      + `<p>滚动滚轮或点击底部圆点可翻到<b>第二页</b>，那里放着<b>日志</b>、<b>饲育屋</b>、<b>训练</b>、<b>配队</b>、<b>对战</b>与<b>赌场</b>应用。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
@@ -1285,6 +1291,12 @@ const TUTORIAL_SECTIONS = [
       + `<p>收获的树果存入库存（点田地左上角库存箱查看）；库存的树果不能当种子，种地只能另买新种子。</p>`
       + `<p>点田地右上角告示牌查看树果委托（每天刷新 <b>${FARM_BOARD_DEMANDS}</b> 条，其中第 <b>1</b> 条为大量需求 <b>${FARM_BOARD_BIG_QTY_MIN}~${FARM_BOARD_BIG_QTY_MAX}</b> 颗，需专门种植较久；需求越多报酬越高）。也可以在此面板招募帮手（详见「<b>招募帮手</b>」章节）。</p>`,
   },  
+  {
+    title: '赌场',
+    html: `<p>在<b>手机</b>第二页打开<b>赌场</b>应用，悬停赌桌点击进入 <b>21 点</b>，用糖果下注。</p>`
+      + `<p><b>规则</b>：与庄家比点数更接近 <b>21</b> 且不爆牌；A 可算 <b>1 或 11</b>、J/Q/K 计 <b>10</b>。可<b>要牌</b>补一张、<b>停牌</b>交给庄家、<b>加倍</b>再押一份只补 1 张。</p>`
+      + `<p><b>庄家</b>不足 <b>17</b> 一直要牌。<b>黑杰克</b>（前两张即 21）按 <b>1.5 倍</b>赔付；双方黑杰克平局返还，庄家黑杰克压制普通 21。</p>`,
+  },
   {
     title: '宝可梦',
     html: `<p>在<b>手机</b>页面打开<b>宝可梦</b>应用查看宝可梦仓库：每只捕获/孵化的宝可梦都是独立个体，支持搜索、来源筛选与表头排序。</p>`
