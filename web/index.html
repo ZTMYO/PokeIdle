@@ -21,8 +21,16 @@
       <!-- 像素主角：顶栏中间轨道来回行走（不覆盖左右 UI） -->
       <div class="pv-track"><div class="pv-walk" id="pvBrendan"></div></div>
       <nav>
-        <button class="topbar-tut" id="openTutorialBtn" type="button">教程</button>
         <a class="topbar-gh" href="https://github.com/ZTMYO/PokeIdle" target="_blank" rel="noopener" title="GitHub" aria-label="GitHub"><svg class="gh-icon"><use href="./sprites.svg#icon-github" /></svg></a>
+        <div class="topbar-menu">
+          <button class="topbar-menu-btn" id="menuBtn" type="button" aria-label="菜单" aria-haspopup="true" aria-expanded="false" title="菜单">
+            <svg class="menu-icon"><use href="./sprites.svg#icon-menu" /></svg>
+          </button>
+          <div class="topbar-menu-drop" id="menuDrop" hidden>
+            <button type="button" class="menu-item" data-menu="tutorial"><svg class="menu-item-icon"><use href="./sprites.svg#icon-tutorial" /></svg>游戏教程</button>
+            <button type="button" class="menu-item" data-menu="changelog"><svg class="menu-item-icon"><use href="./sprites.svg#icon-log" /></svg>更新日志</button>
+          </div>
+        </div>
       </nav>
     </div>
   </div>
@@ -235,6 +243,19 @@
         <div class="tut-content" id="tutContent"></div>
         <div class="tut-foot" id="tutFoot"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ 更新日志子页面（解析根目录 update_log.md） ============ -->
+  <div class="changelog-page" id="changelogPage" hidden>
+    <div class="cl-head">
+      <div class="cl-head-left">
+        <div class="cl-head-title">更新日志</div>
+      </div>
+      <button class="cl-close" id="clClose" type="button" aria-label="关闭更新日志">✕</button>
+    </div>
+    <div class="cl-body">
+      <div class="cl-content" id="changelogContent"></div>
     </div>
   </div>
 

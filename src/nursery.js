@@ -780,15 +780,15 @@ function berryDemand(ea, eb) {
   const stock = ensureBerryFarm().stock || {};
   const shared = fa.filter(t => fb.includes(t));
   if (shared.length) {
-    // 有交集：投 2 颗双方都喜欢的树果。优先一种凑满 2 颗（按库存从多到少选）；
-    // 库存不足 2 颗时改为两种共同喜欢各投 1 颗——只要共同喜欢里有库存就不会卡住，
-    // 避免"库存明明有共同喜欢树果却提示缺"的情况
+    // 有交集：每轮固定投 2 颗双方都喜欢的树果。优先同种凑满 2 颗（按库存从多到少选）；
+    // 库存不足 2 颗时改为两种共同喜欢各投 1 颗（仍凑满 2 颗）；
+    // 只有一种共同喜欢且库存不足 2 颗时，仍按 2 颗要求（不足则提示缺货），
+    // 避免出现"本轮只需 1 颗"的异常需求
     const cand = shared.slice().sort((x, y) => (stock[y] || 0) - (stock[x] || 0));
     const top = cand[0];
     if ((stock[top] || 0) >= 2) return [{ type: top, qty: 2 }];
-    const items = [{ type: top, qty: 1 }];
-    if (cand[1] != null) items.push({ type: cand[1], qty: 1 });
-    return items;
+    if (cand[1] != null) return [{ type: top, qty: 1 }, { type: cand[1], qty: 1 }];
+    return [{ type: top, qty: 2 }];
   }
   const pick = list => list.find(t => (stock[t] || 0) > 0) ?? list[0];
   const a = pick(fa), b = pick(fb);

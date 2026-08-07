@@ -1,6 +1,6 @@
 // ===== 口袋挂机 · 展示页逻辑 =====
 import './style.css';
-import { initTutorial } from './tutorial.js';
+import { initTutorial, openTutorial } from './tutorial.js';
 
 /* ============================================================
    下载选项：加Q群下载（复制群号）/ GitHub Release
@@ -840,3 +840,109 @@ setupFarmHelper();
 //   游戏教程子页面（解析 src/views.js 教程内容）
 //   ============================================================ */
 initTutorial();
+
+// ============================================================
+//   顶栏菜单：游戏教程 / 更新日志
+//   ============================================================ */
+(function setupTopbarMenu() {
+  const menuBtn = document.getElementById('menuBtn');
+  const menuDrop = document.getElementById('menuDrop');
+  if (!menuBtn || !menuDrop) return;
+
+  const closeDrop = () => {
+    menuDrop.hidden = true;
+    menuBtn.setAttribute('aria-expanded', 'false');
+  };
+  menuBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    menuDrop.hidden = !menuDrop.hidden;
+    menuBtn.setAttribute('aria-expanded', String(!menuDrop.hidden));
+  });
+  // 点击页面其他区域收起
+  document.addEventListener('click', () => { if (!menuDrop.hidden) closeDrop(); });
+  menuDrop.addEventListener('click', e => {
+    const item = e.target.closest('[data-menu]');
+    if (!item) return;
+    closeDrop();
+    if (item.dataset.menu === 'tutorial') openTutorial();
+    else if (item.dataset.menu === 'changelog') openChangelog();
+  });
+})();
+
+// ============================================================
+//   更新日志子页面（解析根目录 update_log.md，构建时同步到 public）
+//   ============================================================ */
+const changelogPage = document.getElementById('changelogPage');
+const changelogContent = document.getElementById('changelogContent');
+const clCloseBtn = document.getElementById('clClose');
+
+// HTML 转义，杜绝注入
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+// 行内标记：**粗体**
+function mdInline(s) {
+  return escapeHtml(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+// 极简 Markdown：仅支持 update_log.md 用到的 # / ## / ### / 有序列表 / 无序列表 / 粗体 / 分隔线
+function renderChangelog(md) {
+  const lines = md.replace(/\r\n/g, '\n').split('\n');
+  let html = '';
+  let listType = null; // null | 'ol' | 'ul'
+  const closeList = () => { if (listType) { html += `</${listType}>`; listType = null; } };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^#{1,6}\s+/.test(line)) {
+      closeList();
+      const m = line.match(/^(#{1,6})\s+(.*)$/);
+      const level = m[1].length;
+      const tag = level === 1 ? 'h1' : level === 2 ? 'h2' : 'h3';
+      html += `<${tag}>${mdInline(m[2])}</${tag}>`;
+    } else if (/^\s*-{3,}\s*$/.test(line)) {
+      closeList();
+      html += '<hr>';
+    } else if (/^\d+\.\s+/.test(line)) {
+      if (listType !== 'ol') { closeList(); listType = 'ol'; html += '<ol>'; }
+      html += `<li>${mdInline(line.replace(/^\d+\.\s+/, ''))}</li>`;
+    } else if (/^[-*]\s+/.test(line)) {
+      if (listType !== 'ul') { closeList(); listType = 'ul'; html += '<ul>'; }
+      html += `<li>${mdInline(line.replace(/^[-*]\s+/, ''))}</li>`;
+    } else if (line.trim() === '') {
+      closeList();
+    } else {
+      closeList();
+      html += `<p>${mdInline(line)}</p>`;
+    }
+  }
+  closeList();
+  return html;
+}
+
+function openChangelog() {
+  if (!changelogPage) return;
+  if (changelogContent.dataset.loaded) { changelogPage.hidden = false; document.body.style.overflow = 'hidden'; return; }
+  fetch('./update_log.md')
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(md => {
+      changelogContent.innerHTML = renderChangelog(md);
+      changelogContent.dataset.loaded = '1';
+      changelogPage.hidden = false;
+      changelogPage.querySelector('.cl-body')?.scrollTo(0, 0);
+      document.body.style.overflow = 'hidden';
+    })
+    .catch(() => {
+      changelogContent.innerHTML = '<p class="cl-error">更新日志加载失败，请检查网络或稍后重试</p>';
+      changelogPage.hidden = false;
+      document.body.style.overflow = 'hidden';
+    });
+}
+function closeChangelog() {
+  if (!changelogPage) return;
+  changelogPage.hidden = true;
+  document.body.style.overflow = '';
+}
+
+clCloseBtn?.addEventListener('click', closeChangelog);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && changelogPage && !changelogPage.hidden) closeChangelog();
+});
