@@ -1,6 +1,6 @@
 // ===== 道具相关逻辑 =====
 import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, isPokemon } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay } from './animation.js';
@@ -347,7 +347,33 @@ export function placeEggInIncubator(slotIndex) {
     isShiny: eggIsShiny,
   };
 
-  addSystemLog('incubator_place', { slot: slotIndex, pokemon: poke.index, shiny: eggIsShiny });
+  saveGame();
+  renderIncubatorView();
+}
+
+// ---------- 放入宝可梦蛋（饲育屋产，M3） ----------
+// 蛋是仓库条目（kind:'egg'，个体值/性别/性格/闪光出生即定），放入槽位记 eggRef；
+// 孵化时蛋条目原地转正，个体完全沿用蛋，实现"挑蛋培养 6V"。
+export function placePokemonEggInIncubator(slotIndex, entryId) {
+  if (_eggHatching) return;
+  const incubators = gameData.incubators;
+  if (!incubators || !incubators[slotIndex]) return;
+  if (incubators[slotIndex].eggIndex != null) return; // 已有蛋
+  const entry = (gameData.roster || []).find(r => r.id === entryId && r.inRoster && !isPokemon(r));
+  if (!entry) return;
+  const poke = getPokemonByIndex(String(entry.species));
+  if (!poke) return;
+
+  const distance = calcHatchDistance(poke);
+  incubators[slotIndex] = {
+    eggIndex: poke.index,
+    eggRef: entry.id,
+    hatchStart: gameData.stats?.walkDistance || 0, // 放蛋时累计行走像素，行走增量达标即孵化
+    hatchDuration: distance * PX_PER_METER,
+    hatched: false,
+    isShiny: !!entry.shiny,
+  };
+
   saveGame();
   renderIncubatorView();
 }
@@ -360,7 +386,6 @@ export function unlockIncubatorSlot(slotIndex) {
   if ((gameData.items['candy'] || 0) < cost) return;
   gameData.items['candy'] -= cost;
   gameData.incubatorUnlockedSlots = slotIndex + 1;
-  addSystemLog('incubator_unlock', { slot: slotIndex, cost });
   saveGame();
   updateBackpack();
   renderIncubatorView();
@@ -563,7 +588,20 @@ export async function hatchFromIncubator(slotIndex) {
     }),
   });
 
-  const entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
+  // 宝可梦蛋（eggRef）：蛋条目原地转正为宝可梦（删 kind:'egg'、level 置 1），
+  // 个体值/性格/性别/闪光完全沿用蛋（这就是"挑蛋培养 6V"的基础）；
+  // 神秘蛋（无 eggRef）：无对应条目，随机建档加入仓库。
+  let entry = null;
+  if (slot.eggRef) {
+    const eggEntry = (gameData.roster || []).find(r => r.id === slot.eggRef);
+    if (eggEntry) {
+      delete eggEntry.kind;
+      eggEntry.level = 1;
+      eggEntry.inRoster = true;
+      entry = eggEntry;
+    }
+  }
+  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
   setLastObtainedEntryId(entry.id);
   // 玩家仍在本页才播放祝贺音效（已切走则后台静默结算，避免音效打断其他页面背景曲）
   if (isOnHatchView()) playCongratulation();
@@ -571,6 +609,8 @@ export async function hatchFromIncubator(slotIndex) {
   incubators[slotIndex] = { eggIndex: null, hatched: false, hatchStart: 0, hatchDuration: 0, isShiny: false };
 
   addSystemLog('egg_hatch', { pokemon: poke.index, shiny: eggIsShiny });
+  // 孵蛋记录：仅记录时间/名字/性别（性别沿用蛋条目，神秘蛋为建档时 roll 的结果）
+  addIncubatorLog({ species: poke.index, gender: entry.gender, shiny: eggIsShiny });
   if (isOnHatchView()) updateTextBox(eggIsShiny ? '孵化出闪光的 ' + poke.name + ' 了！' : '孵化成功！获得了 ' + poke.name, true);
 
   await saveGame();

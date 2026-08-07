@@ -33,6 +33,7 @@ import {
   $, showView, updateTextBox, hideTextBox,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
   renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip,
+  isIncubatorLogOpen, closeIncubatorLog,
 } from './ui.js';
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
@@ -54,6 +55,7 @@ import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBad
 import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
+import { isNurseryPicking, leaveNurseryPick } from './nursery.js';
 import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle } from './battle-view.js';
 import { backFromBattlePick, isBattlePicking } from './team.js';
 import { refreshNpcs } from './npcs.js';
@@ -179,6 +181,8 @@ function goBack() {
   if (isTradeInDetail()) { restoreTradeList(); return; }
   // 悬赏提交列表：标题栏返回先回悬赏列表
   if (isBountyInTrade()) { restoreBountyList(); return; }
+  // 饲育屋放入列表：标题栏返回回饲育屋场地（选取页未压栈）
+  if (isNurseryPicking()) { leaveNurseryPick(); return; }
   // 结算页返回：回 NPC 战斗列表（与「返回列表」按钮一致），不弹栈（列表页仍在 battleView 内）
   if (isBattleSettled() && $('battleView')?.style.display === 'flex') {
     import('./battle-view.js').then(m => m.showBattleView());
@@ -895,12 +899,20 @@ async function init() {
   $('statAutoStatus')?.addEventListener('click', footerNav(showSystemLogs));
   $('statDropHint')?.addEventListener('click', footerNav(showSystemLogs));
   $('statTime')?.addEventListener('click', footerNav(showGpsView));
-  $('appTitle')?.addEventListener('click', () => {
+  // 标题栏返回逻辑：点击 appTitle 与鼠标后侧键（button 4）共用
+  const handleAppTitleBack = () => {
     if ($('appTitle').dataset.action !== 'back') return;
+    // 孵蛋记录页打开且正处孵蛋器视图：点击标题只关记录页回主列表，否则走正常返回
+    if (isIncubatorLogOpen() && $('incubatorView')?.style.display === 'flex') { closeIncubatorLog(); return; }
     // 对战记录页打开且正处战斗视图：点击标题只关记录页，否则走正常返回
     if (isLogOpen() && $('battleView')?.style.display === 'flex') { closeLogPage(); return; }
     goBack();
-  });
+  };
+  $('appTitle')?.addEventListener('click', handleAppTitleBack);
+  // 鼠标后侧键（后退键，button 3）返回：mousedown 先阻止浏览器历史导航的默认行为，
+  // mouseup 时模拟点击 appTitle
+  document.addEventListener('mousedown', e => { if (e.button === 3) e.preventDefault(); });
+  document.addEventListener('mouseup', e => { if (e.button === 3) { e.preventDefault(); handleAppTitleBack(); } });
 
   // 图鉴搜索
   setupPokedexSearch();

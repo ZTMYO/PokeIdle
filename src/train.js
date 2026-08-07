@@ -175,6 +175,8 @@ export function addToTraining(id, slot) {
   if (Array.isArray(gameData.team)) {
     gameData.team = gameData.team.filter(x => x !== id);
   }
+  // 训练/饲育屋/配队三方互斥：放入训练后从饲育屋移除
+  import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
   if (entry) addSystemLog('train_start', { pokemon: entry.species, slot });
   saveGame();
   processTrainingXp();

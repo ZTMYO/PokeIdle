@@ -143,6 +143,11 @@
             <div id="trainContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
           </div>
 
+          <!-- 饲育屋 -->
+          <div id="nurseryView" style="display:none;flex-direction:column;overflow:hidden;">
+            <div id="nurseryContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
+          </div>
+
           <!-- GPS 模拟导航 -->
           <div id="gpsView" style="display:none;flex-direction:column;overflow-y:auto;">
             <div id="gpsContent" style="flex:1;color:var(--ui-color);"></div>
@@ -255,7 +260,11 @@
 
           <!-- 孵蛋器页面 -->
           <div id="incubatorView"
-            style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;width:100%;">
+            style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;width:100%;height:100%;">
+            <div class="incubator-head" id="incubatorHead">
+              <span></span>
+              <button class="incubator-log-btn" id="incubatorLogBtn">孵蛋记录</button>
+            </div>
             <div id="incubatorList"
               style="flex:1;color:var(--ui-color);display:grid;grid-template-columns:1fr 1fr;gap:5px;align-content:start;">
             </div>
@@ -308,7 +317,7 @@
           </div>
 
           <!-- 交换（宝可梦交换） -->
-          <div id="tradeView" class="list-scroll" style="display:none;flex-direction:column;overflow-y:auto;">
+          <div id="tradeView" style="display:none;flex-direction:column;overflow:hidden;">
             <div id="tradeContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 

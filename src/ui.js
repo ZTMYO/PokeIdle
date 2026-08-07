@@ -1,7 +1,8 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching } from './state.js';
-import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge } from './state.js';
+import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge, getPokemonByIndex, isPokemon } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
+import { formatLogTime } from './pokedex.js';
 import * as road from './road.js';
 
 // DOM 快捷获取
@@ -52,7 +53,7 @@ export function showNowPlaying(title, artist) {
 
 // ---------- 视图切换 ----------
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
-const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView'];
+const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView'];
 
 export function showView(id) {
   if (id === 'idleView' && phase === 'encounter') {
@@ -66,6 +67,12 @@ export function showView(id) {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
+  // 重新进入孵蛋器：重置记录页/选蛋页状态，总是回到主列表
+  if (id === 'incubatorView') {
+    _incLogOpen = false;
+    _eggPickSlot = null;
+    _incLogPrevTitle = null;
+  }
   // 孵蛋结果确认页离开游戏页时：若期间挂起过野生遭遇则恢复该遭遇，
   // 否则按原流程回到空闲，避免 phase 停留在 eggResult。
   if (wasOnGameView && phase === 'eggResult' && !_eggHatching && id !== 'encounterView') {
@@ -98,7 +105,7 @@ export function showView(id) {
       });
     }, 0);
   }
-  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView']);
+  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView']);
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
     btn.classList.toggle('active', on);
@@ -145,7 +152,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', hatchView:'孵化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', hatchView:'孵化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -466,12 +473,144 @@ export function updateIncubatorBadge() {
 }
 
 // ---------- 孵蛋器视图渲染 ----------
+// 空槽点加号弹出选择菜单（神秘蛋 / 宝可梦蛋），无需顶部页签
+let _eggPickSlot = null; // 菜单选「宝可梦蛋」后正在选蛋的槽位下标；null = 未在选蛋
+let _incLogOpen = false; // 孵蛋记录页是否打开（点顶部"孵蛋记录"进入，返回后关闭）
+let _incLogPrevTitle = null; // 打开记录页前的标题栏内容（关闭时还原）
+
+// 孵蛋记录页是否打开（main.js 标题返回时判断：开 → 只关记录页，不走正常返回）
+export function isIncubatorLogOpen() { return _incLogOpen; }
+// 关闭记录页并还原标题栏，回主列表
+export function closeIncubatorLog() {
+  _incLogOpen = false;
+  const t = $('appTitle');
+  if (t && _incLogPrevTitle != null) {
+    t.innerHTML = _incLogPrevTitle;
+    _incLogPrevTitle = null;
+  }
+  renderIncubatorView();
+}
+
+// 槽位内蛋的 hover 提示名：宝可梦蛋显示「XX的蛋」，神秘蛋显示「神秘蛋」；
+// 槽位列表统一显示「蛋」，hover 时经 data-tip 弹出具体名称
+function slotEggName(s) {
+  if (s && s.eggRef) {
+    const eggEntry = (gameData.roster || []).find(r => r.id === s.eggRef);
+    if (eggEntry) {
+      const poke = getPokemonByIndex(String(eggEntry.species));
+      return (poke ? poke.name : `#${eggEntry.species}`) + '的蛋';
+    }
+  }
+  return '神秘蛋';
+}
+
+// 六维个体值斜杠串：31/31/31/31/31/31（HP/攻击/防御/特攻/特防/速度，与繁殖页面一致；
+// 蛋条目在生成时已 roll 好个体值，是孵蛋前唯一已知的信息）
+function eggIvSlash(p) {
+  if (!p || !p.ivs) return '0/0/0/0/0/0';
+  return ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].map(k => p.ivs[k] || 0).join('/');
+}
+
+// 宝可梦蛋页签：从仓库蛋条目（kind:'egg'）选一枚放入空槽，单列列表
+function renderEggPickList(list, slotIndex) {
+  const inUse = new Set((gameData.incubators || []).map(s => s && s.eggRef).filter(Boolean));
+  const eggs = (gameData.roster || [])
+    .filter(p => p.inRoster && !isPokemon(p) && !inUse.has(p.id));
+  list.style.gridTemplateColumns = '1fr';
+  list.innerHTML = `
+    <div class="incubator-egg-list">
+      <div class="incubator-egg-list-head">
+        <span class="incubator-egg-back" data-egg-back>‹ 返回</span>
+        <span class="incubator-egg-list-title">选择放入的蛋</span>
+      </div>
+      ${eggs.length === 0
+        ? '<div class="incubator-egg-empty">没有可放入的蛋<br>饲育屋收取的蛋会出现在这里</div>'
+        : eggs.map(eg => {
+            const poke = getPokemonByIndex(String(eg.species));
+            const name = poke ? poke.name : `#${eg.species}`;
+            return `
+            <div class="incubator-egg-item" data-egg-pick="${eg.id}">
+              <span class="incubator-egg-icon"><img src="./items/mystery-egg.png" alt="蛋" /></span>
+              <span class="incubator-egg-name">${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+              <span class="incubator-egg-iv">${eggIvSlash(eg)}</span>
+            </div>`;
+          }).join('')}
+    </div>`;
+  list.querySelector('[data-egg-back]')?.addEventListener('click', () => {
+    _eggPickSlot = null;
+    renderIncubatorView();
+  });
+  // 点击列表项整行即放入该蛋
+  list.querySelectorAll('[data-egg-pick]').forEach(item => {
+    item.addEventListener('click', () => {
+      const sid = _eggPickSlot;
+      const eid = item.dataset.eggPick;
+      _eggPickSlot = null; // 先退出选蛋态（放蛋成功与否都回槽位视图）
+      import('./items.js').then(m => m.placePokemonEggInIncubator(sid, eid));
+    });
+  });
+}
+
+// 孵蛋记录页：单列日志列表，每条仅显示时间 / 名字 / 性别（最多 50 条）
+function renderIncubatorLogList(list) {
+  const logs = (gameData.incubatorLogs || [])
+    .filter(l => l && l.species != null) // 兼容旧存档残留的旧格式记录
+    .slice()
+    .reverse();
+  const genderText = g => g === 'female' ? '♀' : g === 'male' ? '♂' : '无性别';
+  list.style.gridTemplateColumns = '1fr';
+  list.innerHTML = `
+    <div class="incubator-egg-list">
+      <div class="incubator-egg-list-head">
+        <span class="incubator-egg-list-title">孵蛋记录</span>
+      </div>
+      ${logs.length === 0
+        ? '<div class="incubator-egg-empty">暂无孵蛋记录<br>孵化宝可梦后会记录在这里</div>'
+        : logs.map(l => {
+            const poke = getPokemonByIndex(String(l.species));
+            const name = poke ? poke.name : `#${l.species}`;
+            return `
+            <div class="incubator-log-item">
+              <span class="incubator-log-time">${formatLogTime(l.time)}</span>
+              <span class="incubator-log-name">${name}</span>
+              <span class="incubator-log-gender">${genderText(l.gender)}</span>
+            </div>`;
+          }).join('')}
+    </div>`;
+}
+
 export function renderIncubatorView() {
   const list = $('incubatorList');
   if (!list) return;
   const incubators = gameData.incubators || [];
   if (!incubators.length) return;
   const unlocked = gameData.incubatorUnlockedSlots ?? 0;
+
+  // 顶部"孵蛋记录"按钮行：仅主列表显示；选蛋/记录页是独立子页，整个头部行隐藏
+  const incHead = $('incubatorHead');
+  if (incHead) incHead.style.display = (_eggPickSlot != null || _incLogOpen) ? 'none' : '';
+  const logBtn = $('incubatorLogBtn');
+  if (logBtn) logBtn.onclick = () => { _incLogOpen = true; renderIncubatorView(); };
+
+  // 孵蛋记录页：替换标题栏为「孵蛋记录」（点击 appTitle 返回主列表），并渲染单列日志列表
+  if (_incLogOpen) {
+    const t = $('appTitle');
+    if (t && _incLogPrevTitle == null) {
+      _incLogPrevTitle = t.innerHTML;
+      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 孵蛋记录';
+      t.dataset.action = 'back';
+    }
+    renderIncubatorLogList(list);
+    return;
+  }
+
+  // 正在选蛋：显示蛋列表（单列）
+  if (_eggPickSlot != null) {
+    renderEggPickList(list, _eggPickSlot);
+    return;
+  }
+  list.style.gridTemplateColumns = '1fr 1fr';
+
   const hatchBtnHtml = (i, disabled) => `<span class="incubator-hatch-text hatched${disabled ? ' disabled' : ''}" data-slot="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>孵化</span>`;
   // 野生遭遇期间允许保留孵蛋入口：点击时优先切回遭遇画面处理；
   // 仅在 NPC 对战 / 孵蛋动画自身进行中时真正禁用，避免复用 encounterView 互相覆盖。
@@ -492,10 +631,11 @@ export function renderIncubatorView() {
       </div>`;
       continue;
     }
+    const eggName = slotEggName(s);
     if (s && s.hatched) {
       html += `<div class="incubator-row">
-        <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
-        <div class="incubator-info"><div class="incubator-name">蛋</div></div>
+        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
+        <div class="incubator-info"><div class="incubator-name" data-tip="${eggName}">蛋</div></div>
         ${hatchBtnHtml(i, hatchLocked)}
       </div>`;
     } else if (hasEgg) {
@@ -509,8 +649,8 @@ export function renderIncubatorView() {
       }
       if (s.hatched) {
         html += `<div class="incubator-row">
-          <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
-          <div class="incubator-info"><div class="incubator-name">蛋</div></div>
+          <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
+          <div class="incubator-info"><div class="incubator-name" data-tip="${eggName}">蛋</div></div>
           ${hatchBtnHtml(i, hatchLocked)}
         </div>`;
         continue;
@@ -518,9 +658,9 @@ export function renderIncubatorView() {
       const pct = Math.min(100, Math.floor(used / s.hatchDuration * 100));const remain = Math.max(0, Math.ceil((s.hatchDuration - used) / PX_PER_METER));
       const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
       html += `<div class="incubator-row">
-        <div class="incubator-egg-slot has-egg"><img src="./items/mystery-egg.png" alt="蛋" /></div>
+        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/mystery-egg.png" alt="蛋" /></div>
         <div class="incubator-info">
-          <div class="incubator-name">蛋</div>
+          <div class="incubator-name" data-tip="${eggName}">蛋</div>
           <div class="incubator-progress-wrap" data-slot="${i}">
             <div class="incubator-progress-fill" style="width:${pct}%"></div>
             <div class="incubator-progress-text">还需 ${distStr}</div>
@@ -528,9 +668,10 @@ export function renderIncubatorView() {
         </div>
       </div>`;
     } else {
-      const canPlace = (gameData.items['mystery-egg'] || 0) > 0;
+      const plus = '<span style="font-size:14px;color:var(--ui-color);transform:translateY(-2px);">+</span>';
+      // 空槽：点 + 弹出「神秘蛋 / 宝可梦蛋」选择菜单
       html += `<div class="incubator-row">
-        <div class="incubator-egg-slot" data-empty="${i}" style="${canPlace ? 'cursor:pointer;' : ''}">${canPlace ? '<span style="font-size:14px;color:var(--ui-color);transform:translateY(-2px);">+</span>' : ''}</div>
+        <div class="incubator-egg-slot" data-empty="${i}" style="cursor:pointer;">${plus}</div>
         <div class="incubator-info"><div class="incubator-name">空孵蛋器</div></div>
       </div>`;
     }
@@ -545,7 +686,7 @@ export function renderIncubatorView() {
   list.querySelectorAll('.incubator-egg-slot[data-empty]').forEach(el => {
     el.addEventListener('click', () => {
       const slot = parseInt(el.dataset.empty);
-      import('./items.js').then(m => m.placeEggInIncubator(slot));
+      showIncubatorPickMenu(slot, el);
     });
   });
   list.querySelectorAll('.incubator-hatch-text[data-unlock]').forEach(el => {
@@ -554,6 +695,57 @@ export function renderIncubatorView() {
       import('./items.js').then(m => m.unlockIncubatorSlot(slot));
     });
   });
+}
+
+// 空槽加号选择菜单：两个选项（神秘蛋 / 宝可梦蛋），样式复用商店批量菜单；
+// 库存为 0 的选项置灰禁用；点击外部任意位置关闭
+function showIncubatorPickMenu(slot, anchorEl) {
+  hideIncubatorPickMenu();
+  const mysteryCount = gameData.items['mystery-egg'] || 0;
+  const inUse = new Set((gameData.incubators || []).map(s => s && s.eggRef).filter(Boolean));
+  const pokemonCount = (gameData.roster || [])
+    .filter(p => p.inRoster && !isPokemon(p) && !inUse.has(p.id)).length;
+  let menu = $('incubatorPickMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'incubatorPickMenu';
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+  }
+  menu.innerHTML = `
+    <div class="shop-ctx-item${mysteryCount > 0 ? '' : ' disabled'}" data-pick="mystery">
+      <span class="shop-ctx-qty">神秘蛋</span>
+    </div>
+    <div class="shop-ctx-item${pokemonCount > 0 ? '' : ' disabled'}" data-pick="pokemon">
+      <span class="shop-ctx-qty">宝可梦蛋</span>
+    </div>`;
+  // 定位到加号正下方（越界自动翻转）
+  const rect = anchorEl.getBoundingClientRect();
+  menu.style.display = '';
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  const x = Math.max(0, Math.min(rect.left + rect.width / 2 - 24, window.innerWidth - mw - 4));
+  const y = Math.max(0, Math.min(rect.bottom + 2, window.innerHeight - mh - 4));
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  menu.addEventListener('pointerdown', (e) => e.stopPropagation());
+  menu.onclick = (e) => {
+    const opt = e.target.closest('.shop-ctx-item');
+    if (!opt || opt.classList.contains('disabled')) return;
+    hideIncubatorPickMenu();
+    if (opt.dataset.pick === 'mystery') {
+      import('./items.js').then(m => m.placeEggInIncubator(slot));
+    } else {
+      _eggPickSlot = slot;
+      renderIncubatorView();
+    }
+  };
+  document.addEventListener('pointerdown', hideIncubatorPickMenu);
+}
+
+function hideIncubatorPickMenu() {
+  const menu = $('incubatorPickMenu');
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('pointerdown', hideIncubatorPickMenu);
 }
 
 export function updateIncubatorTimers() {
@@ -651,6 +843,9 @@ function tooltipTextFor(target) {
     const timeStr = `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, '0')}秒`;
     return `${name} ${remain} 只\n剩余${timeStr}`;
   }
+  // 通用 data-tip：任意带 data-tip 的元素（如饲育屋放入列表的个体值单元格、场地亲本）
+  const tipEl = target && target.closest ? target.closest('[data-tip]') : null;
+  if (tipEl) return tipEl.dataset.tip || '';
   return null;
 }
 

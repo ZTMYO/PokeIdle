@@ -888,6 +888,135 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 9px;
 }
 
+/* 孵蛋器头部：右上角"孵蛋记录"按钮（列表主视图显示，选蛋/记录页隐藏） */
+.incubator-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  min-height: 16px;
+}
+.incubator-log-btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--ui-color);
+  background: rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.incubator-log-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
+
+/* 孵蛋记录列表项：时间 + 描述 */
+.incubator-log-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 4px;
+  border-bottom: 1px dashed rgba(0,0,0,0.06);
+  font-size: 10px;
+}
+.incubator-log-time {
+  flex-shrink: 0;
+  color: var(--ui-color);
+  opacity: 0.55;
+  font-family: 'Courier New', monospace;
+}
+.incubator-log-name {
+  color: var(--ui-color);
+}
+.incubator-log-gender {
+  flex-shrink: 0;
+  color: var(--ui-color);
+  opacity: 0.75;
+}
+
+/* 宝可梦蛋列表（挑蛋入槽） */
+.incubator-egg-list {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.incubator-egg-list-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 2px 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.incubator-egg-back {
+  cursor: pointer;
+  color: var(--ui-color);
+  opacity: 0.8;
+  user-select: none;
+}
+.incubator-egg-back:hover { opacity: 1; }
+.incubator-egg-list-title { flex: 1; text-align: center; }
+.incubator-egg-empty {
+  text-align: center;
+  font-size: 10px;
+  color: var(--ui-color);
+  padding: 20px 0;
+  line-height: 1.8;
+}
+.incubator-egg-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 5px;
+  background: rgba(0,0,0,0.04);
+  border-radius: 5px;
+  border: 1px solid rgba(0,0,0,0.08);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.incubator-egg-item:hover { background: rgba(var(--ui-color-rgb),0.12); }
+.incubator-egg-item:active { transform: scale(0.99); }
+.incubator-egg-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--ui-color);
+}
+.incubator-egg-icon svg { width: 100%; height: 100%; }
+.incubator-egg-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.incubator-egg-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.incubator-egg-iv {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-color);
+  opacity: 0.75;
+}
+
+/* 仓库蛋条目行：蛋图标（icon-egg 随主题色） */
+.roster-icon-egg {
+  width: 22px;
+  height: 22px;
+  color: var(--ui-color);
+}
+
 .stats-bar {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -3230,7 +3359,7 @@ body { margin: 0; padding: 0; cursor: default; }
 #mixerView::-webkit-scrollbar,
 #berryView::-webkit-scrollbar,
 #rosterList::-webkit-scrollbar,
-#tradeView::-webkit-scrollbar,
+#tradeContent::-webkit-scrollbar,
 .battle-npc-list::-webkit-scrollbar {
   width: 4px;
 }
@@ -3246,7 +3375,7 @@ body { margin: 0; padding: 0; cursor: default; }
 #mixerView::-webkit-scrollbar-track,
 #berryView::-webkit-scrollbar-track,
 #rosterList::-webkit-scrollbar-track,
-#tradeView::-webkit-scrollbar-track,
+#tradeContent::-webkit-scrollbar-track,
 .battle-npc-list::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -3262,7 +3391,7 @@ body { margin: 0; padding: 0; cursor: default; }
 #mixerView::-webkit-scrollbar-thumb,
 #berryView::-webkit-scrollbar-thumb,
 #rosterList::-webkit-scrollbar-thumb,
-#tradeView::-webkit-scrollbar-thumb,
+#tradeContent::-webkit-scrollbar-thumb,
 .battle-npc-list::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb), 0.3);
   border-radius: 2px;
@@ -3279,7 +3408,7 @@ body { margin: 0; padding: 0; cursor: default; }
 #mixerView::-webkit-scrollbar-thumb:hover,
 #berryView::-webkit-scrollbar-thumb:hover,
 #rosterList::-webkit-scrollbar-thumb:hover,
-#tradeView::-webkit-scrollbar-thumb:hover,
+#tradeContent::-webkit-scrollbar-thumb:hover,
 .battle-npc-list::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--ui-color-rgb), 0.55);
 }
@@ -3375,6 +3504,7 @@ body { margin: 0; padding: 0; cursor: default; }
 #battleView,
 #teamView,
 #trainView,
+#nurseryView,
 #moveEditView {
   align-self: stretch;
   width: 100%;
@@ -3440,6 +3570,15 @@ body { margin: 0; padding: 0; cursor: default; }
   overflow: hidden;
   text-overflow: ellipsis;
   transition: background 0.12s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tutorial-nav-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  fill: var(--ui-color);
 }
 .tutorial-nav-item:hover { background: rgba(var(--ui-color-rgb),0.08); }
 .tutorial-nav-item.active {
@@ -4053,12 +4192,36 @@ body { margin: 0; padding: 0; cursor: default; }
 .roster-trade-empty { padding: 12px 8px; text-align: center; font-size: 11px; opacity: 0.6; }
 
 /* 悬赏提交列表：复用仓库行样式，行右侧为提交按钮 */
-/* 容器复刻仓库页观感（内边距/字号/颜色），否则在无样式的 #bountyContent 里会贴边且字体偏大 */
+/* 内容容器必须是 flex 列容器，.bounty-trade-list 的 flex:1 才生效（block 容器下会被内容
+   撑高 → 整页滚动 + 表头吸顶）；min-height:0 允许收缩；交换页不再整页滚动
+   （#tradeView overflow:hidden），普通 offer 列表由 #tradeContent 自己滚动 */
+#bountyContent,
+#tradeContent {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#tradeContent { overflow-y: auto; }
+/* 容器复刻仓库页观感（内边距/字号/颜色），否则在无样式的 #bountyContent 里会贴边且字体偏大；
+   结构同仓库页：表头固定在列表上方，行区（.bounty-trade-rows）独立滚动 */
 .bounty-trade-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   padding: 0 6px 4px;
   font-size: 11px;
   color: var(--ui-color);
 }
+/* 行区：表头下方的独立滚动区域（复用 .list-scroll 布局，右缘对齐滚动条） */
+.bounty-trade-rows.list-scroll {
+  margin-right: -6px;
+  padding-right: 2px;
+}
+.bounty-trade-rows::-webkit-scrollbar { width: 4px; }
+.bounty-trade-rows::-webkit-scrollbar-track { background: transparent; }
+.bounty-trade-rows::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb), 0.3); border-radius: 2px; }
+.bounty-trade-rows::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.55); }
 .bounty-trade-list .pokedex-name { flex: 0 0 60px; max-width: none; }
 .bounty-trade-head {
   display: flex;
@@ -4068,14 +4231,6 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 13px;
   font-weight: 700;
 }
-.bounty-trade-back {
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.15s;
-}
-.bounty-trade-back:hover { opacity: 1; }
 .bounty-trade-list .pokedex-star {
   width: 8px;
   padding-right: 0;
@@ -4109,13 +4264,16 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 10px;
   font-weight: 700;
 }
-/* 交换/悬赏提交列表表头：三个列文字统一样式（10px 粗体、不淡化）
-   （gap 与行一致保证各列完全对齐；个体值列 flex:1 后表头不会显得拥挤） */
+/* 交换/悬赏提交列表表头：与图鉴/仓库表头一致（继承 .pokedex-header 基础字号/字重，
+   不再单独放大），gap 与行一致保证各列完全对齐；个体值列 flex:1 后表头不会拥挤。
+   background 用不透明屏幕底色：表头是 sticky 定位，滚动内容会被表头遮住而不是透过来 */
 .bounty-trade-list .pokedex-header.roster-header {
   gap: 2px;
   padding: 2px 0 3px;
-  font-size: 10px;
-  font-weight: 700;
+  background: var(--screen-bg);
+  /* 关闭继承自 .pokedex-header 的 sticky 吸顶：行区独立滚动，表头作为普通兄弟节点固定不动 */
+  position: static;
+  z-index: auto;
 }
 .bounty-trade-list .pokedex-header .roster-ivs,
 .bounty-trade-list .pokedex-header .roster-nature,
@@ -5079,6 +5237,15 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   cursor: pointer;
   touch-action: none; /* 允许指针拖拽换位（鼠标/触摸） */
 }
+.team-member:hover {
+  opacity: 0.8;
+}
+.team-member.empty {
+  opacity: 0.45;
+}
+.team-member.empty:hover {
+  opacity: 0.6;
+}
 /* 左侧图标列：占满整行高度 */
 .team-member .member-icon {
   align-self: stretch;
@@ -5597,3 +5764,455 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .train-walker-tip-status { margin-left: 5px; font-weight: 700; }
 .train-walker-tip-status.lazy { color: #ffd18a; }
+
+/* === 饲育屋 App === */
+#nurseryView { position: relative; }
+.nursery-app {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  user-select: none;
+}
+/* 饲育屋 tile 地图 + 告示牌入口 */
+.nursery-field {
+  position: relative;
+  width: 264px;
+  height: 216px;
+  margin: 0 auto 0 -8px;
+  overflow: hidden;
+}
+.nursery-field-canvas {
+  display: block;
+  width: 264px;
+  height: 216px;
+  image-rendering: pixelated;
+}
+/* 场地上的亲本：随机走动 + 上下弹跳（转向用镜像） */
+.nursery-walkers {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.nursery-walker {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  z-index: 5;
+  pointer-events: auto;
+  transition: left 0.5s linear, top 0.5s linear;
+}
+.nursery-walker-flip {
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+}
+.nursery-walker-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  animation: pokeJump 0.5s steps(1, end) infinite;
+}
+/* 繁殖中亲本头顶的爱心粒子：♥ 上浮放大淡出（与战斗着迷同款表现，错峰飘散） */
+.nursery-walker-fx {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  z-index: 6;
+  pointer-events: none;
+}
+.nursery-walker-fx i {
+  position: absolute;
+  font-style: normal;
+  font-size: 11px;
+  color: #ff6fa5;
+  text-shadow: 0 0 4px rgba(255, 111, 165, 0.55);
+  animation: nurseryHeart 1.8s ease-out infinite;
+}
+@keyframes nurseryHeart {
+  0% { opacity: 0; transform: translateY(6px) scale(0.5) rotate(-14deg); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-24px) scale(1.25) rotate(14deg); }
+}
+/* 告示牌：点击弹出配对面板 */
+.nursery-board-sign {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 8;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.nursery-board-sign:hover { transform: scale(1.08); }
+.nursery-board-sign:active { transform: scale(0.92); }
+.nursery-egg-tile {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  z-index: 4;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: auto;
+  cursor: grab;
+}
+.nursery-egg-tile:hover { transform: scale(1.1); }
+.nursery-egg-tile:active { cursor: grabbing; }
+.nursery-panel { max-height: 97%; }
+.nursery-pick-page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 6px 6px 4px;
+  overflow: hidden;
+}
+.nursery-pick-page .bounty-trade-list {
+  flex: 1;
+  min-height: 0;
+}
+.nursery-pick-page .bounty-trade-rows::-webkit-scrollbar { width: 4px; }
+.nursery-pick-page .bounty-trade-rows::-webkit-scrollbar-track { background: transparent; }
+.nursery-pick-page .bounty-trade-rows::-webkit-scrollbar-thumb {
+  background: rgba(var(--ui-color-rgb), 0.3);
+  border-radius: 2px;
+}
+.nursery-pick-page .bounty-trade-rows::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.55); }
+.nursery-pick-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 2px 0 6px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ui-color-dark);
+}
+/* 标题后跟的小字（目标蛋组） */
+.nursery-pick-egggroup {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ui-color);
+  opacity: 0.72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nursery-pick-list .bounty-trade-row[data-pick-view] { cursor: pointer; }
+.nursery-pick-list .bounty-trade-row[data-pick-view]:hover { background: rgba(255, 255, 255, 0.22); }
+.nursery-pick-list .roster-ivs[data-tip] { cursor: pointer; }
+.nursery-pick-list .pokedex-header .roster-nature {
+  text-align: right;
+  padding-right: 5px;
+}
+/* 配对面板：两个亲本槽位 + 配对状态 */
+.nursery-pair-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 4px;
+}
+.nursery-pair-plus {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ui-color);
+  opacity: 0.5;
+}
+.nursery-slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.nursery-slot:hover { background: rgba(255, 255, 255, 0.32); }
+.nursery-slot.empty {
+  border-style: dashed;
+  opacity: 0.5;
+  font-size: 13px;
+  justify-content: center;
+  min-height: 34px;
+}
+.nursery-slot-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.nursery-slot-info { min-width: 0; }
+.nursery-slot-name {
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nursery-slot-name em {
+  font-style: normal;
+  opacity: 0.8;
+  margin-left: 1px;
+}
+.nursery-slot-egg {
+  font-size: 8px;
+  color: var(--ui-color);
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 配对状态空态提示 */
+.nursery-pair-status {
+  margin: 2px 8px 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--ui-color);
+  background: rgba(255, 255, 255, 0.08);
+  opacity: 0.8;
+}
+/* 配对预览：第一行双方个体值一左一右，第二行后代名字+个体值；个体值 hover 看六维明细 */
+.nursery-pair-result {
+  margin: 2px 8px 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 10px;
+  color: var(--ui-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nursery-pair-ivs {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.nursery-pair-iv {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums; /* 斜杠串数字等宽，两侧对齐美观 */
+}
+.nursery-pair-iv.left { text-align: left; }
+.nursery-pair-iv.right { text-align: right; }
+.nursery-pair-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4px;
+  border-top: 1px solid rgba(var(--ui-color-rgb), 0.15);
+}
+.nursery-pair-child-name {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 锁定遗传个体：label 独占一行，六个按钮均分一行 */
+.nursery-pair-lock {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0 8px 8px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.16); /* 与下方配对预览背景一致 */
+  font-size: 10px;
+  color: var(--ui-color);
+}
+.nursery-pair-lock-label {
+  opacity: 0.8;
+  white-space: nowrap;
+}
+.nursery-pair-lock-btns {
+  display: flex;
+  gap: 4px;
+}
+.nursery-pair-lock-btn {
+  flex: 1; /* 六项均分，单行铺满面板宽度 */
+  border: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ui-color);
+  font-size: 9px;
+  line-height: 1;
+  padding: 3px 0;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.nursery-pair-lock-btn:hover { border-color: var(--ui-color); }
+.nursery-pair-lock-btn.on {
+  background: rgba(var(--ui-color-rgb), 0.25);
+  border-color: var(--ui-color);
+  font-weight: 700;
+}
+/* 锁定位来源切换：母方/父方二选一，固定继承所选亲本 */
+.nursery-pair-lock-srcs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.nursery-pair-lock-src-label {
+  font-size: 10px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+.nursery-pair-lock-src {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ui-color);
+  font-size: 9px;
+  padding: 2px 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nursery-pair-lock-src:hover { border-color: var(--ui-color); }
+.nursery-pair-lock-src.on {
+  background: rgba(var(--ui-color-rgb), 0.25);
+  border-color: var(--ui-color);
+  font-weight: 700;
+}
+/* 后代个体值区间预览：六维 3x2，锁定位定值 / 遗传位 min~max / 随机位 0~31 */
+.nursery-pair-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px 8px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(var(--ui-color-rgb), 0.15);
+}
+.npv-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.npv-dim { font-size: 10px; opacity: 0.7; white-space: nowrap; }
+.npv-range {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.npv-range.locked { font-weight: 600; }
+/* M2 繁殖区：树果需求 + 开始按钮 / 进度条 / 收取蛋 */
+.nursery-breed {
+  margin: 0 8px 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 10px;
+  color: var(--ui-color);
+}
+.nursery-breed-demand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.nursery-breed-demand-label {
+  opacity: 0.8;
+  white-space: nowrap;
+}
+.nursery-breed-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.nursery-breed-item img {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+}
+.nursery-breed-item.lack {
+  color: #ff7b7b;
+}
+.nursery-breed-btn {
+  width: 100%;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ui-color);
+  font-size: 10px;
+  line-height: 1;
+  padding: 6px 0;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.nursery-breed-btn:hover { border-color: var(--ui-color); }
+.nursery-breed-btn.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.nursery-breed-bar {
+  height: 7px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.nursery-breed-fill {
+  height: 100%;
+  background: var(--ui-color);
+  border-radius: 4px;
+  transition: width 0.5s linear;
+}
+.nursery-breed-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.nursery-breed-note {
+  margin-top: 3px;
+  opacity: 0.7;
+}
+.nursery-breed.ready {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.nursery-breed-egg-icon {
+  width: 20px;
+  height: 20px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+.nursery-breed-egg-tip {
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+}

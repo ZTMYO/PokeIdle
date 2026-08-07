@@ -172,8 +172,9 @@ export function calcHatchDistance(poke) {
 }
 
 // 空孵蛋器
+// eggRef：宝可梦蛋（饲育屋产）对应的仓库条目 id；null = 神秘蛋（无对应条目，孵化时随机建档）
 export function emptyIncubator() {
-  return { eggIndex: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
+  return { eggIndex: null, eggRef: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
 }
 
 // 孵蛋器解锁糖果价格（槽位 0~7，全部需购买，价格递增）
@@ -228,7 +229,7 @@ export function getDefaultSave() {
     stats: {
       totalPlaySeconds:0, playSecondsToday:0, lastPlayDate:'', walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
-      totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0,
+      totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0, totalEggsProduced:0,
       totalBlockMade:0, totalPlantings:0, totalHarvests:0, totalBerriesHarvested:0, totalBoardTrades:0,
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
       totalTrades:0, tradesToday:0, lastTradeDate:'',
@@ -244,12 +245,14 @@ export function getDefaultSave() {
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
     team: [], // 出战队伍：仓库条目 id 数组（首元素为首发），由仓库详情页管理
     training: { slots: [] }, // 训练场：{ slots: [{ id, startAt } | null] }，随时间自动获得经验
+    nursery: { parents: [null, null] }, // 饲育屋：{ parents: [{ id, placedAt } | null, ...] }，配对繁殖（与训练/配队互斥）
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
     battleNpcs: null, // NPC 挑战：{ refreshedAt: Date.now(), list: [{ id, tier, title, name, sprite, lvBonus, candy, mons }] }，由 npcs.js 管理
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],
+    incubatorLogs: [], // 孵蛋记录（仅孵化成功事件，最多 50 条）：{ time, species, gender, shiny }
     achievements: {}, // 成就进度：{ 成就id: 已领取档位数 }，由 achievements.js 管理
     introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）
     settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
@@ -265,6 +268,16 @@ export function rollIvs() {
     hp: randInt(0, 31), atk: randInt(0, 31), def: randInt(0, 31),
     spa: randInt(0, 31), spd: randInt(0, 31), spe: randInt(0, 31),
   };
+}
+
+// 神兽（极稀有，稀有度 > 0.8）个体值：随机 3 个不同维度强制 31，其余 3 项正常随机
+export function rollLegendIvs() {
+  const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+  const ivs = rollIvs();
+  const picks = new Set();
+  while (picks.size < 3) picks.add(Math.floor(Math.random() * keys.length));
+  picks.forEach(i => { ivs[keys[i]] = 31; });
+  return ivs;
 }
 
 // ---------- 性格 ----------
@@ -305,10 +318,18 @@ export function genderBadge(g) {
   return '<svg class="g-sym g-genderless" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="./icons/sprites.svg#icon-genderless"/></svg>';
 }
 
+// 是否为宝可梦（非蛋）：蛋条目（kind:'egg'）不可用于配队/训练/交换/悬赏/饲育屋等
+// 一切消耗与参战入口，仅能查看详情与放入孵蛋器。旧存档无 kind 字段 = 宝可梦，天然兼容
+export function isPokemon(p) {
+  return !p || !p.kind || p.kind !== 'egg';
+}
+
 // 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
 export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1 }) {
   if (!gameData) return null;
   if (!Array.isArray(gameData.roster)) gameData.roster = [];
+  const poke = getPokemonByIndex(String(species));
+  const legendIv = source !== 'egg' && poke && (poke.rarity || 0.5) > 0.8;
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     species,
@@ -317,7 +338,7 @@ export function addRosterEntry({ species, shiny = false, source = 'normal', leve
     level, // 捕获/孵化即 Lv1（战斗系统）；野生捕获可传随机等级
     exp: 0, // 经验（对战获得）
     evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }, // 努力值（训练方向自动分配）
-    ivs: rollIvs(),
+    ivs: legendIv ? rollLegendIvs() : rollIvs(),
     nature: rollNature(),
     source,
     obtainedAt: Date.now(),
@@ -349,6 +370,15 @@ export function addSystemLog(type, details) {
   gameData.systemLogs.push({ time: Date.now(), type, details });
   if (gameData.systemLogs.length > 50) {
     gameData.systemLogs = gameData.systemLogs.slice(-50);
+  }
+}
+
+// 孵蛋记录（独立留存，仅孵化成功事件，最多 50 条）：{ time, species, gender, shiny }
+export function addIncubatorLog({ species, gender, shiny = false }) {
+  if (!gameData.incubatorLogs) gameData.incubatorLogs = [];
+  gameData.incubatorLogs.push({ time: Date.now(), species, gender, shiny });
+  if (gameData.incubatorLogs.length > 50) {
+    gameData.incubatorLogs = gameData.incubatorLogs.slice(-50);
   }
 }
 

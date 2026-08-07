@@ -4,7 +4,7 @@
 // 仓库中拥有该宝可梦（在仓个体）即可提交（交出一只个体）。
 // 只有今日到访过的地区才显示悬赏内容（离开后仍可查看）；提交必须到达该地区。
 import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
 
@@ -244,6 +244,8 @@ function doClaimBounty(regionIdx, bi) {
 
 // ---------- 提交列表（类似仓库列表） ----------
 let _tradeMode = null; // 正在提交的悬赏：{ regionIdx, bi }，非 null 时悬赏页显示提交列表
+let _bSortBy = null;   // 提交列表排序列：iv | level（null=保持仓库顺序）
+let _bSortDir = 1;     // 1 升序 / -1 降序
 
 // 是否处于提交列表子页（标题栏返回时先回悬赏列表）
 export function isBountyInTrade() {
@@ -259,11 +261,20 @@ export function restoreBountyList() {
 function renderBountyTrade(content, regionIdx, bi) {
   const b = (gameData.bounty?.rewards || [])[regionIdx]?.[bi] || null;
   const poke = b ? getPokemonByIndex(b.pokemon) : null;
-  const candidates = (gameData.roster || []).filter(p => String(p.species) === String(b?.pokemon) && p.inRoster);
+  const candidates = (gameData.roster || []).filter(p => String(p.species) === String(b?.pokemon) && p.inRoster && isPokemon(p));
   const pokeName = poke ? poke.name : (b ? `#${b.pokemon}` : '');
-  const rows = candidates.length === 0
+  // 表头点击排序：个体值/等级（同物种候选按数值排）
+  let pool = candidates;
+  if (_bSortBy) {
+    pool = [...candidates].sort((a, b) => {
+      const va = _bSortBy === 'level' ? (a.level || 1) : (a.ivs ? a.ivs.hp + a.ivs.atk + a.ivs.def + a.ivs.spa + a.ivs.spd + a.ivs.spe : 0);
+      const vb = _bSortBy === 'level' ? (b.level || 1) : (b.ivs ? b.ivs.hp + b.ivs.atk + b.ivs.def + b.ivs.spa + b.ivs.spd + b.ivs.spe : 0);
+      return (va - vb) * _bSortDir;
+    });
+  }
+  const rows = pool.length === 0
     ? '<div class="roster-trade-empty">仓库中没有该宝可梦，无法提交</div>'
-    : candidates.map((p, i) => {
+    : pool.map((p, i) => {
         const ivsText = p.ivs ? ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].map(k => p.ivs[k] || 0).join('/') : '';
         const icon = poke?.icon ? '<img class="roster-icon-img" data-trade-icon alt="" />' : '';
         return `
@@ -275,6 +286,8 @@ function renderBountyTrade(content, regionIdx, bi) {
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">提交</button></span>
         </div>`;
       }).join('');
+  // 表头排序指示：当前排序列文本后直接加 ▲/▼（与仓库/图鉴箭头一致）
+  const sortMark = k => k === _bSortBy ? (_bSortDir === 1 ? ' ▲' : ' ▼') : '';
   content.innerHTML = `
     <div class="bounty-trade-list">
       <div class="bounty-trade-head">
@@ -283,11 +296,13 @@ function renderBountyTrade(content, regionIdx, bi) {
       <div class="pokedex-header roster-header">
         <span class="roster-icon"></span>
         <span class="pokedex-star"></span>
-        <span class="roster-ivs">个体值</span>
-        <span class="roster-nature">等级</span>
+        <span class="roster-ivs" data-sort="iv">个体值${sortMark('iv')}</span>
+        <span class="roster-nature" data-sort="level">等级${sortMark('level')}</span>
         <span class="bounty-trade-btn-col">提交</span>
       </div>
-      ${rows}
+      <div class="bounty-trade-rows list-scroll">
+        ${rows}
+      </div>
     </div>`;
   if (poke?.icon) {
     content.querySelectorAll('[data-trade-icon]').forEach(img => tryLoadImage(img, poke.icon));
@@ -336,6 +351,15 @@ export function showBountyView() {
   content.onclick = (e) => {
     // 提交列表模式：行内「提交」按钮执行交换；点击行进入仓库个体详情（返回恢复本列表）
     if (_tradeMode) {
+      // 表头点击排序（与仓库一致：同字段切换升降序，新字段默认升序）
+      const sortEl = e.target.closest('.bounty-trade-list .pokedex-header [data-sort]');
+      if (sortEl) {
+        const f = sortEl.dataset.sort;
+        if (_bSortBy === f) _bSortDir *= -1;
+        else { _bSortBy = f; _bSortDir = 1; }
+        renderBounty();
+        return;
+      }
       const btn = e.target.closest('[data-trade-submit]');
       if (btn) { submitTrade(btn.dataset.tradeSubmit); return; }
       const row = e.target.closest('[data-trade-view]');

@@ -323,7 +323,7 @@ export function renderSystemLogs() {
         desc = `完成地区悬赏，获得糖果 ×${log.details.candy}`;
         break;
       case 'berry_helper':
-        desc = `招募了树果帮手${log.details.stages ? `（工作 ${log.details.stages} 阶段）` : ''}`;
+        desc = `招募了帮手${log.details.stages ? `（工作 ${log.details.stages} 阶段）` : ''}`;
         break;
       case 'berry_helper_end':
         desc = '树果帮手服务结束';
@@ -335,7 +335,7 @@ export function renderSystemLogs() {
         desc = `收获 ${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]} ×${log.details.qty}`;
         break;
       case 'berry_trade':
-        desc = `完成树果需求：交付${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}×${log.details.qty}，获得糖果 ×${log.details.candy}`;
+        desc = `交付${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}×${log.details.qty}，获得糖果 ×${log.details.candy}`;
         break;
       case '战斗':
         desc = typeof log.details === 'string' ? log.details : '未知战斗记录';
@@ -356,17 +356,11 @@ export function renderSystemLogs() {
         }
         break;
       }
-      case 'incubator_place':
-        desc = `放入孵蛋器${log.details.slot + 1}号槽：${log.details.shiny ? '闪光' : ''}${logName(log)}`;
-        break;
-      case 'incubator_unlock':
-        desc = `解锁孵蛋器${log.details.slot + 1}号槽位（消耗 ${log.details.cost} 糖果）`;
-        break;
       case 'mass_outbreak_start':
-        desc = `大量出没开始：${logName(log)} 大量出现（约 ${log.details.remain} 只）`;
+        desc = `${logName(log)}大量出没`;
         break;
       case 'mass_outbreak_end':
-        desc = `大量出没结束：${logName(log)}${log.details.forced ? '（强制刷新）' : ''}`;
+        desc = '大量出没结束';
         break;
       case 'train_start':
         desc = `开始训练 ${logName(log)}`;
@@ -1114,6 +1108,13 @@ const TUTORIAL_SECTIONS = [
       + `<p>孵化完成后点击孵化按钮即可获得宝可梦，结果完全随机，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`,
   },
   {
+    title: '培育',
+    icon: 'icon-heart', // 左侧导航图标（与手机饲育屋 App 同款）
+    html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦，<b>一雄一雌且共有蛋组</b>即可配对；<b>百变怪</b>万能配对（无视性别，非百变怪一方决定后代物种）。</p>`
+      + `<p>投喂它们爱吃的<b>树果</b>后开始繁殖，<b>5~10 分钟</b>产蛋；点场地中央的<b>蛋</b>收取，再放入<b>孵蛋器</b>里孵化。（详见「<b>孵蛋</b>」章节）</p>`
+      + `<p><b>个体值遗传</b>：6 项中 <b>5 项</b>继承双亲（随机取父或母），<b>1 项</b>完全随机。点预览里的维度可<b>锁定</b>，锁定后<b>固定继承指定亲本</b>的数值。</p>`
+  },
+  {
     title: '钓鱼',
     html: `<p>经过有<b>垂钓点</b>的水域场景（如石桥）时会停下<b>钓鱼</b>。每段场景只钓一次：进入场景 <b>${FISH_TRIGGER_MIN}~${FISH_TRIGGER_MAX}</b> 秒后开始，等待上钩（<b>${FISH_WAIT_MIN}~${FISH_WAIT_MAX}</b> 秒）后收获随机道具 <b>${FISH_QTY_MIN}~${FISH_QTY_MAX}</b> 个。</p>`
       + `<p>钓到宝可梦的概率：</p>`
@@ -1239,9 +1240,9 @@ export function showTutorialView() {
   pushNav('tutorialView');
   const list = $('tutorialList');
   const content = $('tutorialContent');
-  // 渲染左侧导航列表
+  // 渲染左侧导航列表（带图标的章节在标题前显示对应 svg 图标）
   list.innerHTML = TUTORIAL_SECTIONS.map((s, i) =>
-    `<div class="tutorial-nav-item" data-i="${i}">${s.title}</div>`
+    `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="./icons/sprites.svg#${s.icon}"/></svg>` : ''}${s.title}</div>`
   ).join('');
   function render(idx) {
     content.innerHTML = `<p class="tutorial-title">${TUTORIAL_SECTIONS[idx].title}</p>` + TUTORIAL_SECTIONS[idx].html;

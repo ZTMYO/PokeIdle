@@ -55,6 +55,11 @@ export const ACHIEVEMENTS = [
     fmt: v => `${formatNum(v)} 只`,
   },
   {
+    id: 'breed', name: '育种大师', desc: '累计繁殖产蛋',
+    metric: d => d.stats.totalEggsProduced || 0, base: 1, reward: 30,
+    fmt: v => `${formatNum(v)} 枚`,
+  },
+  {
     id: 'block', name: '树果大师', desc: '累计合成树果方块',
     metric: d => d.stats.totalBlockMade || 0, base: 1, reward: 20,
     fmt: v => `${formatNum(v)} 个`,

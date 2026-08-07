@@ -3,7 +3,7 @@
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
 import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { computeObtainScore } from './scoring.js';
@@ -46,6 +46,8 @@ const IV_LABELS = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: 
 
 // 当前正在选择交出个体的 offer（null 表示在广场列表页）
 let _tradeMode = null;
+let _tSortBy = null; // 选择列表排序列：iv | level（null=保持仓库顺序）
+let _tSortDir = 1;   // 1 升序 / -1 降序
 // 当前正在查看「NPC 给出宝可梦」详情的 offer（null 表示未在详情页）
 let _tradeDetail = null;
 // 进入子页面时保存的列表滚动位置，返回列表时恢复
@@ -144,7 +146,7 @@ export function refreshTrades() {
 // ---------- 匹配 ----------
 // 在仓个体中找出符合 offer 要求（物种/性别/等级/个体值下限）的个体
 function eligible(o) {
-  return (gameData.roster || []).filter(p => p.inRoster
+  return (gameData.roster || []).filter(p => p.inRoster && isPokemon(p)
     && String(p.species) === o.want.species
     && (!o.want.gender || ensureGender(p) === o.want.gender)
     && (!o.want.level || (p.level || 1) >= o.want.level)
@@ -169,8 +171,8 @@ export function showTradeView() {
   _tradeListScroll = 0;
   renderTrade();
   showView('tradeView');
-  const tv = $('tradeView');
-  if (tv) tv.scrollTop = 0; // 首次进入交换页从顶部开始
+  const tc = $('tradeContent');
+  if (tc) tc.scrollTop = 0; // 首次进入交换页从顶部开始
   startRefreshCountdown();
 }
 
@@ -212,8 +214,8 @@ export function restoreTradeList() {
   resumeTradeRefresh(); // 离开选择子页面：恢复刷新倒计时
   renderTrade();
   // 恢复进入子页面前的列表滚动位置
-  const tv = $('tradeView');
-  if (tv) tv.scrollTop = _tradeListScroll;
+  const tc = $('tradeContent');
+  if (tc) tc.scrollTop = _tradeListScroll;
 }
 
 // 渲染交换页（列表或当前子页面）；供 showTradeView / 定时刷新 / 聚合刷新调用
@@ -357,10 +359,19 @@ function renderSelect(content, offerId) {
   const o = (gameData.trades?.offers || []).find(x => x.id === offerId);
   if (!o) { _tradeMode = null; renderTrade(); return; }
   const wantPoke = getPokemonByIndex(o.want.species);
-  const matches = eligible(o);
-  const rows = matches.length === 0
+  // 表头点击排序：个体值/等级（同物种候选按数值排）
+  let pool = eligible(o);
+  if (_tSortBy) {
+    pool = [...pool].sort((a, b) => {
+      const ivSum = p => p.ivs ? p.ivs.hp + p.ivs.atk + p.ivs.def + p.ivs.spa + p.ivs.spd + p.ivs.spe : 0;
+      const va = _tSortBy === 'level' ? (a.level || 1) : ivSum(a);
+      const vb = _tSortBy === 'level' ? (b.level || 1) : ivSum(b);
+      return (va - vb) * _tSortDir;
+    });
+  }
+  const rows = pool.length === 0
     ? '<div class="trade-empty">没有符合条件的宝可梦</div>'
-    : matches.map(p => {
+    : pool.map(p => {
         const ivStat = o.want.iv ? o.want.iv.stat : null;
         const ivsText = p.ivs ? IV_KEYS.map(k => {
           const v = p.ivs[k] || 0;
@@ -375,21 +386,24 @@ function renderSelect(content, offerId) {
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">交换</button></span>
         </div>`;
       }).join('');
+  // 表头排序指示：当前排序列文本后直接加 ▲/▼（与仓库/图鉴箭头一致）
+  const sortMark = k => k === _tSortBy ? (_tSortDir === 1 ? ' ▲' : ' ▼') : '';
 
   content.innerHTML = `
     <div class="bounty-trade-list">
       <div class="bounty-trade-head">
-        <span data-trade-back class="bounty-trade-back"><svg viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="./icons/sprites.svg#icon-back"/></svg></span>
         <span>提交 ${wantPoke ? wantPoke.name : ''}</span>
       </div>
       <div class="pokedex-header roster-header">
         <span class="roster-icon"></span>
         <span class="pokedex-star"></span>
-        <span class="roster-ivs">个体值</span>
-        <span class="roster-nature">等级</span>
+        <span class="roster-ivs" data-sort="iv">个体值${sortMark('iv')}</span>
+        <span class="roster-nature" data-sort="level">等级${sortMark('level')}</span>
         <span class="bounty-trade-btn-col">交换</span>
       </div>
-      ${rows}
+      <div class="bounty-trade-rows list-scroll">
+        ${rows}
+      </div>
     </div>`;
 
   // 加载个体图标
@@ -474,14 +488,14 @@ function doTrade(offerId, rid) {
         onYes: () => {
           // 先刷新交换列表（该 offer 已标记交换），再跳转仓库中该个体的详情
           renderTrade();
-          const tv = $('tradeView');
-          if (tv) tv.scrollTop = _tradeListScroll;
+          const tc = $('tradeContent');
+          if (tc) tc.scrollTop = _tradeListScroll;
           import('./roster.js').then(m => m.showRosterDetailById(entry.id, 'tradeView'));
         },
         onClose: () => {
           renderTrade();
-          const tv = $('tradeView');
-          if (tv) tv.scrollTop = _tradeListScroll; // 回到列表，恢复位置
+          const tc = $('tradeContent');
+          if (tc) tc.scrollTop = _tradeListScroll; // 回到列表，恢复位置
         },
       });
     },
@@ -515,8 +529,8 @@ document.addEventListener('click', e => {
 
   const offerBtn = e.target.closest('[data-offer]');
   if (offerBtn && !offerBtn.disabled) {
-    const tv = $('tradeView');
-    if (tv) { _tradeListScroll = tv.scrollTop; tv.scrollTop = 0; } // 记住列表位置，子页面从顶部开始
+    const tc = $('tradeContent');
+    if (tc) { _tradeListScroll = tc.scrollTop; tc.scrollTop = 0; } // 记住列表位置，子页面从顶部开始
     pauseTradeRefresh(); // 进入选择子页面：冻结刷新倒计时
     _tradeMode = offerBtn.dataset.offer;
     renderTrade();
@@ -525,6 +539,15 @@ document.addEventListener('click', e => {
   const submitBtn = e.target.closest('[data-trade-submit]');
   if (submitBtn) {
     doTrade(_tradeMode, submitBtn.dataset.tradeSubmit);
+    return;
+  }
+  // 选择列表表头点击排序（与仓库一致：同字段切换升降序，新字段默认升序）
+  const sortEl = e.target.closest('.bounty-trade-list .pokedex-header [data-sort]');
+  if (sortEl && _tradeMode) {
+    const f = sortEl.dataset.sort;
+    if (_tSortBy === f) _tSortDir *= -1;
+    else { _tSortBy = f; _tSortDir = 1; }
+    renderTrade();
     return;
   }
   // 点击候选个体行：进入仓库个体详情（第三层），返回时恢复选择列表
@@ -540,17 +563,10 @@ document.addEventListener('click', e => {
   }
   const giveBtn = e.target.closest('[data-give-detail]');
   if (giveBtn) {
-    const tv = $('tradeView');
-    if (tv) { _tradeListScroll = tv.scrollTop; tv.scrollTop = 0; } // 记住列表位置，子页面从顶部开始
+    const tc = $('tradeContent');
+    if (tc) { _tradeListScroll = tc.scrollTop; tc.scrollTop = 0; } // 记住列表位置，子页面从顶部开始
     _tradeDetail = giveBtn.dataset.giveDetail;
     renderTrade();
     return;
-  }
-  if (e.target.closest('[data-trade-back]')) {
-    _tradeMode = null;
-    resumeTradeRefresh(); // 离开选择子页面：恢复刷新倒计时
-    renderTrade();
-    const tv = $('tradeView');
-    if (tv) tv.scrollTop = _tradeListScroll; // 恢复列表位置
   }
 });

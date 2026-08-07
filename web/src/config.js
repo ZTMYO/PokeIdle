@@ -99,7 +99,7 @@ export const BOUNTY_RARE_WEIGHT = 0.7; // 选角稀有度权重
 // ---- 交换 ----
 export const TRADE_COUNT = 6;          // 每波上架的交换 offer 数量
 export const TRADE_REFRESH_MS = 10 * 60 * 1000; // 刷新间隔（10 分钟）
-export const TRADE_NATURE_CHANCE = 0.4; // NPC 指定「想要宝可梦」性格的概率
+export const TRADE_GENDER_CHANCE = 0.35; // NPC 指定「想要宝可梦」性别的概率（仅可区分性别的物种）
 export const TRADE_IV_CHANCE = 0.35;    // NPC 指定某一项个体值下限的概率
 export const TRADE_IV_MIN = 24;         // 指定个体值下限的最低值（24~31）
 export const TRADE_LEVEL_CHANCE = 0.35; // NPC 指定「想要宝可梦」等级下限的概率

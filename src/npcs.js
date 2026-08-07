@@ -1,6 +1,6 @@
 // NPC 挑战：每 20 分钟刷新一波训练家（3 普通 + 2 精英 + 1 冠军）
 // 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级随玩家出战队伍最高等级递进
-import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollNature, rollGender, randInt } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollLegendIvs, rollNature, rollGender, randInt } from './state.js';
 import { chooseMoves } from './moves.js';
 import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, MAX_LEVEL } from './config.js';
 
@@ -104,7 +104,9 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
       const pd = getPokemonByIndex(idx);
       const level = Math.min(MAX_LEVEL, base - i);
       const moveIds = chooseMoves(learnset[idx], level, data, { types: pd.types, shuffle: true });
-      return { species: idx, level, ivs: rollIvs(), nature: rollNature(), gender: rollGender(idx), moveIds };
+      // 神兽（极稀有，稀有度 > 0.8）个体值同样强化：3 项强制 31，与玩家捕获到的一致
+      const ivs = (pd.rarity || 0.5) > 0.8 ? rollLegendIvs() : rollIvs();
+      return { species: idx, level, ivs, nature: rollNature(), gender: rollGender(idx), moveIds };
     });
   }
   // 复用固定队伍数据，仅重算等级（跟随玩家出战队伍最高等级）

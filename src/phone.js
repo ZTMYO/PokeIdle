@@ -20,6 +20,7 @@ const APPS = [
   { id: 'tutorial', icon: 'icon-tutorial', name: '教程' },
   // 第二页：日志 + 训练 + 配队 + 对战
   { id: 'log', icon: 'icon-log', name: '日志' },
+  { id: 'nursery', icon: 'icon-heart', name: '饲育屋' },
   { id: 'train', icon: 'icon-train', name: '训练' },
   { id: 'team', icon: 'icon-edit', name: '配队' },
   { id: 'battle', icon: 'icon-versus', name: '对战' },
@@ -184,6 +185,7 @@ export function showPhoneView() {
     else if (id === 'battle') import('./battle-view.js').then(m => m.showBattleView());
     else if (id === 'team') import('./team.js').then(m => m.showTeamView());
     else if (id === 'train') import('./train.js').then(m => m.showTrainView());
+    else if (id === 'nursery') import('./nursery.js').then(m => m.showNurseryView());
     else if (id === 'trade') import('./trade.js').then(m => m.showTradeView());
     else if (id === 'mixer') import('./mixer.js').then(m => m.showMixerView());
     else if (id === 'berry') import('./berry.js').then(m => m.showBerryView());

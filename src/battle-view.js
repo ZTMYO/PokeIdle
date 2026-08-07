@@ -1,7 +1,7 @@
 // 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
 import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
-import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge } from './state.js';
+import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon } from './state.js';
 import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon } from './battle-core.js';
 import { typeMult } from './type-chart.js';
 import { chooseMoves } from './moves.js';
@@ -282,7 +282,7 @@ function npcCardHtml(npc) {
 // 挑选实际出战的队伍条目：只出配队（gameData.team，按保存顺序）；NPC 难度跟随配队，练新宠只带弱队即可
 function pickBattleEntries() {
   const gd = gameData;
-  const all = (gd.roster || []).filter((p) => p.inRoster !== false);
+  const all = (gd.roster || []).filter((p) => p.inRoster !== false && isPokemon(p));
   const byId = new Map(all.map((p) => [p.id, p]));
   const ids = Array.isArray(gd.team) ? gd.team.filter((id) => byId.has(id)) : [];
   const entries = ids.slice(0, 6).map((id) => byId.get(id));
@@ -1591,6 +1591,26 @@ function syncStatusFx(side, mon, force) {
       z.textContent = 'Z';
       z.style.animationDelay = (i * 1.2) + 's';
       fx.appendChild(z);
+    }
+  } else if (st === 'infatuation') {
+    // 着迷：头顶四周漂浮粉红爱心（错峰上浮）
+    for (let i = 0; i < 4; i++) {
+      const p = document.createElement('i');
+      p.textContent = '♥';
+      p.style.left = (Math.random() * ir.width - ir.width / 2) + 'px';
+      p.style.top = (-ir.height / 2 - 2) + 'px';
+      p.style.animationDelay = (i * 0.4).toFixed(2) + 's';
+      fx.appendChild(p);
+    }
+  } else if (st === 'curse') {
+    // 诅咒：紫黑"呪"字怨气围绕头顶上浮消散（错峰）
+    for (let i = 0; i < 4; i++) {
+      const p = document.createElement('i');
+      p.textContent = '呪';
+      p.style.left = (Math.random() * ir.width - ir.width / 2) + 'px';
+      p.style.top = (-ir.height / 2 - 2) + 'px';
+      p.style.animationDelay = (i * 0.5).toFixed(2) + 's';
+      fx.appendChild(p);
     }
   } else {
     const counts = { paralysis: 6, burn: 5, poison: 5, freeze: 5, confusion: 4 };

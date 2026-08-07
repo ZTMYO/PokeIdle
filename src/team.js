@@ -1,5 +1,5 @@
 import { $, showView, tryLoadImage } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge } from './state.js';
+import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, isPokemon } from './state.js';
 
 export const TEAM_MAX = 6;
 
@@ -73,8 +73,9 @@ export function addToTeam(id, slot) {
   gameData.team = next;
   _hint = null; // 加入成员后不再提示"队伍为空"
   saveGame();
-  // 训练/队伍互斥：入队后从训练槽移除
+  // 训练/饲育屋/队伍三方互斥：入队后从训练槽与饲育屋移除
   import('./train.js').then(m => m.removeTrainingByPokemon(id));
+  import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
   render();
   showView('teamView');
 }
@@ -82,7 +83,7 @@ export function addToTeam(id, slot) {
 function render() {
   closeTeamMenu();
   const box = $('teamContent');
-  const roster = (gameData.roster || []).filter(p => p.inRoster !== false);
+  const roster = (gameData.roster || []).filter(p => p.inRoster !== false && isPokemon(p));
   const ids = teamIds();
   const byId = new Map(roster.map(p => [p.id, p]));
   const slotPokes = _battleCb

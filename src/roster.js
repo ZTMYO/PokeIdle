@@ -2,7 +2,7 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, tryLoadImage, tryLoadPokemonImage } from './ui.js';
-import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge } from './state.js';
+import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
@@ -81,9 +81,9 @@ function fmtTime(ts) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// 在仓个体列表
+// 在仓个体列表（只含宝可梦：蛋条目不占仓库，仅孵蛋器「宝可梦蛋」列表可查看/放入）
 function inRoster() {
-  return (gameData.roster || []).filter(p => p.inRoster);
+  return (gameData.roster || []).filter(p => p.inRoster && isPokemon(p));
 }
 
 // 搜索词是否命中该个体（名称 / 拼音 / 首字母）
@@ -119,13 +119,17 @@ function renderList() {
     const ex = new Set(_picker.exclude);
     pool = pool.filter(p => !ex.has(p.id));
   }
+  // 选取模式（配队/训练）：蛋不可作为宝可梦使用（M3 全站过滤）
+  if (_picker) pool = pool.filter(p => isPokemon(p));
   // 进度显示（与图鉴顶部统计一致的样式）
   const prog = $('rosterProgress');
   if (prog) {
     if (_picker) {
       prog.textContent = _picker.mode === 'team'
         ? `选择加入队伍 · 共 ${pool.length} 只`
-        : `选择放入训练 · 共 ${pool.length} 只`;
+        : _picker.mode === 'train'
+          ? `选择放入训练 · 共 ${pool.length} 只`
+          : `选择放入饲育屋 · 共 ${pool.length} 只`;
     } else {
       const total = inRoster().length;
       const shinyCount = inRoster().filter(p => p.shiny).length;
@@ -928,7 +932,11 @@ function releasePokemon(id) {
     onConfirm: () => {
       const arr = gameData.roster || [];
       const ri = arr.findIndex(r => r.id === id);
-      if (ri >= 0) arr.splice(ri, 1);
+      if (ri >= 0) {
+        arr.splice(ri, 1);
+        // 若该个体正放在饲育屋繁育：同步清出亲本槽并终止繁殖（否则场地贴图/配对预览残留）
+        import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
+      }
       stopShinySparkleLoop();
       _releasing = false;
       addSystemLog('pokemon_release', { pokemon: p.species, shiny: !!p.shiny });
@@ -1022,6 +1030,7 @@ export function leaveRosterPicker() {
   _picker = null;
   if (p?.mode === 'team') import('./team.js').then(m => m.restoreTeamView());
   else if (p?.mode === 'train') import('./train.js').then(m => m.showTrainView());
+  else if (p?.mode === 'nursery') import('./nursery.js').then(m => m.showNurseryView());
   else showView(p?.from || 'idleView');
 }
 
@@ -1032,6 +1041,7 @@ function pickRow(rid) {
   if (!p) return;
   if (p.mode === 'team') import('./team.js').then(m => m.addToTeam(rid, p.slot));
   else if (p.mode === 'train') import('./train.js').then(m => m.addToTraining(rid, p.slot));
+  else if (p.mode === 'nursery') import('./nursery.js').then(m => m.addToNursery(rid, p.slot));
 }
 
 export function showRosterView(noNav) {

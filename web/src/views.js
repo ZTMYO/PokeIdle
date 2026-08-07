@@ -311,7 +311,7 @@ export function renderSystemLogs() {
         desc = log.details.auto ? '[自动] 你逃走了' : '你逃走了';
         break;
       case 'pokemon_escaped':
-        desc = `${log.details.auto ? '[自动] ' : ''}${logName(log)} 逃走了。`;
+        desc = `${log.details.auto ? '[自动] ' : ''}${logName(log)} 逃走了`;
         break;
       case 'egg_hatch':
         desc = `孵化出 ${log.details.shiny ? '闪光' : ''}${logName(log)}`;
@@ -395,6 +395,8 @@ export function renderSystemLogs() {
       default:
         desc = `未知事件 (${log.type})`;
     }
+    // 所有日志统一不以句号结尾（历史存档中的旧日志也会在展示时剥掉）
+    desc = desc.replace(/。\s*$/, '');
     return `<div style="font-size:10px;line-height:1.8;padding:1px 0;">
         <span style="opacity:0.6;">${time}</span>
         <span style="margin-left:6px;">${desc}</span>
@@ -1110,6 +1112,12 @@ const TUTORIAL_SECTIONS = [
         ['自行车道骑行', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_BIKE * 60) / 60 * 10) / 10}</b> 分钟`],
       ], ['移动方式', '1 公里耗时'], [130, 'auto'])
       + `<p>孵化完成后点击孵化按钮即可获得宝可梦，结果完全随机，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`,
+  },
+  {
+    title: '培育',
+    html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦，<b>一雄一雌且共有蛋组</b>即可配对；<b>百变怪</b>万能配对（无视性别，非百变怪一方决定后代物种）。</p>`
+      + `<p>投喂它们爱吃的<b>树果</b>后开始繁殖，<b>5~10 分钟</b>产蛋；点场地中央的<b>蛋</b>收取，再放入<b>孵蛋器</b>里孵化。（详见「<b>孵蛋</b>」章节）</p>`
+      + `<p><b>个体值遗传</b>：6 项中 <b>5 项</b>继承双亲（随机取父或母），<b>1 项</b>完全随机。点预览里的维度可<b>锁定</b>，锁定后<b>固定继承指定亲本</b>的数值。</p>`
   },
   {
     title: '钓鱼',
