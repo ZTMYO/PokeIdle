@@ -4,7 +4,7 @@
 // 沿固定漫游路线自动选择下一站。到达目的地即结束导航（目的地回到"未设置"状态）。
 // 没有目的地时，定位图标在水平轴中央原地上下浮动。
 // 推进由主角实际移动驱动（gpsAddDistance），遇敌/钓鱼时道路暂停、导航也随之暂停。
-import { $, showView, setupFoodTooltip } from './ui.js';
+import { $, showView, setupFoodTooltip, updateBackpack } from './ui.js';
 import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo, getMassOutbreak, getPokemonByIndex, inMassZone, walkedPxOnSegment, normalizeMassRemainToEnd, pushNav } from './state.js';
 import { REGION_CYCLE, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
 import { isFishing } from './fishing.js';
@@ -142,12 +142,15 @@ function updateGpsViewport() {
   const info = wrap.querySelector('.gps-bottom-info');
   if (info) {
     const remain = computeRouteRemain(g);
-    info.innerHTML = `<span class="gps-bottom-line1">${remain.hasDest ? `${remain.remainKm.toFixed(1)}公里 ${remain.remainMin}分` : '点击地图选择目的地'}</span>`
+    const pendingBike = g.pendingBike === true;
+    info.innerHTML = `<span class="gps-bottom-line1">${remain.hasDest ? `${remain.remainKm.toFixed(1)}公里 ${remain.remainMin}分` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>`
       + (remain.hasDest ? `<span class="gps-bottom-line2">${remain.arriveStr}到达</span>` : '');
   }
 }
 
 function buildMiniMap(g) {
+  // 骑行中（已选好目的地）锁定地图：节点/大量出没点不可点击，光标改默认
+  const locked = road.isManualBike();
   // 是否在道路中间由物理位置（path 进度）决定，不依赖是否有目的地——
   // 取消导航后仍停留在原物理位置，定位点不跳回出发端节点
   const { onRoad, currentRoad, activeA, activeB, markerIdx, markerX, markerY, markerAngle, markerUsable } = computeMarkerPos(g);
@@ -222,7 +225,7 @@ function buildMiniMap(g) {
   }).join('');
 
   return `
-    <div class="gps-minimap">
+    <div class="gps-minimap${locked ? ' locked' : ''}">
       <svg viewBox="${MAP_VIEWBOX}" class="gps-minimap-svg" aria-hidden="true">
         ${edgeSvg}
         ${nodeSvg}
@@ -390,6 +393,7 @@ function advanceSegment() {
     g.destIdx = null;
     g.massTarget = null;
     g.massArrived = true;
+    road.setManualBike(false); // 抵达大量出没事件点：自动下车（骑行中不遇敌，下车后事件宝可梦才能进战斗）
     render();
     return;
   }
@@ -404,12 +408,14 @@ function advanceSegment() {
       if (g.path[g.seg] === ea && g.path[g.seg + 1] === eb) g.remainPx = fromA; // a→b 方向
       else g.remainPx = g.totalPx - fromA;                                     // b→a 方向
     }
+    // 经过中间节点不下车：骑行连续推进到当前导航目的地（最终目的地/大量出没点）才自动下车
     render();
     return;
   }
   // 到达目的地：若仍开启漫游，立刻接续下一站；否则回到未选择目的地状态
   const arrivedIdx = g.path[g.path.length - 1];
   clearRouteAt(arrivedIdx);
+  road.setManualBike(false); // 到达导航目的地：自动下车（导航已结束，骑行状态一并结束）
   if (g.roamEnabled) {
     planRoute(nextStop(arrivedIdx));
     return;
@@ -420,7 +426,9 @@ function advanceSegment() {
 // 规划前往指定地区的路线（手动选择目的地 / 漫游自动下一站共用）
 // 改目的地时按当前道路上的真实位置重算：比较“折返到起点”与“继续到终点”两条候选，取更短者。
 function planRoute(toIdx) {
+  if (road.isManualBike()) return; // 骑行中禁止改选目的地（防中途换站/漫游无限续）
   const g = gameData.gps;
+  if (g.pendingBike) { g.pendingBike = false; g.bikePrevNav = null; } // 待选中经其他入口导航（悬赏前往/漫游）：取消待选与快照，按普通走路导航
   const fromIdx = g.curIdx;
   // 改选地区目的地会取消大量出没事件点目标：先换算事件边的剩余语义，避免位置整体偏移
   normalizeMassRemainToEnd(g);
@@ -464,6 +472,7 @@ function planRoute(toIdx) {
 // 目标是一个"边中间点"（事件点）而非地区节点：最后一段走事件边，走到事件点即到达。
 // 到达后结束导航但保留当前段进度，主角精确停在事件点（道路中间），不会瞬移回节点。
 export function planMassRoute() {
+  if (road.isManualBike()) return; // 骑行中禁止改选大量出没事件点
   const mo = getMassOutbreak();
   if (!mo) return;
   const g = gameData.gps;
@@ -494,6 +503,7 @@ export function planMassRoute() {
         g.massTarget = null;
         g.massArrived = true;
         g.remainPx = g.totalPx - fromStart;
+        road.setManualBike(false); // 已站在大量出没事件点：同样自动下车（骑行中不遇敌）
         render();
         saveGame();
         return;
@@ -599,14 +609,66 @@ export function setRoamEnabled(on) {
 
 // 取消目的地：停止导航，原地停在当前点
 // 保留当前路段进度作为物理位置（不清 path），只清除目的地——位置不丢，下次导航从当前点继续，不会瞬移
+// 待选骑行目的地中点退出 = 放弃选骑行目的地：恢复进入待选前的导航
 export function cancelNavigation() {
   const g = gameData.gps;
+  if (g.pendingBike) { abandonBikeTarget(); return; }
   g.roamEnabled = false;
   // 若正停在事件边最后一段上，先把 remainPx 从"到事件点的剩余"换算回"到段终点的剩余"，
   // 否则下面清掉 massTarget 后，后续按普通路段语义读取位置会整体偏移（瞬移）
   normalizeMassRemainToEnd(g);
   g.destIdx = null;
   g.massTarget = null;
+  g.pendingBike = false; // 取消待选骑行目的地状态
+  road.setManualBike(false); // 手动结束导航：直接下车（导航是骑行的自然终点）
+  render();
+  saveGame();
+}
+
+// 点背包「自行车」：保存当前导航状态，停止导航（保留物理位置，与取消导航一致），
+// 进入"待选骑行目的地"状态并跳转导航页；玩家在地图上选好目的地后才消耗 1 个道具上车骑行。
+// 若玩家放弃选目的地（点退出 / 标题栏返回 / 再点背包），恢复进入前的导航。
+export function startBikeTarget() {
+  const g = gameData.gps;
+  // 保存旧导航快照（放弃待选时恢复）：含目的地/漫游/路线/位置/事件点目标，恢复后完全回到原状态
+  g.bikePrevNav = {
+    destIdx: g.destIdx,
+    massTarget: g.massTarget ? { ...g.massTarget } : null,
+    roamEnabled: g.roamEnabled,
+    path: g.path ? [...g.path] : null,
+    seg: g.seg,
+    remainPx: g.remainPx,
+    totalPx: g.totalPx,
+    curIdx: g.curIdx,
+    massArrived: g.massArrived,
+  };
+  g.roamEnabled = false;
+  normalizeMassRemainToEnd(g);
+  g.destIdx = null;
+  g.massTarget = null;
+  g.pendingBike = true;
+  showGpsView(); // pushNav + render + showView（恢复进入时 render 读取 pendingBike 显示待选 UI）
+  saveGame();
+}
+
+// 放弃待选骑行目的地：恢复进入待选前的导航（若存在），否则仅清待选状态
+export function abandonBikeTarget() {
+  const g = gameData.gps;
+  const prev = g.bikePrevNav;
+  g.pendingBike = false;
+  g.bikePrevNav = null;
+  if (prev) {
+    g.destIdx = prev.destIdx;
+    g.massTarget = prev.massTarget;
+    g.roamEnabled = prev.roamEnabled;
+    g.path = prev.path;
+    g.seg = prev.seg;
+    g.remainPx = prev.remainPx;
+    g.totalPx = prev.totalPx;
+    g.curIdx = prev.curIdx;
+    g.massArrived = prev.massArrived;
+  }
+  road.setManualBike(false);
   render();
   saveGame();
 }
@@ -624,6 +686,10 @@ export function navigateToRegion(toIdx) {
 function render() {
   const g = gameData.gps;
   const el = $('gpsContent');
+  // 骑行相关特殊态：骑行中（已上车）或待选骑行目的地（点过自行车、未选目的地）
+  const riding = road.isManualBike();
+  const pendingBike = g.pendingBike === true;
+  const bikeMode = riding || pendingBike;
   // 导航中 = 有地区目的地 或 正在前往大量出没事件点（事件点不是地区节点，destIdx 为 null）
   const hasDest = g.destIdx != null || g.massTarget != null;
 
@@ -675,24 +741,26 @@ function render() {
   el.innerHTML = `
     <div class="gps-wrap">
       <div class="gps-roam-row">
-        <span class="gps-roam-label">漫游</span>
-        <div class="toggle-switch" id="gpsRoamToggle">
-          <div class="toggle-track${g.roamEnabled ? ' on' : ''}"></div>
-          <div class="toggle-knob"></div>
-        </div>
+        ${bikeMode
+          ? `<span class="gps-roam-label">${riding ? '骑行中' : '选择骑行目的地'}</span>`
+          : `<span class="gps-roam-label">漫游</span>
+             <div class="toggle-switch" id="gpsRoamToggle">
+               <div class="toggle-track${g.roamEnabled ? ' on' : ''}"></div>
+               <div class="toggle-knob"></div>
+             </div>`}
         ${paused
           ? `<span class="gps-roam-paused">${paused}</span>`
           : roamHint ? `<span class="gps-roam-paused">${roamHint}</span>` : ''}
       </div>
       ${buildMiniMap(g)}
       <div class="bottom-dock">
-        ${hasDest ? `
+        ${(hasDest || pendingBike) ? `
         <span class="gps-bottom-cancel" id="gpsCancelBtn">
           <svg viewBox="0 0 12 12" width="13" height="13"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
-          <span class="gps-bottom-cancel-text">退出</span>
+          <span class="gps-bottom-cancel-text">${riding ? '下车' : '退出'}</span>
         </span>` : ''}
         <span class="gps-bottom-info">
-          <span class="gps-bottom-line1">${hasDest ? `${remainKm.toFixed(1)}公里 ${remainMin}分` : '点击地图选择目的地'}</span>
+          <span class="gps-bottom-line1">${hasDest ? `${remainKm.toFixed(1)}公里 ${remainMin}分` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>
           ${hasDest ? `<span class="gps-bottom-line2">${arriveStr}到达</span>` : ''}
         </span>
       </div>
@@ -707,6 +775,19 @@ export function refreshGpsRender() {
 // 导航页底部大量出没跑马灯（已移除）：事件信息改为悬停大量出没标记时 tooltip 显示，
 // 由 ui.js 的 setupFoodTooltip 事件委托统一处理，gps.js 无需维护定时器。
 
+// 待选骑行目的地状态：玩家在地图上选好目的地（节点/大量出没点）后消耗 1 个自行车并进入骑行。
+// 返回 true = 已消耗（调用方需接着上车骑行）；false = 非待选状态或无货（无货时仅取消待选，按普通走路导航处理）
+function consumePendingBike() {
+  const g = gameData.gps;
+  if (g.pendingBike !== true) return false;
+  g.pendingBike = false;
+  g.bikePrevNav = null; // 已选好新目的地并开始骑行：旧导航快照不再需要
+  if ((gameData.items['bike'] || 0) <= 0) return false;
+  gameData.items['bike']--;
+  updateBackpack('bike');
+  return true;
+}
+
 export function showGpsView() {
   pushNav('gpsView'); // 导航页入栈：返回逐级回来源页（手机主页/悬赏/挂机）
   render();
@@ -717,17 +798,40 @@ export function showGpsView() {
   const el = $('gpsContent');
   el.onclick = (e) => {
     const sw = e.target.closest('#gpsRoamToggle');
-    if (sw) { setRoamEnabled(!gameData.gps.roamEnabled); return; }
+    if (sw) {
+      if (road.isManualBike() || gameData.gps.pendingBike) return; // 骑行相关态已隐藏开关，保险拦截
+      setRoamEnabled(!gameData.gps.roamEnabled);
+      return;
+    }
     const cancel = e.target.closest('#gpsCancelBtn');
     if (cancel) { cancelNavigation(); return; }
-    // 点击大量出没事件点标记 → 规划前往事件点
+    // 点击大量出没事件点标记 → 规划前往事件点（骑行中锁定；待选中 = 选它作为骑行目的地）
     const mass = e.target.closest('.gps-mass-marker');
-    if (mass) { planMassRoute(); return; }
-    // 点击地图上的地区节点 → 设为目的地（点击当前所在节点且未在途时忽略）
+    if (mass) {
+      if (road.isManualBike()) return;
+      if (consumePendingBike()) {
+        planMassRoute();
+        road.setManualBike(true); // 选好目的地才上车骑行
+        render();
+        saveGame();
+        return;
+      }
+      planMassRoute();
+      return;
+    }
+    // 点击地图上的地区节点 → 设为目的地（骑行中锁定；待选中 = 选它作为骑行目的地）
     const node = e.target.closest('.gps-map-node');
     if (node) {
       const idx = Number(node.dataset.region);
       const g = gameData.gps;
+      if (road.isManualBike()) return;
+      if (consumePendingBike()) {
+        planRoute(idx);
+        road.setManualBike(true); // 选好目的地才上车骑行
+        render();
+        saveGame();
+        return;
+      }
       if (!isNaN(idx) && !(g.destIdx == null && !hasActiveSegment(g) && idx === g.curIdx)) {
         planRoute(idx);
         saveGame();

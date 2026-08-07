@@ -395,6 +395,15 @@ export function renderSystemLogs() {
       case 'buff_expired':
         desc = `${ITEM_NAMES[log.details.item] || log.details.item}的效果结束了`;
         break;
+      case 'bike_ride':
+        desc = '开始骑自行车';
+        break;
+      case 'bike_stop':
+        desc = '自行车骑行结束';
+        break;
+      case 'auto_refill':
+        desc = `[自动] 补了${ITEM_NAMES[log.details.ball] || log.details.ball} ×1`;
+        break;
       default:
         desc = `未知事件 (${log.type})`;
     }
@@ -570,6 +579,8 @@ export function renderSettings(container, s) {
   const legendStop = s.legendStop || false;
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
+  const autoRefill = s.autoRefill || false;
+  const refillBalls = s.autoRefillBalls || { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
   const gender = s.gender || 'brendan';
   const musicVolume = s.musicVolume ?? 0.6;
   const musicEnabled = s.musicEnabled !== false;
@@ -598,14 +609,17 @@ export function renderSettings(container, s) {
           <div class="toggle-knob"></div>
         </div>
       </div>
-      <div class="ball-check-row">
-        ${['poke-ball', 'ultra-ball', 'master-ball'].map(b => `
-          <span class="ball-check ${(balls[b] !== false) ? 'on' : ''}" data-ball="${b}">${(balls[b] !== false) ? '☑' : '☐'}${ballLabels[b]}</span>
-        `).join('')}
-      </div>
-      <div class="ball-check-row" style="margin-top:3px;">
-        <span class="ball-check ${autoBuffHoney ? 'on' : ''}" id="toggleBuffHoney">${autoBuffHoney ? '☑' : '☐'}甜甜蜜</span>
-        <span class="ball-check ${autoBuffCharm ? 'on' : ''}" id="toggleBuffCharm">${autoBuffCharm ? '☑' : '☐'}闪耀护符</span>
+      <div style="padding:4px 4px 2px;">
+        <div class="auto-catch-label" style="padding:2px 0 2px 4px;">自动使用</div>
+        <div class="ball-check-row">
+          ${['poke-ball', 'ultra-ball', 'master-ball'].map(b => `
+            <span class="ball-check ${(balls[b] !== false) ? 'on' : ''}" data-ball="${b}">${(balls[b] !== false) ? '☑' : '☐'}${ballLabels[b]}</span>
+          `).join('')}
+        </div>
+        <div class="ball-check-row" style="margin-top:3px;">
+          <span class="ball-check ${autoBuffHoney ? 'on' : ''}" id="toggleBuffHoney">${autoBuffHoney ? '☑' : '☐'}甜甜蜜</span>
+          <span class="ball-check ${autoBuffCharm ? 'on' : ''}" id="toggleBuffCharm">${autoBuffCharm ? '☑' : '☐'}闪耀护符</span>
+        </div>
       </div>
       ` : ''}
       <div class="auto-catch-row">
@@ -616,6 +630,20 @@ export function renderSettings(container, s) {
         </div>
       </div>
       ${autoFlee ? '<div style="font-size:9px;color:var(--color-ui);padding:2px 0 4px 8px;">遇敌后 30 秒未操作，宝可梦会自行逃跑</div>' : ''}
+      <div class="auto-catch-row" style="margin-top:2px;">
+        <div class="auto-catch-label">自动补球</div>
+        <div class="toggle-switch" id="toggleAutoRefill">
+          <div class="toggle-track ${autoRefill ? 'on' : ''}"></div>
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+      ${autoRefill ? `
+      <div class="ball-check-row" style="padding-left:8px;">
+        ${['poke-ball', 'ultra-ball', 'master-ball'].map(b => `
+          <span class="ball-check refill-check ${(refillBalls[b] !== false) ? 'on' : ''}" data-refill-ball="${b}">${(refillBalls[b] !== false) ? '☑' : '☐'}${ballLabels[b]}</span>
+        `).join('')}
+      </div>
+      ` : ''}
       <div class="auto-catch-row">
         <div class="auto-catch-label">固定窗口</div>
         <div class="toggle-switch" id="toggleWindowPinned">
@@ -724,6 +752,7 @@ export function renderSettings(container, s) {
   });
   container.querySelector('#toggleBuffHoney')?.addEventListener('click', toggleAutoBuffHoney);
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);
+  container.querySelector('#toggleAutoRefill')?.addEventListener('click', toggleAutoRefill);
   const volSlider = container.querySelector('#musicVolumeSlider');
   volSlider?.addEventListener('input', (e) => {
     const v = Number(e.target.value);
@@ -734,6 +763,9 @@ export function renderSettings(container, s) {
   if (volSlider) volSlider.style.setProperty('--volume-fill', (Number(volSlider.value) * 100) + '%');
   container.querySelectorAll('.ball-check[data-ball]').forEach(el => {
     el.addEventListener('click', () => toggleAutoCatchBall(el.dataset.ball));
+  });
+  container.querySelectorAll('.ball-check[data-refill-ball]').forEach(el => {
+    el.addEventListener('click', () => toggleAutoRefillBall(el.dataset.refillBall));
   });
   // GitHub 仓库链接：Tauri 下用 opener 插件在系统浏览器打开
   container.querySelector('#githubLink')?.addEventListener('click', (e) => {
@@ -762,6 +794,8 @@ export async function resetSave() {
 function ensureSettings() {
   if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
   if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
+  if (gameData.settings.autoRefill == null) gameData.settings.autoRefill = false;
+  if (!gameData.settings.autoRefillBalls) gameData.settings.autoRefillBalls = { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
   if (gameData.settings.windowScale == null) gameData.settings.windowScale = 1;
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
@@ -885,6 +919,24 @@ export function toggleAutoCatchBall(ballType) {
   renderSettings(container, gameData.settings);
   saveGame();
   updateStats(); // 立即刷新「自动捕捉中/自动逃跑中」文字
+}
+
+// 自动补球总开关
+export function toggleAutoRefill() {
+  ensureSettings();
+  gameData.settings.autoRefill = !gameData.settings.autoRefill;
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
+
+// 自动补球：勾选指定球种（勾选的球数量为 0 时自动用糖果补 1 个）
+export function toggleAutoRefillBall(ballType) {
+  ensureSettings();
+  gameData.settings.autoRefillBalls[ballType] = !(gameData.settings.autoRefillBalls[ballType] !== false);
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
 }
 
 export function toggleShinyStop() {
@@ -1058,7 +1110,16 @@ const TUTORIAL_SECTIONS = [
     title: '场景',
     html: `<p>挂机时场景会自动轮换：每段场景的长度随机生成，结束后切换到下一个随机场景。</p>`
       + `<p>生成下一个场景时，有 <b>${Math.round(ROAD_SPECIAL_CHANCE * 100)}</b>% 的概率是<b>特殊场景</b>（可钓鱼的水域或自行车道，各占一半概率），其余 <b>${Math.round((1 - ROAD_SPECIAL_CHANCE) * 100)}</b>% 为普通场景。</p>`
-      + `<p>水域场景有<b>垂钓点</b>（详见「<b>钓鱼</b>」章节）；<b>自行车道</b>快速推进里程，但不触发遭遇与道具拾取。</p>`,
+      + `<p>水域场景有<b>垂钓点</b>（详见「<b>钓鱼</b>」章节）；<b>自行车道</b>自动进入骑行，骑行结束后背包获得 <b>自行车 ×1</b>（详见「<b>自行车</b>」章节）。</p>`,
+  },
+  {
+    title: '自行车',
+    html: `<p><b>自行车</b>是赶路道具：骑行速度 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 走路，期间<b>不遇敌、不钓鱼、不拾取道具</b>，适合快速跨地区赶路。</p>`
+      + `<p><b>获取</b>：随机<b>自行车道</b>骑行结束后背包 <b>+1</b>；（详见「<b>场景</b>」章节）也可在<b>商店</b>用糖果兑换（<b>${CANDY_EXCHANGE['bike']}</b> 颗）。</p>`
+      + `<p><b>使用</b>：背包<b>滚轮翻到第二页</b>，点击<b>自行车</b>停止当前导航并进入<b>导航页</b>；<b>选好骑行目的地才消耗 1 个</b>上车骑行。骑行中背包再点可<b>手动下车</b>（不结束导航）。</p>`
+      + `<p><b>放弃骑行</b>：未选目的地时再点背包「自行车」，或在导航页点「<b>退出</b>」结束导航。</p>`
+      + `<p><b>自动下车</b>：骑行到<b>导航目的地</b>自动下车（中途经过的地区节点<b>不停车</b>，连续骑行）；<b>手动结束导航</b>也会直接下车；抵达<b>大量出没</b>事件点自动下车（骑行中不遇敌，下车后才能进战斗）。</p>`
+      + `<p><b>骑行中</b>：导航页漫游开关隐藏、<b>地图节点不可改选</b>，只能等到达自动下车、手动下车或退出导航。</p>`
   },
   {
     title: '捕捉',
@@ -1093,6 +1154,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '增益',
     html: `<p><b>甜甜蜜</b>与<b>闪耀护符</b>都是 <b>${BUFF_DURATION}</b> 秒增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
+      + `<p>骑行中速度<b>不叠加</b>：骑行 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，甜甜蜜的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
       + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`
       + tutorialTable([
@@ -1105,20 +1167,19 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '孵蛋',
-    html: `<p>在<b>手机</b>主页打开<b>孵蛋器</b>应用，将背包里的<b>神秘蛋</b>放入空闲槽位开始<b>孵化</b>。</p>`
+    html: `<p>在<b>手机</b>主页打开<b>孵蛋器</b>应用，将背包里的<b>神秘蛋</b>或繁殖得到的<b>宝可梦蛋</b>放入空闲槽位开始<b>孵化</b>。</p>`
       + `<p>孵化里程由宝可梦的体重和稀有度决定（<b>${HATCH_DIST_MIN / 1000}~${HATCH_DIST_MAX / 1000}</b> 公里）。</p>`
       + `<p>主角行走累计到所需里程即孵化完成——停下不走不推进，跑步/骑车走得更快。</p>`
       + `<p>不同移动方式的推进速度（走完 <b>1 公里</b>所需时间）：</p>`
       + tutorialTable([
         ['走路（挂机默认）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_WALK * 60) / 60 * 10) / 10}</b> 分钟`],
         ['跑步（增益生效）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_RUN * 60) / 60 * 10) / 10}</b> 分钟`],
-        ['自行车道骑行', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_BIKE * 60) / 60 * 10) / 10}</b> 分钟`],
+        ['骑行', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_BIKE * 60) / 60 * 10) / 10}</b> 分钟`],
       ], ['移动方式', '1 公里耗时'], [130, 'auto'])
       + `<p>孵化完成后点击孵化按钮即可获得宝可梦，结果完全随机，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`,
   },
   {
     title: '培育',
-    icon: 'icon-heart', // 左侧导航图标（与手机饲育屋 App 同款）
     html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦，<b>一雄一雌且共有蛋组</b>即可配对；<b>百变怪</b>万能配对（无视性别，非百变怪一方决定后代物种）。</p>`
       + `<p>投喂它们爱吃的<b>树果</b>后开始繁殖，<b>5~10 分钟</b>产蛋；点场地中央的<b>蛋</b>收取，再放入<b>孵蛋器</b>里孵化。（详见「<b>孵蛋</b>」章节）</p>`
       + `<p><b>个体值遗传</b>：6 项中 <b>5 项</b>继承双亲（随机取父或母），<b>1 项</b>完全随机。点预览里的维度可<b>锁定</b>，锁定后<b>固定继承指定亲本</b>的数值。</p>`
@@ -1144,7 +1205,7 @@ const TUTORIAL_SECTIONS = [
     title: '树果',
     html: `<p><b>树果</b>是<b>农场</b>收获的作物，也是<b>树果混合器</b>的唯一原料，更是宝可梦爱吃的食物。</p>`
       + `<p>获取：种下种子、浇水养护，成熟后收获（详见「<b>农场</b>」章节）。</p>`
-      + `<p>用途：作为配方制成<b>树果方块</b>（详见「<b>树果方块</b>」章节），喂食训练中的宝可梦（详见「<b>训练</b>」章节），或在树果委托出售换糖果（详见「<b>农场</b>」章节）。</p>`,
+      + `<p>用途：作为配方制成<b>树果方块</b>（详见「<b>树果方块</b>」章节），喂食训练中的宝可梦（详见「<b>训练</b>」章节），在树果委托出售换糖果（详见「<b>农场</b>」章节），作为宝可梦繁殖的消耗品（详见「<b>培育</b>」章节）。</p>`,
   },
   {
     title: '农场',
@@ -1218,7 +1279,8 @@ const TUTORIAL_SECTIONS = [
       + `<p>不勾选任何球种：<b>自动逃跑</b>（期间禁止手动丢球）。</p>`
       + `<p>勾选增益道具：增益结束后自动<b>续杯</b>（同时勾选优先甜甜蜜）。</p>`
       + `<p>开启<b>闪光暂停</b>：闪光出现时不自动操作。</p>`
-      + `<p>开启<b>神兽暂停</b>：极稀有宝可梦（稀有度 0.8 以上，含多数神兽/幻兽）出现时不自动操作。</p>`,
+      + `<p>开启<b>神兽暂停</b>：神兽/幻兽/悖谬宝可梦出现时不自动操作。</p>`
+      + `<p>开启<b>自动补球</b>：勾选精灵球/高级球/大师球后，对应球数量为 0 时自动用糖果补 1 个（多种球归零时便宜优先）；不依赖上述自动丢球，手动丢球同样生效。</p>`,
   },
   {
     title: '佛系模式',

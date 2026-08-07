@@ -104,8 +104,8 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
       const pd = getPokemonByIndex(idx);
       const level = Math.min(MAX_LEVEL, base - i);
       const moveIds = chooseMoves(learnset[idx], level, data, { types: pd.types, shuffle: true });
-      // 神兽（极稀有，稀有度 > 0.8）个体值同样强化：3 项强制 31，与玩家捕获到的一致
-      const ivs = (pd.rarity || 0.5) > 0.8 ? rollLegendIvs() : rollIvs();
+      // 神兽个体值同样强化：3 项强制 31，与玩家捕获到的一致
+      const ivs = pd.legend === true ? rollLegendIvs() : rollIvs();
       return { species: idx, level, ivs, nature: rollNature(), gender: rollGender(idx), moveIds };
     });
   }

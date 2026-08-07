@@ -23,6 +23,7 @@ export const ITEM_ICONS = {
   'poke-ball': 'poke-ball.png', 'ultra-ball': 'ultra-ball.png',
   'master-ball': 'master-ball.png', 'candy': 'candy.png',
   'sweet-honey': 'honey.png', 'mystery-egg': 'mystery-egg.png', 'shiny-charm': 'shiny-charm.png',
+  'bike': 'bike.png',
 };
 
 // 树果图标文件名（宝可梦喜欢的食物，位于 src/items/berries/ 与 src/items/berry-trees/ 目录）
@@ -170,7 +171,7 @@ function rollCandyMult() {
 }
 
 // 道具入库：背包/统计/日志统一处理（qty 支持糖果翻倍掉落）
-function grantItem(itemKey, qty = 1) {
+export function grantItem(itemKey, qty = 1) {
   gameData.items[itemKey] = (gameData.items[itemKey] || 0) + qty;
   gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + qty;
   addSystemLog('item_gain', { item: itemKey, qty });
@@ -196,6 +197,17 @@ function grantItem(itemKey, qty = 1) {
 }
 
 // ---------- 道具随路面滚动进入 ----------
+// 当前在滚/拾取中的道具元素与取消回调（外部（手动骑行上车）可立即取消并隐藏）
+let _dropEl = null;
+let _dropCancelCb = null;
+
+// 立即取消并隐藏正在滑入/拾取的道具（返回是否真的有道具被取消）
+export function cancelItemDrop() {
+  if (!_dropCancelCb) return false;
+  _dropCancelCb();
+  return true;
+}
+
 export function spawnItemDrop(itemKey) {
   if (phase !== 'idle') return;
   // 掉落糖果时先确定本次数量倍率（×1/×2/×5/×50/×100）
@@ -219,6 +231,16 @@ export function spawnItemDrop(itemKey) {
   el.src = `./items/${ITEM_ICONS[itemKey] || itemKey + '.png'}`;
   el.alt = ITEM_NAMES[itemKey] || itemKey;
   screen.appendChild(el);
+  _dropEl = el;
+  _dropCancelCb = () => {
+    if (!_dropCancelCb) return;
+    _dropCancelCb = null;
+    _dropEl = null;
+    active = false;
+    el.remove();
+    setItemDropActive(false);
+    if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
+  };
 
   const sRect = screen.getBoundingClientRect();
   const cRect = charEl.getBoundingClientRect();
@@ -240,6 +262,8 @@ export function spawnItemDrop(itemKey) {
 
   function cleanup() {
     active = false;
+    _dropCancelCb = null;
+    _dropEl = null;
     el.remove();
     setItemDropActive(false);
     if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
@@ -305,6 +329,8 @@ export function spawnItemDrop(itemKey) {
         if (t < 1) {
           requestAnimationFrame(fly);
         } else {
+          _dropCancelCb = null;
+          _dropEl = null;
           el.remove();
           setItemDropActive(false);
           if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }

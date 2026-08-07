@@ -707,16 +707,60 @@ body { margin: 0; padding: 0; cursor: default; }
 .backpack-bar {
   flex-shrink: 0;
   padding: 6px 10px 8px;
-  border-top: 2px solid var(--console-border);
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
 
+/* 背包页码指示条*/
+.bag-page-indicator {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 2px;
+  margin: -6px -10px 3px;
+  flex-shrink: 0;
+}
+/* splash 落位动画期间：指示条隐藏，改回原 border-top 上边框线 */
+.backpack-bar.splash-border-top {
+  border-top: 2px solid var(--console-border);
+}
+.bag-page-indicator .seg-long {
+  flex: 1;
+  background: var(--console-border);
+}
+.bag-page-indicator .seg-page {
+  width: 22px;
+  background: rgba(0, 0, 0, 0.12);
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+.bag-page-indicator .seg-page:hover {
+  background: var(--console-border);
+}
+.bag-page-indicator .seg-page.on:hover {
+  background: var(--ui-color);
+}
+.bag-page-indicator .seg-page.on {
+  background: var(--ui-color);
+}
+
 .backpack-items {
   display: flex;
   gap: 3px;
+  align-items: center;
 }
+
+/* 背包翻页：每页占满剩余宽度，第二页默认隐藏（滚轮翻页由 main.js 切换） */
+.bag-page {
+  display: flex;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.bag-slot--empty { background: rgba(0,0,0,0.02); cursor: default; }
+.bag-slot--empty:hover { background: rgba(0,0,0,0.02); }
+.bag-slot--empty:active { transform: none; }
 
 .bag-slot {
   flex: 1;
@@ -725,6 +769,7 @@ body { margin: 0; padding: 0; cursor: default; }
   align-items: center;
   gap: 0;
   padding: 2px 1px;
+  height: 44px; /* 固定高度：骑行中 qty 缩成「下车」(9px) 也不改变槽高，两页高度保持一致 */
   border-radius: 4px;
   background: rgba(0,0,0,0.03);
   min-width: 0;
@@ -739,6 +784,9 @@ body { margin: 0; padding: 0; cursor: default; }
 .bag-slot.disabled:active { transform: none; }
 .bag-slot.disabled .bag-icon { opacity: 0.6; }
 .bag-slot.disabled .bag-qty { color: var(--color-muted); font-weight: 600; }
+/* 骑行中自行车槽：仍可点击下车 → 指针恢复、下车文字缩小 */
+.bag-slot[data-item="bike"].disabled { cursor: pointer; }
+.bag-slot[data-item="bike"].disabled .bag-qty { font-size: 9px; }
 
 .bag-icon {
   width: 18px;
@@ -2698,6 +2746,11 @@ body { margin: 0; padding: 0; cursor: default; }
 .gps-map-node.dest circle {
   fill: var(--ui-color);
   stroke: var(--ui-color-dark);
+}
+/* 骑行中锁定地图：节点/大量出没点不可点击，光标改默认 */
+.gps-minimap.locked .gps-map-node,
+.gps-minimap.locked .gps-mass-marker {
+  cursor: default;
 }
 .gps-map-marker {
   fill: var(--ui-color);

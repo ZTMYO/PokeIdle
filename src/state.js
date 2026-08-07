@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY, BIKE_RESTORE_MAX_GAP_MS } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -205,6 +205,8 @@ export function defaultGpsState() {
     position: null,                 // 显式位置快照：存档里清楚写明当前在地区还是在道路上
     massTarget: null,               // 导航目标为大量出没事件点：{ edge:[a,b], t }；null=无
     massArrived: false,             // 是否已到达大量出没事件点（导航在该点停止后才触发大量出没）
+    pendingBike: false,             // 待选骑行目的地：点背包「自行车」后进入，选好目的地才消耗上车
+    bikePrevNav: null,              // 待选期间的旧导航快照：放弃选目的地（点退出/返回/再点背包）时恢复
   };
 }
 
@@ -225,7 +227,8 @@ export function ensureGpsState() {
 // ---------- 存档默认值 ----------
 export function getDefaultSave() {
   return {
-    items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
+    manualBike: false, // 手动骑行状态标记（上车/下车时随主存档持久化，刷新/重开可恢复）
+    items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
     stats: {
       totalPlaySeconds:0, playSecondsToday:0, lastPlayDate:'', walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
@@ -234,7 +237,7 @@ export function getDefaultSave() {
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
       totalTrades:0, tradesToday:0, lastTradeDate:'',
       totalNpcWins:0, totalNpcNoviceWins:0, totalNpcEliteWins:0, totalNpcChampionWins:0, totalNpcCandy:0,
-      totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0 },
+      totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
     },
     incubators: Array.from({length: 8}, () => emptyIncubator()),
     incubatorUnlockedSlots: 0,
@@ -255,7 +258,7 @@ export function getDefaultSave() {
     incubatorLogs: [], // 孵蛋记录（仅孵化成功事件，最多 50 条）：{ time, species, gender, shiny }
     achievements: {}, // 成就进度：{ 成就id: 已领取档位数 }，由 achievements.js 管理
     introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）
-    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
+    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, autoRefill: false, autoRefillBalls: { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false }, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
   };
 }
 
@@ -270,7 +273,7 @@ export function rollIvs() {
   };
 }
 
-// 神兽（极稀有，稀有度 > 0.8）个体值：随机 3 个不同维度强制 31，其余 3 项正常随机
+// 神兽个体值：随机 3 个不同维度强制 31，其余 3 项正常随机
 export function rollLegendIvs() {
   const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
   const ivs = rollIvs();
@@ -329,7 +332,7 @@ export function addRosterEntry({ species, shiny = false, source = 'normal', leve
   if (!gameData) return null;
   if (!Array.isArray(gameData.roster)) gameData.roster = [];
   const poke = getPokemonByIndex(String(species));
-  const legendIv = source !== 'egg' && poke && (poke.rarity || 0.5) > 0.8;
+  const legendIv = source !== 'egg' && poke && poke.legend === true;
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     species,
@@ -401,7 +404,7 @@ export function setEncounterMsg(msg) { encounterMsg = msg; }
 // ---------- 会话状态保存/恢复 ----------
 const SESSION_KEY = 'pokemon_idle_session';
 
-export function saveSessionState() {
+export function saveSessionState(extra) {
   try {
     const state = {
       _savedAt: Date.now(),
@@ -434,6 +437,7 @@ export function saveSessionState() {
       state.blockQuality = blockQuality;
     }
     if (qteState) state.qteState = qteState;
+    if (extra) Object.assign(state, extra); // 附加会话状态（如手动骑行标记），随会话一并保存
     localStorage.setItem(SESSION_KEY, JSON.stringify(state));
   } catch (_) {}
 }
@@ -472,6 +476,11 @@ export function calcOffline(save) {
   const now = Date.now();
   const elapsed = Math.min((now - save.stats.lastSaveTime) / 1000, 86400);
   if (elapsed <= 0) return 0;
+  // 长时间离线（非刷新）不保留手动骑行状态：清除标记，重开后按走路结算
+  if (elapsed * 1000 > BIKE_RESTORE_MAX_GAP_MS) {
+    save.manualBike = false;
+    if (save.gps) { save.gps.pendingBike = false; save.gps.bikePrevNav = null; } // 待选骑行目的地也不跨长离线保留
+  }
   save.stats.totalPlaySeconds += elapsed;
   // 今日挂机时长：跨天时只累计今天 0 点之后的部分（昨天的离线秒数不计入今天）
   const ts = todayDateStr();

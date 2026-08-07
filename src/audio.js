@@ -225,7 +225,10 @@ export function playBattle() {
   playOverlay('battle', urlFor(SFX.battle));
 }
 export function endBattle() { if (_overlayType === 'battle') endOverlay(); }
-export function playCycling() { playOverlay('cycling', urlFor(SFX.cycling)); }
+export function playCycling() {
+  if (_overlayType === 'cycling') return; // 已在播放骑行曲：直接复用，避免路段轮播反复重置重播
+  playOverlay('cycling', urlFor(SFX.cycling));
+}
 export function endCycling() { if (_overlayType === 'cycling') endOverlay(); }
 
 // ---------- 瞬发音 ----------

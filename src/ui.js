@@ -62,6 +62,12 @@ export function showView(id) {
   if (id === 'encounterView' && phase === 'idle') {
     id = 'idleView';
   }
+  // 离开导航页时若仍停在「待选骑行目的地」（点了背包自行车、未选目的地就退出/返回/切换页面）：
+  // 放弃待选并恢复进入待选前的导航，保证下次进入导航页是正常状态，不会卡在选择骑行目的地。
+  // 选好目的地后 pendingBike 已被 consumePendingBike 清空，不会误恢复。
+  if (id !== 'gpsView' && $('gpsView')?.style.display === 'flex' && gameData?.gps?.pendingBike) {
+    import('./gps.js').then(m => m.abandonBikeTarget());
+  }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none' || $('hatchView')?.style.display !== 'none';
   VIEW_IDS.forEach(v => {
     const el = $(v);
@@ -397,6 +403,19 @@ export function updateBackpack(popItem) {
     const el = document.getElementById(`bag-${item}`);
     if (el) {
       const slot = el.closest('.bag-slot');
+      // 骑行中自行车槽：半透明（与增益道具激活同款）+ 数量显示「下车」，下车后恢复
+      if (item === 'bike' && road.isManualBike()) {
+        slot?.classList.add('disabled');
+        el.textContent = '下车';
+        _prevBagCounts[item] = qty;
+        continue;
+      }
+      // 骑行中增益道具槽：持续置灰（交互拦截在 onBagClick，视觉防误点；骑行中不拾取，数量不变）
+      if (road.isManualBike() && (item === 'sweet-honey' || item === 'shiny-charm')) {
+        slot?.classList.add('disabled');
+        _prevBagCounts[item] = qty;
+        continue;
+      }
       if (!slot?.classList.contains('disabled')) {
         el.textContent = formatNum(qty);
       }
@@ -707,6 +726,11 @@ function showIncubatorPickMenu(slot, anchorEl) {
   const inUse = new Set((gameData.incubators || []).map(s => s && s.eggRef).filter(Boolean));
   const pokemonCount = (gameData.roster || [])
     .filter(p => p.inRoster && !isPokemon(p) && !inUse.has(p.id)).length;
+  // 特判：没有宝可梦蛋但有神秘蛋时，点击加号直接放入神秘蛋（不弹选择菜单）
+  if (pokemonCount === 0 && mysteryCount > 0) {
+    import('./items.js').then(m => m.placeEggInIncubator(slot));
+    return;
+  }
   let menu = $('incubatorPickMenu');
   if (!menu) {
     menu = document.createElement('div');

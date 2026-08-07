@@ -1,4 +1,4 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE } from './config.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE } from './config.js';
 import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, _eggHatching, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage } from './ui.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg } from './items.js';
@@ -55,6 +55,11 @@ let _bgReplayActive = false;
 let _bgReplayToken = 0;
 // 当前遭遇宝可梦性别（每次遇敌 roll 一次；currentEncounter 是共享图鉴对象，直接写 gender 会污染数据源）
 let _encounterGender = 'male';
+// 调试辅助：指定下一次遇敌的宝可梦（window.__nextEncounter 写入，用后即焚）
+let _debugNextEncounter = null;
+export function setDebugNextEncounter(idx, shiny) {
+  _debugNextEncounter = { index: String(idx).padStart(4, '0'), shiny: !!shiny };
+}
 
 // 保存后台结算结果（供切回游戏页后重放动画）
 function storeBgResult(outcome, breakRound, ballType, opts = {}) {
@@ -143,6 +148,21 @@ export async function tryEncounter() {
   // }
 
   let poke;
+
+  // 调试辅助：已指定下一次遇敌 → 直接遇这只（用后即焚，不受方块/护符/地区池影响）
+  const dbg = _debugNextEncounter;
+  if (dbg) {
+    _debugNextEncounter = null;
+    const dbgPoke = allPokemon.find(p => String(p.index) === dbg.index);
+    if (dbgPoke) {
+      setCurrentEncounter(dbgPoke);
+      setCurrentIsShiny(dbg.shiny);
+      if (charmBuffActive) setCharmEncounterCount(_charmEncounterCount + 1);
+      spawnEncounterPoke(dbgPoke, currentIsShiny, () => startRoadEncounter(dbgPoke));
+      return;
+    }
+    console.warn('__nextEncounter: 未找到编号 ' + dbg.index);
+  }
 
   // 选择宝可梦：确保 poke 和 currentEncounter 始终指向同一对象
   const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name);
@@ -378,6 +398,8 @@ export function startMassEncounter(poke, shiny) {
 export function startAutoFleeTimer() {
   stopAutoFleeTimer();
   if (!gameData.settings?.autoFlee) return;
+  // 闪光暂停 / 神兽暂停：禁止自动逃跑，停在战斗页等玩家手动丢球
+  if ((currentIsShiny && gameData.settings?.shinyStop) || (isLegendEncounter() && gameData.settings?.legendStop)) return;
   setAutoFleeStartTime(Date.now());
   setAutoFleeTimer(setTimeout(() => {
     setAutoFleeTimer(null);
@@ -386,7 +408,11 @@ export function startAutoFleeTimer() {
     // 进度条归零
     const bar = $('statAutoBar');
     if (bar) bar.style.width = '0%';
-    if (phase === 'encounter' && currentEncounter) fleeEncounter(true);
+    // 倒计时结束前复查：期间若已开启闪光/神兽暂停则不逃跑，保留手动丢球机会
+    if (phase === 'encounter' && currentEncounter
+        && !((currentIsShiny && gameData.settings?.shinyStop) || (isLegendEncounter() && gameData.settings?.legendStop))) {
+      fleeEncounter(true);
+    }
   }, AUTO_FLEE_TIMEOUT));
   // 启动进度条更新
   updateAutoFleeBar();
@@ -448,9 +474,9 @@ export function updateAutoFleeBar() {
   }
 }
 
-// 当前遭遇是否极稀有（神兽暂停判定，与稀有度体系一致）
+// 当前遭遇是否神兽（神兽暂停判定，读 pokedex.json 的 legend 字段）
 export function isLegendEncounter() {
-  return !!currentEncounter && (currentEncounter.rarity ?? 0.5) > 0.8;
+  return !!currentEncounter && currentEncounter.legend === true;
 }
 
 // ===== 显示遇敌 =====
@@ -482,7 +508,7 @@ export function showEncounter(poke, opts = {}) {
   if (!skipAuto) {
     if (gameData.settings?.autoCatch) {
       // 闪光暂停 / 神兽暂停优先 — 如果开启则不自动处理，强制切到战斗页让用户手动
-      if ((currentIsShiny && gameData.settings?.shinyStop) || ((poke.rarity ?? 0.5) > 0.8 && gameData.settings?.legendStop)) {
+      if ((currentIsShiny && gameData.settings?.shinyStop) || (poke.legend === true && gameData.settings?.legendStop)) {
         showView('encounterView');
         $('fleeBtn').style.display = '';
       } else {
@@ -602,7 +628,10 @@ export async function throwBall(ballType) {
   if (_bgReplayActive) return;
   if ((phase !== 'encounter' && !_bgCatch) || !currentEncounter) return;
   if (_throwing) return;
-  if ((gameData.items[ballType]||0) <= 0) return;
+  // 该球数量为 0：若已勾选自动补球，用糖果补 1 个再丢（手动模式同样生效）；补不了则直接作废
+  if ((gameData.items[ballType]||0) <= 0) {
+    if (!tryAutoRefill(ballType)) return;
+  }
   setThrowing(true);
   $('fleeBtn')?.classList.add('disabled');
   if (currentIsShiny) stopShinySparkleLoop();
@@ -954,6 +983,48 @@ let _abortAutoCatch = false;
 
 export function setAbortAutoCatch() { _abortAutoCatch = true; }
 
+// 智能选球：根据精灵捕获率与当前可用球，选出本次丢球用哪种球
+function pickAutoBallType(availableBalls) {
+  const cr = currentEncounter?.catchRate ?? 1;
+  const preferred = cr <= 0.2
+    ? ['master-ball', 'ultra-ball', 'poke-ball']
+    : cr <= 0.5
+    ? ['ultra-ball', 'poke-ball', 'master-ball']
+    : ['poke-ball', 'ultra-ball', 'master-ball'];
+  for (const b of preferred) {
+    if (availableBalls.includes(b)) return b;
+  }
+  return availableBalls[0] || null;
+}
+
+// 自动补球：勾选的球数量为 0 时，用糖果按便宜优先补 1 个（手动/自动丢球都生效）。
+// onlyBall 指定时只补该球（手动点击丢球用）；否则在勾选且为 0 的球里挑最便宜的补。
+// 返回是否补到了球
+export function tryAutoRefill(onlyBall = null) {
+  if (!gameData.settings?.autoRefill) return false;
+  const refillBalls = gameData.settings?.autoRefillBalls || {};
+  let targets;
+  if (onlyBall) {
+    targets = refillBalls[onlyBall] !== false ? [onlyBall] : [];
+  } else {
+    targets = ['poke-ball', 'ultra-ball', 'master-ball']
+      .filter(b => refillBalls[b] !== false && (gameData.items[b] || 0) === 0)
+      .sort((a, b) => (CANDY_EXCHANGE[a] ?? 9999) - (CANDY_EXCHANGE[b] ?? 9999)); // 便宜优先
+  }
+  for (const b of targets) {
+    const price = CANDY_EXCHANGE[b];
+    if (price != null && (gameData.items.candy || 0) >= price) {
+      gameData.items.candy -= price;
+      gameData.items[b] = (gameData.items[b] || 0) + 1;
+      gameData.stats.totalItemsEarned[b] = (gameData.stats.totalItemsEarned[b] || 0) + 1; // 自动补球计入道具获得
+      addSystemLog('auto_refill', { ball: b, cost: price });
+      updateBackpack();
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function autoCatch() {
   if (_bgReplayActive) return;
   if (_autoCatching || !currentEncounter) return;
@@ -971,19 +1042,13 @@ export async function autoCatch() {
   while (currentEncounter && gameData.settings?.autoCatch && !_abortAutoCatch && (phase === 'encounter' || _bgCatch)) {
     // 智能选球：根据精灵捕获率决定使用哪种球
     const enabledBalls = gameData.settings?.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
-    const availableBalls = ['poke-ball', 'ultra-ball', 'master-ball'].filter(b => enabledBalls[b] !== false && (gameData.items[b]||0) > 0);
-    let ballType = null;
-    if (availableBalls.length > 0) {
-      const cr = currentEncounter.catchRate ?? 1;
-      const preferred = cr <= 0.2
-        ? ['master-ball', 'ultra-ball', 'poke-ball']
-        : cr <= 0.5
-        ? ['ultra-ball', 'poke-ball', 'master-ball']
-        : ['poke-ball', 'ultra-ball', 'master-ball'];
-      for (const b of preferred) {
-        if (availableBalls.includes(b)) { ballType = b; break; }
-      }
-      if (!ballType) ballType = availableBalls[0];
+    let availableBalls = ['poke-ball', 'ultra-ball', 'master-ball'].filter(b => enabledBalls[b] !== false && (gameData.items[b]||0) > 0);
+    let ballType = availableBalls.length > 0 ? pickAutoBallType(availableBalls) : null;
+
+    // 自动补球：无球可用时用糖果补 1 个（便宜优先），补完重新选球（避免无球直接逃跑）
+    if (!ballType && tryAutoRefill()) {
+      availableBalls = ['poke-ball', 'ultra-ball', 'master-ball'].filter(b => enabledBalls[b] !== false && (gameData.items[b]||0) > 0);
+      ballType = availableBalls.length > 0 ? pickAutoBallType(availableBalls) : null;
     }
 
     if (!ballType) {

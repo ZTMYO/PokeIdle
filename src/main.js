@@ -1,7 +1,7 @@
 // ===== 口袋挂机 - 入口模块 =====
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
-import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES } from './config.js';
+import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS } from './config.js';
 import {
   allPokemon, gameData, phase, currentEncounter, currentIsShiny,
   currentEncounterBalls, encounterBallsUsed,
@@ -37,12 +37,12 @@ import {
 } from './ui.js';
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
-  doCandyExchange } from './items.js';
+  doCandyExchange, grantItem, cancelItemDrop } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
-  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter } from './battle.js';
+  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
-import { tryStartFishing, onRoadChanged, getFishingGuarantee } from './fishing.js';
+import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
 import { helperTick, refreshBerryView } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown,
@@ -52,7 +52,7 @@ import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from '.
 import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
-import { gpsAddDistance, showGpsView, setRoamEnabled } from './gps.js';
+import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { isNurseryPicking, leaveNurseryPick } from './nursery.js';
@@ -117,11 +117,41 @@ function loadRoad(idx, useTransition, saved) {
 // 过渡中新道路滑到角色脚下即切换骑行/行走，自行车道骑到头才下车
 road.onTransitionCharReach(() => {
   if (_pendingBike === null) return;
+  const wasRoadBike = road.isRoadBike();
   road.setBike(_pendingBike);
   _pendingBike = null;
+  // 离开随机自行车路段：结算「自行车 ×1」（手动骑行中不结算，避免路段切换误发/打断）
+  if (wasRoadBike && !road.isRoadBike() && !road.isManualBike()) {
+    grantItem('bike', 1);
+  }
   if (road.isBike()) playCycling();
   else endCycling();
   setIdleCharacter('walk');
+});
+
+// 手动骑行状态变更（上车/下车）：同步骑行音乐、角色外观、速度、日志与存档
+road.onManualBikeChanged(v => {
+  if (v) addSystemLog('bike_ride', {});
+  else addSystemLog('bike_stop', {});
+  gameData.manualBike = !!v; // 随主存档持久化（saveGame 兜底），刷新/重开可恢复骑行状态
+  if (road.isBike()) playCycling();
+  else endCycling();
+  setIdleCharacter('walk'); // 重新应用骑行/走路外观与速度（isBike 已含手动骑行）
+  // 骑行中自行车槽位半透明、数量显示「下车」（下车后恢复数量）
+  const slot = document.querySelector('.bag-slot[data-item="bike"]');
+  const qtyEl = document.getElementById('bag-bike');
+  if (slot && qtyEl) {
+    if (v) { slot.classList.add('disabled'); qtyEl.textContent = '下车'; }
+    else { slot.classList.remove('disabled'); qtyEl.textContent = gameData.items['bike'] || 0; }
+  }
+  // 骑行中禁点增益道具（交互拦截见 onBagClick）：上车置灰，下车恢复
+  // 若下车时对应 buff 仍在生效（倒计时遮罩），保留 disabled 由倒计时逻辑管理
+  const slotH = document.querySelector('.bag-slot[data-item="sweet-honey"]');
+  const slotC = document.querySelector('.bag-slot[data-item="shiny-charm"]');
+  if (slotH) v ? slotH.classList.add('disabled') : (!honeyBuffActive && slotH.classList.remove('disabled'));
+  if (slotC) v ? slotC.classList.add('disabled') : (!charmBuffActive && slotC.classList.remove('disabled'));
+  updateStats();
+  saveGame();
 });
 
 // 依次按 水域/自行车道 → 普通陆地 抽取下一段路：
@@ -209,32 +239,74 @@ function goBack() {
 }
 
 // ---------- 背包点击 ----------
+// 使用自行车：骑行中再点 = 手动下车；待选骑行目的地中再点 = 放弃待选（未消耗）；
+// 有存货且未骑行 = 进入待选骑行目的地（停止当前导航 + 跳转导航页，玩家选好目的地才消耗 1 个上车）。
+// 上车前先取消面前滑入/拾取中的道具，保证骑行界面干净（遇敌中不可使用，见 onBagClick）。
+function tryUseBike() {
+  if (road.isManualBike()) { road.setManualBike(false); return; }
+  if (gameData.gps.pendingBike) {
+    // 待选中再点：放弃选择，恢复进入待选前的导航（未消耗道具，下次再点重新进入待选）
+    abandonBikeTarget();
+    return;
+  }
+  if ((gameData.items['bike'] || 0) <= 0) return;
+  cancelItemDrop();
+  startBikeTarget();
+}
+
 function onBagClick(itemKey) {
   if (phase === 'encounter') {
-    if (gameData.settings?.autoCatch) {
-      const balls = gameData.settings?.autoCatchBalls || {};
-      const hasStock = ['poke-ball', 'ultra-ball', 'master-ball'].some(b => balls[b] !== false && (gameData.items[b] || 0) > 0);
-      if (!hasStock) return;
+    // 遇敌中可点击神秘蛋：直接跳孵蛋器（省掉「手机→孵蛋器」两步，没蛋也允许），返回由 showView 自动回战斗页
+    if (itemKey === 'mystery-egg') {
+      pushNav('incubatorView');
+      showView('incubatorView');
+      renderIncubatorView();
+      return;
     }
-    if (CATCH_RATES[itemKey] && (gameData.items[itemKey]||0) > 0) {
+    // 遇敌中不可点击自行车（与甜甜蜜/护符同规则，防止误触放弃当前宝可梦）
+    if (gameData.settings?.autoCatch) {
+      // 闪光暂停/神兽暂停命中的遭遇：停在战斗页等玩家手动丢球，不受自动选球配置限制
+      const stoppedForManual = (currentIsShiny && gameData.settings?.shinyStop)
+        || (isLegendEncounter() && gameData.settings?.legendStop);
+      if (!stoppedForManual) {
+        const balls = gameData.settings?.autoCatchBalls || {};
+        const hasStock = ['poke-ball', 'ultra-ball', 'master-ball'].some(b => balls[b] !== false && (gameData.items[b] || 0) > 0);
+        if (!hasStock) return;
+      }
+    }
+    // 球数量为 0 也放行：throwBall 内部按自动补球配置决定补球或作废（手动模式同样生效）
+    if (CATCH_RATES[itemKey]) {
       pauseAutoFleeTimer();
       throwBall(itemKey);
     }
     return;
   }
   if (phase !== 'idle') return;
-  // 钓鱼中禁止使用 buff 道具（会与暂停的道路/角色状态冲突）
-  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
+  // 钓鱼中禁止使用 buff/骑行道具（会与暂停的道路/角色状态冲突）
+  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike')) return;
+  // 骑行中禁止使用增益道具（骑行速度已封顶且不遇敌，buff 无收益还浪费）
+  if (road.isManualBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
+  // 钓鱼等待中禁止使用自行车（会与即将开始的钓鱼动画冲突）
+  if (itemKey === 'bike' && isFishingPending()) return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
   else if (itemKey === 'shiny-charm') {
     if (honeyBuffActive) return;
     activateShinyCharm();
+  } else if (itemKey === 'bike') {
+    tryUseBike();
+  } else if (itemKey === 'mystery-egg') {
+    // 点击背包神秘蛋：单纯跳转到孵蛋器查看（不放入槽位，没蛋也允许），返回由导航栈回到主界面
+    pushNav('incubatorView');
+    showView('incubatorView');
+    renderIncubatorView();
   }
 }
 
 // ---------- 游戏 Tick ----------
 function onGameTick() {
   if (window.__introActive) return; // 开场剧情期间不推进挂机
+  // 自动补球：勾选的球为 0 时每秒自动补 1 个（便宜优先），背包数量即时可见（手动/自动都生效）
+  tryAutoRefill();
   setGameTick(gameTick + 1);
   gameData.stats.totalPlaySeconds++;
   addPlaySeconds(gameData, 1); // 今日挂机时长（跨天自动清零重计）
@@ -264,9 +336,14 @@ function onGameTick() {
   if (phase !== 'idle') { updateStats(); return; }
 
   // 过渡完成：应用新路段的骑行状态（骑行/行走与骑行音乐一起切换）
+  // 兜底分支：onTransitionCharReach 未触发时（过渡结束仍未消费 _pendingBike）同样结算"离开自行车路段"奖励
   if (_pendingBike !== null && !road.isTransitioning()) {
+    const wasRoadBike = road.isRoadBike();
     road.setBike(_pendingBike);
     _pendingBike = null;
+    if (wasRoadBike && !road.isRoadBike() && !road.isManualBike()) {
+      grantItem('bike', 1);
+    }
     if (road.isBike()) playCycling();
     else endCycling();
     setIdleCharacter('walk');
@@ -551,6 +628,14 @@ async function init() {
   window.__addPokeLv = (idx, lv) => addDebugPoke(idx, false, lv);
   window.__addShinyPokeLv = (idx, lv) => addDebugPoke(idx, true, lv);
 
+  // 调试辅助：指定下一次遇敌的宝可梦（window.__nextEncounter(25) 下次遇皮卡丘；
+  // window.__nextEncounter(25, true) 下次遇闪光皮卡丘；遇到后自动清空）
+  window.__nextEncounter = (idx, shiny = false) => {
+    setDebugNextEncounter(idx, shiny);
+    const poke = getPokemonByIndex(String(idx).padStart(4, '0'));
+    console.log(`__nextEncounter: 下次遇敌已指定为 ${poke ? poke.name : '#' + idx}${shiny ? '（闪光）' : ''}，用后即焚`);
+  };
+
   // 调试辅助：同时刷新对战与交换（重置各自倒计时并立即换新一波；页面正打开则同步重绘）
   window.__refreshBattleAndTrade = () => {
     refreshNpcs();
@@ -672,6 +757,12 @@ async function init() {
     showView('idleView');
     road.start();
 
+    // 上次退出时若停留在「待选骑行目的地」（点了背包自行车、未选目的地就关闭游戏）：
+    // 恢复进入待选前的导航，避免角色 GPS 停止推进、下次进导航页卡在选择骑行目的地
+    if (gameData?.gps?.pendingBike && gameData?.gps?.bikePrevNav) {
+      abandonBikeTarget();
+    }
+
     // 恢复会话状态
     const sessionState = restoreSessionState();
     if (sessionState) {
@@ -761,6 +852,13 @@ async function init() {
     // 恢复树果混合 QTE 进行中状态：重连后直接接着进度玩（不给重置机会）
     if (sessionState.qteState) setQteState(sessionState.qteState);
 
+    // 恢复手动骑行：主存档持久化（上车即存 + 每 30s 自动存档，任何关闭方式都能恢复），
+    // 会话（beforeunload 写入）作兜底；长时间离线（>BIKE_RESTORE_MAX_GAP_MS）不恢复，
+    // 维持"离线按走路结算"的设定（calcOffline 也已清除主存档标记）
+    if ((sessionState?.manualBike || gameData.manualBike) && Date.now() - (gameData.stats.lastSaveTime || 0) < BIKE_RESTORE_MAX_GAP_MS) {
+      road.setManualBike(true);
+    }
+
     // 恢复角色动画（走/跑取决于 buff 状态）
     setIdleCharacter('walk');
 
@@ -802,6 +900,40 @@ async function init() {
     const item = slot.dataset.item;
     if (item) slot.addEventListener('click', () => onBagClick(item));
   });
+
+  // 背包翻页：鼠标滚轮在背包区域滚动切换第一/第二页
+  const backpackEl = $('backpack');
+  if (backpackEl) {
+    let _bagPage = 1;
+    const showBagPage = p => {
+      // splash 落位动画期间禁止翻页：道具飞入背包依赖第一页槽位显示与 pop 缩放
+      if ($('splash')?.style.display === 'flex') return;
+      if (p === _bagPage) return; // 已在目标页：不重复切换
+      _bagPage = p;
+      const p1 = $('bagPage1'), p2 = $('bagPage2');
+      if (p1) p1.style.display = p === 1 ? 'flex' : 'none';
+      if (p2) p2.style.display = p === 2 ? 'flex' : 'none';
+      // 页码指示条：亮起对应短段
+      const ind = $('bagPageIndicator');
+      if (ind) {
+        ind.querySelectorAll('.seg-page').forEach(s => {
+          s.classList.toggle('on', Number(s.dataset.page) === p);
+        });
+      }
+    };
+    backpackEl.addEventListener('wheel', e => {
+      e.preventDefault();
+      if (e.deltaY > 0 && _bagPage < 2) showBagPage(2);
+      else if (e.deltaY < 0 && _bagPage > 1) showBagPage(1);
+    });
+    // 点击页码指示条的短段直接翻到对应页
+    const bagInd = $('bagPageIndicator');
+    if (bagInd) {
+      bagInd.querySelectorAll('.seg-page').forEach(seg => {
+        seg.addEventListener('click', () => showBagPage(Number(seg.dataset.page)));
+      });
+    }
+  }
 
   // 文字框箭头
   const textBoxArrow = $('textBoxArrow');
@@ -995,7 +1127,7 @@ async function init() {
   // 页面关闭前保存
   window.addEventListener('beforeunload', () => {
     if (window.__resettingSave) return;
-    saveSessionState();
+    saveSessionState({ manualBike: road.isManualBike() }); // 骑行中刷新/关闭：记录骑行状态供恢复
     if (gameData) {
       gameData.stats.lastSaveTime = Date.now();
       try { localStorage.setItem('pokemon_idle_save', JSON.stringify(gameData)); } catch (_) {}
@@ -1022,13 +1154,18 @@ function startSplashDrop(onDone, silent = true) {
   const splash = $('splash');
   const ring = document.getElementById('splashRing');
   const items = [...document.querySelectorAll('.splash-item')];
-  const slots = [...document.querySelectorAll('.bag-slot')];
+  const slots = [...document.querySelectorAll('#bagPage1 .bag-slot')];
   const candy = document.getElementById('statProgress');
   const autoStatus = document.getElementById('statAutoStatus');
   const timeEl = document.getElementById('statTime');
   if (!splash || !ring || items.length === 0) { onDone?.(); return; }
   if (silent) setSplashLocked(true);
   splash.style.display = 'flex';
+  // splash 期间背包顶部改回 border-top 上边框线：指示条隐藏，等落位动画结束再恢复
+  const bagBar = document.querySelector('.backpack-bar');
+  const bagInd = $('bagPageIndicator');
+  if (bagBar) bagBar.classList.add('splash-border-top');
+  if (bagInd) bagInd.style.display = 'none';
   // 启动画面期间禁用标题栏右侧按钮（图鉴/商店/统计/设置/最小化/关闭），动画结束后恢复
   const controls = document.querySelector('.window-controls');
   if (controls) controls.classList.add('controls-disabled');
@@ -1101,6 +1238,11 @@ function startSplashDrop(onDone, silent = true) {
           splash.classList.add('hide');
           setTimeout(() => {
             splash.remove();
+            // splash 结束：恢复背包页码指示条，移除 border-top 兜底线
+            if (bagBar) bagBar.classList.remove('splash-border-top');
+            if (bagInd) bagInd.style.display = '';
+            // 清理第一页槽位的落位弹出类：类还在时第一页从隐藏恢复显示（翻回第一页）会重放缩放动画
+            slots.forEach(s => s.classList.remove('bag-slot--pop'));
             // 移除开机渐显动画类：否则 statAutoStatus/statTime 每次从隐藏恢复都会重播淡入，造成闪烁
             if (autoStatus) autoStatus.classList.remove('stats-fade');
             if (timeEl) timeEl.classList.remove('stats-fade');

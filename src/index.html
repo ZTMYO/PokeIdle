@@ -397,38 +397,59 @@
       </div>
     </div>
 
-    <!-- 背包 -->
+    <!-- 背包（可翻页：第一页常规道具，第二页自行车等） -->
     <div class="backpack-bar">
+      <!-- 页码指示条：左/右长段为边框色，中间两短段亮起表示当前在第几页 -->
+      <div class="bag-page-indicator" id="bagPageIndicator">
+        <span class="seg-long"></span>
+        <span class="seg-page on" data-page="1"></span>
+        <span class="seg-page" data-page="2"></span>
+        <span class="seg-long"></span>
+      </div>
       <div class="backpack-items" id="backpack">
-        <div class="bag-slot" data-item="poke-ball">
-          <img src="./items/poke-ball.png" class="bag-icon" alt="精灵球" />
-          <span class="bag-name">精灵球</span>
-          <span class="bag-qty" id="bag-poke-ball">0</span>
+        <div id="bagPage1" class="bag-page">
+          <div class="bag-slot" data-item="poke-ball">
+            <img src="./items/poke-ball.png" class="bag-icon" alt="精灵球" />
+            <span class="bag-name">精灵球</span>
+            <span class="bag-qty" id="bag-poke-ball">0</span>
+          </div>
+          <div class="bag-slot" data-item="ultra-ball">
+            <img src="./items/ultra-ball.png" class="bag-icon" alt="高级球" />
+            <span class="bag-name">高级球</span>
+            <span class="bag-qty" id="bag-ultra-ball">0</span>
+          </div>
+          <div class="bag-slot" data-item="master-ball">
+            <img src="./items/master-ball.png" class="bag-icon" alt="大师球" />
+            <span class="bag-name">大师球</span>
+            <span class="bag-qty" id="bag-master-ball">0</span>
+          </div>
+          <div class="bag-slot" data-item="mystery-egg">
+            <img src="./items/mystery-egg.png" class="bag-icon" alt="神秘蛋" />
+            <span class="bag-name">神秘蛋</span>
+            <span class="bag-qty" id="bag-mystery-egg">0</span>
+          </div>
+          <div class="bag-slot" data-item="sweet-honey">
+            <img src="./items/honey.png" class="bag-icon" alt="甜甜蜜" />
+            <span class="bag-name">甜甜蜜</span>
+            <span class="bag-qty" id="bag-sweet-honey">0</span>
+          </div>
+          <div class="bag-slot" data-item="shiny-charm">
+            <img src="./items/shiny-charm.png" class="bag-icon" alt="闪耀护符" />
+            <span class="bag-name">闪耀护符</span>
+            <span class="bag-qty" id="bag-shiny-charm">0</span>
+          </div>
         </div>
-        <div class="bag-slot" data-item="ultra-ball">
-          <img src="./items/ultra-ball.png" class="bag-icon" alt="高级球" />
-          <span class="bag-name">高级球</span>
-          <span class="bag-qty" id="bag-ultra-ball">0</span>
-        </div>
-        <div class="bag-slot" data-item="master-ball">
-          <img src="./items/master-ball.png" class="bag-icon" alt="大师球" />
-          <span class="bag-name">大师球</span>
-          <span class="bag-qty" id="bag-master-ball">0</span>
-        </div>
-        <div class="bag-slot" data-item="mystery-egg">
-          <img src="./items/mystery-egg.png" class="bag-icon" alt="神秘蛋" />
-          <span class="bag-name">神秘蛋</span>
-          <span class="bag-qty" id="bag-mystery-egg">0</span>
-        </div>
-        <div class="bag-slot" data-item="sweet-honey">
-          <img src="./items/honey.png" class="bag-icon" alt="甜甜蜜" />
-          <span class="bag-name">甜甜蜜</span>
-          <span class="bag-qty" id="bag-sweet-honey">0</span>
-        </div>
-        <div class="bag-slot" data-item="shiny-charm">
-          <img src="./items/shiny-charm.png" class="bag-icon" alt="闪耀护符" />
-          <span class="bag-name">闪耀护符</span>
-          <span class="bag-qty" id="bag-shiny-charm">0</span>
+        <div id="bagPage2" class="bag-page" style="display:none;">
+          <div class="bag-slot" data-item="bike">
+            <img src="./items/bike.png" class="bag-icon" alt="自行车" />
+            <span class="bag-name">自行车</span>
+            <span class="bag-qty" id="bag-bike">0</span>
+          </div>
+          <div class="bag-slot bag-slot--empty" aria-hidden="true"></div>
+          <div class="bag-slot bag-slot--empty" aria-hidden="true"></div>
+          <div class="bag-slot bag-slot--empty" aria-hidden="true"></div>
+          <div class="bag-slot bag-slot--empty" aria-hidden="true"></div>
+          <div class="bag-slot bag-slot--empty" aria-hidden="true"></div>
         </div>
       </div>
       <div class="stats-bar">

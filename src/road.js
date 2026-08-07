@@ -392,4 +392,19 @@ export function getFishingRow() { return _fishingRow; }
 // ---- 自行车道标记（骑行路段：快速推进里程，不触发遭遇/道具拾取）----
 let _bike = false;
 export function setBike(v) { _bike = !!v; }
-export function isBike() { return _bike; }
+export function isBike() { return _bike || _manualBike; }
+// 仅路段自行车道（不含手动骑行）：用于"离开自行车路段"结算自行车道具
+export function isRoadBike() { return _bike; }
+
+// ---- 手动骑行（消耗自行车道具进入，独立于路段自行车道）----
+// 独立标志：路段轮播切换（普通路/自行车道）不会打断手动骑行，也不误发"离开路段"奖励
+let _manualBike = false;
+let _manualBikeCb = null;
+export function onManualBikeChanged(cb) { _manualBikeCb = cb; }
+export function setManualBike(v) {
+  v = !!v;
+  if (_manualBike === v) return;
+  _manualBike = v;
+  _manualBikeCb?.(v);
+}
+export function isManualBike() { return _manualBike; }

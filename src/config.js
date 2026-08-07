@@ -26,6 +26,7 @@ export const ITEM_NAMES = {
   'poke-ball': '精灵球', 'ultra-ball': '高级球',
   'master-ball': '大师球', 'candy': '糖果',
   'sweet-honey': '甜甜蜜', 'mystery-egg': '神秘蛋', 'shiny-charm': '闪耀护符',
+  'bike': '自行车',
 };
 
 // 精灵球基础捕获率（最终 = 基础率 × 宝可梦 catchRate × 丢球加成）
@@ -44,6 +45,7 @@ export const CATCH_BONUS_INC = 0.10;
 export const CANDY_EXCHANGE = {
   'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 500,
   'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 1000,
+  'bike': 200, // 自行车：赶路工具（骑行路段也能免费获得，商店是保底渠道）
 };
 
 // 丢球挣脱后宝可梦逃跑的概率（随丢球次数递增，上限 FLEE_CHANCE_MAX）
@@ -243,3 +245,4 @@ export const ROAD_SWITCH_CYCLES = 2;       // 滚动满几个循环后切换场�
 export const ROAD_SPEED_WALK = 0.5;   // 走路
 export const ROAD_SPEED_RUN  = 1.0;   // 跑步（增益生效时）
 export const ROAD_SPEED_BIKE = 2.0;    // 自行车道骑行
+export const BIKE_RESTORE_MAX_GAP_MS = 120000; // 手动骑行状态恢复的最大离档间隔（>此值视为长时间离线，不恢复骑行）
