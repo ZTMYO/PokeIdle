@@ -301,7 +301,10 @@ function renderBetAreaCommon(balance, holder, startId, startText) {
   return `
     <div class="casino-bet-area">
       <div class="casino-bet-body">
-        <div class="casino-bet-label">选择下注档位</div>
+        <div class="casino-bet-label-row">
+          <div class="casino-bet-label">选择下注档位</div>
+          <button class="casino-history-btn" id="casinoHistoryBtn">战绩</button>
+        </div>
         <div class="casino-bet-slider${disabled ? ' disabled' : ''}">
           <div class="casino-bet-ticks">${ticks}</div>
         </div>
@@ -444,6 +447,8 @@ function bindCasino() {
   });
   const start = box.querySelector('#casinoStart');
   if (start) start.addEventListener('click', startRound);
+  const hist = box.querySelector('#casinoHistoryBtn');
+  if (hist) hist.addEventListener('click', () => showCasinoHistoryView('bj'));
   const hit = box.querySelector('#casinoHit');
   if (hit) hit.addEventListener('click', onHit);
   const stand = box.querySelector('#casinoStand');
@@ -607,6 +612,10 @@ function settleRound() {
   _lastResult = net === 0 ? text : `${text} ${net > 0 ? '+' + formatNum(net) : formatNum(net)} 游戏币`;
   _settleMsg = { text, net };
   addSystemLog('casino', { action, stake: _stake, profit: net, player: pv, dealer: dv });
+  // 战绩存储（滑动窗口 50 条）
+  gameData.casinoRecords = gameData.casinoRecords || [];
+  gameData.casinoRecords.unshift({ time: Date.now(), bet: _stake, action, result: text, net });
+  if (gameData.casinoRecords.length > 50) gameData.casinoRecords.length = 50;
   _phase = 'settle';
   _flipFirst = true; // 结算翻开庄家暗牌（带翻转动画）
   saveGame().then(updateStats);
@@ -628,6 +637,51 @@ function nextRound() {
   _bustFlag = 0;
   _winnerPile = false;
   renderCasino();
+}
+
+// ---------- 战绩记录查看（21点 / 麻将共用） ----------
+function fmtHistoryTime(ts) {
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// source: 'bj' 21点 | 'mj' 麻将
+export function showCasinoHistoryView(source) {
+  pushNav('casinoHistoryView');
+  const content = $('casinoHistoryContent');
+  if (!content) return;
+  const isMj = source === 'mj';
+  const records = (isMj ? gameData.mahjongRecords : gameData.casinoRecords) || [];
+  const title = isMj ? '口袋麻将战绩' : '21点战绩';
+  const CN = ['零', '一', '二', '三', '四'];
+  // 徽章（仿抽卡记录 tier 色块）：21点按输赢上色；麻将按名次上色
+  const badge = r => {
+    if (isMj) {
+      const colors = ['#d4850a', '#8a8a8a', '#b87333', '#5a5a5a'];
+      return { text: `第${CN[r.rank - 1]}名`, bg: colors[r.rank - 1] || '#7a8a8a' };
+    }
+    if (r.action === 'win' || r.action === 'blackjack') return { text: '赢', bg: '#4c8d73' };
+    if (r.action === 'lose') return { text: '输', bg: '#e74c3c' };
+    return { text: '平', bg: '#7a8a8a' };
+  };
+  content.innerHTML = `
+    <div style="border-bottom:1px solid var(--ui-color);margin-bottom:3px;font-size:10px;">${title} · ${records.length} 场</div>
+    ${records.length === 0 ? '<div style="padding:12px 4px;text-align:center;">暂无战绩</div>' : ''}
+    ${records.map(r => {
+    const time = fmtHistoryTime(r.time);
+    const b = badge(r);
+    const note = isMj ? `下注 ${formatNum(r.stake)} 档` : r.result;
+    const color = r.net > 0 ? '#4c8d73' : r.net < 0 ? '#e74c3c' : 'rgba(255,255,255,0.45)';
+    return `<div style="font-size:10px;line-height:1.8;padding:1px 0;display:flex;align-items:baseline;">
+        <span style="opacity:0.6;margin-right:12px;flex-shrink:0;">${time}</span>
+        <span style="font-size:8px;padding:0 3px;border-radius:2px;color:#fff;margin:0 8px;min-width:30px;text-align:center;display:inline-block;background:${b.bg}">${b.text}</span>
+        <span style="flex:1;">${note}</span>
+        <span style="flex-shrink:0;margin-left:14px;color:${color};">${r.net > 0 ? '+' : ''}${formatNum(r.net)}</span>
+      </div>`;
+  }).join('')}
+  `;
+  showView('casinoHistoryView');
 }
 
 // 点击麻将桌：进入独立的口袋麻将玩法页（src/mahjong.js）

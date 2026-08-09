@@ -81,6 +81,7 @@ export function ensureBounty() {
     b.visited = REGION_CYCLE.map(() => false);
   }
   // 标记当前所在地区今日已到访（离开该地区后仍可查看其悬赏）
+  // 以 gps.curIdx（到达的节点）为准：在途中不标记，只有真正抵达节点才算今日到访
   const g = gameData.bounty;
   const cur = gameData.gps?.curIdx ?? 2;
   if (cur >= 0 && cur < g.visited.length) g.visited[cur] = true;
@@ -97,7 +98,11 @@ export function hasRedeemableBounty() {
   ensureBounty();
   const g = gameData.bounty;
   if (!g || !Array.isArray(g.rewards)) return false;
-  const rewards = g.rewards[getCurrentRegion().id];
+  const rid = getCurrentRegion().id;
+  // 未到访地区不亮红点：与页面「今日未到访」展示一致，避免红点亮着却无法提交
+  // （在途时 getCurrentRegion 按实际位置折算地区，可能还没到访；到达节点后才亮红点）
+  if (!Array.isArray(g.visited) || !g.visited[rid]) return false;
+  const rewards = g.rewards[rid];
   if (!Array.isArray(rewards)) return false;
   return rewards.some(b => b && !b.claimed && !b.ignored && hasInRoster(b.pokemon));
 }

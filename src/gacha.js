@@ -547,6 +547,10 @@ async function doDraw(count) {
     } else {
       gameData.items['casinoCoin'] += DUP_REFUND;
     }
+    // 抽卡欧气累计：SR 新卡最高，N 重复最低（独立累计，不受 50 条日志窗口影响）
+    const scoreMap = { SR: isNew ? 52 : 48, R: isNew ? 32 : 30, N: isNew ? 24 : 22 };
+    gameData.stats.luckyGachaScore = (gameData.stats.luckyGachaScore || 0) + (scoreMap[card.tier] || 24);
+    gameData.stats.luckyGachaCount = (gameData.stats.luckyGachaCount || 0) + 1;
     _results.push({ card, isNew, revealed: false });
     addSystemLog('gacha', { pool: _currentPoolId, card: card.filename, cnName: card.cnName, tier: card.tier, isNew });
     // 记录到抽卡历史

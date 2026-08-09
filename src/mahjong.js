@@ -2,6 +2,7 @@ import { $, showView, updateStats, tryLoadImage, hideTextBox } from './ui.js';
 import { gameData, saveGame, pushNav, formatNum, addSystemLog } from './state.js';
 import { playMahjongSfx } from './audio.js';
 import { HAND_SIZE, RIICHI_COST } from './config.js';
+import { showCasinoHistoryView } from './casino.js';
 
 
 // ---------- 牌种（14 种 / 106 张） ----------
@@ -471,17 +472,14 @@ function betHtml() {
       <span class="casino-bet-dot"></span>
       <span class="casino-bet-value">${formatNum(b)}</span>
     </div>`).join('');
-  const depositNote = '5k押金';
-  const yaku = YAKU_REF[st.yakuPage] || YAKU_REF[0];
-  const yakuCardsHtml = yaku.cards.length
-    ? yaku.cards.flatMap(id => [id, id, id]).map(id => cardHtml(id, { mini: true })).join('')
-    : `<span class="mj-yaku-desc">${yaku.desc}</span>`;
-  const isYakuman = yaku.fans === '役满';
   return `
     <div class="casino-app">
       <div class="casino-bet-area">
         <div class="casino-bet-body">
-          <div class="casino-bet-label">选择下注档位</div>
+          <div class="casino-bet-label-row">
+            <div class="casino-bet-label">选择下注档位</div>
+            <button class="casino-history-btn" id="mjHistoryBtn">战绩</button>
+          </div>
           <div class="casino-bet-slider${disabled ? ' disabled' : ''}">
             <div class="casino-bet-ticks">${ticks}</div>
           </div>
@@ -491,19 +489,46 @@ function betHtml() {
           ${st.lastResult ? `<div class="casino-last">上一把：${st.lastResult}</div>` : ''}
         </div>
         <div class="mj-yaku-ref" id="mjYakuRef">
-          <div class="mj-yaku-info">
-            <span class="mj-yaku-name">${yaku.name}</span>
-            <span class="mj-yaku-fans${isYakuman ? ' yakuman' : ''}">${yaku.fans}</span>
-          </div>
-          <div class="mj-yaku-row">
-            <div class="mj-yaku-cards">${yakuCardsHtml}</div>
-            <div class="mj-yaku-nav">
-              <button class="mj-yaku-nav-btn" id="mjYakuPrev" title="上一个番型"><svg class="mj-yaku-arrow"><use xlink:href="./icons/sprites.svg#icon-unfold"></use></svg></button>
-              <button class="mj-yaku-nav-btn" id="mjYakuNext" title="下一个番型"><svg class="mj-yaku-arrow"><use xlink:href="./icons/sprites.svg#icon-unfold"></use></svg></button>
-            </div>
-          </div>
+          ${yakuRefInner()}
         </div>
         <button class="bottom-dock" id="mStart" ${disabled ? 'disabled' : ''}>${balance <= 0 ? '请在柜台兑换游戏币再来' : '开始对局'}</button>
+      </div>
+    </div>`;
+}
+
+// 仅刷新番型参考区域，避免重建整个下注页 DOM
+function refreshYakuRef() {
+  const el = $('mjYakuRef');
+  if (!el) return;
+  el.innerHTML = yakuRefInner();
+  el.querySelectorAll('.mj-img').forEach(img => tryLoadImage(img, img.dataset.icon));
+  // 重建后重新绑定翻页按钮
+  el.querySelector('#mjYakuPrev')?.addEventListener('click', () => {
+    st.yakuPage = (st.yakuPage - 1 + YAKU_REF.length) % YAKU_REF.length;
+    refreshYakuRef();
+  });
+  el.querySelector('#mjYakuNext')?.addEventListener('click', () => {
+    st.yakuPage = (st.yakuPage + 1) % YAKU_REF.length;
+    refreshYakuRef();
+  });
+}
+
+function yakuRefInner() {
+  const yaku = YAKU_REF[st.yakuPage] || YAKU_REF[0];
+  const yakuCardsHtml = yaku.cards.length
+    ? yaku.cards.flatMap(id => [id, id, id]).map(id => cardHtml(id, { mini: true })).join('')
+    : `<span class="mj-yaku-desc">${yaku.desc}</span>`;
+  const isYakuman = yaku.fans === '役满';
+  return `
+    <div class="mj-yaku-info">
+      <span class="mj-yaku-name">${yaku.name}</span>
+      <span class="mj-yaku-fans${isYakuman ? ' yakuman' : ''}">${yaku.fans}</span>
+    </div>
+    <div class="mj-yaku-row">
+      <div class="mj-yaku-cards">${yakuCardsHtml}</div>
+      <div class="mj-yaku-nav">
+        <button class="mj-yaku-nav-btn" id="mjYakuPrev" title="上一个番型"><svg class="mj-yaku-arrow"><use xlink:href="./icons/sprites.svg#icon-unfold"></use></svg></button>
+        <button class="mj-yaku-nav-btn" id="mjYakuNext" title="下一个番型"><svg class="mj-yaku-arrow"><use xlink:href="./icons/sprites.svg#icon-unfold"></use></svg></button>
       </div>
     </div>`;
 }
@@ -515,13 +540,14 @@ function bindBet(box) {
     render();
   });
   box.querySelector('#mStart')?.addEventListener('click', beginMatch);
+  box.querySelector('#mjHistoryBtn')?.addEventListener('click', () => showCasinoHistoryView('mj'));
   box.querySelector('#mjYakuPrev')?.addEventListener('click', () => {
     st.yakuPage = (st.yakuPage - 1 + YAKU_REF.length) % YAKU_REF.length;
-    render();
+    refreshYakuRef();
   });
   box.querySelector('#mjYakuNext')?.addEventListener('click', () => {
     st.yakuPage = (st.yakuPage + 1) % YAKU_REF.length;
-    render();
+    refreshYakuRef();
   });
 }
 
@@ -1655,6 +1681,11 @@ function nextRound() {
     dealRound();
   } else {
     gameData.items['casinoCoin'] = Math.max(0, coin() + st.matchNet);
+    // 战绩存储（滑动窗口 50 条，整场一条）
+    const rank = [0, 1, 2, 3].slice().sort((a, b) => st.scores[b] - st.scores[a] || a - b).indexOf(0) + 1;
+    gameData.mahjongRecords = gameData.mahjongRecords || [];
+    gameData.mahjongRecords.unshift({ time: Date.now(), net: st.matchNet, rank, stake: st.stake });
+    if (gameData.mahjongRecords.length > 50) gameData.mahjongRecords.length = 50;
     saveGame().then(updateStats);
     st.resultStage = 3; // 全场结算总结页
     st._resultPlayed = false;

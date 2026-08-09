@@ -237,6 +237,7 @@ export function getDefaultSave() {
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
       totalTrades:0, tradesToday:0, lastTradeDate:'',
       totalNpcWins:0, totalNpcNoviceWins:0, totalNpcEliteWins:0, totalNpcChampionWins:0, totalNpcCandy:0,
+      luckyGachaScore:0, luckyGachaCount:0, // 抽卡欧气累计（独立累计，不受抽卡日志 50 条窗口影响）
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
     },
     incubators: Array.from({length: 8}, () => emptyIncubator()),
@@ -249,6 +250,8 @@ export function getDefaultSave() {
     team: [], // 出战队伍：仓库条目 id 数组（首元素为首发），由仓库详情页管理
     training: { slots: [] }, // 训练场：{ slots: [{ id, startAt } | null] }，随时间自动获得经验
     nursery: { parents: [null, null] }, // 饲育屋：{ parents: [{ id, placedAt } | null, ...] }，配对繁殖（与训练/配队互斥）
+    casinoRecords: [],   // 21点战绩（滑动窗口 50 条）：{ time, bet, action, result, net }
+    mahjongRecords: [],  // 麻将战绩（滑动窗口 50 条，整场一条）：{ time, net, rank, stake }
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
     battleNpcs: null, // NPC 挑战：{ refreshedAt: Date.now(), list: [{ id, tier, title, name, sprite, lvBonus, candy, mons }] }，由 npcs.js 管理

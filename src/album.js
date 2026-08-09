@@ -37,6 +37,15 @@ function ensureCards() {
   if (!gameData.collectedCards) gameData.collectedCards = {};
 }
 
+// 卡册收集统计（统计页「游戏厅战绩」使用）：返回 { owned, total }
+export async function getCardCollectionStats() {
+  ensureCards();
+  await loadPools();
+  const collected = gameData.collectedCards;
+  const owned = _allCards.filter(c => collected[c.filename]).length;
+  return { owned, total: _allCards.length };
+}
+
 export async function showAlbumView() {
   pushNav('albumView');
   showView('albumView');
@@ -48,25 +57,44 @@ export async function showAlbumView() {
 
 // ── 放大预览 ──
 
-function openPreview(imgSrc) {
+// 获得时间格式化：YYYY-MM-DD HH:mm
+function fmtObtained(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openPreview(filename) {
   closePreview();
+  const card = _allCards.find(c => c.filename === filename);
+  if (!card) return;
+  const info = gameData.collectedCards[filename] || {};
+  const imgSrc = `./tcg-cards/${card.poolDir}/${card.tier}/${filename}`;
   const overlay = document.createElement('div');
   overlay.className = 'album-overlay';
-  overlay.innerHTML = `<img class="album-overlay-card" src="${imgSrc}" alt="card" />`;
+  overlay.innerHTML = `
+    <div class="album-overlay-stage">
+      <img class="album-overlay-card" src="${imgSrc}" alt="${info.cnName || card.cnName}" />
+    </div>
+    <div class="album-overlay-meta">
+      <div class="album-overlay-name">${info.cnName || card.cnName}</div>
+      ${info.obtainedAt ? `<div class="album-overlay-time">获得于 ${fmtObtained(info.obtainedAt)}</div>` : ''}
+    </div>`;
   overlay.addEventListener('click', closePreview);
 
   // 3D 倾斜效果
-  const card = overlay.querySelector('.album-overlay-card');
+  const cardEl = overlay.querySelector('.album-overlay-card');
   overlay.addEventListener('mousemove', e => {
-    const rect = card.getBoundingClientRect();
+    const rect = cardEl.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;   // -0.5 ~ 0.5
     const y = (e.clientY - rect.top) / rect.height - 0.5;    // -0.5 ~ 0.5
-    card.style.transform = `perspective(800px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg)`;
-    card.style.transition = 'none';
+    cardEl.style.transform = `perspective(800px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg)`;
+    cardEl.style.transition = 'none';
   });
   overlay.addEventListener('mouseleave', () => {
-    card.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg)';
-    card.style.transition = 'transform 0.35s ease-out';
+    cardEl.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg)';
+    cardEl.style.transition = 'transform 0.35s ease-out';
   });
 
   $('albumContent')?.appendChild(overlay);
@@ -106,7 +134,7 @@ function renderAlbum() {
       ? `./tcg-cards/${card.poolDir}/${card.tier}/${card.filename}`
       : `./tcg-cards/Cardback.png`;
     html += `<div class="album-card tier-${card.tier} ${isOwned ? 'owned' : 'locked'}"
-      ${isOwned ? `data-preview="${imgSrc}"` : ''}>
+      ${isOwned ? `data-preview="${card.filename}"` : ''}>
       <img src="${imgSrc}" alt="${isOwned ? card.cnName : '?'}" loading="lazy" onerror="this.parentElement.classList.add('err')" />
     </div>`;
   }
@@ -129,8 +157,8 @@ function renderAlbum() {
 
   // 点击已拥有卡片 → 放大
   box.querySelectorAll('.album-card.owned').forEach(el => {
-    const src = el.dataset.preview;
-    if (src) el.addEventListener('click', (e) => { e.stopPropagation(); openPreview(src); });
+    const filename = el.dataset.preview;
+    if (filename) el.addEventListener('click', (e) => { e.stopPropagation(); openPreview(filename); });
   });
 
   // 触摸滑动翻页

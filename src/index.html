@@ -85,7 +85,7 @@
             <div class="pokedex-search">
               <div class="pokedex-search-row">
                 <div class="pokedex-search-input-wrap">
-                  <input id="pokedexSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母"
+                  <input id="pokedexSearchInput" class="pokedex-search-input" type="text" placeholder="名称/拼音/首字母"
                     autocomplete="off" />
                   <button class="pokedex-search-clear" id="pokedexSearchClear" style="display:none;" aria-label="清空搜索">
                     <svg>
@@ -169,8 +169,13 @@
           </div>
 
           <!-- 抽卡记录 -->
-          <div id="gachaHistoryView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 6px;align-self:stretch;">
+          <div id="gachaHistoryView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 6px;align-self:stretch;margin-bottom:auto;">
             <div id="gachaHistoryContent" style="flex:1;color:var(--ui-color);"></div>
+          </div>
+
+          <!-- 21点 / 麻将战绩记录 -->
+          <div id="casinoHistoryView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 6px;align-self:stretch;margin-bottom:auto;">
+            <div id="casinoHistoryContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
           <!-- 卡册 -->
@@ -202,8 +207,8 @@
           </div>
 
           <!-- 商店 -->
-          <div id="shopView" style="display:none;flex-direction:column;overflow:hidden;padding:4px 3px;">
-            <div id="shopContent" style="flex:1;color:var(--ui-color);overflow-y:auto;"></div>
+          <div id="shopView" style="display:none;flex-direction:column;overflow:hidden;">
+            <div id="shopContent" style="flex:1;color:var(--ui-color);overflow-y:auto;padding:4px 3px;"></div>
             <!-- 兑换确认文案框（类似遇敌页文字框：先记录本次兑换，点"确定"才结算） -->
             <div id="shopTextBox" class="text-box shop-text-box" style="display:none;">
               <div id="shopTextBoxContent" class="text-box-content"></div>
@@ -319,7 +324,7 @@
             <div class="pokedex-search">
               <div class="pokedex-search-row">
                 <div class="pokedex-search-input-wrap">
-                  <input id="rosterSearchInput" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母"
+                  <input id="rosterSearchInput" class="pokedex-search-input" type="text" placeholder="搜索宝可梦"
                     autocomplete="off" />
                   <button class="pokedex-search-clear" id="rosterSearchClear" style="display:none;" aria-label="清空搜索">
                     <svg>
@@ -340,6 +345,13 @@
                     <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
                   </svg>
                   <div id="rosterTypeFilterDropdown" class="region-dropdown" style="display:none;"></div>
+                </div>
+                <div id="rosterRegionFilter" class="pokedex-region-select" tabindex="0" title="按地区筛选">
+                  <span id="rosterRegionFilterLabel">地区</span>
+                  <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+                    <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+                  </svg>
+                  <div id="rosterRegionFilterDropdown" class="region-dropdown" style="display:none;"></div>
                 </div>
               </div>
             </div>

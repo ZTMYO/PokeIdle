@@ -252,6 +252,7 @@ pub fn run() {
             game_data::load_game_data,
             game_data::read_gif_base64,
             game_data::export_save_data,
+            game_data::import_save_data,
             set_tray_frames,
             set_tray_status,
             force_close_window,

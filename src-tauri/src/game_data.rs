@@ -37,6 +37,20 @@ pub fn export_save_data(_app: tauri::AppHandle, data: String) -> Result<String, 
 }
 
 #[tauri::command]
+pub fn import_save_data(_app: tauri::AppHandle) -> Result<String, String> {
+    let file = rfd::FileDialog::new()
+        .set_title("选择要导入的存档文件")
+        .add_filter("存档文件", &["json"])
+        .pick_file();
+    match file {
+        Some(path) => {
+            std::fs::read_to_string(&path).map_err(|e| format!("读取失败: {}", e))
+        }
+        None => Err("用户取消了导入".to_string()),
+    }
+}
+
+#[tauri::command]
 pub fn read_gif_base64(app: tauri::AppHandle, path: String) -> Result<String, String> {
     let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
 

@@ -5228,6 +5228,22 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   opacity: 0.85;
   text-align: center;
 }
+/* 下注页标签行：文字居中，战绩按钮绝对定位右上角（样式与抽卡记录 .gacha-rec-btn 一致） */
+.casino-bet-label-row {
+  position: relative;
+  text-align: center;
+}
+.casino-history-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-family: inherit; font-size: 10px; font-weight: 700;
+  padding: 2px 8px;
+  border: 1px solid var(--ui-color); border-radius: 3px;
+  background: transparent; color: var(--ui-color);
+  cursor: pointer; letter-spacing: 0.3px;
+  transition: background 0.15s, transform 0.1s;
+}
+.casino-history-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
+.casino-history-btn:active { transform: translateY(-50%) scale(0.92); }
 /* 下注档位：点击式刻度条（圆点可点击选择，选中档位上方浮出糖果 icon） */
 .casino-bet-slider {
   display: flex;
@@ -5401,8 +5417,6 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .casino-btn.main:hover:not(:disabled) { background: var(--ui-color);filter: brightness(1.08);}
 .casino-btn:active:not(:disabled) { transform: scale(0.95); }
 .casino-btn:disabled { opacity: 0.35; cursor: default; }
-/* 牌桌（flex 撑满全屏：结算横幅顶部、手牌区中部居中、操作/再来一局按钮吸底固定，
-   保证结算横幅出现时按钮行不会被往下挤压） */
 .casino-table {
   flex: 1;
   min-height: 0;
@@ -5410,14 +5424,12 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
   padding-top: 2px;
   width: 100%;
 }
-/* 结算横幅：悬浮在牌桌顶部，不参与布局，按钮行保持贴底、页面不挤压 */
+/* 结算横幅：悬浮在牌桌顶部，不参与布局 */
 .casino-result {
   position: absolute;
-  top: 14px; /* 手牌区靠下后顶部空间充足，结果文字稍下移 */
   left: 0;
   right: 0;
   z-index: 3;
@@ -5429,14 +5441,14 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .casino-result.win { color: var(--ui-color); }
 .casino-result.lose { color: #e74c3c; }
-/* 手牌区：占据剩余空间并整体靠下对齐，贴近底部操作按钮行 */
+/* 手牌区：占据剩余空间，牌居中，大屏不贴底 */
 .casino-hands {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end; /* 手牌整体靠下，与按钮行更近 */
+  justify-content: center; /* 牌在区域内居中，不会因屏幕变大而贴底 */
   gap: 8px;
   width: 100%;
 }
@@ -5583,7 +5595,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   justify-content: center;
   gap: 6px;
   min-height: 30px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 /* 爆牌特效：卡片散开掉落 */
 .casino-hand.busted .casino-cards { position: relative; }
@@ -6679,14 +6691,14 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 5;
+  z-index: 8;
   pointer-events: none;
 }
 .nursery-walker {
   position: absolute;
   width: 32px;
   height: 32px;
-  z-index: 5;
+  z-index: 8;
   pointer-events: auto;
   transition: left 0.5s linear, top 0.5s linear;
 }
@@ -6871,6 +6883,24 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 搜索框：标题右侧，紧凑尺寸 */
+.nursery-pick-search {
+  position: relative;
+  flex: 1;
+  max-width: 140px;
+  margin-left: 8px;
+}
+.nursery-pick-search .pokedex-search-input {
+  height: 24px;
+  font-size: 10px;
+  padding: 0 24px 0 6px;
+}
+.nursery-pick-search .pokedex-search-clear {
+  width: 14px;
+  height: 14px;
+  right: 2px;
+}
+
 .nursery-pick-list .bounty-trade-row[data-pick-view] { cursor: pointer; }
 .nursery-pick-list .bounty-trade-row[data-pick-view]:hover { background: rgba(255, 255, 255, 0.22); }
 .nursery-pick-list .roster-ivs[data-tip] { cursor: pointer; }
@@ -8720,12 +8750,40 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   z-index: 1000; animation: albumFadeIn 0.2s ease;
 }
 @keyframes albumFadeIn { from { opacity: 0; } to { opacity: 1; } }
-.album-overlay-card {
-  max-width: 80vw; max-height: 80vh; border-radius: 6px;
+.album-overlay-stage {
+  position: relative;
   margin-top: 5%;
+}
+.album-overlay-card {
+  display: block;
+  max-width: 80vw; max-height: 80vh; border-radius: 6px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   transition: transform 0.35s ease-out;
   transform-style: preserve-3d;
+}
+/* 卡片信息：中文名 + 获得时间，半透明文字，固定在遮罩底部不贴边 */
+.album-overlay-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.62);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.album-overlay-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.album-overlay-time {
+  margin-top: 2px;
+  font-size: 10px;
+  opacity: 0.8;
 }
 
 .album-dots { display: flex; justify-content: center; gap: 5px; padding: 4px 0 0; }

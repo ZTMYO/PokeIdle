@@ -5,6 +5,7 @@ import { $, showView, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
+import { REGION_CYCLE } from './config.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { chooseMoves, fallbackMoves } from './moves.js';
 
@@ -61,6 +62,7 @@ let _sortBy = 'time';  // 当前排序列：time | name | iv | level
 let _sortDir = -1;     // 1 升序 / -1 降序
 let _filter = '';      // 来源/闪光筛选（''=全部）
 let _typeFilter = '';  // 属性筛选（''=全部）
+let _regionFilter = ''; // 地区筛选（''=全部）
 let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
 let _detailFromView = null; // 详情跳转来源（捕获/孵蛋后“查看详情”进入时记录，返回列表后再返回时优先回来源）
 let _detailReturnFn = null; // 从悬赏提交/交换选择列表进入详情时注册的返回回调（返回时恢复来源列表）
@@ -120,6 +122,11 @@ function renderList() {
     const poke = getPokemonByIndex(String(p.species));
     return poke?.types?.includes(_typeFilter);
   });
+  // 地区筛选
+  if (_regionFilter) pool = pool.filter(p => {
+    const poke = getPokemonByIndex(String(p.species));
+    return poke?.region === _regionFilter;
+  });
   // 搜索
   if (q) pool = pool.filter(p => matchesQuery(p, q));
   // 选取模式：排除已在队伍/训练中的个体
@@ -141,7 +148,7 @@ function renderList() {
     } else {
       const total = inRoster().length;
       const shinyCount = inRoster().filter(p => p.shiny).length;
-      prog.textContent = q || _filter || _typeFilter
+      prog.textContent = q || _filter || _typeFilter || _regionFilter
         ? `共 ${total} 只 · 匹配 ${pool.length} 只`
         : `共 ${total} 只 · 闪光 ${shinyCount} 只`;
     }
@@ -330,6 +337,44 @@ function setupTypeFilter() {
   });
 }
 
+// 地区筛选下拉：按 REGION_CYCLE 顺序列出全部地区
+function setupRegionFilter() {
+  const trigger = $('rosterRegionFilter');
+  const label = $('rosterRegionFilterLabel');
+  const dd = $('rosterRegionFilterDropdown');
+  if (!trigger || !label || !dd) return;
+  function buildOptions() {
+    dd.innerHTML = `<div class="region-dropdown-item${!_regionFilter ? ' active' : ''}" data-region="">全部</div>`
+      + REGION_CYCLE.map(r =>
+        `<div class="region-dropdown-item${r === _regionFilter ? ' active' : ''}" data-region="${r}">${r}</div>`
+      ).join('');
+    dd.querySelectorAll('.region-dropdown-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _regionFilter = el.dataset.region || '';
+        label.textContent = _regionFilter || '地区';
+        dd.style.display = 'none';
+        trigger.classList.remove('open');
+        renderList();
+      });
+    });
+  }
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = dd.style.display !== 'none';
+    document.querySelectorAll('.region-dropdown').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.pokedex-region-select').forEach(s => s.classList.remove('open'));
+    if (!open) {
+      buildOptions();
+      dd.style.display = '';
+      trigger.classList.add('open');
+    }
+  });
+  document.addEventListener('click', () => {
+    dd.style.display = 'none';
+    trigger.classList.remove('open');
+  });
+}
 // 表头点击排序（限定仓库视图，避免绑定到悬赏/交换列表的同名表头）
 function setupHeaderSort() {
   const header = $('rosterView')?.querySelector('.roster-header');
@@ -1203,6 +1248,7 @@ export function showRosterView(noNav) {
     setupSearch();
     setupFilter();
     setupTypeFilter();
+    setupRegionFilter();
     setupHeaderSort();
     _uiBound = true;
   }

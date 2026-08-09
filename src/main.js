@@ -508,7 +508,7 @@ async function init() {
     }
   } catch (_) {}
   setGameData(gameDataRaw || getDefaultSave());
-  // 应用存档中的窗口倍率（未设置时按 1 倍原尺寸）
+  // 应用存档中的窗口倍率（未设置时默认 2 倍）
   applyWindowScale(gameData?.settings?.windowScale);
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
   if (gameData.gps.roamEnabled && gameData.gps.destIdx == null) setRoamEnabled(true);

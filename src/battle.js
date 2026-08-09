@@ -986,7 +986,9 @@ export function setAbortAutoCatch() { _abortAutoCatch = true; }
 // 智能选球：根据精灵捕获率与当前可用球，选出本次丢球用哪种球
 function pickAutoBallType(availableBalls) {
   const cr = currentEncounter?.catchRate ?? 1;
-  const preferred = cr <= 0.2
+  const preferred = currentEncounter?.legend
+    ? ['master-ball', 'ultra-ball', 'poke-ball']
+    : cr <= 0.2
     ? ['master-ball', 'ultra-ball', 'poke-ball']
     : cr <= 0.5
     ? ['ultra-ball', 'poke-ball', 'master-ball']

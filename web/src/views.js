@@ -34,7 +34,7 @@ const LUCKY_TIERS = [
   { min: -Infinity, name: '终极无敌至尊非酋' },
 ];
 
-// 汇总全部遭遇日志，计算平均欧气分并返回对应称号（无有效记录返回 null）
+// 汇总全部遭遇日志 + 抽卡欧气累计，计算平均欧气分并返回对应称号（无有效记录返回 null）
 function calcLuckyRating() {
   const logs = gameData.encounterLogs || {};
   let total = 0, count = 0;
@@ -49,6 +49,11 @@ function calcLuckyRating() {
       count++;
     }
   }
+  // 抽卡欧气：独立累计字段（不受抽卡日志 50 条窗口影响），与遭遇分合并取平均
+  const gachaScore = gameData.stats?.luckyGachaScore || 0;
+  const gachaCount = gameData.stats?.luckyGachaCount || 0;
+  total += gachaScore;
+  count += gachaCount;
   if (count === 0) return null;
   const avg = total / count;
   return LUCKY_TIERS.find(t => avg >= t.min) || null;
@@ -158,6 +163,23 @@ function refreshDataStats() {
   $('dataNpcEliteWins').textContent = formatNum(stats.totalNpcEliteWins || 0);
   $('dataNpcChampionWins').textContent = formatNum(stats.totalNpcChampionWins || 0);
   $('dataNpcCandy').textContent = formatNum(stats.totalNpcCandy || 0);
+
+  // 游戏厅战绩（基于 50 条滑动窗口记录统计）
+  const wlStat = (records, isMj) => {
+    let w = 0, l = 0, p = 0, net = 0;
+    for (const r of records) {
+      net += r.net;
+      if (isMj) { if (r.net > 0) w++; else if (r.net < 0) l++; else p++; }
+      else { if (r.action === 'win' || r.action === 'blackjack') w++; else if (r.action === 'lose') l++; else p++; }
+    }
+    return { w, l, p, net };
+  };
+  const cs = wlStat(gameData.casinoRecords || [], false);
+  const mj = wlStat(gameData.mahjongRecords || [], true);
+  $('dataCasinoWL').textContent = `胜 ${cs.w} / 负 ${cs.l} / 平 ${cs.p}`;
+  $('dataCasinoNet').textContent = `${cs.net > 0 ? '+' : ''}${formatNum(cs.net)} 币`;
+  $('dataMjWL').textContent = `胜 ${mj.w} / 负 ${mj.l} / 平 ${mj.p}`;
+  $('dataMjNet').textContent = `${mj.net > 0 ? '+' : ''}${formatNum(mj.net)} 币`;
   const earnedEl = $('dataEarned');
   if (earnedEl) {
     // 糖果置顶，其余保持原顺序
@@ -225,12 +247,24 @@ export function showDataView() {
       <div class="stat-row"><span>战胜冠军</span><span id="dataNpcChampionWins"></span></div>
       <div class="stat-row"><span>对战糖果</span><span id="dataNpcCandy"></span></div>
 
+      <div class="stat-section">游戏厅战绩</div>
+      <div class="stat-row"><span>21点 胜/负/平</span><span id="dataCasinoWL"></span></div>
+      <div class="stat-row"><span>21点 净盈亏</span><span id="dataCasinoNet"></span></div>
+      <div class="stat-row"><span>麻将 胜/负/平</span><span id="dataMjWL"></span></div>
+      <div class="stat-row"><span>麻将 净盈亏</span><span id="dataMjNet"></span></div>
+      <div class="stat-row"><span>卡册收集进度</span><span id="dataCardPct"></span></div>
+
       <div class="stat-section">道具累计获得</div>
       <div id="dataEarned"></div>
     </div>
   `;
   // 初始填充 + 每秒实时刷新全部动态值；离开统计页后定时器自动停止
   refreshDataStats();
+  // 卡册收集进度：卡池数据异步加载（有缓存），加载完成后填入
+  import('./album.js').then(m => m.getCardCollectionStats()).then(s => {
+    const el = $('dataCardPct');
+    if (el) el.textContent = s.total > 0 ? `${s.owned}/${s.total} (${(s.owned / s.total * 100).toFixed(1)}%)` : '—';
+  });
   if (showDataView._timer) clearInterval(showDataView._timer);
   showDataView._timer = setInterval(() => {
     if ($('dataView')?.style.display === 'none') {
@@ -591,12 +625,13 @@ function hideShopContextMenu() {
 
 // ===== 设置视图 =====
 // 窗口倍率档位（相对 320×400 基础尺寸的等比缩放，尺寸换算在 Rust 侧 set_window_scale 完成）
-const WINDOW_SCALES = [1, 1.5, 2];
+// 1~10 整数档；超出显示器容纳上限时由 Rust 侧自动钳制到实际生效倍率
+const WINDOW_SCALES = Array.from({ length: 10 }, (_, i) => i + 1);
 
 // 按倍率等比缩放：窗口放大 + webview 内容缩放均在 Rust set_window_scale 内完成
 export async function applyWindowScale(scale) {
   if (!window.__TAURI__?.core?.invoke) return;
-  const s = WINDOW_SCALES.includes(scale) ? scale : 1;
+  const s = WINDOW_SCALES.includes(scale) ? scale : 2; // 未设置/非法值兜底默认 2 倍（1 倍物理窗口偏小）
   try {
     await window.__TAURI__.core.invoke('set_window_scale', { scale: s });
   } catch (_) {}
@@ -656,7 +691,7 @@ export function renderSettings(container, s) {
   const autoCatch = s.autoCatch || false;
   const autoFlee = s.autoFlee || false;
   const windowPinned = s.windowPinned || false;
-  const windowScale = WINDOW_SCALES.includes(s.windowScale) ? s.windowScale : 1;
+  const windowScale = WINDOW_SCALES.includes(s.windowScale) ? s.windowScale : 2;
   const balls = s.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
@@ -835,6 +870,10 @@ export function renderSettings(container, s) {
           <span class="reset-save-btn" id="exportSaveBtn">导出</span>
         </div>
         <div class="reset-save-row">
+          <span class="reset-save-label">导入存档</span>
+          <span class="reset-save-btn" id="importSaveBtn">导入</span>
+        </div>
+        <div class="reset-save-row">
           <span class="reset-save-label">重置存档</span>
           <span class="reset-save-btn" id="resetSaveBtn">重置</span>
         </div>
@@ -916,6 +955,48 @@ export function renderSettings(container, s) {
       btn.textContent = '导出失败';
     }
     setTimeout(() => { btn.textContent = '导出'; }, 2500);
+  });
+  // 导入存档：选择文件后比对时间戳，确保导入的 lastSaveTime > 当前，防止被旧数据回滚
+  container.querySelector('#importSaveBtn')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#importSaveBtn');
+    if (!window.__TAURI__?.core?.invoke) {
+      btn.textContent = '仅桌面版';
+      setTimeout(() => { btn.textContent = '导入'; }, 2000);
+      return;
+    }
+    btn.textContent = '导入中…';
+    try {
+      const jsonStr = await window.__TAURI__.core.invoke('import_save_data');
+      const imported = JSON.parse(jsonStr);
+      if (!imported || typeof imported !== 'object' || !imported.stats) {
+        updateTextBox('存档格式无效');
+        btn.textContent = '导入失败';
+        setTimeout(() => { btn.textContent = '导入'; }, 2500);
+        return;
+      }
+      // 比对时间戳：导入存档的 lastSaveTime 必须大于当前存档，否则手动修正
+      const importedTime = imported.stats.lastSaveTime || 0;
+      const currentTime = gameData.stats.lastSaveTime || 0;
+      if (importedTime <= currentTime) {
+        imported.stats.lastSaveTime = currentTime + 1;
+      }
+      // 覆盖存档并刷新
+      setGameData(imported);
+      ensureGpsState();
+      await saveGame();
+      addSystemLog('import');
+      updateTextBox('存档导入成功，即将刷新');
+      btn.textContent = '已导入 ✓';
+      setTimeout(() => { location.reload(); }, 800);
+    } catch (e) {
+      if (typeof e === 'string' && e.includes('取消')) {
+        btn.textContent = '导入';
+        return;
+      }
+      updateTextBox('存档导入失败');
+      btn.textContent = '导入失败';
+      setTimeout(() => { btn.textContent = '导入'; }, 2500);
+    }
   });
   container.querySelector('#toggleBuffHoney')?.addEventListener('click', toggleAutoBuffHoney);
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);
@@ -1078,7 +1159,7 @@ function ensureSettings() {
     r.levelMax = Math.max(0, Math.min(20, Number(r.levelMax) || 0));
     r.uncaughtOnly = !!r.uncaughtOnly;
   }
-  if (gameData.settings.windowScale == null) gameData.settings.windowScale = 1;
+  if (gameData.settings.windowScale == null) gameData.settings.windowScale = 2; // 默认 2 倍（1 倍物理窗口偏小）
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
 }
@@ -1300,7 +1381,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '统计',
     html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按每次遭遇的稀有度与捕获运气综合评价称号；</p>`
-      + `<p>板块分为：数据总览、冒险进度、消耗统计、农场与合成、地区悬赏、NPC对战、道具累计获得。</p>`
+      + `<p>板块分为：数据总览、冒险进度、消耗统计、农场与合成、地区悬赏、NPC对战、游戏厅战绩、道具累计获得。</p>`
   },
   {
     title: '成就',
@@ -1418,7 +1499,8 @@ const TUTORIAL_SECTIONS = [
     title: '培育',
     html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦，<b>一雄一雌且共有蛋组</b>即可配对；<b>百变怪</b>万能配对（无视性别，非百变怪一方决定后代物种）。</p>`
       + `<p>投喂它们爱吃的<b>树果</b>后开始繁殖，<b>5~10 分钟</b>产蛋；点场地中央的<b>蛋</b>收取，再放入<b>孵蛋器</b>里孵化。（详见「<b>孵蛋</b>」章节）</p>`
-      + `<p><b>个体值遗传</b>：6 项中 <b>5 项</b>继承双亲（随机取父或母），<b>1 项</b>完全随机。点预览里的维度可<b>锁定</b>，锁定后<b>固定继承指定亲本</b>的数值。</p>`
+      + `<p><b>个体值遗传</b>：<b>1 项</b>完全随机，<b>5 项</b>继承自双亲（默认 50% 随机取父或母）。可从这 5 项中<b>锁定一项</b>，指定该维固定继承父方或母方的数值。</p>`
+      + `<p><b>如何培育 6V</b>：优先找两只高个体亲本繁殖，用后代中更优秀的替换亲本，反复迭代拉高双亲基础。当双亲某维都达到 31 时，后代该维<b>必定 31</b>，最终只剩 <b>1 个随机项</b>需要运气（1/32 概率出 31）。锁定功能可在关键维缺一只亲本时帮补短板。</p>`
       + `<p>点左上角的<b>纸箱</b>可查看仓库中所有宝可梦蛋，支持搜索、按名称/个体值排序与丢弃。</p>`
   },
   {
