@@ -24,6 +24,7 @@ MAX_LEVEL = 100
 ITEM_CN = {
     "candy": "糖果", "poke-ball": "精灵球", "ultra-ball": "超级球", "master-ball": "大师球",
     "sweet-honey": "甜甜蜜", "mystery-egg": "神秘蛋", "shiny-charm": "闪耀护符",
+    "casinoCoin": "游戏币", "bike": "自行车",
 }
 NATURE_CN = dict([
     ("hardy", "勤奋"), ("lonely", "怕寂寞"), ("adamant", "固执"), ("naughty", "顽皮"), ("brave", "勇敢"),
@@ -84,6 +85,8 @@ TOP_KEY_CN = {
     "battleNpcs": "NPC对战", "training": "训练", "achievements": "成就",
     "systemLogs": "系统日志", "settings": "设置", "lastSavedAt": "最后保存时间",
     "version": "版本", "introDone": "开场剧情完成", "currentRegion": "当前地区",
+    "manualBike": "手动骑行", "collectedCards": "卡牌收集",
+    "_mahjongState": "麻将状态", "_mahjongLastResult": "麻将结果",
 }
 STAT_KEYS = ("hp", "atk", "def", "spa", "spd", "spe")
 STAT_KEY_CN = {"hp": "HP", "atk": "攻击", "def": "防御", "spa": "特攻", "spd": "特防", "spe": "速度"}
@@ -114,6 +117,9 @@ LOG_TYPE_CN = {
     "train_lazy": "开始偷懒", "train_wake": "叫醒偷懒", "train_feed": "进食树果",
     "nursery_breed_start": "开始繁殖", "nursery_egg": "产蛋",
     "pokemon_release": "放生", "buff_expired": "增益结束", "战斗": "NPC对战",
+    "casino": " casino", "gacha": "抽卡", "mahjong": "麻将",
+    "export": "导出存档", "auto_refill": "自动补球",
+    "bike_ride": "上车骑行", "bike_stop": "下车步行",
 }
 
 # 设置项 → （中文名, 说明）
@@ -125,6 +131,10 @@ SETTING_DEFS = {
     "autoCatchBalls": ("自动捕捉用球", "各球种是否用于自动捕捉"),
     "autoBuffHoney": ("自动甜甜蜜", "自动使用甜甜蜜"),
     "autoBuffCharm": ("自动闪耀护符", "自动使用闪耀护符"),
+    "autoRefill": ("自动补球", "精灵球用完自动从商店购买"),
+    "autoRefillBalls": ("补球范围", "自动补球包含的球种"),
+    "autoRefillOrder": ("补球优先级", "自动补球时的购买顺序"),
+    "catchFilter": ("捕捉条件", "遇敌类型 → 捕捉/暂停/逃跑 策略表"),
     "windowPinned": ("窗口置顶", "游戏窗口始终置顶"),
     "windowScale": ("窗口倍率", "界面缩放倍率"),
     "gender": ("主角性别", "游戏主角"),
@@ -135,17 +145,21 @@ SETTING_DEFS = {
 BALL_CN = {"poke-ball": "精灵球", "ultra-ball": "高级球", "master-ball": "大师球"}
 GENDER_CN = {"brendan": "小悠（男）", "may": "小遥（女）"}
 TIER_CN = {"novice": "普通", "elite": "精英", "champion": "冠军"}
+CF_ROW_LABELS = {"normal": "普通", "normalShiny": "普通闪", "legend": "神兽", "legendShiny": "神兽闪"}
 
 # 问题 → 所属标签页
 TAB_OF_PATH = (
     ("roster.", 1), ("team.", 2), ("items.", 0), ("pokedex.", 3), ("incubators.", 4),
     ("incubatorLogs.", 5), ("nursery.", 6), ("berryFarm.", 7), ("training.", 8),
     ("stats.", 10), ("achievements.", 11), ("systemLogs.", 12), ("settings.", 13),
+    ("collectedCards.", 14), ("encounterLogs.", 15),
     ("gps.", 9), ("massOutbreak.", 9), ("massNextGenAt", 9), ("bounty", 9),
     ("trades", 9), ("battleNpcs", 9), ("lastSavedAt", 9), ("incubatorUnlockedSlots", 9),
 )
-ISSUE_TAB = 15  # 「数据问题」页索引
-RAW_TAB = 14    # 「原始数据」页索引
+ISSUE_TAB = 17  # 「数据问题」页索引
+RAW_TAB = 16    # 「原始数据」页索引
+CARDS_TAB = 14  # 「卡牌收集」页索引
+ENCOUNTER_TAB = 15  # 「遭遇记录」页索引
 
 
 def load_pokedex():
@@ -532,6 +546,8 @@ class SaveViewer:
             ("成就", [("id", "ID", 100), ("name", "成就", 120), ("claimed", "已领取档位", 90), ("desc", "说明", 240)]),
             ("日志", [("time", "时间", 150), ("type", "类型", 100), ("detail", "详情", 480)]),
             ("设置", [("key", "设置项", 150), ("val", "当前值", 140), ("desc", "说明", 260)]),
+            ("卡牌收集", [("name", "卡牌名称", 140), ("tier", "稀有度", 70), ("file", "文件名", 260), ("time", "获得时间", 150)]),
+            ("遭遇记录", [("time", "时间", 150), ("pokemon", "宝可梦", 120), ("result", "结果", 80), ("shiny", "闪光", 50), ("detail", "详情", 280)]),
             ("原始数据", None),
             ("数据问题", [("where", "位置", 260), ("msg", "问题描述", 620)]),
         ]
@@ -592,6 +608,8 @@ class SaveViewer:
         self._render_achievements()
         self._render_logs()
         self._render_settings()
+        self._render_collected_cards()
+        self._render_encounter_logs()
         self._render_raw()
         self._render_issues()
 
@@ -815,6 +833,12 @@ class SaveViewer:
         rows.append(("孵蛋器槽位", f"{d.get('incubatorUnlockedSlots', 0)}/8", "已解锁的孵蛋器数量"))
         rows.append(("下次大量出没", fmt_time(d.get("massNextGenAt")), "下一次生成大量出没的时间"))
         rows.append(("最后保存时间", fmt_time(d.get("lastSavedAt")), "存档最近写入时间"))
+        rows.append(("手动骑行", fmt_bool(d.get("manualBike", False)), "是否处于手动骑行状态"))
+        rows.append(("卡牌收集", f"{len(d.get('collectedCards') or {})} 张", "抽卡系统收集的卡牌数量"))
+        mj = d.get("_mahjongLastResult")
+        if mj is not None:
+            rows.append(("麻将结果", str(mj), "最近一次麻将对局结果"))
+        rows.append(("游戏币", str(d.get("items", {}).get("casinoCoin", 0)), " casino 游戏币余额"))
         for key, val, desc in rows:
             path = key
             tags = ("issue",) if self._has_issue(path) or self._has_issue(path + ".edge") else ()
@@ -904,14 +928,96 @@ class SaveViewer:
             if key not in stg:
                 continue
             v = stg[key]
-            if key == "autoCatchBalls" and isinstance(v, dict):
+            if key in ("autoCatchBalls", "autoRefillBalls") and isinstance(v, dict):
                 for bk, bv in v.items():
                     tags = ("issue",) if self._has_issue(f"settings.{key}.{bk}") else ()
                     t.insert("", "end", values=(f"{label} · {BALL_CN.get(bk, bk)}",
                                                 self._fmt_setting(key, bv), note), tags=tags)
+            elif key == "autoRefillOrder" and isinstance(v, list):
+                parts = " → ".join(BALL_CN.get(b, b) for b in v)
+                tags = ("issue",) if self._has_issue(f"settings.{key}") else ()
+                t.insert("", "end", values=(label, parts, note), tags=tags)
+            elif key == "catchFilter" and isinstance(v, dict):
+                rows_cf = v.get("rows", {})
+                parts = ", ".join(
+                    f"{CF_ROW_LABELS.get(k, k)}:{r.get('action', '?')}"
+                    for k, r in rows_cf.items() if isinstance(r, dict)
+                )
+                tags = ("issue",) if self._has_issue(f"settings.{key}") else ()
+                t.insert("", "end", values=(label, parts or str(v), note), tags=tags)
             else:
                 tags = ("issue",) if self._has_issue(f"settings.{key}") else ()
                 t.insert("", "end", values=(label, self._fmt_setting(key, v), note), tags=tags)
+
+    def _render_collected_cards(self):
+        """卡牌收集（抽卡系统）"""
+        t = self._tabs[CARDS_TAB]
+        t.delete(*t.get_children())
+        cards = self.data.get("collectedCards") or {}
+        if not isinstance(cards, dict):
+            t.insert("", "end", values=("?", "?", "?", "?"), tags=("issue",))
+            return
+        if not cards:
+            t.insert("", "end", values=("（暂无收集卡牌）", "-", "-", "-"))
+            return
+        for filename, info in cards.items():
+            if not isinstance(info, dict):
+                t.insert("", "end", values=(filename, "?", filename, "?"), tags=("issue",))
+                continue
+            tags = ("issue",) if self._has_issue(f"collectedCards.{filename}") else ()
+            t.insert("", "end", values=(
+                info.get("cnName", filename), info.get("tier", "?"),
+                filename, fmt_time(info.get("obtainedAt"))), tags=tags)
+
+    def _render_encounter_logs(self):
+        """遭遇记录（按宝可梦索引分组，时间倒序）"""
+        t = self._tabs[ENCOUNTER_TAB]
+        t.delete(*t.get_children())
+        logs = self.data.get("encounterLogs") or {}
+        if not isinstance(logs, dict):
+            t.insert("", "end", values=("?", "?", "?", "?", "?"), tags=("issue",))
+            return
+        # 汇总所有记录，时间倒序
+        all_entries = []
+        for idx, entries in logs.items():
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                all_entries.append((idx, entry))
+        all_entries.sort(key=lambda x: x[1].get("time", 0), reverse=True)
+        if not all_entries:
+            t.insert("", "end", values=("（暂无遭遇记录）", "-", "-", "-", "-"))
+            return
+        for idx, entry in all_entries:
+            sid = str(idx)
+            name = self.pokedex.get(sid, f"?{sid}")
+            result = entry.get("result", "?")
+            if result == "caught":
+                result = "捕获"
+            elif result == "fled":
+                result = "逃跑" if not entry.get("selfFlee") else "主动逃跑"
+            else:
+                result = str(result)
+            shiny = fmt_bool(entry.get("shiny", False))
+            # 详情：来源/球种/等级/分数
+            parts = []
+            src = entry.get("source", "")
+            if src:
+                parts.append(SRC_CN.get(src, src))
+            ball = entry.get("ball", "")
+            if ball:
+                parts.append(BALL_CN.get(ball, ball))
+            lv = entry.get("level")
+            if lv is not None:
+                parts.append(f"Lv{lv}")
+            score = entry.get("score")
+            if score is not None:
+                parts.append(f"欧气{score}")
+            detail = " · ".join(parts) if parts else "-"
+            tags = ("issue",) if self._has_issue(f"encounterLogs.{idx}") else ()
+            t.insert("", "end", values=(fmt_time(entry.get("time")), name, result, shiny, detail), tags=tags)
 
     # ---------- 原始数据页（递归展开任意嵌套深度） ----------
     def _key_cn(self, key):

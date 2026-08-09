@@ -1,0 +1,73 @@
+{
+  "pool": "pool1",
+  "total": 30,
+  "tiers": { "N": { "count": 14 }, "R": { "count": 10 }, "SR": { "count": 6 } },
+  "sets": {
+    "151": {
+      "setPrefix": "SV3pt5", "setId": "sv3pt5", "count": 11,
+      "distribution": { "N": 4, "R": 5, "SR": 2 },
+      "cards": {
+        "SV3pt5_EN_1.png":   { "tier": "N",  "cnName": "妙蛙种子" },
+        "SV3pt5_EN_41.png":  { "tier": "N",  "cnName": "超音蝠" },
+        "SV3pt5_EN_66.png":  { "tier": "N",  "cnName": "腕力" },
+        "SV3pt5_EN_90.png":  { "tier": "N",  "cnName": "大舌贝" },
+        "SV3pt5_EN_101.png": { "tier": "R",  "cnName": "顽皮雷弹" },
+        "SV3pt5_EN_113.png": { "tier": "R",  "cnName": "吉利蛋" },
+        "SV3pt5_EN_5.png":   { "tier": "R",  "cnName": "火恐龙" },
+        "SV3pt5_EN_71.png":  { "tier": "R",  "cnName": "大食花" },
+        "SV3pt5_EN_99.png":  { "tier": "R",  "cnName": "巨钳蟹" },
+        "SV3pt5_EN_166.png": { "tier": "SR", "cnName": "妙蛙种子" },
+        "SV3pt5_EN_205.png": { "tier": "SR", "cnName": "梦幻EX" }
+      }
+    },
+    "twilight": {
+      "setPrefix": "SV06", "setId": "sv6", "count": 6,
+      "distribution": { "N": 4, "R": 1, "SR": 1 },
+      "cards": {
+        "SV06_EN_128.png": { "tier": "N",  "cnName": "多龙梅西亚" },
+        "SV06_EN_135.png": { "tier": "N",  "cnName": "伊布" },
+        "SV06_EN_36.png":  { "tier": "N",  "cnName": "烛光灵" },
+        "SV06_EN_49.png":  { "tier": "N",  "cnName": "丑丑鱼" },
+        "SV06_EN_98.png":  { "tier": "R",  "cnName": "穿山王" },
+        "SV06_EN_214.png": { "tier": "SR", "cnName": "甲贺忍蛙EX" }
+      }
+    },
+    "surging": {
+      "setPrefix": "SV08", "setId": "sv8", "count": 6,
+      "distribution": { "N": 3, "R": 3, "SR": 0 },
+      "cards": {
+        "SV08_EN_145.png": { "tier": "N", "cnName": "懒人獭" },
+        "SV08_EN_43.png":  { "tier": "N", "cnName": "海豹球" },
+        "SV08_EN_71.png":  { "tier": "N", "cnName": "波克基古" },
+        "SV08_EN_134.png": { "tier": "R", "cnName": "七夕青鸟" },
+        "SV08_EN_153.png": { "tier": "R", "cnName": "勇士雄鹰" },
+        "SV08_EN_85.png":  { "tier": "R", "cnName": "超能妙喵" }
+      }
+    },
+    "prismatic": {
+      "setPrefix": "SV8pt5", "setId": "sv8pt5", "count": 4,
+      "distribution": { "N": 3, "R": 1, "SR": 0 },
+      "cards": {
+        "SV8pt5_EN_3.png":  { "tier": "N", "cnName": "凯罗斯" },
+        "SV8pt5_EN_61.png": { "tier": "N", "cnName": "狃拉" },
+        "SV8pt5_EN_72.png": { "tier": "N", "cnName": "多龙奇" },
+        "SV8pt5_EN_37.png": { "tier": "R", "cnName": "黑夜魔灵" }
+      }
+    },
+    "evolving-skies": {
+      "setPrefix": "SWSH07", "setId": "", "count": 2,
+      "distribution": { "N": 0, "R": 0, "SR": 2 },
+      "cards": {
+        "SWSH07_EN_193.png": { "tier": "SR", "cnName": "裂空座V" },
+        "SWSH07_EN_212.png": { "tier": "SR", "cnName": "仙子伊布VMAX" }
+      }
+    },
+    "promo": {
+      "setPrefix": "PB", "setId": "pb", "count": 1,
+      "distribution": { "N": 0, "R": 0, "SR": 1 },
+      "cards": {
+        "jirachi-pb-025.png": { "tier": "SR", "cnName": "基拉祈" }
+      }
+    }
+  }
+}

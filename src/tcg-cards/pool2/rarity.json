@@ -1,0 +1,72 @@
+{
+  "pool": "pool2",
+  "total": 30,
+  "tiers": { "N": { "count": 14 }, "R": { "count": 10 }, "SR": { "count": 6 } },
+  "sets": {
+    "151": {
+      "setPrefix": "SV3pt5", "setId": "sv3pt5", "count": 7,
+      "distribution": { "N": 3, "R": 4, "SR": 0 },
+      "cards": {
+        "SV3pt5_EN_125.png": { "tier": "N", "cnName": "电击兽" },
+        "SV3pt5_EN_54.png":  { "tier": "N", "cnName": "可达鸭" },
+        "SV3pt5_EN_72.png":  { "tier": "N", "cnName": "玛瑙水母" },
+        "SV3pt5_EN_105.png": { "tier": "R", "cnName": "嘎啦嘎啦" },
+        "SV3pt5_EN_130.png": { "tier": "R", "cnName": "暴鲤龙" },
+        "SV3pt5_EN_55.png":  { "tier": "R", "cnName": "哥达鸭" },
+        "SV3pt5_EN_78.png":  { "tier": "R", "cnName": "烈焰马" }
+      }
+    },
+    "twilight": {
+      "setPrefix": "SV06", "setId": "sv6", "count": 6,
+      "distribution": { "N": 5, "R": 1, "SR": 0 },
+      "cards": {
+        "SV06_EN_101.png": { "tier": "N", "cnName": "朝北鼻" },
+        "SV06_EN_13.png":  { "tier": "N", "cnName": "朽木妖" },
+        "SV06_EN_139.png": { "tier": "N", "cnName": "鸭宝宝" },
+        "SV06_EN_48.png":  { "tier": "N", "cnName": "铁螯龙虾" },
+        "SV06_EN_89.png":  { "tier": "N", "cnName": "绵绵泡芙" },
+        "SV06_EN_117.png": { "tier": "R", "cnName": "蜈蚣王" }
+      }
+    },
+    "surging": {
+      "setPrefix": "SV08", "setId": "sv8", "count": 6,
+      "distribution": { "N": 3, "R": 3, "SR": 0 },
+      "cards": {
+        "SV08_EN_146.png": { "tier": "N", "cnName": "过动猿" },
+        "SV08_EN_5.png":   { "tier": "N", "cnName": "粉蝶虫" },
+        "SV08_EN_99.png":  { "tier": "N", "cnName": "火暴猴" },
+        "SV08_EN_11.png":  { "tier": "R", "cnName": "萨戮德" },
+        "SV08_EN_136.png": { "tier": "R", "cnName": "帕路奇亚" },
+        "SV08_EN_74.png":  { "tier": "R", "cnName": "玛力露丽" }
+      }
+    },
+    "prismatic": {
+      "setPrefix": "SV8pt5", "setId": "sv8pt5", "count": 5,
+      "distribution": { "N": 3, "R": 2, "SR": 0 },
+      "cards": {
+        "SV8pt5_EN_48.png": { "tier": "N", "cnName": "沙基拉斯" },
+        "SV8pt5_EN_66.png": { "tier": "N", "cnName": "铜镜怪" },
+        "SV8pt5_EN_88.png": { "tier": "N", "cnName": "多丽米亚" },
+        "SV8pt5_EN_33.png": { "tier": "R", "cnName": "太阳伊布" },
+        "SV8pt5_EN_49.png": { "tier": "R", "cnName": "固拉多" }
+      }
+    },
+    "evolving-skies": {
+      "setPrefix": "SWSH07", "setId": "", "count": 0,
+      "distribution": { "N": 0, "R": 0, "SR": 0 },
+      "cards": {}
+    },
+    "genetic-apex": {
+      "setPrefix": "A1", "setId": "a1", "count": 6,
+      "distribution": { "N": 0, "R": 0, "SR": 6 },
+      "cards": {
+        "charizard-ex-a1-284.png": { "tier": "SR", "cnName": "喷火龙ex" },
+        "gengar-ex-a1-261.png":    { "tier": "SR", "cnName": "耿鬼ex" },
+        "mewtwo-ex-a1-286.png":    { "tier": "SR", "cnName": "超梦ex" },
+        "pikachu-ex-a1-285.png":   { "tier": "SR", "cnName": "皮卡丘ex" },
+        "squirtle-a1-232.png":     { "tier": "SR", "cnName": "杰尼龟" },
+        "zapdos-ex-a1-260.png":    { "tier": "SR", "cnName": "闪电鸟ex" }
+      }
+    }
+  }
+}

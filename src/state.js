@@ -228,7 +228,7 @@ export function ensureGpsState() {
 export function getDefaultSave() {
   return {
     manualBike: false, // 手动骑行状态标记（上车/下车时随主存档持久化，刷新/重开可恢复）
-    items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
+    items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'casinoCoin':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
     stats: {
       totalPlaySeconds:0, playSecondsToday:0, lastPlayDate:'', walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
@@ -257,13 +257,15 @@ export function getDefaultSave() {
     systemLogs: [],
     incubatorLogs: [], // 孵蛋记录（仅孵化成功事件，最多 50 条）：{ time, species, gender, shiny }
     achievements: {}, // 成就进度：{ 成就id: 已领取档位数 }，由 achievements.js 管理
+    collectedCards: {}, // 卡牌收集：{ filename: { tier, cnName, enName, obtainedAt } }，由 gacha.js 管理
+    gachaLogs: {}, // 抽卡记录：{ pool1: [{ time, card, tier, cnName, isNew }], pool2: [...] }，由 gacha.js 管理
     introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）
-    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, autoRefill: false, autoRefillBalls: { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false }, autoRefillOrder: ['poke-ball', 'ultra-ball', 'master-ball'], catchFilter: { levelMin: 0, levelMax: 100, shiny: 'catch', legend: 'catch' }, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
+    settings: { autoCatch: false, autoFlee: true, windowPinned: true, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, autoRefill: false, autoRefillBalls: { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false }, autoRefillOrder: ['poke-ball', 'ultra-ball', 'master-ball'], catchFilter: { rows: { normal: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, normalShiny: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, legend: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, legendShiny: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false } } }, gender: 'brendan', musicVolume: 0.6, musicEnabled: true },
   };
 }
 
 // ---------- 宝可梦仓库 ----------
-// 每只捕获/孵化的宝可梦 = 一个独立条目：{ id, species, level, shiny, ivs, nature, source, obtainedAt, inRoster }
+// 每只捕获/孵化的宝可梦 = 一个独立条目：{ id, species, nickname?, level, shiny, ivs, nature, source, obtainedAt, inRoster }
 
 // 随机生成六围个体值（0~31）
 export function rollIvs() {
@@ -328,7 +330,7 @@ export function isPokemon(p) {
 }
 
 // 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
-export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1 }) {
+export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1, gender }) {
   if (!gameData) return null;
   if (!Array.isArray(gameData.roster)) gameData.roster = [];
   const poke = getPokemonByIndex(String(species));
@@ -337,7 +339,7 @@ export function addRosterEntry({ species, shiny = false, source = 'normal', leve
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     species,
     shiny: !!shiny,
-    gender: rollGender(species),
+    gender: gender || rollGender(species), // 显式传入的性别优先（如捕获时沿用遭遇性别，避免两次 roll 不一致）
     level, // 捕获/孵化即 Lv1（战斗系统）；野生捕获可传随机等级
     exp: 0, // 经验（对战获得）
     evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }, // 努力值（训练方向自动分配）

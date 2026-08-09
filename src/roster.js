@@ -86,6 +86,13 @@ function inRoster() {
   return (gameData.roster || []).filter(p => p.inRoster && isPokemon(p));
 }
 
+// 显示名：优先昵称，回退物种名
+function rosterName(p) {
+  if (p.nickname) return p.nickname;
+  const poke = getPokemonByIndex(String(p.species));
+  return poke ? poke.name : `#${p.species}`;
+}
+
 // 搜索词是否命中该个体（名称 / 拼音 / 首字母）
 function matchesQuery(p, q) {
   if (!q) return true;
@@ -95,7 +102,8 @@ function matchesQuery(p, q) {
   return poke.name.includes(q) ||
     poke.pinyin.toUpperCase().includes(upper) ||
     poke.pinyinInitials.toUpperCase().includes(upper) ||
-    matchPinyinPartial(q, poke.pinyin);
+    matchPinyinPartial(q, poke.pinyin) ||
+    (p.nickname && p.nickname.includes(q));  // 中文昵称匹配，拼音不参与
 }
 
 // 过滤 + 排序 + 渲染列表
@@ -159,19 +167,35 @@ function renderList() {
   // 渲染行（复用图鉴 .pokedex-entry 样式）
   list.innerHTML = sorted.length === 0
     ? `<div class="roster-empty">${_picker ? '没有可选择的宝可梦' : '仓库空空如也，去捕获一些宝可梦吧'}</div>`
-    : sorted.map(rowHtml).join('');
+    : sorted.map(p => {
+        const sel = _batchRelease && _batchSelected.has(p.id);
+        return rowHtml(p).replace('<div class="pokedex-entry roster-row"', 
+          `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}"`);
+      }).join('');
   // 加载个体图标
   list.querySelectorAll('.roster-icon-img').forEach(img => {
     const poke = getPokemonByIndex(img.dataset.icon);
     if (poke?.icon) tryLoadImage(img, poke.icon);
   });
-  // 点击行：选取模式直接加入目标；否则进详情（从列表进入时清除"查看详情来源"）
+  // 点击行：选取模式直接加入目标；批量模式切换选中；否则进详情
   list.onclick = (e) => {
     const row = e.target.closest('.roster-row');
     if (!row) return;
     if (_picker) { e.stopPropagation(); pickRow(row.dataset.rid); return; }
+    if (_batchRelease) {
+      toggleBatchRow(row);
+      return;
+    }
     _detailFromView = null;
     showRosterDetail(row.dataset.rid);
+  };
+  // 批量模式底部栏
+  if (_batchRelease) updateBatchBar();
+  // 右键菜单
+  list.oncontextmenu = (e) => {
+    e.preventDefault();
+    if (_batchRelease) { cancelBatchRelease(); return; }
+    showContextMenu(e.clientX, e.clientY);
   };
   // 表头排序指示符（限定仓库视图，避免匹配到悬赏/交换列表的同名表头）
   const header = $('rosterView')?.querySelector('.roster-header');
@@ -184,15 +208,14 @@ function renderList() {
 
 function rowHtml(p) {
   const poke = getPokemonByIndex(String(p.species));
-  const name = poke ? poke.name : `#${p.species}`;
-  const gSpan = genderBadge(ensureGender(p)); // 性别图标（♂ 蓝 / ♀ 粉），紧跟 Lv 前
+  const gSpan = genderBadge(ensureGender(p));
   const icon = poke?.icon ? `<img class="roster-icon-img" data-icon="${p.species}" alt="" />` : '';
   return `
     <div class="pokedex-entry roster-row" data-rid="${p.id}">
       <span class="roster-icon">${icon}</span>
       <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
       <span class="pokedex-idx">#${p.species}</span>
-      <span class="pokedex-name">${name}</span>
+      <span class="pokedex-name">${rosterName(p)}</span>
       <span class="roster-lv-col">${gSpan}Lv${p.level || 1}</span>
       <span class="roster-iv">${ivSum(p)}</span>
     </div>`;
@@ -853,14 +876,13 @@ function showRosterDetail(id) {
   if (prog) prog.style.display = 'none';
 
   const poke = getPokemonByIndex(String(p.species));
-  const name = poke ? poke.name : `#${p.species}`;
-  const dGSpan = genderBadge(ensureGender(p)); // 性别图标（♂ 蓝 / ♀ 粉），放在 Lv 前（跟等级绑定，不跟名字）
+  const dGSpan = genderBadge(ensureGender(p));
   const lastLog = latestLogLine(String(p.species));
   const list = $('rosterList');
   if (!list) return;
   list.innerHTML = `
     <div style="font-size:13px;font-weight:700;padding:4px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span>${name}<span class="roster-detail-lv">${dGSpan}Lv${p.level || 1}</span>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
+      <span><span id="rosterNickSpan">${rosterName(p)}</span><button class="roster-nick-btn" id="rosterNickBtn" title="改名"><svg t="1786243847045" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13"><path d="M138.666667 810.666667V213.333333c0-41.216 33.450667-74.666667 74.666666-74.666666h469.333334v64H213.333333a10.666667 10.666667 0 0 0-10.666666 10.666666v597.333334c0 5.888 4.778667 10.666667 10.666666 10.666666h597.333334a10.666667 10.666667 0 0 0 10.666666-10.666666V352h64V810.666667A74.666667 74.666667 0 0 1 810.666667 885.333333H213.333333A74.666667 74.666667 0 0 1 138.666667 810.666667z" fill="currentColor"></path><path d="M444.330667 540.032L856.362667 128l45.226666 45.226667-411.989333 412.032-45.226667-45.226667z" fill="currentColor"></path></svg></button><span class="roster-detail-lv">${dGSpan}Lv${p.level || 1}</span>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
       <div style="display:flex;flex-direction:row;align-items:flex-end;gap:2px;flex-shrink:0;">
         <button class="roster-release" data-pokedex title="查看图鉴">图鉴</button>
         <button class="roster-release" data-release>放生</button>
@@ -902,6 +924,34 @@ function showRosterDetail(id) {
       if (p.shiny && _detailId === id) startShinySparkleOn($('rosterView'), img, { cls: 'sm', scale: 0.6 });
     });
   }
+  // 改名按钮
+  const nickBtn = $('rosterNickBtn');
+  if (nickBtn) {
+    nickBtn.addEventListener('click', () => {
+      const nickSpan = $('rosterNickSpan');
+      if (!nickSpan) return;
+      const orig = p.nickname || '';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = orig;
+      input.maxLength = 5;
+      input.className = 'roster-nick-input';
+      nickSpan.replaceWith(input);
+      input.focus();
+      input.select();
+      const save = () => {
+        const v = input.value.trim();
+        if (v && v !== poke.name) p.nickname = v;
+        else delete p.nickname;
+        saveGame();
+      };
+      input.addEventListener('blur', () => { save(); showRosterDetail(id); });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { save(); showRosterDetail(id); }
+        else if (e.key === 'Escape') { showRosterDetail(id); }
+      });
+    });
+  }
   // 右上角放生：移除个体并播放告别动画
   list.querySelector('[data-release]')?.addEventListener('click', () => releasePokemon(id));
   // 图鉴：跳转到该宝可梦的图鉴详情页（第 4 层子页），返回键先回详情页
@@ -918,6 +968,109 @@ function showRosterDetail(id) {
 
 // 放生：确认后移除个体、播告别动画，结束后返回列表
 let _releasing = false; // 场景播放中防重复触发
+
+// 批量放生
+let _batchRelease = false;
+let _batchSelected = new Set();
+
+function showContextMenu(x, y) {
+  let menu = document.getElementById('rosterCtxMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'rosterCtxMenu';
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+  }
+  menu.innerHTML = `<div class="shop-ctx-item" data-action="batchRelease">批量放生</div>`;
+  menu.style.left = Math.min(x, window.innerWidth - 120) + 'px';
+  menu.style.top = Math.min(y, window.innerHeight - 50) + 'px';
+  menu.style.display = 'block';
+  menu.onclick = (e) => {
+    const act = e.target.closest('[data-action]')?.dataset.action;
+    hideContextMenu();
+    if (act === 'batchRelease') startBatchRelease();
+  };
+  setTimeout(() => document.addEventListener('click', hideContextMenu, { once: true }), 0);
+}
+
+function hideContextMenu() {
+  const menu = document.getElementById('rosterCtxMenu');
+  if (menu) menu.style.display = 'none';
+}
+
+function startBatchRelease() {
+  _batchRelease = true;
+  _batchSelected = new Set();
+  renderList();
+}
+
+function cancelBatchRelease() {
+  _batchRelease = false;
+  _batchSelected = new Set();
+  removeBatchBar();
+  renderList();
+}
+
+function toggleBatchRow(row) {
+  const id = row.dataset.rid;
+  if (_batchSelected.has(id)) { _batchSelected.delete(id); row.classList.remove('roster-batch-sel'); }
+  else { _batchSelected.add(id); row.classList.add('roster-batch-sel'); }
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const n = _batchSelected.size;
+  let bar = document.getElementById('rosterBatchBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'rosterBatchBar';
+    bar.className = 'text-box';
+    bar.style.height = '32px';
+    const view = document.getElementById('rosterView');
+    if (view) view.appendChild(bar);
+  }
+  bar.innerHTML = n > 0
+    ? `<span class="text-box-content">已选中 ${n} 只，确定放生？</span><span class="roster-batch-btn" id="rosterBatchConfirm">确定</span>`
+    : `<span class="text-box-content">请点击列表项选择要放生的宝可梦</span>`;
+  bar.style.display = 'flex';
+  const btn = bar.querySelector('#rosterBatchConfirm');
+  if (btn) btn.onclick = doBatchRelease;
+}
+
+function removeBatchBar() {
+  const bar = document.getElementById('rosterBatchBar');
+  if (bar) bar.style.display = 'none';
+}
+
+function doBatchRelease() {
+  if (_batchSelected.size === 0) return;
+  const arr = gameData.roster || [];
+  const names = [];
+  const toRemove = new Set([..._batchSelected]);
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (toRemove.has(arr[i].id)) {
+      names.push(rosterName(arr[i]));
+      arr.splice(i, 1);
+    }
+  }
+  addSystemLog(`批量放生了 ${names.length} 只宝可梦`);
+  saveGame();
+  const n = names.length;
+  _batchRelease = false;
+  _batchSelected = new Set();
+  // 显示结果
+  const bar = document.getElementById('rosterBatchBar');
+  if (bar) {
+    bar.innerHTML = `<span class="text-box-content">已放生 ${n} 只宝可梦</span>`;
+    bar.style.display = 'flex';
+    setTimeout(() => {
+      removeBatchBar();
+      renderList();
+    }, 1500);
+  } else {
+    renderList();
+  }
+}
 function releasePokemon(id) {
   const p = (gameData.roster || []).find(r => r.id === id);
   if (!p || _releasing) return;
@@ -925,7 +1078,8 @@ function releasePokemon(id) {
   const poke = getPokemonByIndex(String(p.species));
   showGoodbyeConfirm({
     poke,
-    prompt: '确认要放生吗？',
+    nick: p.nickname || '',
+    prompt: '确定要放生吗？',
     shiny: !!p.shiny,
     onConfirm: () => {
       const arr = gameData.roster || [];

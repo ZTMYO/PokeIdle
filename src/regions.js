@@ -73,6 +73,7 @@ export const SFX = {
   victory: 'Victory.mp3',        // 抓捕成功
   congratulation: 'Congratulation.mp3', // 交换 / 孵蛋得到宝可梦
   obtained: 'Obtained.mp3',      // 混合器得到树果方块
+  casino: 'GameCorner.mp3',      // 游戏厅背景音乐
 };
 
 // 开场曲：选完主角进入场景后直接播放（未白镇）
@@ -131,4 +132,5 @@ export const TRACK_GAINS = {
   'Victory.mp3': -0.90,
   'Congratulation.mp3': 0.10,
   'Obtained.mp3': 1.00,
+  'GameCorner.mp3': 0,
 };

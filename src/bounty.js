@@ -341,7 +341,7 @@ function submitTrade(rid) {
   _goodbyeAnim = true;
   showGoodbyeConfirm({
     poke,
-    prompt: '确认要提交吗？',
+    prompt: '确定要提交吗？',
     shiny: !!p.shiny,
     onConfirm: () => {
       const arr = gameData.roster || [];

@@ -74,10 +74,16 @@ export function createMon(pokeData, level, ivsObj, natureKey, moveIds) {
     whirlwinded: false,       // 吹飞/吼叫：本回合被强制换人
     batonPass: false,         // 接棒：本回合下场并传递能力
     effStat(i) {
-      if (i >= 5) return this.stages[i]; // 命中率/闪避率不参与能力值计算，仅用于命中判定
-      let v = this.stats[i] * STAGE_MULT[this.stages[i] + 6];
-      if (i === 4 && this.status === 'paralysis') v *= 0.5;
-      if (i === 0 && this.status === 'burn') v *= 0.5;
+      // 战斗有效能力值（含等级修正与状态影响）
+      // 0=速度, 1=物攻, 2=物防, 3=特攻, 4=特防, 5=命中率, 6=闪避率
+      if (i >= 5) return this.stages[i];           // ACC/EVA 不乘能力值
+      if (i === 0) {
+        let v = this.stats[5] * STAGE_MULT[this.stages[4] + 6];
+        if (this.status === 'paralysis') v *= 0.5;  // 麻痹减速
+        return Math.floor(v);
+      }
+      let v = this.stats[i] * STAGE_MULT[this.stages[i - 1] + 6];
+      if (i === 1 && this.status === 'burn') v *= 0.5; // 烧伤减物攻
       return Math.floor(v);
     },
   };
@@ -106,8 +112,8 @@ function hit(actor, target, mv, ef, events, ctx = null) {
     return false;
   }
   const stab = actor.types.includes(atkType) ? 1.5 : 1;
-  const atk = actor.effStat(ef.cat === 'phys' ? 0 : 2);
-  const def = target.effStat(ef.cat === 'phys' ? 1 : 3);
+  const atk = actor.effStat(ef.cat === 'phys' ? 1 : 3);
+  const def = target.effStat(ef.cat === 'phys' ? 2 : 4);
   const pw = ef.power || 0;
   let dmg = Math.floor(((((2 * actor.level) / 5 + 2) * pw * atk) / def / 50 + 2) * stab * m * (0.85 + Math.random() * 0.15));
   // 天气与场地修正：求雨/大晴天增减水火伤害，青草/电气场地增幅对应属性
@@ -736,7 +742,7 @@ export function preTurn(mon, events) {
     mon.confusionTurns--;
     if (Math.random() < 0.5) {
       events.push(msg(`${mon.name}混乱了，攻击了自己！`));
-      const self = Math.max(1, Math.floor(mon.effStat(0) * 0.5));
+      const self = Math.max(1, Math.floor(mon.effStat(1) * 0.5));
       mon.hp -= self;
       events.push({ t: 'dmg', who: mon.name, uid: mon.uid, amount: self, text: `${mon.name}被自己打掉 ${self} 点HP。` });
       if (mon.hp <= 0) events.push({ t: 'faint', who: mon.name, uid: mon.uid, text: `${mon.name}倒下了！` });

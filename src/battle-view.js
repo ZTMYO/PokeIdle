@@ -356,6 +356,7 @@ function buildPlayerTeam() {
       const mon = createMon(pd, entry.level || 1, entry.ivs, entry.nature, moveIds);
       mon.shiny = !!entry.shiny; // 战斗大图按闪光贴图（_shiny 后缀）加载
       mon.gender = ensureGender(entry); // 玩家个体性别（旧存档无 gender 字段则按物种比例补 roll 并写回）
+      if (entry.nickname) mon.name = entry.nickname; // 玩家昵称覆盖物种名
       mon.participated = false; // 经验结算条件：参战（上过场）且存活
       return { entry, pd, mon };
     })();
@@ -2518,8 +2519,8 @@ async function battleLoop(battle) {
         if (pPri !== ePri) {
           pFirst = pPri > ePri; // 先制度更高者先动（counter 优先级低 → 后手）
         } else {
-          const ps = pMon.effStat(4);
-          const es = eMon.effStat(4);
+          const ps = pMon.effStat(0);
+          const es = eMon.effStat(0);
           pFirst = ps > es || (ps === es && Math.random() < 0.5);
         }
       } else {
@@ -2720,7 +2721,7 @@ function finishBattle(battle) {
         ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/candy.png" alt=""> × ${battle.preset.candy}</div>` : ''}
       </div>
       ${win
-        ? `<div class="battle-result-btns"><button class="battle-btn" id="b-review">回顾</button><button class="battle-btn main" id="b-confirm">确认</button></div>`
+        ? `<div class="battle-result-btns"><button class="battle-btn" id="b-review">回顾</button><button class="battle-btn main" id="b-confirm">确定</button></div>`
         : `<div class="battle-result-btns">
             <button class="battle-btn" id="b-retry">重试</button>
             <button class="battle-btn" id="b-review">回顾</button>

@@ -22,6 +22,21 @@ pub fn load_game_data(app: tauri::AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn export_save_data(_app: tauri::AppHandle, data: String) -> Result<String, String> {
+    let dir = rfd::FileDialog::new()
+        .set_title("选择存档导出目录")
+        .pick_folder();
+    match dir {
+        Some(path) => {
+            let save_path = path.join("save.json");
+            std::fs::write(&save_path, &data).map_err(|e| e.to_string())?;
+            Ok(save_path.to_string_lossy().to_string())
+        }
+        None => Err("用户取消了导出".to_string()),
+    }
+}
+
+#[tauri::command]
 pub fn read_gif_base64(app: tauri::AppHandle, path: String) -> Result<String, String> {
     let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
 

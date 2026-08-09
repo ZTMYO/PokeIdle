@@ -999,63 +999,12 @@ body { margin: 0; padding: 0; cursor: default; }
   font-size: 12px;
   font-weight: 700;
 }
-.incubator-egg-back {
-  cursor: pointer;
-  color: var(--ui-color);
-  opacity: 0.8;
-  user-select: none;
-}
-.incubator-egg-back:hover { opacity: 1; }
-.incubator-egg-list-title { flex: 1; text-align: center; }
 .incubator-egg-empty {
   text-align: center;
   font-size: 10px;
   color: var(--ui-color);
   padding: 20px 0;
   line-height: 1.8;
-}
-.incubator-egg-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 5px;
-  background: rgba(0,0,0,0.04);
-  border-radius: 5px;
-  border: 1px solid rgba(0,0,0,0.08);
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.12s;
-}
-.incubator-egg-item:hover { background: rgba(var(--ui-color-rgb),0.12); }
-.incubator-egg-item:active { transform: scale(0.99); }
-.incubator-egg-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  color: var(--ui-color);
-}
-.incubator-egg-icon svg { width: 100%; height: 100%; }
-.incubator-egg-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-.incubator-egg-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 10px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.incubator-egg-iv {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  color: var(--ui-color);
-  opacity: 0.75;
 }
 
 /* 仓库蛋条目行：蛋图标（icon-egg 随主题色） */
@@ -2200,8 +2149,8 @@ body { margin: 0; padding: 0; cursor: default; }
 /* === 果园帮手角色（异性主角） === */
 /* 待机游走：walk 素材 900% 横向拉伸，复用主界面步行帧动画 */
 .berry-helper {
-  position: absolute;
-  z-index: 9;
+    position: absolute;
+    z-index: 9;
   width: 32px;
   height: 44px;
   bottom: 10px;
@@ -3425,6 +3374,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 #shopView, #incubatorView, #incubatorList { user-select: none; }
 
+#shopContent::-webkit-scrollbar,
 #shopView::-webkit-scrollbar,
 #dataView::-webkit-scrollbar,
 #achievementView::-webkit-scrollbar,
@@ -3438,9 +3388,13 @@ body { margin: 0; padding: 0; cursor: default; }
 #berryView::-webkit-scrollbar,
 #rosterList::-webkit-scrollbar,
 #tradeContent::-webkit-scrollbar,
+#gachaView::-webkit-scrollbar,
+#gachaHistoryView::-webkit-scrollbar,
+#albumView::-webkit-scrollbar,
 .battle-npc-list::-webkit-scrollbar {
   width: 4px;
 }
+#shopContent::-webkit-scrollbar-track,
 #shopView::-webkit-scrollbar-track,
 #dataView::-webkit-scrollbar-track,
 #achievementView::-webkit-scrollbar-track,
@@ -3454,9 +3408,13 @@ body { margin: 0; padding: 0; cursor: default; }
 #berryView::-webkit-scrollbar-track,
 #rosterList::-webkit-scrollbar-track,
 #tradeContent::-webkit-scrollbar-track,
+#gachaView::-webkit-scrollbar-track,
+#gachaHistoryView::-webkit-scrollbar-track,
+#albumView::-webkit-scrollbar-track,
 .battle-npc-list::-webkit-scrollbar-track {
   background: transparent;
 }
+#shopContent::-webkit-scrollbar-thumb,
 #shopView::-webkit-scrollbar-thumb,
 #dataView::-webkit-scrollbar-thumb,
 #achievementView::-webkit-scrollbar-thumb,
@@ -3470,10 +3428,14 @@ body { margin: 0; padding: 0; cursor: default; }
 #berryView::-webkit-scrollbar-thumb,
 #rosterList::-webkit-scrollbar-thumb,
 #tradeContent::-webkit-scrollbar-thumb,
+#gachaView::-webkit-scrollbar-thumb,
+#gachaHistoryView::-webkit-scrollbar-thumb,
+#albumView::-webkit-scrollbar-thumb,
 .battle-npc-list::-webkit-scrollbar-thumb {
   background: rgba(var(--ui-color-rgb), 0.3);
   border-radius: 2px;
 }
+#shopContent::-webkit-scrollbar-thumb:hover,
 #shopView::-webkit-scrollbar-thumb:hover,
 #dataView::-webkit-scrollbar-thumb:hover,
 #achievementView::-webkit-scrollbar-thumb:hover,
@@ -3487,6 +3449,9 @@ body { margin: 0; padding: 0; cursor: default; }
 #berryView::-webkit-scrollbar-thumb:hover,
 #rosterList::-webkit-scrollbar-thumb:hover,
 #tradeContent::-webkit-scrollbar-thumb:hover,
+#gachaView::-webkit-scrollbar-thumb:hover,
+#gachaHistoryView::-webkit-scrollbar-thumb:hover,
+#albumView::-webkit-scrollbar-thumb:hover,
 .battle-npc-list::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--ui-color-rgb), 0.55);
 }
@@ -3505,6 +3470,7 @@ body { margin: 0; padding: 0; cursor: default; }
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
 }
 .shop-icon {
   width: 20px;
@@ -3565,6 +3531,43 @@ body { margin: 0; padding: 0; cursor: default; }
 .shop-ctx-qty { font-weight: 700; }
 .shop-ctx-cost { color: var(--ui-color); }
 
+/* 游戏厅兑换菜单：更紧凑 */
+.casino-exchange-menu .shop-ctx-item {
+  font-size: 9px;
+  padding: 2px 6px;
+  justify-content: flex-start;
+  gap: 8px;
+}
+.casino-exchange-menu .shop-ctx-qty {
+  min-width: 40px;
+}
+
+/* 商店兑换确认文案框（复用遇敌页文字框样式，改为商店内贴底流式布局） */
+.shop-text-box {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+  animation: shopBoxIn 0.28s ease-out;
+  align-items: flex-start; /* 文案顶部对齐，避免与右侧确认按钮重叠 */
+}
+.shop-text-box .text-box-content {
+  padding-top: 7px;
+  font-size: 10px; /* 字号调小，完整显示不省略 */
+}
+.shop-confirm-btns {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  z-index: 2;
+}
+@keyframes shopBoxIn {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
 /* ===== 设置面板 ===== */
 #settingsView {
   padding: 4px 3px;
@@ -3588,8 +3591,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #mahjongView,
 #moveEditView {
   align-self: stretch;
-  width: 100%;
   height: 100%;
+  width: 100%;
 }
 #tutorialContent p {
   margin-bottom: 6px;
@@ -3861,53 +3864,115 @@ body { margin: 0; padding: 0; cursor: default; }
   gap: 4px;
   padding: 6px 4px 2px;
 }
-.filter-row {
+/* 捕捉条件表格底部提示行：提示文字靠左，右侧小号「恢复默认」按钮 */
+.cf-hint-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  padding-left: 10px;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
 }
-/* 从属行（普通宝可梦的等级/未捕获条件）：进一步缩进 + 弱化，表达「只对普通生效」 */
-.filter-row-sub {
-  padding-left: 22px;
-  opacity: 0.85;
+/* 捕捉条件表格底部提示：等级范围外的遭遇自动逃跑 */
+.cf-hint {
+  margin-top: 2px;
+  font-size: 9px;
+  opacity: 0.55;
+  text-align: left;
 }
-.filter-label {
-  font-size: 10px;
-  font-weight: 700;
+.cf-reset-btn {
+  border: none;
+  background: rgba(55, 109, 86, 0.12);
   color: var(--ui-color);
-  width: 32px;
+  font-size: 9px;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
   flex-shrink: 0;
 }
-.filter-chips {
-  display: flex;
-  gap: 4px;
+.cf-reset-btn:hover {
+  background: rgba(55, 109, 86, 0.22);
 }
-.filter-chip {
+/* 捕捉条件表格：四行（普通/普通闪/神兽/神兽闪）× 捕捉/暂停/逃跑 + 最低等级/最高等级/未捕获 */
+.cf-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
   font-size: 10px;
   color: var(--ui-color);
+}
+.cf-table th,
+.cf-table td {
+  border: 1px solid rgba(var(--ui-color-rgb), 0.25);
+  text-align: center;
+  padding: 0;
+  height: 24px;
+  overflow: hidden;
+}
+.cf-table thead th {
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(var(--ui-color-rgb), 0.08);
+  white-space: nowrap;
+  height: 20px;
+}
+/* 捕捉等级列合并了最低/最高，占两列宽度 */
+.cf-table thead th.cf-col-lv {
+  width: 28%;
+}
+.cf-table .cf-corner {
+  background: linear-gradient(to bottom left,
+    transparent calc(50% - 0.5px),
+    rgba(var(--ui-color-rgb), 0.45) calc(50% - 0.5px),
+    rgba(var(--ui-color-rgb), 0.45) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px));
+}
+.cf-row-label {
+  width: 46px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cf-cell {
   cursor: pointer;
   user-select: none;
-  padding: 1px 8px;
-  border-radius: 3px;
-  border: 1px solid rgba(var(--ui-color-rgb),0.35);
   transition: background 0.12s, color 0.12s;
 }
-.filter-chip:hover {
-  background: rgba(var(--ui-color-rgb),0.1);
+.cf-cell.act:hover {
+  background: rgba(var(--ui-color-rgb), 0.1);
 }
-.filter-chip.on {
+.cf-cell.act.on {
   background: var(--ui-color);
   color: var(--screen-bg);
-  border-color: var(--ui-color);
   font-weight: 700;
 }
-.filter-hint {
-  font-size: 9px;
-  color: rgba(var(--ui-color-rgb),0.45);
-  padding: 2px 4px 0 10px;
-  line-height: 1.5;
+.cf-cell.lv {
+  cursor: default;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.cf-cell.lv .filter-lv-input {
+  flex: 1;
+  min-width: 0;
+}
+.cf-cell.uncaught {
+  font-size: 12px;
+}
+.cf-cell.uncaught:hover {
+  background: rgba(var(--ui-color-rgb), 0.1);
+}
+.cf-cell.uncaught.on {
+  background: var(--ui-color);
+  color: var(--screen-bg);
+  font-weight: 700;
+}
+/* 非捕捉行：等级/未捕获不生效，弱化显示并禁止点击 */
+.cf-cell.dim {
+  opacity: 0.4;
+  pointer-events: none;
 }
 .filter-lv-input {
   width: 42px;
@@ -4135,6 +4200,28 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 
 /* === 宝可梦仓库 === */
+/* 批量放生确认按钮 */
+.roster-batch-btn {
+  display: inline-block;
+  padding: 2px 12px;
+  margin-right: 8px;
+  color: #306230;
+  border: 1px solid #306230;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.6;
+  background: transparent;
+  transition: background 0.15s;
+}
+.roster-batch-btn:hover { background: rgba(48,98,48,0.15); }
+.roster-batch-sel {
+  background: rgba(255, 210, 127, 0.18) !important;
+  outline: 1px solid rgba(255, 210, 127, 0.4);
+  border-radius: 2px;
+}
+
 .roster-empty {
   padding: 24px 4px;
   text-align: center;
@@ -4185,6 +4272,40 @@ body { margin: 0; padding: 0; cursor: default; }
   opacity: 0.75;
   margin-left: 6px;
   vertical-align: 1px;
+}
+/* 改名按钮 */
+.roster-nick-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ui-color);
+  opacity: 0.8;
+  cursor: pointer;
+  vertical-align: -2px;
+}
+.roster-nick-btn:hover {
+  color: var(--ui-color-dark);
+}
+.roster-nick-input {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  padding: 0 4px;
+  width: 80px;
+  outline: none;
+  font-family: inherit;
+}
+.roster-nick-input:focus {
+  background: rgba(255, 255, 255, 0.14);
 }
 .roster-iv {
   width: 34px;
@@ -5030,17 +5151,16 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   image-rendering: pixelated;
 }
 
-/* ===== 赌场（21 点） ===== */
+/* ===== 游戏厅（21 点） ===== */
 .casino-app {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   color: var(--ui-color);
-  overflow-y: auto; /* 内容超高时兜底滚动，避免被容器裁掉 */
-  overflow-x: hidden; /* 发牌飞入在容器左侧外，禁止横向滚动条闪动 */
+  overflow: hidden; /* 防止爆牌动画溢出滚动条 */
 }
-/* 赌场首页：仿训练/饲育屋整页场景布局 + 赌桌热区 */
+/* 游戏厅首页：仿训练/饲育屋整页场景布局 + 赌桌热区 */
 .casino-scene-page {
   flex: 1;
   min-height: 0;
@@ -5065,12 +5185,6 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .casino-scene-hot {
   position: absolute;
   cursor: pointer;
-  border-radius: 5px;
-  transition: background 0.15s, box-shadow 0.15s;
-}
-.casino-scene-hot:hover {
-  background: rgba(46, 204, 113, 0.22);
-  box-shadow: inset 0 0 0 1px var(--ui-color);
 }
 .casino-placeholder {
   flex: 1;
@@ -5094,7 +5208,6 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
   width: 100%;
 }
 .casino-bet-body {
@@ -5103,7 +5216,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 12px;
+  gap: 2px;
   padding: 0 2px;
   max-width: 300px;
   margin: 0 auto;
@@ -5125,7 +5238,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .casino-bet-ticks {
   position: relative;
   height: 44px;
-  margin: 0 10px; /* 两端留出首尾刻度标注的空间 */
+  margin: 0 40px;
 }
 .casino-bet-tick {
   position: absolute;
@@ -5136,7 +5249,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   cursor: pointer;
   user-select: none;
 }
-.casino-bet-candy {
+.casino-bet-coin {
   width: 15px;
   height: 15px;
   object-fit: contain;
@@ -5144,7 +5257,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   opacity: 0;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
 }
-.casino-bet-tick.sel .casino-bet-candy {
+.casino-bet-tick.sel .casino-bet-coin {
   opacity: 1;
   animation: casino-candy-pop 0.22s ease-out;
 }
@@ -5194,6 +5307,79 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   opacity: 0.55;
   text-align: center;
 }
+/* 番型参考（下注页相助区）—— 紧凑贴底，名称/倍数 + minicard 行 + 右侧翻页 */
+.mj-yaku-ref {
+  padding: 4px 8px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.12);
+  background: rgba(var(--ui-color-rgb), 0.04);
+}
+.mj-yaku-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.mj-yaku-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+}
+.mj-yaku-fans {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb), 0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.mj-yaku-row {
+  display: flex;
+  align-items: center;
+}
+.mj-yaku-cards {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  min-height: 24px;
+}
+.mj-yaku-desc {
+  font-size: 8px;
+  color: rgba(var(--ui-color-rgb), 0.5);
+  line-height: 1.3;
+}
+.mj-yaku-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.mj-yaku-nav-btn {
+  width: 20px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.2);
+  border-radius: 3px;
+  color: rgba(var(--ui-color-rgb), 0.55);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+.mj-yaku-nav-btn:hover {
+  color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb), 0.08);
+  border-color: rgba(var(--ui-color-rgb), 0.35);
+}
+.mj-yaku-arrow {
+  width: 9px;
+  height: 9px;
+}
+#mjYakuPrev .mj-yaku-arrow { transform: rotate(90deg); }   /* 上翻：左箭头转向上 */
+#mjYakuNext .mj-yaku-arrow { transform: rotate(-90deg); }  /* 下翻：左箭头转向下 */
 /* 通用按钮（与 .battle-btn 一致规格） */
 .casino-btn {
   font-family: inherit;
@@ -5236,11 +5422,13 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   right: 0;
   z-index: 3;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   text-align: center;
-  color: var(--ui-color); /* 胜负/平局统一主题色 */
+  color: var(--ui-color);
   pointer-events: none;
 }
+.casino-result.win { color: var(--ui-color); }
+.casino-result.lose { color: #e74c3c; }
 /* 手牌区：占据剩余空间并整体靠下对齐，贴近底部操作按钮行 */
 .casino-hands {
   flex: 1;
@@ -5261,13 +5449,15 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .casino-hand-label {
   font-size: 12px;
-  opacity: 0.75;
   margin-bottom: 3px;
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.casino-hand-value { opacity: 0.7; }
+.casino-hand-value { font-weight: normal; }
+.casino-hand-value.lead { font-weight: 700; }
+.casino-hand-value.bj { color: #f0d060; }
+.casino-hand-value.bust { color: #e74c3c; }
 .casino-cards {
   display: flex;
   flex-wrap: wrap;
@@ -5303,6 +5493,41 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   width: 20px;
   height: 20px;
   display: block;
+}
+/* 下注堆叠：左列上下两个筹码堆 */
+.casino-coin-piles {
+  position: absolute;
+  left: 8px;
+  inset: 0;
+  width: 28px;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding: 20px 0 30px;
+}
+.casino-coin-pile {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.casino-coin-pile-stack {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+  bottom: 0;
+}
+.casino-coin-pile.doubled .casino-coin-pile-stack {
+  animation: casino-pile-double 0.4s ease-out;
+}
+@keyframes casino-pile-double {
+  0% { transform: translateY(-6px) scale(1.4); }
+  60% { transform: translateY(0) scale(0.9); }
+  100% { transform: translateY(var(--stack-y, -2px)) scale(1); }
 }
 /* 发牌动画：牌从左上牌堆处飞入，轻微上抛落地（时长与发牌间隔 230ms 匹配） */
 @keyframes casino-deal-in {
@@ -5360,21 +5585,19 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   min-height: 30px;
   margin-bottom: 10px;
 }
-/* 玩家爆牌：牌桌左右震动 */
-@keyframes casino-bust-shake {
-  0%, 100% { transform: translateX(0); }
-  10% { transform: translateX(-7px) rotate(-0.4deg); }
-  25% { transform: translateX(6px) rotate(0.3deg); }
-  40% { transform: translateX(-5px); }
-  55% { transform: translateX(4px); }
-  70% { transform: translateX(-3px); }
-  85% { transform: translateX(2px); }
+/* 爆牌特效：卡片散开掉落 */
+.casino-hand.busted .casino-cards { position: relative; }
+.casino-hand.busted .casino-card {
+  animation: casino-bust-scatter 0.8s ease-in forwards;
+  position: relative;
+  pointer-events: none;
 }
-.casino-app.bust {
-  animation: casino-bust-shake 0.5s ease-in-out;
-}
-
-/* ---- 战斗页：上下两大分区（上区对战展示 / 下区技能操作面板，分割线隔开） ---- */
+@keyframes casino-bust-scatter {
+  0% { transform: translate(0,0) rotate(0deg); opacity: 1; }
+  30% { transform: translate(var(--bx, 0), var(--by, -20px)) rotate(var(--br, 0deg)); opacity: 1; }
+  60% { opacity: 0.7; }
+  100% { transform: translate(var(--bx, 0), calc(var(--by, -20px) + 60px)) rotate(var(--br, 0deg)); opacity: 0; }
+}/* 战斗页：上下两大分区（上区对战展示 / 下区技能操作面板，分割线隔开） ---- */
 .battle-fight {
   position: absolute;
   left: 0; top: 0; right: 0; bottom: 0;
@@ -6504,18 +6727,28 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 /* 告示牌：点击弹出配对面板 */
 .nursery-board-sign {
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: 15px; right: 15px;
   z-index: 8;
-  width: 30px;
-  height: 30px;
-  object-fit: contain;
-  image-rendering: pixelated;
+  width: 30px; height: 30px;
+  object-fit: contain; image-rendering: pixelated;
   cursor: pointer;
   transition: transform 0.1s;
 }
 .nursery-board-sign:hover { transform: scale(1.08); }
 .nursery-board-sign:active { transform: scale(0.92); }
+
+/* 纸箱子：告示牌镜像位置（左上角） */
+.nursery-box-sign {
+  position: absolute;
+  top: 20px; left: 20px;
+  z-index: 8;
+  width: 25px; height: 25px;
+  object-fit: contain; image-rendering: pixelated;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.nursery-box-sign:hover { transform: scale(1.08); }
+.nursery-box-sign:active { transform: scale(0.92); }
 .nursery-egg-tile {
   position: absolute;
   width: 22px;
@@ -6529,6 +6762,72 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .nursery-egg-tile:hover { transform: scale(1.1); }
 .nursery-egg-tile:active { cursor: grabbing; }
 .nursery-panel { max-height: 97%; }
+
+/* 蛋仓库 */
+.nursery-egg-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 6px 4px;
+  box-sizing: border-box;
+}
+.nursery-egg-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 0 1px;
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0.55;
+  user-select: none;
+}
+.nursery-egg-header-name { flex: 1; min-width: 0; }
+.nursery-egg-header-iv { flex-shrink: 0; width: 64px; text-align: right; }
+.nursery-egg-header [data-egg-sort] { cursor: pointer; user-select: none; }
+.nursery-egg-header [data-egg-sort]:hover { opacity: 1; }
+.nursery-egg-header [data-egg-pick-sort] { cursor: pointer; user-select: none; }
+.nursery-egg-header [data-egg-pick-sort]:hover { opacity: 1; }
+.nursery-egg-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  border-bottom: 1px solid rgba(48, 98, 48, 0.08);
+  font-size: 11px;
+  color: var(--ui-color);
+}
+#incubatorEggView .nursery-egg-row {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+#incubatorEggView .nursery-egg-row:hover { background: rgba(var(--ui-color-rgb), 0.08); }
+.nursery-egg-row-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nursery-egg-row-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.nursery-egg-row-iv {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.nursery-egg-page .list-scroll { overflow-x: hidden; }
+.nursery-egg-page .list-scroll::-webkit-scrollbar { width: 4px; }
+.nursery-egg-page .list-scroll::-webkit-scrollbar-track { background: transparent; }
+.nursery-egg-page .list-scroll::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb), 0.3); border-radius: 2px; }
 .nursery-pick-page {
   width: 100%;
   height: 100%;
@@ -6876,3 +7175,1560 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   flex: 1;
   text-align: left;
 }
+
+/* ==================== 口袋麻将 ==================== */
+/* 四家圆桌布局：对家横向/左右竖向/玩家横向；中央明宝牌→局况→牌河→操作提示 */
+#mahjongView .mahjong-app {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+#mahjongView .mj-table {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 64%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border-radius: 8px;
+}
+#mahjongView .mj-seat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+/* 浮标全幅透明层，高于结算遮罩 */
+#mahjongView .mj-float-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+/* 碰=绿色 / 胡&自摸=红色 —— 白色气泡 + 尖角指向座位 */
+#mahjongView .mj-float {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  min-width: 44px;
+  padding: 8px;
+  pointer-events: none;
+  opacity: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ui-color);
+  background: #fdf5e4;
+  border-radius: 8px;
+}
+#mahjongView .mj-float::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+/* 浮标固定坐标 */
+#mahjongView .mj-float-layer #mjFloat1 { left: calc(50% - 22px); top: 48px; }
+#mahjongView .mj-float-layer #mjFloat2 { left: 30px;             top: calc(50% - 11px); }
+#mahjongView .mj-float-layer #mjFloat3 { right: 30px;            top: calc(50% - 11px); }
+#mahjongView .mj-float-layer #mjFloat0 { left: calc(50% - 22px); top: calc(100% - 80px); }
+/* 胡/自摸用红色 */
+#mahjongView .mj-float.mj-float-win {
+  color: #e53935;
+}
+/* 玩家(底)：尖角向下 */
+#mahjongView #mjFloat0::after {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 7px solid #fff;
+}
+/* 对家(顶)：尖角向上 */
+#mahjongView #mjFloat1::after {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 7px solid #fff;
+}
+/* 左家：尖角向左 */
+#mahjongView #mjFloat2::after {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 7px solid #fff;
+}
+/* 右家：尖角向右 */
+#mahjongView #mjFloat3::after {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 7px solid #fff;
+}
+#mahjongView .mj-float.mj-float-show {
+  animation: mj-float-pop 0.8s ease-out both;
+}
+@keyframes mj-float-pop {
+  0%   { opacity: 0; transform: scale(1.7); }
+  18%  { opacity: 1; transform: scale(1); }
+  70%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(-16px); }
+}
+
+/* 顶部对家：横向 8 张平铺 + 横向副露 */
+#mahjongView .mj-seat.top {
+  top: 4px;
+  left: 32px;
+  right: 32px;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 4px;
+}
+#mahjongView .mj-wall-h {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0;
+}
+/* 对家暗牌整体下移，给顶部夹层留出可视空间（否则最上层被视口顶部裁切） */
+#mahjongView .mj-seat.top .mj-wall-h {
+  margin-top: 8px;
+}
+/* 对家暗牌：纯色绿面 + 顶部夹层 */
+#mahjongView .mj-back-card {
+  position: relative;
+  z-index: 3; /* 卡面盖住夹层顶部，只露出夹层高于卡面的部分 */
+  width: 17px;
+  height: 20px;
+  box-sizing: border-box;
+  background: #3f8a63;
+  border: 1px solid #2f6a4a;
+  border-radius: 3px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  flex-shrink: 0;
+}
+/* 精灵球图标 */
+#mahjongView .mj-back-card .mj-back-icon {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  transform: translate(-50%, -50%);
+  color: #2f6a4a; /* icon-owned 使用 fill="currentColor"，渲染为麻将边框色 */
+  pointer-events: none;
+}
+/* 白/绿夹层叠加：白-6px / 绿-4px，视觉白上绿下 */
+#mahjongView .mj-seat.top .mj-wall .mj-stack.mj-back-stack .mj-layer-inner {
+  top: -6px;
+  z-index: 1;
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+}
+#mahjongView .mj-seat.top .mj-wall .mj-stack.mj-back-stack .mj-layer-outer {
+  top: -4px;
+  z-index: 2;
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+}
+
+/* 左右两家：竖向堆叠暗牌 + 竖向副露 */
+#mahjongView .mj-seat.left {
+  top: 16px;
+  left: 4px;
+  width: 28px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+}
+#mahjongView .mj-seat.right {
+  top: 16px;
+  right: 4px;
+  width: 28px;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 4px;
+}
+#mahjongView .mj-wall-v {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+}
+/* 竖向背卡：绿条在朝向桌心的内侧 */
+#mahjongView .mj-back-v {
+  width: 9px;
+  height: 22px;
+  background: #fff7e6;
+  border: 1px solid #2f6a4a;
+  border-radius: 2px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  position: relative;
+  flex-shrink: 0;
+}
+#mahjongView .mj-seat.left .mj-back-v {
+  background: linear-gradient(270deg, #3f8a63 0 3px, #fff7e6 3px 100%);
+}
+#mahjongView .mj-seat.right .mj-back-v {
+  background: linear-gradient(90deg, #3f8a63 0 3px, #fff7e6 3px 100%);
+}
+
+/* 底部玩家：手牌贴左，副露同行右对齐 */
+#mahjongView .mj-seat.bottom {
+  bottom: 0;
+  left: 4px;
+  right: 4px;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding-left: 8%;
+  gap: 8px;
+}
+#mahjongView .mj-hand {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+}
+#mahjongView .mj-hand .mj-card {
+  cursor: pointer;
+}
+/* hover 作用在夹层包裹层上：卡面与夹层一起浮起，避免夹层脱离卡面 */
+#mahjongView .mj-hand .mj-stack:hover {
+  transform: translateY(-6px);
+}
+#mahjongView .mj-hand .mj-stack:hover .mj-card {
+  outline: 2px solid var(--ui-color);
+  outline-offset: -2px;
+}
+/* 非玩家回合 / 发牌中：禁止手牌 hover 浮起 */
+#mahjongView .mj-dealing .mj-stack:hover,
+#mahjongView .mj-dealing .mj-stack.mj-hovered {
+  transform: none;
+}
+#mahjongView .mj-dealing .mj-stack:hover .mj-card,
+#mahjongView .mj-dealing .mj-stack.mj-hovered .mj-card {
+  outline: none;
+}
+
+/* 副露容器 */
+#mahjongView .mj-meld {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+}
+#mahjongView .mj-meld-h {
+  flex-direction: row;
+  gap: 0; /* 副露牌之间贴紧 */
+}
+/* 玩家副露夹层下移 6px，与手牌底部对齐 */
+#mahjongView .mj-player-meld {
+  margin-top: -6px;
+  padding-bottom: 6px;
+  overflow: visible;
+}
+#mahjongView .mj-meld-v {
+  flex-direction: column;
+  gap: 0;
+  justify-content: flex-start;
+}
+
+/* 中央桌面：明宝牌 → 局况 → 牌河 → 提示 */
+#mahjongView .mj-center {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  z-index: 1;
+}
+#mahjongView .mj-river-box {
+  position: relative;
+  width: 100%;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 3px;
+}
+#mahjongView .mj-river {
+  width: 100%;
+  display: grid;
+  /* 长方形 8×6 网格（示例 41111112/40000002/.../43333332）：
+     左右(竖区)各 1 列包住上下(横区)；中央在左右家之间为正方形，
+     其上下两行放对家/玩家横排，余下 4 行即空矩形中心。
+     统一 1fr 使左右高 = 对家宽，aspect-ratio 保证整体长方形 */
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  grid-template-areas:
+    "left top top top top top top right"
+    "left . . . . . . right"
+    "left . . . . . . right"
+    "left . . . . . . right"
+    "left . . . . . . right"
+    "left bottom bottom bottom bottom bottom bottom right";
+  gap: 2px;
+  aspect-ratio: 8 / 6;
+}
+#mahjongView .mj-river-lane {
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  padding: 2px 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+#mahjongView .mj-river-lane[data-side="opp"] { grid-area: top; justify-content: flex-end; }
+#mahjongView .mj-river-lane[data-side="left"] { grid-area: left; justify-content: flex-start; align-items: center; }
+#mahjongView .mj-river-lane[data-side="right"] { grid-area: right; justify-content: flex-end; align-items: center; }
+#mahjongView .mj-river-lane[data-side="player"] { grid-area: bottom; }
+#mahjongView .mj-river-cards {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 0;
+  min-height: 0;
+  overflow: visible;
+}
+/* 弃牌流：四边统一 mini 竖牌 */
+#mahjongView .mj-river-lane[data-side="opp"] .mj-river-cards {
+  flex-direction: row-reverse;
+  max-height: 28px;
+}
+#mahjongView .mj-river-lane[data-side="left"] .mj-river-cards {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  max-height: 100%;
+}
+#mahjongView .mj-river-lane[data-side="right"] .mj-river-cards {
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 0;
+  max-height: 100%;
+}
+#mahjongView .mj-river-lane[data-side="player"] .mj-river-cards {
+  max-height: 28px;
+}
+/* 四边牌统一竖放：对家/左家倒置，右家/玩家正立 */
+#mahjongView .mj-river-lane[data-side="opp"] .mj-river-cards .mj-card.mj-mini { transform: rotate(180deg); }
+#mahjongView .mj-river-lane[data-side="opp"] .mj-river-cards .mj-card.mj-mini ~ .mj-card.mj-mini { margin-right: -5px; }
+#mahjongView .mj-river-lane[data-side="left"] .mj-river-cards .mj-card.mj-mini { transform: rotate(90deg); }
+#mahjongView .mj-river-lane[data-side="left"] .mj-river-cards .mj-card.mj-mini ~ .mj-card.mj-mini { margin-top: -12px; }
+#mahjongView .mj-river-lane[data-side="right"] .mj-river-cards .mj-card.mj-mini { transform: rotate(-90deg); }
+#mahjongView .mj-river-lane[data-side="right"] .mj-river-cards .mj-card.mj-mini ~ .mj-card.mj-mini { margin-bottom: -12px; }
+#mahjongView .mj-river-lane[data-side="player"] .mj-river-cards .mj-card.mj-mini ~ .mj-card.mj-mini { margin-left: -5px; }
+/* 立直宣言牌：四边统一横放 90°，与竖牌区分 */
+#mahjongView .mj-river-lane[data-side="opp"] .mj-river-cards .mj-card.mj-mini.mj-riichi { transform: rotate(90deg); }
+#mahjongView .mj-river-lane[data-side="player"] .mj-river-cards .mj-card.mj-mini.mj-riichi { transform: rotate(90deg); }
+#mahjongView .mj-river-lane[data-side="left"] .mj-river-cards .mj-card.mj-mini.mj-riichi { transform: rotate(180deg); }
+#mahjongView .mj-river-lane[data-side="right"] .mj-river-cards .mj-card.mj-mini.mj-riichi { transform: rotate(0deg); }
+
+/* 中央信息（叠在牌河正中） */
+#mahjongView .mj-river-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  z-index: 1;
+}
+#mahjongView .mj-center-main {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start; /* 宝牌+局况整体偏左上，避开中央牌河 */
+  margin-left: 10px;
+}
+#mahjongView .mj-c-info {
+  display: flex;
+  flex-direction: column; /* 局数在上、下注在下 */
+  align-items: flex-start;
+  gap: 2px;
+}
+#mahjongView .mj-c-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #2f6a4a;
+  white-space: nowrap;
+}
+#mahjongView .mj-dora {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+#mahjongView .mj-dora-card {
+  min-width: 20px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 宝牌卡面已并入手牌/副露公共样式（绿边框+圆角+底部夹层） */
+#mahjongView .mj-msg {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(55, 109, 86, 0.92);
+  letter-spacing: 0.3px;
+  line-height: 1;
+  height: 11px;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+#mahjongView .mj-msg .mj-dice {
+  font-size: 40px;
+  font-weight: 400;
+  letter-spacing: 6px;
+}
+/* 操作区（碰牌指示 + 按钮）：悬浮于牌河底层容器之上，不占网格/流内布局 */
+#mahjongView .mj-msg-actions {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 15%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+  background: rgba(227, 255, 241, 0.5);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+#mahjongView .mj-msg-actions[hidden] {
+  display: none;
+}
+#mahjongView .mj-msg-actions .casino-btn {
+  min-width: 44px;
+  padding: 2px 10px;
+  font-size: 10px;
+  border-radius: 6px; /* 正常小圆角，不用胶囊 */
+}
+/* 可碰牌：在「碰！」按钮左侧展示 */
+#mahjongView .mj-msg-actions .mj-pon-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 立直环：与牌河网格对齐 */
+#mahjongView .mj-river-ring {
+  position: absolute;
+  inset: 3px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 2px;
+  pointer-events: none;
+  z-index: 2;
+}
+#mahjongView .mj-river-ring .mj-riichi-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+}
+/* 立直文字定位：四家对称分布于牌河四边 */
+#mahjongView .mj-river-ring .mj-riichi-slot.top {
+  grid-column: 4 / 6;
+  grid-row: 2;
+}
+#mahjongView .mj-river-ring .mj-riichi-slot.left {
+  grid-column: 2;
+  grid-row: 3 / 5;
+  flex-direction: column;
+}
+#mahjongView .mj-river-ring .mj-riichi-slot.right {
+  grid-column: 7;
+  grid-row: 3 / 5;
+  flex-direction: column;
+}
+#mahjongView .mj-river-ring .mj-riichi-slot.bottom {
+  grid-column: 4 / 6;
+  grid-row: 5;
+}
+/* 左右立直条文字竖立且左右镜像：左家右转 90° / 右家左转 -90°，朝向桌心 */
+#mahjongView .mj-river-ring .mj-riichi-slot.left .mj-riichi-tag { transform: rotate(90deg); }
+#mahjongView .mj-river-ring .mj-riichi-slot.right .mj-riichi-tag { transform: rotate(-90deg); }
+#mahjongView .mj-riichi-tag {
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--ui-color);
+  border-radius: 4px;
+  padding: 1px 7px;
+  line-height: 1.4;
+  white-space: nowrap; /* 禁止「立直」两字换行 */
+  width: max-content;  /* 不被窄列槽位挤压收缩（左右家 rotate 后尤其需要） */
+  flex-shrink: 0;
+  flex: none;
+}
+
+/* 正牌：属性色卡面 */
+#mahjongView .mj-card {
+  position: relative;
+  width: 24px;
+  height: 34px;
+  background: var(--tc, #ffffff);
+  border-radius: 4px;
+  border: 2px solid var(--tc, #c8c8c8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 1px;
+  color: #fff;
+  flex-shrink: 0;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+#mahjongView .mj-img {
+  width: 15px;
+  height: 15px;
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+#mahjongView .mj-pts {
+  position: absolute;
+  top:1px;
+  right:1px;
+  font-size: 5px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.7);
+  z-index: 1;
+}
+/* 牌面夹层：属性色面 + 双层夹层 */
+#mahjongView .mj-hand .mj-card,
+#mahjongView .mj-meld .mj-card,
+#mahjongView .mj-wall .mj-card,
+#mahjongView .mj-dora-card .mj-card,
+#mahjongView .mj-pon-card .mj-card {
+  box-sizing: border-box;
+  background: var(--tc); /* 主卡面 = 属性色纯色（示例主卡） */
+  border: 1.5px solid #2f6a4a;
+  border-radius: 3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  width: 22px;  /* 手牌缩小：24x34 → 22x28 */
+  height: 28px;
+}
+/* 宝牌：中号卡 + 白细边 */
+#mahjongView .mj-dora-card .mj-card.mj-mini {
+  border: 1px solid #fff;
+  width: 17px;
+  height: 24px;
+}
+/* 宝牌扫光由 JS 定时器触发（避免重渲染打断 CSS 周期动画） */
+
+/* dora 扫光：挂在 .mj-stack 上，高于卡面，避开 z-index 层级 */
+#mahjongView .mj-stack:has(.mj-dora-hit)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  z-index: 99;
+  pointer-events: none;
+  background-image: linear-gradient(115deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.45) 40%,
+    rgba(255, 255, 255, 0.15) 55%,
+    transparent 70%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+}
+#mahjongView .mj-stack:has(.mj-dora-hit.mj-dora-flash)::after {
+  animation: mj-dora-shine 0.55s ease-out both;
+}
+@keyframes mj-dora-shine {
+  from { background-position: 130% 0; }
+  to   { background-position: -120% 0; }
+}
+#mahjongView .mj-dora-card .mj-card.mj-mini .mj-img {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+}
+/* 碰指示牌：中号卡（17x24，比 22x28 略小） */
+#mahjongView .mj-pon-card .mj-card {
+  width: 17px;
+  height: 24px;
+}
+#mahjongView .mj-pon-card .mj-card .mj-img {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+}
+/* 夹层包裹层：尺寸跟随卡面 */
+#mahjongView .mj-stack {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  transition: transform 0.1s ease-out;
+}
+#mahjongView .mj-stack .mj-card {
+  position: relative;
+  z-index: 3; /* 卡面盖住白层顶部 */
+}
+/* 夹层公共：与卡同宽同边框 */
+#mahjongView .mj-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12px; /* 越过卡面圆角区填满缺口 */
+  box-sizing: border-box;
+  border: 1px solid #2f6a4a;
+  pointer-events: none;
+}
+#mahjongView .mj-layer-inner { background: #fff7e6; z-index: 2; }
+/* 绿层与白层同宽（宽度统一），仅露出高度更矮 */
+#mahjongView .mj-layer-outer {
+  background: #3f8a63;
+  z-index: 1;
+}
+/* 手牌夹层顶部：白-4px / 绿-6px */
+#mahjongView .mj-hand .mj-layer-inner {
+  top: -4px;
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+}
+/* 绿层露出高度：-6px 仅露 2px */
+#mahjongView .mj-hand .mj-layer-outer {
+  top: -6px;
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+}
+/* 玩家副露底部夹层：与顶部垂直镜像 */
+#mahjongView .mj-player-meld .mj-layer-inner {
+  top: auto;
+  bottom: -4px;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+}
+#mahjongView .mj-player-meld .mj-layer-outer {
+  top: auto;
+  bottom: -6px;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+}
+/* 平躺（副露 / 胡牌亮牌）：夹层强制底部 + 圆角与手牌一致（3px） */
+#mahjongView .mj-stack:has(.mj-flat) .mj-layer-inner {
+  top: auto;
+  bottom: -4px;
+  border-top: none;
+  border-bottom: 1.5px solid #2f6a4a;
+  border-radius: 0 0 3px 3px;
+}
+#mahjongView .mj-stack:has(.mj-flat) .mj-layer-outer {
+  top: auto;
+  bottom: -6px;
+  border-top: none;
+  border-bottom: 1.5px solid #2f6a4a;
+  border-radius: 0 0 3px 3px;
+}
+/* 中央宝牌指示牌 / 碰指示牌：明牌 + 底部夹层（与副露同款） */
+#mahjongView .mj-dora-card .mj-layer-inner,
+#mahjongView .mj-pon-card .mj-layer-inner {
+  top: auto;
+  bottom: -4px;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+}
+#mahjongView .mj-dora-card .mj-layer-outer,
+#mahjongView .mj-pon-card .mj-layer-outer {
+  top: auto;
+  bottom: -6px;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+}
+#mahjongView .mj-meld .mj-card .mj-img,
+#mahjongView .mj-dora-card .mj-card .mj-img,
+#mahjongView .mj-pon-card .mj-card .mj-img {
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+}
+#mahjongView .mj-meld .mj-card .mj-pts,
+#mahjongView .mj-wall .mj-card .mj-pts { top: 4px; right: 4px; z-index: 1; }
+#mahjongView .mj-stack:has(.mj-fresh) {
+  animation: mj-fresh-pop 0.35s ease-out;
+}
+@keyframes mj-fresh-pop {
+  0% { transform: translateY(-14px) scale(1.08); }
+  60% { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+/* 牌河/副露 mini 卡：统一白色细边框、小圆角 */
+#mahjongView .mj-card.mj-mini {
+  width: 13px;
+  height: 19px;
+  border: 1px solid #fff;
+  border-radius: 2px;
+  background: var(--tc, #ffffff);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  padding: 1px;
+}
+#mahjongView .mj-card.mj-mini .mj-img {
+  width: 8px;
+  height: 8px;
+}
+#mahjongView .mj-card.mj-mini .mj-pts {
+  display: none;
+}
+/* 三家 AI 副露卡面统一为 17×24（比玩家副露 22×28 小，与宝牌/碰指示牌一致），
+   边框比玩家副露细、图标和点数更小；胡牌方亮出手牌与副露同款 */
+#mahjongView .mj-seat.top .mj-meld .mj-card,
+#mahjongView .mj-seat.top .mj-wall .mj-card,
+#mahjongView .mj-seat.left .mj-meld .mj-card,
+#mahjongView .mj-seat.left .mj-wall .mj-card,
+#mahjongView .mj-seat.right .mj-meld .mj-card,
+#mahjongView .mj-seat.right .mj-wall .mj-card {
+  width: 17px;
+  height: 24px;
+  border-width: 1px;
+}
+#mahjongView .mj-seat.top .mj-meld .mj-card .mj-img,
+#mahjongView .mj-seat.top .mj-wall .mj-card .mj-img,
+#mahjongView .mj-seat.left .mj-meld .mj-card .mj-img,
+#mahjongView .mj-seat.left .mj-wall .mj-card .mj-img,
+#mahjongView .mj-seat.right .mj-meld .mj-card .mj-img,
+#mahjongView .mj-seat.right .mj-wall .mj-card .mj-img {
+  width: 10px;
+  height: 10px;
+}
+#mahjongView .mj-seat.top .mj-meld .mj-card .mj-pts,
+#mahjongView .mj-seat.top .mj-wall .mj-card .mj-pts,
+#mahjongView .mj-seat.left .mj-meld .mj-card .mj-pts,
+#mahjongView .mj-seat.left .mj-wall .mj-card .mj-pts,
+#mahjongView .mj-seat.right .mj-meld .mj-card .mj-pts,
+#mahjongView .mj-seat.right .mj-wall .mj-card .mj-pts {
+  font-size: 5px;
+  top: 3px;
+  right: 3px;
+}
+/* 左右家亮牌/副露：卡面旋转 90° 朝向桌心 */
+#mahjongView .mj-seat.left .mj-meld .mj-stack,
+#mahjongView .mj-seat.left .mj-wall .mj-stack,
+#mahjongView .mj-seat.right .mj-meld .mj-stack,
+#mahjongView .mj-seat.right .mj-wall .mj-stack {
+  width: 24px;
+  height: 17px;
+  align-items: center;
+  justify-content: center;
+}
+#mahjongView .mj-seat.left .mj-meld .mj-stack .mj-card,
+#mahjongView .mj-seat.left .mj-wall .mj-stack .mj-card { transform: rotate(90deg); }
+#mahjongView .mj-seat.right .mj-meld .mj-stack .mj-card,
+#mahjongView .mj-seat.right .mj-wall .mj-stack .mj-card { transform: rotate(-90deg); }
+/* 上面两张为正常卡面，仅最底部一张露出两个夹层（叠在朝桌心的长边下） */
+#mahjongView .mj-seat.left .mj-meld .mj-stack:not(:last-child) .mj-layer,
+#mahjongView .mj-seat.right .mj-meld .mj-stack:not(:last-child) .mj-layer {
+  display: none;
+}
+/* 对家副露：卡面 180° 朝向玩家 */
+#mahjongView .mj-seat.top .mj-meld .mj-stack .mj-card,
+#mahjongView .mj-seat.top .mj-wall .mj-stack .mj-card { transform: rotate(180deg); }
+
+/* 结算全屏遮罩：半透明盖住整个视口 */
+#mahjongView .mj-result {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: rgba(10, 18, 14, 0.62);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px;
+  text-align: center;
+}
+#mahjongView .mj-result[hidden] {
+  display: none;
+}
+/* 结算内容逐条停顿淡入：默认隐藏，JS 逐个加 .mj-res-in */
+#mahjongView .mj-result .mj-res-title,
+#mahjongView .mj-result .mj-res-cards,
+#mahjongView .mj-result .mj-res-yaku-tag,
+#mahjongView .mj-result .mj-res-num,
+#mahjongView .mj-result .mj-seat-cell,
+#mahjongView .mj-result .mj-res-btn {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+#mahjongView .mj-result .mj-res-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#mahjongView .mj-res-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  flex: 0 0 auto;
+  min-height: 18px;
+  line-height: 18px;
+}
+#mahjongView .mj-res-cards {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin: 4px 0;
+}
+/* 结算第一屏：番型左右两列，中央番数 */
+#mahjongView .mj-result-body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  flex: 0 0 auto;
+  min-height: 100px;
+}
+#mahjongView .mj-res-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+#mahjongView .mj-res-col-l {
+  align-items: flex-end;
+  text-align: right;
+}
+#mahjongView .mj-res-col-r {
+  align-items: flex-start;
+  text-align: left;
+}
+#mahjongView .mj-res-center {
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+/* 番型纯文字展示：无背景无边框 */
+#mahjongView .mj-res-yaku-tag {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #fff;
+}
+#mahjongView .mj-res-yaku-tag b {
+  color: #ffd27f;
+}
+/* 中央番数大字：数字放大，「番」label 与数字同行内联（役满时以「役满」替代数字并收小字号） */
+#mahjongView .mj-res-num {
+  position: relative;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+}
+#mahjongView .mj-res-num.mj-res-ym {
+  font-size: 26px;
+  letter-spacing: 2px;
+}
+/* 「番」label：内联跟在数字后同一行，基线对齐，字号略小 */
+#mahjongView .mj-res-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  margin-left: 5px;
+  vertical-align: baseline;
+}
+/* 结算第二屏：四家绕桌布局（上=对家 中排=左家+右家 下=你），每家水平一行：序号+名字+分值；
+   浮现顺序按名次（playResult 按 data-rank 排序）；分值右上角标显示本局增减（红/绿） */
+#mahjongView .mj-scores {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+  min-height: 120px;
+}
+#mahjongView .mj-scores-mid {
+  display: flex;
+  gap: 4px;
+}
+#mahjongView .mj-seat-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+#mahjongView .mj-seat-cell.self {
+  background: rgba(255, 210, 127, 0.16);
+}
+#mahjongView .mj-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0;
+  transform: scale(0.5);
+}
+/* 名次标按名次依次弹出 */
+#mahjongView .mj-rank.mj-rank-show {
+  animation: mj-rank-pop 0.32s ease-out both;
+}
+@keyframes mj-rank-pop {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+#mahjongView .mj-seat-cell.lead .mj-rank {
+  background: #f6c700;
+  color: #fff; /* 第1名黄色圆形内的数字改白色 */
+}
+#mahjongView .mj-seat-name {
+  min-width: 34px;
+}
+#mahjongView .mj-seat-score {
+  position: relative;
+  min-width: 44px;
+  text-align: right;
+  color: #ffd27f;
+  font-size: 14px;
+  font-weight: 800;
+}
+#mahjongView .mj-seat-score .mj-seat-num {
+  font-style: normal;
+  display: inline-block;
+}
+#mahjongView .mj-delta {
+  position: absolute;
+  top: -8px;
+  right: 0;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+#mahjongView .mj-delta.up { color: #4caf50; }
+#mahjongView .mj-delta.down { color: #e74c3c; }
+/* 结算按钮脱离上方内容流：绝对定位锚在遮罩底部居中，标题/番型/分数多高都不会挤动它；
+   用 left/right+auto margin 居中（避免 transform 与淡入动画的 translateY 冲突） */
+#mahjongView .mj-result .mj-res-btn {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  margin: 0 auto;
+  width: fit-content;
+  color: #fff;
+}
+
+/* 全场结算：垂直列表 */
+#mahjongView .mj-end-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+}
+#mahjongView .mj-end-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: var(--screen-bg-dark);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+#mahjongView .mj-end-cell.self {
+  background: var(--screen-bg);
+}
+/* 全场结算内名次标：比局结算页更小 */
+#mahjongView .mj-end-cell .mj-rank {
+  width: 13px;
+  height: 13px;
+  font-size: 8px;
+}
+/* 全场结算内座位名：比局结算页更小 */
+#mahjongView .mj-end-cell .mj-seat-name {
+  min-width: 28px;
+  font-size: 9px;
+}
+#mahjongView .mj-end-cell.mj-res-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+#mahjongView .mj-end-net {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 70px;
+  text-align: right;
+}
+#mahjongView .mj-coin-icon {
+  width: 10px;
+  height: 10px;
+  vertical-align: middle;
+  image-rendering: pixelated;
+}
+#mahjongView .mj-end-net.mj-delta-up { color: #ffd354; }
+#mahjongView .mj-end-net.mj-delta-down { color: #e74c3c; }
+#mahjongView .mj-end-btn {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  margin: 0 auto;
+  width: fit-content;
+  color: #fff;
+}
+
+/* 碰/胡浮标中的宝可梦 icon */
+#mahjongView .mj-float-icon {
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+  margin-right: 3px;
+  flex-shrink: 0;
+}
+
+/* 立直宣言：不能打的牌置灰禁点（灰化整张牌，不响应 hover/点击） */
+#mahjongView .mj-hand .mj-stack.mj-no {
+  filter: grayscale(0.85) brightness(0.55);
+  pointer-events: none;
+  cursor: default;
+}
+#mahjongView .mj-hand .mj-stack.mj-no:hover {
+  transform: none;
+}
+/* 听牌提示：悬停手牌弹出的浮层 —— 一行 mini 卡 + 下方小字剩余张数（浅色小浮层，不显黑块） */
+#mahjongView .mj-tenpai-pop {
+  position: absolute;
+  z-index: 8;
+  transform: translate(-50%, calc(-100% - 6px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--screen-bg);
+  border: 1px solid var(--ui-color);
+  border-radius: 5px;
+  padding: 3px 5px 2px;
+  pointer-events: none;
+}
+#mahjongView .mj-tenpai-pop[hidden] {
+  display: none;
+}
+#mahjongView .mj-tenpai-pop .mj-tenpai-wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+#mahjongView .mj-tenpai-pop .mj-tenpai-cards {
+  line-height: 0;
+}
+#mahjongView .mj-tenpai-pop .mj-tenpai-left {
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+#mahjongView .mj-tenpai-pop .mj-card {
+  box-sizing: border-box;
+  background: var(--tc);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: none;
+  border-radius: 3px;
+  width: 17px;
+  height: 24px;
+  vertical-align: middle;
+}
+#mahjongView .mj-tenpai-pop .mj-card.mj-mini .mj-img {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+}
+
+/* ===== 抽卡机（Gacha） ===== */
+#gachaView { width: 100%; height: 100%; align-self: stretch; }
+.gacha-app {
+  display: flex; flex-direction: column;
+  height: 100%; color: var(--ui-color);
+}
+
+/* 顶部卡池信息 */
+.gacha-header {
+  text-align: center; font-size: 11px;
+  padding: 5px 0 5px; flex-shrink: 0;
+  opacity: 0.7; letter-spacing: 0.5px;
+  position: relative;
+}
+.gacha-display { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
+
+/* 十连滑入时允许溢出，让牌从屏幕外滑入 */
+.gacha-display-slide {
+  overflow: visible;
+}
+
+/* 卡池走马灯 */
+.gacha-marquee {
+  width: 100%; overflow: hidden; padding: 4px 0; flex-shrink: 0;
+  mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+}
+.gacha-marquee-track { display: flex; gap: 4px; width: max-content; animation: gacha-marquee-scroll 30s linear infinite; }
+.gacha-marquee-item {
+  position: relative;
+  flex-shrink: 0; width: 54px;
+  border: 1px solid transparent; border-radius: 2px;
+  overflow: hidden;
+}
+.gacha-marquee-item img {
+  width: 54px; height: auto; display: block; }
+.gacha-marquee-item.tier-N  { border-color: #7a8a8a; }
+.gacha-marquee-item.tier-R  { border-color: #4477cc; }
+.gacha-marquee-item.tier-SR { border-color: #d4850a; }
+.gacha-marquee-item.tier-SR::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 18%,
+    rgba(255,255,255,0.5) 38%,
+    rgba(255,255,255,0.1) 55%,
+    transparent 72%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 2;
+  animation: marquee-sr-shine 2s ease-in-out infinite;
+}
+@keyframes marquee-sr-shine {
+  from { background-position: 130% 0; }
+  to   { background-position: -120% 0; }
+}
+
+@keyframes gacha-marquee-scroll {
+  to { transform: translateX(-50%); }
+}
+
+/* ── 走马灯滚动容器（JS驱动） ── */
+.gacha-display-roll {
+  justify-content: center; overflow: hidden;
+}
+.gacha-roll-container {
+  width: 100%; overflow: hidden; flex: 1;
+  display: flex; align-items: center;
+}
+.gacha-roll-track {
+  display: flex; gap: 4px; width: max-content; will-change: transform;
+}
+
+/* ── 滚动单项（含3D翻面） ── */
+.gacha-roll-item {
+  flex-shrink: 0; width: 54px; margin-right: 2px;
+}
+.gacha-roll-item img {
+  width: 54px; height: auto; display: block;
+  image-rendering: auto;
+}
+
+/* 3D 翻面容器 */
+.gacha-roll-3d {
+  position: relative;
+  transition: transform 0.5s ease;
+  transform-style: preserve-3d;
+}
+.gacha-roll-3d.flip-back {
+  transform: rotateY(180deg);
+}
+.gacha-roll-face,
+.gacha-roll-back {
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.gacha-roll-face img,
+.gacha-roll-back img {
+  width: 54px; height: auto; display: block;
+}
+.gacha-roll-back {
+  position: absolute; top: 0; left: 0; width: 100%;
+  transform: rotateY(180deg);
+}
+
+/* ── 垂直叠堆（十连） ── */
+.gacha-roll-stack .gacha-roll-back {
+  position: absolute; top: 0; left: 0; width: 54px;
+  overflow: visible;
+}
+.gacha-stack-card {
+  position: absolute; left: 0;
+}
+.gacha-stack-card img {
+  width: 54px; height: auto; display: block;
+}
+
+/* 翻面入场动画：所有牌从正面翻到背面 */
+.gacha-roll-3d.roll-flip-in {
+  animation: gachaRollFlipIn 0.5s ease-out both;
+}
+@keyframes gachaRollFlipIn {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(180deg); }
+}
+
+/* ── 锁定放大动画 ── */
+.gacha-lock-zoom {
+  animation: gachaLockZoom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-origin: center center;
+}
+@keyframes gachaLockZoom {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ── 滑入动画（十连下一张从上方滑入） ── */
+.gacha-card-slide-in {
+  animation: gachaSlideIn 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+@keyframes gachaSlideIn {
+  from {
+    transform: translateY(-300%);
+    opacity: 0.3;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ── 卡片弹出（走马灯结束后出现）已废弃，保留兼容 ── */
+@keyframes gachaCardPop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.gacha-card-pop { animation: gachaCardPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* ── 3D 翻转卡片 ── */
+.gacha-card-wrap { perspective: 600px; width: 100px; }
+.gacha-card-inner {
+  position: relative; width: 100%;
+  transition: transform 0.5s ease; transform-style: preserve-3d;
+  cursor: pointer;
+}
+.gacha-card-inner.flipped { transform: rotateY(180deg); cursor: default; }
+
+.gacha-card-front, .gacha-card-back {
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.gacha-card-front img, .gacha-card-back img { width: 100%; height: auto; display: block; image-rendering: auto; }
+.gacha-card-back { position: absolute; top: 0; left: 0; width: 100%; transform: rotateY(180deg); overflow: hidden; }
+
+/* SR 抽卡扫光 */
+.gacha-card-back.tier-SR::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.6) 38%,
+    rgba(255, 255, 255, 0.15) 55%,
+    transparent 72%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 2;
+}
+.gacha-card-inner.flipped .gacha-card-back.tier-SR::after {
+  animation: gacha-sr-shine 0.6s ease-out 0.35s both;
+}
+@keyframes gacha-sr-shine {
+  from { background-position: 130% 0; }
+  to   { background-position: -120% 0; }
+}
+
+/* ── 翻开后左右分栏 ── */
+.gacha-display-revealed {
+  flex-direction: column; justify-content: center; padding: 0 8px;
+}
+.gacha-card-area { flex-shrink: 0; }
+
+/* 信息面板 */
+.gacha-info {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+}
+.gacha-info-line {
+  opacity: 0;
+  animation: gachaInfoIn 0.25s ease-out both;
+}
+.gacha-info-name {
+  font-size: 14px; font-weight: 600;
+  color: var(--ui-color); letter-spacing: 0.5px;
+}
+
+/* 品级 / 新卡 徽章 */
+.tier-badge, .new-badge {
+  position: relative;
+  display: inline-block; padding: 2px 8px; border-radius: 3px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb), 0.12);
+  overflow: hidden;
+}
+
+/* SR 品级徽章扫光 */
+.tier-badge.tier-SR {
+  color: #ffcc00;
+  background: rgba(212, 133, 10, 0.2);
+}
+.tier-badge.tier-SR::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 20%,
+    rgba(255, 220, 100, 0.5) 40%,
+    rgba(255, 255, 200, 0.15) 55%,
+    transparent 75%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  animation: tier-sr-shine 2s ease-in-out infinite;
+}
+@keyframes tier-sr-shine {
+  0%   { background-position: 130% 0; }
+  100% { background-position: -120% 0; }
+}
+
+/* NEW 徽章扫光 */
+.new-badge::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 20%,
+    rgba(255,255,255,0.4) 40%,
+    rgba(255,255,255,0.1) 55%,
+    transparent 75%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  animation: new-badge-shine 2s ease-in-out infinite;
+}
+@keyframes new-badge-shine {
+  0%   { background-position: 130% 0; }
+  100% { background-position: -120% 0; }
+}
+
+/* 重复返还徽章 */
+.dup-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-size: 9px; font-weight: 600; letter-spacing: 0.3px;
+  color: var(--ui-color);     background: rgba(var(--ui-color-rgb), 0.12);
+}
+
+@keyframes gachaInfoIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── 十连总览 ── */
+.gacha-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 40px);
+  gap: 5px;
+  justify-content: center;
+  align-content: center;
+}
+.gacha-summary-card {
+  position: relative;
+  border: 1px solid transparent; border-radius: 2px;
+  width: 40px; flex-shrink: 0;
+  overflow: hidden;
+}
+.gacha-summary-card img {
+  width: 40px; height: auto; display: block;
+}
+.gacha-summary-card.tier-N  { border-color: #7a8a8a; }
+.gacha-summary-card.tier-R  { border-color: #4477cc; }
+.gacha-summary-card.tier-SR { border-color: #d4850a; }
+.gacha-summary-card.err { display: none; }
+
+/* 记录按钮（右上角） */
+.gacha-rec-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-family: inherit; font-size: 10px; font-weight: 700;
+  padding: 2px 8px;
+  border: 1px solid var(--ui-color); border-radius: 3px;
+  background: transparent; color: var(--ui-color);
+  cursor: pointer; letter-spacing: 0.3px;
+  transition: background 0.15s, transform 0.1s;
+}
+.gacha-rec-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
+.gacha-rec-btn:active { transform: translateY(-50%) scale(0.92); }
+
+/* 总览 SR 扫光 */
+.gacha-summary-card.tier-SR::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 2px;
+  background: linear-gradient(115deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.5) 38%,
+    rgba(255, 255, 255, 0.1) 55%,
+    transparent 72%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 2;
+  animation: album-sr-shine 2.5s ease-in-out infinite;
+}
+
+/* 底部按钮 — 固定贴底，模仿 mixer-result-actions */
+.gacha-actions {
+  display: flex; align-items: stretch; width: 100%;
+  margin: auto 0 0; flex-shrink: 0; min-height: 25px;
+  border: 1px solid var(--item-border); border-bottom: none;
+  border-radius: 6px 6px 0 0; overflow: hidden;
+}
+.gacha-actions button {
+  border: none; font-size: 12px; font-weight: 700; cursor: pointer; user-select: none;
+  padding: 6px 8px; background: var(--screen-bg-light); color: var(--ui-color);
+  display: flex; align-items: center; justify-content: center; font-family: inherit;
+}
+.gacha-actions button:hover { filter: brightness(1.05); }
+.gacha-actions button:disabled { opacity: 0.3; }
+/* 双按钮 */
+.gacha-actions .gacha-btn { flex: 1; }
+.gacha-actions .gacha-btn-sec {
+  flex: 1; border-left: 1px solid var(--item-border); filter: brightness(0.95);
+}
+.gacha-actions .gacha-btn-sec:hover { filter: brightness(0.967); }
+/* 单按钮全宽 */
+.gacha-actions-single .gacha-btn { flex: 1; border-left: none; }
+
+/* 按钮内游戏币图标 */
+.gacha-coin-icon {
+  width: 13px; height: 13px; margin-left: 3px;
+  vertical-align: middle; display: inline;
+  image-rendering: pixelated;
+  transform: translateY(1px);
+}
+
+/* ===== 卡册（Album） ===== */
+#albumView { width: 100%; height: 100%; align-self: stretch; }
+.album-app { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 4px 8px; color: var(--ui-color); overflow: hidden; }
+.album-stats { display: flex; gap: 8px; justify-content: center; font-size: 9px; opacity: 0.5; margin-bottom: 4px; flex-shrink: 0; }
+.album-stats span { white-space: nowrap; }
+
+/* 卡册网格 */
+.album-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 38px);
+  grid-auto-rows: auto;
+  gap: 2px; padding: 4px;
+  justify-content: center;
+  align-content: center;
+}
+
+/* 卡片 */
+.album-card {
+  position: relative;
+  border: 1px solid transparent; border-radius: 2px;
+  width: 38px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.album-card img {
+  width: 38px; height: auto;
+  display: block;
+}
+.album-card.owned { border-color: #d4850a; cursor: pointer; }
+.album-card.tier-N { border-color: #7a8a8a; }
+.album-card.tier-R { border-color: #4477cc; }
+.album-card.tier-SR { border-color: #d4850a; }
+.album-card.owned.tier-SR { border-color: #ff9900; }
+.album-card.locked { opacity: 0.35; }
+.album-card.err { display: none; }
+
+/* SR 扫光 */
+.album-card.owned.tier-SR::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: linear-gradient(115deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.5) 38%,
+    rgba(255, 255, 255, 0.1) 55%,
+    transparent 72%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 2;
+  animation: album-sr-shine 2.5s ease-in-out infinite;
+}
+@keyframes album-sr-shine {
+  0%   { background-position: 130% 0; }
+  100% { background-position: -120% 0; }
+}
+
+/* ── 点击放大遮罩 ── */
+.album-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.72); display: flex; align-items: flex-start; justify-content: center;
+  z-index: 1000; animation: albumFadeIn 0.2s ease;
+}
+@keyframes albumFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.album-overlay-card {
+  max-width: 80vw; max-height: 80vh; border-radius: 6px;
+  margin-top: 5%;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  transition: transform 0.35s ease-out;
+  transform-style: preserve-3d;
+}
+
+.album-dots { display: flex; justify-content: center; gap: 5px; padding: 4px 0 0; }
+.album-dot { width: 4px; height: 4px; border-radius: 50%; background: rgba(var(--ui-color-rgb), 0.3); cursor: pointer; }
+.album-dot.active { background: var(--ui-color); }
+

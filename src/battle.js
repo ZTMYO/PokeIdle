@@ -699,8 +699,8 @@ export async function throwBall(ballType) {
           balls: currentEncounterBalls, finalRate: rate,
         }),
       });
-      // 入仓库（随机个体值 + 野生等级取当前遇敌等级）
-      const entry = addRosterEntry({ species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource, level: encounterLevel });
+      // 入仓库（随机个体值 + 野生等级取当前遇敌等级；性别沿用遭遇时 roll 的性别，与遭遇界面一致）
+      const entry = addRosterEntry({ species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource, level: encounterLevel, gender: _encounterGender });
       setLastObtainedEntryId(entry.id);
       addSystemLog('pokemon_caught', { pokemon: idx, shiny: currentIsShiny, ball: ballType, auto: _autoCatching });
     } else if (outcome === 'fled') {
@@ -997,35 +997,27 @@ function pickAutoBallType(availableBalls) {
   return availableBalls[0] || null;
 }
 
-// 遇敌过滤（设置-遇敌过滤）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
-// 优先级：闪光/神兽的「逃跑/暂停」策略 > 闪光/神兽「捕捉」豁免（普通三态/未捕获/等级均不拦截）>
-//         普通三态（逃跑/暂停）> 「仅捕捉未捕获过的」> 等级范围过滤（仅约束常规遇敌）。
-// 例：限制 20~30 级 + 闪光设为「捕捉」→ 10 级闪光仍会捕捉，不会被等级过滤误放跑。
+// 遇敌过滤（设置-捕捉条件表格）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
+// 四行策略：普通 / 普通闪 / 神兽 / 神兽闪，各自独立选择 捕捉/暂停/逃跑，
+// 并各自带等级范围（0=不限制）与「仅捕捉未捕获过的」（普通看 caught、闪光看 shinyCaught）。
+// 单行内优先级：逃跑 > 暂停 > 未捕获 > 等级范围。
 export function catchFilterResult() {
   const f = gameData.settings?.catchFilter || {};
-  // 特殊遇敌（闪光/神兽）：「逃跑/暂停」策略优先于一切过滤生效
-  if (currentIsShiny) {
-    if (f.shiny === 'flee') return 'flee';
-    if (f.shiny === 'stop') return 'stop';
-  }
-  if (isLegendEncounter()) {
-    if (f.legend === 'flee') return 'flee';
-    if (f.legend === 'stop') return 'stop';
-  }
-  // 闪光/神兽策略为「捕捉」（含默认）：豁免普通/未捕获/等级过滤，稀有闪光/神兽不被拦截
-  if (currentIsShiny && f.shiny !== 'flee' && f.shiny !== 'stop') return 'catch';
-  if (isLegendEncounter() && f.legend !== 'flee' && f.legend !== 'stop') return 'catch';
-  // 常规遇敌：普通三态（默认捕捉；设为逃跑=只抓闪光/神兽等特殊遇敌）
-  if (f.normal === 'flee') return 'flee';
-  if (f.normal === 'stop') return 'stop';
-  // 「仅捕捉未捕获过的」：图鉴已捕获的普通宝可梦直接放跑
-  if (f.uncaughtOnly) {
-    const caught = (gameData.pokedex?.[String(currentEncounter?.index)]?.caught || 0) > 0;
+  const rows = f.rows || {};
+  // 按当前遭遇类型定位对应策略行：神兽闪 > 神兽 / 普通闪 > 普通
+  const row = (isLegendEncounter() ? (currentIsShiny ? rows.legendShiny : rows.legend) : (currentIsShiny ? rows.normalShiny : rows.normal))
+    || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false };
+  if (row.action === 'flee') return 'flee';
+  if (row.action === 'stop') return 'stop';
+  // 捕捉：仅捕捉未捕获过的 → 已捕获对应形态直接放跑
+  if (row.uncaughtOnly) {
+    const entry = gameData.pokedex?.[String(currentEncounter?.index)];
+    const caught = entry ? (currentIsShiny ? (entry.shinyCaught || 0) > 0 : (entry.caught || 0) > 0) : false;
     if (caught) return 'flee';
   }
-  // 常规遇敌：应用等级范围过滤
-  const lvMin = f.levelMin || 0;
-  const lvMax = f.levelMax || 0;
+  // 等级范围（0 = 不限制）
+  const lvMin = row.levelMin || 0;
+  const lvMax = row.levelMax || 0;
   if ((lvMin > 0 && encounterLevel < lvMin) || (lvMax > 0 && encounterLevel > lvMax)) return 'flee';
   return 'catch';
 }

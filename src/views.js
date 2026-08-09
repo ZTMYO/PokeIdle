@@ -4,7 +4,9 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, F
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY,
   TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT,
   TRAIN_SATIETY_PER_BERRY, TRAIN_HUNGRY_LAZY_MULT,
-  BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT } from './config.js';
+  BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, ITEM_DESC,
+  COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST,
+  GACHA_DRAW_COST, GACHA_DUP_REFUND } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
@@ -407,7 +409,15 @@ export function renderSystemLogs() {
       case 'casino': {
         const p = log.details.profit;
         const t = { blackjack: '黑杰克', win: '你赢了', lose: '输了', push: '平局' }[log.details.action] || '一局';
-        desc = `赌场：${t} ${p > 0 ? '+' + p : p} 糖果`;
+        desc = `游戏厅：${t} ${p > 0 ? '+' + p : p} 糖果`;
+        break;
+      }
+      case 'mahjong': {
+        const p = log.details.profit;
+        const t = log.details.winner === 0 ? `你胡了${log.details.yaku && log.details.yaku.length ? '（' + log.details.yaku.join('/') + '）' : ''}`
+          : log.details.winner === 'draw' ? '流局'
+          : ['对家', '左家', '右家'][log.details.winner - 1] + ' 胡牌';
+        desc = `麻将：${t} ${p > 0 ? '+' + p : p} 糖果`;
         break;
       }
       default:
@@ -435,9 +445,62 @@ export function showSystemLogs() {
 // 右键兑换按钮弹出的批量购买数量选项（按余额置灰）
 const BUY_QTY_OPTIONS = [5, 10, 20, 50];
 
+// ===== 商店兑换确认（类似遇敌页文案框：先记录本次兑换，点「确定」才结算） =====
+let _pendingExchange = null; // { item, qty }
+let _shopConfirmWired = false;
+
+function wireShopConfirmBtns() {
+  if (_shopConfirmWired) return;
+  _shopConfirmWired = true;
+  $('shopConfirmYes')?.addEventListener('click', confirmShopExchange);
+  $('shopConfirmNo')?.addEventListener('click', () => {
+    _pendingExchange = null;
+    hideShopTextBox(); // 取消：正常隐藏
+  });
+}
+
+// 弹出底部文案框记录本次兑换，等待玩家点「确定」后才结算。
+// 确定后文案框保持显示（不再隐藏、不重播动画）；取消则正常隐藏，再次购买时重新滑入。
+function requestCandyExchange(itemKey, qty = 1) {
+  const cost = CANDY_EXCHANGE[itemKey];
+  const total = cost * qty;
+  if (!cost || (gameData.items['candy'] || 0) < total) return; // 余额不足不弹框
+  _pendingExchange = { item: itemKey, qty };
+  wireShopConfirmBtns();
+  const box = $('shopTextBox');
+  const content = $('shopTextBoxContent');
+  const btns = box?.querySelector('.shop-confirm-btns');
+  if (!box || !content) return;
+  content.textContent = `兑换「${ITEM_NAMES[itemKey]}」×${qty}，消耗糖果 ×${total}。`;
+  if (btns) btns.style.display = '';
+  box.style.display = 'flex'; // 每次显示播放入场动画；确定后保持显示不再隐藏，自然不再重播
+}
+
+// 点击「确定」后才真正结算本次兑换；结算后直接隐藏文案框，不再停留「已兑换」结果，便于连续购买
+function confirmShopExchange() {
+  if (!_pendingExchange) return;
+  const { item, qty } = _pendingExchange;
+  _pendingExchange = null;
+  doCandyExchange(item, qty);
+  hideShopTextBox();
+}
+
+function hideShopTextBox() {
+  const box = $('shopTextBox');
+  if (box) box.style.display = 'none';
+}
+
 export function showShopView() {
+  // 兑换结算后 doCandyExchange 会重渲染本页：此时文案框保持固定，不清空不隐藏
+  const isReRender = $('shopView')?.style.display === 'flex';
   pushNav('shopView');
   hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
+  if (!isReRender) {
+    // 首次进入商店：清空未确认的兑换并隐藏文案框；本次访问首次购买时再次滑入并固定
+    _pendingExchange = null;
+    const box = $('shopTextBox');
+    if (box) box.style.display = 'none'; // 新访问从隐藏开始：首次购买重新滑入
+  }
   const content = $('shopContent');
   const candy = gameData.items['candy'] || 0;
 
@@ -446,7 +509,7 @@ export function showShopView() {
     const enough = candy >= cost;
     itemsHtml += `
       <div class="shop-item ${enough ? '' : 'disabled'}" data-item="${item}">
-        <div class="shop-item-left">
+        <div class="shop-item-left" data-tip="${(ITEM_DESC[item] || '').replace(/"/g, '&quot;')}">
           <img src="./items/${ITEM_ICONS[item]}" class="shop-icon" alt="${ITEM_NAMES[item]}" />
           <span class="shop-item-name">${ITEM_NAMES[item]}</span>
         </div>
@@ -471,7 +534,7 @@ export function showShopView() {
     if (!btn) return;
     const item = btn.closest('.shop-item');
     if (!item || item.classList.contains('disabled')) return;
-    doCandyExchange(item.dataset.item);
+    requestCandyExchange(item.dataset.item);
   };
   // 右键"兑换"按钮弹出批量购买菜单
   content.oncontextmenu = (e) => {
@@ -515,7 +578,7 @@ function showShopContextMenu(itemKey, x, y) {
     const opt = e.target.closest('.shop-ctx-item');
     if (!opt || opt.classList.contains('disabled')) return;
     hideShopContextMenu();
-    doCandyExchange(opt.dataset.item, Number(opt.dataset.q));
+    requestCandyExchange(opt.dataset.item, Number(opt.dataset.q));
   };
   document.addEventListener('pointerdown', hideShopContextMenu);
 }
@@ -561,6 +624,7 @@ document.addEventListener('pointerdown', (e) => {
 
 export function showSettingsView() {
   pushNav('settingsView');
+  ensureSettings(); // 保证旧档迁移（含捕捉条件四行表格结构）先于渲染执行
   clearBattleTier(); // 战斗中进入设置：清除 NPC 难度边框色，让设置页恢复正常配色
   const content = $('settingsContent');
   const s = gameData.settings || {};
@@ -573,6 +637,19 @@ export function showSettingsView() {
   };
   showView('settingsView');
 }
+
+// 捕捉条件表格：四行四类遇敌 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪）
+const CF_ROWS = [
+  { key: 'normal', label: '普通' },
+  { key: 'normalShiny', label: '普通闪' },
+  { key: 'legend', label: '神兽' },
+  { key: 'legendShiny', label: '神兽闪' },
+];
+const CF_ACTIONS = [
+  { v: 'catch', t: '捕捉' },
+  { v: 'stop', t: '暂停' },
+  { v: 'flee', t: '逃跑' },
+];
 
 export function renderSettings(container, s) {
   const ballLabels = { 'poke-ball': '精灵球', 'ultra-ball': '高级球', 'master-ball': '大师球' };
@@ -587,15 +664,31 @@ export function renderSettings(container, s) {
   const refillBalls = s.autoRefillBalls || { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
   const order = (Array.isArray(s.autoRefillOrder) && s.autoRefillOrder.length === 3)
     ? s.autoRefillOrder : ['poke-ball', 'ultra-ball', 'master-ball'];
-  const cf = s.catchFilter || { levelMin: 0, levelMax: 0, shiny: 'catch', legend: 'catch', normal: 'catch', uncaughtOnly: false };
+  const cf = s.catchFilter || {};
   const gender = s.gender || 'brendan';
   const musicVolume = s.musicVolume ?? 0.6;
   const musicEnabled = s.musicEnabled !== false;
   const battleMusic = s.battleMusic !== false;
-  // 遇敌过滤三态 chips（捕捉/暂停/逃跑）
-  const filterChips = key => ['catch', 'stop', 'flee'].map(v => {
-    const label = v === 'catch' ? '捕捉' : v === 'stop' ? '暂停' : '逃跑';
-    return `<span class="filter-chip ${cf[key] === v ? 'on' : ''}" data-filter-key="${key}" data-filter-val="${v}">${label}</span>`;
+  // 捕捉条件表格：四行（普通/普通闪/神兽/神兽闪），策略列选中即换底色
+  const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
+  const cfTbody = CF_ROWS.map(({ key, label }) => {
+    const r = cfRow(key);
+    const actCells = CF_ACTIONS.map(a => `
+      <td class="cf-cell act ${r.action === a.v ? 'on' : ''}" data-row="${key}" data-act="${a.v}">${a.t}</td>`).join('');
+    const dim = r.action === 'catch' ? '' : ' dim'; // 非捕捉行：等级/未捕获不生效，弱化显示
+    // 仅「捕捉」行显示等级输入框，其余行占位
+    const lvCell = r.action === 'catch' ? `
+      <td class="cf-cell lv">
+        <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="min" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMin || 1}" />
+        <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="max" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMax || 20}" />
+      </td>` : `<td class="cf-cell lv${dim}">—</td>`;
+    return `
+      <tr data-row="${key}">
+        <th class="cf-row-label">${label}</th>
+        ${actCells}
+        ${lvCell}
+        <td class="cf-cell uncaught ${r.uncaughtOnly ? 'on' : ''}${dim}" data-row="${key}">${r.uncaughtOnly ? '☑' : '☐'}</td>
+      </tr>`;
   }).join('');
   container.innerHTML = `
     <div style="padding:6px 8px;">
@@ -626,30 +719,24 @@ export function renderSettings(container, s) {
         </div>
         <div class="filter-panel">
           <div class="settings-sub-title">捕捉条件</div>
-          <div class="filter-row">
-            <span class="filter-label">闪光</span>
-            <div class="filter-chips">${filterChips('shiny')}</div>
+          <table class="cf-table">
+            <thead>
+              <tr>
+                <th class="cf-corner"></th>
+                <th>捕捉</th>
+                <th>暂停</th>
+                <th>逃跑</th>
+                <th class="cf-col-lv">捕捉等级</th>
+                <th>未捕获</th>
+              </tr>
+            </thead>
+            <tbody>${cfTbody}</tbody>
+          </table>
+          <div class="cf-hint-row">
+            <div class="cf-hint">捕捉等级范围外的自动逃跑</div>
+            <button class="cf-reset-btn" id="cfReset">恢复默认</button>
           </div>
-          <div class="filter-row">
-            <span class="filter-label">神兽</span>
-            <div class="filter-chips">${filterChips('legend')}</div>
-          </div>
-          <div class="filter-row">
-            <span class="filter-label">普通</span>
-            <div class="filter-chips">${filterChips('normal')}</div>
-          </div>
-          ${cf.normal === 'catch' ? `
-          <div class="filter-row filter-row-sub">
-            <span class="filter-label">等级</span>
-            <input type="text" class="filter-lv-input" id="filterLevelMin" inputmode="numeric" autocomplete="off" maxlength="2" value="${cf.levelMin || 0}" />
-            <span style="opacity:.5;">~</span>
-            <input type="text" class="filter-lv-input" id="filterLevelMax" inputmode="numeric" autocomplete="off" maxlength="2" value="${cf.levelMax || 20}" />
-          </div>
-          <div class="filter-row filter-row-sub">
-            <span class="filter-label">未捕获</span>
-            <span class="ball-check ${cf.uncaughtOnly ? 'on' : ''}" id="toggleUncaughtOnly">${cf.uncaughtOnly ? '☑' : '☐'}仅捕捉未捕获过的</span>
-          </div>` : ''}
-         </div>
+        </div>
         ` : ''}
         <div class="auto-catch-row">
           <div class="auto-catch-label">佛系模式</div>
@@ -744,6 +831,10 @@ export function renderSettings(container, s) {
           </div>
         </div>
         <div class="reset-save-row">
+          <span class="reset-save-label">导出存档</span>
+          <span class="reset-save-btn" id="exportSaveBtn">导出</span>
+        </div>
+        <div class="reset-save-row">
           <span class="reset-save-label">重置存档</span>
           <span class="reset-save-btn" id="resetSaveBtn">重置</span>
         </div>
@@ -790,7 +881,7 @@ export function renderSettings(container, s) {
     const btn = e.currentTarget;
     if (!btn.classList.contains('confirm')) {
       btn.classList.add('confirm');
-      btn.textContent = '确认重置？';
+      btn.textContent = '确定重置？';
       clearTimeout(btn._t);
       btn._t = setTimeout(() => {
         btn.classList.remove('confirm');
@@ -799,6 +890,32 @@ export function renderSettings(container, s) {
       return;
     }
     resetSave();
+  });
+  // 导出存档：调用 Tauri 命令打开目录选择器，导出存档并上调 lastSaveTime
+  container.querySelector('#exportSaveBtn')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#exportSaveBtn');
+    if (!window.__TAURI__?.core?.invoke) {
+      btn.textContent = '仅桌面版';
+      setTimeout(() => { btn.textContent = '导出'; }, 2000);
+      return;
+    }
+    btn.textContent = '导出中…';
+    // 调整 lastSaveTime 至极大值，迁移到新设备后不会被 localStorage 覆盖
+    gameData.stats.lastSaveTime = Date.now() + 10 * 365 * 24 * 3600 * 1000;
+    try {
+      const path = await window.__TAURI__.core.invoke('export_save_data', { data: JSON.stringify(gameData) });
+      addSystemLog('export', { path });
+      updateTextBox('存档已导出');
+      btn.textContent = '已导出 ✓';
+    } catch (e) {
+      if (typeof e === 'string' && e.includes('取消')) {
+        btn.textContent = '导出';
+        return;
+      }
+      updateTextBox('存档导出失败');
+      btn.textContent = '导出失败';
+    }
+    setTimeout(() => { btn.textContent = '导出'; }, 2500);
   });
   container.querySelector('#toggleBuffHoney')?.addEventListener('click', toggleAutoBuffHoney);
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);
@@ -817,39 +934,68 @@ export function renderSettings(container, s) {
   container.querySelectorAll('.ball-check[data-refill-ball]').forEach(el => {
     el.addEventListener('click', () => toggleAutoRefillBall(el.dataset.refillBall));
   });
-  // 遇敌过滤：闪光/神兽/普通三态 chips
-  container.querySelectorAll('.filter-chip').forEach(el => {
+  // 捕捉条件表格：点击策略单元格（捕捉/暂停/逃跑）切换该行策略并高亮
+  container.querySelectorAll('.cf-cell.act').forEach(el => {
     el.addEventListener('click', () => {
-      gameData.settings.catchFilter[el.dataset.filterKey] = el.dataset.filterVal;
+      const rows = gameData.settings.catchFilter?.rows;
+      if (!rows || !rows[el.dataset.row]) return;
+      rows[el.dataset.row].action = el.dataset.act;
       renderSettings(container, gameData.settings);
       saveGame();
     });
   });
-  // 遇敌过滤：「仅捕捉未捕获过的」开关
-  const uncaughtEl = container.querySelector('#toggleUncaughtOnly');
-  if (uncaughtEl) {
-    uncaughtEl.addEventListener('click', () => {
-      gameData.settings.catchFilter.uncaughtOnly = !gameData.settings.catchFilter.uncaughtOnly;
+  // 捕捉条件表格：点击「未捕获」单元格开关（仅该行为捕捉时生效）
+  container.querySelectorAll('.cf-cell.uncaught').forEach(el => {
+    el.addEventListener('click', () => {
+      const rows = gameData.settings.catchFilter?.rows;
+      const r = rows && rows[el.dataset.row];
+      if (!r || r.action !== 'catch') return; // 非捕捉行：等级/未捕获不生效，禁止点亮
+      r.uncaughtOnly = !r.uncaughtOnly;
       renderSettings(container, gameData.settings);
       saveGame();
     });
-  }
-  // 遇敌过滤：等级范围（野生等级 1~20）。实时过滤输入（只留数字、最多 2 位、超 20 截断），change 时落库
-  const bindLv = (id, key) => {
-    const el = container.querySelector('#' + id);
-    if (!el) return;
+  });
+  // 捕捉条件表格：各行等级范围（野生等级 1~20）。实时过滤输入（只留数字、最多 2 位、超 20 截断），change 时落库
+  container.querySelectorAll('.cf-lv-input').forEach(el => {
+    const rows = gameData.settings.catchFilter?.rows;
+    const r = rows && rows[el.dataset.row];
     el.addEventListener('input', () => {
       let v = el.value.replace(/\D/g, '').slice(0, 2);
       if (v !== '' && Number(v) > 20) v = '20';
+      if (v === '0') v = ''; // 野生等级 1~20，不允许输入 0（0 仅作为清空=不限）
       el.value = v;
     });
     el.addEventListener('change', () => {
-      gameData.settings.catchFilter[key] = Math.max(0, Math.min(20, Number(el.value) || 0));
+      if (!r) return;
+      const isMin = el.dataset.lv === 'min';
+      const lo = r.levelMin || 1;   // 0=不限，等效最低 1
+      const hi = r.levelMax || 20;  // 0=不限，等效最高 20
+      let v = Number(el.value) || 0;
+      if (v === 0) v = isMin ? lo : hi; // 清空不允许空白：最低回落 1、最高回落 20
+      if (isMin) {
+        if (v > hi) { r.levelMin = hi; r.levelMax = v; } // 最低超过最高 → 两者换位
+        else r.levelMin = v;
+      } else {
+        if (v < lo) { r.levelMax = lo; r.levelMin = v; } // 最高低于最低 → 两者换位
+        else r.levelMax = v;
+      }
       saveGame();
+      // 换位会改动对端值，统一回写两个输入框显示（保证不空白）
+      container.querySelectorAll(`.cf-lv-input[data-row="${el.dataset.row}"]`).forEach(i => {
+        i.value = (i.dataset.lv === 'min' ? r.levelMin : r.levelMax) || (i.dataset.lv === 'min' ? 1 : 20);
+      });
     });
-  };
-  bindLv('filterLevelMin', 'levelMin');
-  bindLv('filterLevelMax', 'levelMax');
+  });
+  // 捕捉条件：恢复默认（四行全部复位为 捕捉 / 等级 1~20 / 不勾选未捕获）
+  container.querySelector('#cfReset')?.addEventListener('click', () => {
+    const rows = gameData.settings.catchFilter?.rows;
+    if (!rows) return;
+    for (const key of Object.keys(rows)) {
+      rows[key] = { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
+    }
+    renderSettings(container, gameData.settings);
+    saveGame();
+  });
   // 补球优先级：左右箭头调整顺序（从左到右优先级从高到低），点击格子切换启用/禁用
   const orderList = container.querySelector('#refillOrderList');
   if (orderList) {
@@ -909,15 +1055,29 @@ function ensureSettings() {
   if (!Array.isArray(gameData.settings.autoRefillOrder) || gameData.settings.autoRefillOrder.length !== 3) {
     gameData.settings.autoRefillOrder = ['poke-ball', 'ultra-ball', 'master-ball']; // 默认便宜优先
   }
-  if (!gameData.settings.catchFilter) {
-    gameData.settings.catchFilter = { levelMin: 0, levelMax: 0, shiny: 'catch', legend: 'catch', normal: 'catch', uncaughtOnly: false };
+  if (!gameData.settings.catchFilter) gameData.settings.catchFilter = {};
+  // 旧档迁移：扁平三态（normal/shiny/legend + levelMin/Max + uncaughtOnly）→ 四行表格 rows
+  if (!gameData.settings.catchFilter.rows) {
+    const f = gameData.settings.catchFilter;
+    const clampLv = v => Math.max(0, Math.min(20, Number(v) || 0)); // 野生等级上限 20，0 表示不限制
+    const mk = action => ({ action: action || 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }); // 默认最低 1（野生最低等级）、最高 20（野生上限，等效不限制）
+    gameData.settings.catchFilter = {
+      rows: {
+        normal:      { action: f.normal == null ? 'catch' : f.normal, levelMin: clampLv(f.levelMin), levelMax: clampLv(f.levelMax), uncaughtOnly: !!f.uncaughtOnly },
+        normalShiny: mk(f.shiny),
+        legend:      mk(f.legend),
+        legendShiny: mk(f.shiny),
+      },
+    };
   }
-  // 旧档缺新字段：普通=捕捉、仅未捕获=关（不迁移旧策略，缺失按默认）
-  if (gameData.settings.catchFilter.normal == null) gameData.settings.catchFilter.normal = 'catch';
-  if (gameData.settings.catchFilter.uncaughtOnly == null) gameData.settings.catchFilter.uncaughtOnly = false;
-  // 野生等级上限为 20：旧版本等级范围曾允许填 100，超出部分按 20 收敛（0 仍表示不限制）
-  if ((gameData.settings.catchFilter.levelMax || 0) > 20) gameData.settings.catchFilter.levelMax = 20;
-  if ((gameData.settings.catchFilter.levelMin || 0) > 20) gameData.settings.catchFilter.levelMin = 20;
+  // 四行字段兜底 + 等级收敛
+  for (const k of ['normal', 'normalShiny', 'legend', 'legendShiny']) {
+    const r = gameData.settings.catchFilter.rows[k] = gameData.settings.catchFilter.rows[k] || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
+    if (!['catch', 'stop', 'flee'].includes(r.action)) r.action = 'catch';
+    r.levelMin = Math.max(0, Math.min(20, Number(r.levelMin) || 0));
+    r.levelMax = Math.max(0, Math.min(20, Number(r.levelMax) || 0));
+    r.uncaughtOnly = !!r.uncaughtOnly;
+  }
   if (gameData.settings.windowScale == null) gameData.settings.windowScale = 1;
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
@@ -1129,7 +1289,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '手机',
     html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>农场</b>、<b>交换</b>、<b>成就</b>、<b>统计</b>……），也可以查看当前系统时间。</p>`
-      + `<p>滚动滚轮或点击底部圆点可翻到<b>第二页</b>，那里放着<b>日志</b>、<b>饲育屋</b>、<b>训练</b>、<b>配队</b>、<b>对战</b>与<b>赌场</b>应用。科学的力量真伟大！</p>`
+      + `<p>滚动滚轮或点击底部圆点可翻到<b>第二页</b>，那里放着<b>日志</b>、<b>饲育屋</b>、<b>训练</b>、<b>配队</b>、<b>对战</b>、<b>游戏厅</b>与<b>卡册</b>应用。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
@@ -1259,6 +1419,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦，<b>一雄一雌且共有蛋组</b>即可配对；<b>百变怪</b>万能配对（无视性别，非百变怪一方决定后代物种）。</p>`
       + `<p>投喂它们爱吃的<b>树果</b>后开始繁殖，<b>5~10 分钟</b>产蛋；点场地中央的<b>蛋</b>收取，再放入<b>孵蛋器</b>里孵化。（详见「<b>孵蛋</b>」章节）</p>`
       + `<p><b>个体值遗传</b>：6 项中 <b>5 项</b>继承双亲（随机取父或母），<b>1 项</b>完全随机。点预览里的维度可<b>锁定</b>，锁定后<b>固定继承指定亲本</b>的数值。</p>`
+      + `<p>点左上角的<b>纸箱</b>可查看仓库中所有宝可梦蛋，支持搜索、按名称/个体值排序与丢弃。</p>`
   },
   {
     title: '钓鱼',
@@ -1292,17 +1453,11 @@ const TUTORIAL_SECTIONS = [
       + `<p>点田地右上角告示牌查看树果委托（每天刷新 <b>${FARM_BOARD_DEMANDS}</b> 条，其中第 <b>1</b> 条为大量需求 <b>${FARM_BOARD_BIG_QTY_MIN}~${FARM_BOARD_BIG_QTY_MAX}</b> 颗，需专门种植较久；需求越多报酬越高）。也可以在此面板招募帮手（详见「<b>招募帮手</b>」章节）。</p>`,
   },  
   {
-    title: '赌场',
-    html: `<p>在<b>手机</b>第二页打开<b>赌场</b>应用，悬停赌桌点击进入 <b>21 点</b>，用糖果下注。</p>`
-      + `<p><b>规则</b>：与庄家比点数更接近 <b>21</b> 且不爆牌；A 可算 <b>1 或 11</b>、J/Q/K 计 <b>10</b>。可<b>要牌</b>补一张、<b>停牌</b>交给庄家、<b>加倍</b>再押一份只补 1 张。</p>`
-      + `<p><b>庄家</b>不足 <b>17</b> 一直要牌。<b>黑杰克</b>（前两张即 21）按 <b>1.5 倍</b>赔付；双方黑杰克平局返还，庄家黑杰克压制普通 21。</p>`,
-  },
-  {
     title: '宝可梦',
     html: `<p>在<b>手机</b>页面打开<b>宝可梦</b>应用查看宝可梦仓库：每只捕获/孵化的宝可梦都是独立个体，支持搜索、来源筛选与表头排序。</p>`
       + `<p>每只个体带有随机<b>个体值</b>（HP/攻击/防御/特攻/特防/速度，各 <b>0~31</b>）与随机<b>性格</b>（共 <b>25</b> 种）。</p>`
-      + `<p>点击个体列表项即可查看详情。</p>`
-      + `<p>详情页右上角的<b>放生</b>按钮可移除该个体（确认后不可恢复）。</p>`
+      + `<p>点击个体列表项即可查看详情：名字右侧的<b>编辑图标</b>可以重命名（最多 <b>5</b> 个字），改名后搜索中文可匹配昵称。</p>`
+      + `<p>详情页右上角的<b>放生</b>按钮可移除该个体（确定后不可恢复）。</p>`
       + `<p>个体可用来提交地区悬赏——提交后该宝可梦会从仓库中移除（详见「<b>悬赏</b>」章节）。</p>`,
   },
   {
@@ -1355,19 +1510,51 @@ const TUTORIAL_SECTIONS = [
       + `<p>帮手每工作 <b>${FARM_HELPER_WORK_STAGE}</b> 分钟休息 <b>${FARM_HELPER_REST}</b> 分钟再继续；</p>`,
   },
   {
+    title: '游戏厅',
+    html: `<p>在<b>手机</b>第二页打开<b>游戏厅</b>应用。在这里可以用<b>糖果</b>兑换<b>游戏币</b>（<b>${COIN_RATE} 糖果 = 1 游戏币</b>），柜台处选择兑换档位即可。</p>`
+      + `<p>游戏厅目前提供：<b>21点</b>（详见「<b>21点</b>」章节）、<b>口袋麻将</b>（详见「<b>口袋麻将</b>」章节），<b>抽卡机</b>（详见「<b>抽卡机</b>」章节）。</p>`,
+  },
+  {
+    title: '21点',
+    html: `<p>在<b>手机</b>第二页打开<b>游戏厅</b>应用，点击赌桌进入<b>21点</b>。</p>`
+      + `<p><b>规则</b>：与庄家比点数更接近 <b>21</b> 且不爆牌；A 可算 <b>1 或 11</b>、J/Q/K 计 <b>10</b>。可<b>要牌</b>补一张、<b>停牌</b>交给庄家、<b>加倍</b>再押一份只补 1 张。</p>`
+      + `<p>庄家不足 <b>${DEALER_STAND}</b> 必须继续要牌。<b>黑杰克</b>（前两张即 21）按 <b>${BJ_MULT} 倍</b>赔付；双方黑杰克平局返还，庄家黑杰克压制普通 21。</p>`,
+  },
+  {
+    title: '口袋麻将',
+    html: `<p>在<b>手机</b>第二页打开<b>游戏厅</b>应用，点击<b>口袋麻将</b>进入。</p>`
+      + `<p><b>基础规则</b>：凑齐<b>三组相同宝可梦的刻子</b>（每组 3 张同种牌）即可胡牌。每局 <b>${HAND_SIZE}</b> 张手牌起手，轮流<b>摸 1 打 1</b>，凑满 9 张胡牌。</p>`
+      + `<p><b>碰</b>：他家打出与你手牌 2 张相同的牌时可碰成副露。<b>荣和</b>：他家弃牌直接凑齐你的最后一组刻子。<b>自摸</b>：自己摸牌成胡。</p>`
+      + `<p><b>立直</b>：门清（无副露）听牌时可支付 ${RIICHI_COST} 游戏币宣言立直，立直后只能打刚摸的牌。</p>`
+      + `<p>赢家按番数计算倍率（底倍 ×2 + 番数），番型举例：</p>`
+      + tutorialTable([
+          ['立直 / 自摸 / 一发 / 门清 / 海底', '各 +1', '流程役'],
+          ['三色同刻', '+1', '三组不同属性'],
+          ['潜力三刻 / 王牌三刻', '+2', '三组全 5 分 / 全 10 分'],
+          ['清一色', '+4', '三组同属性'],
+          ['天和 / 全同种 / 幻神组合 / 神兽一色', '×10', '役满（封顶不叠加）'],
+        ], ['役种', '番数', '说明'], ['auto', 46, 'auto']),
+  },
+  {
+    title: '抽卡机',
+    html: `<p>在<b>游戏厅</b>场景点击<b>抽卡机</b>进入。</p>`
+      + `<p>消耗<b>游戏币</b>抽卡，<b>${GACHA_DRAW_COST} 币单抽、${GACHA_DRAW_COST * 10} 币十连</b>。抽到重复卡片退还 <b>${GACHA_DUP_REFUND} 币</b>。卡片共分三个品级，概率如下：</p>`
+      + tutorialTable([
+          ['N（普通）', '60%'],
+          ['R（稀有）', '32%'],
+          ['SR（超稀有）', '8%'],
+        ], ['品级', '概率'], ['auto', 'auto'])
+      + `<p>已收集的卡片可在<b>卡册</b>应用中查看，点击缩略图可放大预览。</p>`,
+  },
+  {
     title: '自动操作',
-    html: `<p>设置页按功能域分组：「<b>遇敌与捕捉</b> / 背包与补球 / 窗口 / 声音 / 角色与存档」。开启<b>自动操作</b>后遇敌自动处理：</p>`
-      + `<p>勾选球种：<b>自动捕获</b>（会根据捕获率智能选择勾选的球种）。</p>`
-      + `<p>不勾选任何球种：<b>自动逃跑</b>（期间禁止手动丢球）。</p>`
-      + `<p>勾选增益道具：增益结束后自动<b>续杯</b>（同时勾选优先甜甜蜜）。</p>`
-      + `<p><b>捕捉条件</b>：普通 / 闪光 / 神兽各自选<b>捕捉 / 暂停 / 逃跑</b>——「逃跑」自动放跑，「暂停」停手交给你手动丢球。</p>`
-      + `<p>普通宝可梦还能设<b>等级范围</b>、勾选<b>仅捕捉未捕获过的</b>；这两项对闪光 / 神兽无效——闪光 / 神兽设为「捕捉」时，任何等级、是否捕获过都会照常捕捉。</p>`
-      + `<p>开启<b>自动补球</b>：勾选精灵球/高级球/大师球后，对应球数量为 0 时自动用糖果补 1 个；可点「<b>‹ ›</b>」调整补球优先级、点格子切换该球是否自动补。</p>`,
+    html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
+      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪</b> 四类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未捕获过的</b>。</p>`
+      + `<p>勾选增益道具到期自动<b>续杯</b>；<b>自动补球</b>：球用光自动用糖果补 1 个（「‹ ›」调优先级）。</p>`,
   },
   {
     title: '佛系模式',
-    html: `<p>与<b>自动操作</b>互斥，开启后遇敌不自动处理。</p>`
-      + `<p><b>${AUTO_FLEE_TIMEOUT / 1000}</b> 秒内未操作则你自动逃跑（放走宝可梦），不会卡住进度，适合挂后台偶尔手动抓两把的场合。</p>`,
+    html: `<p>与<b>自动操作</b>互斥：遇敌不自动丢球，<b>${AUTO_FLEE_TIMEOUT / 1000}</b> 秒没操作就自动逃跑，挂机不卡进度。</p>`,
   },
   {
     title: '系统日志',

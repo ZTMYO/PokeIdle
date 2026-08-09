@@ -104,6 +104,14 @@ export const ACHIEVEMENTS = [
     metric: d => d.stats.totalShinyCaught || 0, base: 1, reward: 100,
     fmt: v => `${formatNum(v)} 只`,
   },
+  {
+    id: 'cardCollect', name: '卡牌收藏家', desc: '累计收集卡牌种类',
+    metric: () => {
+      if (!gameData.collectedCards) return 0;
+      return Object.keys(gameData.collectedCards).length;
+    }, base: 5, reward: 50, maxTiers: 7,
+    fmt: v => `${formatNum(v)} 种`,
+  },
 ];
 
 function ensureAchievements() {

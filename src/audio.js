@@ -12,7 +12,8 @@ let _lastIdx = -1;         // 当前播放下标
 let _regionQueue = [];     // 当前歌单洗牌序列（全部播完才重洗，保证每首都能轮到）
 let _regionActive = false; // 地区曲「应该」在播放
 let _overlayActive = false;
-let _overlayType = null;   // null | 'battle' | 'cycling'
+let _overlayType = null;   // null | 'battle' | 'cycling' | 'casino'
+let _casinoActive = false; // 游戏厅模式：阻断战斗/骑行音乐
 let _currentTitle = '';    // 当前地区曲标题（手机页展示用）
 let _currentArtist = '';
 
@@ -182,6 +183,7 @@ function playRegionTrack(first) {
 
 // 切换地区歌单（firstTrack 可指定第一首）
 export function playRegion(name, firstTrack) {
+  if (_casinoActive) return; // 游戏厅模式：不切换地区曲
   _regionTracks = REGION_PLAYLISTS[name] || [];
   _lastIdx = -1;
   _regionQueue = []; // 换地区后重置洗牌序列
@@ -200,7 +202,7 @@ function playOverlay(type, src) {
   // 覆盖曲播放时保证地区曲暂停（同源重播也走此分支），避免两首叠加
   if (!regionAudio.paused) regionAudio.pause();
   if (overlayAudio.getAttribute('src') !== src) overlayAudio.src = src;
-  applyTrackGain('overlay', type === 'battle' ? SFX.battle : SFX.cycling);
+  applyTrackGain('overlay', type === 'battle' ? SFX.battle : type === 'cycling' ? SFX.cycling : SFX.casino);
   overlayAudio.loop = true;
   overlayAudio.currentTime = 0;
   tryPlay(overlayAudio);
@@ -221,15 +223,46 @@ function endOverlay() {
 }
 
 export function playBattle() {
+  if (_casinoActive) return; // 游戏厅模式：阻断战斗音乐
   if (!_battleMusic) return; // 关闭战斗音乐：战斗期间保持地区曲
   playOverlay('battle', urlFor(SFX.battle));
 }
 export function endBattle() { if (_overlayType === 'battle') endOverlay(); }
 export function playCycling() {
+  if (_casinoActive) return; // 游戏厅模式：阻断骑行音乐
   if (_overlayType === 'cycling') return; // 已在播放骑行曲：直接复用，避免路段轮播反复重置重播
   playOverlay('cycling', urlFor(SFX.cycling));
 }
 export function endCycling() { if (_overlayType === 'cycling') endOverlay(); }
+
+// ---------- 游戏厅 ----------
+// 进入游戏厅：停掉当前所有音乐（地区曲/覆盖曲/瞬发音），播放 GameCorner.mp3
+// 游戏厅内子页面切换不会重复调用此函数，音乐持续播放不中断
+export function playCasino() {
+  if (_casinoActive && _overlayType === 'casino') return; // 已在播放，不重置
+  _casinoActive = true;
+  // 静默停止所有通道
+  if (!sfxAudio.paused) sfxAudio.pause();
+  if (!overlayAudio.paused) overlayAudio.pause();
+  if (!regionAudio.paused) regionAudio.pause();
+  _overlayActive = false;
+  _overlayType = null;
+  _regionActive = false;
+  // 使用覆盖曲通道播放游戏厅音乐（与战斗/骑行同组，保证互斥层级）
+  playOverlay('casino', urlFor(SFX.casino));
+}
+// 退出游戏厅：停止游戏厅音乐，恢复地区曲
+export function endCasino() {
+  if (!_casinoActive) return;
+  _casinoActive = false;
+  if (_overlayType === 'casino') endOverlay();
+  // 恢复地区曲：endOverlay 因为 _regionActive=false 不会自动恢复，手动补播
+  if (_regionTracks.length > 0 && regionAudio.getAttribute('src')) {
+    _regionActive = true;
+    regionFadeIn(300);
+    tryPlay(regionAudio);
+  }
+}
 
 // ---------- 瞬发音 ----------
 // 播放前暂停背景曲，播完恢复，保证同一时刻只响一首
@@ -257,11 +290,25 @@ function playSfx(path) {
 }
 
 export function playVictory() {
+  if (_casinoActive) return; // 游戏厅模式：阻断胜利音效
   if (!_battleMusic) return;
   playSfx(SFX.victory);
 }
-export function playCongratulation() { playSfx(SFX.congratulation); }
+export function playCongratulation() {
+  if (_casinoActive) return; // 游戏厅模式：阻断祝贺音效
+  playSfx(SFX.congratulation);
+}
 export function playObtained() { playSfx(SFX.obtained); }
+
+// ---------- 麻将瞬发音效 ----------
+// 短促音效不打断背景音乐，单独 Audio 叠加；受音乐总开关控制
+export function playMahjongSfx(name) {
+  if (!_musicEnabled) return;
+  const url = `./audio/mahjong/${encodeURIComponent(name)}.mp3`;
+  const a = new Audio(url);
+  a.volume = _volume;
+  a.play().catch(() => {});
+}
 
 // 停止胜利音效并恢复背景曲（图鉴对话框交互后调用）
 export function stopVictory() {

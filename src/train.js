@@ -391,7 +391,7 @@ function showWalkerTip(el, slot) {
     ? ' <svg viewBox="0 0 1024 1024" width="10" height="10" style="vertical-align:-1px;color:#fff;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
     : '';
   const sat = slot.satiety == null ? TRAIN_SATIETY_MAX : Math.round(slot.satiety);
-  tip.innerHTML = `${poke ? poke.name : '#' + entry.species}${shiny} · ${genderBadge(ensureGender(entry))}Lv${entry.level || 1} · 饱食${sat}
+  tip.innerHTML = `${entry.nickname || (poke ? poke.name : '#' + entry.species)}${shiny} · ${genderBadge(ensureGender(entry))}Lv${entry.level || 1} · 饱食${sat}
     <span class="train-walker-tip-status${lazy ? ' lazy' : ''}">${lazy ? '偷懒中' : '训练中'}</span>`;
   tip.style.display = '';
   const er = el.getBoundingClientRect();
@@ -558,7 +558,7 @@ function statusRowHtml(slot, i) {
   const entry = (gameData.roster || []).find(x => x.id === slot.id);
   if (!entry || entry.inRoster === false) return '';
   const poke = getPokemonByIndex(String(entry.species));
-  const name = poke ? poke.name : `#${entry.species}`;
+  const name = entry.nickname || (poke ? poke.name : `#${entry.species}`);
   const lv = entry.level || 1;
   const cur = entry.exp || 0;
   const need = expNeed(lv);

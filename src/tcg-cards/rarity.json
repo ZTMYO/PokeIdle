@@ -1,0 +1,28 @@
+{
+  "pools": {
+    "pool1": {
+      "N": {
+        "count": 14
+      },
+      "R": {
+        "count": 10
+      },
+      "SR": {
+        "count": 5
+      },
+      "total": 29
+    },
+    "pool2": {
+      "N": {
+        "count": 14
+      },
+      "R": {
+        "count": 10
+      },
+      "SR": {
+        "count": 5
+      },
+      "total": 29
+    }
+  }
+}

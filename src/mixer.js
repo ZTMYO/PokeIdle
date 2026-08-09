@@ -2,7 +2,7 @@
 // 从农场库存选树果（1~RECIPE_MAX 颗）作配方，确认后制成树果方块：按配方颜色混合着色，
 // 优先吸引当前地区与配方一致的宝可梦，被吃掉或再走满 BLOCK_DISTANCE 米后结束。
 import { $, showView, tryLoadImage } from './ui.js';
-import { phase, gameData, blockBuffActive, blockRecipe, blockStartWalk, blockQuality, qteState, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, saveSessionState, setIdleMsgIdx, pushNav, addSystemLog, saveGame, randInt } from './state.js';
+import { phase, gameData, blockBuffActive, blockRecipe, blockStartWalk, blockQuality, qteState, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, saveSessionState, setIdleMsgIdx, pushNav, addSystemLog, saveGame, randInt, getCurrentRegion } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES, BERRY_COLORS, findBerryTarget } from './items.js';
 import { BLOCK_DISTANCE, PX_PER_METER, BLOCK_QUALITY } from './config.js';
 import { playObtained } from './audio.js';
@@ -13,6 +13,9 @@ let _recipe = [];       // 已选树果下标（去重）
 let _lastRecipe = [];   // 最近成功制作的配方（决定颜色与吸引目标）
 let _pickOpen = false;  // 是否处于选择树果状态
 let _blockCoolInterval = null; // 剩余里程轮询（500ms）
+let _coolRegion = null;        // 冷却页渲染时的地区（跨地区时用于即时刷新目标/文案）
+let _resultRegion = null;      // 结果页（领取页）渲染时的地区（跨地区时用于即时刷新目标/文案）
+let _resultWatchInterval = null; // 结果页地区监听句柄（500ms）
 let _demoActive = false;   // 首页演示动画是否运行中
 let _demoRaf = 0;          // 首页演示动画 rAF 句柄
 let _demoTimer = 0;        // 首页演示动画批次间隔句柄
@@ -70,6 +73,7 @@ function render() {
   } else if (blockBuffActive) {
     stopIdleDemo();
     _pickOpen = false;
+    _coolRegion = getCurrentRegion().name; // 记录冷却页渲染时的地区，跨地区时据此即时刷新
     el.innerHTML = cooldownHtml();
     syncCoolTimer();
     loadBerryImgs(el);
@@ -740,6 +744,8 @@ function showResult() {
   const el = $('mixerContent');
   if (!el) return;
   stopIdleDemo();
+  _resultRegion = getCurrentRegion().name; // 记录结果页渲染时的地区，跨地区时据此即时刷新文案
+  startResultRegionWatch();
   const recipe = [..._lastRecipe].sort((a, b) => a - b);
   const target = findBerryTarget(recipe);
   // 目标已捕获才算"有宝可梦吃"，否则不可领取
@@ -751,7 +757,7 @@ function showResult() {
       <div class="mixer-result-stage" id="mixerResultStage">
         <img class="mixer-block-visual" id="mixerResultCube" src="./items/cube.png" alt="树果方块" />
         <div class="mixer-result-berries">${berryImgsHtml(recipe)}</div>
-        <div class="mixer-result-target">
+        <div class="mixer-result-target" id="mixerResultTarget">
           ${target && targetCaught
             ? `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`
             : '当地没有宝可梦喜欢吃这个配方！'}
@@ -785,6 +791,39 @@ function showResult() {
   }
 }
 
+// 结果页（领取页）地区监听：冷却页已有里程轮询刷新，结果页同样需要跨地区即时切换
+// 「遇敌时 X% 概率…」↔「当地没有宝可梦喜欢吃这个配方！」。只更新文案元素，
+// 不整页重渲染（避免重播飞入动画与获得音效）。
+function startResultRegionWatch() {
+  clearResultRegionWatch();
+  _resultWatchInterval = setInterval(() => {
+    const s = qteState;
+    if (!s || s.phase !== 'result' || _qteActive) { clearResultRegionWatch(); return; }
+    const mv = $('mixerView');
+    if (!mv || mv.style.display === 'none') return; // 页面未打开时不处理（重开时 render 会刷新）
+    const cur = getCurrentRegion().name;
+    if (cur === _resultRegion) return;
+    _resultRegion = cur;
+    const recipe = (Array.isArray(s.recipe) && s.recipe.length > 0) ? s.recipe : _lastRecipe;
+    const target = findBerryTarget(recipe);
+    const targetCaught = !!(target && (gameData.pokedex?.[String(target.index)]?.caught || 0) > 0);
+    const quality = BLOCK_QUALITY[s.quality || 'good'] || BLOCK_QUALITY.good;
+    const el = $('mixerResultTarget');
+    if (el) {
+      el.textContent = targetCaught
+        ? `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`
+        : '当地没有宝可梦喜欢吃这个配方！';
+    }
+  }, 500);
+}
+
+function clearResultRegionWatch() {
+  if (_resultWatchInterval) {
+    clearInterval(_resultWatchInterval);
+    _resultWatchInterval = null;
+  }
+}
+
 function claimBlock() {
   if (blockBuffActive) return;
   const recipe = _lastRecipe || [];
@@ -806,6 +845,7 @@ function claimBlock() {
   addSystemLog('mixer', { action: 'claim', recipe });
   gameData.stats.totalBlockMade = (gameData.stats.totalBlockMade || 0) + 1;
   setQteState(null); // 已领取，清除结果状态
+  clearResultRegionWatch(); // 结果页已离开，地区监听由冷却页里程轮询接管
   saveGame();
   render();
 }
@@ -895,6 +935,13 @@ export function startBlockCountdown() {
     const remain = blockMetersRemaining();
     if (remain <= 0) { handleBlockExpired(); return; } // 走满里程自动结束
     updateBlockTimers(remain);
+    // 冷却页打开期间跨地区：findBerryTarget 按当前地区动态查目标，
+    // 到达配方可生效地区后即时刷新「没有宝可梦喜欢吃」→「遇敌时 X% 概率…」文案
+    const cur = getCurrentRegion().name;
+    if (cur !== _coolRegion) {
+      const mv = $('mixerView');
+      if (mv && mv.style.display !== 'none') render();
+    }
   }, 500);
 }
 

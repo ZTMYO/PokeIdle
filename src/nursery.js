@@ -2,7 +2,7 @@
 // 把两只宝可梦放进饲育屋配对：满足蛋组条件（雌雄共蛋组 / 百变怪万能配对）即可繁殖。
 // 互斥规则：饲育屋 / 训练 / 配队三方互斥——放入饲育屋自动离开队伍与训练槽，反之亦然。
 import { $, showView, tryLoadImage, setupFoodTooltip } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, rollGender, rollNature, addSystemLog } from './state.js';
+import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender, genderBadge, rollGender, rollNature, addSystemLog } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { ensureBerryFarm } from './berry.js';
 
@@ -15,6 +15,7 @@ const EGG_SHINY_CHANCE = 1 / 4096; // 蛋的闪光概率：与原版一致的低
 const TILE = 24;
 const TILESET = './terrain/terrain-tileset.png';
 const BOARD_IMG = './items/berry-trees/board.png';
+const BOX_IMG = './items/berry-trees/box.png';
 const EGG_IMG = './items/mystery-egg.png';
 // 已产蛋时场地图正中心的展示 tile：11x9 地图 → col 5 / row 4（草地块，可站立）
 const EGG_TILE = { c: 5, r: 4 };
@@ -45,7 +46,9 @@ const LAND_CELLS = [];
 for (let r = 0; r < NURSERY.h; r++) {
   for (let c = 0; c < NURSERY.w; c++) {
     if (r === 0 || r === NURSERY.h - 1 || c === 0 || c === NURSERY.w - 1) continue;
-    if (NURSERY_LAND.has(NURSERY.tiles[r][c].join(','))) LAND_CELLS.push({ c, r });
+    // 排除 [2,2] / [2,10]：纸箱子、告示牌占位，禁止宝可梦走到这里
+    if (NURSERY_LAND.has(NURSERY.tiles[r][c].join(',')) && !((c === 2 && r === 2) || (c === 2 && r === 10))) {LAND_CELLS.push({ c, r });
+}
   }
 }
 
@@ -63,6 +66,10 @@ let _leaderSwitchAt = 0;      // 下一次切换被跟随者的时间戳
 let _pickSlot = null;         // 非 null 时告示牌显示"放入宝可梦"列表（点击空槽后）
 let _pickSortBy = 'index';    // 放入列表排序列：index | name | iv | level
 let _pickSortDir = 1;         // 1 升序 / -1 降序
+let _eggView = false;         // 蛋仓库视图
+let _eggQuery = '';           // 蛋搜索关键词
+let _eggSortBy = 'time';      // time | name | iv
+let _eggSortDir = -1;         // 1 升序 / -1 降序
 
 // ---------- 存档 ----------
 // 保证饲育屋数据存在并补齐两个亲本槽位（兼容旧存档）
@@ -184,6 +191,8 @@ function removeParent(slot) {
 function render() {
   const box = $('nurseryContent');
   if (!box) return;
+  // 蛋仓库视图
+  if (_eggView) { renderEggView(); return; }
   // 选取宝可梦：切到全页列表（不占用告示牌面板）
   if (_pickSlot != null) { renderPickPage(box); return; }
   box.innerHTML = `
@@ -191,16 +200,21 @@ function render() {
       <div class="nursery-field">
         <canvas class="nursery-field-canvas" width="${NURSERY_W}" height="${NURSERY_H}"></canvas>
         <div class="nursery-walkers"></div>
+        <img class="nursery-box-sign berry-icon" src="${BOX_IMG}" data-tip="查看宝可梦蛋" alt="蛋仓库" />
         <img class="nursery-board-sign berry-icon" src="${BOARD_IMG}" data-tip="点击管理宝可梦" alt="告示牌" />
       </div>
     </div>`;
   drawField(box.querySelector('.nursery-field-canvas'));
-  // innerHTML 已重建场地层，旧 walker 元素全部失效，清空后按当前亲本重建（位置沿用 _walkerPos）
   _walkers.clear();
   syncWalkers();
   updateEggOverlay();
+  box.querySelector('.nursery-box-sign').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (boardOpen()) closeBoard();
+    openEggView();
+  });
   box.querySelector('.nursery-board-sign').addEventListener('click', (e) => {
-    e.stopPropagation(); // 避免触发表层关闭监听后被关闭
+    e.stopPropagation();
     if (boardOpen()) closeBoard();
     else openBoard();
   });
@@ -239,7 +253,7 @@ export function isNurseryPicking() {
 export function leaveNurseryPick() {
   if (_pickSlot == null) return;
   _pickSlot = null;
-  render();
+    render();
   openBoard();
 }
 
@@ -352,7 +366,7 @@ function syncWalkers() {
     w.fx = fx;
     const g = ensureGender(entry);
     const gText = g === 'female' ? '♀' : g === 'male' ? '♂' : '⚲'; 
-    const tip = poke ? `${poke.name} ${gText}` : '';
+    const tip = poke ? `${entry.nickname || poke.name} ${gText}` : '';
     if (tip) w.el.setAttribute('data-tip', tip);
     w.el.style.left = w.x + 'px';
     w.el.style.top = w.y + 'px';
@@ -574,7 +588,7 @@ function pickListHtml(slot) {
     })
     .map(p => {
       const poke = getPokemonByIndex(String(p.species));
-      const name = poke ? poke.name : `#${p.species}`;
+      const name = p.nickname || (poke ? poke.name : `#${p.species}`);
       const icon = poke?.icon ? `<img class="roster-icon-img" data-icon="${p.species}" alt="" />` : '';
       return `
       <div class="pokedex-entry roster-row bounty-trade-row" data-pick-view="${p.id}">
@@ -611,7 +625,7 @@ function slotHtml(slot, i) {
   const entry = (gameData.roster || []).find(x => x.id === slot.id);
   if (!entry || entry.inRoster === false) return `<div class="nursery-slot empty" data-slot="${i}" title="点击放入宝可梦">＋</div>`;
   const poke = getPokemonByIndex(String(entry.species));
-  const name = poke ? poke.name : `#${entry.species}`;
+  const name = entry.nickname || (poke ? poke.name : `#${entry.species}`);
   const egg = poke && (poke.eggGroup || []).length ? poke.eggGroup.join(' / ') : poke?.noEggGroup ? '未发现蛋组' : '—';
   const st = breedingState(ensureNursery());
   const tip = st.key === 'ready' ? '请先收取蛋'
@@ -1083,6 +1097,221 @@ function startTimer() {
   }, 1000);
 }
 
+// ---------- 蛋仓库 ----------
+function openEggView() {
+  _eggView = true;
+  _eggQuery = '';
+  const content = $('nurseryContent');
+  if (content) { content.style.display = 'flex'; content.style.flexDirection = 'column'; }
+  const title = $('appTitle');
+  if (title) {
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 宝可梦蛋';
+    title.dataset.action = 'back';
+  }
+  renderEggView();
+}
+
+function discardEgg(id) {
+  // 先显示底部确认栏
+  removeEggConfirmBar();
+  const bar = document.createElement('div');
+  bar.id = 'nurseryEggConfirmBar';
+  bar.className = 'text-box shop-text-box';
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span class="text-box-content">确定丢弃这枚蛋吗？</span>
+    <div class="shop-confirm-btns">
+      <span class="catch-confirm-btn" id="nurseryEggConfirmBtn">确定</span>
+      <span class="catch-confirm-btn" id="nurseryEggConfirmCancel">取消</span>
+    </div>`;
+  $('nurseryView').appendChild(bar);
+  bar.querySelector('#nurseryEggConfirmBtn').onclick = () => {
+    const arr = gameData.roster || [];
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (arr[i].id === id && !isPokemon(arr[i])) {
+        arr.splice(i, 1);
+        saveGame();
+        removeEggConfirmBar();
+        renderEggView();
+        return;
+      }
+    }
+    removeEggConfirmBar();
+  };
+  bar.querySelector('#nurseryEggConfirmCancel').onclick = () => removeEggConfirmBar();
+}
+
+function removeEggConfirmBar() {
+  const bar = document.getElementById('nurseryEggConfirmBar');
+  if (bar) bar.remove();
+}
+
+function renderEggView() {
+  const box = $('nurseryContent');
+  if (!box) return;
+  const eggs = (gameData.roster || []).filter(p => p.inRoster && !isPokemon(p));
+  // 搜索过滤
+  let filtered = eggs;
+  if (_eggQuery) {
+    const q = _eggQuery;
+    filtered = eggs.filter(p => {
+      const poke = getPokemonByIndex(String(p.species));
+      if (!poke) return false;
+      return poke.name.includes(q) || poke.pinyin?.toUpperCase().includes(q.toUpperCase()) ||
+        poke.pinyinInitials?.toUpperCase().includes(q.toUpperCase());
+    });
+  }
+  // 排序
+  const sorted = [...filtered].sort((a, b) => {
+    let va, vb;
+    if (_eggSortBy === 'name') {
+      va = getPokemonByIndex(String(a.species))?.name || '';
+      vb = getPokemonByIndex(String(b.species))?.name || '';
+      return va.localeCompare(vb) * _eggSortDir;
+    } else if (_eggSortBy === 'iv') {
+      va = (a.ivs ? (a.ivs.hp + a.ivs.atk + a.ivs.def + a.ivs.spa + a.ivs.spd + a.ivs.spe) : 0);
+      vb = (b.ivs ? (b.ivs.hp + b.ivs.atk + b.ivs.def + b.ivs.spa + b.ivs.spd + b.ivs.spe) : 0);
+      return (va - vb) * _eggSortDir;
+    }
+    // time: newest first by default
+    va = a.obtainedAt || 0; vb = b.obtainedAt || 0;
+    return (va - vb) * _eggSortDir;
+  });
+  // 排序指示符
+  const sortAsc = `${_eggSortBy === 'name' ? (_eggSortDir === 1 ? ' ▲' : ' ▼') : ''}`;
+  const sortIv = `${_eggSortBy === 'iv' ? (_eggSortDir === 1 ? ' ▲' : ' ▼') : ''}`;
+
+  // 检查是否已有完整页面，有则只增量更新列表和表头（避免销毁搜索框导致失焦）
+  const existingPage = box.querySelector('.nursery-egg-page');
+  if (existingPage) {
+    // 更新进度
+    const progress = existingPage.querySelector('.pokedex-progress');
+    if (progress) progress.textContent = eggs.length ? `共 ${eggs.length} 个蛋` : '暂无宝可梦蛋';
+    // 更新表头排序指示符
+    const nameHeader = existingPage.querySelector('.nursery-egg-header-name');
+    const ivHeader = existingPage.querySelector('.nursery-egg-header-iv');
+    if (nameHeader) nameHeader.innerHTML = `宝可梦蛋${sortAsc}`;
+    if (ivHeader) ivHeader.innerHTML = `个体值${sortIv}`;
+    // 更新列表
+    const listScroll = existingPage.querySelector('.list-scroll');
+    if (listScroll) {
+      listScroll.innerHTML = sorted.length === 0
+        ? '<div class="roster-empty">暂无宝可梦蛋</div>'
+        : sorted.map(eg => {
+            const poke = getPokemonByIndex(String(eg.species));
+            const name = poke ? poke.name : `#${eg.species}`;
+            return `
+              <div class="nursery-egg-row" data-egg-id="${eg.id}">
+                <span class="nursery-egg-row-name">
+                  <img class="nursery-egg-row-icon" src="./items/mystery-egg.png" alt="蛋" />${name}的蛋${eg.shiny ? ' ★' : ''}
+                </span>
+                <span class="nursery-egg-row-iv">${eggIvSlash(eg)}</span>
+                <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">丢弃</button></span>
+              </div>`;
+          }).join('');
+      // 重新绑定丢弃按钮
+      listScroll.querySelectorAll('[data-discard]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          discardEgg(btn.dataset.discard);
+        });
+      });
+    }
+    // 更新清空按钮可见性
+    const clearBtn = existingPage.querySelector('#nurseryEggSearchClear');
+    if (clearBtn) clearBtn.style.display = _eggQuery ? '' : 'none';
+    return;
+  }
+
+  // 首次渲染：创建完整 HTML
+  box.innerHTML = `
+    <div class="nursery-egg-page">
+      <div class="pokedex-progress">${eggs.length ? `共 ${eggs.length} 个蛋` : '暂无宝可梦蛋'}</div>
+      <div class="pokedex-search">
+        <div class="pokedex-search-row">
+          <div class="pokedex-search-input-wrap">
+            <input id="nurseryEggSearch" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" value="${_eggQuery}" />
+            <button class="pokedex-search-clear" id="nurseryEggSearchClear" style="display:${_eggQuery ? '' : 'none'};" aria-label="清空搜索">
+              <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="nursery-egg-header">
+        <span class="nursery-egg-header-name" data-egg-sort="name">宝可梦蛋${sortAsc}</span>
+        <span class="nursery-egg-header-iv" data-egg-sort="iv">个体值${sortIv}</span>
+        <span class="bounty-trade-btn-col">丢弃</span>
+      </div>
+      <div class="list-scroll">
+        ${sorted.length === 0
+          ? '<div class="roster-empty">暂无宝可梦蛋</div>'
+          : sorted.map(eg => {
+              const poke = getPokemonByIndex(String(eg.species));
+              const name = poke ? poke.name : `#${eg.species}`;
+              return `
+                <div class="nursery-egg-row" data-egg-id="${eg.id}">
+                  <span class="nursery-egg-row-name">
+                    <img class="nursery-egg-row-icon" src="./items/mystery-egg.png" alt="蛋" />${name}的蛋${eg.shiny ? ' ★' : ''}
+                  </span>
+                  <span class="nursery-egg-row-iv">${eggIvSlash(eg)}</span>
+                  <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">丢弃</button></span>
+                </div>`;
+            }).join('')}
+      </div>
+    </div>`;
+  // 搜索（只绑一次——新创建的 input）
+  const input = box.querySelector('#nurseryEggSearch');
+  const clearBtn = box.querySelector('#nurseryEggSearchClear');
+  if (input) {
+    input.addEventListener('input', () => {
+      _eggQuery = input.value.trim();
+      renderEggView();
+    });
+  }
+  if (clearBtn) clearBtn.addEventListener('click', () => { _eggQuery = ''; input.value = ''; renderEggView(); });
+  // 排序
+  box.querySelectorAll('[data-egg-sort]').forEach(el => {
+    el.addEventListener('click', () => {
+      const k = el.dataset.eggSort;
+      if (_eggSortBy === k) _eggSortDir = -_eggSortDir;
+      else { _eggSortBy = k; _eggSortDir = 1; }
+      renderEggView();
+    });
+  });
+  // 丢弃
+  box.querySelectorAll('[data-discard]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      discardEgg(btn.dataset.discard);
+    });
+  });
+}
+
+// 蛋个体值斜杠串（与孵蛋器选蛋页一致）
+function eggIvSlash(p) {
+  if (!p || !p.ivs) return '0/0/0/0/0/0';
+  return ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].map(k => p.ivs[k] || 0).join('/');
+}
+
+// 标题栏返回判断：是否在蛋仓库视图
+export function isNurseryEggView() {
+  return _eggView && $('nurseryView')?.style.display !== 'none';
+}
+
+// 标题栏返回：退出蛋仓库，回饲育屋场地
+export function leaveNurseryEggView() {
+  _eggView = false;
+  removeEggConfirmBar();
+  const content = $('nurseryContent');
+  if (content) { content.style.display = ''; content.style.flexDirection = ''; }
+  const title = $('appTitle');
+  if (title) {
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 饲育屋';
+    title.dataset.action = 'back';
+  }
+  render();
+  startTimer();
+}
+
 // ---------- 调试辅助 ----------
 // 直接完成当前繁殖：跳过投喂树果消耗与等待计时，立即置为「已产蛋」待收取，
 // 用于快速验证产蛋 / 个体值遗传。控制台执行 window.__finishBreeding()。
@@ -1096,5 +1325,37 @@ window.__finishBreeding = function () {
   saveGame();
   render();
   console.log('[调试] 已直接完成当前繁殖，点「收取蛋」即可拿到蛋');
+  return true;
+};
+
+// 调试：直接添加宝可梦蛋到仓库（6V 个体值）
+// 参数 speciesIndex 为图鉴编号，默认为 1（妙蛙种子）
+// 用法：__addEgg(25)  → 获得一只皮卡丘的蛋
+//       __addEgg()    → 获得一只妙蛙种子的蛋
+window.__addEgg = function (speciesIndex) {
+  const species = String(speciesIndex || 1).padStart(4, '0');
+  const poke = getPokemonByIndex(species);
+  if (!poke) { console.log('[调试] 无效的图鉴编号:', species); return false; }
+  if (!Array.isArray(gameData.roster)) gameData.roster = [];
+  const ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    kind: 'egg',
+    species,
+    gender: rollGender(species),
+    level: 1,
+    exp: 0,
+    evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
+    ivs,
+    nature: rollNature(),
+    shiny: false,
+    source: 'egg',
+    obtainedAt: Date.now(),
+    inRoster: true,
+  };
+  gameData.roster.push(entry);
+  saveGame();
+  if (_eggView) renderEggView();
+  console.log(`[调试] 已添加 ${poke.name} 的蛋（6V），可在「饲育屋→纸箱」或「孵蛋器→宝可梦蛋」中查看`);
   return true;
 };

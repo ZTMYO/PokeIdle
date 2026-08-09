@@ -246,3 +246,31 @@ export const ROAD_SPEED_WALK = 0.5;   // 走路
 export const ROAD_SPEED_RUN  = 1.0;   // 跑步（增益生效时）
 export const ROAD_SPEED_BIKE = 2.0;    // 自行车道骑行
 export const BIKE_RESTORE_MAX_GAP_MS = 120000; // 手动骑行状态恢复的最大离档间隔（>此值视为长时间离线，不恢复骑行）
+
+// 道具作用简述（商店 hover 提示等统一 tooltip 文案）
+// 数值全部引用上方常量动态生成，配置改动后 tooltip 自动同步
+const pct = v => Math.round(v * 100) + '%';
+export const ITEM_DESC = {
+  'poke-ball': `普通精灵球\n基础捕获率 ${pct(CATCH_RATES['poke-ball'])}`,
+  'ultra-ball': `高级精灵球\n基础捕获率 ${pct(CATCH_RATES['ultra-ball'])}`,
+  'master-ball': '大师球\n必定捕获成功',
+  'candy': '通用货币\n遇敌捕获、钓鱼、孵蛋等均可获得',
+  'sweet-honey': `使用后 ${BUFF_DURATION} 秒内\n遇敌间隔大幅缩短`,
+  'mystery-egg': `放入孵蛋器\n行走${Math.round(HATCH_DIST_MIN / 1000)}~${Math.round(HATCH_DIST_MAX / 1000)} 公里后孵化出宝可梦`,
+  'shiny-charm': `使用后 ${BUFF_DURATION} 秒内\n遇敌/钓鱼闪光概率提升至 ${pct(CHARM_SHINY_CHANCE)}`,
+  'bike': `骑行赶路工具\n速度 ${Math.round(ROAD_SPEED_BIKE / ROAD_SPEED_WALK)} 倍且不遇敌、不拾取`,
+};
+
+// ===== 抽卡机 =====
+export const GACHA_DRAW_COST = 20;     // 单抽消耗游戏币
+export const GACHA_DUP_REFUND = 10;    // 抽到重复卡片的返还
+export const GACHA_TIER_WEIGHT = { N: 60, R: 32, SR: 8 };
+
+// ===== 游戏厅 =====
+export const COIN_RATE = 20;           // 1 游戏币 = 多少糖果
+export const DEALER_STAND = 17;        // 庄家停牌点数
+export const BJ_MULT = 1.5;            // 黑杰克赔付倍率
+
+// ===== 口袋麻将 =====
+export const HAND_SIZE = 8;            // 起手手牌数
+export const RIICHI_COST = 50;         // 立直费用（游戏币）

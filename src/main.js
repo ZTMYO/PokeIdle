@@ -33,7 +33,7 @@ import {
   $, showView, updateTextBox, hideTextBox,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
   renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip,
-  isIncubatorLogOpen, closeIncubatorLog,
+  isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView,
 } from './ui.js';
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
@@ -55,7 +55,7 @@ import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBad
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
-import { isNurseryPicking, leaveNurseryPick } from './nursery.js';
+import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView } from './nursery.js';
 import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle } from './battle-view.js';
 import { backFromBattlePick, isBattlePicking } from './team.js';
 import { refreshNpcs } from './npcs.js';
@@ -196,6 +196,8 @@ function goBack() {
     showView('incubatorView');
     return;
   }
+  // 放入蛋独立页：点击标题栏返回孵蛋器
+  if ($('incubatorEggView')?.style.display === 'flex') { closeIncubatorEggView(); return; }
   // 战斗替换选择页（teamView）：主动替换 → 取消选择回战斗操作界面；倒下换人 → 直接撤退回对战列表
   if (isBattlePicking() && $('teamView')?.style.display === 'flex') {
     if (backFromBattlePick()) retreatBattle();
@@ -218,6 +220,8 @@ function goBack() {
   if (isTradeInDetail() && $('tradeView')?.style.display === 'flex') { restoreTradeList(); return; }
   // 悬赏提交列表：标题栏返回先回悬赏列表
   if (isBountyInTrade() && $('bountyView')?.style.display === 'flex') { restoreBountyList(); return; }
+  // 饲育屋蛋仓库视图：标题栏返回回饲育屋场地
+  if (isNurseryEggView()) { leaveNurseryEggView(); return; }
   // 饲育屋放入列表：标题栏返回回饲育屋场地（选取页未压栈）
   if (isNurseryPicking()) { leaveNurseryPick(); return; }
   // 结算页返回：回 NPC 战斗列表（与「返回列表」按钮一致），不弹栈（列表页仍在 battleView 内）
@@ -509,6 +513,8 @@ async function init() {
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
   if (gameData.gps.roamEnabled && gameData.gps.destIdx == null) setRoamEnabled(true);
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
+  if (!gameData.collectedCards) gameData.collectedCards = {}; // 旧存档补齐卡牌收集
+  if (!gameData.gachaLogs) gameData.gachaLogs = {}; // 旧存档补齐抽卡记录
   initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
   // 旧档迁移：静音开关已并入「音乐」开关（默认播放音乐），清理孤立的 muted 字段
   if (gameData.settings?.muted !== undefined) delete gameData.settings.muted;

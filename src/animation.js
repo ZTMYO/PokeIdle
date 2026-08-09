@@ -265,7 +265,7 @@ export function stopShinySparkleLoop() {
 }
 
 // 告别场景（放生 / 提交悬赏复用）：确认框询问，确认后播放图标缩小动画并显示「再见！xxx」
-export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false }) {    
+export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false, nick = '' }) {    
   const view = $('goodbyeView');
   if (!poke || !view) { onConfirm && onConfirm(); return; }
   if (view._busy) return;
@@ -278,7 +278,7 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
   // 重置场景：移除 leaving/arrive 重播入场动画、清空旧图、还原按钮文案、隐藏箭头
   img.classList.remove('leaving');
   img.classList.remove('arrive');
-  okBtn.textContent = '确认';
+  okBtn.textContent = '确定';
   cancelBtn.textContent = '取消';
   if (arrow) arrow.style.display = 'none';
   img.src = '';
@@ -297,7 +297,7 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
   };
   okBtn.onclick = () => {
     // 确认：图标缩小淡出 + 文案「再见！xxx」
-    textEl.textContent = `再见！${poke.name}`;
+    textEl.textContent = `再见！${nick || poke.name}`;
     okBtn.style.display = 'none';
     cancelBtn.style.display = 'none';
     img.classList.add('leaving');

@@ -1,5 +1,5 @@
 // ===== UI 管理 =====
-import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching } from './state.js';
+import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching, _navStack } from './state.js';
 import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge, getPokemonByIndex, isPokemon } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
 import { formatLogTime } from './pokedex.js';
@@ -53,7 +53,9 @@ export function showNowPlaying(title, artist) {
 
 // ---------- 视图切换 ----------
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
-const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','mahjongView'];
+const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','mahjongView','gachaView','gachaHistoryView','albumView'];
+const CASINO_VIEWS = new Set(['casinoView', 'casinoGameView', 'mahjongView', 'gachaView', 'gachaHistoryView']);
+let _currentView = 'idleView';
 
 export function showView(id) {
   if (id === 'idleView' && phase === 'encounter') {
@@ -61,6 +63,12 @@ export function showView(id) {
   }
   if (id === 'encounterView' && phase === 'idle') {
     id = 'idleView';
+  }
+  // 离开游戏厅：仅当 nav 栈中不再有任何游戏厅页面时才停止音乐
+  if (CASINO_VIEWS.has(_currentView) && !CASINO_VIEWS.has(id)) {
+    if (!_navStack.some(v => CASINO_VIEWS.has(v))) {
+      import('./audio.js').then(m => m.endCasino());
+    }
   }
   // 离开导航页时若仍停在「待选骑行目的地」（点了背包自行车、未选目的地就退出/返回/切换页面）：
   // 放弃待选并恢复进入待选前的导航，保证下次进入导航页是正常状态，不会卡在选择骑行目的地。
@@ -73,10 +81,12 @@ export function showView(id) {
     const el = $(v);
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
+  _currentView = id;
   // 重新进入孵蛋器：重置记录页/选蛋页状态，总是回到主列表
   if (id === 'incubatorView') {
     _incLogOpen = false;
     _eggPickSlot = null;
+    _eggPickQuery = '';
     _incLogPrevTitle = null;
   }
   // 孵蛋结果确认页离开游戏页时：若期间挂起过野生遭遇则恢复该遭遇，
@@ -115,7 +125,7 @@ export function showView(id) {
       });
     }, 0);
   }
-  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView']);
+  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','albumView']);
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
     btn.classList.toggle('active', on);
@@ -162,7 +172,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', hatchView:'孵化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', casinoView:'赌场', casinoGameView:'21 点', mahjongView:'口袋麻将' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', hatchView:'孵化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', casinoView:'游戏厅', casinoGameView:'21 点', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', albumView:'卡册' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -449,7 +459,9 @@ let _prevBagCounts = {};
 // ---------- 状态栏更新 ----------
 export function updateStats() {
   const candy = gameData.items['candy'] || 0;
-  $('statProgress').innerHTML = `<img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(candy)}`;
+  const coin = gameData.items['casinoCoin'] || 0;
+  const coinHtml = /casino|mahjong|gacha/i.test(_currentView) ? ` <img src="./items/coin.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;margin-left:4px;" /> ${formatNum(coin)}` : '';
+  $('statProgress').innerHTML = `<img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(candy)}${coinHtml}`;
   const g = gameData?.gps;
   const region = getCurrentRegion();
   const onRoad = !!(g && g.path && g.path.length >= 2 && g.seg < g.path.length - 1 && g.totalPx > 0);
@@ -498,6 +510,9 @@ export function updateIncubatorBadge() {
 // ---------- 孵蛋器视图渲染 ----------
 // 空槽点加号弹出选择菜单（神秘蛋 / 宝可梦蛋），无需顶部页签
 let _eggPickSlot = null; // 菜单选「宝可梦蛋」后正在选蛋的槽位下标；null = 未在选蛋
+let _eggPickSortBy = 'time'; // 选蛋列表排序列：time | name | iv
+let _eggPickSortDir = 1;    // 1 升序 / -1 降序
+let _eggPickQuery = '';     // 选蛋列表搜索文本
 let _incLogOpen = false; // 孵蛋记录页是否打开（点顶部"孵蛋记录"进入，返回后关闭）
 let _incLogPrevTitle = null; // 打开记录页前的标题栏内容（关闭时还原）
 
@@ -534,44 +549,131 @@ function eggIvSlash(p) {
   return ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].map(k => p.ivs[k] || 0).join('/');
 }
 
-// 宝可梦蛋页签：从仓库蛋条目（kind:'egg'）选一枚放入空槽，单列列表
-function renderEggPickList(list, slotIndex) {
+// 宝可梦蛋列表：从仓库蛋条目选一枚放入空槽
+// 复用 nursery 蛋仓库的样式（nursery-egg-page / nursery-egg-row）
+function renderEggPickList() {
+  const box = $('incubatorEggView');
+  if (!box) return;
   const inUse = new Set((gameData.incubators || []).map(s => s && s.eggRef).filter(Boolean));
-  const eggs = (gameData.roster || [])
+  const allEggs = (gameData.roster || [])
     .filter(p => p.inRoster && !isPokemon(p) && !inUse.has(p.id));
-  list.style.gridTemplateColumns = '1fr';
-  list.innerHTML = `
-    <div class="incubator-egg-list">
-      <div class="incubator-egg-list-head">
-        <span class="incubator-egg-back" data-egg-back>‹ 返回</span>
-        <span class="incubator-egg-list-title">选择放入的蛋</span>
-      </div>
-      ${eggs.length === 0
-        ? '<div class="incubator-egg-empty">没有可放入的蛋<br>饲育屋收取的蛋会出现在这里</div>'
-        : eggs.map(eg => {
-            const poke = getPokemonByIndex(String(eg.species));
-            const name = poke ? poke.name : `#${eg.species}`;
-            return `
-            <div class="incubator-egg-item" data-egg-pick="${eg.id}">
-              <span class="incubator-egg-icon"><img src="./items/mystery-egg.png" alt="蛋" /></span>
-              <span class="incubator-egg-name">${name}的蛋${eg.shiny ? ' ★' : ''}</span>
-              <span class="incubator-egg-iv">${eggIvSlash(eg)}</span>
-            </div>`;
-          }).join('')}
-    </div>`;
-  list.querySelector('[data-egg-back]')?.addEventListener('click', () => {
-    _eggPickSlot = null;
-    renderIncubatorView();
+  // 搜索过滤
+  let filtered = allEggs;
+  const q = (_eggPickQuery || '');
+  if (q) {
+    const lq = q.toLowerCase();
+    filtered = allEggs.filter(eg => {
+      const poke = getPokemonByIndex(String(eg.species));
+      if (!poke) return false;
+      const idx = String(eg.species);
+      return poke.name.includes(lq) || poke.pinyin?.toUpperCase().includes(lq.toUpperCase()) ||
+        poke.pinyinInitials?.toUpperCase().includes(lq.toUpperCase()) || idx.includes(lq);
+    });
+  }
+  // 排序
+  const sorted = [...filtered].sort((a, b) => {
+    let va, vb;
+    if (_eggPickSortBy === 'name') {
+      va = getPokemonByIndex(String(a.species))?.name || '';
+      vb = getPokemonByIndex(String(b.species))?.name || '';
+      return va.localeCompare(vb) * _eggPickSortDir;
+    } else if (_eggPickSortBy === 'iv') {
+      va = (a.ivs ? (a.ivs.hp + a.ivs.atk + a.ivs.def + a.ivs.spa + a.ivs.spd + a.ivs.spe) : 0);
+      vb = (b.ivs ? (b.ivs.hp + b.ivs.atk + b.ivs.def + b.ivs.spa + b.ivs.spd + b.ivs.spe) : 0);
+      return (va - vb) * _eggPickSortDir;
+    }
+    // time: newest first by default (_eggPickSortDir 控制）
+    va = a.obtainedAt || 0; vb = b.obtainedAt || 0;
+    return (va - vb) * _eggPickSortDir;
   });
-  // 点击列表项整行即放入该蛋
-  list.querySelectorAll('[data-egg-pick]').forEach(item => {
+  // 排序指示符
+  const sortAsc = `${_eggPickSortBy === 'name' ? (_eggPickSortDir === 1 ? ' ▲' : ' ▼') : ''}`;
+  const sortIv = `${_eggPickSortBy === 'iv' ? (_eggPickSortDir === 1 ? ' ▲' : ' ▼') : ''}`;
+
+  box.innerHTML = `
+    <div class="nursery-egg-page">
+      <div class="pokedex-progress">${allEggs.length ? `共 ${allEggs.length} 个蛋可选${q ? '（匹配 ' + sorted.length + ' 个）' : ''}` : '暂无宝可梦蛋'}</div>
+      <div class="pokedex-search">
+        <div class="pokedex-search-row">
+          <div class="pokedex-search-input-wrap">
+            <input id="incubatorEggSearch" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" value="${_eggPickQuery}" />
+            <button class="pokedex-search-clear" id="incubatorEggSearchClear" style="display:${q ? '' : 'none'};" aria-label="清空搜索">
+              <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="nursery-egg-header">
+        <span class="nursery-egg-header-name" data-egg-pick-sort="name">宝可梦蛋${sortAsc}</span>
+        <span class="nursery-egg-header-iv" data-egg-pick-sort="iv">个体值${sortIv}</span>
+      </div>
+      <div class="list-scroll">
+        ${sorted.length === 0
+          ? (q
+              ? '<div class="incubator-egg-empty">无匹配的蛋</div>'
+              : '<div class="incubator-egg-empty">没有可放入的蛋<br>饲育屋收取的蛋会出现在这里</div>')
+          : sorted.map(eg => {
+              const poke = getPokemonByIndex(String(eg.species));
+              const name = poke ? poke.name : `#${eg.species}`;
+              return `
+                <div class="nursery-egg-row" data-egg-pick="${eg.id}">
+                  <span class="nursery-egg-row-name">
+                    <img class="nursery-egg-row-icon" src="./items/mystery-egg.png" alt="蛋" />${name}的蛋${eg.shiny ? ' ★' : ''}
+                  </span>
+                  <span class="nursery-egg-row-iv">${eggIvSlash(eg)}</span>
+                </div>`;
+            }).join('')}
+      </div>
+    </div>`;
+
+  // 搜索
+  const input = box.querySelector('#incubatorEggSearch');
+  const clearBtn = box.querySelector('#incubatorEggSearchClear');
+  if (input) {
+    input.addEventListener('input', () => {
+      _eggPickQuery = input.value.trim();
+      if (clearBtn) clearBtn.style.display = _eggPickQuery ? '' : 'none';
+      renderEggPickList();
+    });
+  }
+  if (clearBtn) clearBtn.addEventListener('click', () => { _eggPickQuery = ''; input.value = ''; clearBtn.style.display = 'none'; renderEggPickList(); });
+  // 排序
+  box.querySelectorAll('[data-egg-pick-sort]').forEach(el => {
+    el.addEventListener('click', () => {
+      const k = el.dataset.eggPickSort;
+      if (_eggPickSortBy === k) _eggPickSortDir = -_eggPickSortDir;
+      else { _eggPickSortBy = k; _eggPickSortDir = 1; }
+      renderEggPickList();
+    });
+  });
+  // 点击列表行即放入该蛋并返回孵蛋器
+  box.querySelectorAll('[data-egg-pick]').forEach(item => {
     item.addEventListener('click', () => {
       const sid = _eggPickSlot;
       const eid = item.dataset.eggPick;
-      _eggPickSlot = null; // 先退出选蛋态（放蛋成功与否都回槽位视图）
+      _eggPickSlot = null;
+      _eggPickQuery = '';
       import('./items.js').then(m => m.placePokemonEggInIncubator(sid, eid));
+      setTimeout(() => closeIncubatorEggView(), 0);
     });
   });
+}
+
+// 退出选蛋页：清空状态，返回孵蛋器
+export function closeIncubatorEggView() {
+  _eggPickSlot = null;
+  _eggPickQuery = '';
+  import('../state.js').then(m => m.popNav());
+  renderIncubatorView();
+  showView('incubatorView');
+}
+
+// 进入选蛋独立页面
+export function showIncubatorEggView() {
+  import('../state.js').then(m => m.pushNav('incubatorEggView'));
+  showView('incubatorEggView');
+  _eggPickQuery = '';
+  renderEggPickList();
 }
 
 // 孵蛋记录页：单列日志列表，每条仅显示时间 / 名字 / 性别（最多 50 条）
@@ -611,7 +713,7 @@ export function renderIncubatorView() {
 
   // 顶部"孵蛋记录"按钮行：仅主列表显示；选蛋/记录页是独立子页，整个头部行隐藏
   const incHead = $('incubatorHead');
-  if (incHead) incHead.style.display = (_eggPickSlot != null || _incLogOpen) ? 'none' : '';
+  if (incHead) incHead.style.display = _incLogOpen ? 'none' : '';
   const logBtn = $('incubatorLogBtn');
   if (logBtn) logBtn.onclick = () => { _incLogOpen = true; renderIncubatorView(); };
 
@@ -627,11 +729,6 @@ export function renderIncubatorView() {
     return;
   }
 
-  // 正在选蛋：显示蛋列表（单列）
-  if (_eggPickSlot != null) {
-    renderEggPickList(list, _eggPickSlot);
-    return;
-  }
   list.style.gridTemplateColumns = '1fr 1fr';
 
   const hatchBtnHtml = (i, disabled) => `<span class="incubator-hatch-text hatched${disabled ? ' disabled' : ''}" data-slot="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>孵化</span>`;
@@ -764,7 +861,7 @@ function showIncubatorPickMenu(slot, anchorEl) {
       import('./items.js').then(m => m.placeEggInIncubator(slot));
     } else {
       _eggPickSlot = slot;
-      renderIncubatorView();
+      showIncubatorEggView();
     }
   };
   document.addEventListener('pointerdown', hideIncubatorPickMenu);
@@ -832,14 +929,21 @@ export function showFoodTip(text, x, y) {
   // 多行文案（含 \n）时按行折行，单行文案保持 nowrap（如树果 tooltip）
   tip.style.whiteSpace = text.includes('\n') ? 'pre-line' : '';
   tip.style.display = '';
-  // 定位：优先右下方，越界时翻转到左/上方
+  // 定位：优先右下方，越界时翻转到左/上方；翻转后仍越界则夹紧在屏幕内，避免溢出屏幕外
   const pad = 10;
   let left = x + 12;
   let top = y + 14;
   const tw = tip.offsetWidth;
   const th = tip.offsetHeight;
-  if (left + tw > window.innerWidth - pad) left = x - tw - 12;
-  if (top + th > window.innerHeight - pad) top = y - th - 10;
+  if (left + tw > window.innerWidth - pad) {
+    left = x - tw - 12;
+    if (left < pad) left = pad; // 左侧放不下：贴左边缘
+    if (left + tw > window.innerWidth - pad) left = window.innerWidth - pad - tw; // 兜底防右侧再溢出
+  }
+  if (top + th > window.innerHeight - pad) {
+    top = y - th - 10;
+    if (top < pad) top = pad; // 上方放不下：贴顶
+  }
   tip.style.left = left + 'px';
   tip.style.top = top + 'px';
 }

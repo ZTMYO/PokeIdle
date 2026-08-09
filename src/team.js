@@ -233,7 +233,7 @@ function clearTeam() {
 // 单槽位渲染：统一布局（左侧图标占满高度 + 右侧名字/等级/经验三行）
 function slotHtml(i, p, disabled) {
   const poke = p ? getPokemonByIndex(String(p.species)) : null;
-  const name = poke ? poke.name : p ? `#${p.species}` : '';
+  const name = p?.nickname || (poke ? poke.name : p ? `#${p.species}` : '');
   const shiny = p && p.shiny
     ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
     : '';
