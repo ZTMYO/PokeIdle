@@ -6,13 +6,15 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, F
   TRAIN_SATIETY_PER_BERRY, TRAIN_HUNGRY_LAZY_MULT,
   BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, ITEM_DESC,
   COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST,
-  GACHA_DRAW_COST, GACHA_DUP_REFUND } from './config.js';
+  GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP,
+  TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX,
+  FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
-import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar, hideConfirmBar } from './ui.js';
+import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
-import { setVolume, setBattleMusic, setMusicEnabled, playBattle, endBattle } from './audio.js';
+import { setVolume, setBattleMusic, setMusicEnabled, setSfxEnabled, playBattle, endBattle } from './audio.js';
 import { renderAchievements, refreshAchievements } from './achievements.js';
 import { TEAM_MAX } from './team.js';
 import { clearBattleTier } from './battle-view.js';
@@ -416,6 +418,9 @@ export function renderSystemLogs() {
       case 'train_feed':
         desc = `${logName(log)} 吃掉一颗${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}补充饱食度`;
         break;
+      case 'exp_candy_use':
+        desc = `${logName(log)} 使用 ${log.details.qty} 颗经验糖果升至 Lv${log.details.level}`;
+        break;
       case 'nursery_breed_start': {
         const na = getPokemonByIndex(String(log.details.a));
         const nb = getPokemonByIndex(String(log.details.b));
@@ -479,25 +484,48 @@ export function showSystemLogs() {
 // 右键兑换按钮弹出的批量购买数量选项（按余额置灰）
 const BUY_QTY_OPTIONS = [5, 10, 20, 50];
 
-// ===== 商店兑换确认（复用通用确认框） =====
-let _pendingExchange = null; // { item, qty }
+// ===== 商店兑换确认（行内二次确认，替代弹框） =====
+let _pendingExchange = null; // { item, qty } 待确认的兑换项
 
-// 弹出底部文案框记录本次兑换，等待玩家点「确定」后才结算。
+// 进入行内确认态：把该行的「兑换」按钮替换成确认文字，点击确认才结算
 function requestCandyExchange(itemKey, qty = 1) {
   const cost = CANDY_EXCHANGE[itemKey];
   const total = cost * qty;
-  if (!cost || (gameData.items['candy'] || 0) < total) return; // 余额不足不弹框
+  if (!cost || (gameData.items['candy'] || 0) < total) return; // 余额不足不进入确认
+  cancelPendingExchange(); // 已有其他行的确认态先取消
   _pendingExchange = { item: itemKey, qty };
-  showConfirmBar(
-    `兑换「${ITEM_NAMES[itemKey]}」×${qty}，消耗糖果 ×${total}。`,
-    () => { // 确定
-      if (!_pendingExchange) return;
-      const { item, qty } = _pendingExchange;
-      _pendingExchange = null;
-      doCandyExchange(item, qty);
-    },
-    () => { _pendingExchange = null; } // 取消
-  );
+  const row = document.querySelector(`.shop-item[data-item="${itemKey}"]`);
+  if (!row) return;
+  const btnArea = row.querySelector('.shop-btn');
+  if (!btnArea) return;
+  row.classList.add('shop-confirming');
+  const confirm = document.createElement('span');
+  confirm.className = 'shop-btn shop-confirm';
+  confirm.textContent = `确认兑换 ×${qty}`;
+  btnArea.replaceWith(confirm);
+}
+
+// 确认结算：执行兑换并清空确认态（结算后重渲染会重建按钮区）
+function confirmCandyExchange() {
+  if (!_pendingExchange) return;
+  const { item, qty } = _pendingExchange;
+  _pendingExchange = null;
+  doCandyExchange(item, qty);
+}
+
+// 取消行内确认：恢复「兑换」按钮
+function cancelPendingExchange() {
+  if (!_pendingExchange) return;
+  _pendingExchange = null;
+  const row = document.querySelector(`.shop-item.shop-confirming`);
+  const confirm = row?.querySelector('.shop-confirm');
+  if (confirm) {
+    const btn = document.createElement('span');
+    btn.className = 'shop-btn';
+    btn.textContent = '兑换';
+    confirm.replaceWith(btn);
+  }
+  row?.classList.remove('shop-confirming');
 }
 
 export function showShopView() {
@@ -506,9 +534,8 @@ export function showShopView() {
   pushNav('shopView');
   hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
   if (!isReRender) {
-    // 首次进入商店：清空未确认的兑换并隐藏确认框
+    // 首次进入商店：清空待确认的兑换
     _pendingExchange = null;
-    hideConfirmBar();
   }
   const content = $('shopContent');
   const candy = gameData.items['candy'] || 0;
@@ -537,17 +564,26 @@ export function showShopView() {
       ${itemsHtml}
     </div>
   `;
-  // 事件委托处理兑换点击（仅"兑换"按钮可购买，点卡片其他区域无效）
+  // 事件委托处理兑换点击：
+  // 普通态点「兑换」进入行内确认；确认态点确认文字直接结算；点其他区域取消确认
   content.onclick = (e) => {
+    const confirm = e.target.closest('.shop-confirm');
+    if (confirm) {
+      confirmCandyExchange();
+      return;
+    }
     const btn = e.target.closest('.shop-btn');
-    if (!btn) return;
-    const item = btn.closest('.shop-item');
-    if (!item || item.classList.contains('disabled')) return;
-    requestCandyExchange(item.dataset.item);
+    if (btn) {
+      const item = btn.closest('.shop-item');
+      if (!item || item.classList.contains('disabled')) return;
+      requestCandyExchange(item.dataset.item);
+      return;
+    }
+    cancelPendingExchange(); // 点到非按钮区域取消行内确认
   };
-  // 右键"兑换"按钮弹出批量购买菜单
+  // 右键"兑换"按钮弹出批量购买菜单（确认态下右键同样有效）
   content.oncontextmenu = (e) => {
-    const btn = e.target.closest('.shop-btn');
+    const btn = e.target.closest('.shop-btn, .shop-confirm');
     if (!btn) return;
     const item = btn.closest('.shop-item');
     if (!item || item.classList.contains('disabled')) return;
@@ -587,7 +623,8 @@ function showShopContextMenu(itemKey, x, y) {
     const opt = e.target.closest('.shop-ctx-item');
     if (!opt || opt.classList.contains('disabled')) return;
     hideShopContextMenu();
-    requestCandyExchange(opt.dataset.item, Number(opt.dataset.q));
+    cancelPendingExchange(); // 清掉可能存在的行内确认态，批量购买无需二次确认
+    doCandyExchange(opt.dataset.item, Number(opt.dataset.q));
   };
   document.addEventListener('pointerdown', hideShopContextMenu);
 }
@@ -678,6 +715,7 @@ export function renderSettings(container, s) {
   const gender = s.gender || 'brendan';
   const musicVolume = s.musicVolume ?? 0.6;
   const musicEnabled = s.musicEnabled !== false;
+  const sfxEnabled = s.sfxEnabled !== false;
   const battleMusic = s.battleMusic !== false;
   // 捕捉条件表格：四行（普通/普通闪/神兽/神兽闪），策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
@@ -816,19 +854,26 @@ export function renderSettings(container, s) {
         </div>
         ${musicEnabled ? `
         <div class="auto-catch-row" style="padding-left:8px;">
-          <div class="auto-catch-label">音乐音量</div>
-          <div class="volume-row">
-            <input type="range" class="volume-slider" id="musicVolumeSlider" min="0" max="1" step="0.05" value="${musicVolume}" />
-          </div>
-        </div>
-        <div class="auto-catch-row" style="padding-left:8px;">
           <div class="auto-catch-label">战斗音乐</div>
           <div class="toggle-switch" id="toggleBattleMusic">
             <div class="toggle-track ${battleMusic ? 'on' : ''}"></div>
             <div class="toggle-knob"></div>
           </div>
         </div>
+        <div class="auto-catch-row" style="padding-left:8px;">
+          <div class="auto-catch-label">音量</div>
+          <div class="volume-row">
+            <input type="range" class="volume-slider" id="musicVolumeSlider" min="0" max="1" step="0.05" value="${musicVolume}" />
+          </div>
+        </div>
         ` : ''}
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">音效</div>
+          <div class="toggle-switch" id="toggleSfxEnabled">
+            <div class="toggle-track ${sfxEnabled ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
       </div>
 
       <div class="settings-group">
@@ -841,15 +886,15 @@ export function renderSettings(container, s) {
           </div>
         </div>
         <div class="reset-save-row">
-          <span class="reset-save-label">导出存档</span>
+          <span class="auto-catch-label">导出存档</span>
           <span class="reset-save-btn" id="exportSaveBtn">导出</span>
         </div>
         <div class="reset-save-row">
-          <span class="reset-save-label">导入存档</span>
+          <span class="auto-catch-label">导入存档</span>
           <span class="reset-save-btn" id="importSaveBtn">导入</span>
         </div>
         <div class="reset-save-row">
-          <span class="reset-save-label">重置存档</span>
+          <span class="auto-catch-label">重置存档</span>
           <span class="reset-save-btn" id="resetSaveBtn">重置</span>
         </div>
       </div>
@@ -863,6 +908,7 @@ export function renderSettings(container, s) {
   `;
   container.querySelector('#toggleAutoCatch')?.addEventListener('click', toggleAutoCatch);
   container.querySelector('#toggleMusicEnabled')?.addEventListener('click', toggleMusicEnabled);
+  container.querySelector('#toggleSfxEnabled')?.addEventListener('click', toggleSfxEnabled);
   container.querySelector('#genderBrendan')?.addEventListener('click', () => toggleGender('brendan'));
   container.querySelector('#genderMay')?.addEventListener('click', () => toggleGender('may'));
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
@@ -1084,7 +1130,7 @@ export function renderSettings(container, s) {
     let v = '';
     try { v = await window.__TAURI__?.app?.getVersion?.(); } catch (_) {}
     const el = container.querySelector('#settingsVersion');
-    if (el) el.textContent = v ? `v${v}` : 'v1.0.5';
+    if (el) el.textContent = v ? `v${v}` : 'v1.0.6';
   })();
   // 版权声明：跳转声明视图
   container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
@@ -1137,6 +1183,7 @@ function ensureSettings() {
   if (gameData.settings.windowScale == null) gameData.settings.windowScale = 2; // 默认 2 倍（1 倍物理窗口偏小）
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
+  if (gameData.settings.sfxEnabled == null) gameData.settings.sfxEnabled = true;
 }
 
 // 音乐总开关：关闭时暂停所有背景音乐（地区曲/覆盖曲），音效不受影响；重开恢复播放
@@ -1144,6 +1191,16 @@ export function toggleMusicEnabled() {
   ensureSettings();
   gameData.settings.musicEnabled = !(gameData.settings.musicEnabled !== false);
   setMusicEnabled(gameData.settings.musicEnabled);
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
+
+// 音效开关：独立于音乐，只控制短促效果音（闪光登场等）
+function toggleSfxEnabled() {
+  ensureSettings();
+  gameData.settings.sfxEnabled = !(gameData.settings.sfxEnabled !== false);
+  setSfxEnabled(gameData.settings.sfxEnabled);
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
@@ -1336,7 +1393,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '道具',
     html: `<p>挂机时主角会拾取到道具，稀有度从低到高如下：</p>` + tutorialTable(ITEM_DROP_ROWS, ['道具', '概率（秒/个）'], [52, 'auto'])
-      + `<p>拾取<b>糖果</b>时还有概率一次获得更多：×2、×5、×50 甚至一次 <b>×100</b> 颗，倍率越大越稀有。</p>`,
+      + `<p>拾取<b>糖果</b>时还有概率一次获得更多：×2、×5、×50 甚至一次 <b>×100</b> 颗，倍率越大越稀有。</p>`
+      + `<p>除挂机自然掉落外还有特殊获取途径：骑完<b>自行车道</b>路段获得 <b>自行车</b>（详见「<b>自行车</b>」章节）；战胜 <b>NPC 训练家</b>概率掉落 <b>经验糖果</b>（普通 <b>${EXP_CANDY_DROP.novice * 100}</b>%、精英 <b>${EXP_CANDY_DROP.veteran * 100}</b>%、冠军 <b>${EXP_CANDY_DROP.champion * 100}</b>%，详见「<b>经验糖果</b>」章节）。</p>`,
   },
   {
     title: '遭遇',
@@ -1396,6 +1454,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '交换',
     html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出想要的宝可梦与愿意给的宝可梦，有 <b>${TRADE_SHINY_CHANCE * 100}</b>% 的概率给出闪光宝可梦。</p>`
+      + `<p>NPC 有 <b>${TRADE_LEVEL_CHANCE * 100}</b>% 的概率指定想要的宝可梦<b>等级下限</b>（<b>${TRADE_WANT_LEVEL_MIN}~${TRADE_WANT_LEVEL_MAX}</b> 级）：个体必须达到等级要求才能提交。孵化攒下的 1 级宝可梦可用<b>经验糖果</b>快速拉到等级线（详见「<b>经验糖果</b>」章节）。</p>`
       + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「<b>交换</b>」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`,
   },
   {
@@ -1435,6 +1494,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '糖果',
     html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托、完成悬赏、对战、成就等获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
+      + `<p>注意区分道具<b>经验糖果</b>：它不是货币，而是给宝可梦直接加经验的消耗品，只能从 NPC 对战掉落获得（详见「<b>经验糖果</b>」章节）。</p>`
   },
   {
     title: '商店',
@@ -1473,7 +1533,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '培育',
     html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦，<b>一雄一雌且共有蛋组</b>即可配对；<b>百变怪</b>万能配对（无视性别，非百变怪一方决定后代物种）。</p>`
-      + `<p>投喂它们爱吃的<b>树果</b>后开始繁殖，<b>5~10 分钟</b>产蛋；点场地中央的<b>蛋</b>收取，再放入<b>孵蛋器</b>里孵化。（详见「<b>孵蛋</b>」章节）</p>`
+      + `<p>投喂它们爱吃的<b>树果</b>开始繁殖：先选择<b>连续繁殖轮数</b>（<b>1~10 轮</b>），树果按轮数 <b>×N</b> 一次性扣除；每轮 <b>5~10 分钟</b>产一枚蛋并<b>自动入库</b>、自动续下一轮，无需手动收蛋；一批完成后直接恢复轮数选择界面，可立即开始下一批。</p>`
+      + `<p>繁殖期间取出亲本会<b>终止剩余轮次</b>（树果不退，已产蛋不丢）；产出的<b>宝可梦蛋</b>放入<b>孵蛋器</b>里孵化（详见「<b>孵蛋</b>」章节）。</p>`
       + `<p><b>个体值遗传</b>：<b>1 项</b>完全随机，<b>5 项</b>继承自双亲（默认 50% 随机取父或母）。可从这 5 项中<b>锁定一项</b>，指定该维固定继承父方或母方的数值。</p>`
       + `<p><b>如何培育 6V</b>：优先找两只高个体亲本繁殖，用后代中更优秀的替换亲本，反复迭代拉高双亲基础。当双亲某维都达到 31 时，后代该维<b>必定 31</b>，最终只剩 <b>1 个随机项</b>需要运气（1/32 概率出 31）。锁定功能可在关键维缺一只亲本时帮补短板。</p>`
       + `<p>点左上角的<b>纸箱</b>可查看仓库中所有宝可梦蛋，支持搜索、按名称/个体值排序与丢弃。</p>`
@@ -1538,8 +1599,15 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>页面打开<b>对战</b>应用，向路过的训练家发起挑战（NPC 队伍分<b>普通 / 精英 / 冠军</b>三档，每 <b>${BATTLE_REFRESH_MS / 60000}</b> 分钟刷新一波）。</p>`
       + `<p>NPC 的等级会<b>跟随你当前出战的队伍</b>：想练新宝可梦时只派<b>弱队</b>出战，NPC 也会跟着变弱，轻松取胜拿经验。</p>`
       + `<p>战胜后经验只分给<b>上过场且存活</b>的宝可梦，并按<b>等级差</b>结算：NPC 等级跟随你的队伍生成，基本都是<b>同级或低打高</b>，经验倍率最高 <b>3 倍</b>。</p>`
+      + `<p>战胜后还有概率掉落<b>经验糖果</b>：普通 <b>${EXP_CANDY_DROP.novice * 100}</b>%、精英 <b>${EXP_CANDY_DROP.veteran * 100}</b>%、冠军 <b>${EXP_CANDY_DROP.champion * 100}</b>%（详见「<b>经验糖果</b>」章节）。</p>`
       + `<p>挑战失败可<b>再战一次</b>，随时都能重复挑战。</p>`
       + `<p>右键点击底部文字区域可查看实时<b>对战记录</b>。</p>`,
+  },
+  {
+    title: '经验糖果',
+    html: `<p>给宝可梦直接增加经验的消耗道具，只能通过<b>NPC 对战</b>战胜后概率掉落（普通 <b>${EXP_CANDY_DROP.novice * 100}</b>%、精英 <b>${EXP_CANDY_DROP.veteran * 100}</b>%、冠军 <b>${EXP_CANDY_DROP.champion * 100}</b>%）。</p>`
+      + `<p>背包第二页点击使用：选择宝可梦后调整数量（单颗 <b>${EXP_CANDY_XP}</b> 经验），确认后一次性结算。</p>`
+      + `<p>满级宝可梦无法使用。</p>`,
   },
   {
     title: '配招',
@@ -1602,6 +1670,23 @@ const TUTORIAL_SECTIONS = [
           ['SR（超稀有）', '8%'],
         ], ['品级', '概率'], ['auto', 'auto'])
       + `<p>已收集的卡片可在<b>卡册</b>应用中查看，点击缩略图可放大预览。</p>`,
+  },
+  {
+    title: '随从',
+    html: `<p>在<b>手机</b>第二页打开<b>随从</b>应用：消耗 <b>${FOLLOWER_DRAW_COST} 颗糖果</b>抽一只宝可梦当随从，跟随期间获得限时增益，<b>同时只能跟随 1 只</b>。</p>`
+      + `<p>稀有度概率：N <b>${Math.round(FOLLOWER_TIER_CHANCE.N * 100)}%</b> / R <b>${Math.round(FOLLOWER_TIER_CHANCE.R * 100)}%</b> / SR <b>${Math.round(FOLLOWER_TIER_CHANCE.SR * 100)}%</b> / UR <b>${Math.round(FOLLOWER_TIER_CHANCE.UR * 100)}%</b>；跟随时长：N <b>${FOLLOWER_TIER_DUR.N}</b> 分 / R <b>${FOLLOWER_TIER_DUR.R}</b> 分 / SR <b>${FOLLOWER_TIER_DUR.SR}</b> 分 / UR <b>${FOLLOWER_TIER_DUR.UR}</b> 分。</p>`
+      + `<p>随从按<b>属性</b>归入 <b>9</b> 大类，每类对应一种增益（按稀有度 <b>${Math.round(FOLLOWER_TIER_BOOST.N * 100)}% ~ ${Math.round(FOLLOWER_TIER_BOOST.UR * 100)}%</b> 递增），双属性跨类时两类增益<b>同时生效</b>：</p>`
+      + tutorialTable([
+          ['飞行、妖精', '自行车道路段概率提升'],
+          ['水', '钓鱼路段概率提升'],
+          ['草、虫', '树果成熟速度提升'],
+          ['地面、岩石、钢', '挂机道具掉落率提升'],
+          ['格斗、恶', '对战胜利经验提升'],
+          ['一般、幽灵', '精灵球捕捉率提升'],
+          ['电、冰', '宝可梦逃跑率降低'],
+          ['龙、火', '孵蛋所需里程降低'],
+          ['毒、超能', '交换时NPC闪光概率提升'],
+        ], ['属性', '增益'], ['auto', 'auto'])
   },
   {
     title: '自动操作',

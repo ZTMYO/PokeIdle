@@ -48,6 +48,7 @@ const IV_LABELS = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: 
 let _tradeMode = null;
 let _tSortBy = null; // 选择列表排序列：iv | level（null=保持仓库顺序）
 let _tSortDir = 1;   // 1 升序 / -1 降序
+let _tQuery = '';    // 选择列表昵称搜索词（候选均为同一物种，仅按昵称）
 // 当前正在查看「NPC 给出宝可梦」详情的 offer（null 表示未在详情页）
 let _tradeDetail = null;
 // 进入子页面时保存的列表滚动位置，返回列表时恢复
@@ -107,7 +108,8 @@ function makeOffer(npc) {
     },
     give: {
       species: String(givePoke.index),
-      shiny: Math.random() < TRADE_SHINY_CHANCE,
+      // 随从增益：trade 类提升交换 NPC 给出闪光的概率
+      shiny: Math.random() < (window.__followerBoostMechanic?.('tradeShiny', TRADE_SHINY_CHANCE) ?? TRADE_SHINY_CHANCE),
       nature: rollNature(),
       ivs: rollTradeIvs(),
       level: randInt(1, TRADE_GIVE_LEVEL_MAX),
@@ -354,13 +356,18 @@ function renderGiveDetail(content, offerId) {
   });
 }
 
-// 选择交出哪只个体（复用悬赏提交列表样式）
+// 选择交出哪只个体（布局与蛋仓库一致：进度 + 昵称搜索 + 表头 + 滚动列表）
 function renderSelect(content, offerId) {
   const o = (gameData.trades?.offers || []).find(x => x.id === offerId);
   if (!o) { _tradeMode = null; renderTrade(); return; }
   const wantPoke = getPokemonByIndex(o.want.species);
+  const candidates = eligible(o);
+  const wantName = wantPoke ? wantPoke.name : '';
+  // 昵称搜索过滤
+  let pool = candidates;
+  const q = _tQuery.trim();
+  if (q) pool = candidates.filter(p => p.nickname && p.nickname.includes(q));
   // 表头点击排序：个体值/等级（同物种候选按数值排）
-  let pool = eligible(o);
   if (_tSortBy) {
     pool = [...pool].sort((a, b) => {
       const ivSum = p => p.ivs ? p.ivs.hp + p.ivs.atk + p.ivs.def + p.ivs.spa + p.ivs.spd + p.ivs.spe : 0;
@@ -369,7 +376,7 @@ function renderSelect(content, offerId) {
       return (va - vb) * _tSortDir;
     });
   }
-  const rows = pool.length === 0
+  const rowsHtml = pool.length === 0
     ? '<div class="trade-empty">没有符合条件的宝可梦</div>'
     : pool.map(p => {
         const ivStat = o.want.iv ? o.want.iv.stat : null;
@@ -386,10 +393,41 @@ function renderSelect(content, offerId) {
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">交换</button></span>
         </div>`;
       }).join('');
+  const syncIcons = () => {
+    content.querySelectorAll('[data-trade-icon]').forEach(el => {
+      const p = (gameData.roster || []).find(r => r.id === el.dataset.tradeIcon);
+      const poke = p && getPokemonByIndex(String(p.species));
+      if (poke?.icon) tryLoadImage(el, poke.icon);
+    });
+  };
+  // 已有完整页面：只增量更新进度/列表/表头排序标记（保留搜索框焦点）
+  const existing = content.querySelector('.bounty-trade-list');
+  if (existing) {
+    const progress = existing.querySelector('.pokedex-progress');
+    if (progress) progress.textContent = `交换 ${wantName} · 共 ${candidates.length} 只`;
+    const list = existing.querySelector('.list-scroll');
+    if (list) list.innerHTML = rowsHtml;
+    existing.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+    const cur = existing.querySelector(`[data-sort="${_tSortBy}"]`);
+    if (cur) cur.classList.add(_tSortDir === 1 ? 'sort-asc' : 'sort-desc');
+    const clearBtn = existing.querySelector('#tradeSelectSearchClear');
+    if (clearBtn) clearBtn.style.display = q ? '' : 'none';
+    syncIcons();
+    return;
+  }
+  // 首次渲染：创建完整页面（进度 + 搜索框 + 表头 + 滚动列表）
   content.innerHTML = `
     <div class="bounty-trade-list">
-      <div class="bounty-trade-head">
-        <span>提交 ${wantPoke ? wantPoke.name : ''}</span>
+      <div class="pokedex-progress">交换 ${wantName} · 共 ${candidates.length} 只</div>
+      <div class="pokedex-search">
+        <div class="pokedex-search-row">
+          <div class="pokedex-search-input-wrap">
+            <input id="tradeSelectSearch" class="pokedex-search-input" type="text" placeholder="昵称搜索" autocomplete="off" value="${_tQuery}" />
+            <button class="pokedex-search-clear" id="tradeSelectSearchClear" style="display:${q ? '' : 'none'};" aria-label="清空搜索">
+              <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="pokedex-header roster-header">
         <span class="roster-icon"></span>
@@ -398,23 +436,31 @@ function renderSelect(content, offerId) {
         <span class="roster-nature" data-sort="level">等级</span>
         <span class="bounty-trade-btn-col">交换</span>
       </div>
-      <div class="bounty-trade-rows list-scroll">
-        ${rows}
+      <div class="list-scroll">
+        ${rowsHtml}
       </div>
     </div>`;
+  // 搜索：输入即过滤（增量更新保留焦点）；清空按钮只在有输入时显示
+  const input = content.querySelector('#tradeSelectSearch');
+  const clearBtn = content.querySelector('#tradeSelectSearchClear');
+  if (input) {
+    input.addEventListener('input', () => {
+      _tQuery = input.value;
+      renderTrade();
+    });
+  }
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    _tQuery = '';
+    if (input) input.value = '';
+    renderTrade();
+  });
   // 标记当前排序列
   const header = content.querySelector('.pokedex-header');
   if (header && _tSortBy) {
     const cur = header.querySelector(`[data-sort="${_tSortBy}"]`);
     if (cur) cur.classList.add(_tSortDir === 1 ? 'sort-asc' : 'sort-desc');
   }
-
-  // 加载个体图标
-  content.querySelectorAll('[data-trade-icon]').forEach(el => {
-    const p = (gameData.roster || []).find(r => r.id === el.dataset.tradeIcon);
-    const poke = p && getPokemonByIndex(String(p.species));
-    if (poke?.icon) tryLoadImage(el, poke.icon);
-  });
+  syncIcons();
 }
 
 // ---------- 交换执行 ----------
@@ -544,12 +590,14 @@ document.addEventListener('click', e => {
     doTrade(_tradeMode, submitBtn.dataset.tradeSubmit);
     return;
   }
-  // 选择列表表头点击排序（与仓库一致：同字段切换升降序，新字段默认升序）
+  // 选择列表表头点击排序（3 段 toggle：升序 → 降序 → 回到默认保持仓库顺序）
   const sortEl = e.target.closest('.bounty-trade-list .pokedex-header [data-sort]');
   if (sortEl && _tradeMode) {
     const f = sortEl.dataset.sort;
-    if (_tSortBy === f) _tSortDir *= -1;
-    else { _tSortBy = f; _tSortDir = 1; }
+    if (_tSortBy === f) {
+      if (_tSortDir === 1) _tSortDir = -1;
+      else { _tSortBy = null; _tSortDir = 1; }
+    } else { _tSortBy = f; _tSortDir = 1; }
     renderTrade();
     return;
   }

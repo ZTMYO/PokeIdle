@@ -183,6 +183,11 @@
             <div id="albumContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
           </div>
 
+          <!-- 随从（糖果抽卡的临时跟随增益） -->
+          <div id="followerView" class="view-fixed" style="display:none;">
+            <div id="followerContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
+          </div>
+
           <!-- GPS 模拟导航 -->
           <div id="gpsView" class="view-fixed" style="display:none;">
             <div id="gpsContent" style="flex:1;color:var(--ui-color);"></div>
@@ -403,6 +408,27 @@
             </div>
           </div>
 
+          <!-- 经验糖果使用场景（全屏独立场景：宝可梦居中 + 数量加减 + 经验变化展示） -->
+          <div id="expCandyView">
+            <div class="expcandy-stage">
+              <img class="expcandy-img" id="expCandyImg" alt="" />
+              <div class="expcandy-lv" id="expCandyLv"></div>
+              <div class="expcandy-expbar"><div class="expcandy-expfill" id="expCandyExpFill"></div></div>
+              <div class="expcandy-stepper">
+                <button class="nursery-round-btn" id="expCandyMinus" type="button">−</button>
+                <span class="nursery-round-num" id="expCandyQty">1</span>
+                <button class="nursery-round-btn" id="expCandyPlus" type="button">＋</button>
+                <button class="roster-release" id="expCandyUse" type="button">确认</button>
+              </div>
+            </div>
+            <div class="goodbye-box" id="expCandyBox" style="display:none;">
+              <div class="goodbye-box-text" id="expCandyText"></div>
+              <div class="goodbye-box-btns">
+                <span class="catch-confirm-btn" id="expCandyOk">确定</span>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <div id="textBox" class="text-box" style="transform:translateY(100%);">
@@ -488,6 +514,11 @@
             <img src="./items/bike.png" class="bag-icon" alt="自行车" />
             <span class="bag-name">自行车</span>
             <span class="bag-qty" id="bag-bike">0</span>
+          </div>
+          <div class="bag-slot" data-item="exp-candy">
+            <img src="./items/xp-candy.png" class="bag-icon" alt="经验糖果" />
+            <span class="bag-name">经验糖果</span>
+            <span class="bag-qty" id="bag-exp-candy">0</span>
           </div>
           <div class="bag-slot bag-slot--empty" aria-hidden="true"></div>
           <div class="bag-slot bag-slot--empty" aria-hidden="true"></div>

@@ -90,7 +90,8 @@ const TUT_ICONS = {
   宝可梦难度: 'icon-type-chart', 状态栏图标: 'icon-pin',
   自行车: 'icon-bike',
   游戏厅: 'icon-casino', '21点': 'icon-blackjack', '口袋麻将': 'icon-mahjong',
-  抽卡机: 'icon-album',
+  抽卡机: 'icon-album','经验糖果': 'icon-poffin',
+  随从: 'icon-follower',
 };
 const tutIcon = (title) => TUT_ICONS[title] || 'icon-tutorial';
 // 判断图标是否为内联 SVG（TUT_ICONS 值以 '<' 开头）而不是 sprite 引用

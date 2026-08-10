@@ -5,6 +5,7 @@ import { showNowPlaying } from './ui.js';
 
 let _volume = 0.6;
 let _musicEnabled = true;  // 背景音乐开关
+let _sfxEnabled = true;    // 音效开关（独立于音乐，闪光登场等短促效果音）
 let _splashLocked = false; // splash 动画期间禁声
 let _battleMusic = true;   // 战斗音乐开关（关闭时战斗保持地区曲）
 let _regionTracks = [];    // 当前地区歌单
@@ -300,10 +301,37 @@ export function playCongratulation() {
 }
 export function playObtained() { playSfx(SFX.obtained); }
 
+// 使用经验糖果升级音效：短促一声、走 playSfx 通道归类「音乐」总开关控制（不受音效/战斗音乐开关影响）
+export function playLevelUp() { playSfx(SFX.levelUp); }
+
+// 闪光宝可梦登场音效：短促一声、单独 Audio 叠加不打断背景音乐；
+// 归类「音效」开关（_sfxEnabled）控制，独立于音乐/战斗音乐开关
+// splash 动画期间调用时不丢弃：记下待补播标记，等 splash 结束（背景曲同时恢复）再补播
+let _pendingShiny = false;
+export function playShiny() {
+  if (!_sfxEnabled) return;
+  if (_splashLocked) { _pendingShiny = true; return; } // splash 期间禁声，结束后补播
+  _pendingShiny = false;
+  const a = new Audio(urlFor(SFX.shiny));
+  a.volume = _volume;
+  a.play().catch(() => {});
+}
+
+// 消费并播放待补播的闪光提示音（splash 结束时由 setSplashLocked(false) 调用）
+function flushPendingShiny() {
+  if (!_pendingShiny) return;
+  _pendingShiny = false;
+  if (!_sfxEnabled) return;
+  const a = new Audio(urlFor(SFX.shiny));
+  a.volume = _volume;
+  a.play().catch(() => {});
+}
+
 // ---------- 麻将瞬发音效 ----------
 // 短促音效不打断背景音乐，单独 Audio 叠加；受音乐总开关控制
 export function playMahjongSfx(name) {
   if (!_musicEnabled) return;
+  if (_splashLocked) return; // splash 动画期间禁声
   const url = `./audio/mahjong/${encodeURIComponent(name)}.mp3`;
   const a = new Audio(url);
   a.volume = _volume;
@@ -448,6 +476,10 @@ export function setMusicEnabled(on) {
 
 export function isMusicEnabled() { return _musicEnabled; }
 
+// 音效开关（设置页声音分组）：只控制短促效果音（闪光登场等），独立于音乐开关
+export function setSfxEnabled(on) { _sfxEnabled = on !== false; }
+export function isSfxEnabled() { return _sfxEnabled; }
+
 // 战斗音乐开关（设置页切换）：关闭后 playBattle 直接忽略，战斗期间地区曲不受影响
 export function setBattleMusic(on) { _battleMusic = on !== false; }
 
@@ -464,7 +496,10 @@ export function getNowPlaying() {
 export function setSplashLocked(locked) {
   _splashLocked = !!locked;
   if (_splashLocked) pauseAll();
-  else resumeBackground();
+  else {
+    resumeBackground();
+    flushPendingShiny(); // splash 结束：补播被禁声的闪光提示音，与背景曲同时出来
+  }
 }
 
 // 启动即遭遇时，等这场遭遇结束再补弹一次歌曲卡

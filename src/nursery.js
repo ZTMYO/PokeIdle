@@ -18,9 +18,6 @@ const TILE = 24;
 const TILESET = './terrain/terrain-tileset.png';
 const BOARD_IMG = './items/berry-trees/board.png';
 const BOX_IMG = './items/berry-trees/box.png';
-const EGG_IMG = './items/mystery-egg.png';
-// 已产蛋时场地图正中心的展示 tile：11x9 地图 → col 5 / row 4（草地块，可站立）
-const EGG_TILE = { c: 5, r: 4 };
 const randInt = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
 
 // 饲育屋地图（{col,row} 为 terrain tileset 坐标）：围栏环绕 + 草地/花丛，11x9
@@ -48,8 +45,8 @@ const LAND_CELLS = [];
 for (let r = 0; r < NURSERY.h; r++) {
   for (let c = 0; c < NURSERY.w; c++) {
     if (r === 0 || r === NURSERY.h - 1 || c === 0 || c === NURSERY.w - 1) continue;
-    // 排除 [2,2] / [2,10]：纸箱子、告示牌占位，禁止宝可梦走到这里
-    if (NURSERY_LAND.has(NURSERY.tiles[r][c].join(',')) && !((c === 2 && r === 2) || (c === 2 && r === 10))) {LAND_CELLS.push({ c, r });
+    // 排除 [1,1] / [1,9]：纸箱子（左上）、告示牌（右上）占位格，禁止宝可梦走到这里
+    if (NURSERY_LAND.has(NURSERY.tiles[r][c].join(',')) && !((c === 1 && r === 1) || (c === 9 && r === 1))) {LAND_CELLS.push({ c, r });
 }
   }
 }
@@ -66,15 +63,17 @@ const _walkerPos = new Map(); // id -> 上次位置 {c,r,facing}（页面重绘�
 let _leaderId = null;         // 当前"被跟随"的宝可梦 id（A 跟一会儿 B，B 跟一会儿 A）
 let _leaderSwitchAt = 0;      // 下一次切换被跟随者的时间戳
 let _pickSlot = null;         // 非 null 时告示牌显示"放入宝可梦"列表（点击空槽后）
-let _pickSortBy = 'index';    // 放入列表排序列：index | name | iv | level
-let _pickSortDir = 1;         // 1 升序 / -1 降序
+let _pickSortBy = null;   // 放入列表排序列：null=默认按编号+等级 | name | iv | level
+let _pickSortDir = 1;     // 1 升序 / -1 降序
 let _pickSearch = '';         // 放入列表搜索词
 let _pickTypeFilter = '';     // 放入列表属性筛选
 let _pickRegionFilter = '';   // 放入列表地区筛选
 let _eggView = false;         // 蛋仓库视图
 let _eggQuery = '';           // 蛋搜索关键词
-let _eggSortBy = 'time';      // time | name | iv
-let _eggSortDir = -1;         // 1 升序 / -1 降序
+let _eggSortBy = null;    // 蛋列表排序列：null=默认按时间降序 | name | iv
+let _eggSortDir = -1;     // 1 升序 / -1 降序
+let _breedRounds = 1;         // 连续繁殖轮数（提交树果时选择，1~MAX_BREED_ROUNDS）
+const MAX_BREED_ROUNDS = 10;  // 连续繁殖轮数上限
 
 // ---------- 存档 ----------
 // 保证饲育屋数据存在并补齐两个亲本槽位（兼容旧存档）
@@ -86,8 +85,14 @@ export function ensureNursery() {
   // lockedIv：锁定的遗传个体（null = 不锁定；{ key:'hp'|'atk'|…, source:'a'|'b' } = 锁定该项
   // 并固定继承指定亲本的数值，不再 50% 二选一，贴合原版"力量负重携带者固定遗传"设定）
   if (!('lockedIv' in gameData.nursery)) gameData.nursery.lockedIv = null;
-  // breeding：当前繁殖状态（null = 未繁殖 / { startedAt, durMs } = 繁殖中或已产蛋，由时间判定）
+  // breeding：当前繁殖批次（null = 未繁殖 / { startedAt, durMs, roundsTotal, roundsDone, reportedRounds }）
+  // roundsTotal=提交的连续轮数，roundsDone=已自动入库的蛋数，reportedRounds=已提示过的产蛋数
   if (!('breeding' in gameData.nursery)) gameData.nursery.breeding = null;
+  // 兼容旧版单轮 breeding（无 rounds 字段）：按 1 轮连续批次处理，蛋在下次结算时自动入库
+  const b = gameData.nursery.breeding;
+  if (b && (typeof b.roundsTotal !== 'number' || typeof b.roundsDone !== 'number')) {
+    gameData.nursery.breeding = { startedAt: b.startedAt, durMs: b.durMs, roundsTotal: 1, roundsDone: 0, reportedRounds: 0 };
+  }
   return gameData.nursery;
 }
 
@@ -146,9 +151,12 @@ export function showNurseryView() {
   _pickSearch = '';
   _pickTypeFilter = '';
   _pickRegionFilter = '';
+  // 先结算离开期间产出的蛋（自动入库），再进入页面；有新蛋时底部弹出提示
+  const produced = settleBreeding();
   render();
   showView('nurseryView');
   startTimer();
+  if (produced > 0) notifyNewEggs(produced);
 }
 
 // 从所有亲本槽移除该个体（训练/配队放入时调用）
@@ -157,7 +165,7 @@ export function removeNurseryByPokemon(id) {
   let changed = false;
   for (let i = 0; i < n.parents.length; i++) {
     if (n.parents[i] && n.parents[i].id === id) {
-      // 亲本被训练/配队取走：繁殖直接终止（含已产蛋未收取，作废避免状态卡死）
+      // 亲本被训练/配队取走：繁殖直接终止（已产蛋自动入库，无丢失）
       if (n.breeding) n.breeding = null;
       n.parents[i] = null; changed = true;
     }
@@ -184,12 +192,11 @@ export function addToNursery(id, slot) {
   startTimer();
 }
 
-// 点击已有亲本槽取出（繁殖中取出 = 终止本次繁殖，树果不退；已产蛋时先收取蛋再取出）
+// 点击已有亲本槽取出（繁殖中取出 = 终止本次繁殖，树果不退；蛋已自动入库无丢失）
 function removeParent(slot) {
   const n = ensureNursery();
   if (!n.parents[slot]) return;
-  if (breedingState(n).key === 'ready') return; // 已产蛋：蛋未收取前亲本锁定，防止蛋丢失
-  if (n.breeding) n.breeding = null; // 繁殖中取出亲本终止繁殖
+  if (n.breeding) n.breeding = null; // 繁殖中/完成后取出亲本终止剩余轮次
   n.parents[slot] = null;
   saveGame();
   render();
@@ -216,7 +223,6 @@ function render() {
   drawField(box.querySelector('.nursery-field-canvas'));
   _walkers.clear();
   syncWalkers();
-  updateEggOverlay();
   box.querySelector('.nursery-box-sign').addEventListener('click', (e) => {
     e.stopPropagation();
     if (boardOpen()) closeBoard();
@@ -243,7 +249,10 @@ function renderPickPage(box) {
   }
   box.innerHTML = `
     <div class="view-list" style="display:flex;flex-direction:column;flex:1;min-height:0;">
-      <div class="pokedex-progress" id="nurseryPickProgress"></div>
+      <div class="pokedex-progress" id="nurseryPickProgress" style="${eggNote ? 'display:flex;justify-content:space-between;align-items:center;gap:8px;' : ''}">
+        <span id="nurseryPickProgressCount"></span>
+        ${eggNote ? `<span class="nursery-pick-egggroup">${eggNote}</span>` : ''}
+      </div>
       <div class="pokedex-search">
         <div class="pokedex-search-row">
           <div class="pokedex-search-input-wrap">
@@ -267,7 +276,6 @@ function renderPickPage(box) {
             </svg>
             <div id="nurseryPickRegionFilterDropdown" class="region-dropdown" style="display:none;"></div>
           </div>
-          ${eggNote ? `<span class="nursery-pick-egggroup">${eggNote}</span>` : ''}
         </div>
       </div>
       <div class="pokedex-header roster-header nursery-pick-header">
@@ -282,11 +290,12 @@ function renderPickPage(box) {
         ${pickListHtml(_pickSlot, _pickSearch)}
       </div>
     </div>`;
-  // 更新进度文字
+  // 更新进度文字（与目标蛋组同行显示）
   const prog = box.querySelector('#nurseryPickProgress');
   if (prog) {
     const total = (gameData.roster || []).filter(p => !p.inNursery && !p.inTeam).length;
-    prog.textContent = eggNote ? `可放入 ${total} 只` : `共 ${total} 只可放入`;
+    const countEl = prog.querySelector('#nurseryPickProgressCount') || prog;
+    countEl.textContent = eggNote ? `可放入 ${total} 只` : `共 ${total} 只可放入`;
   }
   // 设置标题栏
   const title = $('appTitle');
@@ -409,38 +418,6 @@ function drawField(canvas) {
   img.src = TILESET;
 }
 
-function eggTipText() {
-  const n = ensureNursery();
-  const [a, b] = n.parents;
-  const ea = a && (gameData.roster || []).find(x => x.id === a.id);
-  const eb = b && (gameData.roster || []).find(x => x.id === b.id);
-  const r = ea && eb ? checkPairing(ea, eb) : null;
-  const child = r && r.ok ? getPokemonByIndex(String(r.childSpecies)) : null;
-  return `${child ? child.name : '宝可梦'}的蛋`;
-}
-
-// 已产蛋（ready）时在场地图正中心叠加一枚蛋贴图；收取蛋 / 状态变化时移除。
-// 由 render() 重建场地后与 tickBreeding / collectEgg 状态切换时调用。
-function updateEggOverlay() {
-  const field = $('nurseryContent')?.querySelector('.nursery-field');
-  if (!field) return;
-  const ready = breedingState(ensureNursery()).key === 'ready';
-  const egg = field.querySelector('.nursery-egg-tile');
-  if (ready && !egg) {
-    const el = document.createElement('img');
-    el.className = 'nursery-egg-tile';
-    el.src = EGG_IMG;
-    el.alt = '蛋';
-    el.dataset.tip = eggTipText();
-    el.style.left = (EGG_TILE.c * TILE) + 'px';
-    el.style.top = (EGG_TILE.r * TILE) + 'px';
-    el.addEventListener('click', (e) => { e.stopPropagation(); collectEgg(); }); // 点击蛋直接收取
-    field.appendChild(el);
-  } else if (!ready && egg) {
-    egg.remove();
-  }
-}
-
 // ---------- 场地亲本：随机走动 ----------
 function syncWalkers() {
   const wrap = $('nurseryContent')?.querySelector('.nursery-walkers');
@@ -505,7 +482,7 @@ function syncWalkers() {
     _walkerPos.set(slot.id, { c: cell.c, r: cell.r, facing: w.facing });
   }
   // 爱心显隐同步：繁殖进行中（running）时，仅当前追随方（跟在带头者身后的那只）飘爱心；
-  // 带头者不飘；已产蛋（ready）/未繁殖/单只在场均不显示
+  // 带头者不飘；未繁殖/单只在场均不显示
   const love = loveActive(n);
   for (const [, w] of _walkers) {
     if (!w.fx) continue;
@@ -780,8 +757,8 @@ function slotHtml(slot, i) {
   const name = entry.nickname || (poke ? poke.name : `#${entry.species}`);
   const egg = poke && (poke.eggGroup || []).length ? poke.eggGroup.join(' / ') : poke?.noEggGroup ? '未发现蛋组' : '—';
   const st = breedingState(ensureNursery());
-  const tip = st.key === 'ready' ? '请先收取蛋'
-    : st.key === 'running' ? '繁殖中，取出将终止本次繁殖（树果不退）' : '点击取出';
+  const tip = st.key === 'running' ? '繁殖中，取出将终止剩余轮次（树果不退）'
+    : st.key === 'done' ? '本轮繁殖完成，取出后可开始新一批' : '点击取出';
   const shiny = entry.shiny
     ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
     : '';
@@ -821,10 +798,10 @@ function pairStatusHtml(n) {
   const childName = child ? child.name : `#${r.childSpecies}`;
   const locked = n.lockedIv || null;
   const preview = previewChildIvs(ea, eb, locked);
-  // 繁殖开始后（繁殖中/已产蛋）锁定区隐藏：锁定项已随本轮繁殖固定，不能再改，
-  // 收取蛋重新投喂下一波前（breeding 重置）才恢复显示
+  // 繁殖开始后（繁殖中）锁定区隐藏：锁定项已随本轮繁殖固定，不能再改；
+  // 完成/空闲后恢复显示（新一批可重新选择锁定）
   const st = breedingState(n);
-  const lockHidden = st.key === 'running' || st.key === 'ready';
+  const lockHidden = st.key === 'running';
   // 锁定遗传维度按钮（点击已选中的项取消，回到随机继承原版逻辑）
   const lockBtns = [['hp', 'HP'], ['atk', '物攻'], ['def', '物防'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速度']]
     .map(([k, label]) =>
@@ -928,12 +905,14 @@ function previewIvCells(p) {
 }
 
 // ---------- M2 投喂与产蛋 ----------
-// 繁殖状态机：breeding 为 null 未繁殖；否则按时间判定繁殖中 / 已产蛋
+// 繁殖状态机：breeding 为 null 未繁殖；否则按时间判定 繁殖中 / 全部完成。
+// 多轮批次：roundsDone 为已自动入库的蛋数，当前轮剩余 = startedAt + (roundsDone+1)*durMs - now
 function breedingState(n) {
   if (!n.breeding) return { key: 'idle' };
-  const remain = n.breeding.startedAt + n.breeding.durMs - Date.now();
-  if (remain <= 0) return { key: 'ready' }; // 已产蛋，待收取
-  return { key: 'running', remain, total: n.breeding.durMs };
+  const b = n.breeding;
+  if (b.roundsDone >= b.roundsTotal) return { key: 'done', roundsTotal: b.roundsTotal, roundsDone: b.roundsDone };
+  const remain = b.startedAt + (b.roundsDone + 1) * b.durMs - Date.now();
+  return { key: 'running', remain: Math.max(0, remain), total: b.durMs, roundsDone: b.roundsDone, roundsLeft: b.roundsTotal - b.roundsDone, roundsTotal: b.roundsTotal };
 }
 
 // 本轮所需树果（§4.5）：双方喜欢列表有交集 → 投 1 颗共同喜欢 ×2；
@@ -963,7 +942,8 @@ function berryDemand(ea, eb) {
   return items;
 }
 
-// 繁殖区：未繁殖 → 树果需求 + 投喂开始；繁殖中 → 进度条；已产蛋 → 收取蛋
+// 繁殖区：繁殖中 → 进度条（第 X/N 轮）；未繁殖 / 全部完成 → 轮数选择 + 多轮树果需求 + 投喂按钮，
+// 一批完成后直接恢复默认界面，可立即开始下一批（蛋已自动入库，无需手动收取）
 function breedAreaHtml(n, ea, eb, r) {
   const st = breedingState(n);
   const child = getPokemonByIndex(String(r.childSpecies));
@@ -976,51 +956,55 @@ function breedAreaHtml(n, ea, eb, r) {
     <div class="nursery-breed">
       <div class="nursery-breed-bar"><div class="nursery-breed-fill" id="nurseryBreedFill" style="width:${pct.toFixed(1)}%"></div></div>
       <div class="nursery-breed-meta">
-        <span>繁殖中…</span>
+        <span>第 ${st.roundsDone + 1}/${st.roundsTotal} 轮 繁殖中…</span>
         <span id="nurseryBreedRemain">剩余 ${mm}:${String(ss).padStart(2, '0')}</span>
       </div>
-      <div class="nursery-breed-note">取出亲本可终止（树果不退）</div>
+      <div class="nursery-breed-note">已产 ${st.roundsDone} 枚蛋自动入库，取出亲本终止剩余轮次（树果不退）</div>
     </div>`;
   }
-  if (st.key === 'ready') {
-    return `
-    <div class="nursery-breed ready">
-      <img class="berry-icon nursery-breed-egg-icon" src="./items/mystery-egg.png" alt="">
-      <span class="nursery-breed-egg-tip">${childName}的蛋已经产下了！</span>
-    </div>`;
+  if (st.key === 'done') {
+    // 一批全部完成：不单独展示完成态，直接恢复默认的轮数选择 + 树果需求界面，可立即开始下一批
   }
   const demand = berryDemand(ea, eb);
+  const rounds = Math.max(1, Math.min(MAX_BREED_ROUNDS, _breedRounds));
   const stock = ensureBerryFarm().stock || {};
-  const lack = demand.filter(({ type, qty }) => (stock[type] || 0) < qty);
+  const lack = demand.filter(({ type, qty }) => (stock[type] || 0) < qty * rounds);
   const itemsHtml = demand.map(({ type, qty }) => {
     const have = stock[type] || 0;
     const name = BERRY_NAMES[BERRY_ICONS[type]] || '树果';
-    return `<span class="nursery-breed-item${have < qty ? ' lack' : ''}" data-tip="${name}（库存 ${have}）">
+    return `<span class="nursery-breed-item${have < qty * rounds ? ' lack' : ''}" data-tip="${name}（库存 ${have}）">
       <img class="berry-icon" data-src="${BERRY_DIR}${BERRY_ICONS[type]}" alt="">
-      <span>×${qty}</span>
+      <span>×${qty * rounds}</span>
     </span>`;
   }).join('');
   const canStart = !lack.length;
   const lastTip = n.lastEggAt
-    ? '<div class="nursery-breed-note">上一枚蛋已收取，重新投喂即可开始下一波</div>'
+    ? '<div class="nursery-breed-note">上一批蛋已自动入库，提交后可开始下一批</div>'
     : '';
   return `
     <div class="nursery-breed">
+      <div class="nursery-breed-rounds">
+        <span class="nursery-breed-demand-label">连续繁殖轮数</span>
+        <button class="nursery-round-btn" data-round-minus type="button">−</button>
+        <span class="nursery-round-num">${rounds}</span>
+        <button class="nursery-round-btn" data-round-plus type="button">＋</button>
+      </div>
       <div class="nursery-breed-demand">
-        <span class="nursery-breed-demand-label">本轮所需</span>
+        <span class="nursery-breed-demand-label">共需</span>
         ${itemsHtml}
       </div>
       <button class="nursery-breed-btn${canStart ? '' : ' locked'}" data-start-breed${canStart ? '' : ' disabled'}>
-        ${canStart ? '投喂并开始繁殖' : '库存不足'}
+        ${canStart ? `投喂并连续繁殖 ${rounds} 轮` : '库存不足'}
       </button>
       ${lastTip}
     </div>`;
 }
 
-// 「投喂并开始繁殖」：扣除本轮所需树果 → 进入产蛋计时（5~10 分钟真实时间）
+// 「投喂并开始繁殖」：扣除 N 轮所需树果 → 进入连续产蛋计时（每轮 5~10 分钟真实时间）。
+// 繁殖中不可重复开启；上一批全部完成后（done）可覆盖开始新一批
 function startBreeding() {
   const n = ensureNursery();
-  if (n.breeding) return;
+  if (breedingState(n).key === 'running') return;
   const [a, b] = n.parents;
   const ea = (gameData.roster || []).find(x => x.id === a.id);
   const eb = (gameData.roster || []).find(x => x.id === b.id);
@@ -1028,41 +1012,64 @@ function startBreeding() {
   const r = checkPairing(ea, eb);
   if (!r.ok) return;
   const demand = berryDemand(ea, eb);
+  const rounds = Math.max(1, Math.min(MAX_BREED_ROUNDS, _breedRounds));
   const stock = ensureBerryFarm().stock || {};
-  if (demand.some(({ type, qty }) => (stock[type] || 0) < qty)) return; // 库存不足（按钮已置灰）
+  if (demand.some(({ type, qty }) => (stock[type] || 0) < qty * rounds)) return; // 库存不足（按钮已置灰）
   for (const { type, qty } of demand) {
-    stock[type] = (stock[type] || 0) - qty;
+    stock[type] = (stock[type] || 0) - qty * rounds;
     if (stock[type] <= 0) delete stock[type];
   }
-  n.breeding = { startedAt: Date.now(), durMs: randInt(BREED_MIN_MIN, BREED_MAX_MIN) * 60 * 1000 };
-  addSystemLog('nursery_breed_start', { a: ea.species, b: eb.species });
+  n.breeding = { startedAt: Date.now(), durMs: randInt(BREED_MIN_MIN, BREED_MAX_MIN) * 60 * 1000, roundsTotal: rounds, roundsDone: 0, reportedRounds: 0 };
+  addSystemLog('nursery_breed_start', { a: ea.species, b: eb.species, rounds });
   saveGame();
   refreshBoard();
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('roster-changed'));
 }
 
-// 「收取蛋」：生成 kind:'egg' 蛋条目进仓库（个体值按 §4.6 遗传规则 roll，含锁定项），
-// 亲本留在槽中，需重新投喂才能开始下一波
-function collectEgg() {
+// 结算已完成轮次：每完成一轮自动生成蛋入库存并继续下一轮，直至全部完成。
+// 用真实时间戳结算，离开页面/离线期间产出的蛋在进入页面时一次性补齐。
+// 返回本次结算产出的蛋数（供进入饲育屋页面时弹出提示）。
+function settleBreeding() {
   const n = ensureNursery();
-  if (breedingState(n).key !== 'ready') return;
-  const [a, b] = n.parents;
-  const ea = (gameData.roster || []).find(x => x.id === a.id);
-  const eb = (gameData.roster || []).find(x => x.id === b.id);
-  if (!ea || !eb || ea.inRoster === false || eb.inRoster === false) return;
-  const r = checkPairing(ea, eb);
-  if (!r.ok) return;
-  const entry = createEggEntry(ea, eb, r.childSpecies, n.lockedIv || null);
-  if (!Array.isArray(gameData.roster)) gameData.roster = [];
-  gameData.roster.push(entry);
-  n.breeding = null;
-  n.lastEggAt = Date.now();
-  gameData.stats.totalEggsProduced = (gameData.stats.totalEggsProduced || 0) + 1; // 育种成就统计
-  addSystemLog('nursery_egg', { pokemon: r.childSpecies, shiny: entry.shiny });
-  saveGame();
-  refreshBoard();
-  updateEggOverlay(); // 蛋已收取 → 移除场上中心贴图
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('roster-changed'));
+  const b = n.breeding;
+  if (!b) return 0;
+  const target = Math.min(b.roundsTotal, b.roundsDone + Math.floor((Date.now() - b.startedAt) / b.durMs));
+  let produced = 0;
+  while (b.roundsDone < target) {
+    const [a, c] = n.parents;
+    const ea = a && (gameData.roster || []).find(x => x.id === a.id);
+    const eb = c && (gameData.roster || []).find(x => x.id === c.id);
+    // 亲本缺失/配对失效：终止剩余轮次（已产蛋已入库，无丢失）
+    if (!ea || !eb || ea.inRoster === false || eb.inRoster === false) { n.breeding = null; break; }
+    const r = checkPairing(ea, eb);
+    if (!r.ok) { n.breeding = null; break; }
+    const entry = createEggEntry(ea, eb, r.childSpecies, n.lockedIv || null);
+    if (!Array.isArray(gameData.roster)) gameData.roster = [];
+    gameData.roster.push(entry);
+    n.lastEggAt = Date.now();
+    gameData.stats.totalEggsProduced = (gameData.stats.totalEggsProduced || 0) + 1; // 育种成就统计
+    addSystemLog('nursery_egg', { pokemon: r.childSpecies, shiny: entry.shiny });
+    b.roundsDone++;
+    produced++;
+  }
+  if (produced) {
+    saveGame();
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('roster-changed'));
+  }
+  return produced;
+}
+
+// 重新访问饲育屋时：离开期间有蛋孵化 → 底部弹窗提示（单「确定」按钮）
+function notifyNewEggs(produced) {
+  const n = ensureNursery();
+  const nameOf = slot => {
+    if (!slot) return '宝可梦';
+    const entry = (gameData.roster || []).find(x => x.id === slot.id);
+    const poke = entry ? getPokemonByIndex(String(entry.species)) : null;
+    return (entry && entry.nickname) || (poke ? poke.name : '宝可梦');
+  };
+  const msg = `${nameOf(n.parents[0])}和${nameOf(n.parents[1])}孵了 ${produced} 个蛋！已自动放入仓库`;
+  showConfirmBar(msg, null, null, { singleButton: true });
 }
 
 // 生成蛋条目：个体值 6 项中 5 项继承双亲、1 项随机。锁定位固定继承所选亲本（source）的
@@ -1105,14 +1112,17 @@ function createEggEntry(ea, eb, childSpecies, lockedIv) {
 }
 
 // 每秒驱动繁殖进度（仅繁殖中且面板打开时更新进度条；时间判定用真实时间戳，离开页面也不丢进度）
-let _lastBreedKey = 'idle'; // 繁殖状态变化标记：running→ready 时刷新一次面板，避免每秒重建
+let _lastBreedKey = 'idle'; // 繁殖状态变化标记：状态切换时刷新一次面板，避免每秒重建
 function tickBreeding() {
   const n = ensureNursery();
+  const before = n.breeding?.roundsDone ?? 0;
+  // 结算已完成轮次（页面内每轮完成自动产蛋入库并推进下一轮）
+  settleBreeding();
   const key = !n.breeding ? 'idle' : breedingState(n).key;
-  if (key !== _lastBreedKey) {
+  // 状态切换（running→done / 异常终止）或完成新一轮 → 刷新配对面板（更新"第 X/N 轮"）
+  if (key !== _lastBreedKey || before !== (n.breeding?.roundsDone ?? 0)) {
     _lastBreedKey = key;
-    if (key === 'ready') refreshBoard(); // 刚完成 → 切到"已产蛋"展示
-    updateEggOverlay(); // 场上蛋贴图随状态增删（ready 出现 / 收取后消失）
+    refreshBoard();
     return;
   }
   if (key !== 'running') return;
@@ -1178,6 +1188,19 @@ function bindSlots(host) {
       refreshBoard();
     });
   });
+  // 连续繁殖轮数增减（仅未繁殖/已完成时展示的按钮）
+  host.querySelectorAll('[data-round-minus]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (_breedRounds > 1) { _breedRounds--; refreshBoard(); }
+    });
+  });
+  host.querySelectorAll('[data-round-plus]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (_breedRounds < MAX_BREED_ROUNDS) { _breedRounds++; refreshBoard(); }
+    });
+  });
   // 「投喂并开始繁殖」
   host.querySelectorAll('[data-start-breed]').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -1227,13 +1250,15 @@ function bindPick(root) {
       searchInput.focus();
     });
   }
-  // 表头点击排序
+  // 表头点击排序（3 段 toggle：升序 → 降序 → 回到默认编号排序）
   root.querySelectorAll('.nursery-pick-header [data-sort]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       const field = el.dataset.sort;
-      if (_pickSortBy === field) _pickSortDir *= -1;
-      else { _pickSortBy = field; _pickSortDir = 1; }
+      if (_pickSortBy === field) {
+        if (_pickSortDir === 1) _pickSortDir = -1;
+        else { _pickSortBy = null; _pickSortDir = 1; }
+      } else { _pickSortBy = field; _pickSortDir = 1; }
       refreshPickList();
     });
   });
@@ -1421,12 +1446,14 @@ function renderEggView() {
     });
   }
   if (clearBtn) clearBtn.addEventListener('click', () => { _eggQuery = ''; input.value = ''; renderEggView(); });
-  // 排序
+  // 排序（3 段 toggle：升序 → 降序 → 回到默认时间降序）
   box.querySelectorAll('.nursery-egg-header [data-sort]').forEach(el => {
     el.addEventListener('click', () => {
       const k = el.dataset.sort;
-      if (_eggSortBy === k) _eggSortDir = -_eggSortDir;
-      else { _eggSortBy = k; _eggSortDir = 1; }
+      if (_eggSortBy === k) {
+        if (_eggSortDir === 1) _eggSortDir = -1;
+        else { _eggSortBy = null; _eggSortDir = -1; }
+      } else { _eggSortBy = k; _eggSortDir = 1; }
       renderEggView();
     });
   });
@@ -1472,18 +1499,19 @@ export function leaveNurseryEggView() {
 }
 
 // ---------- 调试辅助 ----------
-// 直接完成当前繁殖：跳过投喂树果消耗与等待计时，立即置为「已产蛋」待收取，
-// 用于快速验证产蛋 / 个体值遗传。控制台执行 window.__finishBreeding()。
+// 直接完成当前繁殖批次：跳过投喂树果消耗与等待计时，立即产完本批所有蛋（自动入库）。
+// 控制台执行 window.__finishBreeding()。
 window.__finishBreeding = function () {
   const n = ensureNursery();
   if (!n || !n.breeding) {
     console.log('[调试] 当前没有进行中的繁殖（需先投喂开始繁殖）');
     return false;
   }
-  n.breeding = { startedAt: Date.now() - (n.breeding.durMs || 1) - 1, durMs: n.breeding.durMs || 1 };
+  n.breeding.startedAt = Date.now() - (n.breeding.durMs || 1) * n.breeding.roundsTotal - 1;
+  const produced = settleBreeding();
   saveGame();
   render();
-  console.log('[调试] 已直接完成当前繁殖，点「收取蛋」即可拿到蛋');
+  console.log(`[调试] 已直接完成当前繁殖，${produced} 枚蛋已自动入库`);
   return true;
 };
 

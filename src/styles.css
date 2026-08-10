@@ -877,6 +877,20 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   border-radius: 5px;
   transition: width 0.3s linear;
 }
+/* 黄色加成段：随从减免的孵蛋里程。叠在绿色段右端之后，左端直角无缝衔接，右端圆角 */
+.incubator-progress-boost {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(240, 196, 60, 0.55);
+  border-radius: 0 5px 5px 0;
+  pointer-events: none;
+  transition: left 0.3s linear;
+}
+/* 有黄色段时，绿色段右端改直角，避免两圆角相连 */
+.incubator-progress-fill.has-boost {
+  border-radius: 5px 0 0 5px;
+}
 .incubator-progress-text {
   position: absolute;
   inset: 0;
@@ -985,13 +999,6 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   padding: 2px 2px 6px;
   font-size: 12px;
   font-weight: 700;
-}
-.incubator-egg-empty {
-  text-align: center;
-  font-size: 10px;
-  color: var(--ui-color);
-  padding: 20px 0;
-  line-height: 1.8;
 }
 
 /* 仓库蛋条目行：蛋图标（icon-egg 随主题色） */
@@ -1712,6 +1719,7 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   border-radius: 3px;
   overflow: hidden;
   border: 1px solid var(--screen-bg-dark);
+  position: relative;
 }
 .berry-progress-fill {
   height: 100%;
@@ -1719,6 +1727,21 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   background: var(--screen-bg-dark);
   border-radius: 3px;
   transition: width 1s linear;
+}
+/* 黄色加成段：随从 berry 类加速成熟省下的进度。叠在绿色段右端之后，
+   左端直角（与绿色段无缝衔接），右端圆角（对齐容器） */
+.berry-progress-boost {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(240, 196, 60, 0.55);
+  border-radius: 0 3px 3px 0;
+  pointer-events: none;
+  transition: left 1s linear;
+}
+/* 有黄色段时，绿色段右端改直角，避免两圆角相连 */
+.berry-progress-fill.has-boost {
+  border-radius: 3px 0 0 3px;
 }
 .berry-progress-head {
   display: grid;
@@ -3432,7 +3455,7 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 
 /* 商店兑换确认文案框（复用遇敌页文字框样式，改为商店内贴底流式布局） */
 .shop-text-box {
-  position: absolute; /* 覆盖内容层，不推挤其他元素 */
+  position: absolute;
   width: 100%;
   flex-shrink: 0;
   align-items: flex-start; /* 文案顶部对齐，避免与右侧确认按钮重叠 */
@@ -3921,9 +3944,8 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   justify-content: space-between;
   gap: 8px;
   margin-top: 8px;
-  padding: 5px 0;
+  padding: 5px 4px; /* 与 .auto-catch-row 左右内边距一致，label 对齐 */
 }
-.reset-save-label { font-size: 11px; font-weight: 700; }
 .reset-save-btn {
   font-family: inherit;
   font-size: 11px;
@@ -4086,7 +4108,8 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 .nursery-egg-header .roster-iv,
 .nursery-egg-row .roster-iv { width: 90px; }
 .nursery-egg-row .pokedex-name { display: flex; align-items: center; }
-.nursery-egg-row .bounty-trade-btn { margin-right: 0; }
+.nursery-egg-row .bounty-trade-btn { margin-right: 6px; } /* 蛋列表丢弃按钮不贴右缘（尺寸已随全局统一为小版） */
+.nursery-egg-header .bounty-trade-btn-col { padding-right: 6px; } /* 表头「丢弃」文字同步左移对齐 */
 .roster-header, .roster-row { gap: 2px; }
 /* 仓库的闪光星标列更窄，避免图标与编号之间空出太多 */
 .roster-header .pokedex-star, .roster-row .pokedex-star { width: 10px; }
@@ -4435,9 +4458,9 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 /* 悬赏提交列表 */
 .roster-trade-empty { padding: 12px 8px; text-align: center; font-size: 11px; opacity: 0.6; }
 
-/* 悬赏提交列表：复用仓库行样式，行右侧为提交按钮 */
+/* 悬赏提交/交换选择列表：复用仓库行样式，行右侧为提交/交换按钮 */
 /* #bountyContent / #tradeContent 复用 .list-scroll（flex:1 + overflow-y:auto + min-height:0） */
-   结构同仓库页：表头固定在列表上方，行区（.bounty-trade-rows）独立滚动 */
+/* 结构同蛋仓库：进度统计 + 昵称搜索 + 表头固定在列表上方 + 行区独立滚动 */
 .bounty-trade-list {
   display: flex;
   flex-direction: column;
@@ -4447,20 +4470,7 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   font-size: 11px;
   color: var(--ui-color);
 }
-/* 行区：表头下方的独立滚动区域（复用 .list-scroll 布局，右缘对齐滚动条） */
-.bounty-trade-rows.list-scroll {
-  margin-right: -6px;
-  padding-right: 0;
-}
 .bounty-trade-list .pokedex-name { flex: 0 0 60px; max-width: none; }
-.bounty-trade-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 2px 6px;
-  font-size: 13px;
-  font-weight: 700;
-}
 .bounty-trade-list .pokedex-star {
   width: 8px;
   padding-right: 0;
@@ -4482,7 +4492,7 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   color: var(--ui-color);
 }
 .bounty-trade-list .roster-nature {
-  width: 44px;
+  width: 40px;
   flex-shrink: 0;
   white-space: nowrap;
   font-size: 10px;
@@ -4494,6 +4504,8 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   font-size: 10px;
   font-weight: 700;
 }
+/* 交换/悬赏列表提交按钮列：窄于默认丢弃列，避免右侧溢出 */
+.bounty-trade-list .bounty-trade-btn-col { width: 38px; }
 /* 交换/悬赏提交列表表头：与图鉴/仓库表头一致（继承 .pokedex-header 基础字号/字重，
    不再单独放大），gap 与行一致保证各列完全对齐；个体值列 flex:1 后表头不会拥挤。
    background 用不透明屏幕底色：表头是 sticky 定位，滚动内容会被表头遮住而不是透过来 */
@@ -4518,10 +4530,10 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   margin-right: 4px;
   font-family: inherit;
   line-height: 1;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   color: #306230;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border: 1px solid #306230;
   border-radius: 3px;
   background: transparent;
@@ -4532,7 +4544,6 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 .bounty-trade-btn:active { transform: scale(0.92); }
 /* 悬赏提交/交换选择列表行：点击进入仓库个体详情 */
 .bounty-trade-row[data-trade-view] { cursor: pointer; }
-.bounty-trade-row[data-trade-view]:hover { background: rgba(255,255,255,0.22); }
 
 /* === 交换广场 === */
 /* 顶部刷新倒计时 */
@@ -4742,6 +4753,64 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   padding: 2px;
 }
 .goodbye-box-arrow:active { transform: translateY(1px); }
+
+/* === 经验糖果使用场景：全屏独立场景，宝可梦居中 + 数量加减 + 经验变化预览 === */
+#expCandyView {
+  display: none;
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 55;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--screen-bg);
+  overflow: hidden;
+}
+.expcandy-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.expcandy-img {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  animation: expcandyIn 0.3s ease-out both; /* flex 居中场景不能用带 translateX(-50%) 的动画，会偏移半张图 */
+}
+@keyframes expcandyIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.expcandy-lv {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-color);
+}
+.expcandy-expbar {
+  width: 120px;
+  height: 5px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.4);
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(var(--ui-color-rgb), 0.08);
+}
+.expcandy-expfill {
+  height: 100%;
+  width: 0;
+  background: #2cb065;
+  transition: width 0.2s;
+}
+.expcandy-stepper {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  color: var(--ui-color); /* 数量数字与加减按钮同色 */
+}
 
 /* 个体详情页放生按钮 */
 .roster-release {
@@ -5925,6 +5994,11 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   overflow-y: auto;
   padding: 0 8px;
 }
+/* 经验加成：随从 battleexp 类，结算 label 后追加黄色附加经验 */
+.exp-bonus {
+  color: #e0b32e;
+  font-weight: 700;
+}
 .candy-gain {
   font-size: 12px;
   font-weight: 800;
@@ -6598,11 +6672,11 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   30% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-24px) scale(1.25) rotate(14deg); }
 }
-/* 告示牌：点击弹出配对面板 */
+/* 告示牌：点击弹出配对面板（层级高于行走宝可梦） */
 .nursery-board-sign {
   position: absolute;
   top: 15px; right: 15px;
-  z-index: 8;
+  z-index: 9;
   width: 30px; height: 30px;
   object-fit: contain; image-rendering: pixelated;
   cursor: pointer;
@@ -6611,11 +6685,11 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .nursery-board-sign:hover { transform: scale(1.08); }
 .nursery-board-sign:active { transform: scale(0.92); }
 
-/* 纸箱子：告示牌镜像位置（左上角） */
+/* 纸箱子：告示牌镜像位置（左上角），层级高于行走宝可梦 */
 .nursery-box-sign {
   position: absolute;
   top: 20px; left: 20px;
-  z-index: 8;
+  z-index: 9;
   width: 25px; height: 25px;
   object-fit: contain; image-rendering: pixelated;
   cursor: pointer;
@@ -6623,18 +6697,6 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .nursery-box-sign:hover { transform: scale(1.08); }
 .nursery-box-sign:active { transform: scale(0.92); }
-.nursery-egg-tile {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  z-index: 4;
-  object-fit: contain;
-  image-rendering: pixelated;
-  pointer-events: auto;
-  cursor: grab;
-}
-.nursery-egg-tile:hover { transform: scale(1.1); }
-.nursery-egg-tile:active { cursor: grabbing; }
 .nursery-panel { max-height: 97%; }
 
 /* 蛋仓库 */
@@ -6884,6 +6946,31 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   gap: 6px;
   margin-bottom: 6px;
 }
+/* 连续繁殖轮数选择 */
+.nursery-breed-rounds {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.nursery-round-btn {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ui-color);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.nursery-round-btn:hover { border-color: var(--ui-color); }
+.nursery-round-num {
+  min-width: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .nursery-breed-demand-label {
   opacity: 0.8;
   white-space: nowrap;
@@ -6941,24 +7028,6 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .nursery-breed-note {
   margin-top: 3px;
   opacity: 0.7;
-}
-.nursery-breed.ready {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-.nursery-breed-egg-icon {
-  width: 20px;
-  height: 20px;
-  image-rendering: pixelated;
-  flex-shrink: 0;
-}
-.nursery-breed-egg-tip {
-  font-weight: 700;
-  white-space: nowrap;
-  flex: 1;
-  text-align: left;
 }
 
 /* ==================== 口袋麻将 ==================== */
@@ -8544,4 +8613,204 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .album-dots { display: flex; justify-content: center; gap: 5px; padding: 4px 0 0; }
 .album-dot { width: 4px; height: 4px; border-radius: 50%; background: rgba(var(--ui-color-rgb), 0.3); cursor: pointer; }
 .album-dot.active { background: var(--ui-color); }
+
+/* ===== 随从（糖果抽卡的临时跟随增益）===== */
+/* 显示区（与卡包抽卡机一致）：走马灯预览 / 当前随从 / 抽卡结果 */
+.follower-display {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+}
+/* 锁定放大后容器框淡入：图先放大到位，框再浮现 */
+@keyframes follower-card-appear {
+  from { background: rgba(var(--ui-color-rgb), 0); }
+  to   { background: rgba(var(--ui-color-rgb), 0.08); }
+}
+.follower-display-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  padding: 0 16px;
+}
+.follower-card-area {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--ui-color-rgb), 0.08);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+/* 下方行：强度 + 时长同一行居中 */
+.follower-dur-boost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 10px;
+  opacity: 0.8;
+  margin-top: 6px;
+}
+.follower-big-img { max-width: 74px; max-height: 74px; image-rendering: pixelated; }
+.follower-info { flex: 1; min-width: 0; text-align: left; }
+.follower-info-name { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.follower-info-line { font-size: 10px; opacity: 0.85; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* 结果页信息逐条淡入（图片已就位，仅文字/按钮淡入） */
+.follower-fade {
+  opacity: 0;
+  animation: follower-fade-in 0.3s ease forwards;
+}
+@keyframes follower-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 锁定阶段：中央两侧滚动格分别向左/右移出屏幕（边界对齐游戏屏幕，移出即裁） */
+.follower-lock-ghosts {
+  position: absolute;
+  pointer-events: none;
+  overflow: hidden;
+}
+.follower-lock-mid {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.follower-lock-row {
+  display: flex;
+  gap: 2px;
+}
+/* 占位格：目标格位置，宽度对齐锁定宝可梦视觉尺寸（80px），
+   左右排从它两侧散开，避免残影格先向中心靠拢再拉开 */
+.follower-lock-holder {
+  width: 80px; height: 54px;
+  flex-shrink: 0;
+}
+.follower-lock-row.is-left { animation: follower-row-left 0.55s cubic-bezier(0.33, 0, 0.2, 1) 0.1s forwards; }
+.follower-lock-row.is-right { animation: follower-row-right 0.55s cubic-bezier(0.33, 0, 0.2, 1) 0.1s forwards; }
+.follower-lock-ghost {
+  width: 54px; height: 54px;
+  display: flex; align-items: center; justify-content: center;
+}
+.follower-lock-ghost img { max-width: 40px; max-height: 40px; image-rendering: pixelated; }
+@keyframes follower-row-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-1 * var(--follower-ghost-dist, 140vw))); }
+}
+@keyframes follower-row-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(var(--follower-ghost-dist, 140vw)); }
+}
+
+/* 空闲走马灯（复用 gacha-marquee 结构） */
+.follower-marquee {
+  width: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+}
+@keyframes follower-marquee-scroll {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+
+.follower-marquee-track { display: flex; width: max-content; animation: follower-marquee-scroll 30s linear infinite; }
+.follower-marquee-item {
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.follower-marquee-item img { max-width: 48px; max-height: 48px; image-rendering: pixelated; }
+/* 抽卡滚动项：纯图无边框，宽度与步进一致保证吸附精确 */
+.follower-roll-item {
+  flex-shrink: 0; width: 54px; height: 54px; margin-right: 2px;
+  display: flex; align-items: center; justify-content: center;
+}
+.follower-roll-item img { image-rendering: pixelated; }
+
+/* 底部按钮栏（复用 gacha-actions 布局） */
+.follower-actions {
+  display: flex;
+  border-top: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  min-height: 40px;
+  flex-shrink: 0;
+}
+.follower-actions button {
+  flex: 1;
+  border: none;
+  border-right: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  background: transparent;
+  color: var(--ui-color);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.follower-actions button:last-child { border-right: none; }
+.follower-actions button:hover { background: rgba(var(--ui-color-rgb), 0.12); filter: brightness(1.05); }
+.follower-actions button:active { background: rgba(var(--ui-color-rgb), 0.2); }
+.follower-actions button:disabled { opacity: 0.3; }
+.gacha-coin-icon { width: 14px; height: 14px; image-rendering: pixelated; }
+
+/* 跟随/放走双按钮：深色主按钮（让他跟随）与浅色次按钮（放走）区分（参考树果合成双按钮 dock） */
+.follower-actions .follower-follow-btn {
+  background: var(--ui-color);
+  color: var(--screen-bg-light);
+}
+.follower-actions .follower-follow-btn:hover { background: var(--ui-color); filter: brightness(1.1); }
+.follower-actions .follower-follow-btn:active { background: var(--ui-color); filter: brightness(0.9); }
+.follower-actions .follower-release-btn {
+  background: var(--screen-bg-light);
+  color: var(--ui-color);
+  opacity: 0.85;
+}
+.follower-actions .follower-release-btn:hover { background: var(--screen-bg-light); filter: brightness(0.97); }
+
+/* 稀有度徽章扫光（UR 与 SR 同款扫光，颜色不同） */
+.follower-tier-badge.tier-SR,
+.follower-tier-badge.tier-UR { position: relative; overflow: hidden; }
+.follower-tier-badge.tier-SR::after,
+.follower-tier-badge.tier-UR::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 20%,
+    rgba(255, 220, 100, 0.5) 40%,
+    rgba(255, 255, 200, 0.15) 55%,
+    transparent 75%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  animation: tier-sr-shine 2s ease-in-out infinite;
+}
+
+/* 挂机页跟随宝可梦（主角身后行走） */
+.follower-road {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+.follower-road-img {
+  display: block;
+  image-rendering: pixelated;
+  object-fit: none;
+}
+
 

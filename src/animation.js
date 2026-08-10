@@ -259,6 +259,11 @@ export function startShinySparkleOn(view, target, opts) {
   _shinySparkleTimer = setInterval(() => _sparkleBurst(view, target, opts), 3000);
 }
 
+// 单次闪光爆发（战斗出场用：闪一下就停，不循环）
+export function burstShinySparkle(view, target, opts) {
+  _sparkleBurst(view, target, opts);
+}
+
 // 停止循环闪光
 export function stopShinySparkleLoop() {
   if (_shinySparkleTimer) {

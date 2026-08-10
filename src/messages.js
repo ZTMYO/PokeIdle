@@ -191,7 +191,6 @@ export function buildIdleMessages() {
   const guideMsgs = [
     '点击精灵球可丢出，收服野生的宝可梦！',
     '手机里的图鉴应用，记录着你的每一次相遇。',
-    '背包里的道具会自动产出，挂机就能获得！',
     '糖果可以在商店兑换成各种精灵球。',
     '甜甜蜜可以吸引更多宝可梦来访。',
     '捡到的神秘蛋会孵出随机宝可梦！',
@@ -200,7 +199,29 @@ export function buildIdleMessages() {
     '闪光宝可梦非常稀有，遇见了不要错过！',
     '大师球百分百捕获，留给最想要的宝可梦吧。',
     '手机里的导航应用，可以规划前往其他地区的路线。',
+    '这是由ZTMYO个人开发的同人游戏。',
+    '这是由ZTMYO个人开发的同人游戏。',
+    '完成地区悬赏，能换来一大笔糖果奖励！',
+    '混合器把树果做成树果方块，能吸引特定的宝可梦。',
+    '饲育屋让两只宝可梦配对繁殖，培育出高个体值后代。',
+    '同蛋组的宝可梦可以配对繁殖，培育出高个体值后代。',
+    '战胜训练家，有机会掉落经验糖果。',
+    '训练家对战中，上场且最终存活的宝可梦将得到经验。',
+    '在水域场景，有机会钓起稀有的宝可梦！',
+    '大量出没事件会明显提高闪光率且闪耀护符不生效！',
+    '开启自动操作，遇敌会自动捕捉或逃跑，挂机更省心。',
+    '在自行车道上捡到的自行车可以在需要的时候用来赶路。',
+    '手机里的交换应用，可以和训练家互换宝可梦。',
+    '游戏厅里能玩 21 点、口袋麻将，赚游戏币抽卡！',
+    '训练中的宝可梦会饿，给他们准备足够的树果吧！',
+    '在宝可梦详情页可以给宝可梦配置招式。',
+    '点击列表的表头可以对列表进行对应的排序。',
+    '在商店右键购买按钮可以批量购买道具。',
+    '在配队页面右键可以随机配队和清空配队。',
+    '在招式列表右键可以对招式进行不同的排序。',
+    '到达指定的地区才可以提交地区悬赏。',
   ];
+  // 教程指引类分散投入数组：轮播按顺序推进，若连续 push 会连排出现，此处只投开头 1 条
   msgs.push(guideMsgs[randInt(0, guideMsgs.length - 1)]);
 
 // ——— 原作致敬情怀短句 ———
@@ -227,6 +248,8 @@ const tributeMsgs = [
   '世间万千宝可梦，每一只都值得被铭记。',
 ];
 msgs.push(tributeMsgs[randInt(0, tributeMsgs.length - 1)]);
+// 教程指引第 2 条：夹在致敬与闲聊之间，避免与首尾的指引连排
+msgs.push(guideMsgs[randInt(0, guideMsgs.length - 1)]);
 
 // ——— 轻松趣味闲聊 ———
 const chatMsgs = [
@@ -405,6 +428,11 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   } else {
     msgs.push('地区悬赏每天零点刷新，别忘了去查看目标。');
   }
+
+  // 教程指引第 3 条：落在数组末尾，其后补一条闲聊收尾，
+  // 保证轮播从末尾跳回开头时不会出现两条指引连排
+  msgs.push(guideMsgs[randInt(0, guideMsgs.length - 1)]);
+  msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
 
   // 加入当前地区氛围文案（由 rotateIdleMessage 按间隔插入，此处不移入）
   setIdleMsgs(msgs);
@@ -638,8 +666,8 @@ export function massMsgTick(now) {
     return;
   }
   if (!zone) _wasInMassZone = false;
-  // 区域内约 20 秒轮播一次，区域外约 60 秒提醒一次
-  const interval = zone ? 20000 : 60000;
+  // 区域内约 1 分钟轮播一次，区域外约 3 分钟提醒一次（事件持续 60 分钟，无需频繁打扰）
+  const interval = zone ? 60000 : 180000;
   if (now - _lastMassMsgAt >= interval) {
     _lastMassMsgAt = now;
     pushIdleEventMsg(pickMassMsg());

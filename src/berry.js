@@ -142,7 +142,8 @@ function ensureBoard() {
 function plotState(p) {
   const since = Date.now() - p.waterAt;
   const dropMs = (p.water / WATER_DROP) * 1000;
-  const growMs = Math.min(since, dropMs);
+  // 随从增益：berry 类提升树果成熟速度（增长量按比例放大）
+  const growMs = Math.min(since, dropMs) * (window.__followerBoostMechanic?.('berryGrow', 1) ?? 1);
   return {
     water: Math.max(0, p.water - Math.floor(growMs / 1000) * WATER_DROP),
     grownMs: p.grownMs + growMs,
@@ -383,11 +384,31 @@ function updateProgress() {
   const el = ps.grownMs;
   const total = p.totalMs || MATURE_MIN;
   const pct = Math.min(100, el / total * 100);
+  // 随从增益：berry 类加速成熟，黄色段 = 加速省下的进度（达标点(1-boost)到全长）
+  const berryMult = window.__followerBoostMechanic?.('berryGrow', 1) ?? 1;
+  const boostPct = berryMult > 1 ? Math.min(100, Math.max(0, Math.floor((1 - 1 / berryMult) * 100))) : 0;
   const fill = prog.querySelector('.berry-progress-fill');
+  let boostEl = prog.querySelector('.berry-progress-boost');
   const state = prog.querySelector('.berry-progress-state');
   const time = prog.querySelector('.berry-progress-time');
   const right = prog.querySelector('.berry-progress-right');
-  if (fill) fill.style.width = pct + '%';
+  if (fill) {
+    fill.style.width = pct + '%';
+    // 有黄色段时绿色段右端改直角，避免两圆角相连
+    fill.classList.toggle('has-boost', boostPct > 0);
+  }
+  if (boostPct > 0) {
+    if (!boostEl) {
+      boostEl = document.createElement('div');
+      boostEl.className = 'berry-progress-boost';
+      const track = prog.querySelector('.berry-progress-track');
+      if (track) track.appendChild(boostEl);
+    }
+    boostEl.style.left = pct + '%';
+    boostEl.style.width = boostPct + '%';
+  } else if (boostEl) {
+    boostEl.remove();
+  }
   if (state) state.textContent = st.label;
   if (time) time.textContent = st.key === 'ripe' ? '' : fmtRemain(Math.max(0, total - el));
   if (right) right.textContent = st.key === 'ripe' ? '' : '湿度 ' + Math.floor(ps.water);

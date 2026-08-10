@@ -23,7 +23,7 @@ export const ITEM_ICONS = {
   'poke-ball': 'poke-ball.png', 'ultra-ball': 'ultra-ball.png',
   'master-ball': 'master-ball.png', 'candy': 'candy.png',
   'sweet-honey': 'honey.png', 'mystery-egg': 'mystery-egg.png', 'shiny-charm': 'shiny-charm.png',
-  'bike': 'bike.png',
+  'bike': 'bike.png', 'exp-candy': 'xp-candy.png',
 };
 
 // 树果图标文件名（宝可梦喜欢的食物，位于 src/items/berries/ 与 src/items/berry-trees/ 目录）
@@ -368,7 +368,7 @@ export function placeEggInIncubator(slotIndex) {
   incubators[slotIndex] = {
     eggIndex: poke.index,
     hatchStart: gameData.stats?.walkDistance || 0, // 放蛋时累计行走像素，行走增量达标即孵化
-    hatchDuration: distance * PX_PER_METER,
+    hatchDuration: distance * PX_PER_METER, // 原始所需里程；随从减免在达标判断时动态计算
     hatched: false,
     isShiny: eggIsShiny,
   };
@@ -395,7 +395,7 @@ export function placePokemonEggInIncubator(slotIndex, entryId) {
     eggIndex: poke.index,
     eggRef: entry.id,
     hatchStart: gameData.stats?.walkDistance || 0, // 放蛋时累计行走像素，行走增量达标即孵化
-    hatchDuration: distance * PX_PER_METER,
+    hatchDuration: distance * PX_PER_METER, // 原始所需里程；随从减免在达标判断时动态计算
     hatched: false,
     isShiny: !!entry.shiny,
   };

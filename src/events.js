@@ -68,7 +68,18 @@ export function endMassOutbreak() {
   addSystemLog('mass_outbreak_end', { pokemon: mo.pokemon });
   gameData.massOutbreak = null;
   // 事件结束：先换算事件边上的剩余语义再取消目标，避免残留的"到事件点剩余"被当普通路段读导致瞬移
-  if (gameData.gps) { normalizeMassRemainToEnd(gameData.gps); gameData.gps.massTarget = null; gameData.gps.massArrived = false; } // 事件结束，取消残留的事件点导航目标与到达标记
+  if (gameData.gps) {
+    normalizeMassRemainToEnd(gameData.gps);
+    const hadMassTarget = !!gameData.gps.massTarget;
+    gameData.gps.massTarget = null;
+    gameData.gps.massArrived = false;
+    // 事件结束且玩家正骑行导航到该事件点：目的地已失效，手动骑行立即下车。
+    // 否则会停在「骑行中 + 地图禁止改选目的地（planRoute 拦截）+ 取消按钮不显示（hasDest=false）」
+    // 的不可操作死锁状态；forceStopBikeInMassZone 依赖 massOutbreak.active，此刻已失效，必须在此兜底。
+    if (hadMassTarget && road.isManualBike()) {
+      road.setManualBike(false);
+    }
+  }
   saveGame();
   notifyMassEnd(mo);
   // 事件结束：恢复正常遇敌调度（在战斗中到期时由 goIdle 的 scheduleNextEncounter 兜底）

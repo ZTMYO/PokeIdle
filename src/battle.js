@@ -6,7 +6,7 @@ import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { catchBonusFor, computeObtainScore, computeMeetScore } from './scoring.js';
 import { startIdleRotation } from './messages.js';
-import { playBattle, endBattle, playVictory, stopVictory, consumeShowCardOnEncounterEnd, showRegionNowPlaying } from './audio.js';
+import { playBattle, endBattle, playVictory, stopVictory, consumeShowCardOnEncounterEnd, showRegionNowPlaying, playShiny } from './audio.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -314,8 +314,10 @@ function _encPokeFrame() {
 }
 
 // 道路遇敌宝可梦碰到主角：暂停 buff 倒计时并真正进入战斗
-function startRoadEncounter(poke) {
-  // 闪耀护符倒计时暂停（滚动期间照常计时，开战才暂停）
+// 进入战斗前统一暂停 buff 倒计时（普通道路遇敌 / 大量出没共用）：
+// 闪耀护符、甜甜蜜暂停计时并清掉到期与遇敌调度，战斗结束后由 resumeEncounterFlow 恢复。
+// 滚动期间照常计时，开战才暂停。
+function pauseEncounterBuffs() {
   if (charmBuffActive && charmCountdownEnd > Date.now()) {
     setCharmPausedRemaining(charmCountdownEnd - Date.now());
     setCharmCountdownEnd(0);
@@ -327,7 +329,6 @@ function startRoadEncounter(poke) {
     setCharmCountdownEnd(0);
     clearCharmCountdown();
   }
-
   // 甜甜蜜倒计时暂停（保留显示不清除遮罩）
   if (honeyBuffActive && honeyCountdownEnd > Date.now()) {
     setHoneyPausedRemaining(honeyCountdownEnd - Date.now());
@@ -340,7 +341,10 @@ function startRoadEncounter(poke) {
     setHoneyCountdownEnd(0);
     clearHoneyCountdown();
   }
+}
 
+function startRoadEncounter(poke) {
+  pauseEncounterBuffs();
   setPhase('encounter');
   setEncounterBallsUsed(0);
   beginEncounter(poke);
@@ -387,6 +391,8 @@ export function startFishingEncounter(poke) {
 // shiny 为生成时已判定的闪光状态（滚动图标用星星标记），缺省时兜底随机。
 export function startMassEncounter(poke, shiny) {
   if (!poke) return;
+  // 与普通道路遇敌一致：进入战斗暂停 buff 倒计时（战斗中 buff 不计时，结束后由 resumeEncounterFlow 恢复）
+  pauseEncounterBuffs();
   setPhase('encounter');
   setEncounterBallsUsed(0);
   setCurrentEncounter(poke);
@@ -501,6 +507,8 @@ export function showEncounter(poke, opts = {}) {
   // 需保留 main.js 从会话状态恢复的 encounterMsg，不能被覆写
   if (msg) setEncounterMsg(msg);
   const loadPromise = renderEncounterScene(poke);
+  // 闪光/神兽遭遇：播放闪光音效提示（音效开关控制，独立于音乐/战斗音乐）
+  if (currentIsShiny || poke.legend) playShiny();
 
   // 自动捕捉/自动逃跑：无论玩家当前在哪个页面都照常执行。
   // 后台操作已有 isOnGameView() 分支（不切视图、不弹文案），导航/统计等页面
@@ -655,8 +663,10 @@ export async function throwBall(ballType) {
     // 捕获加成：逃跑率拉满（50%）后，每多丢一球 +10%，上限 2 倍 —— 能撑过逃跑率上限的奖励
     const catchBonus = catchBonusFor(encounterBallsUsed);
     // 高级球额外 +ULTRA_BALL_ADD 绝对捕获率：对低 catchRate 的稀有宝可梦增幅显著（定位：抓神兽用高级球）
+    // 随从增益：catch 类提升精灵球（红白球）捕捉率，仅普通精灵球生效
+    const catchBoost = ballType === 'pokeball' ? (window.__followerBoostMechanic?.('catchRate', 1) ?? 1) : 1;
     const rate = ballType === 'master-ball' ? 1.0
-      : ((CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) + (ballType === 'ultra-ball' ? ULTRA_BALL_ADD : 0)) * catchBonus;
+      : ((CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) * catchBoost + (ballType === 'ultra-ball' ? ULTRA_BALL_ADD : 0)) * catchBonus;
     const isCaught = Math.random() < rate;
 
     // 丢球瞬间生成全部判定（挣脱轮数 / 是否逃跑）并立即落库：动画只做展示，刷新/重启不丢数据
@@ -664,7 +674,9 @@ export async function throwBall(ballType) {
     let willFlee = false;
     if (!isCaught) {
       breakRound = Math.random() < 0.3 ? 0 : (Math.random() < 0.4 ? 1 : (Math.random() < 0.6 ? 2 : 3));
-      const fleeChance = Math.min(FLEE_CHANCE + (encounterBallsUsed - 1) * FLEE_CHANCE_INC, FLEE_CHANCE_MAX);
+      // 随从增益：flee 类降低宝可梦逃跑率（下限 0）
+      const fleeChanceRaw = Math.min(FLEE_CHANCE + (encounterBallsUsed - 1) * FLEE_CHANCE_INC, FLEE_CHANCE_MAX);
+      const fleeChance = window.__followerBoostMechanic?.('fleeRate', fleeChanceRaw) ?? fleeChanceRaw;
       willFlee = Math.random() < fleeChance;
     }
     const outcome = isCaught ? 'caught' : willFlee ? 'fled' : 'continue';

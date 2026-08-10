@@ -268,6 +268,7 @@ function doClaimBounty(regionIdx, bi) {
 let _tradeMode = null; // 正在提交的悬赏：{ regionIdx, bi }，非 null 时悬赏页显示提交列表
 let _bSortBy = null;   // 提交列表排序列：iv | level（null=保持仓库顺序）
 let _bSortDir = 1;     // 1 升序 / -1 降序
+let _bQuery = '';      // 提交列表昵称搜索词（候选均为同一物种，名称无区分度，仅按昵称）
 
 // 是否处于提交列表子页（标题栏返回时先回悬赏列表）
 export function isBountyInTrade() {
@@ -279,24 +280,28 @@ export function restoreBountyList() {
   renderBounty();
 }
 
-// 渲染提交列表：复用仓库行样式，每行右侧为「提交」按钮
+// 渲染提交列表：布局与蛋仓库一致（进度统计 + 昵称搜索 + 表头 + 滚动列表），
+// 每行复用仓库行样式，右侧为「提交」按钮
 function renderBountyTrade(content, regionIdx, bi) {
   const b = (gameData.bounty?.rewards || [])[regionIdx]?.[bi] || null;
   const poke = b ? getPokemonByIndex(b.pokemon) : null;
   const candidates = (gameData.roster || []).filter(p => String(p.species) === String(b?.pokemon) && p.inRoster && isPokemon(p));
   const pokeName = poke ? poke.name : (b ? `#${b.pokemon}` : '');
-  // 表头点击排序：个体值/等级（同物种候选按数值排）
+  // 昵称搜索过滤
   let pool = candidates;
+  const q = _bQuery.trim();
+  if (q) pool = candidates.filter(p => p.nickname && p.nickname.includes(q));
+  // 表头点击排序：个体值/等级（同物种候选按数值排）
   if (_bSortBy) {
-    pool = [...candidates].sort((a, b) => {
+    pool = [...pool].sort((a, b) => {
       const va = _bSortBy === 'level' ? (a.level || 1) : (a.ivs ? a.ivs.hp + a.ivs.atk + a.ivs.def + a.ivs.spa + a.ivs.spd + a.ivs.spe : 0);
       const vb = _bSortBy === 'level' ? (b.level || 1) : (b.ivs ? b.ivs.hp + b.ivs.atk + b.ivs.def + b.ivs.spa + b.ivs.spd + b.ivs.spe : 0);
       return (va - vb) * _bSortDir;
     });
   }
-  const rows = pool.length === 0
+  const rowsHtml = pool.length === 0
     ? '<div class="roster-trade-empty">仓库中没有该宝可梦，无法提交</div>'
-    : pool.map((p, i) => {
+    : pool.map(p => {
         const ivsText = p.ivs ? ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].map(k => p.ivs[k] || 0).join('/') : '';
         const icon = poke?.icon ? '<img class="roster-icon-img" data-trade-icon alt="" />' : '';
         return `
@@ -308,10 +313,39 @@ function renderBountyTrade(content, regionIdx, bi) {
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">提交</button></span>
         </div>`;
       }).join('');
+  const syncIcons = () => {
+    if (poke?.icon) {
+      content.querySelectorAll('[data-trade-icon]').forEach(img => tryLoadImage(img, poke.icon));
+    }
+  };
+  // 已有完整页面：只增量更新进度/列表/表头排序标记（保留搜索框焦点）
+  const existing = content.querySelector('.bounty-trade-list');
+  if (existing) {
+    const progress = existing.querySelector('.pokedex-progress');
+    if (progress) progress.textContent = `提交 ${pokeName} · 共 ${candidates.length} 只`;
+    const list = existing.querySelector('.list-scroll');
+    if (list) list.innerHTML = rowsHtml;
+    existing.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+    const cur = existing.querySelector(`[data-sort="${_bSortBy}"]`);
+    if (cur) cur.classList.add(_bSortDir === 1 ? 'sort-asc' : 'sort-desc');
+    const clearBtn = existing.querySelector('#bountyTradeSearchClear');
+    if (clearBtn) clearBtn.style.display = q ? '' : 'none';
+    syncIcons();
+    return;
+  }
+  // 首次渲染：创建完整页面（进度 + 搜索框 + 表头 + 滚动列表）
   content.innerHTML = `
     <div class="bounty-trade-list">
-      <div class="bounty-trade-head">
-        <span>提交 ${pokeName}</span>
+      <div class="pokedex-progress">提交 ${pokeName} · 共 ${candidates.length} 只</div>
+      <div class="pokedex-search">
+        <div class="pokedex-search-row">
+          <div class="pokedex-search-input-wrap">
+            <input id="bountyTradeSearch" class="pokedex-search-input" type="text" placeholder="昵称搜索" autocomplete="off" value="${_bQuery}" />
+            <button class="pokedex-search-clear" id="bountyTradeSearchClear" style="display:${q ? '' : 'none'};" aria-label="清空搜索">
+              <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="pokedex-header roster-header">
         <span class="roster-icon"></span>
@@ -320,19 +354,31 @@ function renderBountyTrade(content, regionIdx, bi) {
         <span class="roster-nature" data-sort="level">等级</span>
         <span class="bounty-trade-btn-col">提交</span>
       </div>
-      <div class="bounty-trade-rows list-scroll">
-        ${rows}
+      <div class="list-scroll">
+        ${rowsHtml}
       </div>
     </div>`;
+  // 搜索：输入即过滤（增量更新保留焦点）；清空按钮只在有输入时显示
+  const input = content.querySelector('#bountyTradeSearch');
+  const clearBtn = content.querySelector('#bountyTradeSearchClear');
+  if (input) {
+    input.addEventListener('input', () => {
+      _bQuery = input.value;
+      renderBounty();
+    });
+  }
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    _bQuery = '';
+    if (input) input.value = '';
+    renderBounty();
+  });
   // 标记当前排序列
   const header = content.querySelector('.pokedex-header');
   if (header && _bSortBy) {
     const cur = header.querySelector(`[data-sort="${_bSortBy}"]`);
     if (cur) cur.classList.add(_bSortDir === 1 ? 'sort-asc' : 'sort-desc');
   }
-  if (poke?.icon) {
-    content.querySelectorAll('[data-trade-icon]').forEach(img => tryLoadImage(img, poke.icon));
-  }
+  syncIcons();
 }
 
 // 提交告别场景防重入（场景由 animation.js 的 showGoodbyeConfirm 展示）
@@ -377,12 +423,14 @@ export function showBountyView() {
   content.onclick = (e) => {
     // 提交列表模式：行内「提交」按钮执行交换；点击行进入仓库个体详情（返回恢复本列表）
     if (_tradeMode) {
-      // 表头点击排序（与仓库一致：同字段切换升降序，新字段默认升序）
+      // 表头点击排序（3 段 toggle：升序 → 降序 → 回到默认保持仓库顺序）
       const sortEl = e.target.closest('.bounty-trade-list .pokedex-header [data-sort]');
       if (sortEl) {
         const f = sortEl.dataset.sort;
-        if (_bSortBy === f) _bSortDir *= -1;
-        else { _bSortBy = f; _bSortDir = 1; }
+        if (_bSortBy === f) {
+          if (_bSortDir === 1) _bSortDir = -1;
+          else { _bSortBy = null; _bSortDir = 1; }
+        } else { _bSortBy = f; _bSortDir = 1; }
         renderBounty();
         return;
       }

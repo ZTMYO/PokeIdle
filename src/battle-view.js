@@ -1,13 +1,14 @@
 // 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
-import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats } from './ui.js';
+import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, updateBackpack } from './ui.js';
 import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon } from './state.js';
 import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon } from './battle-core.js';
 import { typeMult } from './type-chart.js';
 import { chooseMoves } from './moves.js';
 import { ensureNpcs, refreshNpcs, buildNpcTeam } from './npcs.js';
 import { BATTLE_REFRESH_MS, MAX_LEVEL, SPECIAL_SPRITE_SCALE } from './config.js';
-import { playBattle, endBattle, playVictory, stopVictory } from './audio.js';
+import { playBattle, endBattle, playVictory, stopVictory, playShiny } from './audio.js';
+import { burstShinySparkle } from './animation.js';
 import * as road from './road.js';
 
 // 18 属性标签色（与图鉴/遇敌一致）
@@ -379,6 +380,7 @@ async function startNpcBattle(npcId, startAuto = false) {
   const eTeam = buildNpcTeam(npc, _data, _learnset, battleMaxLv()).map((x) => {
     const mon = createMon(x.pd, x.level, x.ivs, x.nature, x.moveIds);
     mon.gender = x.gender || rollGender(x.pd.index); // NPC 性别：正常由 buildNpcTeam 缓存，旧缓存缺失时按物种补 roll
+    mon.shiny = !!x.shiny; // NPC 闪光：buildNpcTeam 按 SHINY_CHANCE 概率 roll 定（大图/星标/登场特效）
     return { pd: x.pd, mon };
   });
   const battle = { preset: npc, pTeam, eTeam, pIdx: 0, eIdx: 0, winner: null, round: 1,
@@ -735,7 +737,15 @@ function renderMon(mon, side, enter) {
   syncSeedFx(side, mon); // 寄生种子幼芽（被寄生期间常驻脚下，换宠/解除后移除）
   syncShieldFx(side, mon); // 守住系护盾（当前回合 protected 才显示，回合重置/换人自动撤下）
   // 上阵/换人：等图片加载完成（此时尺寸才是最终尺寸）再放球，落点为精灵图片底部居中
-  return enter ? loaded.then(() => ballEntry(side, img)) : loaded;
+  const entryP = enter ? loaded.then(() => ballEntry(side, img)) : loaded;
+  // 闪光个体登场：球落地精灵淡入后单次闪光粒子 + 登场音效（开战首只与中途换人都触发，敌我双方通用）
+  if (enter && mon.shiny) {
+    entryP.then(() => {
+      burstShinySparkle($('battleContent'), img);
+      playShiny();
+    });
+  }
+  return entryP;
 }
 
 // 精灵球登场：闭合球落入弹跳 → 球盖打开闪光 → 精灵淡入（显示在球上层）。播放期间隐藏精灵
@@ -2680,15 +2690,22 @@ function finishBattle(battle) {
   _activeBattle = null; // 战斗已结束：清空活动战斗（后续返回走普通视图切换，不再误判为撤退）
   _settled = true; // 结算页显示中：标题栏返回应回 NPC 战斗列表
   const gd = gameData;
-  const expBase = battle.eTeam.reduce((s, x) => s + x.mon.level, 0) * 8;
+  // 随从增益：battleexp 类提升对战胜利经验。拆出基础值与加成部分，供结算页黄色标注
+  const expMult = (window.__followerBoostMechanic?.('battleExp', 1) ?? 1);
+  const expBaseLv = battle.eTeam.reduce((s, x) => s + x.mon.level, 0) * 8;
   const avgLv = battle.eTeam.reduce((s, x) => s + x.mon.level, 0) / battle.eTeam.length;
   const results = [];
+  let dropCandy = false; // 经验糖果掉落（仅胜利按档位概率判定）
   if (win) {
     // 经验：参战（上过场）且存活才分；等级差倍率——低级打高级最多 3 倍，高级打低级骤减
     for (const { entry, mon } of battle.pTeam) {
       if (!mon.participated || mon.hp <= 0) continue;
       const mult = Math.max(0.2, Math.min(3, avgLv / Math.max(1, mon.level)));
-      entry.exp = (entry.exp || 0) + Math.round(expBase * mult);
+      // 拆基础经验（无随从加成）与加成部分，供结算页黄色标注
+      const baseGain = Math.round(expBaseLv * mult);
+      const totalGain = Math.round(expBaseLv * expMult * mult);
+      const bonusGain = totalGain - baseGain;
+      entry.exp = (entry.exp || 0) + totalGain;
       let up = 0;
       while (entry.level < MAX_LEVEL && entry.exp >= expNeed(entry.level)) {
         entry.exp -= expNeed(entry.level);
@@ -2696,9 +2713,15 @@ function finishBattle(battle) {
         up++;
       }
       if (entry.level >= MAX_LEVEL) entry.exp = 0; // 满级后不再积累经验
-      results.push({ name: mon.name, lv: entry.level, up });
+      results.push({ name: mon.name, lv: entry.level, up, baseGain, bonusGain });
     }
     gd.items.candy = (gd.items.candy || 0) + battle.preset.candy;
+    // 经验糖果掉落：按 NPC 档位概率判定，胜利才有、失败没有
+    dropCandy = Math.random() < (battle.preset.expChance || 0);
+    if (dropCandy) {
+      gd.items['exp-candy'] = (gd.items['exp-candy'] || 0) + 1;
+      updateBackpack('exp-candy'); // 掉落瞬间立即刷新背包栏数量，不等 5 秒 tick
+    }
     // NPC 对战成就统计：累计胜场 / 精英与冠军胜场 / 对战糖果
     gd.stats.totalNpcWins = (gd.stats.totalNpcWins || 0) + 1;
     gd.stats.totalNpcCandy = (gd.stats.totalNpcCandy || 0) + battle.preset.candy;
@@ -2711,7 +2734,7 @@ function finishBattle(battle) {
     }
   }
   saveGame();
-  addSystemLog('战斗', `${win ? '战胜' : '输给'}了「${battle.preset.name}」${win ? `，获得 ${battle.preset.candy} 糖果` : ''}`);
+  addSystemLog('战斗', `${win ? '战胜' : '输给'}了「${battle.preset.name}」${win ? `，获得 ${battle.preset.candy} 糖果${dropCandy ? '，经验糖果 ×1' : ''}` : ''}`);
   endBattle(); // 战斗结束 → 停止战斗曲，恢复地区曲
   if (win) playVictory(); // 胜利音效（播完自动恢复地区曲）
   if (win) window.dispatchEvent(new Event('achievements-changed')); // 胜利可能解锁对战成就，即时刷新手机红点
@@ -2721,8 +2744,8 @@ function finishBattle(battle) {
     <div class="battle-app battle-result t-${battle.preset.tier}">
       <div class="battle-result-title">${win ? '挑战成功！' : '挑战失败…'}</div>
       <div class="battle-result-detail">
-        ${win ? results.map((r) => `<div>${r.name} 升级到 Lv${r.lv}${r.up ? `（+${r.up}级）` : ''}</div>`).join('') : '<div>失败无经验，调整队伍或招式再来试试吧！</div>'}
-        ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/candy.png" alt=""> × ${battle.preset.candy}</div>` : ''}
+        ${win ? results.map((r) => `<div>${r.name} 升级到 Lv${r.lv}${r.up ? `（+${r.up}级）` : ''}${r.bonusGain > 0 ? ` <span class="exp-bonus">+${r.bonusGain}经验</span>` : ''}</div>`).join('') : '<div>失败无经验，调整队伍或招式再来试试吧！</div>'}
+        ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/candy.png" alt=""> × ${battle.preset.candy}${dropCandy ? ` <img class="candy-icon" src="./items/xp-candy.png" alt=""> × 1` : ''}</div>` : ''}
       </div>
       ${win
         ? `<div class="battle-result-btns"><button class="battle-btn" id="b-review">回顾</button><button class="battle-btn main" id="b-confirm">确定</button></div>`

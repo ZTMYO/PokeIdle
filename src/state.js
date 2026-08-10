@@ -49,7 +49,7 @@ export let qteState = null;           // 树果混合 QTE 进行中状态快照�
 export let _catchConfirmStep = false;
 export let _prevView = 'idleView';
 export let _pokedexInLogView = false;
-export let _pokedexSortBy = 'index';
+export let _pokedexSortBy = null; // null=默认（按图鉴编号 index 升序）
 export let _pokedexSortDir = 1;
 
 // 动画锁
@@ -246,6 +246,8 @@ export function getDefaultSave() {
     berryFarm: { plots: Array(6).fill(null), stock: {} }, // 树果农场：6 块田地 + 收获库存（键为树果下标）
     massOutbreak: null,     // 大量出没事件：{ edge:[a,b], t, pokemon, remain, expiresAt, nextSpawnAt, active }；null=无事件
     massNextGenAt: 0,       // 下一次大量出没生成时间戳（毫秒）
+    follower: null,         // 随从（糖果抽卡的临时跟随）：{ index, tier, group, endsAt }；null=无随从
+    followerPending: null,  // 抽卡结果待处理（未选跟随/放走就退出）：{ index, name, tier }；null=无
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
     team: [], // 出战队伍：仓库条目 id 数组（首元素为首发），由仓库详情页管理
     training: { slots: [] }, // 训练场：{ slots: [{ id, startAt } | null] }，随时间自动获得经验

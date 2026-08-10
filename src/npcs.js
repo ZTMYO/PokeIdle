@@ -2,7 +2,7 @@
 // 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级随玩家出战队伍最高等级递进
 import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollLegendIvs, rollNature, rollGender, randInt } from './state.js';
 import { chooseMoves } from './moves.js';
-import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, MAX_LEVEL } from './config.js';
+import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, MAX_LEVEL, EXP_CANDY_DROP, SHINY_CHANCE } from './config.js';
 
 // 通用训练家形象（sprite 为 npcs.png 拼图下标，13 列 × 2 行）
 const NPC_FACES = [
@@ -42,9 +42,9 @@ function getNpcPools() {
 }
 
 const TIER_CFG = {
-  novice:   { title: '普通', lvBonus: 0, candy: 5 },
-  veteran:  { title: '精英', lvBonus: 0, candy: 10 },
-  champion: { title: '冠军', lvBonus: 2, candy: 20 },
+  novice:   { title: '普通', lvBonus: 0, candy: 5,  expChance: EXP_CANDY_DROP.novice },
+  veteran:  { title: '精英', lvBonus: 0, candy: 10, expChance: EXP_CANDY_DROP.veteran },
+  champion: { title: '冠军', lvBonus: 2, candy: 20, expChance: EXP_CANDY_DROP.champion },
 };
 
 // 洗牌（原地）
@@ -72,6 +72,7 @@ function generateWave() {
         sprite: f.sprite,
         lvBonus: cfg.lvBonus,
         candy: cfg.candy,
+        expChance: cfg.expChance,
         mons: shuffle([...getNpcPools()[tier]]).slice(0, BATTLE_MONS_COUNT[tier]),
       });
     }
@@ -98,7 +99,7 @@ export function refreshNpcs() {
 // 之后每次挑战只按玩家等级重算等级——同一波次内 NPC 的速度/强度不再每局变化
 export function buildNpcTeam(npc, data, learnset, maxLv) {
   const base = Math.max(3, Math.min(MAX_LEVEL, maxLv + npc.lvBonus));
-  // 首次构建：roll 定个体/性格/性别/招式并缓存（仅存可序列化字段，pd 每次从图鉴取）
+  // 首次构建：roll 定个体/性格/性别/闪光/招式并缓存（仅存可序列化字段，pd 每次从图鉴取）
   if (!Array.isArray(npc.team) || npc.team.length !== npc.mons.length) {
     npc.team = npc.mons.map((idx, i) => {
       const pd = getPokemonByIndex(idx);
@@ -106,7 +107,9 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
       const moveIds = chooseMoves(learnset[idx], level, data, { types: pd.types, shuffle: true });
       // 神兽个体值同样强化：3 项强制 31，与玩家捕获到的一致
       const ivs = pd.legend === true ? rollLegendIvs() : rollIvs();
-      return { species: idx, level, ivs, nature: rollNature(), gender: rollGender(idx), moveIds };
+      // NPC 也有几率拿出闪光宝可梦（与野生同基础概率，不吃护符加成；同波次内固定不重 roll）
+      const shiny = Math.random() < SHINY_CHANCE;
+      return { species: idx, level, ivs, nature: rollNature(), gender: rollGender(idx), moveIds, shiny };
     });
   }
   // 复用固定队伍数据，仅重算等级（跟随玩家出战队伍最高等级）
@@ -117,5 +120,6 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
     nature: m.nature,
     gender: m.gender,
     moveIds: m.moveIds,
+    shiny: m.shiny,
   }));
 }

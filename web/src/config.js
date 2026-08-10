@@ -26,7 +26,7 @@ export const ITEM_NAMES = {
   'poke-ball': '精灵球', 'ultra-ball': '高级球',
   'master-ball': '大师球', 'candy': '糖果',
   'sweet-honey': '甜甜蜜', 'mystery-egg': '神秘蛋', 'shiny-charm': '闪耀护符',
-  'bike': '自行车',
+  'bike': '自行车', 'exp-candy': '经验糖果',
 };
 
 // 精灵球基础捕获率（最终 = 基础率 × 宝可梦 catchRate × 丢球加成）
@@ -103,18 +103,23 @@ export const TRADE_COUNT = 6;          // 每波上架的交换 offer 数量
 export const TRADE_REFRESH_MS = 10 * 60 * 1000; // 刷新间隔（10 分钟）
 export const TRADE_GENDER_CHANCE = 0.35; // NPC 指定「想要宝可梦」性别的概率（仅可区分性别的物种）
 export const TRADE_IV_CHANCE = 0.35;    // NPC 指定某一项个体值下限的概率
-export const TRADE_IV_MIN = 24;         // 指定个体值下限的最低值（24~31）
+export const TRADE_IV_MIN = 20;         // 指定个体值下限的最低值（20~31）
 export const TRADE_LEVEL_CHANCE = 0.35; // NPC 指定「想要宝可梦」等级下限的概率
-export const TRADE_WANT_LEVEL_MIN = 15; // 需求等级下限随机范围（15~50）
-export const TRADE_WANT_LEVEL_MAX = 50;
+export const TRADE_WANT_LEVEL_MIN = 10; // 需求等级下限随机范围（10~40）
+export const TRADE_WANT_LEVEL_MAX = 40;
 export const TRADE_GIVE_LEVEL_MAX = 60; // 给出宝可梦等级随机上限（1~60）
-export const TRADE_SHINY_CHANCE = 20 / 40; // NPC 给出闪光宝可梦的概率
+export const TRADE_SHINY_CHANCE = 1 / 10; // NPC 给出闪光宝可梦的概率
 export const TRADE_IV_SUM_MIN = 100;    // 个体值总和过低时补强 1~2 项到 31
 
 // ---- 对战（NPC 挑战）----
 export const BATTLE_REFRESH_MS = 20 * 60 * 1000; // NPC 挑战刷新间隔（20 分钟）
 export const BATTLE_NPC_COUNTS = { novice: 3, veteran: 2, champion: 1 }; // 每波各档 NPC 数量
 export const BATTLE_MONS_COUNT = { novice: 3, veteran: 5, champion: 6 };  // 各档队伍宝可梦数量
+
+// ---- 经验糖果 ----
+// 不可用糖果购买，唯一来源：NPC 训练家对战胜利概率掉落（见 EXP_CANDY_DROP）
+export const EXP_CANDY_XP = 3000; // 单颗经验值（1→17 级左右）
+export const EXP_CANDY_DROP = { novice: 0.05, veteran: 0.25, champion: 0.50 }; // 各档 NPC 战胜掉落概率（普通/精英/冠军）
 
 // 特殊宝可梦战斗精灵缩放：图鉴身高是全身拉直总长，这类宝可梦立绘却蜷缩/盘绕成团，
 // 直接按身高缩放会显得偏大，这里按图鉴编号乘以一个缩小系数修正（系数越小缩得越多）
@@ -146,6 +151,7 @@ export const SPECIAL_SPRITE_SCALE = {
   '0604': 0.65,  // 麻麻鳗鱼王
   '0844': 0.5, // 沙螺蟒
   '0950': 0.7, // 毛崖蟹
+  '0968': 0.7, // 拖拖蚓
   '0982': 0.3,  // 土龙节节
 };
 
@@ -159,8 +165,8 @@ export const AUTO_FLEE_NO_BALL_DELAY = 800;
 
 // ===== 树果农场 =====
 export const FARM_PLOT_COUNT = 6;          // 田地数量
-export const FARM_MATURE_MIN = 30 * 60 * 1000; // 成熟总时长下限（毫秒）
-export const FARM_MATURE_MAX = 60 * 60 * 1000; // 成熟总时长上限（毫秒）
+export const FARM_MATURE_MIN = 20 * 60 * 1000; // 成熟总时长下限（毫秒）
+export const FARM_MATURE_MAX = 40 * 60 * 1000; // 成熟总时长上限（毫秒）
 // 各阶段占成熟时长的累计比例：刚种下/发芽/成长/开花结果
 export const FARM_STAGE_DIRT = 2 / 30;
 export const FARM_STAGE_SPROUT = 8 / 30;
@@ -177,8 +183,8 @@ export const FARM_BOARD_QTY_MAX = 10;   // 单条需求最多树果数
 export const FARM_BOARD_BIG_QTY_MIN = 25;
 export const FARM_BOARD_BIG_QTY_MAX = 45;
 export const FARM_CANDY_PER_BERRY = 8; // 每颗树果兑换糖果数
-export const FARM_HARVEST_MIN = 2;   // 收获最少树果数
-export const FARM_HARVEST_MAX = 5;   // 收获最多树果数
+export const FARM_HARVEST_MIN = 3;   // 收获最少树果数
+export const FARM_HARVEST_MAX = 6;   // 收获最多树果数
 
 // ===== 招募帮手 =====
 export const FARM_HELPER_WORK_STAGE = 60; // 单阶段工作时长（分钟）
@@ -219,7 +225,7 @@ export const TRAIN_LAZY = {
 };
 // 饱食度（喂食系统）：训练中的宝可梦随时间消耗饱食度，饿了会自动吃掉库存里爱吃的树果补充；饱食度越低越容易偷懒
 export const TRAIN_SATIETY_MAX = 100;          // 饱食度上限
-export const TRAIN_SATIETY_DRAIN_PER_MIN = 2;  // 训练中每分钟下降量
+export const TRAIN_SATIETY_DRAIN_PER_MIN = 1;  // 训练中每分钟下降量
 export const TRAIN_SATIETY_EAT_AT = 50;        // 饱食度低于该值自动进食
 export const TRAIN_SATIETY_PER_BERRY = 35;     // 每颗爱吃的树果补充的饱食度
 export const TRAIN_HUNGRY_LAZY_MULT = 3;       // 饱食度归零时偷懒概率的倍率上限（满饱食为 1 倍）
@@ -274,3 +280,34 @@ export const BJ_MULT = 1.5;            // 黑杰克赔付倍率
 // ===== 口袋麻将 =====
 export const HAND_SIZE = 8;            // 起手手牌数
 export const RIICHI_COST = 50;         // 立直费用（游戏币）
+
+// ===== 随从（糖果抽卡的临时跟随增益玩法）=====
+// 用糖果抽出一只宝可梦，选择「跟随」获得限时增益，用完即走；「放走」则糖果消耗无收益
+export const FOLLOWER_DRAW_COST = 100;              // 单抽糖果价格
+export const FOLLOWER_TIER_CHANCE = { N: 0.55, R: 0.30, SR: 0.12, UR: 0.03 }; // 稀有度档位概率
+export const FOLLOWER_TIER_DUR = { N: 15, R: 20, SR: 30, UR: 60 };            // 跟随时长（分钟）
+export const FOLLOWER_TIER_BOOST = { N: 0.08, R: 0.09, SR: 0.10, UR: 0.12 };  // 增益幅度（稀有度缓递增）
+// 宝可梦主属性 → 随从类别（9 类）
+export const FOLLOWER_TYPE_GROUP = {
+  '飞行': 'bike', '妖精': 'bike',
+  '水': 'fishing',
+  '草': 'berry', '虫': 'berry',
+  '地面': 'itemdrop', '岩石': 'itemdrop', '钢': 'itemdrop',
+  '格斗': 'battleexp', '恶': 'battleexp',
+  '一般': 'catch', '幽灵': 'catch',
+  '电': 'flee', '冰': 'flee',
+  '龙': 'hatch', '火': 'hatch',
+  '毒': 'trade', '超能': 'trade',
+};
+// 类别 → 生效机制（每类一种核心增益）
+export const FOLLOWER_GROUP_BOOST = {
+  bike:     'bikeSegment',    // 进入自行车道路段概率提升
+  fishing:  'fishingSegment', // 进入钓鱼路段概率提升
+  berry:    'berryGrow',      // 树果成熟速度提升
+  itemdrop: 'itemDrop',       // 挂机道具掉落率提升
+  battleexp:'battleExp',      // 对战胜利经验提升
+  catch:    'catchRate',      // 精灵球（红白球）捕捉率提升
+  flee:     'fleeRate',       // 宝可梦逃跑率降低
+  hatch:    'hatchDist',      // 孵蛋所需里程降低
+  trade:    'tradeShiny',     // 交换时 NPC 给出闪光概率提升
+};

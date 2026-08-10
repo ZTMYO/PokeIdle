@@ -26,6 +26,7 @@ const APPS = [
   { id: 'battle', icon: 'icon-versus', name: '对战' },
   { id: 'casino', icon: 'icon-casino', name: '游戏厅' },
   { id: 'album', icon: 'icon-album', name: '卡册' },
+  { id: 'follower', icon: 'icon-follower', name: '随从' },
 ];
 
 // 每页 App 数量（5 列 × 2 行）
@@ -195,6 +196,7 @@ export function showPhoneView() {
     else if (id === 'tutorial') import('./views.js').then(m => m.showTutorialView());
     else if (id === 'casino') import('./casino.js').then(m => m.showCasinoView());
     else if (id === 'album') import('./album.js').then(m => m.showAlbumView());
+    else if (id === 'follower') import('./follower.js').then(m => m.showFollowerView());
   };
   showView('phoneView');
 }

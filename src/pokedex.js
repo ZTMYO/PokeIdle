@@ -429,10 +429,13 @@ export function showPokedex() {
     const caught = filtered.filter(p => (caughtMap[p.index]?.caught||0) > 0).length;
     progEl.textContent = `已相遇 ${seen}/${total}  ·  已捕获 ${caught}/${total}`;
   }
-  // 排序
+  // 排序（by=null 时按默认图鉴编号 index 升序）
+  const sortBy = _pokedexSortBy;
   const sorted = [...filtered].sort((a, b) => {
-    const va = _pokedexSortBy === 'name' ? a.name : _pokedexSortBy === 'index' ? a.index : (caughtMap[a.index]?.[_pokedexSortBy] || 0);
-    const vb = _pokedexSortBy === 'name' ? b.name : _pokedexSortBy === 'index' ? b.index : (caughtMap[b.index]?.[_pokedexSortBy] || 0);
+    let va, vb;
+    if (sortBy === null || sortBy === 'index') { va = a.index; vb = b.index; }
+    else if (sortBy === 'name') { va = a.name; vb = b.name; }
+    else { va = caughtMap[a.index]?.[sortBy] || 0; vb = caughtMap[b.index]?.[sortBy] || 0; }
     if (typeof va === 'string') return va.localeCompare(vb) * _pokedexSortDir;
     return (va - vb) * _pokedexSortDir;
   });
@@ -479,15 +482,18 @@ export function sortHeaderClick() {
     const span = e.target.closest('[data-sort]');
     if (!span) return;
     const field = span.dataset.sort;
+    // 3 段 toggle：升序 → 降序 → 回到默认（index 升序）
     if (_pokedexSortBy === field) {
-      setPokedexSortDir(_pokedexSortDir * -1); // 同字段切换升降序
+      if (_pokedexSortDir === 1) setPokedexSortDir(-1);        // 升序 → 降序
+      else { setPokedexSortBy(null); setPokedexSortDir(1); }   // 降序 → 回到默认
     } else {
       setPokedexSortBy(field);
-      setPokedexSortDir(-1);   // 新字段默认降序
+      setPokedexSortDir(1);   // 新字段默认升序
     }
-    // 更新表头指示符
+    // 更新表头指示符（null=默认时不标记任何列）
     header.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
-    span.classList.add(_pokedexSortDir === 1 ? 'sort-asc' : 'sort-desc');
+    const cur = header.querySelector(`[data-sort="${_pokedexSortBy}"]`);
+    if (cur) cur.classList.add(_pokedexSortDir === 1 ? 'sort-asc' : 'sort-desc');
     showPokedex();
   };
 }

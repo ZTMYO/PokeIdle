@@ -15,6 +15,19 @@ import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 const expNeed = (lv) => 25 + lv * 20;
 const randInt = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
 
+// 给个体追加经验并按等级曲线逐级升级（训练挂机 / 经验糖果共用），返回本次升级数
+export function applyXp(entry, amount) {
+  if (!entry || amount <= 0) return 0;
+  const before = entry.level || 1;
+  entry.exp = (entry.exp || 0) + amount;
+  while ((entry.level || 1) < MAX_LEVEL && entry.exp >= expNeed(entry.level || 1)) {
+    entry.exp -= expNeed(entry.level || 1);
+    entry.level = (entry.level || 1) + 1;
+  }
+  if ((entry.level || 1) >= MAX_LEVEL) entry.exp = 0; // 满级后不再积累经验
+  return (entry.level || 1) - before;
+}
+
 // 瓦片：tileset 单格 16px，显示放大到 24px
 const TILE_SRC = 16;
 const TILE = 24;
@@ -84,19 +97,13 @@ export function processTrainingXp(now = Date.now()) {
     const elapsed = Math.max(0, now - slot.startAt);
     if (elapsed <= 0) continue;
     const effMin = Math.min(10, elapsed / 60000); // 离线补算时长截断：饱食度/偷懒都与它一致，避免一次返回瞬间扣光
-    entry.exp = (entry.exp || 0) + (elapsed / 1000) * (TRAIN_XP_PER_MIN / 60);
+    const ups = applyXp(entry, (elapsed / 1000) * (TRAIN_XP_PER_MIN / 60));
     slot.startAt = now;
-    const levelBefore = entry.level || 1;
-    while ((entry.level || 1) < MAX_LEVEL && entry.exp >= expNeed(entry.level || 1)) {
-      entry.exp -= expNeed(entry.level || 1);
-      entry.level = (entry.level || 1) + 1;
+    if (ups > 0) {
       leveled = true;
-    }
-    // 一次补算可能连升多级：只记一条最终等级，避免刷屏
-    if ((entry.level || 1) > levelBefore) {
+      // 一次补算可能连升多级：只记一条最终等级，避免刷屏
       addSystemLog('train_levelup', { pokemon: entry.species, level: entry.level });
     }
-    if ((entry.level || 1) >= MAX_LEVEL) entry.exp = 0; // 满级后不再积累经验
     // 饱食度：训练中随时间下降；低于阈值自动吃库存里爱吃的树果
     if (slot.satiety == null) slot.satiety = TRAIN_SATIETY_MAX;
     slot.satiety = Math.max(0, slot.satiety - effMin * TRAIN_SATIETY_DRAIN_PER_MIN);

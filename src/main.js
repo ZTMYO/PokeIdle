@@ -53,7 +53,7 @@ import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget } from './gps.js';
-import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic } from './audio.js';
+import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView } from './nursery.js';
 import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle } from './battle-view.js';
@@ -162,12 +162,14 @@ road.onManualBikeChanged(v => {
 
 // 依次按 水域/自行车道 → 普通陆地 抽取下一段路：
 // ROAD_SPECIAL_CHANCE 概率出特殊路段，其中水域与自行车道对半开，
-// 目标子池为空时换另一个子池，两个都空则退回普通陆地
+// 目标子池为空时换另一个子池，两个都空则退回普通陆地。
+// 随从增益可倾斜特殊路段倾向：bike 类抬升自行车道、fishing 类抬升水域
 function _pickNextRoad() {
   let pool = ROAD_LAND;
+  const followerBoost = _followerSpecialBoost(); // 随从对特殊路段的倾向调整
+  const waterPref = followerBoost === 'fishing' ? 0.85 : (followerBoost === 'bike' ? 0.15 : 0.5);
   if (ROAD_WATER.length + ROAD_BIKE.length > 0 && Math.random() < ROAD_SPECIAL_CHANCE) {
-    const preferWater = Math.random() < 0.5;
-    pool = preferWater
+    pool = Math.random() < waterPref
       ? (ROAD_WATER.length > 0 ? ROAD_WATER : ROAD_BIKE)
       : (ROAD_BIKE.length > 0 ? ROAD_BIKE : ROAD_WATER);
   }
@@ -178,9 +180,23 @@ function _pickNextRoad() {
   return next;
 }
 
+// 随从活跃时返回对特殊路段的倾向类别（'fishing'/'bike'/null）；无增益时返回 null
+function _followerSpecialBoost() {
+  const b = window.__followerActiveBoost?.();
+  if (!b) return null;
+  if (b.groups.includes('fishing')) return 'fishing';
+  if (b.groups.includes('bike')) return 'bike';
+  return null;
+}
+
 // ---------- 返回按钮 ----------
 function goBack() {
   stopVictory(); // 任何返回离开当前视图：若胜利/抓捕音效还在播则立即停止（无播放时无副作用）
+  // 经验糖果使用场景浮层：返回 = 取消并关闭场景（按进入来源回详情页/主界面）
+  if ($('expCandyView')?.style.display === 'flex') {
+    import('./exp-candy.js').then(m => m.cancelExpCandyScene());
+    return;
+  }
   // 手机页面是导航的"安全出口"：无论之前从哪进来、栈里压了什么，在手机页点返回一律回挂机页
   if ($('phoneView')?.style.display === 'flex') {
     resetNav();
@@ -281,13 +297,23 @@ function tryUseBike() {
   startBikeTarget();
 }
 
+// 告别场景（放生确认/悬赏提交/交换展示）是否打开：期间锁定顶部导航、底部三区与背包，防止误点打断流程
+const isGoodbyeActive = () => $('goodbyeView')?.style.display === 'flex';
+
 function onBagClick(itemKey) {
+  // 告别场景中锁定背包：禁止点击任何道具
+  if (isGoodbyeActive()) return;
   if (phase === 'encounter') {
     // 遇敌中可点击神秘蛋：直接跳孵蛋器（省掉「手机→孵蛋器」两步，没蛋也允许），返回由 showView 自动回战斗页
     if (itemKey === 'mystery-egg') {
       pushNav('incubatorView');
       showView('incubatorView');
       renderIncubatorView();
+      return;
+    }
+    // 遇敌中可点击经验糖果：与放生同理，遭遇转后台自动处理，打开仓库选取宝可梦使用
+    if (itemKey === 'exp-candy') {
+      import('./exp-candy.js').then(m => m.openExpCandyPicker());
       return;
     }
     // 遇敌中不可点击自行车（与甜甜蜜/护符同规则，防止误触放弃当前宝可梦）
@@ -308,12 +334,12 @@ function onBagClick(itemKey) {
     return;
   }
   if (phase !== 'idle') return;
-  // 钓鱼中禁止使用 buff/骑行道具（会与暂停的道路/角色状态冲突）
-  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike')) return;
-  // 骑行中禁止使用增益道具（骑行速度已封顶且不遇敌，buff 无收益还浪费）
-  if (road.isManualBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
-  // 钓鱼等待中禁止使用自行车（会与即将开始的钓鱼动画冲突）
-  if (itemKey === 'bike' && isFishingPending()) return;
+  // 钓鱼中禁止使用 buff/骑行道具/经验糖果（会与暂停的道路/角色状态冲突，经验糖果会打开选取页打断流程）
+  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike' || itemKey === 'exp-candy')) return;
+  // 骑行中禁止使用增益道具与经验糖果（骑行速度已封顶且不遇敌，buff 无收益还浪费；经验糖果同理打断骑行）
+  if (road.isManualBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'exp-candy')) return;
+  // 钓鱼等待中禁止使用自行车/经验糖果（会与即将开始的钓鱼动画冲突）
+  if ((itemKey === 'bike' || itemKey === 'exp-candy') && isFishingPending()) return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
   else if (itemKey === 'shiny-charm') {
     if (honeyBuffActive) return;
@@ -325,6 +351,9 @@ function onBagClick(itemKey) {
     pushNav('incubatorView');
     showView('incubatorView');
     renderIncubatorView();
+  } else if (itemKey === 'exp-candy') {
+    // 经验糖果：打开仓库选择目标宝可梦使用（库存为 0 时弹提示）
+    import('./exp-candy.js').then(m => m.openExpCandyPicker());
   }
 }
 
@@ -400,7 +429,8 @@ function onGameTick() {
     for (const [item, rate] of Object.entries(ITEM_RATES)) {
       const key = `_f_${item}`;
       if (!gameData[key]) gameData[key] = 0;
-      gameData[key] += rate;
+      // 随从增益：itemdrop 类提升挂机道具掉落率
+      gameData[key] += window.__followerBoostMechanic?.('itemDrop', rate) ?? rate;
       const gained = Math.floor(gameData[key]);
       if (gained > 0) {
         gameData[key] -= gained;
@@ -418,8 +448,10 @@ function onGameTick() {
   for (const s of (gameData.incubators || [])) {
     if (s && s.eggIndex != null && !s.hatched) {
       const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
+      // 随从增益：hatch 类动态减免孵化所需里程（达标线 = 原始里程 × 当前随从倍率）
+      const need = (s.hatchDuration || 0) * (window.__followerBoostMechanic?.('hatchDist', 1) ?? 1);
       // 检查里程达标（加 100px 容差）+ hatchStart 无效（NaN/负值）兜底
-      if (isNaN(used) || used < 0 || (used + 100) >= s.hatchDuration) {
+      if (isNaN(used) || used < 0 || (used + 100) >= need) {
         s.hatched = true;
         incubatorChanged = true;
       }
@@ -494,6 +526,9 @@ async function init() {
     return;
   }
 
+  // 随从增益查询入口：供各机制（路段抽取等）读取当前随从的活跃增益
+  window.__followerActiveBoost = () => null;
+
   // 加载存档（localStorage 与 Tauri 文件取较新者）
   let gameDataRaw = null;
   try {
@@ -538,6 +573,7 @@ async function init() {
   }
   setMusicEnabled(gameData.settings?.musicEnabled !== false); // 音乐开关：沿用上次状态
   setBattleMusic(gameData.settings?.battleMusic !== false); // 战斗音乐开关：沿用上次状态
+  setSfxEnabled(gameData.settings?.sfxEnabled !== false); // 音效开关：沿用上次状态
   ensureBounty();   // 生成/恢复当日地区悬赏
   ensureMassInitEvents(); // 大量出没事件：初始化下次生成时间
   setupFoodTooltip(); // 游戏内自制 tooltip 委托：全局激活，配招/战斗等所有页面 hover 可用
@@ -772,6 +808,10 @@ async function init() {
       saveGame().then(() => { beginGameplay(); startSplashDrop(null, false); });
     });
   } else {
+    // 老玩家启动：splash 动画期间全局禁声。必须在 beginGameplay（恢复会话可能同步触发
+    // showEncounter → playShiny 闪光音效）之前锁定，否则闪光提示音会绕过 splash 静音。
+    // 此阶段背景曲尚未起播（playRegion 在 splash 落位动画结束后调用），提前锁定无副作用
+    setSplashLocked(true);
     beginGameplay();
     startSplashDrop(() => playRegion(getCurrentRegion().name));
   }
@@ -786,6 +826,13 @@ async function init() {
     startIdleRotation();
     showView('idleView');
     road.start();
+
+    // 随从跟随状态在重启后重建：road.start() 清空了 road-layer，需重挂随从 DOM；
+    // 同时恢复上次未处理的抽卡结果（未选跟随/放走就退出），重进随从页可继续处理
+    import('./follower.js').then(m => {
+      m.ensureRoadFollower();
+      m.restorePendingFollower();
+    });
 
     // 上次退出时若停留在「待选骑行目的地」（点了背包自行车、未选目的地就关闭游戏）：
     // 恢复进入待选前的导航，避免角色 GPS 停止推进、下次进导航页卡在选择骑行目的地
@@ -1031,6 +1078,8 @@ async function init() {
   // header 图标：当前页面体系内（图标高亮）再次点击 → 直接返回首页挂机页；否则打开对应页面
   const bindHeaderIcon = (btn, open) => {
     btn?.addEventListener('click', () => {
+      // 告别场景（放生确认/悬赏提交/交换展示）锁定：顶部导航全部禁用
+      if (isGoodbyeActive()) return;
       // 战斗中锁定：仅允许进入设置（返回仍回战斗页），其余页面一律拦截；
       // 中途退出战斗只能通过战斗页的标题栏返回按钮撤退
       if (isBattleActive()) {
@@ -1054,6 +1103,7 @@ async function init() {
   // 统一逻辑：在挂机页面时点击跳转对应页面；不在挂机页面时点击直接返回挂机页面（即"再次点击返回"）。
   // 跳转时同步 prevView，保证标题栏返回按钮也回到挂机/战斗页。
   const footerNav = (open) => () => {
+    if (isGoodbyeActive()) return; // 告别场景锁定：底部三区禁止点击跳转
     if (isBattleActive()) return; // 战斗中锁定：底部三区同样禁止点击跳转
     open(); // 打开目标页，返回目标由导航栈记录（从哪来回哪去）
   };
@@ -1063,6 +1113,7 @@ async function init() {
   $('statTime')?.addEventListener('click', footerNav(showGpsView));
   // 标题栏返回逻辑：点击 appTitle 与鼠标后侧键（button 4）共用
   const handleAppTitleBack = () => {
+    if (isGoodbyeActive()) return; // 告别场景锁定：标题返回也不处理，只能通过场景内确定/取消退出
     if ($('appTitle').dataset.action !== 'back') return;
     // 孵蛋记录页打开且正处孵蛋器视图：点击标题只关记录页回主列表，否则走正常返回
     if (isIncubatorLogOpen() && $('incubatorView')?.style.display === 'flex') { closeIncubatorLog(); return; }

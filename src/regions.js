@@ -73,6 +73,8 @@ export const SFX = {
   victory: 'Victory.mp3',        // 抓捕成功
   congratulation: 'Congratulation.mp3', // 交换 / 孵蛋得到宝可梦
   obtained: 'Obtained.mp3',      // 混合器得到树果方块
+  shiny: 'Shiny.mp3',            // 闪光宝可梦登场
+  levelUp: 'LevelUp.mp3',       // 使用经验糖果升级
   casino: 'GameCorner.mp3',      // 游戏厅背景音乐
 };
 

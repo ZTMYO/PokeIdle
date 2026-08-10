@@ -2,7 +2,7 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar } from './ui.js';
-import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon } from './state.js';
+import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { REGION_CYCLE } from './config.js';
@@ -58,7 +58,7 @@ function ivHexagon(p) {
   </svg>`;
 }
 
-let _sortBy = 'time';  // 当前排序列：time | name | iv | level
+let _sortBy = null;    // 当前排序列：null=默认时间降序 | index | name | iv | level
 let _sortDir = -1;     // 1 升序 / -1 降序
 let _filter = '';      // 来源/闪光筛选（''=全部）
 let _typeFilter = '';  // 属性筛选（''=全部）
@@ -148,7 +148,9 @@ function renderList() {
         ? `选择加入队伍 · 共 ${pool.length} 只`
         : _picker.mode === 'train'
           ? `选择放入训练 · 共 ${pool.length} 只`
-          : `选择放入饲育屋 · 共 ${pool.length} 只`;
+          : _picker.mode === 'expcandy'
+            ? `选择宝可梦使用经验糖果 · 共 ${pool.length} 只`
+            : `选择放入饲育屋 · 共 ${pool.length} 只`;
     } else {
       const total = inRoster().length;
       const shinyCount = inRoster().filter(p => p.shiny).length;
@@ -388,8 +390,13 @@ function setupHeaderSort() {
     const span = e.target.closest('[data-sort]');
     if (!span) return;
     const field = span.dataset.sort;
-    if (_sortBy === field) _sortDir *= -1; // 同字段切换升降序
-    else { _sortBy = field; _sortDir = -1; } // 新字段默认降序
+    // 3 段 toggle：升序 → 降序 → 回到默认（时间降序）
+    if (_sortBy === field) {
+      if (_sortDir === 1) _sortDir = -1;      // 升序 → 降序
+      else { _sortBy = null; _sortDir = -1; } // 降序 → 回到默认时间排序
+    } else {
+      _sortBy = field; _sortDir = 1;          // 新字段默认升序
+    }
     renderList();
   };
 }
@@ -1211,6 +1218,14 @@ export function showRosterPicker(picker) {
   _picker = picker || null;
   _detailFromView = null;
   showRosterView(true); // 选取模式不压栈：返回由配队/训练页的返回链处理
+  // 经验糖果：标题栏替换为「经验糖果」（与仓库列表同款页面，仅标题不同）
+  if (picker?.mode === 'expcandy') {
+    const t = $('appTitle');
+    if (t) {
+      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 经验糖果';
+      t.dataset.action = 'back';
+    }
+  }
 }
 
 // 返回按钮：离开选取模式并恢复来源页（配队/训练重新渲染）
@@ -1220,7 +1235,15 @@ export function leaveRosterPicker() {
   if (p?.mode === 'team') import('./team.js').then(m => m.restoreTeamView());
   else if (p?.mode === 'train') import('./train.js').then(m => m.showTrainView());
   else if (p?.mode === 'nursery') import('./nursery.js').then(m => m.showNurseryView());
+  else if (p?.mode === 'expcandy') showView(fromWithEncounterGuard(p?.from)); // 经验糖果：返回进入时的来源页
   else showView(p?.from || 'idleView');
+}
+
+// 经验糖果来源页特殊处理：遭遇时进入本流程后遭遇可能在后台已结束
+// （自动捕捉/逃跑完成、encounterView 已隐藏），此时不再切回遭遇页（会显示残留空页），回挂机页
+function fromWithEncounterGuard(from) {
+  if (from === 'encounterView' && phase !== 'encounter') return 'idleView';
+  return from || 'idleView';
 }
 
 // 点击列表项：直接加入目标（配队/训练）并返回来源页
@@ -1231,6 +1254,7 @@ function pickRow(rid) {
   if (p.mode === 'team') import('./team.js').then(m => m.addToTeam(rid, p.slot));
   else if (p.mode === 'train') import('./train.js').then(m => m.addToTraining(rid, p.slot));
   else if (p.mode === 'nursery') import('./nursery.js').then(m => m.addToNursery(rid, p.slot));
+  else if (p.mode === 'expcandy') import('./exp-candy.js').then(m => m.useExpCandyOn(rid, false, p.from));
 }
 
 export function showRosterView(noNav) {
@@ -1267,13 +1291,21 @@ export function showRosterDetailById(id, fromView) {
   showRosterDetail(id); // 再进入该个体的详情
 }
 
+// 经验糖果使用后刷新当前个体详情（等级/经验已变化，就地重渲染）
+export function refreshRosterDetail(id) {
+  if (_detailId !== id) return;
+  showRosterDetail(id);
+}
+
 // 从悬赏提交/交换选择列表进入个体详情（第三层）
 // returnFn：详情页按返回时执行，负责切回来源视图并恢复其子页状态
 export function showRosterDetailFromList(id, returnFn) {
   _detailFromView = null;
   _detailReturnFn = typeof returnFn === 'function' ? returnFn : null;
-  showRosterView();    // 先渲染并显示仓库列表
-  showRosterDetail(id); // 再进入该个体的详情
+  // 不压导航栈：详情是来源列表的子层级，返回靠 returnFn 恢复来源视图。
+  // 若压栈 rosterView，交换（非 peer 组）场景返回后会残留栈项，导致退出时多按一次
+  showRosterView(true);
+  showRosterDetail(id);
 }
 
 // 是否从悬赏提交/交换选择列表进入的详情页（返回时应直接恢复来源列表）
