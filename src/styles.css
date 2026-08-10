@@ -6891,14 +6891,14 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   margin-left: 8px;
 }
 .nursery-pick-search .pokedex-search-input {
-  height: 24px;
-  font-size: 10px;
-  padding: 0 24px 0 6px;
+  height: 20px;
+  font-size: 9px;
+  padding: 0 20px 0 6px;
 }
 .nursery-pick-search .pokedex-search-clear {
-  width: 14px;
-  height: 14px;
-  right: 2px;
+  width: 12px;
+  height: 12px;
+  right: 3px;
 }
 
 .nursery-pick-list .bounty-trade-row[data-pick-view] { cursor: pointer; }

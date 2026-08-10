@@ -103,7 +103,10 @@ function loadRoad(idx, useTransition, saved) {
     _pendingBike = !!p.game.bike;
   } else {
     _pendingBike = null;
-    road.setBike(!!p.game.bike);
+    // 大量出没事件区域内强制非骑行：刷新/初始化恢复时，若玩家正停在事件点
+    // 而恢复的场景是自行车场景，避免刷新后站在事件点却在骑行（事件区域内不轮播，
+    // 非过渡加载只发生在初始化/刷新恢复）
+    road.setBike(inMassZone() ? false : !!p.game.bike);
     // 骑行音乐：自行车道播放骑行曲，离开后恢复地区曲
     if (road.isBike()) playCycling();
     else endCycling();
@@ -118,7 +121,10 @@ function loadRoad(idx, useTransition, saved) {
 road.onTransitionCharReach(() => {
   if (_pendingBike === null) return;
   const wasRoadBike = road.isRoadBike();
-  road.setBike(_pendingBike);
+  // 大量出没事件区域内强制非骑行：场景是动态轮播的，玩家可能在到达事件点前
+  // 场景恰好是自行车场景（过渡已触发、_pendingBike=true）；若此时过渡完成应用
+  // 骑行状态，玩家会站在事件点却无法遭遇事件宝可梦。事件区域内一律忽略目标场景骑行状态。
+  road.setBike(inMassZone() ? false : _pendingBike);
   _pendingBike = null;
   // 离开随机自行车路段：结算「自行车 ×1」（手动骑行中不结算，避免路段切换误发/打断）
   if (wasRoadBike && !road.isRoadBike() && !road.isManualBike()) {
@@ -359,7 +365,9 @@ function onGameTick() {
   // 兜底分支：onTransitionCharReach 未触发时（过渡结束仍未消费 _pendingBike）同样结算"离开自行车路段"奖励
   if (_pendingBike !== null && !road.isTransitioning()) {
     const wasRoadBike = road.isRoadBike();
-    road.setBike(_pendingBike);
+    // 大量出没事件区域内强制非骑行（同 onTransitionCharReach 的处理）：
+    // 场景动态轮播下，到达事件点前后都可能处于自行车场景过渡，事件区域内不允许骑行
+    road.setBike(inMassZone() ? false : _pendingBike);
     _pendingBike = null;
     if (wasRoadBike && !road.isRoadBike() && !road.isManualBike()) {
       grantItem('bike', 1);

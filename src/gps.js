@@ -393,7 +393,10 @@ function advanceSegment() {
     g.destIdx = null;
     g.massTarget = null;
     g.massArrived = true;
-    road.setManualBike(false); // 抵达大量出没事件点：自动下车（骑行中不遇敌，下车后事件宝可梦才能进战斗）
+    // 抵达大量出没事件点：立即结束骑行状态（场景是自行车场景时直接切成走路，
+    // 场景画面保持自行车道不变，恢复正常走路/遭遇，事件宝可梦才能滚向主角进战斗）
+    road.setBike(false);
+    road.setManualBike(false);
     render();
     return;
   }

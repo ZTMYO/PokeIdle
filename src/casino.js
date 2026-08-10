@@ -661,8 +661,8 @@ export function showCasinoHistoryView(source) {
       const colors = ['#d4850a', '#8a8a8a', '#b87333', '#5a5a5a'];
       return { text: `第${CN[r.rank - 1]}名`, bg: colors[r.rank - 1] || '#7a8a8a' };
     }
-    if (r.action === 'win' || r.action === 'blackjack') return { text: '赢', bg: '#4c8d73' };
-    if (r.action === 'lose') return { text: '输', bg: '#e74c3c' };
+    if (r.action === 'win' || r.action === 'blackjack') return { text: '赢', bg: '#d4850a' };
+    if (r.action === 'lose') return { text: '输', bg: '#b5544e' };
     return { text: '平', bg: '#7a8a8a' };
   };
   content.innerHTML = `
@@ -672,7 +672,7 @@ export function showCasinoHistoryView(source) {
     const time = fmtHistoryTime(r.time);
     const b = badge(r);
     const note = isMj ? `下注 ${formatNum(r.stake)} 档` : r.result;
-    const color = r.net > 0 ? '#4c8d73' : r.net < 0 ? '#e74c3c' : 'rgba(255,255,255,0.45)';
+    const color = r.net > 0 ? '#d4850a' : r.net < 0 ? '#b5544e' : 'rgba(255,255,255,0.45)';
     return `<div style="font-size:10px;line-height:1.8;padding:1px 0;display:flex;align-items:baseline;">
         <span style="opacity:0.6;margin-right:12px;flex-shrink:0;">${time}</span>
         <span style="font-size:8px;padding:0 3px;border-radius:2px;color:#fff;margin:0 8px;min-width:30px;text-align:center;display:inline-block;background:${b.bg}">${b.text}</span>

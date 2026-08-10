@@ -13,7 +13,8 @@ import {
   gameData, allPokemon, getPokemonByIndex, getMassOutbreak, honeyBuffActive, phase,
   randInt, rand, saveGame, addSystemLog, inMassZone, normalizeMassRemainToEnd,
 } from './state.js';
-import { $, tryLoadPokemonIcon } from './ui.js';
+import { $, tryLoadPokemonIcon, setIdleCharacter } from './ui.js';
+import { endCycling } from './audio.js';
 import { MAP_EDGES, showGpsView } from './gps.js';
 import { startMassEncounter, scheduleNextEncounter } from './battle.js';
 import { notifyMassStart, notifyMassEnd, massMsgTick } from './messages.js';
@@ -224,5 +225,19 @@ function updateMassSpawner(now) {
   const shouldRun = !!mo && phase === 'idle' && inMassZone()
     && $('idleView')?.style.display !== 'none' && road.isActive();
   if (!shouldRun) { stopMassRaf(); despawnMassPoke(); return; }
+  // 大量出没事件点可能落在自行车路段上：骑行中事件宝可梦不滚动、普通遭遇也不触发，
+  // 玩家到了点位却在骑车会错过事件。进入事件区域立即强制下车，恢复正常遭遇等非骑行功能。
+  forceStopBikeInMassZone();
   startMassRaf();
+}
+
+// 大量出没区域内强制结束骑行状态（自行车路段 _bike 和/或手动骑行 _manualBike）
+function forceStopBikeInMassZone() {
+  if (!road.isBike()) return;
+  // 先清路段骑行状态，再清手动骑行：onManualBikeChanged 回调里 road.isBike() 已是 false，
+  // 骑行音乐 / 角色外观 / 存档 / 背包槽 / buff 禁用都会按「下车」正确处理
+  road.setBike(false);
+  if (road.isManualBike()) road.setManualBike(false);
+  endCycling();             // 兜底：停止骑行音乐
+  setIdleCharacter('walk'); // 恢复走路外观与速度
 }

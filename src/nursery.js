@@ -165,6 +165,7 @@ export function addToNursery(id, slot) {
   const n = ensureNursery();
   if (n.parents[slot]) return; // 目标槽已被占用则不处理
   n.parents[slot] = { id, placedAt: Date.now() };
+  _pickSearch = ''; // 放入成功后清空搜索词，避免放第二只时残留第一只页面的输入
   // 饲育屋中的宝可梦不能留在配队队伍 / 训练槽里
   if (Array.isArray(gameData.team)) {
     gameData.team = gameData.team.filter(x => x !== id);
@@ -239,7 +240,7 @@ function renderPickPage(box) {
       <div class="nursery-pick-head">
         <span class="nursery-pick-title">放入</span>
         <div class="nursery-pick-search">
-          <input id="nurseryPickSearch" class="pokedex-search-input" type="text" placeholder="搜索名称 / 拼音..."
+          <input id="nurseryPickSearch" class="pokedex-search-input" type="text" placeholder="搜索宝可梦"
             autocomplete="off" value="${_pickSearch.replace(/"/g, '&quot;')}" />
           <button class="pokedex-search-clear" id="nurseryPickSearchClear" style="${_pickSearch ? '' : 'display:none'}">
             <svg><use xlink:href="./icons/sprites.svg#icon-close"></use></svg>
@@ -262,8 +263,11 @@ export function isNurseryPicking() {
 export function leaveNurseryPick() {
   if (_pickSlot == null) return;
   _pickSlot = null;
-    render();
-  openBoard();
+  render();
+  // 延迟到当前 click 冒泡结束后再打开告示牌弹窗：document 上注册了"点击面板外部关闭"
+  // 的全局监听（见下方），标题栏返回的 click 会冒泡触发它；若同步 openBoard，
+  // 弹窗刚打开就会被误关（表现为返回后配置弹窗被隐藏）
+  setTimeout(openBoard, 0);
 }
 
 // 绘制 tile 地图到画布（与农田/训练场同款 tileset，放大 1.5x 像素风）
@@ -634,7 +638,13 @@ function pickListHtml(slot, query = '') {
         <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-pick-submit="${p.id}">放入</button></span>
       </div>`;
     }).join('');
-  if (!rows) return `<div class="roster-trade-empty">仓库里没有可以放入的宝可梦</div>`;
+  // 空状态提示必须保留 nursery-pick-list 类：refreshPickList 依赖该类定位旧列表进行替换，
+  // 否则搜索无匹配时旧列表替换失败，看起来像"列表没清空"
+  if (!rows) {
+    return q
+      ? `<div class="roster-trade-empty nursery-pick-list">没有匹配的宝可梦</div>`
+      : `<div class="roster-trade-empty nursery-pick-list">仓库里没有可以放入的宝可梦</div>`;
+  }
   // 表头排序指示：当前排序列文本后直接加 ▲/▼（与仓库/图鉴箭头一致）
   const sortMark = k => k === _pickSortBy ? (_pickSortDir === 1 ? ' ▲' : ' ▼') : '';
   return `

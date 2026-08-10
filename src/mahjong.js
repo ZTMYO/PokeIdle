@@ -747,7 +747,13 @@ function fillTable(box) {
     }
     if (stage3) {
       // 全场结算：垂直排行 + 每人游戏币输赢
-      const totals = [0, 1, 2, 3].map(i => ({ seat: i, score: st.scores[i], net: st.scores[i] - 300 }));
+      // ⚠️ 只有玩家（seat=0）的净胜用真实的 st.matchNet（含立直棒/流局杂费，和最终 coin 入账一致）
+      //    AI 三家无 coin 账户，用「分数差」近似展示即可，零和不要求与玩家匹配
+      const totals = [0, 1, 2, 3].map(i => ({
+        seat: i,
+        score: st.scores[i],
+        net: i === 0 ? st.matchNet : (st.scores[i] - 300),
+      }));
       totals.sort((a, b) => b.score - a.score);
       const endCell = (t, rank) => {
         const netSign = t.net > 0 ? '+' : '';
@@ -769,8 +775,10 @@ function fillTable(box) {
       // data-rank 记录名次，playResult 按名次浮现
       const seatCell = seat => {
         const pos = r.rank.indexOf(seat); // 名次（0-based）
-        const delta = r.deltas[seat];
-        const prev = r.scores[seat] - delta; // 原分数（本局前累计）
+        // 玩家：delta = 本局 coin 净变化（已含立直棒杂费，与 matchNet/入账一致）
+        // AI：delta = 零和分数变化（无 coin 账户，直接展示即可）
+        const delta = seat === 0 ? r.net : r.deltas[seat];
+        const prev = r.scores[seat] - r.deltas[seat]; // 滚动数字：按累计分数本身走（分数行），玩家delta单独展示
         const sign = delta > 0 ? '+' : '-';
         const deltaCls = delta > 0 ? ' up' : delta < 0 ? ' down' : '';
         const deltaHtml = delta !== 0 ? `<span class="mj-delta${deltaCls}">${sign}${Math.abs(delta)}</span>` : '';
