@@ -103,12 +103,12 @@ export const TRADE_COUNT = 6;          // 每波上架的交换 offer 数量
 export const TRADE_REFRESH_MS = 10 * 60 * 1000; // 刷新间隔（10 分钟）
 export const TRADE_GENDER_CHANCE = 0.35; // NPC 指定「想要宝可梦」性别的概率（仅可区分性别的物种）
 export const TRADE_IV_CHANCE = 0.35;    // NPC 指定某一项个体值下限的概率
-export const TRADE_IV_MIN = 24;         // 指定个体值下限的最低值（24~31）
+export const TRADE_IV_MIN = 20;         // 指定个体值下限的最低值（20~31）
 export const TRADE_LEVEL_CHANCE = 0.35; // NPC 指定「想要宝可梦」等级下限的概率
 export const TRADE_WANT_LEVEL_MIN = 15; // 需求等级下限随机范围（15~50）
 export const TRADE_WANT_LEVEL_MAX = 50;
 export const TRADE_GIVE_LEVEL_MAX = 60; // 给出宝可梦等级随机上限（1~60）
-export const TRADE_SHINY_CHANCE = 20 / 40; // NPC 给出闪光宝可梦的概率
+export const TRADE_SHINY_CHANCE = 1 / 10; // NPC 给出闪光宝可梦的概率
 export const TRADE_IV_SUM_MIN = 100;    // 个体值总和过低时补强 1~2 项到 31
 
 // ---- 对战（NPC 挑战）----

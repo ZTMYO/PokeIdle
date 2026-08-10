@@ -8,7 +8,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, F
   COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST,
   GACHA_DRAW_COST, GACHA_DUP_REFUND } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
-import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
+import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar, hideConfirmBar } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
@@ -317,8 +317,8 @@ export function renderSystemLogs() {
   const content = $('systemLogContent');
   if (!content) return;
   content.innerHTML = `
-    <div style="border-bottom:1px solid var(--ui-color);margin-bottom:3px;font-size:10px;">最近 ${Math.min(sorted.length, 50)} 条活动记录</div>
-    ${sorted.length === 0 ? '<div style="padding:12px 4px;text-align:center;">暂无活动记录</div>' : ''}
+    <div class="rec-header">最近 ${Math.min(sorted.length, 50)} 条活动记录</div>
+    ${sorted.length === 0 ? '<div class="rec-empty">暂无活动记录</div>' : ''}
     ${sorted.map(log => {
     const time = formatLogTime(log.time);
     let desc = '';
@@ -459,9 +459,9 @@ export function renderSystemLogs() {
     }
     // 所有日志统一不以句号结尾（历史存档中的旧日志也会在展示时剥掉）
     desc = desc.replace(/。\s*$/, '');
-    return `<div style="font-size:10px;line-height:1.8;padding:1px 0;">
-        <span style="opacity:0.6;">${time}</span>
-        <span style="margin-left:6px;">${desc}</span>
+    return `<div class="rec-row">
+        <span class="rec-time">${time}</span>
+        <span class="rec-main">${desc}</span>
       </div>`;
   }).join('')}
   `;
@@ -479,49 +479,25 @@ export function showSystemLogs() {
 // 右键兑换按钮弹出的批量购买数量选项（按余额置灰）
 const BUY_QTY_OPTIONS = [5, 10, 20, 50];
 
-// ===== 商店兑换确认（类似遇敌页文案框：先记录本次兑换，点「确定」才结算） =====
+// ===== 商店兑换确认（复用通用确认框） =====
 let _pendingExchange = null; // { item, qty }
-let _shopConfirmWired = false;
-
-function wireShopConfirmBtns() {
-  if (_shopConfirmWired) return;
-  _shopConfirmWired = true;
-  $('shopConfirmYes')?.addEventListener('click', confirmShopExchange);
-  $('shopConfirmNo')?.addEventListener('click', () => {
-    _pendingExchange = null;
-    hideShopTextBox(); // 取消：正常隐藏
-  });
-}
 
 // 弹出底部文案框记录本次兑换，等待玩家点「确定」后才结算。
-// 确定后文案框保持显示（不再隐藏、不重播动画）；取消则正常隐藏，再次购买时重新滑入。
 function requestCandyExchange(itemKey, qty = 1) {
   const cost = CANDY_EXCHANGE[itemKey];
   const total = cost * qty;
   if (!cost || (gameData.items['candy'] || 0) < total) return; // 余额不足不弹框
   _pendingExchange = { item: itemKey, qty };
-  wireShopConfirmBtns();
-  const box = $('shopTextBox');
-  const content = $('shopTextBoxContent');
-  const btns = box?.querySelector('.shop-confirm-btns');
-  if (!box || !content) return;
-  content.textContent = `兑换「${ITEM_NAMES[itemKey]}」×${qty}，消耗糖果 ×${total}。`;
-  if (btns) btns.style.display = '';
-  box.style.display = 'flex'; // 每次显示播放入场动画；确定后保持显示不再隐藏，自然不再重播
-}
-
-// 点击「确定」后才真正结算本次兑换；结算后直接隐藏文案框，不再停留「已兑换」结果，便于连续购买
-function confirmShopExchange() {
-  if (!_pendingExchange) return;
-  const { item, qty } = _pendingExchange;
-  _pendingExchange = null;
-  doCandyExchange(item, qty);
-  hideShopTextBox();
-}
-
-function hideShopTextBox() {
-  const box = $('shopTextBox');
-  if (box) box.style.display = 'none';
+  showConfirmBar(
+    `兑换「${ITEM_NAMES[itemKey]}」×${qty}，消耗糖果 ×${total}。`,
+    () => { // 确定
+      if (!_pendingExchange) return;
+      const { item, qty } = _pendingExchange;
+      _pendingExchange = null;
+      doCandyExchange(item, qty);
+    },
+    () => { _pendingExchange = null; } // 取消
+  );
 }
 
 export function showShopView() {
@@ -530,10 +506,9 @@ export function showShopView() {
   pushNav('shopView');
   hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
   if (!isReRender) {
-    // 首次进入商店：清空未确认的兑换并隐藏文案框；本次访问首次购买时再次滑入并固定
+    // 首次进入商店：清空未确认的兑换并隐藏确认框
     _pendingExchange = null;
-    const box = $('shopTextBox');
-    if (box) box.style.display = 'none'; // 新访问从隐藏开始：首次购买重新滑入
+    hideConfirmBar();
   }
   const content = $('shopContent');
   const candy = gameData.items['candy'] || 0;

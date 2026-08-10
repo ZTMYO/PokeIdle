@@ -130,9 +130,9 @@ export function playFleeAnim(duration = 1000) {
   // 强制重排，确保 transition 从当前状态开始
   void pkmn.offsetWidth;
   // 终点：底部文字框右上角附近（水平靠右、底部贴文字框顶沿）
-  // 必须精确选中战斗页文本框 #textBox：项目里还有 shopTextBox / rosterBatchBar / nurseryEggConfirmBar
-  // 等其他 .text-box，document.querySelector('.text-box') 会命中 DOM 中更靠前的 #shopTextBox
-  // （默认 display:none，getBoundingClientRect 全为 0），导致 dx/dy 被方向保护钳制为 20px 的小位移。
+  // 必须精确选中战斗页文本框 #textBox：项目里还有 #confirmBar 等动态 .text-box，
+  // document.querySelector('.text-box') 可能命中错误节点（display:none 时 rect 全为 0），
+  // 导致 dx/dy 被方向保护钳制为 20px 的小位移。
   const box = document.getElementById('textBox');
   const start = pkmn.getBoundingClientRect();
   const w = pkmn.offsetWidth || start.width;

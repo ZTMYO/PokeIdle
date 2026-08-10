@@ -1,4 +1,4 @@
-import { $, showView, updateStats, tryLoadImage, hideTextBox } from './ui.js';
+import { $, showView, updateStats, tryLoadImage, hideTextBox, showConfirmBar } from './ui.js';
 import { gameData, saveGame, pushNav, formatNum, addSystemLog } from './state.js';
 import { playMahjongSfx } from './audio.js';
 import { HAND_SIZE, RIICHI_COST } from './config.js';
@@ -1705,40 +1705,15 @@ function nextRound() {
 
 // ---------- 入口 ----------
 export function showMahjongView() {
-  // 余额连最低注额都玩不起 → 弹出文本框阻止
+  // 余额连最低注额都玩不起 → 弹出确认框阻止
   if (coin() < BETS[0] * 40) {
     addSystemLog('mahjong', { blocked: 'entry-min', min: BETS[0] * 40, balance: coin() });
-    const box = $('textBox');
-    const content = $('textBoxContent');
-    const arrow = $('textBoxArrow');
-    const flee = $('fleeBtn');
-    if (box && content) {
-      content.textContent = `游戏币不足 ${BETS[0] * 40}，无法进入口袋麻将`;
-      content.style.alignSelf = 'flex-start';
-      content.style.paddingTop = '10px';
-      if (arrow) arrow.style.display = 'none';
-      // 把逃跑按钮临时改成"确定"关闭按钮
-      const fleeWasText = flee ? flee.textContent : '';
-      if (flee) {
-        flee.textContent = '确定';
-        flee.style.display = '';
-        flee.onclick = () => {
-          hideTextBox();
-          flee.textContent = fleeWasText;
-          flee.style.display = 'none';
-          content.style.alignSelf = '';
-          content.style.paddingTop = '';
-        };
-      }
-      box.style.display = 'flex';
-      box.style.transform = 'translateY(100%)';
-      box.classList.remove('show');
-      requestAnimationFrame(() => {
-        void box.offsetHeight;
-        box.classList.add('show');
-        box.style.transform = 'translateY(0)';
-      });
-    }
+    showConfirmBar(`游戏币不足 ${BETS[0] * 40}，无法进入口袋麻将`, null, null, { noButtons: false });
+    // 只有一个"确定"按钮时改文字
+    const noBtn = document.querySelector('#confirmBar [data-cb-no]');
+    if (noBtn) noBtn.style.display = 'none';
+    const yesBtn = document.querySelector('#confirmBar [data-cb-yes]');
+    if (yesBtn) yesBtn.textContent = '确定';
     return;
   }
   // 恢复存档中的对局进度（含结算页，跳过浮标动画直接进结算）

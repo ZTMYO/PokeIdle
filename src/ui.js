@@ -209,6 +209,52 @@ export function hideTextBox() {
   $('textBoxArrow').style.display = 'none';
 }
 
+// ---------- 通用底部确认文案框 ----------
+// 复用 .text-box.shop-text-box 样式，动态创建、用完即删。
+// 传入文案和确定/取消回调；onYes 返回 true 则保持显示（用于结算结果停留），返回 falsy 则关闭。
+let _confirmBarId = 0;
+export function showConfirmBar(text, onYes, onNo, opts = {}) {
+  hideConfirmBar();
+  const bar = document.createElement('div');
+  bar.id = 'confirmBar';
+  bar.className = 'text-box shop-text-box';
+  const btnsHtml = opts.noButtons ? '' : `<div class="shop-confirm-btns">
+      <span class="catch-confirm-btn" data-cb-yes>确定</span>
+      <span class="catch-confirm-btn" data-cb-no>取消</span>
+    </div>`;
+  bar.innerHTML = `<div class="text-box-content">${text}</div>${btnsHtml}`;
+  // 挂到当前可见的 view 容器内
+  const host = document.querySelector('.view-fixed[style*="display: flex"], .view-fixed[style*="display:flex"]')
+    || document.querySelector('.view-scroll[style*="display: flex"], .view-scroll[style*="display:flex"]')
+    || document.body;
+  host.appendChild(bar);
+  bar.style.display = 'flex';
+  bar.style.transform = 'translateY(100%)'; // 先藏在底部
+  // 下一帧滑入，触发 .text-box 的 transition: transform 0.25s
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      bar.style.transform = '';
+    });
+  });
+  if (opts.height) bar.style.height = opts.height;
+  if (!opts.noButtons) {
+    bar.querySelector('[data-cb-yes]').addEventListener('click', () => {
+      const keep = onYes ? onYes() : undefined;
+      if (!keep) hideConfirmBar();
+    });
+    bar.querySelector('[data-cb-no]').addEventListener('click', () => {
+      if (onNo) onNo();
+      hideConfirmBar();
+    });
+  }
+  return bar;
+}
+
+export function hideConfirmBar() {
+  const bar = document.getElementById('confirmBar');
+  if (bar) bar.remove();
+}
+
 export function isOnGameView() {
   // 仅主界面 / 遇敌页属于"游戏页"：孵蛋页是独立页面，遭遇/丢球文案、动画与视图切换都不得作用其上
   return $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
@@ -587,9 +633,6 @@ function renderEggPickList() {
     va = a.obtainedAt || 0; vb = b.obtainedAt || 0;
     return (va - vb) * _eggPickSortDir;
   });
-  // 排序指示符
-  const sortAsc = `${_eggPickSortBy === 'name' ? (_eggPickSortDir === 1 ? ' ▲' : ' ▼') : ''}`;
-  const sortIv = `${_eggPickSortBy === 'iv' ? (_eggPickSortDir === 1 ? ' ▲' : ' ▼') : ''}`;
 
   box.innerHTML = `
     <div class="nursery-egg-page">
@@ -605,8 +648,8 @@ function renderEggPickList() {
         </div>
       </div>
       <div class="nursery-egg-header">
-        <span class="nursery-egg-header-name" data-egg-pick-sort="name">宝可梦蛋${sortAsc}</span>
-        <span class="nursery-egg-header-iv" data-egg-pick-sort="iv">个体值${sortIv}</span>
+        <span class="nursery-egg-header-name" data-sort="name">宝可梦蛋</span>
+        <span class="nursery-egg-header-iv" data-sort="iv">个体值</span>
       </div>
       <div class="list-scroll">
         ${sorted.length === 0
@@ -617,7 +660,7 @@ function renderEggPickList() {
               const poke = getPokemonByIndex(String(eg.species));
               const name = poke ? poke.name : `#${eg.species}`;
               return `
-                <div class="nursery-egg-row" data-egg-pick="${eg.id}">
+                <div class="pokedex-entry nursery-egg-row" data-egg-pick="${eg.id}">
                   <span class="nursery-egg-row-name">
                     <img class="nursery-egg-row-icon" src="./items/mystery-egg.png" alt="蛋" />${name}的蛋${eg.shiny ? ' ★' : ''}
                   </span>
@@ -639,14 +682,20 @@ function renderEggPickList() {
   }
   if (clearBtn) clearBtn.addEventListener('click', () => { _eggPickQuery = ''; input.value = ''; clearBtn.style.display = 'none'; renderEggPickList(); });
   // 排序
-  box.querySelectorAll('[data-egg-pick-sort]').forEach(el => {
+  box.querySelectorAll('.nursery-egg-header [data-sort]').forEach(el => {
     el.addEventListener('click', () => {
-      const k = el.dataset.eggPickSort;
+      const k = el.dataset.sort;
       if (_eggPickSortBy === k) _eggPickSortDir = -_eggPickSortDir;
       else { _eggPickSortBy = k; _eggPickSortDir = 1; }
       renderEggPickList();
     });
   });
+  // 标记当前排序列
+  const eggHeader = box.querySelector('.nursery-egg-header');
+  if (eggHeader) {
+    const cur = eggHeader.querySelector(`[data-sort="${_eggPickSortBy}"]`);
+    if (cur) cur.classList.add(_eggPickSortDir === 1 ? 'sort-asc' : 'sort-desc');
+  }
   // 点击列表行即放入该蛋并返回孵蛋器
   box.querySelectorAll('[data-egg-pick]').forEach(item => {
     item.addEventListener('click', () => {
@@ -680,26 +729,24 @@ export function showIncubatorEggView() {
 // 孵蛋记录页：单列日志列表，每条仅显示时间 / 名字 / 性别（最多 50 条）
 function renderIncubatorLogList(list) {
   const logs = (gameData.incubatorLogs || [])
-    .filter(l => l && l.species != null) // 兼容旧存档残留的旧格式记录
+    .filter(l => l && l.species != null)
     .slice()
     .reverse();
   const genderText = g => g === 'female' ? '♀' : g === 'male' ? '♂' : '无性别';
   list.style.gridTemplateColumns = '1fr';
+  list.classList.add('list-scroll');
   list.innerHTML = `
-    <div class="incubator-egg-list">
-      <div class="incubator-egg-list-head">
-        <span class="incubator-egg-list-title">孵蛋记录</span>
-      </div>
+    <div class="rec-header">最近 ${Math.min(logs.length, 50)} 条孵蛋记录</div>
       ${logs.length === 0
-        ? '<div class="incubator-egg-empty">暂无孵蛋记录<br>孵化宝可梦后会记录在这里</div>'
+        ? '<div class="rec-empty">暂无孵蛋记录<br>孵化宝可梦后会记录在这里</div>'
         : logs.map(l => {
             const poke = getPokemonByIndex(String(l.species));
             const name = poke ? poke.name : `#${l.species}`;
             return `
-            <div class="incubator-log-item">
-              <span class="incubator-log-time">${formatLogTime(l.time)}</span>
-              <span class="incubator-log-name">${name}</span>
-              <span class="incubator-log-gender">${genderText(l.gender)}</span>
+            <div class="rec-row">
+              <span class="rec-time">${formatLogTime(l.time)}</span>
+              <span class="rec-main">${name}</span>
+              <span class="rec-right">${genderText(l.gender)}</span>
             </div>`;
           }).join('')}
     </div>`;
@@ -731,6 +778,7 @@ export function renderIncubatorView() {
   }
 
   list.style.gridTemplateColumns = '1fr 1fr';
+  list.classList.remove('list-scroll');
 
   const hatchBtnHtml = (i, disabled) => `<span class="incubator-hatch-text hatched${disabled ? ' disabled' : ''}" data-slot="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>孵化</span>`;
   // 野生遭遇期间允许保留孵蛋入口：点击时优先切回遭遇画面处理；

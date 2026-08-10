@@ -1,11 +1,12 @@
 // ===== 饲育屋 App =====
 // 把两只宝可梦放进饲育屋配对：满足蛋组条件（雌雄共蛋组 / 百变怪万能配对）即可繁殖。
 // 互斥规则：饲育屋 / 训练 / 配队三方互斥——放入饲育屋自动离开队伍与训练槽，反之亦然。
-import { $, showView, tryLoadImage, setupFoodTooltip } from './ui.js';
+import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar, hideConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender, genderBadge, rollGender, rollNature, addSystemLog } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
-import { BERRY_ICONS, BERRY_NAMES } from './items.js';
+import { BERRY_ICONS, BERRY_NAMES, TYPE_COLORS } from './items.js';
 import { ensureBerryFarm } from './berry.js';
+import { REGION_CYCLE } from './config.js';
 
 const BERRY_DIR = './items/berries/';
 // 产蛋时长区间（分钟，本期固定随机，后续可做同种/同蛋组和睦度加成）
@@ -68,6 +69,8 @@ let _pickSlot = null;         // 非 null 时告示牌显示"放入宝可梦"列
 let _pickSortBy = 'index';    // 放入列表排序列：index | name | iv | level
 let _pickSortDir = 1;         // 1 升序 / -1 降序
 let _pickSearch = '';         // 放入列表搜索词
+let _pickTypeFilter = '';     // 放入列表属性筛选
+let _pickRegionFilter = '';   // 放入列表地区筛选
 let _eggView = false;         // 蛋仓库视图
 let _eggQuery = '';           // 蛋搜索关键词
 let _eggSortBy = 'time';      // time | name | iv
@@ -140,6 +143,9 @@ function pairRole(ea, eb, sid) {
 export function showNurseryView() {
   pushNav('nurseryView');
   _pickSlot = null; // 重新进入饲育屋时退出选取页
+  _pickSearch = '';
+  _pickTypeFilter = '';
+  _pickRegionFilter = '';
   render();
   showView('nurseryView');
   startTimer();
@@ -236,22 +242,124 @@ function renderPickPage(box) {
     if (egg) eggNote = ` 目标蛋组：${egg}`;
   }
   box.innerHTML = `
-    <div class="nursery-pick-page">
-      <div class="nursery-pick-head">
-        <span class="nursery-pick-title">放入</span>
-        <div class="nursery-pick-search">
-          <input id="nurseryPickSearch" class="pokedex-search-input" type="text" placeholder="搜索宝可梦"
-            autocomplete="off" value="${_pickSearch.replace(/"/g, '&quot;')}" />
-          <button class="pokedex-search-clear" id="nurseryPickSearchClear" style="${_pickSearch ? '' : 'display:none'}">
-            <svg><use xlink:href="./icons/sprites.svg#icon-close"></use></svg>
-          </button>
+    <div class="view-list" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+      <div class="pokedex-progress" id="nurseryPickProgress"></div>
+      <div class="pokedex-search">
+        <div class="pokedex-search-row">
+          <div class="pokedex-search-input-wrap">
+            <input id="nurseryPickSearch" class="pokedex-search-input" type="text" placeholder="搜索宝可梦"
+              autocomplete="off" value="${_pickSearch.replace(/"/g, '&quot;')}" />
+            <button class="pokedex-search-clear" id="nurseryPickSearchClear" style="${_pickSearch ? '' : 'display:none'}" aria-label="清空搜索">
+              <svg><use xlink:href="./icons/sprites.svg#icon-close"></use></svg>
+            </button>
+          </div>
+          <div id="nurseryPickTypeFilter" class="pokedex-region-select" tabindex="0" title="按属性筛选">
+            <span id="nurseryPickTypeFilterLabel">${_pickTypeFilter ? _pickTypeFilter : '属性'}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="nurseryPickTypeFilterDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="nurseryPickRegionFilter" class="pokedex-region-select" tabindex="0" title="按地区筛选">
+            <span id="nurseryPickRegionFilterLabel">${_pickRegionFilter || '地区'}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="nurseryPickRegionFilterDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          ${eggNote ? `<span class="nursery-pick-egggroup">${eggNote}</span>` : ''}
         </div>
-        ${eggNote ? `<span class="nursery-pick-egggroup">${eggNote}</span>` : ''}
       </div>
-      ${pickListHtml(_pickSlot, _pickSearch)}
+      <div class="pokedex-header roster-header nursery-pick-header">
+        <span class="roster-icon"></span>
+        <span class="pokedex-star"></span>
+        <span class="pokedex-name" data-sort="name">名称</span>
+        <span class="roster-lv-col" data-sort="level">等级</span>
+        <span class="roster-iv" data-sort="iv">个体值</span>
+        <span class="bounty-trade-btn-col">放入</span>
+      </div>
+      <div class="list-scroll nursery-pick-list">
+        ${pickListHtml(_pickSlot, _pickSearch)}
+      </div>
     </div>`;
+  // 更新进度文字
+  const prog = box.querySelector('#nurseryPickProgress');
+  if (prog) {
+    const total = (gameData.roster || []).filter(p => !p.inNursery && !p.inTeam).length;
+    prog.textContent = eggNote ? `可放入 ${total} 只` : `共 ${total} 只可放入`;
+  }
+  // 设置标题栏
+  const title = $('appTitle');
+  if (title) {
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 放入';
+    title.dataset.action = 'back';
+  }
   loadSlotIcons(box);
   bindPick(box);
+  bindPickFilters(box);
+}
+
+// 筛选下拉菜单绑定（只在 renderPickPage 时调用一次，避免 refreshPickList 重复绑定）
+function bindPickFilters(root) {
+  // 属性筛选下拉
+  const typeTrigger = root.querySelector('#nurseryPickTypeFilter');
+  const typeLabel = root.querySelector('#nurseryPickTypeFilterLabel');
+  const typeDd = root.querySelector('#nurseryPickTypeFilterDropdown');
+  if (typeTrigger && typeLabel && typeDd) {
+    const typeList = Object.keys(TYPE_COLORS);
+    function buildTypeOptions() {
+      typeDd.innerHTML = `<div class="region-dropdown-item${!_pickTypeFilter ? ' active' : ''}" data-type="">全部</div>`
+        + typeList.map(t => `<div class="region-dropdown-item${t === _pickTypeFilter ? ' active' : ''}" data-type="${t}"><span class="roster-type-dot" style="background:${TYPE_COLORS[t]}"></span>${t}</div>`).join('');
+      typeDd.querySelectorAll('.region-dropdown-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _pickTypeFilter = el.dataset.type || '';
+          typeLabel.innerHTML = _pickTypeFilter
+            ? `<span class="roster-type-dot" style="background:${TYPE_COLORS[_pickTypeFilter]}"></span>${_pickTypeFilter}`
+            : '属性';
+          typeDd.style.display = 'none';
+          typeTrigger.classList.remove('open');
+          refreshPickList();
+        });
+      });
+    }
+    typeTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = typeDd.style.display !== 'none';
+      root.querySelectorAll('.region-dropdown').forEach(d => d.style.display = 'none');
+      root.querySelectorAll('.pokedex-region-select').forEach(s => s.classList.remove('open'));
+      if (!open) { buildTypeOptions(); typeDd.style.display = ''; typeTrigger.classList.add('open'); }
+    });
+    document.addEventListener('click', () => { typeDd.style.display = 'none'; typeTrigger.classList.remove('open'); });
+  }
+  // 地区筛选下拉
+  const regionTrigger = root.querySelector('#nurseryPickRegionFilter');
+  const regionLabel = root.querySelector('#nurseryPickRegionFilterLabel');
+  const regionDd = root.querySelector('#nurseryPickRegionFilterDropdown');
+  if (regionTrigger && regionLabel && regionDd) {
+    function buildRegionOptions() {
+      regionDd.innerHTML = `<div class="region-dropdown-item${!_pickRegionFilter ? ' active' : ''}" data-region="">全部</div>`
+        + REGION_CYCLE.map(r => `<div class="region-dropdown-item${r === _pickRegionFilter ? ' active' : ''}" data-region="${r}">${r}</div>`).join('');
+      regionDd.querySelectorAll('.region-dropdown-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _pickRegionFilter = el.dataset.region || '';
+          regionLabel.textContent = _pickRegionFilter || '地区';
+          regionDd.style.display = 'none';
+          regionTrigger.classList.remove('open');
+          refreshPickList();
+        });
+      });
+    }
+    regionTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = regionDd.style.display !== 'none';
+      root.querySelectorAll('.region-dropdown').forEach(d => d.style.display = 'none');
+      root.querySelectorAll('.pokedex-region-select').forEach(s => s.classList.remove('open'));
+      if (!open) { buildRegionOptions(); regionDd.style.display = ''; regionTrigger.classList.add('open'); }
+    });
+    document.addEventListener('click', () => { regionDd.style.display = 'none'; regionTrigger.classList.remove('open'); });
+  }
 }
 
 // 选取页是否打开（供 main.js 标题栏返回使用）
@@ -263,7 +371,16 @@ export function isNurseryPicking() {
 export function leaveNurseryPick() {
   if (_pickSlot == null) return;
   _pickSlot = null;
+  _pickSearch = '';
+  _pickTypeFilter = '';
+  _pickRegionFilter = '';
   render();
+  // 恢复标题栏
+  const title = $('appTitle');
+  if (title) {
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 饲育屋';
+    title.dataset.action = 'back';
+  }
   // 延迟到当前 click 冒泡结束后再打开告示牌弹窗：document 上注册了"点击面板外部关闭"
   // 的全局监听（见下方），标题栏返回的 click 会冒泡触发它；若同步 openBoard，
   // 弹窗刚打开就会被误关（表现为返回后配置弹窗被隐藏）
@@ -549,18 +666,13 @@ function boardHtml() {
 
 // 局部刷新放入列表（搜索/排序时只重建列表，不重建搜索框避免失焦）
 function refreshPickList() {
-  const page = $('nurseryContent')?.querySelector('.nursery-pick-page');
+  const page = $('nurseryContent');
   if (!page || _pickSlot == null) return;
-  const oldList = page.querySelector('.nursery-pick-list');
-  if (!oldList) return;
-  const tmp = document.createElement('div');
-  tmp.innerHTML = pickListHtml(_pickSlot, _pickSearch);
-  const newList = tmp.querySelector('.nursery-pick-list');
-  if (newList) {
-    oldList.replaceWith(newList);
-    loadSlotIcons(page);
-    bindPick(page);
-  }
+  const list = page.querySelector('.nursery-pick-list');
+  if (!list) return;
+  list.innerHTML = pickListHtml(_pickSlot, _pickSearch);
+  loadSlotIcons(page);
+  bindPick(page);
 }
 
 // 个体值总和
@@ -596,6 +708,18 @@ function pickListHtml(slot, query = '') {
       return poke && !poke.noEggGroup;
     })
     .filter(p => !otherEntry || checkPairing(otherEntry, p).ok)
+    // 属性筛选
+    .filter(p => {
+      if (!_pickTypeFilter) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      return poke?.types?.includes(_pickTypeFilter);
+    })
+    // 地区筛选
+    .filter(p => {
+      if (!_pickRegionFilter) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      return poke?.region === _pickRegionFilter;
+    })
     // 搜索过滤：名称 / 拼音 / 首字母 / 昵称
     .filter(p => {
       if (!q) return true;
@@ -633,34 +757,18 @@ function pickListHtml(slot, query = '') {
         <span class="roster-icon">${icon}</span>
         <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
         <span class="pokedex-name">${name}</span>
-        <span class="roster-ivs" data-tip="${pickIvTip(p)}">${pickIvSum(p)}</span>
-        <span class="roster-nature">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
+        <span class="roster-lv-col">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
+        <span class="roster-iv" data-tip="${pickIvTip(p)}">${pickIvSum(p)}</span>
         <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-pick-submit="${p.id}">放入</button></span>
       </div>`;
     }).join('');
-  // 空状态提示必须保留 nursery-pick-list 类：refreshPickList 依赖该类定位旧列表进行替换，
-  // 否则搜索无匹配时旧列表替换失败，看起来像"列表没清空"
+  // 空状态提示
   if (!rows) {
     return q
-      ? `<div class="roster-trade-empty nursery-pick-list">没有匹配的宝可梦</div>`
-      : `<div class="roster-trade-empty nursery-pick-list">仓库里没有可以放入的宝可梦</div>`;
+      ? `<div class="roster-trade-empty">没有匹配的宝可梦</div>`
+      : `<div class="roster-trade-empty">仓库里没有可以放入的宝可梦</div>`;
   }
-  // 表头排序指示：当前排序列文本后直接加 ▲/▼（与仓库/图鉴箭头一致）
-  const sortMark = k => k === _pickSortBy ? (_pickSortDir === 1 ? ' ▲' : ' ▼') : '';
-  return `
-    <div class="bounty-trade-list nursery-pick-list">
-      <div class="pokedex-header roster-header">
-        <span class="roster-icon"></span>
-        <span class="pokedex-star"></span>
-        <span class="pokedex-name" data-sort="name">名字${sortMark('name')}</span>
-        <span class="roster-ivs" data-sort="iv">个体值${sortMark('iv')}</span>
-        <span class="roster-nature" data-sort="level">等级${sortMark('level')}</span>
-        <span class="bounty-trade-btn-col">放入</span>
-      </div>
-      <div class="bounty-trade-rows list-scroll">
-        ${rows}
-      </div>
-    </div>`;
+  return rows;
 }
 
 // 亲本槽位：空位点击去仓库放入；已有宝可梦点击取出（繁殖中取出=终止，已产蛋先收取）
@@ -1120,7 +1228,7 @@ function bindPick(root) {
     });
   }
   // 表头点击排序
-  root.querySelectorAll('.nursery-pick-list .pokedex-header [data-sort]').forEach(el => {
+  root.querySelectorAll('.nursery-pick-header [data-sort]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       const field = el.dataset.sort;
@@ -1129,6 +1237,12 @@ function bindPick(root) {
       refreshPickList();
     });
   });
+  // 标记当前排序列
+  const header = root.querySelector('.nursery-pick-header');
+  if (header) {
+    const cur = header.querySelector(`[data-sort="${_pickSortBy}"]`);
+    if (cur) cur.classList.add(_pickSortDir === 1 ? 'sort-asc' : 'sort-desc');
+  }
 }
 
 // 弹框保持打开时局部刷新内容（不重建弹层，避免闪烁/关闭）
@@ -1172,37 +1286,25 @@ function openEggView() {
 }
 
 function discardEgg(id) {
-  // 先显示底部确认栏
-  removeEggConfirmBar();
-  const bar = document.createElement('div');
-  bar.id = 'nurseryEggConfirmBar';
-  bar.className = 'text-box shop-text-box';
-  bar.style.display = 'flex';
-  bar.innerHTML = `<span class="text-box-content">确定丢弃这枚蛋吗？</span>
-    <div class="shop-confirm-btns">
-      <span class="catch-confirm-btn" id="nurseryEggConfirmBtn">确定</span>
-      <span class="catch-confirm-btn" id="nurseryEggConfirmCancel">取消</span>
-    </div>`;
-  $('nurseryView').appendChild(bar);
-  bar.querySelector('#nurseryEggConfirmBtn').onclick = () => {
-    const arr = gameData.roster || [];
-    for (let i = arr.length - 1; i >= 0; i--) {
-      if (arr[i].id === id && !isPokemon(arr[i])) {
-        arr.splice(i, 1);
-        saveGame();
-        removeEggConfirmBar();
-        renderEggView();
-        return;
+  showConfirmBar(
+    '确定丢弃这枚蛋吗？',
+    () => { // 确定
+      const arr = gameData.roster || [];
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr[i].id === id && !isPokemon(arr[i])) {
+          arr.splice(i, 1);
+          saveGame();
+          renderEggView();
+          return;
+        }
       }
-    }
-    removeEggConfirmBar();
-  };
-  bar.querySelector('#nurseryEggConfirmCancel').onclick = () => removeEggConfirmBar();
+    },
+    null // 取消
+  );
 }
 
 function removeEggConfirmBar() {
-  const bar = document.getElementById('nurseryEggConfirmBar');
-  if (bar) bar.remove();
+  hideConfirmBar();
 }
 
 function renderEggView() {
@@ -1236,21 +1338,16 @@ function renderEggView() {
     va = a.obtainedAt || 0; vb = b.obtainedAt || 0;
     return (va - vb) * _eggSortDir;
   });
-  // 排序指示符
-  const sortAsc = `${_eggSortBy === 'name' ? (_eggSortDir === 1 ? ' ▲' : ' ▼') : ''}`;
-  const sortIv = `${_eggSortBy === 'iv' ? (_eggSortDir === 1 ? ' ▲' : ' ▼') : ''}`;
-
   // 检查是否已有完整页面，有则只增量更新列表和表头（避免销毁搜索框导致失焦）
   const existingPage = box.querySelector('.nursery-egg-page');
   if (existingPage) {
     // 更新进度
     const progress = existingPage.querySelector('.pokedex-progress');
     if (progress) progress.textContent = eggs.length ? `共 ${eggs.length} 个蛋` : '暂无宝可梦蛋';
-    // 更新表头排序指示符
-    const nameHeader = existingPage.querySelector('.nursery-egg-header-name');
-    const ivHeader = existingPage.querySelector('.nursery-egg-header-iv');
-    if (nameHeader) nameHeader.innerHTML = `宝可梦蛋${sortAsc}`;
-    if (ivHeader) ivHeader.innerHTML = `个体值${sortIv}`;
+    // 更新表头排序标记
+    existingPage.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+    const cur = existingPage.querySelector(`[data-sort="${_eggSortBy}"]`);
+    if (cur) cur.classList.add(_eggSortDir === 1 ? 'sort-asc' : 'sort-desc');
     // 更新列表
     const listScroll = existingPage.querySelector('.list-scroll');
     if (listScroll) {
@@ -1260,11 +1357,9 @@ function renderEggView() {
             const poke = getPokemonByIndex(String(eg.species));
             const name = poke ? poke.name : `#${eg.species}`;
             return `
-              <div class="nursery-egg-row" data-egg-id="${eg.id}">
-                <span class="nursery-egg-row-name">
-                  <img class="nursery-egg-row-icon" src="./items/mystery-egg.png" alt="蛋" />${name}的蛋${eg.shiny ? ' ★' : ''}
-                </span>
-                <span class="nursery-egg-row-iv">${eggIvSlash(eg)}</span>
+              <div class="pokedex-entry roster-row nursery-egg-row" data-egg-id="${eg.id}">
+                <span class="pokedex-name"><img class="roster-icon-img" src="./items/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                <span class="roster-iv">${eggIvSlash(eg)}</span>
                 <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">丢弃</button></span>
               </div>`;
           }).join('');
@@ -1284,7 +1379,7 @@ function renderEggView() {
 
   // 首次渲染：创建完整 HTML
   box.innerHTML = `
-    <div class="nursery-egg-page">
+    <div class="nursery-egg-page view-list">
       <div class="pokedex-progress">${eggs.length ? `共 ${eggs.length} 个蛋` : '暂无宝可梦蛋'}</div>
       <div class="pokedex-search">
         <div class="pokedex-search-row">
@@ -1296,9 +1391,9 @@ function renderEggView() {
           </div>
         </div>
       </div>
-      <div class="nursery-egg-header">
-        <span class="nursery-egg-header-name" data-egg-sort="name">宝可梦蛋${sortAsc}</span>
-        <span class="nursery-egg-header-iv" data-egg-sort="iv">个体值${sortIv}</span>
+      <div class="pokedex-header roster-header nursery-egg-header">
+        <span class="pokedex-name" data-sort="name">宝可梦蛋</span>
+        <span class="roster-iv" data-sort="iv">个体值</span>
         <span class="bounty-trade-btn-col">丢弃</span>
       </div>
       <div class="list-scroll">
@@ -1308,11 +1403,9 @@ function renderEggView() {
               const poke = getPokemonByIndex(String(eg.species));
               const name = poke ? poke.name : `#${eg.species}`;
               return `
-                <div class="nursery-egg-row" data-egg-id="${eg.id}">
-                  <span class="nursery-egg-row-name">
-                    <img class="nursery-egg-row-icon" src="./items/mystery-egg.png" alt="蛋" />${name}的蛋${eg.shiny ? ' ★' : ''}
-                  </span>
-                  <span class="nursery-egg-row-iv">${eggIvSlash(eg)}</span>
+                <div class="pokedex-entry roster-row nursery-egg-row" data-egg-id="${eg.id}">
+                  <span class="pokedex-name"><img class="roster-icon-img" src="./items/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                  <span class="roster-iv">${eggIvSlash(eg)}</span>
                   <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">丢弃</button></span>
                 </div>`;
             }).join('')}
@@ -1329,14 +1422,20 @@ function renderEggView() {
   }
   if (clearBtn) clearBtn.addEventListener('click', () => { _eggQuery = ''; input.value = ''; renderEggView(); });
   // 排序
-  box.querySelectorAll('[data-egg-sort]').forEach(el => {
+  box.querySelectorAll('.nursery-egg-header [data-sort]').forEach(el => {
     el.addEventListener('click', () => {
-      const k = el.dataset.eggSort;
+      const k = el.dataset.sort;
       if (_eggSortBy === k) _eggSortDir = -_eggSortDir;
       else { _eggSortBy = k; _eggSortDir = 1; }
       renderEggView();
     });
   });
+  // 标记当前排序列
+  const eggHeader = box.querySelector('.nursery-egg-header');
+  if (eggHeader) {
+    const cur = eggHeader.querySelector(`[data-sort="${_eggSortBy}"]`);
+    if (cur) cur.classList.add(_eggSortDir === 1 ? 'sort-asc' : 'sort-desc');
+  }
   // 丢弃
   box.querySelectorAll('[data-discard]').forEach(btn => {
     btn.addEventListener('click', (e) => {

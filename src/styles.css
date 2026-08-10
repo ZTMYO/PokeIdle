@@ -29,11 +29,12 @@ html, body {
   color: var(--color-text);
   background: var(--console-body);
 }
-body { margin: 0; padding: 0; cursor: default; }
+body { margin: 0; padding: 0; cursor: default; display: flex; align-items: center; justify-content: center; }
 
 /* === 主机外壳 === */
 .console {
   width: 100%; height: 100%;
+  max-width: 320px; max-height: 400px;
   display: flex;
   flex-direction: column;
   background: var(--console-body);
@@ -944,6 +945,16 @@ body { margin: 0; padding: 0; cursor: default; }
   margin-bottom: 4px;
   min-height: 16px;
 }
+.incubator-grid {
+  flex: 1;
+  color: var(--ui-color);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  align-content: start;
+}
+/* 孵蛋器主列表需要外层滚动（记录模式由 .list-scroll 接管滚动） */
+#incubatorView { overflow-y: auto; }
 .incubator-log-btn {
   margin-left: auto;
   padding: 2px 8px;
@@ -959,30 +970,6 @@ body { margin: 0; padding: 0; cursor: default; }
   transition: background 0.12s;
 }
 .incubator-log-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
-
-/* 孵蛋记录列表项：时间 + 描述 */
-.incubator-log-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 3px 4px;
-  border-bottom: 1px dashed rgba(0,0,0,0.06);
-  font-size: 10px;
-}
-.incubator-log-time {
-  flex-shrink: 0;
-  color: var(--ui-color);
-  opacity: 0.55;
-  font-family: 'Courier New', monospace;
-}
-.incubator-log-name {
-  color: var(--ui-color);
-}
-.incubator-log-gender {
-  flex-shrink: 0;
-  color: var(--ui-color);
-  opacity: 0.75;
-}
 
 /* 宝可梦蛋列表（挑蛋入槽） */
 .incubator-egg-list {
@@ -1425,7 +1412,8 @@ body { margin: 0; padding: 0; cursor: default; }
 #quitDialog .dialog-opt:active { transform: translateY(2px); }
 
 /* ===== 图鉴列表 ===== */
-#pokedexView, #rosterView {
+/* 列表型页面容器：图鉴/仓库/饲育屋放入页共用的边距、字号、颜色 */
+.view-list {
   width: 100%;
   align-self: stretch;
   height: 100%;
@@ -1914,13 +1902,6 @@ body { margin: 0; padding: 0; cursor: default; }
   overflow-y: auto;
   padding-bottom: 4px;
 }
-.berry-board-sections::-webkit-scrollbar { width: 6px; }
-.berry-board-sections::-webkit-scrollbar-track { background: transparent; }
-.berry-board-sections::-webkit-scrollbar-thumb {
-  background: rgba(var(--ui-color-rgb), 0.25);
-  border-radius: 3px;
-}
-.berry-board-sections::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.4); }
 .berry-board-section-title {
   font-size: 10px;
   font-weight: 800;
@@ -3011,14 +2992,6 @@ body { margin: 0; padding: 0; cursor: default; }
   text-align: center;
   margin-top: 6px;
 }
-/* 悬赏列表滚动条美化 */
-#bountyContent::-webkit-scrollbar { width: 6px; }
-#bountyContent::-webkit-scrollbar-track { background: transparent; }
-#bountyContent::-webkit-scrollbar-thumb {
-  background: rgba(var(--ui-color-rgb), 0.25);
-  border-radius: 3px;
-}
-#bountyContent::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.4); }
 /* 悬赏提示浮层：非当前地区点「可提交」时提示前往对应地区（固定于页面右上角，从右侧滑入淡入） */
 .bounty-toast {
   position: absolute;
@@ -3069,12 +3042,35 @@ body { margin: 0; padding: 0; cursor: default; }
   z-index: 1;
 }
 
+/* 页面容器统一类：showView 设 display:flex 切换 */
+.view-scroll {
+  flex-direction: column;
+  overflow-y: auto;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+}
+.view-scroll > * { padding: 4px 3px; }
+.view-fixed {
+  flex-direction: column;
+  overflow: hidden;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+}
+
 /* 列表/详情滚动容器共用类：撑满剩余高度并纵向滚动 */
 .list-scroll {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  color: var(--ui-color);
 }
+/* 全局统一滚动条 */
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb), 0.3); border-radius: 2px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.55); }
 /* 图鉴/仓库列表的父容器自带 6px 右内边距，用负外边距抵消，让滚动条紧贴屏幕右缘 */
 #pokedexList.list-scroll,
 #rosterList.list-scroll {
@@ -3085,7 +3081,7 @@ body { margin: 0; padding: 0; cursor: default; }
   cursor: pointer;
   user-select: none;
   position: relative;
-  white-space: nowrap; /* 防止窄列中"文字+排序箭头"被断行 */
+  white-space: nowrap;
 }
 .pokedex-header [data-sort]:hover {
   opacity: 1;
@@ -3103,17 +3099,6 @@ body { margin: 0; padding: 0; cursor: default; }
   margin-left: 1px;
   opacity: 0.8;
   vertical-align: middle;
-}
-
-#pokedexList::-webkit-scrollbar {
-  width: 4px;
-}
-#pokedexList::-webkit-scrollbar-track {
-  background: transparent;
-}
-#pokedexList::-webkit-scrollbar-thumb {
-  background: rgba(var(--ui-color-rgb),0.3);
-  border-radius: 2px;
 }
 
 /* ---- 图鉴详情正方形容器 + 格子背景 ---- */
@@ -3240,13 +3225,6 @@ body { margin: 0; padding: 0; cursor: default; }
   border-radius: 0 0 3px 3px;
   z-index: 100;
 }
-.region-dropdown::-webkit-scrollbar {
-  width: 3px;
-}
-.region-dropdown::-webkit-scrollbar-thumb {
-  background: rgba(var(--ui-color-rgb),0.25);
-  border-radius: 2px;
-}
 .region-dropdown-item {
   padding: 3px 6px;
   font-size: 10px;
@@ -3287,13 +3265,6 @@ body { margin: 0; padding: 0; cursor: default; }
   border: 1px solid rgba(var(--ui-color-rgb),0.2);
   border-radius: 0 0 3px 3px;
   z-index: 100;
-}
-.pokedex-dropdown::-webkit-scrollbar {
-  width: 3px;
-}
-.pokedex-dropdown::-webkit-scrollbar-thumb {
-  background: rgba(var(--ui-color-rgb),0.25);
-  border-radius: 2px;
 }
 .pokedex-dropdown-item {
   display: flex;
@@ -3359,7 +3330,6 @@ body { margin: 0; padding: 0; cursor: default; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-left: 3px;
 }
 .pokedex-stat {
   width: 28px;
@@ -3367,94 +3337,12 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 
 /* ===== 商店/数据视图 ===== */
-#shopView, #dataView, #tutorialView {
-  height: 100%;
+#shopView, #dataView, #achievementView, #tutorialView {
   font-size: 11px;
   color: var(--ui-color);
 }
 #shopView, #incubatorView, #incubatorList { user-select: none; }
 
-#shopContent::-webkit-scrollbar,
-#shopView::-webkit-scrollbar,
-#dataView::-webkit-scrollbar,
-#achievementView::-webkit-scrollbar,
-#tutorialView::-webkit-scrollbar,
-#settingsView::-webkit-scrollbar,
-#systemLogView::-webkit-scrollbar,
-#incubatorView::-webkit-scrollbar,
-#gpsView::-webkit-scrollbar,
-#declarationView::-webkit-scrollbar,
-#mixerView::-webkit-scrollbar,
-#berryView::-webkit-scrollbar,
-#rosterList::-webkit-scrollbar,
-#tradeContent::-webkit-scrollbar,
-#gachaView::-webkit-scrollbar,
-#gachaHistoryView::-webkit-scrollbar,
-#albumView::-webkit-scrollbar,
-.battle-npc-list::-webkit-scrollbar {
-  width: 4px;
-}
-#shopContent::-webkit-scrollbar-track,
-#shopView::-webkit-scrollbar-track,
-#dataView::-webkit-scrollbar-track,
-#achievementView::-webkit-scrollbar-track,
-#tutorialView::-webkit-scrollbar-track,
-#settingsView::-webkit-scrollbar-track,
-#systemLogView::-webkit-scrollbar-track,
-#incubatorView::-webkit-scrollbar-track,
-#gpsView::-webkit-scrollbar-track,
-#declarationView::-webkit-scrollbar-track,
-#mixerView::-webkit-scrollbar-track,
-#berryView::-webkit-scrollbar-track,
-#rosterList::-webkit-scrollbar-track,
-#tradeContent::-webkit-scrollbar-track,
-#gachaView::-webkit-scrollbar-track,
-#gachaHistoryView::-webkit-scrollbar-track,
-#albumView::-webkit-scrollbar-track,
-.battle-npc-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-#shopContent::-webkit-scrollbar-thumb,
-#shopView::-webkit-scrollbar-thumb,
-#dataView::-webkit-scrollbar-thumb,
-#achievementView::-webkit-scrollbar-thumb,
-#tutorialView::-webkit-scrollbar-thumb,
-#settingsView::-webkit-scrollbar-thumb,
-#systemLogView::-webkit-scrollbar-thumb,
-#incubatorView::-webkit-scrollbar-thumb,
-#gpsView::-webkit-scrollbar-thumb,
-#declarationView::-webkit-scrollbar-thumb,
-#mixerView::-webkit-scrollbar-thumb,
-#berryView::-webkit-scrollbar-thumb,
-#rosterList::-webkit-scrollbar-thumb,
-#tradeContent::-webkit-scrollbar-thumb,
-#gachaView::-webkit-scrollbar-thumb,
-#gachaHistoryView::-webkit-scrollbar-thumb,
-#albumView::-webkit-scrollbar-thumb,
-.battle-npc-list::-webkit-scrollbar-thumb {
-  background: rgba(var(--ui-color-rgb), 0.3);
-  border-radius: 2px;
-}
-#shopContent::-webkit-scrollbar-thumb:hover,
-#shopView::-webkit-scrollbar-thumb:hover,
-#dataView::-webkit-scrollbar-thumb:hover,
-#achievementView::-webkit-scrollbar-thumb:hover,
-#tutorialView::-webkit-scrollbar-thumb:hover,
-#settingsView::-webkit-scrollbar-thumb:hover,
-#systemLogView::-webkit-scrollbar-thumb:hover,
-#incubatorView::-webkit-scrollbar-thumb:hover,
-#gpsView::-webkit-scrollbar-thumb:hover,
-#declarationView::-webkit-scrollbar-thumb:hover,
-#mixerView::-webkit-scrollbar-thumb:hover,
-#berryView::-webkit-scrollbar-thumb:hover,
-#rosterList::-webkit-scrollbar-thumb:hover,
-#tradeContent::-webkit-scrollbar-thumb:hover,
-#gachaView::-webkit-scrollbar-thumb:hover,
-#gachaHistoryView::-webkit-scrollbar-thumb:hover,
-#albumView::-webkit-scrollbar-thumb:hover,
-.battle-npc-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--ui-color-rgb), 0.55);
-}
 .shop-item {
   display: flex;
   align-items: center;
@@ -3544,10 +3432,9 @@ body { margin: 0; padding: 0; cursor: default; }
 
 /* 商店兑换确认文案框（复用遇敌页文字框样式，改为商店内贴底流式布局） */
 .shop-text-box {
-  position: relative;
+  position: absolute; /* 覆盖内容层，不推挤其他元素 */
   width: 100%;
   flex-shrink: 0;
-  animation: shopBoxIn 0.28s ease-out;
   align-items: flex-start; /* 文案顶部对齐，避免与右侧确认按钮重叠 */
 }
 .shop-text-box .text-box-content {
@@ -3569,31 +3456,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 
 /* ===== 设置面板 ===== */
-#settingsView {
-  padding: 4px 3px;
-}
 
-#settingsView,
-#tutorialView,
-#dataView,
-#shopView,
-#gpsView,
-#bountyView,
-#mixerView,
-#berryView,
-#tradeView,
-#battleView,
-#teamView,
-#trainView,
-#nurseryView,
-#casinoView,
-#casinoGameView,
-#mahjongView,
-#moveEditView {
-  align-self: stretch;
-  height: 100%;
-  width: 100%;
-}
 #tutorialContent p {
   margin-bottom: 6px;
 }
@@ -3641,8 +3504,6 @@ body { margin: 0; padding: 0; cursor: default; }
   color: var(--ui-color);
   user-select: none;
 }
-#tutorialList::-webkit-scrollbar { width: 3px; }
-#tutorialList::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb),0.25); border-radius: 2px; }
 .tutorial-nav-item {
   padding: 4px 6px;
   margin-bottom: 2px;
@@ -3679,8 +3540,6 @@ body { margin: 0; padding: 0; cursor: default; }
   line-height: 1.7;
   color: var(--ui-color);
 }
-#tutorialContent::-webkit-scrollbar { width: 3px; }
-#tutorialContent::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb),0.25); border-radius: 2px; }
 #tutorialContent .tutorial-title {
   font-size: 12px;
   font-weight: 700;
@@ -4200,22 +4059,7 @@ body { margin: 0; padding: 0; cursor: default; }
 }
 
 /* === 宝可梦仓库 === */
-/* 批量放生确认按钮 */
-.roster-batch-btn {
-  display: inline-block;
-  padding: 2px 12px;
-  margin-right: 8px;
-  color: #306230;
-  border: 1px solid #306230;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  line-height: 1.6;
-  background: transparent;
-  transition: background 0.15s;
-}
-.roster-batch-btn:hover { background: rgba(48,98,48,0.15); }
+/* 批量放生选中行 */
 .roster-batch-sel {
   background: rgba(255, 210, 127, 0.18) !important;
   outline: 1px solid rgba(255, 210, 127, 0.4);
@@ -4232,10 +4076,17 @@ body { margin: 0; padding: 0; cursor: default; }
 
 /* 列表复用图鉴样式（.pokedex-entry/.pokedex-header/.pokedex-idx/.pokedex-name/.pokedex-star），
    仅图标/个体值/来源列按内容放宽列宽；滚动容器用共用类 .list-scroll */
-#rosterView .pokedex-name {
+.view-list .pokedex-name {
   flex: 0 0 55px; /* 名称列固定宽：宝可梦名最多 5 字，超长省略 */
   max-width: none;
 }
+/* 蛋仓库只有 3 列，名称列容纳 7 字（XX的蛋），个体值列容纳 31/31/31/31/31/31 */
+.nursery-egg-header .pokedex-name,
+.nursery-egg-row .pokedex-name { flex: 0 0 95px; max-width: none; }
+.nursery-egg-header .roster-iv,
+.nursery-egg-row .roster-iv { width: 90px; }
+.nursery-egg-row .pokedex-name { display: flex; align-items: center; }
+.nursery-egg-row .bounty-trade-btn { margin-right: 0; }
 .roster-header, .roster-row { gap: 2px; }
 /* 仓库的闪光星标列更窄，避免图标与编号之间空出太多 */
 .roster-header .pokedex-star, .roster-row .pokedex-star { width: 10px; }
@@ -4495,8 +4346,6 @@ body { margin: 0; padding: 0; cursor: default; }
   gap: 2px;
   padding: 6px 4px;
 }
-.move-edit-list::-webkit-scrollbar { width: 3px; }
-.move-edit-list::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb),0.25); border-radius: 2px; }
 .move-edit-row {
   display: flex;
   align-items: center;
@@ -4544,8 +4393,6 @@ body { margin: 0; padding: 0; cursor: default; }
   border-left: 1px solid rgba(var(--ui-color-rgb),0.15);
   overflow-y: auto;
 }
-.move-edit-detail::-webkit-scrollbar { width: 3px; }
-.move-edit-detail::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb),0.25); border-radius: 2px; }
 .move-edit-detail-empty {
   margin: auto;
   font-size: 11px;
@@ -4589,17 +4436,7 @@ body { margin: 0; padding: 0; cursor: default; }
 .roster-trade-empty { padding: 12px 8px; text-align: center; font-size: 11px; opacity: 0.6; }
 
 /* 悬赏提交列表：复用仓库行样式，行右侧为提交按钮 */
-/* 内容容器必须是 flex 列容器，.bounty-trade-list 的 flex:1 才生效（block 容器下会被内容
-   撑高 → 整页滚动 + 表头吸顶）；min-height:0 允许收缩；交换页不再整页滚动
-   （#tradeView overflow:hidden），普通 offer 列表由 #tradeContent 自己滚动 */
-#bountyContent,
-#tradeContent {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-#tradeContent { overflow-y: auto; }
-/* 容器复刻仓库页观感（内边距/字号/颜色），否则在无样式的 #bountyContent 里会贴边且字体偏大；
+/* #bountyContent / #tradeContent 复用 .list-scroll（flex:1 + overflow-y:auto + min-height:0） */
    结构同仓库页：表头固定在列表上方，行区（.bounty-trade-rows）独立滚动 */
 .bounty-trade-list {
   display: flex;
@@ -4613,12 +4450,8 @@ body { margin: 0; padding: 0; cursor: default; }
 /* 行区：表头下方的独立滚动区域（复用 .list-scroll 布局，右缘对齐滚动条） */
 .bounty-trade-rows.list-scroll {
   margin-right: -6px;
-  padding-right: 2px;
+  padding-right: 0;
 }
-.bounty-trade-rows::-webkit-scrollbar { width: 4px; }
-.bounty-trade-rows::-webkit-scrollbar-track { background: transparent; }
-.bounty-trade-rows::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb), 0.3); border-radius: 2px; }
-.bounty-trade-rows::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.55); }
 .bounty-trade-list .pokedex-name { flex: 0 0 60px; max-width: none; }
 .bounty-trade-head {
   display: flex;
@@ -4702,7 +4535,6 @@ body { margin: 0; padding: 0; cursor: default; }
 .bounty-trade-row[data-trade-view]:hover { background: rgba(255,255,255,0.22); }
 
 /* === 交换广场 === */
-#tradeView { padding: 0 6px 4px; }
 /* 顶部刷新倒计时 */
 #tradeRefreshTip {
   font-size: 10px;
@@ -5816,47 +5648,77 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   flex-direction: column;
   background: var(--screen-bg-light);
   text-align: left;
+  padding: 4px 6px;
 }
-.b-log-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 6px 8px;
+
+/* === 记录列表统一样式（抽卡记录/战绩/系统日志/孵蛋记录/对战记录） === */
+.rec-view {
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 4px 6px;
+  align-self: stretch;
+  margin-bottom: auto;
 }
-.b-log-list::-webkit-scrollbar { width: 4px; }
-.b-log-list::-webkit-scrollbar-track { background: transparent; }
-.b-log-list::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb), 0.3); border-radius: 2px; }
-.b-log-list::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.4); }
-.b-log-line {
+.rec-header {
+  border-bottom: 1px solid var(--ui-color);
+  margin-bottom: 3px;
+  font-size: 10px;
+}
+.rec-empty {
+  padding: 12px 4px;
+  text-align: center;
+  font-size: 11px;
+  color: #888;
+}
+.rec-row {
+  font-size: 10px;
+  line-height: 1.8;
+  padding: 1px 0;
   display: flex;
+  align-items: baseline;
+}
+.rec-time {
+  opacity: 0.6;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+.rec-badge {
+  font-size: 8px;
+  padding: 0 3px;
+  border-radius: 2px;
+  color: #fff;
+  margin: 0 8px;
+  min-width: 18px;
+  text-align: center;
+  display: inline-block;
+}
+.rec-main { flex: 1; }
+.rec-right {
+  flex-shrink: 0;
+  margin-left: 14px;
+}
+/* 对战记录行：圆点指示器 */
+.b-log-page .rec-row {
   align-items: flex-start;
   gap: 5px;
-  font-family: monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #306230;
   border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
   padding: 2px 0;
+  color: #306230;
 }
-.b-log-dot {
+.rec-dot {
   flex-shrink: 0;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   margin-top: 4px;
 }
-.b-log-line.p .b-log-dot { background: #38926e; } /* 我方行动：蓝 */
-.b-log-line.e .b-log-dot { background: #c57373; } /* 敌方行动：红 */
-.b-log-line.n .b-log-dot { background: #73b7c5; } /* 中立提示：战斗绿 */
-.b-log-text { flex: 1; min-width: 0; word-break: break-all; }
-.b-log-text b { font-weight: 800; color: var(--ui-color-dark); }
-.b-log-text .b-move-type { margin-right: 2px; vertical-align: -1px; }
-.b-log-empty {
-  font-size: 11px;
-  color: #888;
-  text-align: center;
-  padding: 20px 0;
-}
+.b-log-page .rec-row.p .rec-dot { background: #38926e; }
+.b-log-page .rec-row.e .rec-dot { background: #c57373; }
+.b-log-page .rec-row.n .rec-dot { background: #73b7c5; }
+.b-log-page .rec-row .rec-main { min-width: 0; word-break: break-all; }
+.b-log-page .rec-row .rec-main b { font-weight: 800; color: var(--ui-color-dark); }
+.b-log-page .rec-row .rec-main .b-move-type { margin-right: 2px; vertical-align: -1px; }
 .b-left {
   flex: 3;
   min-width: 0;
@@ -6661,7 +6523,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .train-walker-tip-status.lazy { color: #ffd18a; }
 
 /* === 饲育屋 App === */
-#nurseryView { position: relative; }
+#nurseryView { position: relative; font-size: 11px; color: var(--ui-color); }
 .nursery-app {
   flex: 1;
   min-height: 0;
@@ -6785,129 +6647,22 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   padding: 0 6px 4px;
   box-sizing: border-box;
 }
-.nursery-egg-header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 0 1px;
-  font-size: 9px;
-  font-weight: 700;
-  opacity: 0.55;
-  user-select: none;
-}
-.nursery-egg-header-name { flex: 1; min-width: 0; }
-.nursery-egg-header-iv { flex-shrink: 0; width: 64px; text-align: right; }
-.nursery-egg-header [data-egg-sort] { cursor: pointer; user-select: none; }
-.nursery-egg-header [data-egg-sort]:hover { opacity: 1; }
-.nursery-egg-header [data-egg-pick-sort] { cursor: pointer; user-select: none; }
-.nursery-egg-header [data-egg-pick-sort]:hover { opacity: 1; }
-.nursery-egg-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  border-bottom: 1px solid rgba(48, 98, 48, 0.08);
-  font-size: 11px;
-  color: var(--ui-color);
-}
-#incubatorEggView .nursery-egg-row {
-  cursor: pointer;
-  transition: background 0.1s;
-}
-#incubatorEggView .nursery-egg-row:hover { background: rgba(var(--ui-color-rgb), 0.08); }
-.nursery-egg-row-name {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.nursery-egg-row-icon {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-.nursery-egg-row-iv {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-}
 .nursery-egg-page .list-scroll { overflow-x: hidden; }
-.nursery-egg-page .list-scroll::-webkit-scrollbar { width: 4px; }
-.nursery-egg-page .list-scroll::-webkit-scrollbar-track { background: transparent; }
-.nursery-egg-page .list-scroll::-webkit-scrollbar-thumb { background: rgba(var(--ui-color-rgb), 0.3); border-radius: 2px; }
-.nursery-pick-page {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  padding: 6px 6px 4px;
-  overflow: hidden;
-}
-.nursery-pick-page .bounty-trade-list {
-  flex: 1;
-  min-height: 0;
-}
-.nursery-pick-page .bounty-trade-rows::-webkit-scrollbar { width: 4px; }
-.nursery-pick-page .bounty-trade-rows::-webkit-scrollbar-track { background: transparent; }
-.nursery-pick-page .bounty-trade-rows::-webkit-scrollbar-thumb {
-  background: rgba(var(--ui-color-rgb), 0.3);
-  border-radius: 2px;
-}
-.nursery-pick-page .bounty-trade-rows::-webkit-scrollbar-thumb:hover { background: rgba(var(--ui-color-rgb), 0.55); }
-.nursery-pick-head {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 2px;
-  padding: 2px 0 6px;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: var(--ui-color-dark);
-}
 /* 标题后跟的小字（目标蛋组） */
 .nursery-pick-egggroup {
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0;
   color: var(--ui-color);
   opacity: 0.72;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-/* 搜索框：标题右侧，紧凑尺寸 */
-.nursery-pick-search {
-  position: relative;
-  flex: 1;
-  max-width: 140px;
-  margin-left: 8px;
-}
-.nursery-pick-search .pokedex-search-input {
-  height: 20px;
-  font-size: 9px;
-  padding: 0 20px 0 6px;
-}
-.nursery-pick-search .pokedex-search-clear {
-  width: 12px;
-  height: 12px;
-  right: 3px;
+  margin-left: 4px;
 }
 
 .nursery-pick-list .bounty-trade-row[data-pick-view] { cursor: pointer; }
 .nursery-pick-list .bounty-trade-row[data-pick-view]:hover { background: rgba(255, 255, 255, 0.22); }
-.nursery-pick-list .roster-ivs[data-tip] { cursor: pointer; }
-.nursery-pick-list .pokedex-header .roster-nature {
-  text-align: right;
-  padding-right: 5px;
-}
+.nursery-pick-list .roster-iv[data-tip] { cursor: pointer; }
 /* 配对面板：两个亲本槽位 + 配对状态 */
 .nursery-pair-row {
   display: flex;

@@ -339,18 +339,18 @@ export function showGachaHistoryView() {
   });
   const partStats = tierOrder.filter(t => tierCount[t]).map(t => `${t}:${tierCount[t]}`).join('  ');
   content.innerHTML = `
-    <div style="border-bottom:1px solid var(--ui-color);margin-bottom:3px;font-size:10px;">卡池${_currentPoolId} · ${logs.length} 抽 · 新卡 ${newCount} · ${partStats}</div>
-    ${logs.length === 0 ? '<div style="padding:12px 4px;text-align:center;">暂无抽卡记录</div>' : ''}
+    <div class="rec-header">卡池${_currentPoolId} · ${logs.length} 抽 · 新卡 ${newCount} · ${partStats}</div>
+    ${logs.length === 0 ? '<div class="rec-empty">暂无抽卡记录</div>' : ''}
     ${logs.map(l => {
     const time = fmtShortTime(l.time);
-    const tierLabel = `<span style="font-size:8px;padding:0 3px;border-radius:2px;color:#fff;margin:0 8px;min-width:18px;text-align:center;display:inline-block;background:${l.tier==='SR'?'#d4850a':l.tier==='R'?'#4477cc':'#7a8a8a'}">${l.tier}</span>`;
+    const tierLabel = `<span class="rec-badge" style="background:${l.tier==='SR'?'#d4850a':l.tier==='R'?'#4477cc':'#7a8a8a'}">${l.tier}</span>`;
     const newLabel = l.isNew
-      ? '<span style="margin-left:14px;color:#4c8d73">NEW</span>'
-      : '<span style="margin-left:14px;opacity:0.35">重复</span>';
-    return `<div style="font-size:10px;line-height:1.8;padding:1px 0;display:flex;align-items:baseline;">
-        <span style="opacity:0.6;margin-right:12px;flex-shrink:0;">${time}</span>
-        ${tierLabel}<span style="flex:1;">${l.cnName}</span>
-        <span style="flex-shrink:0;margin-left:14px;">${newLabel}</span>
+      ? '<span class="rec-right" style="color:#4c8d73">NEW</span>'
+      : '<span class="rec-right" style="opacity:0.35">重复</span>';
+    return `<div class="rec-row">
+        <span class="rec-time">${time}</span>
+        ${tierLabel}<span class="rec-main">${l.cnName}</span>
+        ${newLabel}
       </div>`;
   }).join('')}
   `;

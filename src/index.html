@@ -80,7 +80,7 @@
           <!-- 开场剧情（首次进入） -->
           <div id="introView" style="display:none;"></div>
 
-          <div id="pokedexView" style="display:none;flex-direction:column;">
+          <div id="pokedexView" class="view-fixed view-list" style="display:none;">
             <div class="pokedex-progress" id="pokedexProgress"></div>
             <div class="pokedex-search">
               <div class="pokedex-search-row">
@@ -116,7 +116,7 @@
           </div>
 
           <!-- 手机主页（主菜单） -->
-          <div id="phoneView" style="display:none;flex-direction:column;overflow:hidden;padding:6px 14px 8px;">
+          <div id="phoneView" class="view-fixed" style="display:none;padding:6px 14px 8px;">
             <div id="phoneClock" class="phone-clock">
               <div id="phoneClockDate" class="date"></div>
               <div id="phoneClockTime" class="time"></div>
@@ -129,98 +129,89 @@
           </div>
 
           <!-- 对战（NPC 挑战） -->
-          <div id="battleView" style="display:none;flex-direction:column;overflow:hidden;">
+          <div id="battleView" class="view-fixed" style="display:none;">
             <div id="battleContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
           </div>
 
           <!-- 配队 -->
-          <div id="teamView" style="display:none;flex-direction:column;overflow:hidden;">
+          <div id="teamView" class="view-fixed" style="display:none;">
             <div id="teamContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
           </div>
 
           <!-- 宝可梦训练 -->
-          <div id="trainView" style="display:none;flex-direction:column;overflow:hidden;">
+          <div id="trainView" class="view-fixed" style="display:none;">
             <div id="trainContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
           </div>
 
           <!-- 饲育屋 -->
-          <div id="nurseryView" style="display:none;flex-direction:column;overflow:hidden;">
-            <div id="nurseryContent" style="flex:1;color:var(--ui-color);min-height:0;"></div>
+          <div id="nurseryView" class="view-fixed" style="display:none;">
+            <div id="nurseryContent" style="flex:1;color:var(--ui-color);min-height:0;display:flex;flex-direction:column;"></div>
           </div>
 
           <!-- 游戏厅（首页场景） -->
-          <div id="casinoView" style="display:none;flex-direction:column;overflow:hidden;">
+          <div id="casinoView" class="view-fixed" style="display:none;">
             <div id="casinoContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
           </div>
 
           <!-- 21 点（独立页） -->
-          <div id="casinoGameView" style="display:none;flex-direction:column;overflow:hidden;">
+          <div id="casinoGameView" class="view-fixed" style="display:none;">
             <div id="casinoGameContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
           </div>
 
           <!-- 口袋麻将（独立页） -->
-          <div id="mahjongView" style="display:none;flex-direction:column;overflow:hidden;">
+          <div id="mahjongView" class="view-fixed" style="display:none;">
             <div id="mahjongContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
           </div>
 
           <!-- 抽卡机（gacha） -->
-          <div id="gachaView" style="display:none;flex-direction:column;overflow:hidden;padding:0;">
+          <div id="gachaView" class="view-fixed" style="display:none;">
             <div id="gachaContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
           </div>
 
           <!-- 抽卡记录 -->
-          <div id="gachaHistoryView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 6px;align-self:stretch;margin-bottom:auto;">
-            <div id="gachaHistoryContent" style="flex:1;color:var(--ui-color);"></div>
+          <div id="gachaHistoryView" class="rec-view">
+            <div id="gachaHistoryContent" class="list-scroll"></div>
           </div>
 
           <!-- 21点 / 麻将战绩记录 -->
-          <div id="casinoHistoryView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 6px;align-self:stretch;margin-bottom:auto;">
-            <div id="casinoHistoryContent" style="flex:1;color:var(--ui-color);"></div>
+          <div id="casinoHistoryView" class="rec-view">
+            <div id="casinoHistoryContent" class="list-scroll"></div>
           </div>
 
           <!-- 卡册 -->
-          <div id="albumView" style="display:none;flex-direction:column;overflow:hidden;padding:0;">
+          <div id="albumView" class="view-fixed" style="display:none;">
             <div id="albumContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
           </div>
 
           <!-- GPS 模拟导航 -->
-          <div id="gpsView" style="display:none;flex-direction:column;overflow-y:auto;">
+          <div id="gpsView" class="view-fixed" style="display:none;">
             <div id="gpsContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
           <!-- 地区悬赏 -->
-          <div id="bountyView"
-            style="display:none;flex-direction:column;overflow:hidden;padding:4px 3px;position:relative;">
-            <div id="bountyContent" style="flex:1;color:var(--ui-color);overflow-y:auto;"></div>
+          <div id="bountyView" class="view-fixed" style="display:none;padding:4px 3px;position:relative;">
+            <div id="bountyContent" class="list-scroll"></div>
             <!-- 悬赏提示浮层：非当前地区点「可提交」时提示前往对应地区（固定于页面右上角） -->
             <div id="bountyToast" class="bounty-toast"></div>
           </div>
 
           <!-- 数据统计 -->
-          <div id="dataView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;">
-            <div id="dataContent" style="flex:1;color:var(--ui-color);line-height:1.8;"></div>
+          <div id="dataView" class="view-scroll" style="display:none;">
+            <div id="dataContent" style="line-height:1.8;"></div>
           </div>
 
           <!-- 成就 -->
-          <div id="achievementView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;">
-            <div id="achievementContent" style="flex:1;color:var(--ui-color);"></div>
+          <div id="achievementView" class="view-scroll" style="display:none;">
+            <div id="achievementContent" style="line-height:1.8;"></div>
           </div>
 
           <!-- 商店 -->
-          <div id="shopView" style="display:none;flex-direction:column;overflow:hidden;">
+          <div id="shopView" class="view-fixed" style="display:none;">
             <div id="shopContent" style="flex:1;color:var(--ui-color);overflow-y:auto;padding:4px 3px;"></div>
-            <!-- 兑换确认文案框（类似遇敌页文字框：先记录本次兑换，点"确定"才结算） -->
-            <div id="shopTextBox" class="text-box shop-text-box" style="display:none;">
-              <div id="shopTextBoxContent" class="text-box-content"></div>
-              <div class="shop-confirm-btns">
-                <span id="shopConfirmYes" class="catch-confirm-btn">确定</span>
-                <span id="shopConfirmNo" class="catch-confirm-btn">取消</span>
-              </div>
-            </div>
           </div>
 
           <!-- 设置 -->
-          <div id="settingsView" style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;">
+          <div id="settingsView" class="view-scroll" style="display:none;">
             <div id="settingsContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
@@ -231,13 +222,13 @@
           </div>
 
           <!-- 版权声明 -->
-          <div id="declarationView" style="display:none;flex-direction:column;overflow-y:auto;padding:6px 8px;">
-            <div id="declarationContent" style="flex:1;color:var(--ui-color);"></div>
+          <div id="declarationView" class="view-scroll" style="display:none;padding:6px 0;">
+            <div id="declarationContent" style="flex:1;color:var(--ui-color);padding:0 8px;"></div>
           </div>
 
           <!-- 系统日志 -->
-          <div id="systemLogView" style="display:none;flex-direction:column;overflow-y:auto;">
-            <div id="systemLogContent" style="flex:1;color:var(--ui-color);padding:3px 6px;"></div>
+          <div id="systemLogView" class="rec-view">
+            <div id="systemLogContent" class="list-scroll"></div>
           </div>
 
           <!-- 遇敌状态 -->
@@ -304,22 +295,20 @@
           </div>
 
           <!-- 孵蛋器页面 -->
-          <div id="incubatorView"
-            style="display:none;flex-direction:column;overflow-y:auto;padding:4px 3px;width:100%;height:100%;">
+          <div id="incubatorView" class="rec-view" style="padding:4px 3px;">
             <div class="incubator-head" id="incubatorHead">
               <span></span>
               <button class="incubator-log-btn" id="incubatorLogBtn">孵蛋记录</button>
             </div>
-            <div id="incubatorList"
-              style="flex:1;color:var(--ui-color);display:grid;grid-template-columns:1fr 1fr;gap:5px;align-content:start;">
+            <div id="incubatorList" class="incubator-grid">
             </div>
           </div>
 
           <!-- 放入蛋页面 -->
-          <div id="incubatorEggView" style="display:none;flex-direction:column;overflow:hidden;align-self:stretch;height:100%;color:var(--ui-color);"></div>
+          <div id="incubatorEggView" class="view-fixed" style="display:none;align-self:stretch;height:100%;color:var(--ui-color);"></div>
 
           <!-- 宝可梦仓库 -->
-          <div id="rosterView" style="display:none;flex-direction:column;position:relative;">
+          <div id="rosterView" class="view-fixed view-list" style="display:none;position:relative;">
             <div class="pokedex-progress" id="rosterProgress"></div>
             <div class="pokedex-search">
               <div class="pokedex-search-row">
@@ -367,22 +356,22 @@
           </div>
 
           <!-- 手动配招独立页面 -->
-          <div id="moveEditView" style="display:none;flex-direction:column;overflow:hidden;position:relative;">
+          <div id="moveEditView" class="view-fixed" style="display:none;position:relative;">
             <div id="moveEditContent" style="flex:1;min-height:0;display:flex;flex-direction:column;"></div>
           </div>
 
           <!-- 交换（宝可梦交换） -->
-          <div id="tradeView" style="display:none;flex-direction:column;overflow:hidden;">
-            <div id="tradeContent" style="flex:1;color:var(--ui-color);"></div>
+          <div id="tradeView" class="view-fixed" style="display:none;">
+            <div id="tradeContent" class="list-scroll"></div>
           </div>
 
           <!-- 混合器页面（小游戏，无滚动条） -->
-          <div id="mixerView" style="display:none;flex-direction:column;overflow:hidden;padding:0;">
+          <div id="mixerView" class="view-fixed" style="display:none;">
             <div id="mixerContent" style="flex:1;color:var(--ui-color);"></div>
           </div>
 
           <!-- 农场-->
-          <div id="berryView" style="display:none;flex-direction:column;overflow:hidden;position:relative;">
+          <div id="berryView" class="view-fixed" style="display:none;position:relative;">
             <div id="berryContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);"></div>
           </div>
 

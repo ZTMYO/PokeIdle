@@ -386,9 +386,6 @@ function renderSelect(content, offerId) {
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">交换</button></span>
         </div>`;
       }).join('');
-  // 表头排序指示：当前排序列文本后直接加 ▲/▼（与仓库/图鉴箭头一致）
-  const sortMark = k => k === _tSortBy ? (_tSortDir === 1 ? ' ▲' : ' ▼') : '';
-
   content.innerHTML = `
     <div class="bounty-trade-list">
       <div class="bounty-trade-head">
@@ -397,14 +394,20 @@ function renderSelect(content, offerId) {
       <div class="pokedex-header roster-header">
         <span class="roster-icon"></span>
         <span class="pokedex-star"></span>
-        <span class="roster-ivs" data-sort="iv">个体值${sortMark('iv')}</span>
-        <span class="roster-nature" data-sort="level">等级${sortMark('level')}</span>
+        <span class="roster-ivs" data-sort="iv">个体值</span>
+        <span class="roster-nature" data-sort="level">等级</span>
         <span class="bounty-trade-btn-col">交换</span>
       </div>
       <div class="bounty-trade-rows list-scroll">
         ${rows}
       </div>
     </div>`;
+  // 标记当前排序列
+  const header = content.querySelector('.pokedex-header');
+  if (header && _tSortBy) {
+    const cur = header.querySelector(`[data-sort="${_tSortBy}"]`);
+    if (cur) cur.classList.add(_tSortDir === 1 ? 'sort-asc' : 'sort-desc');
+  }
 
   // 加载个体图标
   content.querySelectorAll('[data-trade-icon]').forEach(el => {

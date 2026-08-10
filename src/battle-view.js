@@ -808,11 +808,11 @@ function setText(t) {
 }
 // 日志实时追加：记录页开着时战斗仍在后台推进，新日志逐条插入列表
 function appendLogLine(t) {
-  const list = $('battleContent')?.querySelector('.battle-fight .b-log-list');
+  const list = $('battleContent')?.querySelector('.battle-fight .list-scroll');
   if (!list) return;
   const line = document.createElement('div');
-  line.className = 'b-log-line ' + logSide(t);
-  line.innerHTML = renderLogLine(t);
+  line.className = 'rec-row ' + logSide(t);
+  line.innerHTML = `<span class="rec-dot"></span><span class="rec-main">${renderLogLine(t)}</span>`;
   list.appendChild(line);
   list.scrollTop = list.scrollHeight;
 }
@@ -856,7 +856,7 @@ function renderLogLine(t) {
       return icon + '<b>' + m + '</b>';
     });
   }
-  return `<span class="b-log-dot"></span><span class="b-log-text">${html}</span>`;
+  return html;
 }
 // 底部右栏（操作按钮 + NPC/回合信息）：仅玩家需要操作时显示，动画播放期间整体隐藏
 function showRight() { const el = $('b-right'); if (el) el.style.display = ''; }
@@ -905,21 +905,25 @@ function showBattleLogs() {
   hideLogMenu();
   const wrap = document.createElement('div');
   wrap.className = 'b-log-page';
+  const header = document.createElement('div');
+  header.className = 'rec-header';
+  header.textContent = `本次对战 ${_battleLogs.length} 条记录`;
   const list = document.createElement('div');
-  list.className = 'b-log-list';
+  list.className = 'list-scroll';
   if (!_battleLogs.length) {
     const empty = document.createElement('div');
-    empty.className = 'b-log-empty';
+    empty.className = 'rec-empty';
     empty.textContent = '暂无对战记录';
     list.appendChild(empty);
   } else {
     for (const t of _battleLogs) {
       const line = document.createElement('div');
-      line.className = 'b-log-line ' + logSide(t);
-      line.innerHTML = renderLogLine(t);
+      line.className = 'rec-row ' + logSide(t);
+      line.innerHTML = `<span class="rec-dot"></span><span class="rec-main">${renderLogLine(t)}</span>`;
       list.appendChild(line);
     }
   }
+  wrap.appendChild(header);
   wrap.appendChild(list);
   host.appendChild(wrap);
   setLogTitle();

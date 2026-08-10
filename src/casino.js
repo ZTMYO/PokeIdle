@@ -666,18 +666,18 @@ export function showCasinoHistoryView(source) {
     return { text: '平', bg: '#7a8a8a' };
   };
   content.innerHTML = `
-    <div style="border-bottom:1px solid var(--ui-color);margin-bottom:3px;font-size:10px;">${title} · ${records.length} 场</div>
-    ${records.length === 0 ? '<div style="padding:12px 4px;text-align:center;">暂无战绩</div>' : ''}
+    <div class="rec-header">${title} · ${records.length} 场</div>
+    ${records.length === 0 ? '<div class="rec-empty">暂无战绩</div>' : ''}
     ${records.map(r => {
     const time = fmtHistoryTime(r.time);
     const b = badge(r);
     const note = isMj ? `下注 ${formatNum(r.stake)} 档` : r.result;
     const color = r.net > 0 ? '#d4850a' : r.net < 0 ? '#b5544e' : 'rgba(255,255,255,0.45)';
-    return `<div style="font-size:10px;line-height:1.8;padding:1px 0;display:flex;align-items:baseline;">
-        <span style="opacity:0.6;margin-right:12px;flex-shrink:0;">${time}</span>
-        <span style="font-size:8px;padding:0 3px;border-radius:2px;color:#fff;margin:0 8px;min-width:30px;text-align:center;display:inline-block;background:${b.bg}">${b.text}</span>
-        <span style="flex:1;">${note}</span>
-        <span style="flex-shrink:0;margin-left:14px;color:${color};">${r.net > 0 ? '+' : ''}${formatNum(r.net)}</span>
+    return `<div class="rec-row">
+        <span class="rec-time">${time}</span>
+        <span class="rec-badge" style="min-width:30px;background:${b.bg}">${b.text}</span>
+        <span class="rec-main">${note}</span>
+        <span class="rec-right" style="color:${color};">${r.net > 0 ? '+' : ''}${formatNum(r.net)}</span>
       </div>`;
   }).join('')}
   `;

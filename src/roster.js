@@ -1,7 +1,7 @@
 // ===== 宝可梦仓库 =====
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
-import { $, showView, tryLoadImage, tryLoadPokemonImage } from './ui.js';
+import { $, showView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
@@ -11,8 +11,8 @@ import { chooseMoves, fallbackMoves } from './moves.js';
 
 // 获得来源 → 中文
 const SOURCE_NAMES = { normal: '野生', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
-// 筛选下拉选项：全部 / 闪光 / 各来源（甜甜蜜不参与筛选）
-const FILTER_OPTIONS = [['', '全部'], ['shiny', '闪光'], ...Object.entries(SOURCE_NAMES).filter(([k]) => k !== 'honey')];
+// 筛选下拉选项：全部 / 闪光 / 神兽 / 各来源（甜甜蜜不参与筛选）
+const FILTER_OPTIONS = [['', '全部'], ['shiny', '闪光'], ['legend', '神兽'], ...Object.entries(SOURCE_NAMES).filter(([k]) => k !== 'honey')];
 // 六围个体值明细（键 → 显示名）
 const IV_KEYS = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速度']];
 
@@ -114,8 +114,12 @@ function renderList() {
   if (!list) return;
   const q = ($('rosterSearchInput')?.value || '').trim();
   let pool = inRoster();
-  // 筛选：闪光 / 来源
+  // 筛选：闪光 / 神兽 / 来源
   if (_filter === 'shiny') pool = pool.filter(p => p.shiny);
+  else if (_filter === 'legend') pool = pool.filter(p => {
+    const poke = getPokemonByIndex(String(p.species));
+    return poke?.legend === true;
+  });
   else if (_filter) pool = pool.filter(p => p.source === _filter);
   // 属性筛选：含有目标属性的宝可梦都筛出来（单属性/双属性均可命中）
   if (_typeFilter) pool = pool.filter(p => {
@@ -198,9 +202,10 @@ function renderList() {
   };
   // 批量模式底部栏
   if (_batchRelease) updateBatchBar();
-  // 右键菜单
+  // 右键菜单（详情页不触发，避免误操作）
   list.oncontextmenu = (e) => {
     e.preventDefault();
+    if (_detailId) return;
     if (_batchRelease) { cancelBatchRelease(); return; }
     showContextMenu(e.clientX, e.clientY);
   };
@@ -1065,26 +1070,19 @@ function toggleBatchRow(row) {
 
 function updateBatchBar() {
   const n = _batchSelected.size;
-  let bar = document.getElementById('rosterBatchBar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'rosterBatchBar';
-    bar.className = 'text-box';
-    bar.style.height = '32px';
-    const view = document.getElementById('rosterView');
-    if (view) view.appendChild(bar);
+  if (n === 0) {
+    hideConfirmBar();
+    return;
   }
-  bar.innerHTML = n > 0
-    ? `<span class="text-box-content">已选中 ${n} 只，确定放生？</span><span class="roster-batch-btn" id="rosterBatchConfirm">确定</span>`
-    : `<span class="text-box-content">请点击列表项选择要放生的宝可梦</span>`;
-  bar.style.display = 'flex';
-  const btn = bar.querySelector('#rosterBatchConfirm');
-  if (btn) btn.onclick = doBatchRelease;
+  showConfirmBar(
+    `已选中 ${n} 只，确定放生？`,
+    () => { doBatchRelease(); return true; }, // 保持显示结果
+    () => cancelBatchRelease()
+  );
 }
 
 function removeBatchBar() {
-  const bar = document.getElementById('rosterBatchBar');
-  if (bar) bar.style.display = 'none';
+  hideConfirmBar();
 }
 
 function doBatchRelease() {
@@ -1103,18 +1101,12 @@ function doBatchRelease() {
   const n = names.length;
   _batchRelease = false;
   _batchSelected = new Set();
-  // 显示结果
-  const bar = document.getElementById('rosterBatchBar');
-  if (bar) {
-    bar.innerHTML = `<span class="text-box-content">已放生 ${n} 只宝可梦</span>`;
-    bar.style.display = 'flex';
-    setTimeout(() => {
-      removeBatchBar();
-      renderList();
-    }, 1500);
-  } else {
+  // 显示结果 1.5 秒后关闭并刷新
+  showConfirmBar(`已放生 ${n} 只宝可梦`, null, null, { noButtons: true });
+  setTimeout(() => {
+    hideConfirmBar();
     renderList();
-  }
+  }, 1500);
 }
 function releasePokemon(id) {
   const p = (gameData.roster || []).find(r => r.id === id);
