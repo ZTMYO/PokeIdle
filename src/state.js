@@ -513,6 +513,8 @@ export function calcOffline(save) {
     }
     // 交换广场：刷新倒计时只按在线时间累计，离线不刷新
     if (save.trades?.refreshedAt) save.trades.refreshedAt += ms;
+    // 随从：跟随倒计时只按在线时间累计，离线期间不走表（关闭不计算）
+    if (save.follower?.endsAt) save.follower.endsAt += ms;
   }
   return elapsed;
 }

@@ -106,9 +106,12 @@ export function getActiveBoost() {
   const f = gameData?.follower;
   if (!f || !f.endsAt) return null;
   if (Date.now() >= f.endsAt) {
-    // 过期清理：直接清存档，不走 stopFollower 避免与全局 hook 互相递归
+    // 过期清理：清存档并同步移除路上 DOM，避免出现"路上还跟着、进 app 已是抽卡页"的残留状态。
+    // 直接走内存清理，不走 stopFollower 避免与全局 hook 互相递归
     gameData.follower = null;
     saveGame();
+    removeFollowerFromRoad();
+    syncFollowerBoostHook();
     return null;
   }
   return {
