@@ -55,21 +55,10 @@ let _tradeDetail = null;
 let _tradeListScroll = 0;
 // 告别场景播放中，防重入
 let _goodbyeAnim = false;
-// 处于「选择交出个体」子页面时冻结刷新倒计时的起始时间戳（0 = 未在暂停）
-let _tradePauseStart = 0;
-
-// 进入选择子页面：冻结波次刷新倒计时，避免玩家还在纠结时到期刷新
-function pauseTradeRefresh() {
-  if (!_tradePauseStart) _tradePauseStart = Date.now();
-}
-// 离开选择子页面：把暂停期补回刷新基准，等效恢复倒计时
-function resumeTradeRefresh() {
-  if (_tradePauseStart && gameData.trades) {
-    gameData.trades.refreshedAt += Date.now() - _tradePauseStart;
-    _tradePauseStart = 0;
-    saveGame();
-  }
-}
+// 交换页定时刷新已由 interval 在子页面时跳过（见 startRefreshCountdown 内 _tradeMode/_tradeDetail 判断），
+// 无需额外冻结刷新倒计时；以下保留为空实现兼容旧调用点。
+function pauseTradeRefresh() {}
+function resumeTradeRefresh() {}
 
 // ---------- 波次生成 ----------
 // 权重 = 0.3 + 稀有度 × 0.7（与悬赏选角一致的稀有度倾向）

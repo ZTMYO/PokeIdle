@@ -201,12 +201,14 @@ function _massFrame() {
   if (!_massRafActive) return;
   const mo = gameData?.massOutbreak;
   const runOk = !!mo && phase === 'idle' && inMassZone()
-    && $('idleView')?.style.display !== 'none' && road.isActive();
+    && $('idleView')?.style.display !== 'none';
   if (!runOk) {
     stopMassRaf();
     despawnMassPoke();
     return;
   }
+  // 道路暂停（拾取道具等）：宝可梦原地等待，捡完恢复滚动，避免"捡完球 icon 消失"
+  if (!road.isActive()) { requestAnimationFrame(_massFrame); return; }
   if (road.isBike()) { requestAnimationFrame(_massFrame); return; }
 
   // 无精灵且到点 → 生成下一只（nextSpawnAt 初始 0，进区域立即出现）
@@ -233,8 +235,9 @@ function stopMassRaf() {
 
 function updateMassSpawner(now) {
   const mo = getMassOutbreak();
+  // 注意不含 road.isActive()：拾取道具等道路暂停时保持 RAF，由 _massFrame 原地等待，避免捡完球 icon 消失
   const shouldRun = !!mo && phase === 'idle' && inMassZone()
-    && $('idleView')?.style.display !== 'none' && road.isActive();
+    && $('idleView')?.style.display !== 'none';
   if (!shouldRun) { stopMassRaf(); despawnMassPoke(); return; }
   // 大量出没事件点可能落在自行车路段上：骑行中事件宝可梦不滚动、普通遭遇也不触发，
   // 玩家到了点位却在骑车会错过事件。进入事件区域立即强制下车，恢复正常遭遇等非骑行功能。

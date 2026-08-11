@@ -286,7 +286,7 @@ export const RIICHI_COST = 50;         // 立直费用（游戏币）
 export const FOLLOWER_DRAW_COST = 100;              // 单抽糖果价格
 export const FOLLOWER_TIER_CHANCE = { N: 0.55, R: 0.30, SR: 0.12, UR: 0.03 }; // 稀有度档位概率
 export const FOLLOWER_TIER_DUR = { N: 15, R: 20, SR: 30, UR: 60 };            // 跟随时长（分钟）
-export const FOLLOWER_TIER_BOOST = { N: 0.08, R: 0.09, SR: 0.10, UR: 0.12 };  // 增益幅度（稀有度缓递增）
+export const FOLLOWER_TIER_BOOST = { N: 0.08, R: 0.10, SR: 0.12, UR: 0.15 };  // 增益幅度（稀有度缓递增）
 // 宝可梦主属性 → 随从类别（9 类）
 export const FOLLOWER_TYPE_GROUP = {
   '飞行': 'bike', '妖精': 'bike',

@@ -787,9 +787,10 @@ function startFollowerAnim() {
   _followerFrame = 0;
   _followerLastSwap = performance.now();
   const frameW = img.naturalWidth / _followerFrameCount;
-  // 主角拾取道具动画时随从停下，定格在第 3 帧（与主角姿势对应）
+  // 主角拾取道具 / 钓鱼动作时随从停下，定格在第 3 帧（与主角姿势对应）
   function isStopped() {
-    return $('walkGif')?.classList.contains('get-item');
+    const wg = $('walkGif');
+    return wg ? (wg.classList.contains('get-item') || wg.classList.contains('fishing')) : false;
   }
   // 主角离开主界面/遭遇/战斗时随从隐藏，回主界面自动恢复（每帧同步，同主角动画的隐现节奏）
   function shouldHide() {

@@ -293,7 +293,6 @@ function _encPokeFrame() {
   // 图标丢失（图片加载失败被移除）：结束本次滚动，稍后重新调度遇敌
   if (!_encPokeEl) { despawnEncounterPoke(); scheduleNextEncounter(); return; }
   const isIdleView = $('idleView')?.style.display !== 'none';
-  // 后台挂机：图标隐藏但继续滚动，碰到后按后台流程自动处理
   if (!isIdleView) { _encPokeEl.style.display = 'none'; requestAnimationFrame(_encPokeFrame); return; }
   // 道路暂停（拾取道具等）：原地等待
   if (!road.isActive()) { requestAnimationFrame(_encPokeFrame); return; }
