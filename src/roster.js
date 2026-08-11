@@ -201,7 +201,7 @@ function renderList() {
     ? `<div class="roster-empty">${_picker ? '没有可选择的宝可梦' : '仓库空空如也，去捕获一些宝可梦吧'}</div>`
     : sorted.map(p => {
         const sel = _batchRelease && _batchSelected.has(p.id);
-        return rowHtml(p).replace('<div class="pokedex-entry roster-row"', 
+        return rowHtml(p).replace('<div class="pokedex-entry roster-row"',
           `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}"`);
       }).join('');
   // 加载个体图标
@@ -963,7 +963,7 @@ function renderMoveDetail(p, ids) {
     <div class="move-edit-detail-stats">
       <div><span>类别</span><b>${catIconHtml(mv)}</b></div>
       <div><span>威力</span><b>${mv.power ?? '—'}</b></div>
-      <div><span>命中</span><b>${mv.accuracy ?? '—'}</b></div>
+      <div><span>命中</span><b>${mv.accuracy == null ? '—' : mv.accuracy === 0 ? '必中' : mv.accuracy}</b></div>
     </div>
     <div class="move-edit-detail-desc">${moveDesc(mv)}</div>`;
 }

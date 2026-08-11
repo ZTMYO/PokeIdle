@@ -3267,6 +3267,8 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 }
 /* 来源筛选三级菜单：一级=来源，二级=普通/神兽，三级=闪光（hover 逐级展开） */
 #rosterFilterDropdown { max-height: none; overflow: visible; padding: 2px 0; }
+/* 图鉴解锁/稀有度/闪光筛选三级菜单（同仓库样式） */
+#pokedexStatusDropdown { max-height: none; overflow: visible; padding: 2px 0; }
 .roster-filter-item {
   position: relative;
   display: flex;
@@ -3277,7 +3279,6 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   font-size: 10px;
   color: var(--ui-color);
   cursor: pointer;
-  border-bottom: 1px solid rgba(var(--ui-color-rgb),0.06);
   white-space: nowrap;
 }
 .roster-filter-item:hover {
@@ -3288,9 +3289,13 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   flex: 1;
   cursor: pointer;
 }
+/* 选中态：整行背景高亮（优先于 hover），与 .region-dropdown-item.active 视觉一致 */
+.roster-filter-item:has(> .roster-filter-src.active),
+.roster-filter-item:has(> .roster-filter-leaf.active) {
+  background: rgba(var(--ui-color-rgb),0.12);
+}
 .roster-filter-src.active,
 .roster-filter-leaf.active {
-  background: rgba(var(--ui-color-rgb),0.12);
   font-weight: 700;
 }
 .roster-filter-arrow { font-size: 8px; opacity: 0.6; }
@@ -3985,7 +3990,6 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 8px;
   padding: 5px 4px; /* 与 .auto-catch-row 左右内边距一致，label 对齐 */
 }
 .reset-save-btn {
@@ -4612,6 +4616,8 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 }
 .trade-row:last-child { border-bottom: none; }
 .trade-row.traded { opacity: 0.5; }
+/* 交换忽略后的行淡化：右键该行可忽略/恢复（忽略后不再红点提醒） */
+.trade-row.ignored { opacity: 0.45; }
 /* 主行：NPC 图 + 给出图标 + 需求文字 + 交换按钮 */
 .trade-main {
   display: flex;

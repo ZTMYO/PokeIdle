@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX,
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX,
   MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX,
   MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE,
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY,
@@ -920,6 +920,10 @@ export function renderSettings(container, s) {
           <span class="auto-catch-label">重置存档</span>
           <span class="reset-save-btn" id="resetSaveBtn">重置</span>
         </div>
+        <div class="reset-save-row">
+          <span class="auto-catch-label">刷新游戏</span>
+          <span class="reset-save-btn" id="reloadGameBtn">刷新</span>
+        </div>
       </div>
       <a href="https://github.com/ZTMYO/PokeIdle" id="githubLink" class="settings-footer-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 1024 1024" width="16" height="16" style="flex-shrink:0;"><use xlink:href="./icons/sprites.svg#icon-github"/></svg>
@@ -973,6 +977,11 @@ export function renderSettings(container, s) {
       return;
     }
     resetSave();
+  });
+  // 刷新游戏：先保存再重载，等效 Ctrl+R 调试刷新
+  container.querySelector('#reloadGameBtn')?.addEventListener('click', () => {
+    saveGame();
+    location.reload();
   });
   // 导出存档：调用 Tauri 命令打开目录选择器，导出存档并上调 lastSaveTime
   container.querySelector('#exportSaveBtn')?.addEventListener('click', async () => {
@@ -1478,7 +1487,8 @@ const TUTORIAL_SECTIONS = [
     title: '交换',
     html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出想要的宝可梦与愿意给的宝可梦，有 <b>${TRADE_SHINY_CHANCE * 100}</b>% 的概率给出闪光宝可梦。</p>`
       + `<p>NPC 有 <b>${TRADE_LEVEL_CHANCE * 100}</b>% 的概率指定想要的宝可梦<b>等级下限</b>（<b>${TRADE_WANT_LEVEL_MIN}~${TRADE_WANT_LEVEL_MAX}</b> 级）：个体必须达到等级要求才能提交。孵化攒下的 1 级宝可梦可用<b>经验糖果</b>快速拉到等级线（详见「<b>经验糖果</b>」章节）。</p>`
-      + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「<b>交换</b>」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`,
+      + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「<b>交换</b>」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`
+      + `<p>右键可交换的条目可「<b>忽略</b>」：忽略后不再计入手机主页的红点提醒，但随时可右键恢复，忽略后仍可正常交换。</p>`,
   },
   {
     title: '场景',
@@ -1503,6 +1513,7 @@ const TUTORIAL_SECTIONS = [
         ['高级球', `<b>${CATCH_RATES['ultra-ball'] * 100}</b>%`],
         ['大师球', `<b>${CATCH_RATES['master-ball'] * 100}</b>%`],
       ], ['球种', '捕获率'], [48, 'auto'])
+      + `<p>捕获率 = 球种基础率 × 宝可梦捕获率 × 丢球加成。高级球还额外附加 <b>${(ULTRA_BALL_ADD * 100)}%</b> 绝对捕获率，对捕获率低的<b>稀有/神兽</b>增幅更明显，抓神兽建议用高级球。</p>`
       + `<p>每一次捕捉失败后宝可梦都有几率<b>挣脱逃跑</b>（首球 <b>${FLEE_CHANCE * 100}</b>%，每多丢一球 <b>+${FLEE_CHANCE_INC * 100}</b>%，上限 <b>${FLEE_CHANCE_MAX * 100}</b>%）。</p>`
       + `<p>当逃跑率达到上限后，每多丢一球捕获率 <b>+${Math.round(CATCH_BONUS_INC * 100)}</b>%，无上限。</p>`
       + `<p>也可主动点击"逃跑"按钮逃离宝可梦。</p>`,
@@ -1675,7 +1686,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>第二页打开<b>游戏厅</b>应用，点击<b>口袋麻将</b>进入。</p>`
       + `<p><b>基础规则</b>：凑齐<b>三组相同宝可梦的刻子</b>（每组 3 张同种牌）即可胡牌。每局 <b>${HAND_SIZE}</b> 张手牌起手，轮流<b>摸 1 打 1</b>，凑满 9 张胡牌。</p>`
       + `<p><b>碰</b>：他家打出与你手牌 2 张相同的牌时可碰成副露。<b>荣和</b>：他家弃牌直接凑齐你的最后一组刻子。<b>自摸</b>：自己摸牌成胡。</p>`
-      + `<p><b>立直</b>：门清（无副露）听牌时可支付 ${RIICHI_COST} 游戏币宣言立直，立直后只能打刚摸的牌。</p>`
+      + `<p><b>立直</b>：门清（无副露）听牌时可支付 ${RIICHI_COST} 游戏币宣言立直，立直后只能打刚摸的牌；若立直后<b>自摸或荣和</b>，立直棒 ${RIICHI_COST} 游戏币<b>随胡牌一并退还</b>。</p>`
       + `<p>赢家按番数计算倍率（底倍 ×2 + 番数），番型举例：</p>`
       + tutorialTable([
           ['立直 / 自摸 / 一发 / 门清 / 海底', '各 +1', '流程役'],

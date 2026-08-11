@@ -45,7 +45,7 @@ import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
 import { helperTick, refreshBerryView } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
-import { restorePokedex, setupRegionDropdown,
+import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor } from './roster.js';
 import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from './trade.js';
@@ -1130,6 +1130,10 @@ async function init() {
   setupPokedexSearch();
   // 地区筛选
   setupRegionDropdown();
+  // 解锁/稀有度/闪光多级筛选
+  setupStatusDropdown();
+  // 属性筛选
+  setupTypeFilter();
 
   // 标题栏拖拽窗口：覆盖 title-bar 全部区域（含 appTitle 与返回图标），排除窗口控制按钮。
   // Tauri 的 data-tauri-drag-region 只对 mousedown 目标自身带属性的元素生效，

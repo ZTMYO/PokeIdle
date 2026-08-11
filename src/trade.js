@@ -3,7 +3,7 @@
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
 import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { TYPE_COLORS } from './items.js';
@@ -72,8 +72,10 @@ function weightedIndex(pool) {
   return pool.length - 1;
 }
 
-// 给出的宝可梦个体值：随机生成，总个体值太低时补强 1~2 项到 31，保证交换物有价值
-function rollTradeIvs() {
+// 给出的宝可梦个体值：神兽保底 3 项 31（与玩家捕获到的一致），
+// 普通宝可梦随机生成，总个体值太低时补强 1~2 项到 31，保证交换物有价值
+function rollTradeIvs(isLegend) {
+  if (isLegend) return rollLegendIvs();
   const ivs = rollIvs();
   const sum = IV_KEYS.reduce((a, k) => a + ivs[k], 0);
   if (sum < TRADE_IV_SUM_MIN) {
@@ -99,7 +101,7 @@ function makeOffer(npc) {
       // 随从增益：trade 类提升交换 NPC 给出闪光的概率
       shiny: Math.random() < (window.__followerBoostMechanic?.('tradeShiny', TRADE_SHINY_CHANCE) ?? TRADE_SHINY_CHANCE),
       nature: rollNature(),
-      ivs: rollTradeIvs(),
+      ivs: rollTradeIvs(givePoke.legend === true), // 神兽保底 3 项 31
       level: randInt(1, TRADE_GIVE_LEVEL_MAX),
     },
     traded: false,
@@ -143,14 +145,14 @@ function eligible(o) {
     && (!o.want.iv || !p.ivs || (p.ivs[o.want.iv.stat] ?? 0) >= o.want.iv.min));
 }
 
-// 是否有可交换的宝可梦（手机主页红点）：存在未交换且仓库有符合要求个体的 offer
+// 是否有可交换的宝可梦（手机主页红点）：存在未交换、未忽略且仓库有符合要求个体的 offer
 export function hasTradableOffers() {
-  return (gameData?.trades?.offers || []).some(o => !o.traded && eligible(o).length > 0);
+  return (gameData?.trades?.offers || []).some(o => !o.traded && !o.ignored && eligible(o).length > 0);
 }
 
 // 可交换 offer 数量（托盘悬停提示用）
 export function countTradableOffers() {
-  return (gameData?.trades?.offers || []).filter(o => !o.traded && eligible(o).length > 0).length;
+  return (gameData?.trades?.offers || []).filter(o => !o.traded && !o.ignored && eligible(o).length > 0).length;
 }
 
 // ---------- 渲染 ----------
@@ -226,6 +228,17 @@ export function renderTrade() {
     const poke = o && getPokemonByIndex(o.give.species);
     if (poke?.icon) tryLoadImage(el, poke.icon);
   });
+  // 右键未交换的 offer 行：弹出「忽略/恢复」菜单（可去掉手机主页红点，参考悬赏右键）
+  content.oncontextmenu = (e) => {
+    const row = e.target.closest('.trade-row');
+    if (!row) return;
+    const offerBtn = row.querySelector('[data-offer]');
+    if (!offerBtn || offerBtn.disabled) return; // 已交换/未拥有无需提醒
+    const o = offers.find(x => x.id === offerBtn.dataset.offer);
+    if (!o) return;
+    e.preventDefault();
+    showTradeContextMenu(!!o.ignored, offerBtn.dataset.offer, e.clientX, e.clientY);
+  };
 }
 
 // 单张 offer 卡片：NPC 行走动画 + 想要/给出说明 + 交换按钮
@@ -238,6 +251,7 @@ function offerCard(o) {
   const givePoke = getPokemonByIndex(o.give.species);
   if (!wantPoke || !givePoke) return '';
   const traded = !!o.traded;
+  const ignored = !!o.ignored;
   const count = eligible(o).length;
 
   // 需求连成一句话：想要 Lv30以上 ，攻击 ≥ 26 的雌性皮卡丘
@@ -255,7 +269,7 @@ function offerCard(o) {
   const jumpDelay = '-' + (Math.random() * 1.2).toFixed(2);
 
   return `
-    <div class="trade-row${traded ? ' traded' : ''}">
+    <div class="trade-row${traded ? ' traded' : ignored ? ' ignored' : ''}">
       <div class="trade-main">
         <div class="npc-sprite" style="${npcPos}"></div>
         <button class="trade-give" style="animation-delay:${jumpDelay}s" data-give-detail="${o.id}" title="查看${givePoke.name}详情">${giveIcon}</button>
@@ -538,6 +552,49 @@ function doTrade(offerId, rid) {
     },
     onCancel: () => { _goodbyeAnim = false; },
   });
+}
+
+// 交换右键菜单：在右键位置弹出「忽略/恢复」项（样式复用商店批量购买菜单）
+function showTradeContextMenu(ignored, offerId, x, y) {
+  hideTradeContextMenu();
+  let menu = $('tradeCtxMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'tradeCtxMenu';
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+  }
+  menu.innerHTML = `<div class="shop-ctx-item" data-ctx-offer="${offerId}">${ignored ? '恢复红点提醒' : '忽略此交换'}</div>`;
+  menu.style.display = '';
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = Math.max(0, Math.min(x - 24, window.innerWidth - mw - 4)) + 'px';
+  menu.style.top = Math.max(0, Math.min(y, window.innerHeight - mh - 4)) + 'px';
+  // 菜单内点击不触发外部关闭；点击外部任意位置关闭
+  menu.addEventListener('pointerdown', (e) => e.stopPropagation());
+  menu.onclick = (e) => {
+    const opt = e.target.closest('.shop-ctx-item');
+    if (!opt) return;
+    hideTradeContextMenu();
+    toggleIgnoreOffer(opt.dataset.ctxOffer);
+  };
+  document.addEventListener('pointerdown', hideTradeContextMenu);
+}
+
+function hideTradeContextMenu() {
+  const menu = $('tradeCtxMenu');
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('pointerdown', hideTradeContextMenu);
+}
+
+// 切换 offer「忽略」状态：忽略后不再计入手机主页红点与托盘可交换计数，但随时可恢复/正常交换
+function toggleIgnoreOffer(offerId) {
+  const o = (gameData.trades?.offers || []).find(x => x.id === offerId);
+  if (!o) return;
+  o.ignored = !o.ignored;
+  saveGame();
+  renderTrade();
+  // 刷新手机主页红点与托盘提示
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trade-wave-changed'));
 }
 
 // ---------- 事件绑定 ----------

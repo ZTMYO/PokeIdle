@@ -630,15 +630,24 @@ function startFollowerRoll() {
   // 每次抽卡重新随机生成整批（与预览走马灯无关，避免提前暴露卡池）
   let html = '';
   _rollItems = [];
+  const rollPaths = []; // 本批用图先抢载进缓存，渲染后不闪现未加载状态
   for (let i = 0; i < itemCount; i++) {
     const p = i === targetIdx
       ? (getPokemonByIndex(_drawResult.index) || pool[0])
       : pool[Math.floor(Math.random() * pool.length)];
     _rollItems.push(p);
+    const rel = `./pokemon-data/pokemon-move/${String(p.index).padStart(4,'0')}-${p.name}.png`;
+    rollPaths.push(rel);
     html += `<div class="follower-roll-item">
-      <img class="follower-roll-img" data-src="./pokemon-data/pokemon-move/${String(p.index).padStart(4,'0')}-${p.name}.png" alt="${p.name}">
+      <img class="follower-roll-img" data-src="${rel}" alt="${p.name}">
     </div>`;
   }
+  // 渲染前先抢载本批全部图片进缓存，滚动开始后直接命中，不闪现未加载状态
+  // 用临时 img 走标准加载通道（成功自动进 _imgCache）
+  rollPaths.forEach(rel => {
+    const probe = new Image();
+    tryLoadImage(probe, rel);
+  });
   track.innerHTML = html;
   track.querySelectorAll('.follower-roll-img').forEach(img => {
     const rel = img.dataset.src;
@@ -688,13 +697,21 @@ function startMultiRoll() {
   const itemCount = 44;
   let html = '';
   _rollItems = [];
+  const rollPaths = []; // 本批用图先抢载进缓存，渲染后不闪现未加载状态
   for (let k = 0; k < itemCount; k++) {
     const p = pool[Math.floor(Math.random() * pool.length)];
     _rollItems.push(p);
+    const rel = `./pokemon-data/pokemon-move/${String(p.index).padStart(4,'0')}-${p.name}.png`;
+    rollPaths.push(rel);
     html += `<div class="follower-roll-item">
-      <img class="follower-roll-img" data-src="./pokemon-data/pokemon-move/${String(p.index).padStart(4,'0')}-${p.name}.png" alt="${p.name}">
+      <img class="follower-roll-img" data-src="${rel}" alt="${p.name}">
     </div>`;
   }
+  // 渲染前先抢载本批全部图片进缓存，滚动开始后直接命中，不闪现未加载状态
+  rollPaths.forEach(rel => {
+    const probe = new Image();
+    tryLoadImage(probe, rel);
+  });
   track.innerHTML = html;
   track.querySelectorAll('.follower-roll-img').forEach(img => {
     const rel = img.dataset.src;

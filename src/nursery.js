@@ -51,10 +51,9 @@ for (let r = 0; r < NURSERY.h; r++) {
   }
 }
 
-// 繁殖特例编号
-const DITTO = 132;      // 百变怪：万能配对
-const MANAPHY = 490;    // 玛纳霏：只能与百变怪繁殖（产霏欧纳）
-const PHIONE = 489;     // 霏欧纳：数据已修正为未发现群，禁止繁殖
+// 繁殖特例编号（与图鉴 index 一致：补前导零，保证 getPokemonByIndex 命中）
+const DITTO = '0132';    // 百变怪：万能配对
+const MANAPHY = '0490';  // 玛纳霏：只能与百变怪繁殖（产玛纳霏）
 // 幼年宝可梦 / 尼多娜·尼多后 / 神兽幻兽等：官方蛋组均为"未发现群"，由 noEggGroup 统一覆盖，无需特判
 
 let _timer = null;
@@ -102,14 +101,15 @@ export function ensureNursery() {
 // 类型1 常规：性别一雄一雌 + 至少共用 1 个蛋组 + 都不属未发现群
 // 类型2 百变怪：一方百变怪 + 另一方不属未发现群（无视性别）
 export function checkPairing(entryA, entryB) {
-  const aDitto = Number(entryA.species) === DITTO;
-  const bDitto = Number(entryB.species) === DITTO;
+  const aDitto = String(entryA.species) === DITTO;
+  const bDitto = String(entryB.species) === DITTO;
   if (aDitto && bDitto) return { ok: false, reason: '百变怪之间无法繁殖' };
   if (aDitto || bDitto) {
     const other = aDitto ? entryB : entryA;
     const poke = getPokemonByIndex(String(other.species));
     if (!poke || poke.noEggGroup) return { ok: false, reason: '另一只属于未发现蛋组，无法繁殖' };
-    if (Number(other.species) === MANAPHY) return { ok: true, mode: 'ditto', childSpecies: PHIONE, shared: ['百变怪'] };
+    // 百变怪与玛纳霏：后代为玛纳霏本身（原版规则是产霏欧纳，这里统一为亲本物种）
+    if (String(other.species) === MANAPHY) return { ok: true, mode: 'ditto', childSpecies: MANAPHY, shared: ['百变怪'] };
     return { ok: true, mode: 'ditto', childSpecies: other.species, shared: ['百变怪'] };
   }
   const ga = ensureGender(entryA);
@@ -120,7 +120,7 @@ export function checkPairing(entryA, entryB) {
   const pa = getPokemonByIndex(String(entryA.species));
   const pb = getPokemonByIndex(String(entryB.species));
   if (!pa || !pb || pa.noEggGroup || pb.noEggGroup) return { ok: false, reason: '属于未发现蛋组，无法繁殖' };
-  if (Number(entryA.species) === MANAPHY || Number(entryB.species) === MANAPHY) {
+  if (String(entryA.species) === MANAPHY || String(entryB.species) === MANAPHY) {
     return { ok: false, reason: '玛纳霏只能与百变怪繁殖' };
   }
   const shared = (pa.eggGroup || []).filter(g => (pb.eggGroup || []).includes(g));
@@ -139,7 +139,7 @@ function pairRole(ea, eb, sid) {
   const r = checkPairing(ea, eb);
   if (!r || !r.ok) return 'father';
   if (r.mode !== 'ditto') return ensureGender(entry) === 'female' ? 'mother' : 'father';
-  if (Number(entry.species) === DITTO) {
+  if (String(entry.species) === DITTO) {
     return ensureGender(other) === 'male' ? 'mother' : 'father';
   }
   return ensureGender(entry) === 'male' ? 'father' : 'mother';

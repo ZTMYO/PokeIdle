@@ -93,7 +93,7 @@ export function createMon(pokeData, level, ivsObj, natureKey, moveIds) {
 // ---------- 命中 & 伤害 ----------
 function hit(actor, target, mv, ef, events, ctx = null) {
   const acc = mv.accuracy;
-  if (acc != null) {
+  if (acc != null && acc !== 0) {
     // 命中率/闪避率等级修正：命中等级×2/8~8/2，闪避等级反向
     const accMult = STAGE_MULT[(actor.stages[5] || 0) - (target.stages[6] || 0) + 6];
     if (Math.random() * 100 > acc * accMult) {
@@ -107,8 +107,8 @@ function hit(actor, target, mv, ef, events, ctx = null) {
     events.push(msg(`${mv.name}对${target.name}没有效果…`));
     return false;
   }
-  // 守住：本回合免疫一切招式伤害（专用 block 事件让播放层做护盾挡下反馈）
-  if (target.protected) {
+  // 守住：本回合免疫招式伤害，但必中招式（accuracy 0）可穿透守住命中（官方：命中—的招式不受守住影响）
+  if (target.protected && mv.accuracy !== 0) {
     events.push({ t: 'block', who: target.name, uid: target.uid, text: `${target.name}用守住挡住了${mv.name}！` });
     return false;
   }
@@ -291,7 +291,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       let dmg = names[mv.name];
       if (dmg == null) dmg = actor.level; // 地球上投/黑夜魔影：等值等级伤害
       const acc = mv.accuracy;
-      if (acc != null && Math.random() * 100 > acc) {
+      if (acc != null && acc !== 0 && Math.random() * 100 > acc) {
         events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }
@@ -546,7 +546,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     }
     case 'status': {
       const acc = mv.accuracy;
-      if (acc != null && Math.random() * 100 > acc) {
+      if (acc != null && acc !== 0 && Math.random() * 100 > acc) {
         events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }
@@ -556,7 +556,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     case 'attract': {
       // 诱惑：仅异性之间生效，任一方无性别则无效；成功后目标陷入"着迷"状态
       const acc = mv.accuracy;
-      if (acc != null && Math.random() * 100 > acc) {
+      if (acc != null && acc !== 0 && Math.random() * 100 > acc) {
         events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }
@@ -583,7 +583,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     case 'stat': {
       if (ef.target === 'foe') {
         const acc = mv.accuracy;
-        if (acc != null && Math.random() * 100 > acc) {
+        if (acc != null && acc !== 0 && Math.random() * 100 > acc) {
           events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
           break;
         }
@@ -609,7 +609,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     }
     case 'leechSeed': {
       const acc = mv.accuracy;
-      if (acc != null && Math.random() * 100 > acc) {
+      if (acc != null && acc !== 0 && Math.random() * 100 > acc) {
         events.push({ t: 'miss', who: actor.name, uid: actor.uid, text: `${actor.name}的${mv.name}没有命中！` });
         break;
       }

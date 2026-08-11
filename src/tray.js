@@ -258,6 +258,21 @@ function buildStatusText() {
     else farmTxt = '空闲';
   }
 
+  // 饲育屋：繁殖中（含轮次）/ 待取蛋 / 已配对未开始 / 空闲
+  let nurseryTxt = '空闲';
+  if (g && g.nursery) {
+    const n = g.nursery;
+    if (n.breeding) {
+      const b = n.breeding;
+      nurseryTxt = b.roundsDone >= b.roundsTotal
+        ? '待取蛋'
+        : `繁殖中 ${b.roundsDone + 1}/${b.roundsTotal} 轮`;
+    } else if (Array.isArray(n.parents)) {
+      const cnt = n.parents.filter(p => p).length;
+      if (cnt > 0) nurseryTxt = `已配对 ${cnt}/2`;
+    }
+  }
+
   let bountyTxt = '无';
   if (g && g.bounty && Array.isArray(g.bounty.rewards)) {
     // 地区悬赏：统计全部地区已完成条数 / 总条数
@@ -271,7 +286,7 @@ function buildStatusText() {
   let tradeTxt = '可交换: 0';
   if (g) tradeTxt = `可交换: ${countTradableOffers()}`;
 
-  return ['地点：' + loc, '主角：' + hero, '模式：' + mode, '农场：' + farmTxt, '悬赏：' + bountyTxt, tradeTxt, egg].join('\n');
+  return ['地点：' + loc, '主角：' + hero, '模式：' + mode, '农场：' + farmTxt, '饲育屋：' + nurseryTxt, '悬赏：' + bountyTxt, tradeTxt, egg].join('\n');
 }
 
 // 推送悬停状态文本

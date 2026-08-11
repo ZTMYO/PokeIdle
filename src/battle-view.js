@@ -1965,7 +1965,7 @@ function askPlayerMove(battle) {
           </div>
           <div class="b-detail-col">
             <div class="b-detail-line"><span>威力</span><b>${mv.power ?? '—'}</b></div>
-            <div class="b-detail-line"><span>命中</span><b>${mv.accuracy ?? '—'}</b></div>
+            <div class="b-detail-line"><span>命中</span><b>${mv.accuracy == null ? '—' : mv.accuracy === 0 ? '必中' : mv.accuracy}</b></div>
           </div>
         </div>`;
     }

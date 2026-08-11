@@ -1,5 +1,5 @@
 // ===== UI 管理 =====
-import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching, _navStack } from './state.js';
+import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching, _navStack, allPokemon } from './state.js';
 import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge, getPokemonByIndex, isPokemon } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
 import { formatLogTime } from './pokedex.js';
@@ -391,37 +391,53 @@ function _cacheSet(key, val) {
   _imgCache.set(key, val);
   if (_imgCache.size > 800) _imgCache.delete(_imgCache.keys().next().value); // 超限淘汰最早插入的
 }
+
+// 加载中的透明占位图（1px 透明 gif）：未命中缓存的图在加载期间显示它，
+// 避免浏览器默认破图图标一闪而过；加载成功/失败后都会替换
+const _TRANSPARENT = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
 export function tryLoadImage(img, relPath) {
   const hit = _imgCache.get(relPath);
   if (hit) {
     return new Promise(resolve => {
       img.onload = () => { img.onerror = null; resolve(true); };
-      img.onerror = () => { _imgCache.delete(relPath); resolve(false); };
+      img.onerror = () => { _imgCache.delete(relPath); img.src = _TRANSPARENT; resolve(false); };
       img.src = hit;
       if (img.complete) resolve(true);
     });
   }
+  // 立即切透明占位：加载期间与失败后都不会露出浏览器破图图标
+  if (img.src !== _TRANSPARENT) img.src = _TRANSPARENT;
   return new Promise(resolve => {
     const ext = (relPath.split('.').pop() || 'png').toLowerCase();
+    const dbg = { raw: 0, encoded: 0, fetch: 0, tauri: 0, fail: 0, key: relPath };
+    const dbgLog = () => console.warn('[img] load path ->', JSON.stringify(dbg));
+    // 注意：onerror 内不得改写 img.src（会触发新的 onload 事件，污染各通道的成败判定），
+    // 透明占位已在函数入口设置，失败时保持透明即可
     const doRaw = () => new Promise(r => {
-      img.onload = () => { img.onerror = null; _cacheSet(relPath, relPath); r(true); };
+      dbg.raw++;
+      img.onload = () => { img.onerror = null; _cacheSet(relPath, relPath); console.warn('[img] RAW ok', dbg.key); r(true); };
       img.onerror = () => r(false);
       img.src = relPath;
     });
     const doEncoded = () => new Promise(r => {
-      img.onload = () => { img.onerror = null; _cacheSet(relPath, encodeURI(relPath)); r(true); };
+      dbg.encoded++;
+      img.onload = () => { img.onerror = null; _cacheSet(relPath, encodeURI(relPath)); console.warn('[img] ENCODED ok', dbg.key); r(true); };
       img.onerror = () => r(false);
       img.src = encodeURI(relPath);
     });
     const doFetch = () => fetch(encodeURI(relPath)).then(r => {
       if (!r.ok) return false;
       return r.blob().then(blob => {
+        // 文件不存在时可能返回 200+空内容，校验 blob 类型避免坏数据入缓存导致破图
+        if (!blob || blob.size === 0 || (blob.type && !blob.type.startsWith('image/'))) return false;
+        dbg.fetch++;
         const url = URL.createObjectURL(blob);
         const prev = _imgCache.get(relPath);
         if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
         _cacheSet(relPath, url);
         return new Promise(r => {
-          img.onload = () => r(true);
+          img.onload = () => { console.warn('[img] FETCH ok', dbg.key); r(true); };
           img.onerror = () => { URL.revokeObjectURL(url); if (_imgCache.get(relPath) === url) _imgCache.delete(relPath); r(false); };
           img.src = url;
         });
@@ -429,19 +445,32 @@ export function tryLoadImage(img, relPath) {
     }).catch(() => false);
     const doTauri = () => {
       if (!window.__TAURI__?.core?.invoke) return Promise.resolve(false);
+      dbg.tauri++;
       const fp = relPath.replace(/^\.\//, '');
-      return window.__TAURI__.core.invoke('read_gif_base64', { path: fp })
-        .then(b64 => new Promise(r => {
-          img.onload = () => { _cacheSet(relPath, `data:image/${ext};base64,${b64}`); r(true); };
-          img.onerror = () => r(false);
-          img.src = `data:image/${ext};base64,${b64}`;
-        }))
-        .catch(() => false);
+      // IPC 读图可能被其他后台命令阻塞，加超时避免 Promise 永久挂起（否则遭遇图等待会一直 pending）
+      return new Promise(r => {
+        let done = false;
+        const timer = setTimeout(() => { if (!done) { done = true; r(false); } }, 15000);
+        window.__TAURI__.core.invoke('read_gif_base64', { path: fp })
+          .then(b64 => {
+            if (done) return;
+            done = true; clearTimeout(timer);
+            new Promise(r2 => {
+              img.onload = () => { _cacheSet(relPath, `data:image/${ext};base64,${b64}`); console.warn('[img] TAURI ok', dbg.key); r2(true); };
+              img.onerror = () => r2(false);
+              img.src = `data:image/${ext};base64,${b64}`;
+            }).then(r);
+          })
+          .catch(() => { if (!done) { done = true; clearTimeout(timer); r(false); } });
+      });
     };
     doRaw().then(ok => ok ? resolve(true) : doEncoded()).then(ok => {
       if (ok) { resolve(true); return; }
-      doFetch().then(ok => ok ? resolve(true) : doTauri()).then(resolve).catch(() => resolve(false));
-    }).catch(() => resolve(false));
+      doFetch().then(ok => ok ? resolve(true) : doTauri()).then(ok => {
+        if (ok) resolve(true);
+        else { dbg.fail++; dbgLog(); resolve(false); }
+      }).catch(() => { dbg.fail++; dbgLog(); resolve(false); });
+    }).catch(() => { dbg.fail++; dbgLog(); resolve(false); });
   });
 }
 

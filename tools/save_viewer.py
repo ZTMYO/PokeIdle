@@ -24,7 +24,7 @@ MAX_LEVEL = 100
 ITEM_CN = {
     "candy": "糖果", "poke-ball": "精灵球", "ultra-ball": "超级球", "master-ball": "大师球",
     "sweet-honey": "甜甜蜜", "mystery-egg": "神秘蛋", "shiny-charm": "闪耀护符",
-    "casinoCoin": "游戏币", "bike": "自行车",
+    "exp-candy": "经验糖果", "casinoCoin": "游戏币", "bike": "自行车",
 }
 NATURE_CN = dict([
     ("hardy", "勤奋"), ("lonely", "怕寂寞"), ("adamant", "固执"), ("naughty", "顽皮"), ("brave", "勇敢"),
@@ -69,6 +69,8 @@ STAT_CN = {
     "totalBerriesHarvested": ("收获树果", "累计收获树果数"),
     "totalBoardTrades": ("完成委托", "累计完成告示牌树果委托数"),
     "totalItemsEarned": ("道具获得", "各道具累计获得数"),
+    "luckyGachaScore": ("抽卡欧气", "抽卡系统累计欧气值"),
+    "luckyGachaCount": ("抽卡次数", "抽卡系统累计抽卡次数"),
     # 旧字段保留兼容
     "totalSteps": ("总步数", "累计步数"),
     "totalEncounters": ("总遭遇数", "累计遭遇宝可梦数"),
@@ -87,6 +89,12 @@ TOP_KEY_CN = {
     "version": "版本", "introDone": "开场剧情完成", "currentRegion": "当前地区",
     "manualBike": "手动骑行", "collectedCards": "卡牌收集",
     "_mahjongState": "麻将状态", "_mahjongLastResult": "麻将结果",
+    "follower": "随从", "followerPending": "随从待处理",
+    "gachaLogs": "抽卡记录", "casinoRecords": "赌场记录",
+    "_f_poke-ball": "精灵球掉落余数", "_f_ultra-ball": "超级球掉落余数",
+    "_f_master-ball": "大师球掉落余数", "_f_candy": "糖果掉落余数",
+    "_f_sweet-honey": "甜甜蜜掉落余数", "_f_mystery-egg": "神秘蛋掉落余数",
+    "_f_shiny-charm": "闪耀护符掉落余数",
 }
 STAT_KEYS = ("hp", "atk", "def", "spa", "spd", "spe")
 STAT_KEY_CN = {"hp": "HP", "atk": "攻击", "def": "防御", "spa": "特攻", "spd": "特防", "spe": "速度"}
@@ -117,7 +125,7 @@ LOG_TYPE_CN = {
     "train_lazy": "开始偷懒", "train_wake": "叫醒偷懒", "train_feed": "进食树果",
     "nursery_breed_start": "开始繁殖", "nursery_egg": "产蛋",
     "pokemon_release": "放生", "buff_expired": "增益结束", "战斗": "NPC对战",
-    "casino": " casino", "gacha": "抽卡", "mahjong": "麻将",
+    "casino": "赌场", "gacha": "抽卡", "mahjong": "麻将",
     "export": "导出存档", "auto_refill": "自动补球",
     "bike_ride": "上车骑行", "bike_stop": "下车步行",
 }
@@ -141,6 +149,7 @@ SETTING_DEFS = {
     "musicVolume": ("音乐音量", "0~1"),
     "musicEnabled": ("音乐开关", "是否播放 BGM"),
     "battleMusic": ("战斗音乐", "战斗中切换战斗 BGM"),
+    "sfxEnabled": ("音效开关", "是否播放界面音效"),
 }
 BALL_CN = {"poke-ball": "精灵球", "ultra-ball": "高级球", "master-ball": "大师球"}
 GENDER_CN = {"brendan": "小悠（男）", "may": "小遥（女）"}
@@ -155,6 +164,7 @@ TAB_OF_PATH = (
     ("collectedCards.", 14), ("encounterLogs.", 15),
     ("gps.", 9), ("massOutbreak.", 9), ("massNextGenAt", 9), ("bounty", 9),
     ("trades", 9), ("battleNpcs", 9), ("lastSavedAt", 9), ("incubatorUnlockedSlots", 9),
+    ("follower", 9), ("followerPending", 9), ("gachaLogs.", 9), ("casinoRecords.", 9),
 )
 ISSUE_TAB = 17  # 「数据问题」页索引
 RAW_TAB = 16    # 「原始数据」页索引
@@ -350,6 +360,10 @@ def run_checks(data, pokedex):
                         add("nursery.breeding.startedAt", f"繁殖开始时间在未来（{fmt_time(st)}）")
                     if not isinstance(b.get("durMs"), (int, float)) or b.get("durMs", 0) <= 0:
                         add("nursery.breeding.durMs", f"繁殖时长非法（{b.get('durMs')}）")
+                    # 连续繁殖轮次（M4）：已完成轮次不应超过总轮次
+                    rdone, rtot = b.get("roundsDone"), b.get("roundsTotal")
+                    if isinstance(rdone, (int, float)) and isinstance(rtot, (int, float)) and rdone > rtot:
+                        add("nursery.breeding.roundsDone", f"已完成繁殖轮次超过总轮次（{rdone} > {rtot}）")
 
     # --- 孵蛋记录（M3） ---
     for i, log in enumerate(data.get("incubatorLogs") or []):
@@ -361,6 +375,33 @@ def run_checks(data, pokedex):
             add(f"incubatorLogs.{i}.species", f"未知宝可梦编号「{sid}」")
         if log.get("gender") not in GENDER_SYMBOL:
             add(f"incubatorLogs.{i}.gender", f"未知性别「{log.get('gender')}」")
+
+    # --- 交换广场（M4）：ignored 忽略标记 ---
+    offers = (data.get("trades") or {}).get("offers") if isinstance(data.get("trades"), dict) else None
+    for i, o in enumerate(offers or []):
+        if not isinstance(o, dict):
+            add(f"trades.offers.{i}", f"第 {i} 个交换请求不是对象（{o!r}）")
+            continue
+        if "ignored" in o and not isinstance(o.get("ignored"), bool):
+            add(f"trades.offers.{i}.ignored", f"ignored 不是布尔（{o.get('ignored')!r}）")
+        giv = o.get("give")
+        if isinstance(giv, dict) and giv.get("species") is not None and str(giv.get("species")) not in valid_idx:
+            add(f"trades.offers.{i}.give.species", f"未知宝可梦编号「{giv.get('species')}」")
+
+    # --- 随从（M4）：到期时间在未来 / 结构异常 ---
+    fol = data.get("follower")
+    if fol is not None:
+        if not isinstance(fol, dict):
+            add("follower", f"follower 不是对象（{type(fol).__name__}）")
+        else:
+            if fol.get("index") is not None and str(fol.get("index")) not in valid_idx:
+                add("follower.index", f"随从指向未知宝可梦编号「{fol.get('index')}」")
+            ends = fol.get("endsAt")
+            if isinstance(ends, (int, float)) and ends < now - 60 * 60 * 1000:
+                add("follower.endsAt", f"随从早已到期（{fmt_time(ends)}），但存档仍持有随从")
+    fp = data.get("followerPending")
+    if fp is not None and not isinstance(fp, dict):
+        add("followerPending", f"followerPending 不是对象（{type(fp).__name__}）")
 
     achs = data.get("achievements")
     if achs is not None:
@@ -382,13 +423,13 @@ def run_checks(data, pokedex):
         else:
             for k, v in stg.items():
                 if k in ("autoCatch", "autoFlee", "shinyStop", "legendStop", "autoBuffHoney",
-                         "autoBuffCharm", "windowPinned", "musicEnabled", "battleMusic"):
+                         "autoBuffCharm", "windowPinned", "musicEnabled", "battleMusic", "sfxEnabled"):
                     if not isinstance(v, bool):
                         add(f"settings.{k}", f"设置「{SETTING_DEFS.get(k, (k, ''))[0]}」不是布尔（{v!r}）")
                 elif k == "musicVolume" and isinstance(v, (int, float)) and not (0 <= v <= 1):
                     add(f"settings.{k}", f"音乐音量越界（{v}，应在 0~1）")
-                elif k == "windowScale" and v not in (1, 1.5, 2):
-                    add(f"settings.{k}", f"窗口倍率非法（{v}）")
+                elif k == "windowScale" and not (1 <= v <= 10):
+                    add(f"settings.{k}", f"窗口倍率非法（{v}，应在 1~10）")
                 elif k == "gender" and v not in GENDER_CN:
                     add(f"settings.{k}", f"未知主角性别「{v}」")
                 elif k == "autoCatchBalls" and isinstance(v, dict):
@@ -762,11 +803,16 @@ class SaveViewer:
         else:
             st, dur = b.get("startedAt"), b.get("durMs")
             remain = (st + dur - now) if isinstance(st, (int, float)) and isinstance(dur, (int, float)) else None
+            # 连续繁殖轮次：总轮次 >1 时展示轮次进度
+            rdone, rtot = b.get("roundsDone"), b.get("roundsTotal")
+            round_info = ""
+            if isinstance(rdone, (int, float)) and isinstance(rtot, (int, float)) and rtot > 1:
+                round_info = f" · 第 {rdone + 1}/{rtot} 轮"
             if remain is not None and remain <= 0:
-                t.insert("", "end", values=("繁殖状态", "已产蛋，待收取", f"开始于 {fmt_time(st)}"))
+                t.insert("", "end", values=("繁殖状态", "已产蛋，待收取", f"开始于 {fmt_time(st)}{round_info}"))
             else:
                 t.insert("", "end", values=("繁殖状态", f"繁殖中 · 剩余 {fmt_ms_remain(remain)}",
-                                            f"开始于 {fmt_time(st)}，共 {fmt_ms_remain(dur)}"))
+                                            f"开始于 {fmt_time(st)}，共 {fmt_ms_remain(dur)}{round_info}"))
 
     def _render_farm(self):
         t = self._tabs[7]
@@ -835,10 +881,38 @@ class SaveViewer:
         rows.append(("最后保存时间", fmt_time(d.get("lastSavedAt")), "存档最近写入时间"))
         rows.append(("手动骑行", fmt_bool(d.get("manualBike", False)), "是否处于手动骑行状态"))
         rows.append(("卡牌收集", f"{len(d.get('collectedCards') or {})} 张", "抽卡系统收集的卡牌数量"))
+        # 随从（M4）
+        fol = d.get("follower")
+        if isinstance(fol, dict):
+            name = self.pokedex.get(str(fol.get("index")), f"?{fol.get('index')}")
+            rows.append(("随从", f"{name} · 稀有度 {fol.get('tier', '?')}",
+                         f"到期时间 {fmt_time(fol.get('endsAt'))} · 增益组 {fol.get('groups')}"))
+        fp = d.get("followerPending")
+        if isinstance(fp, dict):
+            cnt = len(fp.get("results") or [])
+            if fp.get("multi"):
+                rows.append(("随从待处理", f"5 连抽待确认（{cnt} 只）", "重进随从页后展示抽卡结果"))
+            else:
+                name = self.pokedex.get(str(fp.get("index")), f"?{fp.get('index')}")
+                rows.append(("随从待处理", name, "抽到随从待确认"))
+        # 抽卡记录 / 赌场记录
+        gl = d.get("gachaLogs")
+        if isinstance(gl, dict):
+            rows.append(("抽卡记录", f"{len(gl)} 次抽卡", "按卡包分组的抽卡日志"))
+        cr = d.get("casinoRecords")
+        if isinstance(cr, list):
+            rows.append(("赌场记录", f"{len(cr)} 局", " 21 点对局记录"))
+        # 掉落浮点余数（_f_ 前缀：挂机道具掉落的累积余数，满 1 掉落一个）
+        drop_parts = []
+        for k in sorted(d.keys()):
+            if k.startswith("_f_"):
+                drop_parts.append(f"{TOP_KEY_CN.get(k, k)}={d[k]:.2f}" if isinstance(d[k], (int, float)) else f"{k}={d[k]}")
+        if drop_parts:
+            rows.append(("掉落余数", " · ".join(drop_parts), "挂机道具掉落累积的浮点余数，满 1 触发一次掉落"))
         mj = d.get("_mahjongLastResult")
         if mj is not None:
             rows.append(("麻将结果", str(mj), "最近一次麻将对局结果"))
-        rows.append(("游戏币", str(d.get("items", {}).get("casinoCoin", 0)), " casino 游戏币余额"))
+        rows.append(("游戏币", str(d.get("items", {}).get("casinoCoin", 0)), "赌场游戏币余额"))
         for key, val, desc in rows:
             path = key
             tags = ("issue",) if self._has_issue(path) or self._has_issue(path + ".edge") else ()
@@ -910,7 +984,7 @@ class SaveViewer:
         if key == "gender":
             return GENDER_CN.get(v, v)
         if key == "windowScale":
-            return f"×{v}" if v in (1, 1.5, 2) else v
+            return f"×{v}" if isinstance(v, (int, float)) and 1 <= v <= 10 else v
         if isinstance(v, bool):
             return fmt_bool(v)
         if isinstance(v, (int, float)):
@@ -939,12 +1013,20 @@ class SaveViewer:
                 t.insert("", "end", values=(label, parts, note), tags=tags)
             elif key == "catchFilter" and isinstance(v, dict):
                 rows_cf = v.get("rows", {})
-                parts = ", ".join(
-                    f"{CF_ROW_LABELS.get(k, k)}:{r.get('action', '?')}"
-                    for k, r in rows_cf.items() if isinstance(r, dict)
-                )
+                parts = []
+                for k, r in rows_cf.items():
+                    if not isinstance(r, dict):
+                        continue
+                    act = {"catch": "捕捉", "flee": "逃跑", "pause": "暂停"}.get(r.get("action"), r.get("action", "?"))
+                    s = f"{CF_ROW_LABELS.get(k, k)}:{act}"
+                    if r.get("uncaughtOnly"):
+                        s += "[仅未捕获]"
+                    if isinstance(r.get("levelMin"), (int, float)) and isinstance(r.get("levelMax"), (int, float)):
+                        if r["levelMin"] > 0 or r["levelMax"] > 0:
+                            s += f"[Lv{r['levelMin']}~{r['levelMax']}]"
+                    parts.append(s)
                 tags = ("issue",) if self._has_issue(f"settings.{key}") else ()
-                t.insert("", "end", values=(label, parts or str(v), note), tags=tags)
+                t.insert("", "end", values=(label, ", ".join(parts) or str(v), note), tags=tags)
             else:
                 tags = ("issue",) if self._has_issue(f"settings.{key}") else ()
                 t.insert("", "end", values=(label, self._fmt_setting(key, v), note), tags=tags)
