@@ -6,7 +6,6 @@ import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TR
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
-import { computeObtainScore } from './scoring.js';
 import { TYPE_COLORS } from './items.js';
 import { playCongratulation } from './audio.js';
 
@@ -485,7 +484,7 @@ function doTrade(offerId, rid) {
       gameData.pokedex[idx].lastTime = new Date().toISOString();
       if (o.give.shiny) {
         gameData.pokedex[idx].shinyCaught = (gameData.pokedex[idx].shinyCaught || 0) + 1;
-        gameData.stats.totalShinyCaught = (gameData.stats.totalShinyCaught || 0) + 1;
+        gameData.stats.totalShinyTraded = (gameData.stats.totalShinyTraded || 0) + 1; // 交换闪光：单独计数，不算闪光捕获
       }
       gameData.stats.totalCatches = (gameData.stats.totalCatches || 0) + 1;
       gameData.stats.totalTrades = (gameData.stats.totalTrades || 0) + 1;
@@ -508,7 +507,7 @@ function doTrade(offerId, rid) {
         source: 'trade',
         npcName: npc.name, // 与谁交换
         gave: (getPokemonByIndex(String(p.species)) || {}).name || '', // 用哪只换来的
-        score: computeObtainScore({ pokemon: givePoke, source: 'trade', shiny: o.give.shiny, charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1 }),
+        score: 0, // 交换为固定提议，玩家主动选择，不涉及随机运气，不计欧气分
       });
       o.traded = true;
       addSystemLog('trade', { npc: npc.id, npcName: npc.name, take: o.want.species, give: o.give.species, shiny: o.give.shiny });

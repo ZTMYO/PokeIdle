@@ -61,11 +61,13 @@ function moveCat(mv) {
   }
   return 'status';
 }
-// 招式先制度：双倍奉还/镜面反射等反击招先制度 -5（永远最后出手），守住/挺住先制 +4
+// 招式先制度：双倍奉还/镜面反射等反击招先制度 -5（永远最后出手），守住/挺住先制 +4，
+// 击掌奇袭/迎头一击优先度 +3（仅出场第一回合使用，且必定先手）
 function movePriority(mv) {
   const k = (mv.effect || {}).kind;
   if (k === 'counter' || k === 'mirrorCoat') return -5;
   if (k === 'protect' || k === 'endure') return 4;
+  if (mv.name === '击掌奇袭' || mv.name === '迎头一击') return 3;
   return 0;
 }
 // 换人/新宝可梦上场：清空反击/镜面反射记录及替身/寄生种子/两回合蓄力等仅对当前个体的战斗标记
@@ -73,6 +75,7 @@ function resetCounter(mon) {
   if (!mon) return;
   mon.hitByPhys = false; mon.physDmg = 0;
   mon.hitBySpec = false; mon.specDmg = 0;
+  mon.flinch = false;                            // 畏缩为本回合瞬时标记，换人即清
   mon.protected = false; mon.endure = false; mon.protectStreak = 0;
   mon.subHp = 0;
   mon.seeded = false; mon.seedSrc = null;
@@ -80,6 +83,7 @@ function resetCounter(mon) {
   mon.disabledMove = null; mon.disableTurns = 0;   // 定身法/无理取闹：换人后解除
   mon.lockedMove = null; mon.encoreTurns = 0;      // 再来一次：换人后解除
   mon.tauntTurns = 0;                              // 挑衅：换人后解除
+  mon.entryRound = null;                           // 击掌奇袭：换人/上场后视为刚出场
 }
 
 // 战斗是否进行中（标题栏返回判断）
@@ -2190,6 +2194,16 @@ function missFx(side) {
 // （preTurn 只在回合开始检查一次，先动方先命中时对方此刻才刚入睡）
 async function sleepCheckAttack(mon, side, moveId, battle) {
   if (moveId == null || mon.hp <= 0) return;
+  // 畏缩（击掌奇袭等本回合瞬时打断）：无法行动，不标记为已行动
+  if (mon.flinch) {
+    mon.flinch = false;
+    setText(`${mon.name}畏缩了，无法行动！`);
+    playAnim(side, 'flinch');
+    flinchFx(side);
+    await battleSleep(450);
+    return;
+  }
+  battle._acted.add(mon.uid); // 记录本回合已行动（供畏缩判定：已行动者不再畏缩）
   if (mon.status === 'sleep' && mon.sleepTurns > 0) {
     mon.sleepTurns--; // 本回合入睡消耗 1 个睡眠回合（与 preTurn 先判后减语义一致）
     setText(`${mon.name}正在呼呼大睡。`);
@@ -2467,6 +2481,10 @@ async function battleLoop(battle) {
     while (!battle.winner && !_fleeing) {
       // 每回合开始标记当前出战宝可梦为"参战"（含开场首只与换人上场的，供经验结算判定）
       markParticipated(battle, 'p');
+      battle._acted = new Set(); // 本回合已行动的个体（畏缩判定：已行动者不再畏缩）
+      // 记录回合开场双方：击掌奇袭仅在"本回合开始时在场"的宝可梦身上结算刚出场标记（换人上场的跳过）
+      battle._pStartUid = curMon(battle, 'p').uid;
+      battle._eStartUid = curMon(battle, 'e').uid;
 
       // 僵局检测：记录回合开始双方 HP，回合末对比是否互不造成伤害
       battle._turnHp = { p: curMon(battle, 'p').hp, e: curMon(battle, 'e').hp };
@@ -2659,6 +2677,12 @@ async function battleLoop(battle) {
         await battleSleep(400);
       }
 
+      // 击掌奇袭结算：本回合未换人的在场者，其"出场第一回合"至此结束，下回合起失效
+      if (curMon(battle, 'p').uid === battle._pStartUid) curMon(battle, 'p').entryRound = battle.round;
+      if (curMon(battle, 'e').uid === battle._eStartUid) curMon(battle, 'e').entryRound = battle.round;
+      // 畏缩为本回合瞬时标记：回合末清零，不带到下一回合
+      curMon(battle, 'p').flinch = false;
+      curMon(battle, 'e').flinch = false;
       battle.round++;
       $('b-round').textContent = battle.round;
     }

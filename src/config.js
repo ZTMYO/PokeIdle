@@ -120,6 +120,7 @@ export const BATTLE_MONS_COUNT = { novice: 3, veteran: 5, champion: 6 };  // 各
 // 不可用糖果购买，唯一来源：NPC 训练家对战胜利概率掉落（见 EXP_CANDY_DROP）
 export const EXP_CANDY_XP = 3000; // 单颗经验值（1→17 级左右）
 export const EXP_CANDY_DROP = { novice: 0.05, veteran: 0.25, champion: 0.50 }; // 各档 NPC 战胜掉落概率（普通/精英/冠军）
+export const RELEASE_XP_RATE = 0.12; // 放生返还经验比例
 
 // 特殊宝可梦战斗精灵缩放：图鉴身高是全身拉直总长，这类宝可梦立绘却蜷缩/盘绕成团，
 // 直接按身高缩放会显得偏大，这里按图鉴编号乘以一个缩小系数修正（系数越小缩得越多）

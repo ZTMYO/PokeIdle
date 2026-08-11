@@ -23,7 +23,7 @@
 
 import {
   FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CATCH_BONUS_INC,
-  SHINY_CHANCE, CHARM_SHINY_CHANCE,
+  SHINY_CHANCE, CHARM_SHINY_CHANCE, MASS_SHINY_CHANCE,
   FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE,
   HONEY_RARITY_BOOST, CHARM_RARITY_BOOST,
 } from './config.js';
@@ -41,6 +41,11 @@ export function catchBonusFor(ballsUsed) {
 function pickProbability(pokemon, source, honeyBuff, charmBuff) {
   if (source === 'egg') {
     return allPokemon.length > 0 ? 1 / allPokemon.length : 1;
+  }
+
+  if (source === 'mass') {
+    // 大量出没：事件宝可梦锁定，遇敌必出这只
+    return 1;
   }
 
   if (source === 'fishing') {
@@ -74,6 +79,10 @@ function pickProbability(pokemon, source, honeyBuff, charmBuff) {
 
 // ---- P_shiny：本次闪光与否的概率 ----
 function shinyProbability(shiny, charmBuff, source) {
+  if (source === 'mass') {
+    // 大量出没：固定闪光率（不吃护符加成），远高于普通野生
+    return shiny ? MASS_SHINY_CHANCE : (1 - MASS_SHINY_CHANCE);
+  }
   if (charmBuff && source !== 'egg') {
     return shiny ? CHARM_SHINY_CHANCE : (1 - CHARM_SHINY_CHANCE);
   }
@@ -107,6 +116,31 @@ export function computeMeetScore({ pokemon, source = 'normal', shiny = false, ch
   return Math.min(100, Math.max(0, Math.round(-Math.log10(p) * 10)));
 }
 
+// ---- 个体值加成：个体值本身也是随机运气，高个体值获得时加分 ----
+// ivs          该宝可梦的实际个体值 { hp, atk, def, spa, spd, spe }
+// ivRandomKey  培育蛋（宝可梦蛋）的纯随机位：6 项中仅该项为随机运气，其余继承自亲本。
+//              捕获/神秘蛋传 null/undefined，视为 6 项全随机，按总和分档。
+function ivBonus(ivs, ivRandomKey) {
+  if (!ivs) return 0;
+  const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+  // 培育蛋：仅随机遗传项是运气，按该项分档
+  if (ivRandomKey && keys.includes(ivRandomKey)) {
+    const v = ivs[ivRandomKey];
+    if (v == null) return 0;
+    if (v >= 29) return 10;
+    if (v >= 25) return 6;
+    if (v >= 21) return 3;
+    return 0;
+  }
+  // 捕获/神秘蛋：6 项全随机，按总和分档（平均 93，越高越稀有）
+  const sum = keys.reduce((a, k) => a + (ivs[k] || 0), 0);
+  if (sum >= 175) return 15;
+  if (sum >= 160) return 10;
+  if (sum >= 145) return 6;
+  if (sum >= 130) return 3;
+  return 0;
+}
+
 // 计算一次"获得宝可梦"的欧气评分
 // 参数：
 //   pokemon    宝可梦对象（含 rarity / catchRate）
@@ -116,12 +150,14 @@ export function computeMeetScore({ pokemon, source = 'normal', shiny = false, ch
 //   honeyBuff  该遭遇是否在甜甜蜜 buff 下（影响稀有度权重与钓鱼出怪率）
 //   balls      累计已用球 { 'poke-ball': n, 'ultra-ball': n, 'master-ball': n }（含成功那颗）
 //   finalRate  捕获成功那一下的实际捕获率（含捕获加成；无丢球场景传 1）
-export function computeObtainScore({ pokemon, source = 'normal', shiny = false, charmBuff = false, honeyBuff = false, balls = {}, finalRate = 1 }) {
+//   ivs        个体值（越高欧气加成越多；交换不算、无 ivs 时加成为 0）
+//   ivRandomKey 培育蛋的纯随机位（捕获/神秘蛋传 null）
+export function computeObtainScore({ pokemon, source = 'normal', shiny = false, charmBuff = false, honeyBuff = false, balls = {}, finalRate = 1, ivs = null, ivRandomKey = null }) {
   const pPick = pickProbability(pokemon, source, honeyBuff, charmBuff);
   const pShiny = shinyProbability(shiny, charmBuff, source);
   const { p: pCatch, fleeBonus } = catchLuck(balls, finalRate);
   const p = pPick * pShiny * pCatch;
-  if (p <= 0 || !isFinite(p)) return 100; // 概率下溢 → 顶格欧
+  if (p <= 0 || !isFinite(p)) return 100 + ivBonus(ivs, ivRandomKey); // 概率下溢 → 顶格欧
   const score = Math.round(-Math.log10(p) * 10) + fleeBonus;
-  return Math.min(100, Math.max(0, score));
+  return Math.min(100, Math.max(0, score)) + ivBonus(ivs, ivRandomKey);
 }

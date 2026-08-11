@@ -80,6 +80,12 @@ function openScene() {
       view._qty = Math.min(_scene.maxUse, view._qty + 1);
       renderScene();
     });
+    // max：一键拉满——升满级或耗尽全部库存糖果（maxUse 已取两者较小值）
+    $('expCandyMax').addEventListener('click', () => {
+      if (!_scene) return;
+      view._qty = _scene.maxUse;
+      renderScene();
+    });
     $('expCandyUse').addEventListener('click', confirmUse);
     $('expCandyOk').addEventListener('click', finishUse);
   }

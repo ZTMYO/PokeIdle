@@ -6,7 +6,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, F
   TRAIN_SATIETY_PER_BERRY, TRAIN_HUNGRY_LAZY_MULT,
   BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, ITEM_DESC,
   COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST,
-  GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP,
+  GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE,
   TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX,
   FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
@@ -63,17 +63,22 @@ function calcLuckyRating() {
 
 // ===== 数据统计视图 =====
 
-// 今日统计：从遭遇日志按"今天 0 点后"筛选（孵蛋单独计数，不算遭遇；逃跑只算挣脱，不含主动逃跑）
+// 今日统计：从遭遇日志按"今天 0 点后"筛选（孵蛋/交换单独计数，不算道路遭遇；逃跑只算挣脱，不含主动逃跑）
 // 每次调用重新取当天零点，跨天自动归零
 function calcTodayStats() {
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
-  const t = { seen: 0, caught: 0, fled: 0, shinySeen: 0, shinyCaught: 0, hatched: 0, catchRate: '0.0' };
+  const t = { seen: 0, caught: 0, fled: 0, shinySeen: 0, shinyCaught: 0, hatched: 0, shinyHatched: 0, trades: 0, shinyTraded: 0, catchRate: '0.0' };
   for (const arr of Object.values(gameData.encounterLogs || {})) {
     for (const l of arr) {
       if (!l || !l.time || l.time < todayStart) continue;
       if (l.source === 'egg') {
         t.hatched++;
-        if (l.result === 'caught') { t.caught++; if (l.shiny) t.shinyCaught++; }
+        if (l.shiny) t.shinyHatched++;
+        continue;
+      }
+      if (l.source === 'trade') {
+        t.trades++;
+        if (l.shiny) t.shinyTraded++;
         continue;
       }
       t.seen++;
@@ -128,6 +133,18 @@ function refreshDataStats() {
   const t = calcTodayStats();
   const rating = calcLuckyRating();
 
+  // 累计的孵化闪光/交换闪光：从全部日志统计（日志不裁剪），口径与今日一致，
+  // 兼容旧存档（新字段 totalShinyTraded 出现前交换的闪光也能正确累计）
+  let totalShinyHatched = 0;
+  let totalShinyTraded = 0;
+  for (const arr of Object.values(gameData.encounterLogs || {})) {
+    for (const l of arr) {
+      if (!l) continue;
+      if (l.source === 'egg' && l.shiny) totalShinyHatched++;
+      else if (l.source === 'trade' && l.shiny) totalShinyTraded++;
+    }
+  }
+
   $('dataPlayTotal').textContent = fmtPlayTime(stats.totalPlaySeconds);
   $('dataPlayToday').textContent = fmtPlayTime(stats.playSecondsToday || 0);
   $('dataTodaySeen').textContent = formatNum(t.seen);
@@ -137,6 +154,8 @@ function refreshDataStats() {
   $('dataTodayShinySeen').textContent = formatNum(t.shinySeen);
   $('dataTodayShinyCaught').textContent = formatNum(t.shinyCaught);
   $('dataTodayHatched').textContent = formatNum(t.hatched);
+  $('dataTodayShinyHatched').textContent = formatNum(t.shinyHatched);
+  $('dataTodayShinyTraded').textContent = formatNum(t.shinyTraded);
   $('dataTradesToday').textContent = formatNum(stats.tradesToday || 0);
   $('dataRating').textContent = rating ? rating.name : '暂无评定，先去冒险吧';
   $('dataTotalSeen').textContent = formatNum(totalSeen);
@@ -146,6 +165,8 @@ function refreshDataStats() {
   $('dataTotalShinySeen').textContent = formatNum(stats.totalShinySeen);
   $('dataTotalShinyCaught').textContent = formatNum(stats.totalShinyCaught);
   $('dataTotalHatched').textContent = formatNum(stats.totalEggsHatched);
+  $('dataTotalShinyHatched').textContent = formatNum(totalShinyHatched);
+  $('dataTotalShinyTraded').textContent = formatNum(totalShinyTraded);
   $('dataTradesTotal').textContent = formatNum(stats.totalTrades || 0);
   $('dataRegion').textContent = region.name;
   $('dataWalkDist').textContent = walkText;
@@ -216,8 +237,10 @@ export function showDataView() {
           <tr><td>捕获率</td><td id="dataTodayRate"></td><td id="dataTotalRate"></td></tr>
           <tr><td>闪光遇见</td><td id="dataTodayShinySeen"></td><td id="dataTotalShinySeen"></td></tr>
           <tr><td>闪光捕获</td><td id="dataTodayShinyCaught"></td><td id="dataTotalShinyCaught"></td></tr>
-          <tr><td>孵化</td><td id="dataTodayHatched"></td><td id="dataTotalHatched"></td></tr>
-          <tr><td>交换</td><td id="dataTradesToday"></td><td id="dataTradesTotal"></td></tr>
+          <tr><td>孵化次数</td><td id="dataTodayHatched"></td><td id="dataTotalHatched"></td></tr>
+          <tr><td>孵化闪光</td><td id="dataTodayShinyHatched"></td><td id="dataTotalShinyHatched"></td></tr>
+          <tr><td>交换次数</td><td id="dataTradesToday"></td><td id="dataTradesTotal"></td></tr>
+          <tr><td>交换闪光</td><td id="dataTodayShinyTraded"></td><td id="dataTotalShinyTraded"></td></tr>
         </tbody>
       </table>
 
@@ -1575,7 +1598,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>页面打开<b>宝可梦</b>应用查看宝可梦仓库：每只捕获/孵化的宝可梦都是独立个体，支持搜索、来源筛选与表头排序。</p>`
       + `<p>每只个体带有随机<b>个体值</b>（HP/攻击/防御/特攻/特防/速度，各 <b>0~31</b>）与随机<b>性格</b>（共 <b>25</b> 种）。</p>`
       + `<p>点击个体列表项即可查看详情：名字右侧的<b>编辑图标</b>可以重命名（最多 <b>5</b> 个字），改名后搜索中文可匹配昵称。</p>`
-      + `<p>详情页右上角的<b>放生</b>按钮可移除该个体（确定后不可恢复）。</p>`
+      + `<p>详情页右上角的<b>放生</b>按钮可移除该个体（确定后不可恢复）同时返还（<b>${RELEASE_XP_RATE * 100}%</b>）经验（详见「<b>经验糖果</b>」章节）。</p>`
       + `<p>个体可用来提交地区悬赏——提交后该宝可梦会从仓库中移除（详见「<b>悬赏</b>」章节）。</p>`,
   },
   {
@@ -1605,7 +1628,9 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '经验糖果',
-    html: `<p>给宝可梦直接增加经验的消耗道具，只能通过<b>NPC 对战</b>战胜后概率掉落（普通 <b>${EXP_CANDY_DROP.novice * 100}</b>%、精英 <b>${EXP_CANDY_DROP.veteran * 100}</b>%、冠军 <b>${EXP_CANDY_DROP.champion * 100}</b>%）。</p>`
+    html: `<p>给宝可梦直接增加经验的消耗道具。获取方式：</p>`
+      + `<p>① 战胜<b>NPC 训练家</b>概率掉落（普通 <b>${EXP_CANDY_DROP.novice * 100}</b>%、精英 <b>${EXP_CANDY_DROP.veteran * 100}</b>%、冠军 <b>${EXP_CANDY_DROP.champion * 100}</b>%）。</p>`
+      + `<p>② 放生宝可梦返还 <b>${RELEASE_XP_RATE * 100}%</b> 的累计经验，存入「经验池」，攒满 <b>${EXP_CANDY_XP}</b> 经验自动产出 <b>1</b> 颗经验糖果并清零。</p>`
       + `<p>背包第二页点击使用：选择宝可梦后调整数量（单颗 <b>${EXP_CANDY_XP}</b> 经验），确认后一次性结算。</p>`
       + `<p>满级宝可梦无法使用。</p>`,
   },

@@ -383,7 +383,11 @@
           <!-- 放生/提交告别场景（全屏独立场景，底部文字框询问确认） -->
           <div id="goodbyeView">
             <img class="goodbye-scene-img" alt="" />
-            <!-- 交换获得：右上角精简信息（已捕获图标/新发现/稀有度），复用遇敌页样式 -->
+            <div class="goodbye-xp-pool" id="goodbyeXpPool" style="display:none;">
+              <div class="expcandy-expbar"><div class="expcandy-expfill" id="goodbyeXpFill"></div></div>
+              <div class="goodbye-xp-pool-text" id="goodbyeXpText"></div>
+              <img class="goodbye-xp-candy" id="goodbyeXpCandy" src="./items/xp-candy.png" alt="经验糖果" style="display:none;" />
+            </div>
             <div class="encounter-right" id="goodbyeRight" style="display:none;">
               <span class="encounter-owned-wrap" style="display:none;">
                 <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18">
@@ -418,6 +422,7 @@
                 <button class="nursery-round-btn" id="expCandyMinus" type="button">−</button>
                 <span class="nursery-round-num" id="expCandyQty">1</span>
                 <button class="nursery-round-btn" id="expCandyPlus" type="button">＋</button>
+                <button class="roster-release" id="expCandyMax" type="button">Max</button>
                 <button class="roster-release" id="expCandyUse" type="button">确认</button>
               </div>
             </div>

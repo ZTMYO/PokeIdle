@@ -1,18 +1,17 @@
 // ===== 宝可梦仓库 =====
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
-import { $, showView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar } from './ui.js';
+import { $, showView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack } from './ui.js';
 import { gameData, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
-import { REGION_CYCLE } from './config.js';
+import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE } from './config.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { chooseMoves, fallbackMoves } from './moves.js';
+import { NATURES } from './battle-core.js';
 
 // 获得来源 → 中文
 const SOURCE_NAMES = { normal: '野生', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
-// 筛选下拉选项：全部 / 闪光 / 神兽 / 各来源（甜甜蜜不参与筛选）
-const FILTER_OPTIONS = [['', '全部'], ['shiny', '闪光'], ['legend', '神兽'], ...Object.entries(SOURCE_NAMES).filter(([k]) => k !== 'honey')];
 // 六围个体值明细（键 → 显示名）
 const IV_KEYS = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速度']];
 
@@ -20,6 +19,19 @@ const IV_KEYS = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spa', '�
 function natureText(key) {
   const n = getNature(key);
   return n ? n.cn : '未知';
+}
+
+// 性格 key → 增益说明（与 battle-core NATURES 一致：stats 下标 1 攻 2 防 3 特攻 4 特防 5 速，0=HP 不修正）
+// 加/减效果各占一行，方便 tooltip 换行展示
+const _NATURE_STAT_CN = ['HP', '攻击', '防御', '特攻', '特防', '速度'];
+function natureBoostText(key) {
+  const n = NATURES[key];
+  if (!n) return '无性格修正';
+  const parts = [];
+  // 全角 ＋/－ 与中文等宽，保证换行两行对齐
+  if (n.up) parts.push(`${_NATURE_STAT_CN[n.up]}＋10%`);
+  if (n.down) parts.push(`${_NATURE_STAT_CN[n.down]}－10%`);
+  return parts.join('\n');
 }
 
 // 六维个体值 → 六边形雷达图
@@ -60,7 +72,9 @@ function ivHexagon(p) {
 
 let _sortBy = null;    // 当前排序列：null=默认时间降序 | index | name | iv | level
 let _sortDir = -1;     // 1 升序 / -1 降序
-let _filter = '';      // 来源/闪光筛选（''=全部）
+let _srcFilter = '';    // 来源筛选：''=全部 | normal/fishing/egg/trade
+let _legendFilter = ''; // 神兽筛选：''=全部 | normal(普通) | legend(神兽)
+let _shinyFilter = '';  // 闪光筛选：''=全部 | normal(普通) | shiny(闪光)
 let _typeFilter = '';  // 属性筛选（''=全部）
 let _regionFilter = ''; // 地区筛选（''=全部）
 let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
@@ -114,13 +128,18 @@ function renderList() {
   if (!list) return;
   const q = ($('rosterSearchInput')?.value || '').trim();
   let pool = inRoster();
-  // 筛选：闪光 / 神兽 / 来源
-  if (_filter === 'shiny') pool = pool.filter(p => p.shiny);
-  else if (_filter === 'legend') pool = pool.filter(p => {
-    const poke = getPokemonByIndex(String(p.species));
-    return poke?.legend === true;
-  });
-  else if (_filter) pool = pool.filter(p => p.source === _filter);
+  // 筛选：来源 → 普通/神兽 → 普通/闪光（三级）
+  if (_srcFilter) pool = pool.filter(p => p.source === _srcFilter);
+  if (_legendFilter) {
+    pool = pool.filter(p => {
+      const poke = getPokemonByIndex(String(p.species));
+      const isLegend = poke?.legend === true;
+      return _legendFilter === 'legend' ? isLegend : !isLegend;
+    });
+  }
+  if (_shinyFilter) {
+    pool = pool.filter(p => _shinyFilter === 'shiny' ? p.shiny : !p.shiny);
+  }
   // 属性筛选：含有目标属性的宝可梦都筛出来（单属性/双属性均可命中）
   if (_typeFilter) pool = pool.filter(p => {
     const poke = getPokemonByIndex(String(p.species));
@@ -154,7 +173,7 @@ function renderList() {
     } else {
       const total = inRoster().length;
       const shinyCount = inRoster().filter(p => p.shiny).length;
-      prog.textContent = q || _filter || _typeFilter || _regionFilter
+      prog.textContent = q || _srcFilter || _legendFilter || _shinyFilter || _typeFilter || _regionFilter
         ? `共 ${total} 只 · 匹配 ${pool.length} 只`
         : `共 ${total} 只 · 闪光 ${shinyCount} 只`;
     }
@@ -260,26 +279,64 @@ function setupSearch() {
   }
 }
 
+// 来源筛选三级菜单：一级=来源（全部/野生/钓鱼/孵蛋/交换），
+// 二级=普通/神兽（可直接点选=非闪光），hover 弹出三级"闪光"。
 function setupFilter() {
   const trigger = $('rosterFilter');
   const label = $('rosterFilterLabel');
   const dd = $('rosterFilterDropdown');
   if (!trigger || !label || !dd) return;
+
+  // 二级"普通/神兽"直接点选即代表非闪光；"闪光"是三级子项
+  const SRC_ORDER = [['', '全部'], ['normal', '野生'], ['fishing', '钓鱼'], ['egg', '孵蛋'], ['trade', '交换']];
+  const LEGEND_ORDER = [['', '普通'], ['legend', '神兽']];
+
   function buildOptions() {
-    dd.innerHTML = FILTER_OPTIONS.map(([k, name]) =>
-      `<div class="region-dropdown-item${k === _filter ? ' active' : ''}" data-filter="${k}">${name}</div>`
-    ).join('');
-    dd.querySelectorAll('.region-dropdown-item').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _filter = el.dataset.filter;
-        label.textContent = el.textContent;
-        dd.style.display = 'none';
-        trigger.classList.remove('open');
-        renderList();
-      });
-    });
+    dd.innerHTML = SRC_ORDER.map(([k, name]) => {
+      if (!k) {
+        return `<div class="region-dropdown-item${!_srcFilter && !_legendFilter && !_shinyFilter ? ' active' : ''}" data-src="" data-legend="" data-shiny="">全部</div>`;
+      }
+      return `<div class="roster-filter-item" data-src="${k}" data-legend="" data-shiny="">
+        <span class="roster-filter-src${_srcFilter === k && !_legendFilter && !_shinyFilter ? ' active' : ''}">${name}</span>
+        <span class="roster-filter-arrow">▸</span>
+        <div class="roster-sub-menu">
+          ${LEGEND_ORDER.map(([lk, lname]) => `
+          <div class="roster-filter-item">
+            <span class="roster-filter-leaf${_srcFilter === k && _legendFilter === lk && !_shinyFilter ? ' active' : ''}"
+                  data-src="${k}" data-legend="${lk}" data-shiny="">${lname}</span>
+            <span class="roster-filter-arrow">▸</span>
+            <div class="roster-sub-menu">
+              <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === 'shiny' ? ' active' : ''}"
+                   data-src="${k}" data-legend="${lk}" data-shiny="shiny">闪光</div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
   }
+
+  function pickItem(el) {
+    _srcFilter = el.dataset.src || '';
+    _legendFilter = el.dataset.legend || '';
+    _shinyFilter = el.dataset.shiny || '';
+    // 标签：来源首字·普/神（+闪），如"钓·普""钓·普闪""交·神闪"
+    if (!_srcFilter) label.textContent = '全部';
+    else {
+      const srcShort = { normal: '野', fishing: '钓', egg: '蛋', trade: '换' };
+      const legendShort = { '': '普', legend: '神' };
+      label.textContent = `${srcShort[_srcFilter]}·${legendShort[_legendFilter]}${_shinyFilter === 'shiny' ? '闪' : ''}`;
+    }
+    dd.style.display = 'none';
+    trigger.classList.remove('open');
+    renderList();
+  }
+
+  // 点击任意叶子项（带完整三级值）直接选中
+  dd.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const el = e.target.closest('[data-src][data-legend]');
+    if (el) pickItem(el);
+  });
   trigger.addEventListener('click', (e) => {
     e.stopPropagation();
     const open = dd.style.display !== 'none';
@@ -541,6 +598,8 @@ function moveDesc(mv) {
   const ef = mv.effect || {};
   switch (ef.kind) {
     case 'damage': {
+      if (mv.name === '击掌奇袭') return '出场后的第一回合才能成功使出，必定使目标畏缩。';
+      if (mv.name === '迎头一击') return '出场后的第一回合才能成功使出，必定先手。';
       let d = '对目标造成伤害。';
       if (ef.stat) {
         const parts = (ef.stat.stats || []).map((s) => `${s.stat}${s.delta > 0 ? '+' : ''}${s.delta}`);
@@ -934,12 +993,12 @@ function showRosterDetail(id) {
 
   const poke = getPokemonByIndex(String(p.species));
   const dGSpan = genderBadge(ensureGender(p));
-  const lastLog = latestLogLine(String(p.species));
+  const lastLog = latestLogLine(String(p.species), p.obtainedAt);
   const list = $('rosterList');
   if (!list) return;
   list.innerHTML = `
     <div style="font-size:13px;font-weight:700;padding:4px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span><span id="rosterNickSpan">${rosterName(p)}</span><button class="roster-nick-btn" id="rosterNickBtn" title="改名"><svg t="1786243847045" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13"><path d="M138.666667 810.666667V213.333333c0-41.216 33.450667-74.666667 74.666666-74.666666h469.333334v64H213.333333a10.666667 10.666667 0 0 0-10.666666 10.666666v597.333334c0 5.888 4.778667 10.666667 10.666666 10.666666h597.333334a10.666667 10.666667 0 0 0 10.666666-10.666666V352h64V810.666667A74.666667 74.666667 0 0 1 810.666667 885.333333H213.333333A74.666667 74.666667 0 0 1 138.666667 810.666667z" fill="currentColor"></path><path d="M444.330667 540.032L856.362667 128l45.226666 45.226667-411.989333 412.032-45.226667-45.226667z" fill="currentColor"></path></svg></button><span class="roster-detail-lv">${dGSpan}Lv${p.level || 1}</span>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
+      <span><span id="rosterNickSpan">${rosterName(p)}</span><button class="roster-nick-btn" id="rosterNickBtn" title="改名"><svg t="1786243847045" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13"><path d="M138.666667 810.666667V213.333333c0-41.216 33.450667-74.666667 74.666666-74.666666h469.333334v64H213.333333a10.666667 10.666667 0 0 0-10.666666 10.666666v597.333334c0 5.888 4.778667 10.666667 10.666666 10.666666h597.333334a10.666667 10.666667 0 0 0 10.666666-10.666666V352h64V810.666667A74.666667 74.666667 0 0 1 810.666667 885.333333H213.333333A74.666667 74.666667 0 0 1 138.666667 810.666667z" fill="currentColor"></path><path d="M444.330667 540.032L856.362667 128l45.226666 45.226667-411.989333 412.032-45.226667-45.226667z" fill="currentColor"></path></svg></button>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}<span class="roster-detail-lv">${dGSpan}Lv${p.level || 1}</span></span>
       <div style="display:flex;flex-direction:row;align-items:flex-end;gap:2px;flex-shrink:0;">
         <button class="roster-release" data-pokedex title="查看图鉴">图鉴</button>
         <button class="roster-release" data-release>放生</button>
@@ -952,7 +1011,7 @@ function showRosterDetail(id) {
           ${(poke && poke.types || []).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t] || '#888'}">${t}</span>`).join('')}
         </div>
         <div style="font-size:10px;opacity:0.7;line-height:1.6;">
-          <div style="display:flex;flex-wrap:wrap;column-gap:8px;">性格：${natureText(p.nature)}<span>来源：${srcName(p.source)}</span></div>
+          <div style="display:flex;flex-wrap:wrap;column-gap:8px;"><div data-tip="${natureBoostText(p.nature)}" style="cursor:pointer;">性格：${natureText(p.nature)}</div><span>来源：${srcName(p.source)}</span></div>
           <div style="display:flex;flex-wrap:wrap;column-gap:8px;">获得时间：${fmtTime(p.obtainedAt)}${lastLog ? `<span>${lastLog}</span>` : ''}</div>
         </div>
       </div>
@@ -1026,6 +1085,45 @@ function showRosterDetail(id) {
 // 放生：确认后移除个体、播告别动画，结束后返回列表
 let _releasing = false; // 场景播放中防重复触发
 
+// 升级经验需求（与对战结算一致）
+const expNeed = (lv) => 25 + lv * 20;
+
+// 个体累计经验（1 级 → 当前等级的全部经验需求 + 当前等级内已有经验）
+function entryTotalXp(entry) {
+  let total = entry.exp || 0;
+  const lv = Math.max(1, entry.level || 1);
+  for (let i = 1; i < lv; i++) total += expNeed(i);
+  return total;
+}
+
+// 放生返还经验：累计经验 × 比例，向下取整
+function releaseXpOf(entry) {
+  return Math.floor(entryTotalXp(entry) * RELEASE_XP_RATE);
+}
+
+// 把返还经验累入持久池，攒满 EXP_CANDY_XP 自动产出经验糖果并清零；返回本批产出的糖果数
+function addReleaseXp(amount) {
+  if (amount <= 0) return 0;
+  gameData.stats.releaseXpPool = (gameData.stats.releaseXpPool || 0) + amount;
+  let candies = 0;
+  while (gameData.stats.releaseXpPool >= EXP_CANDY_XP) {
+    gameData.stats.releaseXpPool -= EXP_CANDY_XP;
+    gameData.items['exp-candy'] = (gameData.items['exp-candy'] || 0) + 1;
+    candies++;
+  }
+  if (candies > 0) updateBackpack('exp-candy');
+  return candies;
+}
+
+// 结算放生返还并返回附加文本（前缀"再见！xxx"由调用方拼接）：
+// 返还经验 + 糖果产出；经验池数值单独展示在告别场景宝可梦位置
+// 池子攒满产糖时不再提示返还经验，只显示获得糖果
+function releaseXpText(gained, candies) {
+  if (candies > 0) return `\n获得经验糖果×${candies}！`;
+  if (gained > 0) return `\n放生返还 ${gained} 经验`;
+  return '';
+}
+
 // 批量放生
 let _batchRelease = false;
 let _batchSelected = new Set();
@@ -1097,19 +1195,22 @@ function doBatchRelease() {
   const arr = gameData.roster || [];
   const names = [];
   const toRemove = new Set([..._batchSelected]);
+  let gained = 0;
   for (let i = arr.length - 1; i >= 0; i--) {
     if (toRemove.has(arr[i].id)) {
       names.push(rosterName(arr[i]));
+      gained += releaseXpOf(arr[i]); // 移除前累计各个体返还经验
       arr.splice(i, 1);
     }
   }
   addSystemLog(`批量放生了 ${names.length} 只宝可梦`);
   saveGame();
   const n = names.length;
+  const candies = addReleaseXp(gained); // 结算返还：累计经验池并产出糖果
   _batchRelease = false;
   _batchSelected = new Set();
-  // 显示结果 1.5 秒后关闭并刷新
-  showConfirmBar(`已放生 ${n} 只宝可梦`, null, null, { noButtons: true });
+  // 显示结果 1.5 秒后关闭并刷新（含放生返还经验/糖果产出提示）
+  showConfirmBar(`已放生 ${n} 只宝可梦${releaseXpText(gained, candies)}`, null, null, { noButtons: true });
   setTimeout(() => {
     hideConfirmBar();
     renderList();
@@ -1120,11 +1221,25 @@ function releasePokemon(id) {
   if (!p || _releasing) return;
   _releasing = true;
   const poke = getPokemonByIndex(String(p.species));
+  const poolBefore = gameData.stats.releaseXpPool || 0; // 放生前池值，供进度条/数字滚动动画用
+  let gainedCandies = 0; // 本次放生产出的经验糖果数（confirmText 结算时写入）
   showGoodbyeConfirm({
     poke,
     nick: p.nickname || '',
     prompt: '确定要放生吗？',
     shiny: !!p.shiny,
+    twoStep: true, // 两阶段：确认后先「再见！」+ 图标缩小，动画结束后自动展示返还经验提示
+    title: '放生', // 顶部标题显示「放生」，点击标题等同于取消
+    // 动画结束自动结算返还经验（个体尚在仓库）：返还经验 + 累计池子 + 产出糖果
+    confirmText: () => {
+      const gained = releaseXpOf(p);
+      gainedCandies = addReleaseXp(gained);
+      return releaseXpText(gained, gainedCandies);
+    },
+    // 宝可梦隐藏后在其原位置展示经验池进度动画（须在 confirmText 结算之后读取新值）
+    poolText: () => {
+      return { before: poolBefore, after: gameData.stats.releaseXpPool || 0, max: EXP_CANDY_XP, candies: gainedCandies };
+    },
     onConfirm: () => {
       const arr = gameData.roster || [];
       const ri = arr.findIndex(r => r.id === id);
@@ -1146,11 +1261,19 @@ function releasePokemon(id) {
 }
 
 // 该物种最近一次遭遇日志（一行小字，附在获得时间下）
-function latestLogLine(idx) {
+function latestLogLine(idx, obtainedAt) {
   const logs = (gameData.encounterLogs || {})[idx] || [];
   if (logs.length === 0) return null;
-  const log = [...logs].sort((a, b) => b.time - a.time)[0];
-  return describeLogEntry(log);
+  // 优先取与该个体获得时刻最接近的日志（日志与建档同刻写入，容差内精确匹配），
+  // 避免同一物种其他个体（尤其孵化/交换）的日志张冠李戴
+  let best = null;
+  let bestDiff = 5000;
+  for (const l of logs) {
+    if (!l || l.time == null) continue;
+    const d = Math.abs(l.time - obtainedAt);
+    if (d < bestDiff) { bestDiff = d; best = l; }
+  }
+  return describeLogEntry(best || [...logs].sort((a, b) => b.time - a.time)[0]);
 }
 
 // 详情页返回列表
@@ -1235,7 +1358,13 @@ export function leaveRosterPicker() {
   if (p?.mode === 'team') import('./team.js').then(m => m.restoreTeamView());
   else if (p?.mode === 'train') import('./train.js').then(m => m.showTrainView());
   else if (p?.mode === 'nursery') import('./nursery.js').then(m => m.showNurseryView());
-  else if (p?.mode === 'expcandy') showView(fromWithEncounterGuard(p?.from)); // 经验糖果：返回进入时的来源页
+  else if (p?.mode === 'expcandy') {
+    const target = fromWithEncounterGuard(p?.from);
+    showView(target);
+    // 从仓库列表页进入经验糖果（背包全局显示，可在仓库直接点）：返回后仍停留仓库列表，
+    // showView 只切视图不重渲染，这里按普通模式重绘列表，清除「选择宝可梦使用经验糖果」提示
+    if (target === 'rosterView') renderList();
+  }
   else showView(p?.from || 'idleView');
 }
 

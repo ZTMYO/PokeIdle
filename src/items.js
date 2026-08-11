@@ -598,11 +598,29 @@ export async function hatchFromIncubator(slotIndex) {
   gameData.pokedex[idx].lastTime = new Date().toISOString();
   if (eggIsShiny) {
     gameData.pokedex[idx].shinyCaught = (gameData.pokedex[idx].shinyCaught || 0) + 1;
-    gameData.stats.totalShinyCaught++;
-    gameData.stats.totalShinyEggsHatched++;
+    // 孵化闪光单独计数，不算入"闪光捕获"（捕获仅统计道路遇敌）
+    gameData.stats.totalShinyEggsHatched = (gameData.stats.totalShinyEggsHatched || 0) + 1;
   }
   gameData.stats.totalCatches++;
   gameData.stats.totalEggsHatched++;
+  // 宝可梦蛋（eggRef）：蛋条目原地转正为宝可梦（删 kind:'egg'、level 置 1），
+  // 个体值/性格/性别/闪光完全沿用蛋（这就是"挑蛋培养 6V"的基础）；
+  // 神秘蛋（无 eggRef）：无对应条目，随机建档加入仓库。
+  let entry = null;
+  let ivRandomKey = null;
+  if (slot.eggRef) {
+    const eggEntry = (gameData.roster || []).find(r => r.id === slot.eggRef);
+    if (eggEntry) {
+      delete eggEntry.kind;
+      eggEntry.level = 1;
+      eggEntry.inRoster = true;
+      eggEntry.obtainedAt = Date.now(); // 获得时间记录为点击孵化完成的时刻，而非放入孵蛋器
+      ivRandomKey = eggEntry.ivRandomKey || null; // 培育蛋：仅该纯随机项是个体值运气
+      entry = eggEntry;
+    }
+  }
+  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
+  setLastObtainedEntryId(entry.id);
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
   if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
   gameData.encounterLogs[idx].push({
@@ -611,24 +629,9 @@ export async function hatchFromIncubator(slotIndex) {
     score: computeObtainScore({
       pokemon: poke, source: 'egg', shiny: eggIsShiny,
       charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1,
+      ivs: entry.ivs, ivRandomKey,
     }),
   });
-
-  // 宝可梦蛋（eggRef）：蛋条目原地转正为宝可梦（删 kind:'egg'、level 置 1），
-  // 个体值/性格/性别/闪光完全沿用蛋（这就是"挑蛋培养 6V"的基础）；
-  // 神秘蛋（无 eggRef）：无对应条目，随机建档加入仓库。
-  let entry = null;
-  if (slot.eggRef) {
-    const eggEntry = (gameData.roster || []).find(r => r.id === slot.eggRef);
-    if (eggEntry) {
-      delete eggEntry.kind;
-      eggEntry.level = 1;
-      eggEntry.inRoster = true;
-      entry = eggEntry;
-    }
-  }
-  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
-  setLastObtainedEntryId(entry.id);
   // 玩家仍在本页才播放祝贺音效（已切走则后台静默结算，避免音效打断其他页面背景曲）
   if (isOnHatchView()) playCongratulation();
 

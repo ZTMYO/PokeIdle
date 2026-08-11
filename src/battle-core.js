@@ -5,11 +5,11 @@ import { typeMult } from './type-chart.js';
 // ---------- 性格（25 种，英文 key 与存档一致；statIndex: 0攻 1防 2特攻 3特防 4速） ----------
 export const NATURES = {
   hardy: null, docile: null, bashful: null, quirky: null, serious: null,
-  lonely: { up: 0, down: 1 }, adamant: { up: 0, down: 2 }, naughty: { up: 0, down: 3 }, brave: { up: 0, down: 4 },
-  bold: { up: 1, down: 0 }, impish: { up: 1, down: 2 }, lax: { up: 1, down: 3 }, relaxed: { up: 1, down: 4 },
-  modest: { up: 2, down: 0 }, mild: { up: 2, down: 1 }, rash: { up: 2, down: 3 }, quiet: { up: 2, down: 4 },
-  calm: { up: 3, down: 0 }, gentle: { up: 3, down: 1 }, careful: { up: 3, down: 2 }, sassy: { up: 3, down: 4 },
-  timid: { up: 4, down: 0 }, hasty: { up: 4, down: 1 }, jolly: { up: 4, down: 2 }, naive: { up: 4, down: 3 },
+  lonely: { up: 1, down: 2 }, adamant: { up: 1, down: 3 }, naughty: { up: 1, down: 4 }, brave: { up: 1, down: 5 },
+  bold: { up: 2, down: 1 }, impish: { up: 2, down: 3 }, lax: { up: 2, down: 4 }, relaxed: { up: 2, down: 5 },
+  modest: { up: 3, down: 1 }, mild: { up: 3, down: 2 }, rash: { up: 3, down: 4 }, quiet: { up: 3, down: 5 },
+  calm: { up: 4, down: 1 }, gentle: { up: 4, down: 2 }, careful: { up: 4, down: 3 }, sassy: { up: 4, down: 5 },
+  timid: { up: 5, down: 1 }, hasty: { up: 5, down: 2 }, jolly: { up: 5, down: 3 }, naive: { up: 5, down: 4 },
 };
 
 export const STATUS_TEXT = {
@@ -60,6 +60,7 @@ export function createMon(pokeData, level, ivsObj, natureKey, moveIds) {
     stages: [0, 0, 0, 0, 0, 0, 0],
     stageTypes: [null, null, null, null, null, null, null], // 每项能力最近一次变化来源招式的属性（能力圆点按此着色）
     status: null, statusType: null, sleepTurns: 0, confusionTurns: 0, flinch: false,
+    entryRound: null,         // 击掌奇袭：刚出场的回合标记（null=刚上场，出场后第一回合可用）
     hitByPhys: false, physDmg: 0, // 双倍奉还结算：最近一次受到的物理伤害（回合开始清零）
     hitBySpec: false, specDmg: 0, // 镜面反射结算：最近一次受到的特殊伤害（回合开始清零）
     protected: false, endure: false, protectStreak: 0, seeded: false, seedSrc: null, subHp: 0, // 守住/挺住/寄生种子/替身
@@ -173,7 +174,16 @@ function hit(actor, target, mv, ef, events, ctx = null) {
 
 function applyStatus(mon, st, events, chance = 100, moveType = null, ctx = null) {
   if (Math.random() * 100 > chance) return;
-  if (st === 'flinch') { mon.flinch = true; events.push(msg(`${mon.name}畏缩了！`)); return; } // 畏缩为瞬时行动打断，不占用异常槽
+  if (st === 'flinch') {
+    // 畏缩为本回合瞬时行动打断：目标本回合已行动过则不生效，且不带到下一回合
+    if (ctx && ctx._acted && ctx._acted.has(mon.uid)) {
+      events.push(msg(`${mon.name}已经行动过，畏缩没有生效！`));
+      return;
+    }
+    mon.flinch = true;
+    events.push(msg(`${mon.name}畏缩了！`));
+    return; // 畏缩不占用异常槽
+  }
   // 场地免疫：薄雾场地免疫一切异常，电气场地防睡眠
   if (ctx) {
     if (ctx.field === 'mist') {
@@ -254,6 +264,12 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     return events;
   }
   const ef = mv.effect;
+  // 击掌奇袭/迎头一击：仅出场后的第一回合能成功使出，其余回合招式无效（官方设定）
+  const entryMove = mv.name === '击掌奇袭' || mv.name === '迎头一击';
+  if (entryMove && actor.entryRound != null && actor.entryRound !== ctx?.round) {
+    events.push(msg(`${actor.name}的${mv.name}没有发挥效果！`));
+    return events;
+  }
   actor.lastMove = String(moveId); // 记录最近使用的招式（模仿/定身法/再来一次依赖）
   // 守住连续成功计数：改用非守住招式时清零（守住失败在守住分支内清零）
   if (ef.kind !== 'protect') actor.protectStreak = 0;
@@ -710,11 +726,6 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
 // 行动前检查，返回是否能行动
 export function preTurn(mon, events) {
   if (mon.hp <= 0) return false;
-  if (mon.flinch) {
-    mon.flinch = false;
-    events.push({ t: 'flinch', who: mon.name, uid: mon.uid, text: `${mon.name}畏缩了，无法行动！` });
-    return false;
-  }
   if (mon.status === 'freeze') {
     if (Math.random() < 0.2) clearStatus(mon, events, `${mon.name}解冻了！`);
     else { events.push(msg(`${mon.name}被冻住，无法行动。`)); return false; }
@@ -876,6 +887,9 @@ export function aiMove(actor, enemy, data) {
     if (actor.lockedMove != null && ms !== actor.lockedMove) return false; // 再来一次：锁定招式
     if (actor.disabledMove != null && ms === actor.disabledMove) return false; // 定身法/无理取闹：封印招式
     if (actor.tauntTurns > 0 && !AI_DMG_KIND.includes(ef.kind)) return false; // 挑衅：只能用攻击招式
+    if (data.moves[m].name === '击掌奇袭' || data.moves[m].name === '迎头一击') {
+      if (actor.entryRound != null) return false; // 登场技：仅刚出场第一回合可用
+    }
     return true;
   });
   if (!usable.length) return null;

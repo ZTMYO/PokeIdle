@@ -698,7 +698,10 @@ export async function throwBall(ballType) {
         gameData.stats.totalShinyCaught++;
       }
       gameData.stats.totalCatches++;
-      // 记录遭遇日志
+      // 入仓库（随机个体值 + 野生等级取当前遇敌等级；性别沿用遭遇时 roll 的性别，与遭遇界面一致）
+      const entry = addRosterEntry({ species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource, level: encounterLevel, gender: _encounterGender });
+      setLastObtainedEntryId(entry.id);
+      // 记录遭遇日志（score 含个体值加成，需先建档拿到 ivs）
       if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
       gameData.encounterLogs[idx].push({
         time: Date.now(), shiny: currentIsShiny, result: 'caught',
@@ -707,12 +710,9 @@ export async function throwBall(ballType) {
         score: computeObtainScore({
           pokemon: currentEncounter, source: _encounterSource, shiny: currentIsShiny,
           charmBuff: charmBuffActive, honeyBuff: honeyBuffActive,
-          balls: currentEncounterBalls, finalRate: rate,
+          balls: currentEncounterBalls, finalRate: rate, ivs: entry.ivs,
         }),
       });
-      // 入仓库（随机个体值 + 野生等级取当前遇敌等级；性别沿用遭遇时 roll 的性别，与遭遇界面一致）
-      const entry = addRosterEntry({ species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource, level: encounterLevel, gender: _encounterGender });
-      setLastObtainedEntryId(entry.id);
       addSystemLog('pokemon_caught', { pokemon: idx, shiny: currentIsShiny, ball: ballType, auto: _autoCatching });
     } else if (outcome === 'fled') {
       if (!_bgCatch) setPhase('fled'); // 立即阻止再次丢球/逃跑

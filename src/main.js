@@ -667,8 +667,7 @@ async function init() {
     gameData.pokedex[pdx].lastTime = new Date().toISOString();
     if (shiny) {
       gameData.pokedex[pdx].shinyCaught = (gameData.pokedex[pdx].shinyCaught || 0) + 1;
-      gameData.stats.totalShinyCaught++;
-      gameData.stats.totalShinyEggsHatched++;
+      gameData.stats.totalShinyEggsHatched = (gameData.stats.totalShinyEggsHatched || 0) + 1;
     }
     gameData.stats.totalCatches++;
     gameData.stats.totalEggsHatched++;
@@ -681,7 +680,7 @@ async function init() {
       result: 'caught',
       balls: {},
       charmBuff: false,
-      score: computeObtainScore({ pokemon: poke, source: 'egg', shiny, charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1 }),
+      score: computeObtainScore({ pokemon: poke, source: 'egg', shiny, charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1, ivs: entry.ivs }),
     });
     await saveGame();
     if (isRosterInDetail()) restoreRosterList();

@@ -420,14 +420,32 @@ function renderFollowerView() {
         _drawPhase = 'idle';
         renderDrawResult(_drawResult, getFollowerGroups(_drawResult.types));
       }, 950);
+    } else if (_drawPhase === 'multi-rolling') {
+      // 5 连抽：顶部收集区（5 槽）+ 当前滚动格
+      const slots = '<div class="follower-multi-slot"></div>'.repeat(5);
+      content.innerHTML = `
+        <div class="follower-display">
+          <div class="follower-multi-collect overlay" id="followerMultiCollect">${slots}</div>
+          <div class="gacha-roll-container" id="followerMultiRollC">
+            <div class="gacha-roll-track" id="followerMultiTrack" style="transform:translateX(0px)"></div>
+          </div>
+        </div>
+        <div class="follower-actions"><button class="gacha-btn" disabled>抽取中…</button></div>`;
+      _multiRollIdx = 0;
+      startMultiRoll();
+    } else if (_drawPhase === 'multi-result' && _multiResult) {
+      renderMultiResult();
     } else {
       // 空闲态：走马灯预览 + 底部抽卡按钮（仿卡包抽卡机）
+      const canDraw = (gameData?.items?.candy || 0) >= FOLLOWER_DRAW_COST;
+      const canDrawMulti = (gameData?.items?.candy || 0) >= FOLLOWER_DRAW_COST * 5;
       content.innerHTML = `
         <div class="follower-display">
           <div class="follower-marquee"><div class="follower-marquee-track">${followerMarqueeItems()}</div></div>
         </div>
         <div class="follower-actions">
           <button class="gacha-btn" id="followerDrawBtn" ${canDraw ? '' : 'disabled'}>抽取随从 ${FOLLOWER_DRAW_COST}<img class="gacha-coin-icon" src="./items/candy.png" alt="糖"></button>
+          <button class="gacha-btn" id="followerDrawMultiBtn" ${canDrawMulti ? '' : 'disabled'}>5连抽 ${FOLLOWER_DRAW_COST * 5}<img class="gacha-coin-icon" src="./items/candy.png" alt="糖"></button>
         </div>`;
       // 走马灯图片走标准加载通道（Tauri 下相对路径 src 会失败），加载完播帧动画
       content.querySelectorAll('.follower-marquee-item img').forEach(img => {
@@ -436,6 +454,8 @@ function renderFollowerView() {
       });
       const drawBtn = $('followerDrawBtn');
       if (drawBtn) drawBtn.addEventListener('click', doDraw);
+      const multiBtn = $('followerDrawMultiBtn');
+      if (multiBtn) multiBtn.addEventListener('click', doDrawMulti);
     }
     if (renderFollowerView._timer) {
       clearInterval(renderFollowerView._timer);
@@ -470,16 +490,17 @@ function followerMarqueeItems() {
 let _marqueeImgs = [];
 let _marqueeRaf = null;
 
-function startMarqueeAnim(img) {
+function startMarqueeAnim(img, scale = 1.6) {
   const w = img.naturalWidth, h = img.naturalHeight;
   if (!w || !h) return;
   const frameCount = Math.max(1, Math.round(w / h));
-  // 单帧布局 + 适度放大，占满 56px 走马灯格（以中心为原点放大，图片居中不偏移）
+  // 单帧布局 + 适度放大，占满走马灯格（以中心为原点放大，图片居中不偏移）；
+  // scale 用于小容器（如 5 连抽槽位）控制放大倍率，避免图片超出容器
   img.style.width = h + 'px';
   img.style.height = h + 'px';
   img.style.objectFit = 'none';
   img.style.objectPosition = '0px 0px';
-  img.style.transform = 'scale(1.6)';
+  img.style.transform = `scale(${scale})`;
   img.style.transformOrigin = 'center';
   _marqueeImgs.push({ img, frameCount, frameW: w / frameCount, frame: 0, last: performance.now() });
   if (!_marqueeRaf) _marqueeRaf = requestAnimationFrame(marqueeTick);
@@ -502,10 +523,12 @@ function marqueeTick() {
 }
 
 // ===== 抽卡动画状态（仿卡包抽卡机：滚动 → 锁定 → 结果）=====
-let _drawPhase = 'idle';     // idle | rolling | locking
+let _drawPhase = 'idle';     // idle | rolling | locking | multi-rolling | multi-result
 let _drawResult = null;
 let _rollItems = [];         // 本次滚动格序列（锁定阶段取目标相邻格作残影）
 let _rollTargetIdx = 0;      // 本次滚动目标格在序列中的下标
+let _multiResult = null;     // 5 连抽结果数组
+let _multiSel = 0;           // 5 连抽结果页当前选中的下标
 
 // 抽卡逻辑：扣糖果 → 暂存结果 → 进入走马灯减速滚动动画
 function doDraw() {
@@ -525,15 +548,58 @@ function doDraw() {
   renderFollowerView();
 }
 
+// 5 连抽：扣 5×糖果，连抽 5 只，依次滚动停格后进入多结果页
+function doDrawMulti() {
+  const candy = gameData?.items?.candy || 0;
+  const cost = FOLLOWER_DRAW_COST * 5;
+  if (candy < cost) return;
+  gameData.items.candy = candy - cost;
+  updateBackpack('candy');
+  saveGame();
+  updateStats();
+  const results = [];
+  for (let i = 0; i < 5; i++) {
+    const r = drawCard();
+    if (r) results.push(r);
+  }
+  if (results.length === 0) return;
+  _multiResult = results;
+  _multiSel = 0;
+  _drawResult = results[0];
+  _drawPhase = 'multi-rolling';
+  // 待处理标记存完整 5 只结果（multi 标记区分单抽/5连抽），中途退出后重启可完整恢复
+  gameData.followerPending = {
+    multi: true,
+    results: results.map(r => ({ index: r.index, name: r.name, tier: r.tier })),
+  };
+  saveGame();
+  renderFollowerView();
+}
+
+// 滚动阶段当前进度（-1 表示全部完成）
+let _multiRollIdx = -1;
+
 // 重启恢复：把存档里的待处理结果装回内存，重进随从页时展示结果
 export function restorePendingFollower() {
   if (!gameData?.followerPending || gameData?.follower) return;
-  const pk = getPokemonByIndex(gameData.followerPending.index);
+  const pend = gameData.followerPending;
+  // 5 连抽待处理：恢复完整结果数组，直接进多结果页
+  if (pend.multi && Array.isArray(pend.results) && pend.results.length > 0) {
+    _multiResult = pend.results.map(r => {
+      const pk = getPokemonByIndex(r.index);
+      return { index: r.index, name: r.name, tier: r.tier, types: pk?.types || [] };
+    });
+    _multiSel = 0;
+    _drawResult = _multiResult[0];
+    _drawPhase = 'multi-result';
+    return;
+  }
+  const pk = getPokemonByIndex(pend.index);
   if (!pk) return;
   _drawResult = {
-    index: gameData.followerPending.index,
-    name: gameData.followerPending.name,
-    tier: gameData.followerPending.tier,
+    index: pend.index,
+    name: pend.name,
+    tier: pend.tier,
     types: pk.types || [],
   };
   _drawPhase = 'result';
@@ -603,6 +669,99 @@ function startFollowerRoll() {
   requestAnimationFrame(tick);
 }
 
+// 5 连抽滚动：单条长 track 全程不停滚动（方向与单抽一致：track 右移，内容从右往左流入），
+// 滚到某目标格居中位置时即把该只上浮进收集槽（不打断滚动），滚到底后进结果页
+function startMultiRoll() {
+  const track = $('followerMultiTrack');
+  const container = $('followerMultiRollC');
+  if (!track || !container) return;
+  const results = _multiResult || [];
+  if (results.length === 0) return;
+  const pool = getFollowerPool();
+  const ITEM_STEP = 56;
+  // 预热结果图，槽位上浮时直接命中缓存，避免闪现未加载状态
+  for (const r of results) {
+    const probe = new Image();
+    tryLoadImage(probe, `./pokemon-data/pokemon-move/${r.index}-${r.name}.png`);
+  }
+  // track 为随机展示内容，滚动节奏与单抽一致即可
+  const itemCount = 44;
+  let html = '';
+  _rollItems = [];
+  for (let k = 0; k < itemCount; k++) {
+    const p = pool[Math.floor(Math.random() * pool.length)];
+    _rollItems.push(p);
+    html += `<div class="follower-roll-item">
+      <img class="follower-roll-img" data-src="./pokemon-data/pokemon-move/${String(p.index).padStart(4,'0')}-${p.name}.png" alt="${p.name}">
+    </div>`;
+  }
+  track.innerHTML = html;
+  track.querySelectorAll('.follower-roll-img').forEach(img => {
+    const rel = img.dataset.src;
+    if (rel) tryLoadImage(img, rel).then(ok => { if (ok) startMarqueeAnim(img); });
+  });
+  // 滚动参数与单抽相同：右移减速滑行约 1100px
+  const centerPx = container.clientWidth / 2;
+  const tStart = centerPx - 25 * ITEM_STEP - ITEM_STEP / 2;
+  const tFinal = tStart + 1100;
+  const DURATION = 200; // 与单抽相同的总帧数
+  let frame = 0;
+  let count = 0; // 已上浮数量
+  let locked = false;
+  const tick = () => {
+    if (locked || !track.isConnected) return;
+    frame++;
+    const k = 1 - Math.pow(1 - Math.min(frame / DURATION, 1), 3); // easeOutCubic 与单抽一致
+    const x = tStart + (tFinal - tStart) * k;
+    track.style.transform = `translateX(${x}px)`;
+    // 滚动途中按顺序依次上浮，最后一只在前 75% 进度内出现，留点缓冲
+    const target = Math.min(5, Math.floor(frame * 5 / (DURATION * 0.75)));
+    while (count < target) {
+      collectMultiPoke(count, results[count]);
+      count++;
+    }
+    if (frame >= DURATION) {
+      locked = true;
+      while (count < 5) {
+        collectMultiPoke(count, results[count]);
+        count++;
+      }
+      if ($('followerView')?.style.display !== 'flex') return;
+      _drawPhase = 'multi-result';
+      renderFollowerView();
+    } else {
+      requestAnimationFrame(tick);
+    }
+  };
+  requestAnimationFrame(tick);
+}
+
+// 第 i 格停稳后：把目标宝可梦放入收集槽 i（从下方 24px 飞入槽位）
+function collectMultiPoke(i, cur) {
+  const collect = $('followerMultiCollect');
+  if (!collect) return;
+  const movePath = `./pokemon-data/pokemon-move/${cur.index}-${cur.name}.png`;
+  const slots = collect.querySelectorAll('.follower-multi-slot');
+  const slot = slots[i];
+  if (slot) {
+    // 先用透明占位，避免加载完成前闪现空白/名字；超稀有黄星、传说红星
+    const star = cur.tier === 'UR' ? '<span class="follower-slot-star ur">✦</span>'
+      : cur.tier === 'SR' ? '<span class="follower-slot-star">✦</span>' : '';
+    slot.innerHTML = `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="${movePath}" alt="${cur.name}">${star}`;
+    const img = slot.querySelector('img');
+    if (img) tryLoadImage(img, movePath).then(ok => { if (ok) startMarqueeAnim(img, 1.0); });
+    slot.classList.add('filled');
+    // 飞入动画：从下方 24px 移入槽位
+    slot.style.opacity = '0';
+    slot.style.transform = 'translateY(24px)';
+    requestAnimationFrame(() => {
+      slot.style.transition = 'opacity 0.25s ease, transform 0.35s cubic-bezier(0.33,0,0.2,1)';
+      slot.style.opacity = '1';
+      slot.style.transform = 'translateY(0)';
+    });
+  }
+}
+
 // 抽卡结果页：左 move 帧动画 + 右信息，底部跟随/放走
 function renderDrawResult(result, groups) {
   const content = $('followerContent');
@@ -649,6 +808,80 @@ function renderDrawResult(result, groups) {
   });
   if (releaseBtn) releaseBtn.addEventListener('click', () => {
     clearPending(); // 放走：结果作废，清除待处理标记
+    renderFollowerView();
+  });
+}
+
+// 5 连抽结果页：顶部收集槽（点击切换右侧信息），底部跟随/放走全部
+function renderMultiResult() {
+  const content = $('followerContent');
+  if (!content) return;
+  const results = _multiResult || [];
+  if (results.length === 0) return;
+  _multiSel = Math.min(_multiSel, results.length - 1);
+  const sel = results[_multiSel];
+  const tierLabel = { N: '常见', R: '稀有', SR: '超稀有', UR: '传说' };
+  const boostPct = Math.round(FOLLOWER_TIER_BOOST[sel.tier] * 100);
+  const groups = getFollowerGroups(sel.types);
+  const boostStr = groups.length > 1 ? `强度：每类 +${boostPct}%` : `强度：+${boostPct}%`;
+  const movePath = `./pokemon-data/pokemon-move/${sel.index}-${sel.name}.png`;
+  // 顶部收集槽：填满已抽到图片，选中槽高亮，点击切换
+  const slots = results.map((r, i) => {
+    const p = `./pokemon-data/pokemon-move/${r.index}-${r.name}.png`;
+    const star = r.tier === 'UR' ? '<span class="follower-slot-star ur">✦</span>'
+      : r.tier === 'SR' ? '<span class="follower-slot-star">✦</span>' : '';
+    return `<div class="follower-multi-slot${i === _multiSel ? ' selected' : ''}" data-mi="${i}">
+      <img data-src="${p}" alt="${r.name}">${star}
+    </div>`;
+  }).join('');
+  content.innerHTML = `
+    <div class="follower-display follower-multi-result-display">
+      <div class="follower-multi-collect" id="followerMultiCollect">${slots}</div>
+      <div class="follower-display-inner">
+        <div class="follower-card-area">
+          <img class="follower-big-img" id="followerMultiBig" src="${movePath}" alt="${sel.name}">
+        </div>
+        <div class="follower-info">
+          <div class="follower-info-name">${sel.name}</div>
+          <div class="follower-info-line"><span class="tier-badge tier-${sel.tier} follower-tier-badge">${tierLabel[sel.tier] || sel.tier}</span></div>
+          <div class="follower-info-line">${typeBadgesHtml(sel.types)}</div>
+          ${groups.map(g => `<div class="follower-info-line">增益：${getBoostLabel([g])}</div>`).join('')}
+        </div>
+      </div>
+      <div class="follower-dur-boost">
+        <span>${boostStr}</span>
+        <span>时长：${FOLLOWER_TIER_DUR[sel.tier]} 分钟</span>
+      </div>
+    </div>
+    <div class="follower-actions">
+      <button class="gacha-btn follower-follow-btn" id="followerFollowBtn">让它跟随</button>
+      <button class="gacha-btn follower-release-btn" id="followerReleaseBtn">放走全部</button>
+    </div>`;
+  // 槽位图走标准加载通道 + 帧动画（小容器用小缩放，避免超出槽位）
+  content.querySelectorAll('#followerMultiCollect img').forEach(img => {
+    const rel = img.dataset.src;
+    if (rel) tryLoadImage(img, rel).then(ok => { if (ok) startMarqueeAnim(img, 1.0); });
+  });
+  const big = $('followerMultiBig');
+  if (big) tryLoadImage(big, movePath).then(ok => { if (ok) startMoveAnim(big, 150); });
+  // 点槽位切换右侧信息：重渲染整页
+  content.querySelectorAll('.follower-multi-slot').forEach(slot => {
+    slot.addEventListener('click', () => {
+      const i = Number(slot.dataset.mi);
+      if (i === _multiSel) return;
+      _multiSel = i;
+      renderMultiResult();
+    });
+  });
+  const followBtn = $('followerFollowBtn');
+  const releaseBtn = $('followerReleaseBtn');
+  if (followBtn) followBtn.addEventListener('click', () => {
+    clearPending();
+    startFollower({ index: sel.index, name: sel.name }, sel.tier, groups);
+    renderFollowerView();
+  });
+  if (releaseBtn) releaseBtn.addEventListener('click', () => {
+    clearPending();
     renderFollowerView();
   });
 }

@@ -68,6 +68,7 @@ let _pickSortDir = 1;     // 1 升序 / -1 降序
 let _pickSearch = '';         // 放入列表搜索词
 let _pickTypeFilter = '';     // 放入列表属性筛选
 let _pickRegionFilter = '';   // 放入列表地区筛选
+let _pickIvSel = [];        // 放入列表个体值多选：[{stat,min}]，全部条件需同时满足（AND）
 let _eggView = false;         // 蛋仓库视图
 let _eggQuery = '';           // 蛋搜索关键词
 let _eggSortBy = null;    // 蛋列表排序列：null=默认按时间降序 | name | iv
@@ -151,6 +152,7 @@ export function showNurseryView() {
   _pickSearch = '';
   _pickTypeFilter = '';
   _pickRegionFilter = '';
+  _pickIvSel = [];
   // 先结算离开期间产出的蛋（自动入库），再进入页面；有新蛋时底部弹出提示
   const produced = settleBreeding();
   render();
@@ -276,6 +278,13 @@ function renderPickPage(box) {
             </svg>
             <div id="nurseryPickRegionFilterDropdown" class="region-dropdown" style="display:none;"></div>
           </div>
+          <div id="nurseryPickIvFilter" class="pokedex-region-select" tabindex="0" title="按个体值筛选">
+            <span id="nurseryPickIvFilterLabel">${pickIvFilterLabel()}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="nurseryPickIvFilterDropdown" class="region-dropdown nursery-iv-dd" style="display:none;"></div>
+          </div>
         </div>
       </div>
       <div class="pokedex-header roster-header nursery-pick-header">
@@ -369,6 +378,74 @@ function bindPickFilters(root) {
     });
     document.addEventListener('click', () => { regionDd.style.display = 'none'; regionTrigger.classList.remove('open'); });
   }
+  // 个体值筛选面板：6 项个体值各带档位，可多选（AND），选中后面板保持打开，点击空白关闭
+  const ivTrigger = root.querySelector('#nurseryPickIvFilter');
+  const ivLabel = root.querySelector('#nurseryPickIvFilterLabel');
+  const ivDd = root.querySelector('#nurseryPickIvFilterDropdown');
+  if (ivTrigger && ivLabel && ivDd) {
+    const IV_ITEMS = [['hp', 'HP'], ['atk', '攻'], ['def', '防'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速']];
+    const IV_LEVELS = [20, 25, 31]; // 下限档位
+    function ivLevelLabel(v) { return v === 31 ? '31' : `≥${v}`; }
+    // 当前该档位是否已选中
+    function ivSelected(k, v) {
+      return _pickIvSel.some(s => s.stat === k && s.min === v);
+    }
+    function buildIvOptions() {
+      ivDd.innerHTML = `
+        <div class="region-dropdown-item${!_pickIvSel.length ? ' active' : ''}" data-iv-clear="1">全部</div>
+        <div class="nursery-iv-panel">
+          ${IV_ITEMS.map(([k, cn]) => `
+          <div class="nursery-iv-col${_pickIvSel.some(s => s.stat === k) ? ' active' : ''}">
+            <div class="nursery-iv-col-head">${cn}</div>
+            ${IV_LEVELS.map(v =>
+              `<div class="nursery-iv-lvl${ivSelected(k, v) ? ' active' : ''}" data-iv="${k}" data-min="${v}">${ivLevelLabel(v)}</div>`
+            ).join('')}
+          </div>`).join('')}
+        </div>`;
+      // 全部：清空所有个体值条件
+      const clearEl = ivDd.querySelector('[data-iv-clear]');
+      if (clearEl) clearEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _pickIvSel = [];
+        ivLabel.textContent = pickIvFilterLabel();
+        ivDd.style.display = 'none';
+        ivTrigger.classList.remove('open');
+        refreshPickList();
+      });
+      // 档位：切换选中状态（多选，不关闭面板）
+      ivDd.querySelectorAll('.nursery-iv-lvl').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const k = el.dataset.iv;
+          const v = Number(el.dataset.min);
+          const idx = _pickIvSel.findIndex(s => s.stat === k && s.min === v);
+          if (idx >= 0) _pickIvSel.splice(idx, 1);
+          else _pickIvSel.push({ stat: k, min: v });
+          ivLabel.textContent = pickIvFilterLabel();
+          buildIvOptions(); // 重建以刷新选中态，面板保持打开
+          refreshPickList();
+         });
+       });
+-       // 点击面板内部空白不关闭
+-       ivDd.addEventListener('click', (e) => e.stopPropagation());
+     }
++    // 点击面板内部空白不关闭（仅绑定一次，buildIvOptions 重建内容不影响）
++    ivDd.addEventListener('click', (e) => e.stopPropagation());
+     ivTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = ivDd.style.display !== 'none';
+      root.querySelectorAll('.region-dropdown').forEach(d => d.style.display = 'none');
+      root.querySelectorAll('.pokedex-region-select').forEach(s => s.classList.remove('open'));
+      if (!open) { buildIvOptions(); ivDd.style.display = ''; ivTrigger.classList.add('open'); }
+    });
+    // 点击面板外任意空白区域关闭
+    document.addEventListener('click', () => {
+      if (ivDd.style.display !== 'none') {
+        ivDd.style.display = 'none';
+        ivTrigger.classList.remove('open');
+      }
+    });
+  }
 }
 
 // 选取页是否打开（供 main.js 标题栏返回使用）
@@ -383,6 +460,7 @@ export function leaveNurseryPick() {
   _pickSearch = '';
   _pickTypeFilter = '';
   _pickRegionFilter = '';
+  _pickIvSel = [];
   render();
   // 恢复标题栏
   const title = $('appTitle');
@@ -649,7 +727,8 @@ function refreshPickList() {
   if (!list) return;
   list.innerHTML = pickListHtml(_pickSlot, _pickSearch);
   loadSlotIcons(page);
-  bindPick(page);
+  bindPickRows(page); // 只绑列表行（行是新 DOM）；搜索/表头监听在 render() 时绑一次，避免累积
+  markPickSort(page); // 点击排序后同步三角箭头（表头是持久 DOM，需主动刷新标记）
 }
 
 // 个体值总和
@@ -665,6 +744,9 @@ function ivTip(ivs) {
 }
 function pickIvTip(p) {
   return ivTip(p.ivs);
+}
+function pickIvFilterLabel() {
+  return _pickIvSel.length ? `个体*${_pickIvSel.length}` : '个体值';
 }
 
 // "放入宝可梦"列表：全部在仓个体（排除另一槽已放入的），复用悬赏提交列表的行结构——
@@ -696,6 +778,12 @@ function pickListHtml(slot, query = '') {
       if (!_pickRegionFilter) return true;
       const poke = getPokemonByIndex(String(p.species));
       return poke?.region === _pickRegionFilter;
+    })
+    // 个体值筛选：多选条件需全部满足（如攻≥25 且 速≥31）
+    .filter(p => {
+      if (!_pickIvSel.length) return true;
+      return _pickIvSel.every(({ stat, min }) =>
+        p.ivs && p.ivs[stat] != null && p.ivs[stat] >= min);
     })
     // 搜索过滤：名称 / 拼音 / 首字母 / 昵称
     .filter(p => {
@@ -1085,6 +1173,8 @@ function createEggEntry(ea, eb, childSpecies, lockedIv) {
     ivs[lockedIv.key] = from.ivs && from.ivs[lockedIv.key] != null ? from.ivs[lockedIv.key] : 0;
   }
   while (inherits.size < 5) inherits.add(Math.floor(Math.random() * keys.length));
+  // 记录纯随机位：6 项中唯一不继承亲本的项，是孵蛋时唯一的个体值运气（欧气评分用它加分）
+  const ivRandomKey = keys.filter((_, i) => !inherits.has(i))[0] || null;
   keys.forEach((k, i) => {
     if (ivs[k] != null) return;
     if (inherits.has(i)) {
@@ -1103,6 +1193,7 @@ function createEggEntry(ea, eb, childSpecies, lockedIv) {
     exp: 0,
     evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
     ivs,
+    ivRandomKey, // 纯随机个体值项（欧气评分只按该项加分）
     nature: rollNature(),
     shiny: Math.random() < EGG_SHINY_CHANCE,
     source: 'egg',
@@ -1214,6 +1305,13 @@ function bindSlots(host) {
 // "放入宝可梦"全页列表交互：行内按钮放入该槽；点击行跳转个体详情（返回后恢复列表）
 function bindPick(root) {
   if (_pickSlot == null) return;
+  bindPickRows(root);
+  bindPickPersistent(root); // 搜索 / 表头排序：页面级持久监听，仅 render() 重建时绑定
+}
+
+// 绑定列表行（行 DOM 每次刷新重建，需重新绑定）
+function bindPickRows(root) {
+  if (_pickSlot == null) return;
   root.querySelectorAll('[data-pick-submit]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1234,6 +1332,11 @@ function bindPick(root) {
       }));
     });
   });
+}
+
+// 页面级持久监听（搜索 / 表头排序）：仅在 render() 重建页面时绑定一次，
+// 不要放进 refreshPickList，否则同一持久 DOM 会累积监听导致多次触发/卡死
+function bindPickPersistent(root) {
   // 搜索输入：实时过滤列表，不清空排序状态
   const searchInput = root.querySelector('#nurseryPickSearch');
   const searchClear = root.querySelector('#nurseryPickSearchClear');
@@ -1262,12 +1365,16 @@ function bindPick(root) {
       refreshPickList();
     });
   });
-  // 标记当前排序列
+  markPickSort(root);
+}
+
+// 标记当前排序列的三角箭头（先清旧标记再加新标记）
+function markPickSort(root) {
   const header = root.querySelector('.nursery-pick-header');
-  if (header) {
-    const cur = header.querySelector(`[data-sort="${_pickSortBy}"]`);
-    if (cur) cur.classList.add(_pickSortDir === 1 ? 'sort-asc' : 'sort-desc');
-  }
+  if (!header) return;
+  header.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+  const cur = _pickSortBy ? header.querySelector(`[data-sort="${_pickSortBy}"]`) : null;
+  if (cur) cur.classList.add(_pickSortDir === 1 ? 'sort-asc' : 'sort-desc');
 }
 
 // 弹框保持打开时局部刷新内容（不重建弹层，避免闪烁/关闭）

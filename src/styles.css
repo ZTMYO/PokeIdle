@@ -3265,6 +3265,48 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   background: rgba(var(--ui-color-rgb),0.12);
   font-weight: 700;
 }
+/* 来源筛选三级菜单：一级=来源，二级=普通/神兽，三级=闪光（hover 逐级展开） */
+#rosterFilterDropdown { max-height: none; overflow: visible; padding: 2px 0; }
+.roster-filter-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 6px;
+  font-size: 10px;
+  color: var(--ui-color);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb),0.06);
+  white-space: nowrap;
+}
+.roster-filter-item:hover {
+  background: rgba(var(--ui-color-rgb),0.1);
+}
+.roster-filter-src,
+.roster-filter-leaf {
+  flex: 1;
+  cursor: pointer;
+}
+.roster-filter-src.active,
+.roster-filter-leaf.active {
+  background: rgba(var(--ui-color-rgb),0.12);
+  font-weight: 700;
+}
+.roster-filter-arrow { font-size: 8px; opacity: 0.6; }
+.roster-sub-menu {
+  position: absolute;
+  left: 100%;
+  top: -3px;
+  min-width: 100%;
+  background: rgba(232,220,192,0.97);
+  border: 1px solid rgba(var(--ui-color-rgb),0.2);
+  border-radius: 3px;
+  z-index: 102;
+  display: none;
+}
+.roster-filter-item:hover > .roster-sub-menu { display: block; }
+.roster-sub-menu .region-dropdown-item { white-space: nowrap; }
 /* 设置页窗口倍率下拉（复用 pokedex 下拉视觉） */
 .window-scale-select { position: relative; flex-shrink: 0; }
 .window-scale-dd { min-width: 110px; left: auto; right: 0; }
@@ -4130,12 +4172,14 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 .roster-row { height: 30px; }
 /* 仓库列表独立等级列：左对齐（紧贴名称列），不加粗 */
 .roster-lv-col {
-  width: 38px;
+  width: 44px;
   flex-shrink: 0;
   text-align: left;
+  padding-left: 6px; /* 与名称列拉开，等级 100 时性别图标 + 数字也不被挤压 */
   font-size: 10px;
   color: var(--ui-color);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap; /* 性别图标与 Lv 数字强制单行，禁止换行 */
 }
 /* 详情页名字后的等级小字（与名字不同字体） */
 .roster-detail-lv {
@@ -4714,11 +4758,48 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   from { transform: translateX(-50%) scale(0.25); opacity: 0; }
   to   { transform: translateX(-50%) scale(1); opacity: 1; }
 }
+/* 放生返还：宝可梦隐藏后在其原位置展示经验池进度条与数值（进度条复用经验糖果页样式） */
+.goodbye-xp-pool {
+  position: absolute;
+  left: 50%;
+  bottom: 42%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.goodbye-xp-pool-text {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums; /* 数字滚动时不抖动 */
+  color: #306230;
+  text-align: center;
+  white-space: nowrap;
+}
+/* 经验池攒满产糖：糖果图标显示在进度条上方（absolute 脱离文档流，不挤动进度条） */
+.goodbye-xp-candy {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  margin-left: -20px; /* 40px 宽的一半，居中（transform 留给弹入动画） */
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  animation: goodbyeCandyPop 0.7s ease-out both;
+}
+@keyframes goodbyeCandyPop {
+  0%   { transform: scale(0.2); opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 /* 底部文字框（询问确认 / 再见文案）——与战斗页 .text-box 同款排布：左文案 + 右下角按钮 */
 .goodbye-box {
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  height: 52px;
+  height: 52px; /* 固定高度，与询问阶段一致；多行文本单行省略不撑高 */
   background: var(--console-body);
   border-top: 2px solid var(--console-border);
   display: flex;
@@ -4727,11 +4808,16 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 .goodbye-box-text {
   flex: 1;
   padding: 8px 10px;
+  padding-right: 72px; /* 为右下角按钮/箭头让位 */
   font-family: monospace;
   font-size: 12px;
   font-weight: 700;
   color: #306230;
   line-height: 1.4;
+  white-space: nowrap; /* 单行显示，超长省略号 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  align-self: flex-start; /* 文本顶部对齐 */
 }
 .goodbye-box-btns {
   position: absolute;
@@ -6725,6 +6811,52 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .nursery-pick-list .bounty-trade-row[data-pick-view] { cursor: pointer; }
 .nursery-pick-list .bounty-trade-row[data-pick-view]:hover { background: rgba(255, 255, 255, 0.22); }
 .nursery-pick-list .roster-iv[data-tip] { cursor: pointer; }
+/* 放入按钮靠右缘：清掉通用样式的右侧留白，贴列右边界 */
+.nursery-pick-list .bounty-trade-btn-col { width: 44px; padding-right: 2px; }
+.nursery-pick-list .bounty-trade-btn { margin-right: 0; }
+/* 放入列表个体值筛选面板：6 列（每列个体值项 + 5 个档位），固定屏幕居中显示 */
+.nursery-iv-dd {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-height: none;
+  overflow: visible;
+  min-width: 250px;
+  z-index: 9999;
+}
+.nursery-iv-panel {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  padding: 4px;
+}
+.nursery-iv-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: 2px;
+  padding: 1px;
+  cursor: pointer;
+}
+.nursery-iv-col.active { background: rgba(var(--ui-color-rgb),0.12); }
+.nursery-iv-col-head {
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  padding: 2px 0 3px;
+}
+.nursery-iv-lvl {
+  font-size: 9px;
+  text-align: center;
+  padding: 1px 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--ui-color);
+  opacity: 0.75;
+}
+.nursery-iv-lvl:hover { background: rgba(var(--ui-color-rgb),0.1); opacity: 1; }
+.nursery-iv-lvl.active { background: rgba(var(--ui-color-rgb),0.16); font-weight: 700; opacity: 1; }
 /* 配对面板：两个亲本槽位 + 配对状态 */
 .nursery-pair-row {
   display: flex;
@@ -8617,6 +8749,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 /* ===== 随从（糖果抽卡的临时跟随增益）===== */
 /* 显示区（与卡包抽卡机一致）：走马灯预览 / 当前随从 / 抽卡结果 */
 .follower-display {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -8740,11 +8873,60 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .follower-roll-item img { image-rendering: pixelated; }
 
+/* ── 5 连抽：顶部收集区（依次停放 5 只目标宝可梦） ── */
+/* 收集区：结果页正常流展示；滚动阶段用 overlay 绝对定位浮在滚动区上方（不挤压跑马灯） */
+.follower-multi-collect {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+.follower-multi-collect.overlay {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  padding: 0;
+  pointer-events: none;
+}
+/* 结果页：内容从顶部排列，收集区靠顶（位置近似滚动阶段的 overlay top:8px） */
+.follower-multi-result-display { justify-content: flex-start; }
+.follower-multi-result-display .follower-multi-collect { padding: 12px 0 6px; }
+.follower-multi-result-display .follower-display-inner { margin-top: 2px; }
+.follower-multi-slot {
+  width: 42px;
+  height: 42px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.follower-multi-slot img { max-width: 34px; max-height: 34px; image-rendering: pixelated; opacity: 0.55; }
+.follower-multi-slot:hover img { opacity: 0.85; }
+.follower-multi-slot.selected img { opacity: 1; }
+/* 槽位右下角四角星：超稀有黄色，传说红色 */
+.follower-slot-star {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: #ffd700;
+  pointer-events: none;
+}
+.follower-slot-star.ur { color: #ff5a5a; }
+
 /* 底部按钮栏（复用 gacha-actions 布局） */
 .follower-actions {
   display: flex;
   border-top: 1px solid rgba(var(--ui-color-rgb), 0.3);
-  min-height: 40px;
+  min-height: 25px;
   flex-shrink: 0;
 }
 .follower-actions button {
@@ -8753,19 +8935,21 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   border-right: 1px solid rgba(var(--ui-color-rgb), 0.3);
   background: transparent;
   color: var(--ui-color);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 3px;
+  padding: 6px 8px;
+  font-family: inherit;
 }
 .follower-actions button:last-child { border-right: none; }
 .follower-actions button:hover { background: rgba(var(--ui-color-rgb), 0.12); filter: brightness(1.05); }
 .follower-actions button:active { background: rgba(var(--ui-color-rgb), 0.2); }
 .follower-actions button:disabled { opacity: 0.3; }
-.gacha-coin-icon { width: 14px; height: 14px; image-rendering: pixelated; }
+.follower-actions .gacha-coin-icon { width: 13px; height: 13px; margin-left: 3px; transform: translateY(1px); }
 
 /* 跟随/放走双按钮：深色主按钮（让他跟随）与浅色次按钮（放走）区分（参考树果合成双按钮 dock） */
 .follower-actions .follower-follow-btn {
@@ -8781,7 +8965,11 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .follower-actions .follower-release-btn:hover { background: var(--screen-bg-light); filter: brightness(0.97); }
 
-/* 稀有度徽章扫光（UR 与 SR 同款扫光，颜色不同） */
+/* 随从页传说徽章用红色，与红星配色一致，区别于超稀有的黄色 */
+.follower-tier-badge.tier-UR {
+  color: #ff5a5a;
+  background: rgba(231, 76, 60, 0.2);
+}
 .follower-tier-badge.tier-SR,
 .follower-tier-badge.tier-UR { position: relative; overflow: hidden; }
 .follower-tier-badge.tier-SR::after,

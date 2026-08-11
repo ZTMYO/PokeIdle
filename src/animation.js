@@ -273,7 +273,12 @@ export function stopShinySparkleLoop() {
 }
 
 // 告别场景（放生 / 提交悬赏复用）：确认框询问，确认后播放图标缩小动画并显示「再见！xxx」
-export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false, nick = '' }) {    
+// confirmText：可选，确认动画第二阶段展示的文本（字符串或返回字符串的函数；缺省为「再见！xxx」）
+// poolText：可选，宝可梦隐藏后在其原位置展示的文本（字符串或函数），与 confirmText 一同在动画结束后显示
+// twoStep：可选，启用两阶段展示——确认后先显示「再见！xxx」+ 缩小动画，动画结束后自动切换 confirmText 并结束
+// title：可选，场景打开时接管顶部 appTitle 显示该标题，点击标题等同于取消（关闭场景时自动恢复原标题）
+let _savedTitle = null; // 被接管前的 appTitle 状态
+export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false, nick = '', confirmText = null, poolText = null, twoStep = false, title = null }) {    
   const view = $('goodbyeView');
   if (!poke || !view) { onConfirm && onConfirm(); return; }
   if (view._busy) return;
@@ -283,22 +288,47 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
   const okBtn = view.querySelector('[data-goodbye-ok]');
   const cancelBtn = view.querySelector('[data-goodbye-cancel]');
   const arrow = view.querySelector('[data-goodbye-arrow]');
-  // 重置场景：移除 leaving/arrive 重播入场动画、清空旧图、还原按钮文案、隐藏箭头
+  // 重置场景：移除 leaving/arrive 重播入场动画、清空旧图、还原按钮文案、隐藏箭头与池子数值
   img.classList.remove('leaving');
   img.classList.remove('arrive');
   okBtn.textContent = '确定';
   cancelBtn.textContent = '取消';
   if (arrow) arrow.style.display = 'none';
+  const poolEl = view.querySelector('#goodbyeXpPool');
+  if (poolEl) poolEl.style.display = 'none';
   img.src = '';
   // 先显示场景再加载图片：隐藏状态下中文路径直接加载会失败（WebView2）
   textEl.textContent = prompt; 
   okBtn.style.display = '';
   cancelBtn.style.display = '';
   view.style.display = 'flex';
+  // 接管顶部标题：显示 title，点击等同于取消（仅询问阶段可取消，动画播放中忽略）
+  if (title) {
+    const t = $('appTitle');
+    if (t) {
+      _savedTitle = { html: t.innerHTML, action: t.dataset.action || '', onclick: t.onclick };
+      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ' + title;
+      t.dataset.action = 'back';
+      t.onclick = () => {
+        if (okBtn.style.display === 'none') return; // 已确认进入动画，忽略点击
+        finish(false);
+      };
+    }
+  }
   // 后缀必须显式传入，否则文件名会拼入 undefined 导致加载失败
   tryLoadPokemonImage(img, poke, shiny ? '_shiny' : '');
 
   const finish = (ok) => {
+    // 关闭场景时恢复被接管的 appTitle
+    if (_savedTitle) {
+      const t = $('appTitle');
+      if (t) {
+        t.innerHTML = _savedTitle.html;
+        t.dataset.action = _savedTitle.action;
+        t.onclick = _savedTitle.onclick;
+      }
+      _savedTitle = null;
+    }
     view.style.display = 'none';
     view._busy = false;
     ok ? onConfirm && onConfirm() : onCancel && onCancel();
@@ -309,6 +339,71 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
     okBtn.style.display = 'none';
     cancelBtn.style.display = 'none';
     img.classList.add('leaving');
+    if (twoStep) {
+      // 两阶段：宝可梦隐藏动画（1.2s + 0.15s 延迟）播完后自动切换为 confirmText，无需点击箭头
+      arrow.style.display = 'none';
+      setTimeout(async () => {
+        // 先结算 confirmText（可能累加经验池并产出糖果），再读取池子数值展示在原宝可梦位置
+        textEl.textContent = confirmText != null
+          ? (typeof confirmText === 'function' ? confirmText() : confirmText)
+          : `再见！${nick || poke.name}`;
+        const poolWrap = view.querySelector('#goodbyeXpPool');
+        if (poolWrap) {
+          const pool = poolText != null ? (typeof poolText === 'function' ? poolText() : poolText) : null;
+          if (pool && typeof pool === 'object') {
+            // 进度条 + 数字滚动（同经验糖果页样式）；攒满产糖时先滚满 → 弹出糖果 → 清零后从 0 重新累积
+            const fill = view.querySelector('#goodbyeXpFill');
+            const poolTextEl = view.querySelector('#goodbyeXpText');
+            const candyEl = view.querySelector('#goodbyeXpCandy');
+            const before = pool.before || 0;
+            const after = pool.after || 0;
+            const max = pool.max || 1;
+            const candies = pool.candies || 0;
+            const pct = (v) => Math.min(100, Math.max(0, (v / max) * 100));
+            const setVal = (v) => {
+              if (fill) fill.style.width = pct(v) + '%';
+              if (poolTextEl) poolTextEl.textContent = `经验池 ${v} / ${max}`;
+            };
+            if (fill) fill.style.transition = 'none'; // 逐帧动画期间禁用 CSS transition，避免滞后
+            if (candyEl) candyEl.style.display = 'none';
+            setVal(before);
+            poolWrap.style.display = 'flex';
+            if (candies > 0) {
+              // 阶段1：从旧值滚到满
+              await animate(700, t => {
+                const e = 1 - Math.pow(1 - t, 3); // easeOutCubic：先快后慢
+                setVal(Math.round(before + (max - before) * e));
+              });
+              // 阶段2：弹出糖果图标（display 切换会重播弹入动画）
+              if (candyEl) candyEl.style.display = 'block';
+              await delay(900);
+              // 阶段3：图标隐藏，清零后从 0 重新累积到余数
+              if (candyEl) candyEl.style.display = 'none';
+              setVal(0);
+              await animate(600, t => {
+                const e = 1 - Math.pow(1 - t, 3);
+                setVal(Math.round(after * e));
+              });
+            } else {
+              // 未产糖：直接从旧值滚到新值
+              await animate(900, t => {
+                const e = 1 - Math.pow(1 - t, 3);
+                setVal(Math.round(before + (after - before) * e));
+              });
+            }
+            if (fill) fill.style.transition = '';
+          } else if (pool != null) {
+            poolWrap.style.display = 'flex';
+            const poolTextEl = view.querySelector('#goodbyeXpText');
+            if (poolTextEl) poolTextEl.textContent = pool;
+          }
+        }
+        okBtn.textContent = '确定';
+        okBtn.style.display = '';
+        okBtn.onclick = () => finish(true);
+      }, 1400);
+      return;
+    }
     setTimeout(() => finish(true), 1600);
   };
   cancelBtn.onclick = () => finish(false);
