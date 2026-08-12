@@ -1,15 +1,9 @@
 // ===== 经验糖果 =====
-import { $, showConfirmBar, updateBackpack, tryLoadPokemonImage, getCurrentView, showView } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, addSystemLog, phase } from './state.js';
+import { $, showConfirmBar, updateBackpack, tryLoadPokemonImage, getCurrentView } from './ui.js';
+import { gameData, getPokemonByIndex, saveGame, addSystemLog } from './state.js';
 import { applyXp } from './train.js';
 import { EXP_CANDY_XP, MAX_LEVEL } from './config.js';
 import { playLevelUp } from './audio.js';
-
-// 从经验糖果流程返回来源视图。遭遇时切入本流程后遭遇可能在后台已结束
-function backToSource(from) {
-  if (from === 'encounterView' && phase !== 'encounter') from = 'idleView';
-  showView(from || 'idleView');
-}
 
 // 当前场景上下文：null = 场景未打开
 let _scene = null; // { rid, fromDetail, from, stock, maxUse, poke, shiny }
@@ -33,6 +27,8 @@ function simulateXp(lv, curExp, amount) {
 
 export function openExpCandyPicker() {
   const from = getCurrentView();
+  // 库存为 0 时不响应，不跳转宝可梦列表
+  if ((gameData.items['exp-candy'] || 0) <= 0) return;
   import('./roster.js').then(m => m.showRosterPicker({ mode: 'expcandy', from }));
 }
 
@@ -40,10 +36,7 @@ export function useExpCandyOn(rid, fromDetail, fromView) {
   const entry = (gameData.roster || []).find(x => x.id === rid);
   if (!entry) return;
   const stock = gameData.items['exp-candy'] || 0;
-  if (stock <= 0) {
-    if (!fromDetail) backToSource(fromView);
-    return;
-  }
+  if (stock <= 0) return; // 库存 0 不响应（不跳转、不提示）
   const lv = entry.level || 1;
   if (lv >= MAX_LEVEL) {
     showConfirmBar('该宝可梦已满级，无法使用经验糖果', null, null, { singleButton: true });

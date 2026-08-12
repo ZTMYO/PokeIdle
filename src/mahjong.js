@@ -239,7 +239,7 @@ const MYTH_YAKUMAN = [
 ];
 // 番型参考（相助页展示）：name/番数/说明/关联卡牌
 const YAKU_REF = [
-  { name: '立直', fans: '1番', desc: '门清听牌时宣言，付1000游戏币立直', cards: [] },
+  { name: '立直', fans: '1番', desc: `门清听牌时宣言，付${RIICHI_COST}游戏币立直`, cards: [] },
   { name: 'W立直', fans: '1番', desc: '首巡宣言立直', cards: [] },
   { name: '自摸', fans: '1番', desc: '自己摸牌成胡', cards: [] },
   { name: '一发', fans: '1番', desc: '立直后一巡内胡牌', cards: [] },

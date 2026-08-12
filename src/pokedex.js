@@ -11,8 +11,8 @@ const REGION_OPTIONS = ['全部地区', '关都', '城都', '丰缘', '神奥', 
 // 图鉴解锁/稀有度/闪光筛选：与仓库多级筛选一致
 // 解锁=已捕获过；普通/神兽按 legend；闪光=抓到过闪光（shinyCaught>0）
 let _pokedexStatus = '';   // 一级：''=全部 | unlock | lock
-let _pokedexLegend = '';   // 二级：''=普通 | legend
-let _pokedexShiny = '';    // 三级：''=普通 | shiny
+let _pokedexLegend = 'all'; // 二级：all=不限 | normal(普通) | legend(神兽)
+let _pokedexShiny = 'all';  // 二级：all=不限 | normal(非闪光) | shiny(闪光)
 let _pokedexType = '';     // 属性筛选（''=全部）
 
 // 性别比例文案（genderRate: -1 无性别；0-8 雌性概率/8）
@@ -427,7 +427,16 @@ export function setupStatusDropdown() {
   if (!trigger || !label || !dd) return;
 
   const STATUS_ORDER = [['', '全部'], ['unlock', '已解锁'], ['lock', '未解锁']];
-  const LEGEND_ORDER = [['', '普通'], ['legend', '神兽']];
+  // 二级：普通/神兽直接选中；「闪光」hover 展开三级；「非闪」= 不闪光（不限普/神）
+  const COMBO_ORDER = [
+    ['normal', 'normal', '普通'],
+    ['legend', 'normal', '神兽'],
+    ['all', 'normal', '非闪'],
+  ];
+  const SHINY_ORDER = [
+    ['normal', 'shiny', '普通闪光'],
+    ['legend', 'shiny', '神兽闪光'],
+  ];
 
   function buildOptions() {
     dd.innerHTML = STATUS_ORDER.map(([k, name]) => {
@@ -435,29 +444,29 @@ export function setupStatusDropdown() {
       if (!k) {
         return `<div class="region-dropdown-item${!_pokedexStatus ? ' active' : ''}" data-status="" data-legend="all" data-shiny="all">全部</div>`;
       }
-      // 二级：普通/神兽。未解锁无第三级（点叶子=该类别全部）；
-      // 已解锁的二级可再展开三级"普通（非闪光）/闪光"
-      const legendHtml = LEGEND_ORDER.map(([lk, lname]) => {
-        if (k === 'lock') {
-          return `<div class="region-dropdown-item${_pokedexStatus === k && _pokedexLegend === lk && _pokedexShiny === 'all' ? ' active' : ''}"
-                       data-status="${k}" data-legend="${lk}" data-shiny="all">${lname}</div>`;
-        }
-        return `<div class="roster-filter-item">
-          <span class="roster-filter-leaf${_pokedexStatus === k && _pokedexLegend === lk && _pokedexShiny === 'all' ? ' active' : ''}"
-                data-status="${k}" data-legend="${lk}" data-shiny="all">${lname}</span>
+      // 二级：已解锁完整组合；未解锁只提供普通/神兽（未解锁=未捕获过，肯定非闪，
+      // 无需「非闪」/「闪光」子项）
+      const comboItems = k === 'lock' ? COMBO_ORDER.slice(0, 2) : COMBO_ORDER;
+      const baseCombo = comboItems.map(([lk, shk, cname]) => `
+        <div class="region-dropdown-item${_pokedexStatus === k && _pokedexLegend === lk && _pokedexShiny === shk ? ' active' : ''}"
+             data-status="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('');
+      const comboHtml = k === 'lock'
+        ? baseCombo
+        : baseCombo + `
+        <div class="roster-filter-item">
+          <span class="roster-filter-leaf${_pokedexStatus === k && _pokedexShiny === 'shiny' && _pokedexLegend === 'all' ? ' active' : ''}"
+                data-status="${k}" data-legend="all" data-shiny="shiny">闪光</span>
           <span class="roster-filter-arrow">▸</span>
           <div class="roster-sub-menu">
-            <div class="region-dropdown-item${_pokedexStatus === k && _pokedexLegend === lk && _pokedexShiny === '' ? ' active' : ''}"
-                 data-status="${k}" data-legend="${lk}" data-shiny="">普通</div>
-            <div class="region-dropdown-item${_pokedexStatus === k && _pokedexLegend === lk && _pokedexShiny === 'shiny' ? ' active' : ''}"
-                 data-status="${k}" data-legend="${lk}" data-shiny="shiny">闪光</div>
+            ${SHINY_ORDER.map(([lk, shk, cname]) => `
+            <div class="region-dropdown-item${_pokedexStatus === k && _pokedexLegend === lk && _pokedexShiny === shk ? ' active' : ''}"
+                 data-status="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('')}
           </div>
         </div>`;
-      }).join('');
       return `<div class="roster-filter-item" data-status="${k}" data-legend="all" data-shiny="all">
         <span class="roster-filter-src${_pokedexStatus === k && _pokedexLegend === 'all' && _pokedexShiny === 'all' ? ' active' : ''}">${name}</span>
         <span class="roster-filter-arrow">▸</span>
-        <div class="roster-sub-menu">${legendHtml}</div>
+        <div class="roster-sub-menu">${comboHtml}</div>
       </div>`;
     }).join('');
   }
@@ -468,12 +477,10 @@ export function setupStatusDropdown() {
     _pokedexShiny = el.dataset.shiny || '';
     if (!_pokedexStatus) label.textContent = '全部';
     else {
-      // 简化标签：解/锁 · 普/神，三级区分闪；未细分时只显示已选层级
+      // 简化标签：解/锁 · 组合短名
       const statusShort = { unlock: '解', lock: '锁' };
-      const legendShort = { '': '普', legend: '神' };
-      if (_pokedexLegend === 'all') label.textContent = statusShort[_pokedexStatus];
-      else if (_pokedexShiny === 'all') label.textContent = `${statusShort[_pokedexStatus]}·${legendShort[_pokedexLegend]}`;
-      else label.textContent = `${statusShort[_pokedexStatus]}·${legendShort[_pokedexLegend]}${_pokedexShiny === 'shiny' ? '闪' : ''}`;
+      const comboShort = { 'all|all': '全部', 'normal|normal': '普', 'legend|normal': '神', 'all|normal': '非闪', 'all|shiny': '闪', 'normal|shiny': '普闪', 'legend|shiny': '神闪' };
+      label.textContent = `${statusShort[_pokedexStatus]}·${comboShort[`${_pokedexLegend}|${_pokedexShiny}`]}`;
     }
     dd.style.display = 'none';
     trigger.classList.remove('open');
@@ -559,14 +566,15 @@ export function showPokedex() {
   const regionLabel = $('pokedexRegionLabel')?.textContent || '';
   const regionFilter = regionLabel === '全部地区' ? '' : regionLabel;
   let filtered = regionFilter ? allPokemon.filter(p => p.region === regionFilter) : allPokemon;
-  // 多级筛选：解锁/未解锁 → 普通/神兽 → 普通/闪光
+  // 多级筛选：解锁/未解锁 → 完整组合（全部/普通/神兽/闪光/普通闪光/神兽闪光）
+  // legend/shiny 用 all=不限，normal=非，legend/shiny=是
   const st = _pokedexStatus, lg = _pokedexLegend, sh = _pokedexShiny;
   if (st === 'unlock') filtered = filtered.filter(p => (caughtMap[p.index]?.caught || 0) > 0);
   else if (st === 'lock') filtered = filtered.filter(p => (caughtMap[p.index]?.caught || 0) === 0);
   if (lg === 'legend') filtered = filtered.filter(p => p.legend === true);
-  else if (lg === '') filtered = filtered.filter(p => p.legend !== true);
+  else if (lg === 'normal') filtered = filtered.filter(p => p.legend !== true);
   if (sh === 'shiny') filtered = filtered.filter(p => (caughtMap[p.index]?.shinyCaught || 0) > 0);
-  else if (sh === '') filtered = filtered.filter(p => (caughtMap[p.index]?.shinyCaught || 0) === 0);
+  else if (sh === 'normal') filtered = filtered.filter(p => (caughtMap[p.index]?.shinyCaught || 0) === 0);
   // 属性筛选：含有目标属性的宝可梦都筛出来（单属性/双属性均可命中）
   if (_pokedexType) filtered = filtered.filter(p => (p.types || []).includes(_pokedexType));
   // 更新捕获进度

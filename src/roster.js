@@ -11,7 +11,8 @@ import { chooseMoves, fallbackMoves } from './moves.js';
 import { NATURES } from './battle-core.js';
 
 // 获得来源 → 中文
-const SOURCE_NAMES = { normal: '野生', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
+// 大量出没（mass）本质也是野生遭遇，显示与筛选均归入「野生」，不单列筛选项
+const SOURCE_NAMES = { normal: '野生', mass: '大量出没', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
 // 六围个体值明细（键 → 显示名）
 const IV_KEYS = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速度']];
 
@@ -73,8 +74,8 @@ function ivHexagon(p) {
 let _sortBy = null;    // 当前排序列：null=默认时间降序 | index | name | iv | level
 let _sortDir = -1;     // 1 升序 / -1 降序
 let _srcFilter = '';    // 来源筛选：''=全部 | normal/fishing/egg/trade
-let _legendFilter = ''; // 神兽筛选：''=全部 | normal(普通) | legend(神兽)
-let _shinyFilter = '';  // 闪光筛选：''=全部 | normal(普通) | shiny(闪光)
+let _legendFilter = ''; // 稀有度：''=不限 | normal(普通) | legend(神兽)
+let _shinyFilter = '';  // 闪光：''=不限 | normal(非闪光) | shiny(闪光)
 let _typeFilter = '';  // 属性筛选（''=全部）
 let _regionFilter = ''; // 地区筛选（''=全部）
 let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
@@ -129,7 +130,8 @@ function renderList() {
   const q = ($('rosterSearchInput')?.value || '').trim();
   let pool = inRoster();
   // 筛选：来源 → 普通/神兽 → 普通/闪光（三级）
-  if (_srcFilter) pool = pool.filter(p => p.source === _srcFilter);
+  // 大量出没（mass）归入「野生」（normal）筛选
+  if (_srcFilter) pool = pool.filter(p => _srcFilter === 'normal' ? (p.source === 'normal' || p.source === 'mass') : p.source === _srcFilter);
   if (_legendFilter) {
     pool = pool.filter(p => {
       const poke = getPokemonByIndex(String(p.species));
@@ -279,17 +281,26 @@ function setupSearch() {
   }
 }
 
-// 来源筛选三级菜单：一级=来源（全部/野生/钓鱼/孵蛋/交换），
-// 二级=普通/神兽（可直接点选=非闪光），hover 弹出三级"闪光"。
+// 来源筛选两级：一级=来源（全部/野生/钓鱼/孵蛋/交换），
+// 二级=完整组合（全部/普通/神兽/闪光/普通闪光/神兽闪光），覆盖全部筛选情况
 function setupFilter() {
   const trigger = $('rosterFilter');
   const label = $('rosterFilterLabel');
   const dd = $('rosterFilterDropdown');
   if (!trigger || !label || !dd) return;
 
-  // 二级"普通/神兽"直接点选即代表非闪光；"闪光"是三级子项
+  // 二级选项：值 → [legend 过滤, shiny 过滤]；legend ''=不限普神，shiny 'shiny'=只看闪光
   const SRC_ORDER = [['', '全部'], ['normal', '野生'], ['fishing', '钓鱼'], ['egg', '孵蛋'], ['trade', '交换']];
-  const LEGEND_ORDER = [['', '普通'], ['legend', '神兽']];
+  // 二级：普通/神兽直接选中；「闪光」hover 展开三级；「非闪」= 不闪光（不限普/神）
+  const COMBO_ORDER = [
+    ['normal', 'normal', '普通'],
+    ['legend', 'normal', '神兽'],
+    ['', 'normal', '非闪'],
+  ];
+  const SHINY_ORDER = [
+    ['normal', 'shiny', '普通闪光'],
+    ['legend', 'shiny', '神兽闪光'],
+  ];
 
   function buildOptions() {
     dd.innerHTML = SRC_ORDER.map(([k, name]) => {
@@ -300,16 +311,19 @@ function setupFilter() {
         <span class="roster-filter-src${_srcFilter === k && !_legendFilter && !_shinyFilter ? ' active' : ''}">${name}</span>
         <span class="roster-filter-arrow">▸</span>
         <div class="roster-sub-menu">
-          ${LEGEND_ORDER.map(([lk, lname]) => `
+          ${COMBO_ORDER.map(([lk, shk, cname]) => `
+          <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk ? ' active' : ''}"
+               data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('')}
           <div class="roster-filter-item">
-            <span class="roster-filter-leaf${_srcFilter === k && _legendFilter === lk && !_shinyFilter ? ' active' : ''}"
-                  data-src="${k}" data-legend="${lk}" data-shiny="">${lname}</span>
+            <span class="roster-filter-leaf${_srcFilter === k && _shinyFilter === 'shiny' && !_legendFilter ? ' active' : ''}"
+                  data-src="${k}" data-legend="" data-shiny="shiny">闪光</span>
             <span class="roster-filter-arrow">▸</span>
             <div class="roster-sub-menu">
-              <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === 'shiny' ? ' active' : ''}"
-                   data-src="${k}" data-legend="${lk}" data-shiny="shiny">闪光</div>
+              ${SHINY_ORDER.map(([lk, shk, cname]) => `
+              <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk ? ' active' : ''}"
+                   data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('')}
             </div>
-          </div>`).join('')}
+          </div>
         </div>
       </div>`;
     }).join('');
@@ -319,19 +333,19 @@ function setupFilter() {
     _srcFilter = el.dataset.src || '';
     _legendFilter = el.dataset.legend || '';
     _shinyFilter = el.dataset.shiny || '';
-    // 标签：来源首字·普/神（+闪），如"钓·普""钓·普闪""交·神闪"
+    // 标签：来源·组合短名，如"野·闪""钓·普闪"
     if (!_srcFilter) label.textContent = '全部';
     else {
       const srcShort = { normal: '野', fishing: '钓', egg: '蛋', trade: '换' };
-      const legendShort = { '': '普', legend: '神' };
-      label.textContent = `${srcShort[_srcFilter]}·${legendShort[_legendFilter]}${_shinyFilter === 'shiny' ? '闪' : ''}`;
+      const comboShort = { '|': '全部', 'normal|normal': '普', 'legend|normal': '神', '|normal': '非闪', '|shiny': '闪', 'normal|shiny': '普闪', 'legend|shiny': '神闪' };
+      label.textContent = `${srcShort[_srcFilter]}·${comboShort[`${_legendFilter}|${_shinyFilter}`]}`;
     }
     dd.style.display = 'none';
     trigger.classList.remove('open');
     renderList();
   }
 
-  // 点击任意叶子项（带完整三级值）直接选中
+  // 点击叶子项（带完整组合值）直接选中
   dd.addEventListener('click', (e) => {
     e.stopPropagation();
     const el = e.target.closest('[data-src][data-legend]');
