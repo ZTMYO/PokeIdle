@@ -301,8 +301,8 @@ function _encPokeFrame() {
   // 道路暂停（拾取道具等）：原地等待
   if (!road.isActive()) { requestAnimationFrame(_encPokeFrame); return; }
   _encPokeEl.style.display = '';
-  // 骑车时宝可梦原地等待（与大量出没一致）
-  if (road.isBike()) { requestAnimationFrame(_encPokeFrame); return; }
+  // 骑车时宝可梦原地等待（与大量出没一致）且隐藏图标：骑行中不遇敌，图标不该显示在路边
+  if (road.isBike()) { _encPokeEl.style.display = 'none'; requestAnimationFrame(_encPokeFrame); return; }
 
   _encPokeX -= road.getSpeed();
   _encPokeEl.style.left = _encPokeX + 'px';

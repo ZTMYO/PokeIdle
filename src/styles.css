@@ -3388,7 +3388,7 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 }
 /* 图鉴页序号列加宽以容纳变体扩展编号（#0666-18），名称列同步让位 */
 #pokedexView .pokedex-idx { width: 58px; white-space: nowrap; }
-#pokedexView .pokedex-name { max-width: 54px; }
+#pokedexView .pokedex-name { max-width: 55px; }
 .pokedex-star {
   width: 14px;
   text-align: right;

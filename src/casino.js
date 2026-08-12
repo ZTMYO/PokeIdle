@@ -224,12 +224,18 @@ function exchangeCoin() {
     saveGame().then(updateStats);
     renderMenu();  // 刷新菜单可兑换状态
   };
-  document.addEventListener('pointerdown', hideExchangeMenu);
+  // 菜单外点击：先关菜单；若本次点击落在麻将入口热区，抑制紧随的 click，避免关闭菜单时误触「游戏币不足」弹窗
+  document.addEventListener('pointerdown', onDocPointerDown);
+}
+function onDocPointerDown(e) {
+  hideExchangeMenu();
+  const mj = document.querySelector('.casino-scene-hot[data-tip="口袋麻将"]');
+  if (mj && mj.contains(e.target)) mj._suppressClick = true;
 }
 function hideExchangeMenu() {
   const m = document.getElementById('exchangeCoinMenu');
   if (m) m.remove();
-  document.removeEventListener('pointerdown', hideExchangeMenu);
+  document.removeEventListener('pointerdown', onDocPointerDown);
 }
 
 // 赢家筹码：输方筹码一枚一枚依次飞到赢方堆旁边，自成新摞
@@ -685,6 +691,9 @@ export function showCasinoHistoryView(source) {
 }
 
 // 点击麻将桌：进入独立的口袋麻将玩法页（src/mahjong.js）
-function enterMahjong() {
+function enterMahjong(e) {
+  // 该次点击被用于关闭兑换菜单（点击落在麻将热区上关菜单），跳过进入
+  const mj = e && e.currentTarget;
+  if (mj && mj._suppressClick) { mj._suppressClick = false; return; }
   import('./mahjong.js').then(m => m.showMahjongView());
 }

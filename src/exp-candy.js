@@ -116,6 +116,8 @@ function confirmUse() {
   const before = entry.level || 1;
   gameData.items['exp-candy'] = s.stock - qty;
   applyXp(entry, EXP_CANDY_XP * qty);
+  // 等级/经验变化：通知交换按钮、手机红点等依赖仓库状态的界面刷新
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('roster-changed'));
   // 只有真正升级才播放升级音效（音乐类，仅音乐总开关控制）
   if ((entry.level || 1) > before) playLevelUp();
   addSystemLog('exp_candy_use', { pokemon: entry.species, qty, level: entry.level || 1 });

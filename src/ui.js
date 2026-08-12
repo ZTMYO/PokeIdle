@@ -1,6 +1,6 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching, _navStack, allPokemon } from './state.js';
-import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge, getPokemonByIndex, isPokemon } from './state.js';
+import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge, getPokemonByIndex, isPokemon, genderBadge } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
 import { formatLogTime } from './pokedex.js';
 import * as road from './road.js';
@@ -61,6 +61,8 @@ let _currentView = 'idleView';
 export function getCurrentView() { return _currentView; }
 
 export function showView(id) {
+  // 切换视图即关闭残留确认框（如游戏币不足提示），避免离开页面后再次进入仍显示
+  hideConfirmBar();
   if (id === 'idleView' && phase === 'encounter') {
     id = 'encounterView';
   }
@@ -775,7 +777,6 @@ function renderIncubatorLogList(list) {
     .filter(l => l && l.species != null)
     .slice()
     .reverse();
-  const genderText = g => g === 'female' ? '♀' : g === 'male' ? '♂' : '无性别';
   list.style.gridTemplateColumns = '1fr';
   list.classList.add('list-scroll');
   list.innerHTML = `
@@ -789,7 +790,7 @@ function renderIncubatorLogList(list) {
             <div class="rec-row">
               <span class="rec-time">${formatLogTime(l.time)}</span>
               <span class="rec-main">${name}</span>
-              <span class="rec-right">${genderText(l.gender)}</span>
+              <span class="rec-right">${genderBadge(l.gender)}</span>
             </div>`;
           }).join('')}
     </div>`;

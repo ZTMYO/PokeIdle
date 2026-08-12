@@ -2,7 +2,7 @@
 // 每半小时刷新一波：若干 NPC 在交换广场挂出「想要的宝可梦（可指定性别/某项个体值下限）」和
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
-import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX } from './config.js';
+import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX, EXP_CANDY_XP, MAX_LEVEL } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
@@ -139,14 +139,36 @@ function eligible(o) {
     && (!o.want.iv || !p.ivs || (p.ivs[o.want.iv.stat] ?? 0) >= o.want.iv.min));
 }
 
-// 是否有可交换的宝可梦（手机主页红点）：存在未交换、未忽略且仓库有符合要求个体的 offer
+// 该个体用经验糖果升到目标等级需要的糖果数（升满级所需经验逐级累加，向上取整）
+function candiesToReach(p, targetLv) {
+  if (!targetLv || (p.level || 1) >= targetLv) return 0;
+  let need = 0;
+  for (let l = (p.level || 1); l < targetLv && l < MAX_LEVEL; l++) need += 25 + l * 20;
+  need = Math.max(0, need - (p.exp || 0));
+  return Math.ceil(need / EXP_CANDY_XP);
+}
+
+// 可培养候选：物种/性别/个体值符合 offer 要求，但等级不足，
+// 且手中经验糖果数量足够将该个体升到 offer 要求等级
+function cultivable(o) {
+  if (!o.want.level) return [];
+  const stock = gameData.items['exp-candy'] || 0;
+  return (gameData.roster || []).filter(p => p.inRoster && isPokemon(p)
+    && String(p.species) === o.want.species
+    && (!o.want.gender || ensureGender(p) === o.want.gender)
+    && (!o.want.iv || !p.ivs || (p.ivs[o.want.iv.stat] ?? 0) >= o.want.iv.min)
+    && (p.level || 1) < o.want.level
+    && candiesToReach(p, o.want.level) <= stock);
+}
+
+// 是否有可交换的宝可梦（手机主页红点）：存在未交换、未忽略且仓库有符合要求个体或可培养个体的 offer
 export function hasTradableOffers() {
-  return (gameData?.trades?.offers || []).some(o => !o.traded && !o.ignored && eligible(o).length > 0);
+  return (gameData?.trades?.offers || []).some(o => !o.traded && !o.ignored && (eligible(o).length > 0 || cultivable(o).length > 0));
 }
 
 // 可交换 offer 数量（托盘悬停提示用）
 export function countTradableOffers() {
-  return (gameData?.trades?.offers || []).filter(o => !o.traded && !o.ignored && eligible(o).length > 0).length;
+  return (gameData?.trades?.offers || []).filter(o => !o.traded && !o.ignored && (eligible(o).length > 0 || cultivable(o).length > 0)).length;
 }
 
 // ---------- 渲染 ----------
@@ -247,6 +269,8 @@ function offerCard(o) {
   const traded = !!o.traded;
   const ignored = !!o.ignored;
   const count = eligible(o).length;
+  // 无可直接交换个体时，若糖果足够把某只升到要求等级，按钮仅显示「可培养」（不可点击，只作提示）
+  const cultCount = cultivable(o).length;
 
   // 需求连成一句话：想要 Lv30以上 ，攻击 ≥ 26 的雌性皮卡丘
   const wantParts = [
@@ -268,7 +292,7 @@ function offerCard(o) {
         <div class="npc-sprite" style="${npcPos}"></div>
         <button class="trade-give" style="animation-delay:${jumpDelay}s" data-give-detail="${o.id}" title="查看${givePoke.form || givePoke.name}详情">${giveIcon}</button>
         <div class="trade-text">${wantText}</div>
-        <button class="trade-btn${traded ? ' done' : count === 0 ? ' locked' : ''}" data-offer="${o.id}"${traded || count === 0 ? ' disabled' : ''}>${traded ? '已交换' : count === 0 ? '未拥有' : '交换'}</button>
+        <button class="trade-btn${traded ? ' done' : (count === 0 && cultCount === 0) ? ' locked' : ''}" data-offer="${o.id}"${traded || count === 0 ? ' disabled' : ''}>${traded ? '已交换' : count > 0 ? '交换' : cultCount > 0 ? '可培养' : '未拥有'}</button>
       </div>
       <div class="trade-footer">
         <span class="trade-npc-name">${npc.name}</span>
@@ -592,11 +616,10 @@ function toggleIgnoreOffer(offerId) {
 }
 
 // ---------- 事件绑定 ----------
-// 后台新增宝可梦（捕获/孵化/交换）时，若停留在列表页则局部刷新交换按钮的可用状态
+// 后台新增/培养宝可梦（捕获/孵化/交换/经验糖果升级）时，刷新交换按钮的可用状态。
+// 不要求交换页可见：DOM 在隐藏时也更新，返回交换页即显示最新状态
 function refreshTradeButtons() {
   if (_tradeMode != null || _tradeDetail != null) return;
-  const tv = $('tradeView');
-  if (!tv || tv.style.display !== 'flex') return;
   const content = $('tradeContent');
   if (!content) return;
   (gameData.trades?.offers || []).forEach(o => {
@@ -604,9 +627,10 @@ function refreshTradeButtons() {
     if (!btn) return;
     const traded = !!o.traded;
     const count = eligible(o).length;
-    btn.className = `trade-btn${traded ? ' done' : count === 0 ? ' locked' : ''}`;
+    const cultCount = cultivable(o).length;
+    btn.className = `trade-btn${traded ? ' done' : (count === 0 && cultCount === 0) ? ' locked' : ''}`;
     btn.disabled = traded || count === 0;
-    btn.textContent = traded ? '已交换' : count === 0 ? '未拥有' : '交换';
+    btn.textContent = traded ? '已交换' : count > 0 ? '交换' : cultCount > 0 ? '可培养' : '未拥有';
   });
 }
 window.addEventListener('roster-changed', refreshTradeButtons);

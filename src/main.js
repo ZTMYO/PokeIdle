@@ -336,8 +336,8 @@ function onBagClick(itemKey) {
   if (phase !== 'idle') return;
   // 钓鱼中禁止使用 buff/骑行道具/经验糖果（会与暂停的道路/角色状态冲突，经验糖果会打开选取页打断流程）
   if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike' || itemKey === 'exp-candy')) return;
-  // 骑行中禁止使用增益道具与经验糖果（骑行速度已封顶且不遇敌，buff 无收益还浪费；经验糖果同理打断骑行）
-  if (road.isManualBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'exp-candy')) return;
+  // 骑行中禁止使用增益道具（骑行速度已封顶且不遇敌，buff 无收益还浪费）；经验糖果不打断骑行，允许使用
+  if (road.isManualBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
   // 钓鱼等待中禁止使用自行车/经验糖果（会与即将开始的钓鱼动画冲突）
   if ((itemKey === 'bike' || itemKey === 'exp-candy') && isFishingPending()) return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
