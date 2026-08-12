@@ -135,7 +135,9 @@ function onStartBtn() {
   if (_pickOpen) {
     confirmPick();
   } else {
-    _recipe = [];
+    // 默认沿用上次制作的配方（库存不足的剔除）
+    const stock = gameData?.berryFarm?.stock || {};
+    _recipe = [...new Set(_lastRecipe)].filter(i => (stock[i] || 0) > 0).slice(0, RECIPE_MAX);
     _pickOpen = true;
     render();
   }

@@ -56,6 +56,19 @@ function shuffle(arr) {
   return arr;
 }
 
+// 从池中按家族均匀抽取 n 只：多变体家族（未知图腾、彩粉蝶等）只占一个名额，
+// 命中家族后家族内随机选一个具体形态，避免同家族多形态挤占 NPC 队伍名额
+function drawFamilyN(ids, n) {
+  const fam = new Map();
+  for (const id of ids) {
+    const base = String(id).split('-')[0];
+    if (!fam.has(base)) fam.set(base, []);
+    fam.get(base).push(id);
+  }
+  const groups = shuffle([...fam.values()]);
+  return groups.slice(0, n).map(g => g[randInt(0, g.length - 1)]);
+}
+
 // 生成一波 NPC
 function generateWave() {
   const faces = shuffle([...NPC_FACES]);
@@ -73,7 +86,7 @@ function generateWave() {
         lvBonus: cfg.lvBonus,
         candy: cfg.candy,
         expChance: cfg.expChance,
-        mons: shuffle([...getNpcPools()[tier]]).slice(0, BATTLE_MONS_COUNT[tier]),
+        mons: drawFamilyN(getNpcPools()[tier], BATTLE_MONS_COUNT[tier]),
       });
     }
   }

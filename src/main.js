@@ -653,7 +653,10 @@ async function init() {
   // 默认 Lv10（调试状态异常等招式时等级太低学不到招式）；__addPokeLv 可指定等级
   // __addShinyPoke 相同，但为蛋闪
   async function addDebugPoke(idx, shiny, level = 10) {
-    const poke = getPokemonByIndex(String(idx).padStart(4, '0'));
+    // 纯数字按 4 位编号补零；扩展编号（如 "0058-1"）原样匹配
+    const raw = String(idx);
+    const dexIdx = /^\d+$/.test(raw) ? raw.padStart(4, '0') : raw;
+    const poke = getPokemonByIndex(dexIdx);
     if (!poke) { console.warn(`__addPoke: 未找到编号 ${idx}`); return null; }
     const entry = addRosterEntry({ species: poke.index, source: 'egg', shiny, level });
     if (entry) entry.ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
@@ -693,11 +696,38 @@ async function init() {
   window.__addPokeLv = (idx, lv) => addDebugPoke(idx, false, lv);
   window.__addShinyPokeLv = (idx, lv) => addDebugPoke(idx, true, lv);
 
+  // 调试辅助：一键解锁全图鉴（含变体）。
+  // window.__unlockAllPokedex() 全解锁普通记录；传 true 时额外把闪光也标记为已见/已捕获
+  window.__unlockAllPokedex = async (withShiny = false) => {
+    if (!gameData.pokedex) gameData.pokedex = {};
+    const now = new Date().toISOString();
+    let n = 0;
+    for (const poke of allPokemon) {
+      const key = String(poke.index);
+      const rec = gameData.pokedex[key] || { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0 };
+      rec.seen = Math.max(rec.seen, 1);
+      rec.caught = Math.max(rec.caught, 1);
+      rec.lastTime = now;
+      if (withShiny) {
+        rec.shinySeen = Math.max(rec.shinySeen, 1);
+        rec.shinyCaught = Math.max(rec.shinyCaught, 1);
+      }
+      gameData.pokedex[key] = rec;
+      n++;
+    }
+    await saveGame();
+    if ($('pokedexView')?.style.display !== 'none') showPokedex();
+    console.log(`__unlockAllPokedex: 已解锁 ${n} 条图鉴记录${withShiny ? '（含闪光）' : ''}`);
+    return n;
+  };
+
   // 调试辅助：指定下一次遇敌的宝可梦（window.__nextEncounter(25) 下次遇皮卡丘；
   // window.__nextEncounter(25, true) 下次遇闪光皮卡丘；遇到后自动清空）
   window.__nextEncounter = (idx, shiny = false) => {
     setDebugNextEncounter(idx, shiny);
-    const poke = getPokemonByIndex(String(idx).padStart(4, '0'));
+    const raw = String(idx);
+    const dexIdx = /^\d+$/.test(raw) ? raw.padStart(4, '0') : raw;
+    const poke = getPokemonByIndex(dexIdx);
     console.log(`__nextEncounter: 下次遇敌已指定为 ${poke ? poke.name : '#' + idx}${shiny ? '（闪光）' : ''}，用后即焚`);
   };
 

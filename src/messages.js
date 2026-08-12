@@ -616,7 +616,8 @@ function pickMassMsg() {
   const mo = getMassOutbreak();
   if (!mo) return '';
   const poke = getPokemonByIndex(mo.pokemon);
-  const name = poke ? poke.name : '宝可梦';
+  // 消息区显示全名，便于识别大量出没的具体形态
+  const name = poke ? (poke.form || poke.name) : '宝可梦';
   const remain = Math.max(0, mo.remain);
   if (inMassZone()) {
     const list = MASS_ZONE_MSGS(name, remain);
@@ -651,7 +652,7 @@ export function notifyMassStart() {
 // 事件结束：提示散去并复位轮播状态
 export function notifyMassEnd(mo) {
   const poke = getPokemonByIndex(mo.pokemon);
-  pushIdleEventMsg(`大量出没的${poke ? poke.name : '宝可梦'}渐渐散去了……`);
+  pushIdleEventMsg(`大量出没的${poke ? (poke.form || poke.name) : '宝可梦'}渐渐散去了……`);
   _lastMassMsgAt = 0;
   _wasInMassZone = false;
 }

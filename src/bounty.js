@@ -7,33 +7,20 @@ import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BO
 import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
+import { pickFamily } from './items.js';
 
 // 日期字符串（YYYY-MM-DD，本地时区）
 function dateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 加权随机索引（权重 = 0.3 + 稀有度 × BOUNTY_RARE_WEIGHT）
-function weightedIndex(pool) {
-  let total = 0;
-  const weights = pool.map(p => {
-    const w = 0.3 + (p.rarity ?? 0.5) * BOUNTY_RARE_WEIGHT;
-    total += w;
-    return w;
-  });
-  let r = Math.random() * total;
-  for (let i = 0; i < pool.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return i;
-  }
-  return pool.length - 1;
-}
-
 // 从全国图鉴加权随机抽取 count 只宝可梦（各地区独立抽样，允许重复）
+// 权重 = 0.3 + 稀有度 × BOUNTY_RARE_WEIGHT（越稀有越可能成为悬赏目标）；
+// 家族归一：多变体家族（未知图腾、彩粉蝶等）按单个形态权重计，不因形态数叠加
 function sampleBountyPokemon(count) {
   const picked = [];
   for (let i = 0; i < count; i++) {
-    picked.push(allPokemon[weightedIndex(allPokemon)]);
+    picked.push(pickFamily(allPokemon, p => 0.3 + (p.rarity ?? 0.5) * BOUNTY_RARE_WEIGHT));
   }
   return picked;
 }
@@ -159,9 +146,10 @@ function renderBounty() {
       const btnCls = claimed ? 'done' : !has ? 'locked' : !isCur ? 'pending' : '';
       const btnText = claimed ? '已提交' : has ? (isCur ? '提交' : '可提交') : '未拥有';
       const btnTip = has && !isCur ? `到达${name}提交` : '';
+      const fullName = poke.form || poke.name;
       return `
       <div class="bounty-line${claimed ? ' claimed' : ignored ? ' ignored' : ''}" data-region="${i}" data-bi="${k}">
-        <span class="bounty-name">${poke.name}</span>
+        <span class="bounty-name" data-tip="${fullName.replace(/"/g, '&quot;')}">${fullName}</span>
         <span class="bounty-candy">${CANDY_IMG}×${b.candy}</span>
         <span class="bounty-claim ${btnCls}" data-region="${i}" data-bi="${k}"${btnTip ? ` title="${btnTip}"` : ''}>${btnText}</span>
       </div>`;
@@ -286,7 +274,7 @@ function renderBountyTrade(content, regionIdx, bi) {
   const b = (gameData.bounty?.rewards || [])[regionIdx]?.[bi] || null;
   const poke = b ? getPokemonByIndex(b.pokemon) : null;
   const candidates = (gameData.roster || []).filter(p => String(p.species) === String(b?.pokemon) && p.inRoster && isPokemon(p));
-  const pokeName = poke ? poke.name : (b ? `#${b.pokemon}` : '');
+  const pokeName = poke ? (poke.form || poke.name) : (b ? `#${b.pokemon}` : '');
   // 昵称搜索过滤
   let pool = candidates;
   const q = _bQuery.trim();

@@ -3386,6 +3386,9 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   opacity: 0.5;
   width: 28px;
 }
+/* 图鉴页序号列加宽以容纳变体扩展编号（#0666-18），名称列同步让位 */
+#pokedexView .pokedex-idx { width: 58px; white-space: nowrap; }
+#pokedexView .pokedex-name { max-width: 54px; }
 .pokedex-star {
   width: 14px;
   text-align: right;
@@ -4158,7 +4161,13 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 .nursery-egg-header .bounty-trade-btn-col { padding-right: 6px; } /* 表头「丢弃」文字同步左移对齐 */
 .roster-header, .roster-row { gap: 2px; }
 /* 仓库的闪光星标列更窄，避免图标与编号之间空出太多 */
-.roster-header .pokedex-star, .roster-row .pokedex-star { width: 10px; }
+.roster-header .pokedex-star, .roster-row .pokedex-star { width: 8px; padding-right: 0; }
+/* 仓库编号列加宽以容纳变体扩展编号（#0058-1/#0201-10），图标列同步收窄 */
+.roster-header .pokedex-idx, .roster-row .pokedex-idx { width: 46px; }
+.roster-header .roster-icon, .roster-row .roster-icon { width: 20px; }
+/* 名称列弹性填充中间空隙，把等级/个体值列推到行尾，编号列留足空间 */
+.roster-header .pokedex-name,
+.roster-row:not(.nursery-egg-row) .pokedex-name { flex: 1; max-width: none; }
 .roster-icon {
   width: 24px;
   flex-shrink: 0;
@@ -4171,6 +4180,11 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
   height: 24px;
   object-fit: contain;
   image-rendering: pixelated;
+}
+/* 仓库行图标随列收窄到 20px（其他列表不受影响） */
+.roster-row .roster-icon-img {
+  width: 20px;
+  height: 20px;
 }
 /* 行高固定，保证各行高度一致 */
 .roster-row { height: 30px; }
@@ -4590,6 +4604,17 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 }
 .bounty-trade-btn:hover { background: rgba(48,98,48,0.15); }
 .bounty-trade-btn:active { transform: scale(0.92); }
+.bounty-trade-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.bounty-trade-btn:disabled:hover { background: transparent; }
+.bounty-trade-btn:disabled:active { transform: none; }
+/* 蛋仓库「孵化中」禁用按钮：更紧凑 */
+.nursery-egg-row .bounty-trade-btn:disabled {
+  padding: 2px 3px;
+  font-size: 8px;
+}
 /* 悬赏提交/交换选择列表行：点击进入仓库个体详情 */
 .bounty-trade-row[data-trade-view] { cursor: pointer; }
 

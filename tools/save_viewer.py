@@ -33,7 +33,7 @@ NATURE_CN = dict([
     ("calm", "温和"), ("gentle", "温顺"), ("careful", "慎重"), ("quirky", "浮躁"), ("sassy", "自大"),
     ("timid", "胆小"), ("hasty", "急躁"), ("jolly", "爽朗"), ("naive", "天真"), ("serious", "认真"),
 ])
-SRC_CN = {"normal": "野生", "fishing": "钓鱼", "egg": "孵蛋", "honey": "甜甜蜜", "trade": "交换"}
+SRC_CN = {"normal": "野生", "fishing": "钓鱼", "egg": "孵蛋", "honey": "甜甜蜜", "trade": "交换", "mass": "大量出没"}
 GENDER_SYMBOL = {"male": "♂", "female": "♀", "genderless": "无"}
 BERRY_NAMES = ["利木果", "樱子果", "零余果", "苹野果", "木子果", "茄番果",
                "橙橙果", "桃桃果", "莓莓果", "文柚果", "勿花果", "异奇果"]

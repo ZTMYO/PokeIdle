@@ -1,7 +1,7 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE } from './config.js';
 import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, _eggHatching, encounterMsg, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage } from './ui.js';
-import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg } from './items.js';
+import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { catchBonusFor, computeObtainScore, computeMeetScore } from './scoring.js';
@@ -58,7 +58,10 @@ let _encounterGender = 'male';
 // 调试辅助：指定下一次遇敌的宝可梦（window.__nextEncounter 写入，用后即焚）
 let _debugNextEncounter = null;
 export function setDebugNextEncounter(idx, shiny) {
-  _debugNextEncounter = { index: String(idx).padStart(4, '0'), shiny: !!shiny };
+  // 纯数字按 4 位编号补零；扩展编号（如 "0058-1"）原样匹配
+  const raw = String(idx);
+  const dexIdx = /^\d+$/.test(raw) ? raw.padStart(4, '0') : raw;
+  _debugNextEncounter = { index: dexIdx, shiny: !!shiny };
 }
 
 // 保存后台结算结果（供切回游戏页后重放动画）
@@ -191,7 +194,8 @@ export async function tryEncounter() {
         return !e || (e.caught || 0) === 0;
       });
       if (uncaught.length > 0) {
-        poke = uncaught[randInt(0, uncaught.length - 1)];
+        // 家族归一：多变体家族（未知图腾字母等）只占一个名额，随机出其中一种形态
+        poke = pickFamily(uncaught, () => 1);
       } else {
         poke = pickWeightedPokemon(CHARM_RARITY_BOOST, regionPool);
       }
@@ -543,9 +547,10 @@ export function showEncounter(poke, opts = {}) {
 export function renderEncounterScene(poke) {
   const _onHome = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
   const gSpan = genderBadge(_encounterGender); // 性别图标（♂ 蓝 / ♀ 粉），放在 Lv 前（跟等级绑定，不跟名字）
+  // 遭遇页标题显示全名（变体如"风速狗-洗翠"），让玩家看清遇到的形态
   $('encounterName').innerHTML = (currentIsShiny
-    ? '<span>' + poke.name + '</span><svg viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;color:var(--ui-color);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
-    : poke.name) + `<span class="encounter-lv">${gSpan}Lv${encounterLevel}</span>`;
+    ? '<span>' + (poke.form || poke.name) + '</span><svg viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;color:var(--ui-color);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
+    : (poke.form || poke.name)) + `<span class="encounter-lv">${gSpan}Lv${encounterLevel}</span>`;
   $('encounterName').style.display = '';
   const img = $('encounterGif');
   // 丢球/判定动画进行中（宝可梦在球里）：跳过图片重置与重新加载，

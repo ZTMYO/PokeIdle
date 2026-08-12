@@ -807,8 +807,15 @@ function pickListHtml(slot, query = '') {
       } else if (_pickSortBy === 'level') {
         va = a.level || 1; vb = b.level || 1;
       } else {
-        va = (Number(a.species) || 0) * 1000 + (a.level || 1);
-        vb = (Number(b.species) || 0) * 1000 + (b.level || 1);
+        // 默认按编号排序：纯数字保持"编号+等级"语义，扩展编号（变体）按字符串比较
+        const ai = String(a.species), bi = String(b.species);
+        const an = Number(ai), bn = Number(bi);
+        if (Number.isFinite(an) && Number.isFinite(bn)) {
+          va = an * 1000 + (a.level || 1);
+          vb = bn * 1000 + (b.level || 1);
+        } else {
+          va = ai; vb = bi;
+        }
       }
       if (typeof va === 'string') return va.localeCompare(vb) * _pickSortDir;
       return (va - vb) * _pickSortDir;
@@ -1470,6 +1477,17 @@ function renderEggView() {
     va = a.obtainedAt || 0; vb = b.obtainedAt || 0;
     return (va - vb) * _eggSortDir;
   });
+  // 蛋是否在孵化中（孵蛋器槽位 eggRef 指向该蛋）
+  function isIncubating(id) {
+    return (gameData.incubators || []).some(s => s && s.eggRef === id);
+  }
+  // 蛋行丢弃按钮：孵化中显示「孵化中」并禁用
+  function eggDiscardCell(eg) {
+    return isIncubating(eg.id)
+      ? '<span class="bounty-trade-btn-col"><button class="bounty-trade-btn" disabled>孵化中</button></span>'
+      : `<span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">丢弃</button></span>`;
+  }
+
   // 检查是否已有完整页面，有则只增量更新列表和表头（避免销毁搜索框导致失焦）
   const existingPage = box.querySelector('.nursery-egg-page');
   if (existingPage) {
@@ -1492,7 +1510,7 @@ function renderEggView() {
               <div class="pokedex-entry roster-row nursery-egg-row" data-egg-id="${eg.id}">
                 <span class="pokedex-name"><img class="roster-icon-img" src="./items/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
                 <span class="roster-iv">${eggIvSlash(eg)}</span>
-                <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">丢弃</button></span>
+                ${eggDiscardCell(eg)}
               </div>`;
           }).join('');
       // 重新绑定丢弃按钮
@@ -1538,7 +1556,7 @@ function renderEggView() {
                 <div class="pokedex-entry roster-row nursery-egg-row" data-egg-id="${eg.id}">
                   <span class="pokedex-name"><img class="roster-icon-img" src="./items/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
                   <span class="roster-iv">${eggIvSlash(eg)}</span>
-                  <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">丢弃</button></span>
+                  ${eggDiscardCell(eg)}
                 </div>`;
             }).join('')}
       </div>

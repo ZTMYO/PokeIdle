@@ -6,7 +6,7 @@ import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TR
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
-import { TYPE_COLORS } from './items.js';
+import { TYPE_COLORS, pickFamily } from './items.js';
 import { playCongratulation } from './audio.js';
 
 // ---------- NPC ----------
@@ -60,16 +60,10 @@ function pauseTradeRefresh() {}
 function resumeTradeRefresh() {}
 
 // ---------- 波次生成 ----------
-// 权重 = 0.3 + 稀有度 × 0.7（与悬赏选角一致的稀有度倾向）
-function weightedIndex(pool) {
-  const weights = pool.map(p => 0.3 + (p.rarity || 0) * 0.7);
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * total;
-  for (let i = 0; i < pool.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return i;
-  }
-  return pool.length - 1;
+// 权重 = 0.3 + 稀有度 × 0.7（与悬赏选角一致的稀有度倾向）；
+// 家族归一：多变体家族按单个形态权重计，不因形态数叠加
+function pickTradePokemon() {
+  return pickFamily(allPokemon, p => 0.3 + (p.rarity || 0) * 0.7);
 }
 
 // 给出的宝可梦个体值：神兽保底 3 项 31（与玩家捕获到的一致），
@@ -85,8 +79,8 @@ function rollTradeIvs(isLegend) {
 }
 
 function makeOffer(npc) {
-  const wantPoke = allPokemon[weightedIndex(allPokemon)];
-  const givePoke = allPokemon[weightedIndex(allPokemon)];
+  const wantPoke = pickTradePokemon();
+  const givePoke = pickTradePokemon();
   return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     npc: npc.id,
@@ -260,7 +254,7 @@ function offerCard(o) {
     o.want.iv ? `${IV_LABELS[o.want.iv.stat]} ≥ ${o.want.iv.min} ` : '',
   ].filter(Boolean);
   const wantGender = o.want.gender === 'female' ? '雌性' : o.want.gender === 'male' ? '雄性' : '';
-  const wantText = '想要' + (wantParts.length ? wantParts.join('，') + '的' : '') + wantGender + wantPoke.name;
+  const wantText = '想要' + (wantParts.length ? wantParts.join('，') + '的' : '') + wantGender + (wantPoke.form || wantPoke.name);
 
   const giveIcon = givePoke.icon
     ? `<img class="trade-give-img" data-give-icon="${o.id}" alt="" />`
@@ -272,13 +266,13 @@ function offerCard(o) {
     <div class="trade-row${traded ? ' traded' : ignored ? ' ignored' : ''}">
       <div class="trade-main">
         <div class="npc-sprite" style="${npcPos}"></div>
-        <button class="trade-give" style="animation-delay:${jumpDelay}s" data-give-detail="${o.id}" title="查看${givePoke.name}详情">${giveIcon}</button>
+        <button class="trade-give" style="animation-delay:${jumpDelay}s" data-give-detail="${o.id}" title="查看${givePoke.form || givePoke.name}详情">${giveIcon}</button>
         <div class="trade-text">${wantText}</div>
         <button class="trade-btn${traded ? ' done' : count === 0 ? ' locked' : ''}" data-offer="${o.id}"${traded || count === 0 ? ' disabled' : ''}>${traded ? '已交换' : count === 0 ? '未拥有' : '交换'}</button>
       </div>
       <div class="trade-footer">
         <span class="trade-npc-name">${npc.name}</span>
-        <span class="trade-give-name">${givePoke.name}${o.give.shiny ? ' <svg class="trade-shiny" viewBox="0 0 1024 1024" width="10" height="10"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''} <em>${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</em></span>
+        <span class="trade-give-name">${givePoke.form || givePoke.name}${o.give.shiny ? ' <svg class="trade-shiny" viewBox="0 0 1024 1024" width="10" height="10"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''} <em>${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</em></span>
       </div>
     </div>`;
 }
@@ -331,7 +325,7 @@ function renderGiveDetail(content, offerId) {
   }).join('');
   content.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span>${givePoke.name}<span class="roster-detail-lv">${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</span>${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
+      <span>${givePoke.form || givePoke.name}<span class="roster-detail-lv">${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</span>${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
     </div>
     <div class="roster-detail-head">
       <div class="poke-img-grid"><img id="tradeGiveDetailImg" class="poke-img-in-grid" alt="" /></div>
@@ -364,7 +358,7 @@ function renderSelect(content, offerId) {
   if (!o) { _tradeMode = null; renderTrade(); return; }
   const wantPoke = getPokemonByIndex(o.want.species);
   const candidates = eligible(o);
-  const wantName = wantPoke ? wantPoke.name : '';
+  const wantName = wantPoke ? (wantPoke.form || wantPoke.name) : '';
   // 昵称搜索过滤
   let pool = candidates;
   const q = _tQuery.trim();
@@ -520,7 +514,7 @@ function doTrade(offerId, rid) {
         charmBuff: false,
         source: 'trade',
         npcName: npc.name, // 与谁交换
-        gave: (getPokemonByIndex(String(p.species)) || {}).name || '', // 用哪只换来的
+        gave: (() => { const gp = getPokemonByIndex(String(p.species)); return gp ? (gp.form || gp.name) : ''; })(), // 用哪只换来的
         score: 0, // 交换为固定提议，玩家主动选择，不涉及随机运气，不计欧气分
       });
       o.traded = true;

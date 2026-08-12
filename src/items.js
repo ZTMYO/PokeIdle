@@ -112,18 +112,49 @@ export async function finalizeEggResultContext() {
 // ---------- 权重随机选精灵 ----------
 // rarityBoost 越高稀有精灵出现概率越大
 // rarity 已在 pokedex.json 中预计算（基于捕获率 + 种族值）
+
+// 把池子按本体编号（index 的 `-` 前缀）归并为家族，
+// 避免同一宝可梦的多形态（未知图腾 27 字母、彩粉蝶 18 花纹等）叠加放大出现概率
+export function foldFamilies(pool) {
+  const map = new Map();
+  for (const p of pool) {
+    const base = String(p.index).split('-')[0];
+    let g = map.get(base);
+    if (!g) map.set(base, g = []);
+    g.push(p);
+  }
+  return [...map.values()];
+}
+
+// 家族权重采样：家族权重取成员中单个最大权重（形态数量不叠加），
+// 命中家族后在家族内均匀随机选一个具体形态
+export function pickFamily(pool, weightOf) {
+  const source = pool || allPokemon;
+  if (source.length === 0) return null;
+  const groups = foldFamilies(source);
+  const weights = groups.map(g => {
+    let w = 0;
+    for (const p of g) w = Math.max(w, weightOf(p));
+    return Math.max(w, 1e-9);
+  });
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < groups.length; i++) {
+    r -= weights[i];
+    if (r <= 0) {
+      const g = groups[i];
+      return g[randInt(0, g.length - 1)];
+    }
+  }
+  const last = groups[groups.length - 1];
+  return last[randInt(0, last.length - 1)];
+}
+
 export function pickWeightedPokemon(rarityBoost, pool) {
   const source = pool || allPokemon;
   if (source.length === 0) return null;
   const penalty = Math.max(0.2, 0.8 - rarityBoost * 0.5); // 正常 0.8，蜜 0.55，护符 0.45
-  const weights = source.map(p => Math.max(0.01, 1 - (p.rarity ?? 0.5) * penalty));
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * total;
-  for (let i = 0; i < source.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return source[i];
-  }
-  return source[source.length - 1];
+  return pickFamily(source, p => Math.max(0.01, 1 - (p.rarity ?? 0.5) * penalty));
 }
 
 export function pickRandomPokemon() {
@@ -140,7 +171,7 @@ export function pickRandomPokemon() {
 // 孵蛋：全图鉴纯随机，不受地区限制、无稀有度加权
 export function pickAnyPokemon() {
   if (allPokemon.length === 0) return null;
-  return allPokemon[randInt(0, allPokemon.length - 1)];
+  return pickFamily(allPokemon, () => 1);
 }
 
 // 树果方块：当前地区中 foods 与配方完全一致的宝可梦

@@ -97,6 +97,8 @@ export const ACHIEVEMENTS = [
   {
     id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
     metric: () => dexCount(), base: 10, reward: 30, maxTiers: 7,
+    // 满级阈值对齐当前全图鉴 1208 种（本体 1025 + 变体 183），最后一级 1208
+    tiers: [10, 20, 50, 100, 200, 500, 1208],
     fmt: v => `${formatNum(v)} 种`,
   },
   {
@@ -124,8 +126,14 @@ export function claimedTiers(id) {
   return gameData.achievements[id] || 0;
 }
 
-// 第 n 级（0 起）的 { threshold, reward }：threshold = base×nice、reward = reward×nice，等级无限
+// 第 n 级（0 起）的 { threshold, reward }：默认 threshold/reward = base×nice、reward = reward×nice；
+// 成就自带 tiers 数组时（如图鉴满级对齐全图鉴数），阈值用自定义值，reward 取相邻默认档
 function tierAt(a, n) {
+  if (a.tiers) {
+    const threshold = a.tiers[n] ?? a.tiers[a.tiers.length - 1];
+    const k = niceValue(n);
+    return { threshold, reward: a.reward * k };
+  }
   const k = niceValue(n);
   return { threshold: a.base * k, reward: a.reward * k };
 }

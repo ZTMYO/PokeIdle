@@ -18,6 +18,7 @@ import { endCycling } from './audio.js';
 import { MAP_EDGES, showGpsView } from './gps.js';
 import { startMassEncounter, scheduleNextEncounter } from './battle.js';
 import { notifyMassStart, notifyMassEnd, massMsgTick } from './messages.js';
+import { pickFamily } from './items.js';
 import * as road from './road.js';
 
 // ===== 生成 / 结束 =====
@@ -45,7 +46,8 @@ function spawnMassOutbreak() {
     gameData.massNextGenAt = Date.now() + randInt(10, 30) * 60000; // 该地区无精灵则稍后重试
     return;
   }
-  const poke = pool[randInt(0, pool.length - 1)];
+  // 家族归一：多变体家族（未知图腾、彩粉蝶等）按单个形态计，不因形态数叠加
+  const poke = pickFamily(pool, () => 1);
   const remain = randInt(MASS_COUNT_MIN, MASS_COUNT_MAX);
   gameData.massOutbreak = {
     edge, t,                       // 事件路段 + 事件点在路段上的位置比例

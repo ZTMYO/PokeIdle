@@ -20,12 +20,13 @@ function genderRatioText(poke) {
   const rate = poke?.genderRate;
   if (rate === undefined || rate === null) return '';
   if (rate === -1) return '性别：无性别';
-  const fmt = (n) => (Number.isInteger(n) ? n : n.toFixed(1).replace(/\.0$/, ''));
-  const f = fmt(12.5 * rate);
-  const m = fmt(12.5 * (8 - rate));
-  if (rate === 0) return `性别：♂100%`;
-  if (rate === 8) return `性别：♀100%`;
-  return `性别：♂${m}% ♀${f}%`;
+  const m = 8 - rate; // 雄性份数
+  const f = rate;     // 雌性份数
+  if (m === 0) return '性别：全雌性';
+  if (f === 0) return '性别：全雄性';
+  const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
+  const g = gcd(m, f);
+  return `性别：♂:♀ ${m / g}:${f / g}`;
 }
 
 export function formatLogTime(ts) {
@@ -90,7 +91,8 @@ export function showEncounterLogs(pokemonIndex) {
   const caughtEntry = gameData.pokedex[idx];
   const seenCount = caughtEntry?.seen || 0;
   const caughtCount = caughtEntry?.caught || 0;
-  const displayName = seenCount > 0 ? (poke?.name || `#${pokemonIndex}`) : '？？？';
+  // 详情页标题显示全名（变体用 form，如"风速狗-洗翠"）；未遇到显示？？？
+  const displayName = seenCount > 0 ? (poke?.form || poke?.name || `#${pokemonIndex}`) : '？？？';
   const list = $('pokedexList');
   if (!list) return;
 
@@ -121,6 +123,7 @@ export function showEncounterLogs(pokemonIndex) {
         </div>
         <div style="font-size:10px;line-height:1.5;">${poke && poke.region ? `<div>地区：${poke.region}</div>` : ''}
         ${genderRatioText(poke) ? `<div>${genderRatioText(poke)}</div>` : ''}
+        ${(poke && poke.eggGroup && poke.eggGroup.length) ? `<div>蛋组：${poke.eggGroup.join('、')}</div>` : ''}
         ${(() => {
           const r = (poke && poke.catchRate !== undefined) ? poke.catchRate : 0.5;
           const rarity = (poke && poke.rarity !== undefined) ? poke.rarity : 0.5;
@@ -314,6 +317,7 @@ export function setupPokedexSearch() {
     const matched = allPokemon.filter(p =>
       (gameData.pokedex?.[p.index]?.seen || 0) > 0 && (
         p.name.includes(q) ||
+        (p.form || '').includes(q) ||
         p.pinyin.toUpperCase().includes(upper) ||
         p.pinyinInitials.toUpperCase().includes(upper) ||
         matchPinyinPartial(q, p.pinyin)
@@ -329,7 +333,7 @@ export function setupPokedexSearch() {
     for (const p of matched) {
       html += `<div class="pokedex-dropdown-item" data-index="${p.index}">
         <span class="dd-idx">#${p.index}</span>
-        <span class="dd-name">${p.name}</span>
+        <span class="dd-name">${p.form || p.name}</span>
       </div>`;
     }
     dropdown.innerHTML = html;

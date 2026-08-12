@@ -416,13 +416,13 @@ export function tryLoadImage(img, relPath) {
     // 透明占位已在函数入口设置，失败时保持透明即可
     const doRaw = () => new Promise(r => {
       dbg.raw++;
-      img.onload = () => { img.onerror = null; _cacheSet(relPath, relPath); console.warn('[img] RAW ok', dbg.key); r(true); };
+      img.onload = () => { img.onerror = null; _cacheSet(relPath, relPath); r(true); };
       img.onerror = () => r(false);
       img.src = relPath;
     });
     const doEncoded = () => new Promise(r => {
       dbg.encoded++;
-      img.onload = () => { img.onerror = null; _cacheSet(relPath, encodeURI(relPath)); console.warn('[img] ENCODED ok', dbg.key); r(true); };
+      img.onload = () => { img.onerror = null; _cacheSet(relPath, encodeURI(relPath)); r(true); };
       img.onerror = () => r(false);
       img.src = encodeURI(relPath);
     });
@@ -437,7 +437,7 @@ export function tryLoadImage(img, relPath) {
         if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
         _cacheSet(relPath, url);
         return new Promise(r => {
-          img.onload = () => { console.warn('[img] FETCH ok', dbg.key); r(true); };
+          img.onload = () => { r(true); };
           img.onerror = () => { URL.revokeObjectURL(url); if (_imgCache.get(relPath) === url) _imgCache.delete(relPath); r(false); };
           img.src = url;
         });
@@ -456,7 +456,7 @@ export function tryLoadImage(img, relPath) {
             if (done) return;
             done = true; clearTimeout(timer);
             new Promise(r2 => {
-              img.onload = () => { _cacheSet(relPath, `data:image/${ext};base64,${b64}`); console.warn('[img] TAURI ok', dbg.key); r2(true); };
+              img.onload = () => { _cacheSet(relPath, `data:image/${ext};base64,${b64}`); r2(true); };
               img.onerror = () => r2(false);
               img.src = `data:image/${ext};base64,${b64}`;
             }).then(r);
@@ -464,19 +464,25 @@ export function tryLoadImage(img, relPath) {
           .catch(() => { if (!done) { done = true; clearTimeout(timer); r(false); } });
       });
     };
-    doRaw().then(ok => ok ? resolve(true) : doEncoded()).then(ok => {
-      if (ok) { resolve(true); return; }
-      doFetch().then(ok => ok ? resolve(true) : doTauri()).then(ok => {
-        if (ok) resolve(true);
-        else { dbg.fail++; dbgLog(); resolve(false); }
-      }).catch(() => { dbg.fail++; dbgLog(); resolve(false); });
-    }).catch(() => { dbg.fail++; dbgLog(); resolve(false); });
+    // 依次尝试各通道：任一成功即短路（返回 true 沿链路传播），全失败才记录日志
+    doRaw()
+      .then(ok => (ok ? true : doEncoded()))
+      .then(ok => (ok ? true : doFetch()))
+      .then(ok => (ok ? true : doTauri()))
+      .then(ok => {
+        if (ok) { resolve(true); return; }
+        dbg.fail++;
+        dbgLog();
+        resolve(false);
+      })
+      .catch(() => { dbg.fail++; dbgLog(); resolve(false); });
   });
 }
 
 export function tryLoadPokemonImage(img, poke, suffix) {
   const idx = String(poke.index);
-  const name = poke.name;
+  // 变体条目 form 存形态全名（如"风速狗-洗翠"），图片文件名按全名命名；本体无 form 用 name
+  const name = poke.form || poke.name;
   const primaryExt = poke.image?.endsWith('.png') ? 'png' : 'gif';
   const fallbackExt = primaryExt === 'png' ? 'gif' : 'png';
   function tryLoad(ext) {
@@ -489,7 +495,7 @@ export function tryLoadPokemonImage(img, poke, suffix) {
 // 加载宝可梦头像 icon
 export function tryLoadPokemonIcon(img, poke) {
   const idx = String(poke.index);
-  const ip = `./pokemon-data/icon/${idx}-${poke.name}.png`;
+  const ip = `./pokemon-data/icon/${idx}-${poke.form || poke.name}.png`;
   return tryLoadImage(img, ip);
 }
 
