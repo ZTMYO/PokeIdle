@@ -247,6 +247,7 @@ pub fn run() {
             window_manager::set_ignore_blur,
             window_manager::set_window_pinned,
             window_manager::set_window_scale,
+            window_manager::set_device_pixel_ratio,
             window_manager::mark_show,
             game_data::save_game_data,
             game_data::load_game_data,

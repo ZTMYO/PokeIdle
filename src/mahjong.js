@@ -873,7 +873,7 @@ function fillTable(box) {
     riichiBtn.hidden = false;
     // 左侧展示立直宣言牌（刚摸的那张，点立直后必须打出它）：避免空槽把按钮挤偏
     ponCard.innerHTML = st.lastDraw != null ? cardHtml(st.lastDraw) : '';
-    msg.textContent = '立直';
+    msg.textContent = '';
   } else if (st.phase === 'player') {
     msgBtns.hidden = true;
     msg.textContent = (playerTileTotal() === 9) ? '你的回合' : '';

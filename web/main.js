@@ -461,7 +461,7 @@ fillMarquee(document.getElementById('mq2'), MQ_B);
 const SHOT_CARDS = [
   { title: '手机系统', icon: 'icon-phone', desc: '一个手机搞定全部：导航、图鉴、仓库、交换、孵蛋器、农场。' },
   { title: '智能导航', icon: 'icon-gps', desc: '指定目的地自动规划路线，环国漫游一路畅通，事件地点轻松到达。' },
-  { title: '宝可梦详情', icon: 'icon-book', desc: '属性、个体、稀有度一目了然，收藏进度尽在掌握。' },
+  { title: '宝可梦详情', icon: 'icon-book', desc: '属性、个体值、来源一目了然，收藏进度尽在掌握。' },
   { title: '孵蛋器', icon: 'icon-egg', desc: '挂机孵化神秘蛋，随机出宠，还有概率孵出闪。' },
   { title: '树果农场', icon: 'icon-tree', desc: '种植、浇水、收获一气呵成，还能招募帮手自动打理。' },
   { title: '树果混合器', icon: 'icon-mixer', desc: '按配方混合树果制成树果方块，吸引特定宝可梦。' },
@@ -469,11 +469,16 @@ const SHOT_CARDS = [
   { title: '地区悬赏', icon: 'icon-station', desc: '接取悬赏任务，提交指定宝可梦，换取丰厚奖励。' },
   { title: '培育', icon: 'icon-heart', desc: '饲育屋配对繁育，个体值遗传可锁定，培养高个体后代。' },
   { title: '闪光宝可梦', icon: 'icon-star', desc: '1/1000 概率遇见闪光，搭配闪耀护符大幅提升。' },
+  { title: '随从', icon: 'icon-follower', desc: '糖果抽取宝可梦随从，九类限时增益。' },
   { title: '成就', icon: 'icon-achievement', desc: '累计统计达标即可领取糖果，1-2-5 规整序列无限递进。' },
   { title: '大量出没', icon: 'icon-pin', desc: '随机路段事件点，锁定宝可梦连续遭遇，闪光率提升至 1/200。' },
   { title: 'NPC 对战', icon: 'icon-versus', desc: '普通/精英/冠军三档队伍刷新，回合制赢取经验与糖果。' },
   { title: '配队', icon: 'icon-edit', desc: '从仓库挑选六只组成出战小队。' },
+  { title: '配招', icon: 'icon-moves', desc: '自动配招一键成型，手动微调自由组合技能搭配。' },
   { title: '训练', icon: 'icon-train', desc: '训练场挂机自动获得经验，树果补充饱食度持续升级。' },
+  { title: '21点', icon: 'icon-blackjack', desc: '标准 52 张牌，要牌/停牌/加倍任选，黑杰克 1.5 倍赔付。' },
+  { title: '口袋麻将', icon: 'icon-mahjong', desc: '四人立直麻将，押注立直搏高番，天和役满一局翻盘。' },
+  { title: '抽卡机', icon: 'icon-album', desc: '使用游戏币抽卡，N/R/SR 三大稀有度，在卡册收藏和查看。' },
 ];
 
 const shotStage = document.getElementById('shotStage');

@@ -200,3 +200,45 @@ export function showPhoneView() {
   };
   showView('phoneView');
 }
+
+// 调试：打印手机主页布局几何信息（浏览器端/Tauri 端对比用）。
+// 用法：进入手机主页后，在控制台执行 window.__dumpPhoneLayout()
+window.__dumpPhoneLayout = () => {
+  const info = (el, name) => {
+    if (!el) return { name, missing: true };
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    return {
+      name,
+      offset: [el.offsetWidth, el.offsetHeight],
+      rect: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)],
+      display: cs.display,
+      fontSize: cs.fontSize,
+      lineHeight: cs.lineHeight,
+      padding: cs.padding,
+    };
+  };
+  const out = {
+    viewport: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio },
+    console: info(document.querySelector('.console'), 'console'),
+    screen: info(document.querySelector('.screen'), 'screen'),
+    screenInner: info(document.getElementById('screenInner'), 'screenInner'),
+    phoneView: info(document.getElementById('phoneView'), 'phoneView'),
+    phoneClock: info(document.getElementById('phoneClock'), 'phoneClock'),
+    phoneClockDate: info(document.getElementById('phoneClockDate'), 'phoneClockDate'),
+    phoneClockTime: info(document.getElementById('phoneClockTime'), 'phoneClockTime'),
+    phoneContent: info(document.getElementById('phoneContent'), 'phoneContent'),
+    phonePages: info(document.getElementById('phonePages'), 'phonePages'),
+    pages: [...document.querySelectorAll('.phone-page')].map((p, i) => {
+      const r = p.getBoundingClientRect();
+      return { page: i, offset: [p.offsetWidth, p.offsetHeight], rect: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)] };
+    }),
+    apps: [...document.querySelectorAll('.phone-app')].map((a, i) => {
+      const r = a.getBoundingClientRect();
+      const icon = a.querySelector('.phone-app-icon');
+      return { idx: i, name: a.querySelector('.phone-app-name')?.textContent, offset: [a.offsetWidth, a.offsetHeight], rect: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)], iconOffset: icon ? [icon.offsetWidth, icon.offsetHeight] : null };
+    }),
+  };
+  console.log('[PHONE-DUMP]', JSON.stringify(out, null, 2));
+  return out;
+};

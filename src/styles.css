@@ -32,14 +32,26 @@ html, body {
 body { margin: 0; padding: 0; cursor: default; display: flex; align-items: center; justify-content: center; }
 
 /* === 主机外壳 === */
+/* Tauri 端：CSS 视口恒为 274×342（设计基准，Rust set_window_scale 用 JS 真实 dpr 计算 zoom，
+   任意设备画面一致），用 100% 撑满即可。
+   浏览器端（body.browser-mode）：固定 274×342 与 Tauri 端设计基准一致 */
 .console {
   width: 100%; height: 100%;
-  max-width: 320px; max-height: 400px;
+  max-width: 274px; max-height: 342px;
   display: flex;
   flex-direction: column;
   background: var(--console-body);
   position: relative;
 }
+body.browser-mode .console {
+  width: 274px; height: 342px;
+  max-width: none; max-height: none;
+  /* 浏览器端特有的边框 */
+  border: 2px solid var(--console-border);
+  border-radius: 10px;
+}
+/* 浏览器端窗口小于 274×342 时可滚动查看完整界面（flex 居中会溢出裁剪） */
+body.browser-mode { overflow: auto; }
 
 /* === 标题栏 === */
 .title-bar {

@@ -334,7 +334,27 @@ export async function confirmIntro() {
   if (iv) iv.style.display = 'none';
   const sw = document.querySelector('.screen-wrapper');
   const fullH = sw.offsetHeight;
-  const targetH = 230;
+  // 动态测量收缩目标高度：console 高度 − 标题栏 − 背包栏。
+  // 不硬编码（原 230px 只在固定视口下成立，不同 DPR/浏览器视口会缩过头）；
+  // 背包栏在 boot-no-ui 下 display:none，临时显示测量后立即恢复（同步无闪烁）。
+  const backpackBar = document.querySelector('.backpack-bar');
+  let targetH;
+  if (backpackBar) {
+    // boot-no-ui 会隐藏背包栏（display:none），测量目标高度前临时移除，
+    // 确保 offsetHeight 取到背包栏真实高度（内联覆盖 + 强制回流在个别环境仍可能为 0）。
+    const body = document.body;
+    const hadBoot = body.classList.contains('boot-no-ui');
+    if (hadBoot) body.classList.remove('boot-no-ui');
+    void body.offsetHeight; // 强制同步回流，使 display:none 解除立即生效
+    const barH = backpackBar.offsetHeight;
+    const consoleEl = document.querySelector('.console');
+    const titleBar = document.querySelector('.title-bar');
+    const consoleH = consoleEl ? consoleEl.offsetHeight : (fullH + barH);
+    targetH = Math.max(80, consoleH - (titleBar ? titleBar.offsetHeight : 32) - barH);
+    if (hadBoot) body.classList.add('boot-no-ui');
+  } else {
+    targetH = 230; // 兜底：无背包栏时退回旧值
+  }
   sw.classList.add('boot-collapse');
   sw.style.flex = 'none';
   sw.style.transition = 'none';

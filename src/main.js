@@ -506,6 +506,13 @@ function onIntroMusicClick() {
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
 
+  // 浏览器端（非 Tauri）：console 固定 274×342 居中显示，与 Tauri 端设计基准视口一致
+  //（Tauri 端由 Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）
+  const consoleEl = document.querySelector('.console');
+  if (consoleEl && !window.__TAURI__?.core?.invoke) {
+    document.body.classList.add('browser-mode');
+  }
+
   // 系统托盘走路动画（异步加载，失败不影响主流程）
   import('./tray.js').then(m => m.startTrayAnimation()).catch(() => {});
 
@@ -1080,9 +1087,12 @@ async function init() {
       });
       return;
     }
-    goIdle();
+    // 先跳详情页再收尾：showRosterView 切走游戏页后 isOnGameView() 为 false，
+    // 后续 finalizePendingCatch → goIdle 只清理战斗状态，不会切回挂机页，避免闪烁
     if (entryId) {
       import('./roster.js').then(m => m.showRosterDetailById(entryId, 'idleView'));
+    } else {
+      goIdle();
     }
   });
   $('confirmNo')?.addEventListener('click', () => {
@@ -1244,7 +1254,7 @@ async function init() {
     saveSessionState({ manualBike: road.isManualBike() }); // 骑行中刷新/关闭：记录骑行状态供恢复
     if (gameData) {
       gameData.stats.lastSaveTime = Date.now();
-      try { localStorage.setItem('pokemon_idle_save', JSON.stringify(gameData)); } catch (_) {}
+      try { localStorage.setItem('pokemon_idle_save', encodeSaveToPngDataUrl(gameData)); } catch (_) {}
     }
     try { localStorage.setItem('pokemon_idle_road', JSON.stringify({ roadIdx: _roadIdx, fished: getFishingGuarantee().fished })); } catch (_) {}
   });

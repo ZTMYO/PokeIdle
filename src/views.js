@@ -663,12 +663,30 @@ function hideShopContextMenu() {
 // 1~10 整数档；超出显示器容纳上限时由 Rust 侧自动钳制到实际生效倍率
 const WINDOW_SCALES = Array.from({ length: 10 }, (_, i) => i + 1);
 
+// 当前 WebView2 zoom 因子（Rust set_window_scale 返回，初始 1）。
+// 用于把 window.devicePixelRatio 还原成系统 dpr：WebView2 的 devicePixelRatio 包含 zoom，
+// 不排除会导致调整倍率后上报的 dpr 偏大，Rust 算出的 zoom 趋近 1 → 表现为「调高倍不生效」。
+let currentZoom = 1;
+
 // 按倍率等比缩放：窗口放大 + webview 内容缩放均在 Rust set_window_scale 内完成
 export async function applyWindowScale(scale) {
   if (!window.__TAURI__?.core?.invoke) return;
   const s = WINDOW_SCALES.includes(scale) ? scale : 2; // 未设置/非法值兜底默认 2 倍（1 倍物理窗口偏小）
+  const invoke = window.__TAURI__.core.invoke;
+  const applyOnce = async () => {
+    // 上报「系统 dpr」= devicePixelRatio / 当前 zoom（排除已生效的缩放）
+    const sysDpr = (window.devicePixelRatio || 1) / (currentZoom || 1);
+    await invoke('set_device_pixel_ratio', { dpr: sysDpr });
+    const zoom = await invoke('set_window_scale', { scale: s });
+    if (typeof zoom === 'number' && zoom > 0) currentZoom = zoom;
+  };
   try {
-    await window.__TAURI__.core.invoke('set_window_scale', { scale: s });
+    await applyOnce();
+    // 二次校准：窗口 resize 后若 CSS 视口仍偏离 274×342（设计基准），用稳定后的 dpr 重设
+    await new Promise(r => setTimeout(r, 250));
+    if (Math.abs(window.innerWidth - 274) > 1 || Math.abs(window.innerHeight - 342) > 1) {
+      await applyOnce();
+    }
   } catch (_) {}
 }
 

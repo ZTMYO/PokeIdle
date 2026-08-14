@@ -56,6 +56,16 @@
 </tr>
 </table>
 
+<table align="center">
+<tr>
+<td align="center"><img src="web/public/images/21点.png" width="180"></td>
+<td align="center"><img src="web/public/images/抽卡.png" width="180"></td>
+<td align="center"><img src="web/public/images/麻将.png" width="180"></td>
+<td align="center"><img src="web/public/images/配招.png" width="180"></td>
+<td align="center"><img src="web/public/images/随从.png" width="180"></td>
+</tr>
+</table>
+
 ## 玩法
 
 - **挂机冒险** — 九大地区陆路打通，挂机遇敌、自动拾取，目标完成全图鉴
