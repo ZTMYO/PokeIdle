@@ -307,7 +307,7 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
     const t = $('appTitle');
     if (t) {
       _savedTitle = { html: t.innerHTML, action: t.dataset.action || '', onclick: t.onclick };
-      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ' + title;
+      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ' + title;
       t.dataset.action = 'back';
       t.onclick = () => {
         if (okBtn.style.display === 'none') return; // 已确认进入动画，忽略点击

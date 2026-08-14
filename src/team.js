@@ -163,7 +163,7 @@ function render() {
 // 底部移除停靠区：全宽横条，拖拽宝可梦进入即相当于菜单「移除」
 function trashDockHtml() {
   return `<div class="team-trash-dock" id="teamTrashDock">
-    <svg viewBox="0 0 1024 1024" width="13" height="13"><use xlink:href="./icons/sprites.svg#icon-delete"/></svg>
+    <svg viewBox="0 0 1024 1024" width="13" height="13"><use xlink:href="#icon-delete"/></svg>
     <span>拖到此处移除</span>
   </div>`;
 }
@@ -235,7 +235,7 @@ function slotHtml(i, p, disabled) {
   const poke = p ? getPokemonByIndex(String(p.species)) : null;
   const name = p?.nickname || (poke ? poke.name : p ? `#${p.species}` : '');
   const shiny = p && p.shiny
-    ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
+    ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="#icon-star"/></svg>'
     : '';
   const dis = disabled ? ' swap-disabled' : '';
   if (!p) return `<div class="team-member empty${dis}" data-slot="${i}">

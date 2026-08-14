@@ -130,7 +130,7 @@ export function showPhoneView() {
         <div class="phone-page">
           ${page.map(a => `
             <div class="phone-app" data-app="${a.id}">
-              <div class="phone-app-icon"><svg><use xlink:href="./icons/sprites.svg#${a.icon}"/></svg>
+              <div class="phone-app-icon"><svg><use xlink:href="#${a.icon}"/></svg>
                 ${['incubator', 'trade', 'berry', 'achievement'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
               </div>
               <div class="phone-app-name">${a.name}</div>

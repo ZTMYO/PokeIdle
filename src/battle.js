@@ -249,7 +249,7 @@ function spawnEncounterPoke(poke, shiny, cb) {
     const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     star.setAttribute('viewBox', '0 0 1024 1024');
     star.classList.add('mass-poke-shiny');
-    star.innerHTML = '<use xlink:href="./icons/sprites.svg#icon-star"/>';
+    star.innerHTML = '<use xlink:href="#icon-star"/>';
     el.appendChild(star);
   }
   // 异步加载头像 icon；加载失败则移除并重调度
@@ -549,7 +549,7 @@ export function renderEncounterScene(poke) {
   const gSpan = genderBadge(_encounterGender); // 性别图标（♂ 蓝 / ♀ 粉），放在 Lv 前（跟等级绑定，不跟名字）
   // 遭遇页标题显示全名（变体如"风速狗-洗翠"），让玩家看清遇到的形态
   $('encounterName').innerHTML = (currentIsShiny
-    ? '<span>' + (poke.form || poke.name) + '</span><svg viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;color:var(--ui-color);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
+    ? '<span>' + (poke.form || poke.name) + '</span><svg viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;color:var(--ui-color);"><use xlink:href="#icon-star"/></svg>'
     : (poke.form || poke.name)) + `<span class="encounter-lv">${gSpan}Lv${encounterLevel}</span>`;
   $('encounterName').style.display = '';
   const img = $('encounterGif');

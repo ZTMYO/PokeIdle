@@ -296,7 +296,7 @@ function offerCard(o) {
       </div>
       <div class="trade-footer">
         <span class="trade-npc-name">${npc.name}</span>
-        <span class="trade-give-name">${givePoke.form || givePoke.name}${o.give.shiny ? ' <svg class="trade-shiny" viewBox="0 0 1024 1024" width="10" height="10"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''} <em>${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</em></span>
+        <span class="trade-give-name">${givePoke.form || givePoke.name}${o.give.shiny ? ' <svg class="trade-shiny" viewBox="0 0 1024 1024" width="10" height="10"><use xlink:href="#icon-star"/></svg>' : ''} <em>${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</em></span>
       </div>
     </div>`;
 }
@@ -349,7 +349,7 @@ function renderGiveDetail(content, offerId) {
   }).join('');
   content.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span>${givePoke.form || givePoke.name}<span class="roster-detail-lv">${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</span>${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}</span>
+      <span>${givePoke.form || givePoke.name}<span class="roster-detail-lv">${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</span>${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>' : ''}</span>
     </div>
     <div class="roster-detail-head">
       <div class="poke-img-grid"><img id="tradeGiveDetailImg" class="poke-img-in-grid" alt="" /></div>
@@ -444,7 +444,7 @@ function renderSelect(content, offerId) {
           <div class="pokedex-search-input-wrap">
             <input id="tradeSelectSearch" class="pokedex-search-input" type="text" placeholder="昵称搜索" autocomplete="off" value="${_tQuery}" />
             <button class="pokedex-search-clear" id="tradeSelectSearchClear" style="display:${q ? '' : 'none'};" aria-label="清空搜索">
-              <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+              <svg><use xlink:href="#icon-close" /></svg>
             </button>
           </div>
         </div>

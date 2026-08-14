@@ -165,7 +165,7 @@ function spawnMassPoke() {
     const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     star.setAttribute('viewBox', '0 0 1024 1024');
     star.classList.add('mass-poke-shiny');
-    star.innerHTML = '<use xlink:href="./icons/sprites.svg#icon-star"/>';
+    star.innerHTML = '<use xlink:href="#icon-star"/>';
     el.appendChild(star);
   }
   // 异步加载头像 icon；加载失败则移除，等待下一只

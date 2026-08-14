@@ -55,6 +55,7 @@ export function createMon(pokeData, level, ivsObj, natureKey, moveIds) {
   return {
     idx: pokeData.index, name: pokeData.name, types: pokeData.types, level,
     ivs: ivsObj, nature: natureKey, moves: moveIds,
+    pp: moveIds.map(() => null), // 各招式当前 PP（与 moves 对齐；null=未初始化按无限处理），由战斗入口按招式数据填充
     uid: ++_uidSeq, // 战斗个体唯一标识（变身只改外观，定位仍指向原个体）
     stats, maxHp: stats[0], hp: stats[0],
     stages: [0, 0, 0, 0, 0, 0, 0],
@@ -249,6 +250,7 @@ export function transformMon(mon, source) {
   mon.types = source.types.slice();
   mon.stats = [mon.stats[0], ...source.stats.slice(1)];
   mon.moves = (source.moves || []).slice();
+  mon.pp = (source.pp || []).slice(); // 变身复制对手招式与剩余 PP
   mon._transformOf = source.idx;
   if (source.name) mon.name = source.name;
   return true;
@@ -264,6 +266,12 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     return events;
   }
   const ef = mv.effect;
+  // PP 耗尽防线：任何调用路径（按钮/AI/兜底）都不允许使用 PP 为 0 的招式
+  const _ppIdx = actor.moves.findIndex((m) => m != null && String(m) === String(moveId));
+  if (_ppIdx >= 0 && Array.isArray(actor.pp) && actor.pp[_ppIdx] === 0) {
+    events.push(msg(`${actor.name}的${mv.name}PP 不足，无法使用！`));
+    return events;
+  }
   // 击掌奇袭/迎头一击：仅出场后的第一回合能成功使出，其余回合招式无效（官方设定）
   const entryMove = mv.name === '击掌奇袭' || mv.name === '迎头一击';
   if (entryMove && actor.entryRound != null && actor.entryRound !== ctx?.round) {
@@ -271,6 +279,10 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     return events;
   }
   actor.lastMove = String(moveId); // 记录最近使用的招式（模仿/定身法/再来一次依赖）
+  // PP 消耗：使出即扣（miss/无效同样扣），耗尽后招式不可再用
+  if (_ppIdx >= 0 && Array.isArray(actor.pp) && actor.pp[_ppIdx] != null && actor.pp[_ppIdx] > 0) {
+    actor.pp[_ppIdx]--;
+  }
   // 守住连续成功计数：改用非守住招式时清零（守住失败在守住分支内清零）
   if (ef.kind !== 'protect') actor.protectStreak = 0;
   switch (ef.kind) {
@@ -890,6 +902,9 @@ export function aiMove(actor, enemy, data) {
     if (data.moves[m].name === '击掌奇袭' || data.moves[m].name === '迎头一击') {
       if (actor.entryRound != null) return false; // 登场技：仅刚出场第一回合可用
     }
+    // PP 耗尽：招式不可再用
+    const pi = actor.moves.indexOf(m);
+    if (Array.isArray(actor.pp) && actor.pp[pi] != null && actor.pp[pi] <= 0) return false;
     return true;
   });
   if (!usable.length) return null;

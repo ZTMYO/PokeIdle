@@ -435,7 +435,7 @@ function cardHtml(c, deal = false, flip = false, extra = '') {
 function cardBackHtml(deal = false) {
   return `<div class="casino-card back${deal ? ' dealing' : ''}">
     <svg class="casino-card-back-icon" viewBox="0 0 1024 1024">
-      <use xlink:href="./icons/sprites.svg#icon-card-back" />
+      <use xlink:href="#icon-card-back" />
     </svg>
   </div>`;
 }

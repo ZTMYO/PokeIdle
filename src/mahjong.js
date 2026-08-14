@@ -527,8 +527,8 @@ function yakuRefInner() {
     <div class="mj-yaku-row">
       <div class="mj-yaku-cards">${yakuCardsHtml}</div>
       <div class="mj-yaku-nav">
-        <button class="mj-yaku-nav-btn" id="mjYakuPrev" title="上一个番型"><svg class="mj-yaku-arrow"><use xlink:href="./icons/sprites.svg#icon-unfold"></use></svg></button>
-        <button class="mj-yaku-nav-btn" id="mjYakuNext" title="下一个番型"><svg class="mj-yaku-arrow"><use xlink:href="./icons/sprites.svg#icon-unfold"></use></svg></button>
+        <button class="mj-yaku-nav-btn" id="mjYakuPrev" title="上一个番型"><svg class="mj-yaku-arrow"><use xlink:href="#icon-unfold"></use></svg></button>
+        <button class="mj-yaku-nav-btn" id="mjYakuNext" title="下一个番型"><svg class="mj-yaku-arrow"><use xlink:href="#icon-unfold"></use></svg></button>
       </div>
     </div>`;
 }
@@ -627,7 +627,7 @@ function fillTable(box) {
         <span class="mj-layer mj-layer-outer"></span>
         <span class="mj-layer mj-layer-inner"></span>
         <div class="mj-back-card">
-          <svg class="mj-back-icon"><use xlink:href="./icons/sprites.svg#icon-owned"></use></svg>
+          <svg class="mj-back-icon"><use xlink:href="#icon-owned"></use></svg>
         </div>
       </div>`).join('');
     return cards.map(() => `<div class="mj-back-v"></div>`).join('');

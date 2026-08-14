@@ -687,7 +687,9 @@ export async function applyWindowScale(scale) {
     if (Math.abs(window.innerWidth - 274) > 1 || Math.abs(window.innerHeight - 342) > 1) {
       await applyOnce();
     }
-  } catch (_) {}
+  } catch (_) {
+  }
+  try { await invoke('show_main_window'); } catch (_) {}
 }
 
 // 设置页选择窗口倍率：持久化到存档并立即缩放
@@ -944,7 +946,7 @@ export function renderSettings(container, s) {
         </div>
       </div>
       <a href="https://github.com/ZTMYO/PokeIdle" id="githubLink" class="settings-footer-link" target="_blank" rel="noopener">
-        <svg viewBox="0 0 1024 1024" width="16" height="16" style="flex-shrink:0;"><use xlink:href="./icons/sprites.svg#icon-github"/></svg>
+        <svg viewBox="0 0 1024 1024" width="16" height="16" style="flex-shrink:0;"><use xlink:href="#icon-github"/></svg>
         <span style="font-weight:600;">ZTMYO</span>
       </a>
       <div class="settings-version" id="settingsVersion"></div>
@@ -1180,7 +1182,7 @@ export function renderSettings(container, s) {
     let v = '';
     try { v = await window.__TAURI__?.app?.getVersion?.(); } catch (_) {}
     const el = container.querySelector('#settingsVersion');
-    if (el) el.textContent = v ? `v${v}` : 'v1.0.7';
+    if (el) el.textContent = v ? `v${v}` : 'v1.0.8';
   })();
   // 版权声明：跳转声明视图
   container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
@@ -1778,7 +1780,7 @@ export function showTutorialView() {
   const content = $('tutorialContent');
   // 渲染左侧导航列表（带图标的章节在标题前显示对应 svg 图标）
   list.innerHTML = TUTORIAL_SECTIONS.map((s, i) =>
-    `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="./icons/sprites.svg#${s.icon}"/></svg>` : ''}${s.title}</div>`
+    `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="#${s.icon}"/></svg>` : ''}${s.title}</div>`
   ).join('');
   function render(idx) {
     content.innerHTML = `<p class="tutorial-title">${TUTORIAL_SECTIONS[idx].title}</p>` + TUTORIAL_SECTIONS[idx].html;

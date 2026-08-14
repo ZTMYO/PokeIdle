@@ -5987,6 +5987,8 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   height: 9px;
   color: #fff;
 }
+/* 招式详情 PP 耗尽红色 */
+.b-pp-zero { color: #e74c3c; }
 /* 战斗文案 */
 .b-text {
   flex-shrink: 0;

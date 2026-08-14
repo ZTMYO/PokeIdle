@@ -42,6 +42,16 @@ pub fn mark_show() -> Result<(), String> {
     Ok(())
 }
 
+// 前端完成窗口缩放后调用：显示窗口并聚焦，避免启动时露出未缩放的初始尺寸
+#[tauri::command]
+pub fn show_main_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    if !window.is_visible().unwrap_or(true) {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 // 窗口倍率：按 274×342 基础尺寸等比缩放，且与系统 DPI 完全解耦。
 // 设计基准为 274×342（开发时所有页面均按此视口调校），任意设备画面一致。
 // 1) 窗口尺寸用「物理像素」直接设定（274×render_scale 物理 px）。

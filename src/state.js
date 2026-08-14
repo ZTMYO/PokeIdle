@@ -323,10 +323,10 @@ export function ensureGender(entry) {
 
 // 性别 → 雪碧图图标（♂ 蓝 / ♀ 粉，颜色由 .g-female/.g-male 控制）；无性别返回空串
 export function genderBadge(g) {
-  if (g === 'female') return '<svg class="g-sym g-female" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="./icons/sprites.svg#icon-female"/></svg>';
-  if (g === 'male') return '<svg class="g-sym g-male" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="./icons/sprites.svg#icon-male"/></svg>';
+  if (g === 'female') return '<svg class="g-sym g-female" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="#icon-female"/></svg>';
+  if (g === 'male') return '<svg class="g-sym g-male" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="#icon-male"/></svg>';
   // 无性别：♂♀ 组合图标，同尺寸占位保证等级列 Lv 起点对齐
-  return '<svg class="g-sym g-genderless" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="./icons/sprites.svg#icon-genderless"/></svg>';
+  return '<svg class="g-sym g-genderless" viewBox="0 0 24 24" width="12" height="12"><use xlink:href="#icon-genderless"/></svg>';
 }
 
 // 是否为宝可梦（非蛋）：蛋条目（kind:'egg'）不可用于配队/训练/交换/悬赏/饲育屋等

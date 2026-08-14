@@ -395,7 +395,7 @@ function showWalkerTip(el, slot) {
   const tip = walkerTipEl();
   if (!tip) return;
   const shiny = entry.shiny
-    ? ' <svg viewBox="0 0 1024 1024" width="10" height="10" style="vertical-align:-1px;color:#fff;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
+    ? ' <svg viewBox="0 0 1024 1024" width="10" height="10" style="vertical-align:-1px;color:#fff;"><use xlink:href="#icon-star"/></svg>'
     : '';
   const sat = slot.satiety == null ? TRAIN_SATIETY_MAX : Math.round(slot.satiety);
   tip.innerHTML = `${entry.nickname || (poke ? poke.name : '#' + entry.species)}${shiny} · ${genderBadge(ensureGender(entry))}Lv${entry.level || 1} · 饱食${sat}
@@ -574,7 +574,7 @@ function statusRowHtml(slot, i) {
   const sat = slot.satiety == null ? TRAIN_SATIETY_MAX : Math.round(slot.satiety);
   const satCls = sat >= 70 ? 'full' : sat >= 40 ? 'mid' : 'low';
   const shiny = entry.shiny
-    ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
+    ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="#icon-star"/></svg>'
     : '';
   return `<div class="train-status-row" data-slot="${i}">
     <span class="train-status-dot${lazy ? ' lazy' : ''}"></span>

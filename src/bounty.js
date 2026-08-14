@@ -102,7 +102,7 @@ export function updateBountyBadge() {
 
 // ---------- 渲染 ----------
 const CANDY_IMG = '<img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" />';
-const BACK_ICON = '<svg viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="./icons/sprites.svg#icon-back"/></svg>';
+const BACK_ICON = '<svg viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="#icon-back"/></svg>';
 // 标题右侧导航图标（纸飞机样式），fill 跟随主题色
 const GO_ICON = '<svg viewBox="0 0 1024 1024" width="13" height="13" aria-hidden="true"><path d="M123.92 555.9a32 32 0 0 1-14.82-60.38l719.19-374.9a32 32 0 0 1 29.59 56.76l-719.2 374.89a31.87 31.87 0 0 1-14.76 3.63z"/><path d="M608.6 957.7a32 32 0 0 1-30.6-41.27l234.64-776.34a32 32 0 0 1 61.26 18.52L639.22 935a32 32 0 0 1-30.62 22.7zM505.92 580.44c-0.68 0-1.36 0-2.05-0.07l-381.46-24.12a32 32 0 1 1 4-63.88l381.5 24.13a32 32 0 0 1-2 63.94z"/><path d="M608.14 957.32a32 32 0 0 1-30.87-23.63L475 556.82a32 32 0 1 1 61.77-16.76L639 916.93a32 32 0 0 1-22.51 39.26 31.61 31.61 0 0 1-8.35 1.13z"/></svg>';
 // 当前翻页所在地区索引（打开页面时默认定位到当前地区）
@@ -330,7 +330,7 @@ function renderBountyTrade(content, regionIdx, bi) {
           <div class="pokedex-search-input-wrap">
             <input id="bountyTradeSearch" class="pokedex-search-input" type="text" placeholder="昵称搜索" autocomplete="off" value="${_bQuery}" />
             <button class="pokedex-search-clear" id="bountyTradeSearchClear" style="display:${q ? '' : 'none'};" aria-label="清空搜索">
-              <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+              <svg><use xlink:href="#icon-close" /></svg>
             </button>
           </div>
         </div>

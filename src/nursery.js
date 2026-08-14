@@ -261,7 +261,7 @@ function renderPickPage(box) {
             <input id="nurseryPickSearch" class="pokedex-search-input" type="text" placeholder="搜索宝可梦"
               autocomplete="off" value="${_pickSearch.replace(/"/g, '&quot;')}" />
             <button class="pokedex-search-clear" id="nurseryPickSearchClear" style="${_pickSearch ? '' : 'display:none'}" aria-label="清空搜索">
-              <svg><use xlink:href="./icons/sprites.svg#icon-close"></use></svg>
+              <svg><use xlink:href="#icon-close"></use></svg>
             </button>
           </div>
           <div id="nurseryPickTypeFilter" class="pokedex-region-select" tabindex="0" title="按属性筛选">
@@ -309,7 +309,7 @@ function renderPickPage(box) {
   // 设置标题栏
   const title = $('appTitle');
   if (title) {
-    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 放入';
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 放入';
     title.dataset.action = 'back';
   }
   loadSlotIcons(box);
@@ -465,7 +465,7 @@ export function leaveNurseryPick() {
   // 恢复标题栏
   const title = $('appTitle');
   if (title) {
-    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 饲育屋';
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 饲育屋';
     title.dataset.action = 'back';
   }
   // 延迟到当前 click 冒泡结束后再打开告示牌弹窗：document 上注册了"点击面板外部关闭"
@@ -855,7 +855,7 @@ function slotHtml(slot, i) {
   const tip = st.key === 'running' ? '繁殖中，取出将终止剩余轮次（树果不退）'
     : st.key === 'done' ? '本轮繁殖完成，取出后可开始新一批' : '点击取出';
   const shiny = entry.shiny
-    ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>'
+    ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="#icon-star"/></svg>'
     : '';
   return `<div class="nursery-slot" data-slot="${i}" title="${tip}">
     <img class="nursery-slot-icon" data-icon="${entry.species}" alt="">
@@ -1418,7 +1418,7 @@ function openEggView() {
   if (content) { content.style.display = 'flex'; content.style.flexDirection = 'column'; }
   const title = $('appTitle');
   if (title) {
-    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 宝可梦蛋';
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 宝可梦蛋';
     title.dataset.action = 'back';
   }
   renderEggView();
@@ -1536,7 +1536,7 @@ function renderEggView() {
           <div class="pokedex-search-input-wrap">
             <input id="nurseryEggSearch" class="pokedex-search-input" type="text" placeholder="名称/拼音/首字母" autocomplete="off" value="${_eggQuery}" />
             <button class="pokedex-search-clear" id="nurseryEggSearchClear" style="display:${_eggQuery ? '' : 'none'};" aria-label="清空搜索">
-              <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+              <svg><use xlink:href="#icon-close" /></svg>
             </button>
           </div>
         </div>
@@ -1616,7 +1616,7 @@ export function leaveNurseryEggView() {
   if (content) { content.style.display = ''; content.style.flexDirection = ''; }
   const title = $('appTitle');
   if (title) {
-    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 饲育屋';
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 饲育屋';
     title.dataset.action = 'back';
   }
   render();

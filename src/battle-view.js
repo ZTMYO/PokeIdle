@@ -347,6 +347,20 @@ function battleMaxLv() {
   return pickBattleEntries().reduce((m, e) => Math.max(m, e.level || 1), 1);
 }
 
+// 按招式基础 PP 初始化战斗个体当前 PP（与 moves 数组对齐；无 PP 数据的招式置 null 按无限处理）
+function fillPp(mon) {
+  mon.pp = mon.moves.map((id) => (id != null && _data.moves[id] ? _data.moves[id].pp ?? null : null));
+}
+
+// AI 无可用招式时的兜底：找第一个还有 PP 的招式（null PP 视为无限）
+function firstUsableMove(mon) {
+  return mon.moves.find((m) => {
+    if (m == null) return false;
+    const pi = mon.moves.indexOf(m);
+    return !Array.isArray(mon.pp) || mon.pp[pi] == null || mon.pp[pi] > 0;
+  }) ?? null;
+}
+
 function buildPlayerTeam() {
   return pickBattleEntries().map((entry) => {
     const pd = getPokemonByIndex(entry.species);
@@ -363,6 +377,7 @@ function buildPlayerTeam() {
       mon.gender = ensureGender(entry); // 玩家个体性别（旧存档无 gender 字段则按物种比例补 roll 并写回）
       if (entry.nickname) mon.name = entry.nickname; // 玩家昵称覆盖物种名
       mon.participated = false; // 经验结算条件：参战（上过场）且存活
+      fillPp(mon); // 按招式基础 PP 初始化当前 PP
       return { entry, pd, mon };
     })();
   });
@@ -385,6 +400,7 @@ async function startNpcBattle(npcId, startAuto = false) {
     const mon = createMon(x.pd, x.level, x.ivs, x.nature, x.moveIds);
     mon.gender = x.gender || rollGender(x.pd.index); // NPC 性别：正常由 buildNpcTeam 缓存，旧缓存缺失时按物种补 roll
     mon.shiny = !!x.shiny; // NPC 闪光：buildNpcTeam 按 SHINY_CHANCE 概率 roll 定（大图/星标/登场特效）
+    fillPp(mon); // 按招式基础 PP 初始化当前 PP
     return { pd: x.pd, mon };
   });
   const battle = { preset: npc, pTeam, eTeam, pIdx: 0, eIdx: 0, winner: null, round: 1,
@@ -673,7 +689,7 @@ async function renderBattlePage(battle) {
 
 // 队伍剩余数量：显示两侧各自存活的宝可梦数（精灵球图标，复用游戏已捕获标记 icon-owned）
 function renderTeamInfo(battle) {
-  const ball = (n) => '<svg class="b-ball"><use xlink:href="./icons/sprites.svg#icon-owned"></use></svg>'.repeat(Math.max(0, n));
+  const ball = (n) => '<svg class="b-ball"><use xlink:href="#icon-owned"></use></svg>'.repeat(Math.max(0, n));
   $('be-team').innerHTML = ball(battle.eTeam.filter((x) => x.mon.hp > 0).length);
   $('bp-team').innerHTML = ball(battle.pTeam.filter((x) => x.mon.hp > 0).length);
 }
@@ -715,7 +731,7 @@ function renderMon(mon, side, enter) {
   const nameEl = $(`${side}-name`);
   nameEl.textContent = mon.name;
   if (mon.shiny) { // 闪光个体：名字后追加星标（复用图鉴/仓库的闪光星 SVG）
-    nameEl.insertAdjacentHTML('beforeend', '<svg class="roster-shiny" viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>');
+    nameEl.insertAdjacentHTML('beforeend', '<svg class="roster-shiny" viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>');
   }
   // 等级区：性别图标（♂ 蓝 / ♀ 粉）跟在 Lv 前（跟等级绑定，不跟名字）
   $(`${side}-lv`).innerHTML = `${genderBadge(mon.gender)}Lv${mon.level}`;
@@ -865,7 +881,7 @@ function renderLogLine(t) {
     html = esc.replace(re, (m) => {
       const mv = moveByName.get(m);
       const icon = mv
-        ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};transform:scale(0.8)"><svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg></span>`
+        ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};transform:scale(0.8)"><svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg></span>`
         : '';
       return icon + '<b>' + m + '</b>';
     });
@@ -947,7 +963,7 @@ function setLogTitle() {
   const t = $('appTitle');
   if (!t) return;
   _logTitlePrev = t.innerHTML;
-  t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 对战记录';
+  t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 对战记录';
   t.dataset.action = 'back';
 }
 // 从设置等其它页面返回战斗页时：记录页若还开着，重新把标题栏切回「对战记录」
@@ -1846,7 +1862,7 @@ function askPlayerMove(battle) {
     const pMon = curMon(battle, 'p');
     // 自动战斗：不弹操作界面，直接按 AI 逻辑自动出招（遮罩在点「自动」按钮时已显示）
     if (_auto) {
-      const mid = aiMove(pMon, curMon(battle, 'e'), _data) ?? pMon.moves.find((m) => m != null) ?? null;
+      const mid = aiMove(pMon, curMon(battle, 'e'), _data) ?? firstUsableMove(pMon);
       setTimeout(() => done({ type: 'move', id: mid }), 280); // 留一小拍播「想要做什么？」再自动行动
       return;
     }
@@ -1882,7 +1898,7 @@ function askPlayerMove(battle) {
       // 自动战斗：隐藏右栏、铺上遮罩，本回合立刻按 AI 出招，后续回合持续自动
       $('act-auto').addEventListener('click', () => {
         _auto = true;
-        const mid = aiMove(pMon, curMon(battle, 'e'), _data) ?? pMon.moves.find((m) => m != null) ?? null;
+        const mid = aiMove(pMon, curMon(battle, 'e'), _data) ?? firstUsableMove(pMon);
         clearBottom();
         setText(`${pMon.name} 进入自动战斗`);
         const mask = $('b-auto-mask');
@@ -1923,16 +1939,20 @@ function askPlayerMove(battle) {
       cmd.innerHTML = moves.map((m) => {
         const mv = m != null ? _data.moves[m] : null;
         const ef = mv && mv.effect;
-        // 行动限制：再来一次锁定 / 定身法封印 / 挑衅只能攻击，不可选招式置灰并附说明
+        // 当前 PP（与 moves 对齐），用于按钮显示与耗尽判定
+        const pi = moves.findIndex((mm) => mm != null && String(mm) === String(m));
+        const curPp = pi >= 0 && pMon.pp ? pMon.pp[pi] : null;
+        // 行动限制：再来一次锁定 / 定身法封印 / 挑衅只能攻击 / PP 耗尽，不可选招式置灰并附说明
         let dis = '', tip = '';
         if (!mv || !ef || ef.kind === 'unimplemented') { dis = ' disabled'; tip = '招式未实现'; }
         else if (pMon.lockedMove != null && String(m) !== pMon.lockedMove) { dis = ' disabled'; tip = '被「再来一次」锁定'; }
         else if (pMon.disabledMove != null && String(m) === pMon.disabledMove) { dis = ' disabled'; tip = '招式被封印'; }
         else if (pMon.tauntTurns > 0 && moveCat(mv) === 'status') { dis = ' disabled'; tip = '被挑衅，只能使用攻击招式'; }
-        return `<button class="b-move${dis}" data-move="${m}" title="${tip}">
+        else if (curPp === 0) { dis = ' disabled'; tip = 'PP 不足'; }
+        return `<button class="b-move${dis}" data-move="${m}" title="${tip}"${dis ? ' disabled' : ''}>
           <span class="b-move-name">${mv ? mv.name : '—'}</span>
           ${mv ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type]}">
-            <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+            <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
           </span>` : ''}
         </button>`;
       }).join('');
@@ -1957,10 +1977,12 @@ function askPlayerMove(battle) {
       const mv = _data.moves[mid];
       const el = $('b-move-detail');
       if (!mv || !el) return;
+      const pi = pMon.moves.findIndex((mm) => mm != null && String(mm) === String(mid));
+      const cur = pi >= 0 && pMon.pp ? pMon.pp[pi] : null;
       el.innerHTML = `
         <div class="b-detail-grid">
           <div class="b-detail-col">
-            <div class="b-detail-line"><span>属性</span><b>${mv.type}</b></div>
+            <div class="b-detail-line"><span>PP</span><b${cur === 0 ? ' class="b-pp-zero"' : ''}>${cur != null ? `${cur}/${mv.pp ?? '?'}` : '∞'}</b></div>
             <div class="b-detail-line"><span>类型</span><b>${MOVE_CAT_CN[moveCat(mv)]}</b></div>
           </div>
           <div class="b-detail-col">

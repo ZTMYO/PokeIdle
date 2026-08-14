@@ -539,7 +539,7 @@ function movesBlockHtml(p) {
     return `<div class="roster-move-slot${mv ? '' : ' empty'}" data-move="${mv ? ids[i] : ''}">
       ${mv
         ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
-             <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+             <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
            </span>
            <span class="roster-move-slot-name">${mv.name}</span>`
         : `<span class="roster-move-slot-name slot-empty">空</span>`}
@@ -721,7 +721,7 @@ function bindMoveEditDrag(box) {
       const t = document.createElement('span');
       t.className = 'b-move-type';
       t.style.background = TYPE_COLORS[info.type] || '#888';
-      t.innerHTML = `<svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${info.type}"></use></svg>`;
+      t.innerHTML = `<svg class="b-move-type-icon"><use xlink:href="#icon-type-${info.type}"></use></svg>`;
       g.appendChild(t);
     }
     const n = document.createElement('span');
@@ -887,11 +887,11 @@ export function renderMoveEditor() {
         return `<div class="move-edit-slot${mv ? '' : ' empty'}" data-slot="${i}"${mv ? '' : ' title="点击装入选中的招式"'}>
           ${mv
             ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
-                 <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+                 <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
                </span>
                <span class="move-edit-slot-name">${mv.name}</span>
                <button class="move-edit-slot-x" data-slot="${i}" title="移出该招式">
-                 <svg viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-close"></use></svg>
+                 <svg viewBox="0 0 1024 1024"><use xlink:href="#icon-close"></use></svg>
                </button>`
             : `<span class="move-edit-slot-name slot-empty">空</span>`}
         </div>`;
@@ -905,7 +905,7 @@ export function renderMoveEditor() {
           const sel = c.id === _moveSel;
           return `<button class="move-edit-row${active ? ' active' : ''}${sel ? ' sel' : ''}" data-move="${c.id}">
             <span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
-              <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+              <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
             </span>
             <span class="move-edit-row-name">${mv.name}</span>
             <span class="move-edit-row-lv">${c.tm ? '招式机' : c.egg ? '蛋招式' : c.lv ? `Lv${c.lv}` : ''}</span>
@@ -970,7 +970,7 @@ function renderMoveDetail(p, ids) {
   return `
     <div class="move-edit-detail-head">
       <span class="b-move-type big" style="background:${TYPE_COLORS[mv.type] || '#888'}">
-        <svg class="b-move-type-icon"><use xlink:href="./icons/sprites.svg#icon-type-${mv.type}"></use></svg>
+        <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
       </span>
       <div class="move-edit-detail-name">${mv.name}</div>
     </div>
@@ -978,6 +978,7 @@ function renderMoveDetail(p, ids) {
       <div><span>类别</span><b>${catIconHtml(mv)}</b></div>
       <div><span>威力</span><b>${mv.power ?? '—'}</b></div>
       <div><span>命中</span><b>${mv.accuracy == null ? '—' : mv.accuracy === 0 ? '必中' : mv.accuracy}</b></div>
+      <div><span>PP</span><b>${mv.pp ?? '—'}</b></div>
     </div>
     <div class="move-edit-detail-desc">${moveDesc(mv)}</div>`;
 }
@@ -1012,7 +1013,7 @@ function showRosterDetail(id) {
   if (!list) return;
   list.innerHTML = `
     <div style="font-size:13px;font-weight:700;padding:4px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span><span id="rosterNickSpan">${rosterName(p)}</span><button class="roster-nick-btn" id="rosterNickBtn" title="改名"><svg t="1786243847045" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13"><path d="M138.666667 810.666667V213.333333c0-41.216 33.450667-74.666667 74.666666-74.666666h469.333334v64H213.333333a10.666667 10.666667 0 0 0-10.666666 10.666666v597.333334c0 5.888 4.778667 10.666667 10.666666 10.666666h597.333334a10.666667 10.666667 0 0 0 10.666666-10.666666V352h64V810.666667A74.666667 74.666667 0 0 1 810.666667 885.333333H213.333333A74.666667 74.666667 0 0 1 138.666667 810.666667z" fill="currentColor"></path><path d="M444.330667 540.032L856.362667 128l45.226666 45.226667-411.989333 412.032-45.226667-45.226667z" fill="currentColor"></path></svg></button>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="./icons/sprites.svg#icon-star"/></svg>' : ''}<span class="roster-detail-lv">${dGSpan}Lv${p.level || 1}</span></span>
+      <span><span id="rosterNickSpan">${rosterName(p)}</span><button class="roster-nick-btn" id="rosterNickBtn" title="改名"><svg t="1786243847045" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13"><path d="M138.666667 810.666667V213.333333c0-41.216 33.450667-74.666667 74.666666-74.666666h469.333334v64H213.333333a10.666667 10.666667 0 0 0-10.666666 10.666666v597.333334c0 5.888 4.778667 10.666667 10.666666 10.666666h597.333334a10.666667 10.666667 0 0 0 10.666666-10.666666V352h64V810.666667A74.666667 74.666667 0 0 1 810.666667 885.333333H213.333333A74.666667 74.666667 0 0 1 138.666667 810.666667z" fill="currentColor"></path><path d="M444.330667 540.032L856.362667 128l45.226666 45.226667-411.989333 412.032-45.226667-45.226667z" fill="currentColor"></path></svg></button>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>' : ''}<span class="roster-detail-lv">${dGSpan}Lv${p.level || 1}</span></span>
       <div style="display:flex;flex-direction:row;align-items:flex-end;gap:2px;flex-shrink:0;">
         <button class="roster-release" data-pokedex title="查看图鉴">图鉴</button>
         <button class="roster-release" data-release>放生</button>
@@ -1359,7 +1360,7 @@ export function showRosterPicker(picker) {
   if (picker?.mode === 'expcandy') {
     const t = $('appTitle');
     if (t) {
-      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 经验糖果';
+      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 经验糖果';
       t.dataset.action = 'back';
     }
   }

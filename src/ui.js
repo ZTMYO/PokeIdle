@@ -181,7 +181,7 @@ export function showView(id) {
     title.dataset.action = '';
   } else {
     const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', hatchView:'孵化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', casinoView:'游戏厅', casinoGameView:'21 点', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', followerView:'随从' };
-    title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> ${names[id]||''}`;
+    title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
 }
@@ -687,7 +687,7 @@ function renderEggPickList() {
           <div class="pokedex-search-input-wrap">
             <input id="incubatorEggSearch" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" value="${_eggPickQuery}" />
             <button class="pokedex-search-clear" id="incubatorEggSearchClear" style="display:${q ? '' : 'none'};" aria-label="清空搜索">
-              <svg><use xlink:href="./icons/sprites.svg#icon-close" /></svg>
+              <svg><use xlink:href="#icon-close" /></svg>
             </button>
           </div>
         </div>
@@ -814,7 +814,7 @@ export function renderIncubatorView() {
     const t = $('appTitle');
     if (t && _incLogPrevTitle == null) {
       _incLogPrevTitle = t.innerHTML;
-      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="./icons/sprites.svg#icon-back"/></svg> 孵蛋记录';
+      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 孵蛋记录';
       t.dataset.action = 'back';
     }
     renderIncubatorLogList(list);

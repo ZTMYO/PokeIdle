@@ -229,8 +229,9 @@ pub fn run() {
             }
 
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
+                // 初始窗口保持隐藏：由前端完成 set_window_scale 缩放后调用 show_main_window 再显示，
+                // 避免启动瞬间露出未缩放的初始大尺寸窗口（640×800 → 缩放闪烁）
+                let _ = window.hide();
             }
             Ok(())
         })
@@ -249,6 +250,7 @@ pub fn run() {
             window_manager::set_window_scale,
             window_manager::set_device_pixel_ratio,
             window_manager::mark_show,
+            window_manager::show_main_window,
             game_data::save_game_data,
             game_data::load_game_data,
             game_data::read_gif_base64,
