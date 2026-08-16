@@ -8,16 +8,20 @@ import {
   MASS_COUNT_MIN, MASS_COUNT_MAX,
   MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX,
   MASS_SHINY_CHANCE, REGION_CYCLE,
+  TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION,
+  TWIST_COUNT_MIN, TWIST_COUNT_MAX,
+  TWIST_SPAWN_MIN, TWIST_SPAWN_MAX,
+  TWIST_SHINY_CHANCE, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE,
 } from './config.js';
 import {
-  gameData, allPokemon, getPokemonByIndex, getMassOutbreak, honeyBuffActive, phase,
-  randInt, rand, saveGame, addSystemLog, inMassZone, normalizeMassRemainToEnd,
+  gameData, allPokemon, getPokemonByIndex, getMassOutbreak, getTwist, honeyBuffActive, phase,
+  randInt, rand, saveGame, addSystemLog, inMassZone, inTwistZone, normalizeMassRemainToEnd, _fishing,
 } from './state.js';
-import { $, tryLoadPokemonIcon, setIdleCharacter } from './ui.js';
+import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView } from './ui.js';
 import { endCycling } from './audio.js';
 import { MAP_EDGES, showGpsView } from './gps.js';
-import { startMassEncounter, scheduleNextEncounter } from './battle.js';
-import { notifyMassStart, notifyMassEnd, massMsgTick } from './messages.js';
+import { startMassEncounter, startTwistEncounter, scheduleNextEncounter } from './battle.js';
+import { notifyMassStart, notifyMassEnd, massMsgTick, notifyTwistStart, notifyTwistEnd, twistMsgTick } from './messages.js';
 import { pickFamily } from './items.js';
 import * as road from './road.js';
 
@@ -256,4 +260,254 @@ function forceStopBikeInMassZone() {
   if (road.isManualBike()) road.setManualBike(false);
   endCycling();             // 兜底：停止骑行音乐
   setIdleCharacter('walk'); // 恢复走路外观与速度
+}
+
+// ===== 时空扭曲（跨地区稀有事件）=====
+// 随机间隔在道路网络上生成一个「时空扭曲」事件点：异时空宝可梦在该路段大量出现。
+// 与大量出没复用同一套 gps 事件点导航机制（massTarget/massArrived），但事件对象独立存放。
+// 每次遭遇：从「排除事件点归属地区」的全局宝可梦池随机抽一只，
+// 个体值保底 2V，并可能 roll 出 RGB / 污染外观变体（仅外观，闪光判定正常）。
+// 宝可梦池每次生成事件时快照，不会因玩家跨地区移动而漂移。
+function spawnTwist() {
+  if (!gameData || gameData.twist?.active) return;
+  if (MAP_EDGES.length === 0) return;
+  // 随机选一条路段 + 路段中段位置（20%~80%，避开节点）
+  const edge = MAP_EDGES[randInt(0, MAP_EDGES.length - 1)];
+  const t = 0.2 + Math.random() * 0.6;
+  // 事件点归属地区（t<0.5 归小号端地区，否则归大号端）；池 = 该地区以外的全部宝可梦
+  const regionIdx = t < 0.5 ? Math.min(edge[0], edge[1]) : Math.max(edge[0], edge[1]);
+  const regionName = REGION_CYCLE[regionIdx];
+  const pool = allPokemon.filter(p => p.region !== regionName);
+  if (pool.length === 0) {
+    gameData.twistNextGenAt = Date.now() + randInt(10, 30) * 60000; // 无可用池则稍后重试
+    return;
+  }
+  const remain = randInt(TWIST_COUNT_MIN, TWIST_COUNT_MAX);
+  gameData.twist = {
+    edge, t,                       // 事件路段 + 事件点在路段上的位置比例
+    pool: pool.map(p => p.index),  // 该局可遭遇的宝可梦编号池（排除归属地区）
+    remain,                        // 剩余可遭遇数量
+    expiresAt: Date.now() + TWIST_DURATION * 60000, // 事件到期时间
+    nextSpawnAt: 0,                // 下一只事件宝可梦出现时间（0=立即）
+    active: true,
+  };
+  gameData.twistNextGenAt = Date.now() + randInt(TWIST_GEN_MIN, TWIST_GEN_MAX) * 60000;
+  addSystemLog('twist_start', { edge, t, remain });
+  saveGame();
+  notifyTwistStart();
+}
+
+// 结束事件（抓完或到期）：与大量出没一致，先换算事件边剩余语义再取消 gps 目标
+export function endTwist() {
+  if (!gameData?.twist) return;
+  const tw = gameData.twist;
+  addSystemLog('twist_end', {});
+  gameData.twist = null;
+  if (gameData.gps) {
+    normalizeMassRemainToEnd(gameData.gps);
+    const hadMassTarget = !!gameData.gps.massTarget;
+    gameData.gps.massTarget = null;
+    gameData.gps.massArrived = false;
+    if (hadMassTarget && road.isManualBike()) {
+      road.setManualBike(false);
+    }
+  }
+  saveGame();
+  notifyTwistEnd();
+  scheduleNextEncounter();
+}
+
+// 遭遇结束后由 battle.js 调用：剩余数量 -1，未抓完则调度下一只出现
+export function onTwistEncounterEnded() {
+  const tw = gameData?.twist;
+  if (!tw || !tw.active) return;
+  tw.remain--;
+  if (tw.remain <= 0) { endTwist(); return; }
+  tw.nextSpawnAt = Date.now() + rand(TWIST_SPAWN_MIN, TWIST_SPAWN_MAX) * 1000;
+}
+
+// 主循环 tick（main.js 每秒调用）：生成 / 到期 / 滚动出现
+export function twistTick() {
+  if (!gameData) return;
+  ensureTwistInit();
+  const now = Date.now();
+  if (!gameData.twist?.active) {
+    updateTwistOverlay(); // 事件结束/不存在：确保遮罩收起
+    if (now >= gameData.twistNextGenAt) spawnTwist();
+    return;
+  }
+  if (now >= gameData.twist.expiresAt) { endTwist(); return; }
+  twistMsgTick(now);      // 时空扭曲提示文案轮播（远处 / 区域内）
+  updateTwistSpawner(now);
+  updateTwistOverlay(now); // 主界面扭曲氛围遮罩
+}
+
+// 视图切换时立即同步扭曲配色（showView 调用），避免等下一帧 tick 才有反应
+export function syncTwistTheme() {
+  updateTwistOverlay();
+}
+
+// 主界面时空扭曲氛围遮罩 + 屏幕容器紫色化：
+// 容器变色仅在位于扭曲区域且停留在游戏页（挂机 / 野遇遭遇）时保持；
+// 切到图鉴/商店等其它页面立即恢复原配色，避免紫色主题外泄
+function updateTwistOverlay() {
+  const el = $('twistOverlay');
+  const zone = inTwistZone();
+  const onGame = isOnGameView();
+  if (el) {
+    const show = zone && phase === 'idle' && !_fishing;
+    if (show !== (el.style.display !== 'none')) {
+      el.style.display = show ? '' : 'none';
+    }
+  }
+  const scr = $('screen');
+  if (scr) scr.classList.toggle('twist-active', zone && onGame);
+}
+
+// 初始化下次生成时间（旧存档/新档缺字段时兜底）
+export function ensureTwistInit() {
+  if (!gameData) return;
+  if (typeof gameData.twistNextGenAt !== 'number' || !(gameData.twistNextGenAt > 0)) {
+    gameData.twistNextGenAt = Date.now() + randInt(TWIST_GEN_MIN, TWIST_GEN_MAX) * 60000;
+  }
+}
+
+// 调试/测试用：清掉当前事件并立即生成一次新事件，同时刷新地图显示（挂在 window.__resetTwist）
+export function forceRefreshTwist() {
+  if (!gameData) return;
+  if (gameData.twist) {
+    addSystemLog('twist_end', { forced: true });
+    gameData.twist = null;
+    if (gameData.gps) { normalizeMassRemainToEnd(gameData.gps); gameData.gps.massTarget = null; gameData.gps.massArrived = false; }
+  }
+  spawnTwist();
+  if (!gameData.twist) gameData.twistNextGenAt = Date.now() + 1000; // 生成失败（无可用池）则 1 秒后重试
+  saveGame();
+  if ($('gpsView')?.style.display === 'flex') showGpsView(); // 地图打开时刷新事件点标记
+}
+
+// ===== 时空扭曲事件点精灵（主界面滚动）=====
+// 与大量出没滚动精灵结构相同：从右向左滚向主角，碰到进入战斗。
+// 额外支持外观变体（RGB / 污染）：滚动图标即应用 CSS 滤镜特效。
+let _twistPokeEl = null;     // 滚动的宝可梦容器 <div>
+let _twistPokeX = 0;         // 宝可梦当前 X
+let _twistCharX = 0;         // 主角碰撞点 X
+let _twistPokeShiny = false; // 本只是否闪光（生成时判定，碰到时复用）
+let _twistVariant = null;    // 本只外观变体：'rgb' / 'polluted' / null
+let _twistPoke = null;       // 本只宝可梦（生成时选定，碰到时复用，滚动与战斗一致）
+let _twistRafActive = false;
+
+function spawnTwistPoke() {
+  const tw = getTwist();
+  if (!tw || tw.pool.length === 0) return;
+  const poke = getPokemonByIndex(tw.pool[randInt(0, tw.pool.length - 1)]);
+  const screen = $('screen');
+  const charEl = $('walkGif');
+  if (!poke || !screen || !charEl) return;
+
+  // 闪光与变体提前到生成时刻判定：滚动图标与应用与战斗一致
+  _twistPokeShiny = Math.random() < TWIST_SHINY_CHANCE;
+  const r = Math.random();
+  _twistVariant = r < TWIST_RGB_CHANCE ? 'rgb' : (r < TWIST_RGB_CHANCE + TWIST_POLLUTED_CHANCE ? 'polluted' : null);
+
+  const el = document.createElement('div');
+  el.className = 'mass-poke';
+  screen.appendChild(el);
+  _twistPoke = poke; // 记录本只宝可梦：碰撞时复用，滚动图标与战斗个体一致
+  const img = document.createElement('img');
+  img.className = 'mass-poke-img';
+  if (_twistVariant === 'rgb') img.classList.add('fx-variant-rgb');
+  else if (_twistVariant === 'polluted') img.classList.add('fx-variant-polluted');
+  el.appendChild(img);
+  if (_twistPokeShiny) {
+    const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    star.setAttribute('viewBox', '0 0 1024 1024');
+    star.classList.add('mass-poke-shiny');
+    star.innerHTML = '<use xlink:href="#icon-star"/>';
+    el.appendChild(star);
+  }
+  tryLoadPokemonIcon(img, poke).then(ok => {
+    if (!ok || !el.isConnected) { el.remove(); if (_twistPokeEl === el) _twistPokeEl = null; }
+  });
+
+  const sRect = screen.getBoundingClientRect();
+  const cRect = charEl.getBoundingClientRect();
+  _twistCharX = cRect.left - sRect.left + 24;
+  const roadEl = document.querySelector('.road-layer');
+  const rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
+  const y = (rRect.top - sRect.top) + 14;
+  _twistPokeX = sRect.width + 16;
+  el.style.left = _twistPokeX + 'px';
+  el.style.top = y + 'px';
+  _twistPokeEl = el;
+}
+
+function despawnTwistPoke() {
+  if (_twistPokeEl) { _twistPokeEl.remove(); _twistPokeEl = null; }
+  _twistPokeShiny = false;
+  _twistVariant = null;
+  _twistPoke = null;
+}
+
+function hitTwistPoke() {
+  const tw = gameData?.twist;
+  if (!tw) { despawnTwistPoke(); return; }
+  const poke = _twistPoke || getPokemonByIndex(tw.pool[randInt(0, tw.pool.length - 1)]);
+  const shiny = _twistPokeShiny;
+  const variant = _twistVariant;
+  despawnTwistPoke();
+  if (!poke) return;
+  startTwistEncounter(poke, shiny, variant);
+}
+
+function _twistFrame() {
+  if (!_twistRafActive) return;
+  const tw = gameData?.twist;
+  const runOk = !!tw && phase === 'idle' && inTwistZone()
+    && $('idleView')?.style.display !== 'none';
+  if (!runOk) {
+    stopTwistRaf();
+    despawnTwistPoke();
+    return;
+  }
+  if (!road.isActive()) { requestAnimationFrame(_twistFrame); return; }
+  if (road.isBike()) { requestAnimationFrame(_twistFrame); return; }
+
+  if (!_twistPokeEl && Date.now() >= tw.nextSpawnAt) spawnTwistPoke();
+
+  if (_twistPokeEl) {
+    _twistPokeX -= road.getSpeed();
+    _twistPokeEl.style.left = _twistPokeX + 'px';
+    if (_twistPokeX <= _twistCharX) { hitTwistPoke(); return; }
+    if (_twistPokeX < -120) despawnTwistPoke();
+  }
+  requestAnimationFrame(_twistFrame);
+}
+
+function startTwistRaf() {
+  if (_twistRafActive) return;
+  _twistRafActive = true;
+  requestAnimationFrame(_twistFrame);
+}
+
+function stopTwistRaf() {
+  _twistRafActive = false;
+}
+
+function updateTwistSpawner(now) {
+  const tw = getTwist();
+  const shouldRun = !!tw && phase === 'idle' && inTwistZone()
+    && $('idleView')?.style.display !== 'none';
+  if (!shouldRun) { stopTwistRaf(); despawnTwistPoke(); return; }
+  forceStopBikeInTwistZone();
+  startTwistRaf();
+}
+
+// 时空扭曲区域内强制结束骑行状态（同大量出没）
+function forceStopBikeInTwistZone() {
+  if (!road.isBike()) return;
+  road.setBike(false);
+  if (road.isManualBike()) road.setManualBike(false);
+  endCycling();
+  setIdleCharacter('walk');
 }

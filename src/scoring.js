@@ -23,7 +23,7 @@
 
 import {
   FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CATCH_BONUS_INC,
-  SHINY_CHANCE, CHARM_SHINY_CHANCE, MASS_SHINY_CHANCE,
+  SHINY_CHANCE, CHARM_SHINY_CHANCE, MASS_SHINY_CHANCE, TWIST_SHINY_CHANCE,
   FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE,
   HONEY_RARITY_BOOST, CHARM_RARITY_BOOST,
 } from './config.js';
@@ -46,6 +46,14 @@ function pickProbability(pokemon, source, honeyBuff, charmBuff) {
   if (source === 'mass') {
     // 大量出没：事件宝可梦锁定，遇敌必出这只
     return 1;
+  }
+
+  if (source === 'twist') {
+    // 时空扭曲：排除当前地区后的全地区均等随机池（事件生成时定池），无稀有度加权
+    const regionName = getCurrentRegion().name;
+    const pool = allPokemon.filter(p => p.region !== regionName);
+    if (!pool.includes(pokemon)) return allPokemon.length > 0 ? 1 / allPokemon.length : 1; // 池异常时兜底
+    return pool.length > 0 ? 1 / pool.length : 1;
   }
 
   if (source === 'fishing') {
@@ -82,6 +90,10 @@ function shinyProbability(shiny, charmBuff, source) {
   if (source === 'mass') {
     // 大量出没：固定闪光率（不吃护符加成），远高于普通野生
     return shiny ? MASS_SHINY_CHANCE : (1 - MASS_SHINY_CHANCE);
+  }
+  if (source === 'twist') {
+    // 时空扭曲：固定闪光率（不吃护符加成），同大量出没
+    return shiny ? TWIST_SHINY_CHANCE : (1 - TWIST_SHINY_CHANCE);
   }
   if (charmBuff && source !== 'egg') {
     return shiny ? CHARM_SHINY_CHANCE : (1 - CHARM_SHINY_CHANCE);
@@ -120,7 +132,8 @@ export function computeMeetScore({ pokemon, source = 'normal', shiny = false, ch
 // ivs          该宝可梦的实际个体值 { hp, atk, def, spa, spd, spe }
 // ivRandomKey  培育蛋（宝可梦蛋）的纯随机位：6 项中仅该项为随机运气，其余继承自亲本。
 //              捕获/神秘蛋传 null/undefined，视为 6 项全随机，按总和分档。
-function ivBonus(ivs, ivRandomKey) {
+// guaranteedIvs 时空扭曲保底位数量：保底项恒为 31 无运气成分，运气分只按其余位计算
+function ivBonus(ivs, ivRandomKey, guaranteedIvs = 0) {
   if (!ivs) return 0;
   const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
   // 培育蛋：仅随机遗传项是运气，按该项分档
@@ -130,6 +143,19 @@ function ivBonus(ivs, ivRandomKey) {
     if (v >= 29) return 10;
     if (v >= 25) return 6;
     if (v >= 21) return 3;
+    return 0;
+  }
+  // 时空扭曲保底：保底位固定 31 不计运气，运气分只看其余位的总和（按比例缩放阈值）
+  if (guaranteedIvs > 0) {
+    const vals = keys.map(k => ivs[k] || 0).sort((a, b) => b - a);
+    let sum = 0;
+    for (let i = guaranteedIvs; i < vals.length; i++) sum += vals[i];
+    const scale = (31 * (6 - guaranteedIvs)) / 186;
+    const t = v => Math.round(v * scale);
+    if (sum >= t(175)) return 15;
+    if (sum >= t(160)) return 10;
+    if (sum >= t(145)) return 6;
+    if (sum >= t(130)) return 3;
     return 0;
   }
   // 捕获/神秘蛋：6 项全随机，按总和分档（平均 93，越高越稀有）
@@ -152,12 +178,12 @@ function ivBonus(ivs, ivRandomKey) {
 //   finalRate  捕获成功那一下的实际捕获率（含捕获加成；无丢球场景传 1）
 //   ivs        个体值（越高欧气加成越多；交换不算、无 ivs 时加成为 0）
 //   ivRandomKey 培育蛋的纯随机位（捕获/神秘蛋传 null）
-export function computeObtainScore({ pokemon, source = 'normal', shiny = false, charmBuff = false, honeyBuff = false, balls = {}, finalRate = 1, ivs = null, ivRandomKey = null }) {
+export function computeObtainScore({ pokemon, source = 'normal', shiny = false, charmBuff = false, honeyBuff = false, balls = {}, finalRate = 1, ivs = null, ivRandomKey = null, guaranteedIvs = 0 }) {
   const pPick = pickProbability(pokemon, source, honeyBuff, charmBuff);
   const pShiny = shinyProbability(shiny, charmBuff, source);
   const { p: pCatch, fleeBonus } = catchLuck(balls, finalRate);
   const p = pPick * pShiny * pCatch;
-  if (p <= 0 || !isFinite(p)) return 100 + ivBonus(ivs, ivRandomKey); // 概率下溢 → 顶格欧
+  if (p <= 0 || !isFinite(p)) return 100 + ivBonus(ivs, ivRandomKey, guaranteedIvs); // 概率下溢 → 顶格欧
   const score = Math.round(-Math.log10(p) * 10) + fleeBonus;
-  return Math.min(100, Math.max(0, score)) + ivBonus(ivs, ivRandomKey);
+  return Math.min(100, Math.max(0, score)) + ivBonus(ivs, ivRandomKey, guaranteedIvs);
 }

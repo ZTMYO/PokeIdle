@@ -80,6 +80,19 @@ export const MASS_SPAWN_MAX = 15;    // 遭遇结束后下一只出现间隔上�
 export const MASS_SPAWN_HONEY_MIN = 3;  // 甜甜蜜生效期间下一只出现间隔下限（秒）
 export const MASS_SPAWN_HONEY_MAX = 6;  // 甜甜蜜生效期间下一只出现间隔上限（秒）
 
+// ===== 时空扭曲（跨地区稀有事件，参考大量出没但更稀有）=====
+export const TWIST_GEN_MIN = 40;        // 事件点生成间隔下限（分钟）
+export const TWIST_GEN_MAX = 90;        // 事件点生成间隔上限（分钟）
+export const TWIST_DURATION = 30;       // 事件点存在时长（分钟）
+export const TWIST_COUNT_MIN = 5;       // 可遭遇数量（固定 5 只）
+export const TWIST_COUNT_MAX = 5;       // 可遭遇数量（固定 5 只）
+export const TWIST_SHINY_CHANCE = 1 / 200; // 时空扭曲闪光率（同大量出没）
+export const TWIST_SPAWN_MIN = 12;      // 遭遇结束后下一只出现间隔下限（秒）
+export const TWIST_SPAWN_MAX = 20;      // 遭遇结束后下一只出现间隔上限（秒）
+export const TWIST_GUARANTEED_IVS = 2;  // 个体值保底 V 数（随机 2 项 31）
+export const TWIST_RGB_CHANCE = 0.20;   // 遭遇为 RGB 变体概率
+export const TWIST_POLLUTED_CHANCE = 0.20; // 遭遇为污染变体概率（RGB+污染合计 40%）
+
 // ===== 孵蛋 =====
 export const HATCH_DIST_MIN = 2000;   // 最短（2 公里）
 export const HATCH_DIST_MAX = 30000;  // 最长（30 公里）

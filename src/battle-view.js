@@ -374,6 +374,7 @@ function buildPlayerTeam() {
     return (() => {
       const mon = createMon(pd, entry.level || 1, entry.ivs, entry.nature, moveIds);
       mon.shiny = !!entry.shiny; // 战斗大图按闪光贴图（_shiny 后缀）加载
+      mon.variant = entry.variant || null; // 时空扭曲外观变体（RGB / 污染）：仅渲染特效
       mon.gender = ensureGender(entry); // 玩家个体性别（旧存档无 gender 字段则按物种比例补 roll 并写回）
       if (entry.nickname) mon.name = entry.nickname; // 玩家昵称覆盖物种名
       mon.participated = false; // 经验结算条件：参战（上过场）且存活
@@ -716,6 +717,10 @@ function renderMon(mon, side, enter) {
   const img = $(`${side}-img`);
   // 清除上一只残留的战斗动画类（faint 带 forwards 会停在不可见状态；其余互斥类按 CSS 后定义覆盖）
   img.classList.remove(...B_ANIM_CLS);
+  // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫），与详情页一致
+  img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
+  if (mon.variant === 'rgb') img.classList.add('fx-variant-rgb');
+  else if (mon.variant === 'polluted') img.classList.add('fx-variant-polluted');
   lowerAttacker(side); // 换宠/刷新时恢复默认层级（动画被中断时 animationend 不会触发）
   // 登场球动画期间隐藏精灵；两回合招式蓄力（钻地/升空/入水）期间同样保持隐藏
   img.style.visibility = (enter || mon.chargeHidden) ? 'hidden' : '';

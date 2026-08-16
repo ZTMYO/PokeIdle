@@ -25,10 +25,10 @@ import {
   getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
   hasAnyBall, saveSessionState, rand, randInt, formatNum,
-  setEncounterMsg, addPlaySeconds, inMassZone,
+  setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant,
 } from './state.js';
 import { computeObtainScore } from './scoring.js';
-import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak } from './events.js';
+import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak, twistTick, ensureTwistInit, forceRefreshTwist } from './events.js';
 import {
   $, showView, updateTextBox, hideTextBox,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
@@ -52,7 +52,7 @@ import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from '.
 import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
-import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget } from './gps.js';
+import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, teleportToTwist } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView } from './nursery.js';
@@ -103,10 +103,10 @@ function loadRoad(idx, useTransition, saved) {
     _pendingBike = !!p.game.bike;
   } else {
     _pendingBike = null;
-    // 大量出没事件区域内强制非骑行：刷新/初始化恢复时，若玩家正停在事件点
+    // 大量出没/时空扭曲事件区域内强制非骑行：刷新/初始化恢复时，若玩家正停在事件点
     // 而恢复的场景是自行车场景，避免刷新后站在事件点却在骑行（事件区域内不轮播，
     // 非过渡加载只发生在初始化/刷新恢复）
-    road.setBike(inMassZone() ? false : !!p.game.bike);
+    road.setBike((inMassZone() || inTwistZone()) ? false : !!p.game.bike);
     // 骑行音乐：自行车道播放骑行曲，离开后恢复地区曲
     if (road.isBike()) playCycling();
     else endCycling();
@@ -121,10 +121,10 @@ function loadRoad(idx, useTransition, saved) {
 road.onTransitionCharReach(() => {
   if (_pendingBike === null) return;
   const wasRoadBike = road.isRoadBike();
-  // 大量出没事件区域内强制非骑行：场景是动态轮播的，玩家可能在到达事件点前
+  // 大量出没/时空扭曲事件区域内强制非骑行：场景是动态轮播的，玩家可能在到达事件点前
   // 场景恰好是自行车场景（过渡已触发、_pendingBike=true）；若此时过渡完成应用
   // 骑行状态，玩家会站在事件点却无法遭遇事件宝可梦。事件区域内一律忽略目标场景骑行状态。
-  road.setBike(inMassZone() ? false : _pendingBike);
+  road.setBike((inMassZone() || inTwistZone()) ? false : _pendingBike);
   _pendingBike = null;
   // 离开随机自行车路段：结算「自行车 ×1」（手动骑行中不结算，避免路段切换误发/打断）
   if (wasRoadBike && !road.isRoadBike() && !road.isManualBike()) {
@@ -387,6 +387,8 @@ function onGameTick() {
 
   // 大量出没事件：生成 / 到期 / 事件宝可梦滚动出现
   massTick();
+  // 时空扭曲事件：生成 / 到期 / 异时空宝可梦滚动出现
+  twistTick();
 
   if (phase !== 'idle') { updateStats(); return; }
 
@@ -394,9 +396,9 @@ function onGameTick() {
   // 兜底分支：onTransitionCharReach 未触发时（过渡结束仍未消费 _pendingBike）同样结算"离开自行车路段"奖励
   if (_pendingBike !== null && !road.isTransitioning()) {
     const wasRoadBike = road.isRoadBike();
-    // 大量出没事件区域内强制非骑行（同 onTransitionCharReach 的处理）：
+    // 大量出没/时空扭曲事件区域内强制非骑行（同 onTransitionCharReach 的处理）：
     // 场景动态轮播下，到达事件点前后都可能处于自行车场景过渡，事件区域内不允许骑行
-    road.setBike(inMassZone() ? false : _pendingBike);
+    road.setBike((inMassZone() || inTwistZone()) ? false : _pendingBike);
     _pendingBike = null;
     if (wasRoadBike && !road.isRoadBike() && !road.isManualBike()) {
       grantItem('bike', 1);
@@ -406,8 +408,8 @@ function onGameTick() {
     setIdleCharacter('walk');
   }
 
-  // 道路轮播：每 ROAD_SWITCH_CYCLES 个完整循环切下一个（过渡中/钓鱼中/大量出没事件路段内不切）
-  if (!road.isTransitioning() && !_fishing && !inMassZone()) {
+  // 道路轮播：每 ROAD_SWITCH_CYCLES 个完整循环切下一个（过渡中/钓鱼中/大量出没/时空扭曲事件路段内不切）
+  if (!road.isTransitioning() && !_fishing && !inMassZone() && !inTwistZone()) {
     const cyc = road.getCycles();
     if (cyc >= ROAD_SWITCH_CYCLES && _roadCycleStart < cyc) {
       if (ROAD_PRESETS.length > 1) {
@@ -423,8 +425,8 @@ function onGameTick() {
   }
 
   // 钓鱼：有垂钓点的路段随机停下钓鱼（钓鱼期间不生成道路道具；自行车道上不钓鱼不拾取，
-  // 过渡到自行车道期间也停止生成，避免遗留道具在骑行开始后滑过；大量出没事件路段内不钓鱼）
-  if (!road.isBike() && !inMassZone()) tryStartFishing();
+  // 过渡到自行车道期间也停止生成，避免遗留道具在骑行开始后滑过；大量出没/时空扭曲事件路段内不钓鱼）
+  if (!road.isBike() && !inMassZone() && !inTwistZone()) tryStartFishing();
   if (!_fishing && !road.isBike() && _pendingBike !== true) {
     for (const [item, rate] of Object.entries(ITEM_RATES)) {
       const key = `_f_${item}`;
@@ -583,6 +585,7 @@ async function init() {
   setSfxEnabled(gameData.settings?.sfxEnabled !== false); // 音效开关：沿用上次状态
   ensureBounty();   // 生成/恢复当日地区悬赏
   ensureMassInitEvents(); // 大量出没事件：初始化下次生成时间
+  ensureTwistInit();      // 时空扭曲事件：初始化下次生成时间
   setupFoodTooltip(); // 游戏内自制 tooltip 委托：全局激活，配招/战斗等所有页面 hover 可用
   updateBountyBadge(); // 初始化标题栏悬赏红点
   updatePhoneBadge(); // 初始化标题栏手机聚合红点
@@ -653,6 +656,18 @@ async function init() {
       console.log(`大量出没已刷新：${poke ? poke.name : '#' + mo.pokemon}，剩余 ${mo.remain} 只，路段 ${mo.edge.join('-')} @ ${(mo.t * 100).toFixed(0)}%`);
     } else {
       console.warn('大量出没刷新失败：暂无可生成的宝可梦，1 秒后自动重试');
+    }
+  };
+
+  // 调试辅助：一键刷新时空扭曲事件并直接传送到事件点（清掉当前事件、立即生成新事件、瞬移过去）
+  window.__resetTwist = () => {
+    forceRefreshTwist();
+    const tw = gameData.twist;
+    if (tw) {
+      teleportToTwist();
+      console.log(`时空扭曲已刷新并传送：剩余 ${tw.remain} 只，路段 ${tw.edge.join('-')} @ ${(tw.t * 100).toFixed(0)}%`);
+    } else {
+      console.warn('时空扭曲刷新失败：暂无可生成的宝可梦，1 秒后自动重试');
     }
   };
 
@@ -987,6 +1002,9 @@ async function init() {
         setPhase('encounter');
         // 恢复自定义遭遇文案（如钓鱼"上钩了"），避免刷新后退化为默认"跳出来了"
         setEncounterMsg(sessionState.encounter.msg || null);
+        // 恢复遭遇来源与外观变体（时空扭曲 RGB/污染）：刷新后特效与捕获来源不丢失
+        setEncounterSource(sessionState.encounter.source || 'normal');
+        setEncounterVariant(sessionState.encounter.variant || null);
         // 不跳过自动操作：恢复遭遇后，自动捕捉/佛系模式由 showEncounter 统一接管
         showEncounter(poke);
         // 启动即遭遇：splash 后 playRegion 被覆盖曲压住不弹歌曲卡，等这场遭遇结束再补弹

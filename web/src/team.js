@@ -193,13 +193,39 @@ function openTeamCtxMenu(e) {
   _menuEl = menu;
 }
 
-// 随机配队：从非训练状态的宝可梦中取一组合计等级差最小的 6 只入队。
-// 做法：按等级升序排序后滑窗取连续 6 只，使（最高级 - 最低级）最小；
-// 多个窗口并列最小时随机挑一个，组内顺序再随机打散（打头阵的宝可梦不固定）。
+// 随机配队：
+// - 队伍为空或已满：从非训练状态的宝可梦中取一组合计等级差最小的 6 只整队入队。
+//   按等级升序排序后滑窗取连续 6 只，使（最高级 - 最低级）最小；多个窗口并列最小时随机挑一个，
+//   组内顺序再随机打散（打头阵的宝可梦不固定）。
+// - 队伍未满且已有成员：保留现有成员原位，以队内最低等级为基准，从可选池挑等级最接近的补满空位，
+//   等级差相同的候选随机选取。
 function autoBuildTeam() {
   const trainingIds = new Set((gameData.training?.slots || []).map((s) => s && s.id).filter(Boolean));
   const roster = (gameData.roster || []).filter((p) => p.inRoster !== false && !trainingIds.has(p.id));
   if (!roster.length) return;
+  const byId = new Map(roster.map((p) => [p.id, p]));
+  const cur = teamIds();
+  const members = cur.map((id) => byId.get(id)).filter(Boolean); // 队内有效成员（放生失效 id 视作空位）
+  // 未满员且有至少一只确定宝可梦：补满队伍
+  if (members.length > 0 && members.length < TEAM_MAX) {
+    const base = Math.min(...members.map((p) => p.level || 1)); // 以队内最低等级为基准
+    const used = new Set(cur.filter((id) => byId.has(id)));
+    const cands = roster
+      .filter((p) => !used.has(p.id))
+      .sort((a, b) => (Math.abs((a.level || 1) - base) - Math.abs((b.level || 1) - base)) || Math.random() - 0.5);
+    const picks = cands.slice(0, TEAM_MAX - members.length);
+    const next = cur.map((id) => (byId.has(id) ? id : null)); // 有效成员保持原位
+    let k = 0;
+    for (let i = 0; i < TEAM_MAX && k < picks.length; i++) {
+      if (!next[i]) next[i] = picks[k++].id;
+    }
+    while (next.length < TEAM_MAX && k < picks.length) next.push(picks[k++].id);
+    gameData.team = next;
+    saveGame();
+    render();
+    return;
+  }
+  // 空队或满员：整队随机
   const sorted = [...roster].sort((a, b) => (a.level || 1) - (b.level || 1));
   let pick;
   if (sorted.length <= TEAM_MAX) {

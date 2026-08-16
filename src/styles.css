@@ -342,6 +342,16 @@ body.browser-mode { overflow: auto; }
   color: #ffffff;
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
 }
+/* === 时空扭曲外观变体（RGB 分离 / 污染宝可梦）===
+   仅外观特效，宝可梦功能与普通个体完全相同 */
+.fx-variant-rgb {
+  filter:
+    drop-shadow(3px 0 0 rgba(255, 0, 80, .65))
+    drop-shadow(-3px 0 0 rgba(0, 220, 255, .65));
+}
+.fx-variant-polluted {
+  filter: grayscale(1) sepia(1) hue-rotate(248deg) saturate(7) brightness(.65);
+}
 
 /* === 路面层 (Canvas 无限滚动) === */
 .road-layer {
@@ -357,6 +367,39 @@ body.browser-mode { overflow: auto; }
 .road-layer .road-canvas {
   display: block;
   image-rendering: pixelated;
+}
+
+/* 时空扭曲期间滚动道路变暗：canvas 整层降亮度，突出紫色氛围与滚动精灵 */
+#screen.twist-active .road-layer .road-canvas {
+  filter: brightness(0.65) saturate(0.85);
+  transition: filter 0.4s ease-out;
+}
+
+/* 时空扭曲期间屏幕容器变色：背景与边框换成紫色系（场景整体泛紫，随遮罩一起显隐）。
+   UI 文字色改白，避免深绿与紫底撞色看不清 */
+.screen.twist-active {
+  background: #8a5aa6;
+  --screen-bg: #8a5aa6;
+  --screen-bg-light: #a98ac4;
+  --screen-bg-dark: #5d3a78;
+  --ui-color: #ffffff;
+  --ui-color-rgb: 255, 255, 255;
+}
+
+/* === 时空扭曲氛围遮罩 ===
+   进入扭曲区域时覆盖整个屏幕（含主角）：紫色渐变 + 慢速闪烁，营造异时空涌动感。
+   纯视觉层：pointer-events 穿透，不挡任何交互；透明度低，不影响角色/文字辨识。 */
+.twist-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 31;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 120, 240, 0.16), rgba(174, 45, 225, 0.08) 55%, rgba(174, 45, 225, 0.04) 80%);
+  animation: twistOverlayPulse 2.4s ease-in-out infinite;
+}
+@keyframes twistOverlayPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 
 /* === 钓鱼期间水域上的漂浮物品 === */
@@ -553,6 +596,20 @@ body.browser-mode { overflow: auto; }
   line-height: 1.4;
   animation: pulseNew 1.2s ease-in-out infinite;
 }
+
+/* 遭遇页外观变体标签（时空扭曲 RGB / 污染）：
+   与文字框故障文案同款的 RGB 偏移重影字体，只在遭遇对应变体时显示 */
+.encounter-variant-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: right;
+  white-space: nowrap;
+  text-shadow:
+    1px 0 0 rgba(255, 45, 85, 0.6),
+    -1px 0 0 rgba(45, 220, 255, 0.6);
+  animation: twistTextGlitch 2.4s infinite steps(1, end);
+}
 @keyframes pulseNew {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -603,7 +660,44 @@ body.browser-mode { overflow: auto; }
   overflow: hidden;
   transition: transform 0.25s ease-out;
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* 顶部对齐：长文案（如时空扭曲遭遇）换行后不会被垂直居中顶出 */
+}
+
+/* 时空扭曲期间（含遭遇）的文字框美化：更深紫背景，遭遇文案做故障 RGB 偏移重影
+   （text-shadow 红/青错位模拟信号干扰，无需额外 DOM） */
+#screen.twist-active .text-box {
+  background: #6b4490; /* 比屏幕边框紫更深一档，文字框与场景有清晰分界 */
+  border-top: 2px solid #a98ac4; /* 浅紫上边框线，维持文字框分隔感 */
+}
+#screen.twist-active .text-box .text-box-content {
+  color: #ffffff;
+  text-shadow:
+    1px 0 0 rgba(255, 45, 85, 0.55),   /* 红偏移（轻） */
+    -1px 0 0 rgba(45, 220, 255, 0.55); /* 青偏移（轻） */
+  animation: twistTextGlitch 2.4s infinite steps(1, end);
+}
+@keyframes twistTextGlitch {
+  0%, 86%, 100% { transform: translate(0, 0); text-shadow: 1px 0 0 rgba(255,45,85,.55), -1px 0 0 rgba(45,220,255,.55); }
+  88% { transform: translate(-0.8px, 0); text-shadow: 1.5px 0 0 rgba(255,45,85,.6), -0.8px 0 0 rgba(45,220,255,.45); }
+  90% { transform: translate(0.8px, 0); text-shadow: 0.8px 0 0 rgba(255,45,85,.45), -1.5px 0 0 rgba(45,220,255,.6); }
+  92% { transform: translate(0, 0); }
+}
+/* 逃跑按钮：同文字框一起换白字白框，紫底可读 */
+#screen.twist-active .text-box .flee-btn {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+/* 捕获/孵蛋确认按钮（"是否查看详情？"的确定/取消）：紫色文字框内同样换白，hover 淡白底 */
+#screen.twist-active .catch-confirm-btn {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+#screen.twist-active .catch-confirm-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+/* 继续箭头：内联 fill 无法被继承，强制覆盖为白色 */
+#screen.twist-active .text-box .text-box-arrow path {
+  fill: #ffffff;
 }
 .text-box.show {
   transform: translateY(0) !important;
@@ -2715,7 +2809,8 @@ body.browser-mode { overflow: auto; }
 }
 /* 骑行中锁定地图：节点/大量出没点不可点击，光标改默认 */
 .gps-minimap.locked .gps-map-node,
-.gps-minimap.locked .gps-mass-marker {
+.gps-minimap.locked .gps-mass-marker,
+.gps-minimap.locked .gps-twist-marker {
   cursor: default;
 }
 .gps-map-marker {
@@ -2757,6 +2852,29 @@ body.browser-mode { overflow: auto; }
 @keyframes gps-mass-pulse {
   0%, 100% { transform: scale(1); opacity: 0.9; }
   50% { transform: scale(1.5); opacity: 0.3; }
+}
+/* 时空扭曲事件点标记：紫色，样式语义与大量出没一致但独立配色 */
+.gps-twist-ring {
+  fill: none;
+  stroke: #8c5290;
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gps-mass-pulse 1.6s ease-in-out infinite;
+}
+.gps-twist-dot {
+  fill: #8c5290;
+  stroke: var(--screen-bg-light);
+  stroke-width: 1.5;
+}
+.gps-twist-label {
+  fill: #8c5290;
+  font-size: 9px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--screen-bg-light);
+  stroke-width: 2px;
+  stroke-linejoin: round;
 }
 /* 漫游开关行：位于地图与底部信息栏之间的空隙区，靠左显示 */
 .gps-roam-row {
@@ -3261,8 +3379,8 @@ body.browser-mode { overflow: auto; }
   z-index: 100;
 }
 .region-dropdown-item {
-  padding: 3px 6px;
-  font-size: 10px;
+  padding: 2px 5px;
+  font-size: 9px;
   color: var(--ui-color);
   cursor: pointer;
   border-bottom: 1px solid rgba(var(--ui-color-rgb),0.06);
@@ -3286,9 +3404,9 @@ body.browser-mode { overflow: auto; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 3px 6px;
-  font-size: 10px;
+  gap: 6px;
+  padding: 2px 5px;
+  font-size: 9px;
   color: var(--ui-color);
   cursor: pointer;
   white-space: nowrap;
@@ -3310,7 +3428,7 @@ body.browser-mode { overflow: auto; }
 .roster-filter-leaf.active {
   font-weight: 700;
 }
-.roster-filter-arrow { font-size: 8px; opacity: 0.6; }
+.roster-filter-arrow { font-size: 7px; opacity: 0.6; }
 .roster-sub-menu {
   position: absolute;
   left: 100%;
@@ -4277,6 +4395,12 @@ body.browser-mode { overflow: auto; }
 .roster-detail-head .poke-img-grid img {
   max-width: 48px;
   max-height: 48px;
+}
+/* 详情小图上 RGB 重影收窄：通用偏移（3px）按小图比例过大，会糊成一片 */
+.roster-detail-head .poke-img-grid img.fx-variant-rgb {
+  filter:
+    drop-shadow(1.5px 0 0 rgba(255, 0, 80, .65))
+    drop-shadow(-1.5px 0 0 rgba(0, 220, 255, .65));
 }
 .roster-detail-block {
   border-top: 1px solid rgba(var(--ui-color-rgb),0.1);

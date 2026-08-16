@@ -1,6 +1,6 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching, _navStack, allPokemon } from './state.js';
-import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getRoadNumForEdge, getPokemonByIndex, isPokemon, genderBadge } from './state.js';
+import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getTwist, getRoadNumForEdge, getPokemonByIndex, isPokemon, genderBadge } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
 import { formatLogTime } from './pokedex.js';
 import * as road from './road.js';
@@ -87,6 +87,8 @@ export function showView(id) {
     if (el) el.style.display = v === id ? 'flex' : 'none';
   });
   _currentView = id;
+  // 视图切换立即同步时空扭曲配色（紫色主题仅在挂机/遭遇页生效，离开即恢复）
+  import('./events.js').then(m => m.syncTwistTheme());
   updateStats(); // 视图切换立即刷新状态栏：进入游戏厅立刻显示 coin，离开立刻隐藏
   // 重新进入孵蛋器：重置记录页/选蛋页状态，总是回到主列表
   if (id === 'incubatorView') {
@@ -1080,7 +1082,7 @@ export function showFoodTip(text, x, y) {
 }
 
 // 命中可弹自定义 tooltip 的元素并取文案；不支持的元素返回 null
-// 支持：树果图标（.berry-icon 的 dataset.tip）、大量出没地图标记（.gps-mass-marker，显示 宝可梦在 x#道路 大量出没 · 剩余时间/只数）、战斗状态圆点（.b-status-dot 的 dataset.tip）、战斗血条（.b-hp 的 dataset.tip）
+// 支持：树果图标（.berry-icon 的 dataset.tip）、大量出没地图标记（.gps-mass-marker，显示 宝可梦在 x#道路 大量出没 · 剩余时间/只数）、时空扭曲标记（.gps-twist-marker）、战斗状态圆点（.b-status-dot 的 dataset.tip）、战斗血条（.b-hp 的 dataset.tip）
 function tooltipTextFor(target) {
   const icon = target && target.closest ? target.closest('.berry-icon') : null;
   if (icon) return icon.dataset.tip || '';
@@ -1105,6 +1107,17 @@ function tooltipTextFor(target) {
     const sec = Math.max(0, Math.ceil((mo.expiresAt - Date.now()) / 1000));
     const timeStr = `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, '0')}秒`;
     return `${name} ${remain} 只\n剩余${timeStr}`;
+  }
+  const twist = target && target.closest ? target.closest('.gps-twist-marker') : null;
+  if (twist) {
+    const tw = getTwist();
+    const remain = twist.dataset.remain != null ? twist.dataset.remain : '?';
+    if (!tw) return `时空扭曲（剩余 ${remain} 处）`;
+    const num = getRoadNumForEdge(tw.edge, tw.t);
+    const roadStr = num != null ? `${num}#道路` : '某道路';
+    const sec = Math.max(0, Math.ceil((tw.expiresAt - Date.now()) / 1000));
+    const timeStr = `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, '0')}秒`;
+    return `时空扭曲 · ${roadStr}\n可遭遇 ${remain} 只\n剩余${timeStr}`;
   }
   // 通用 data-tip：任意带 data-tip 的元素（如饲育屋放入列表的个体值单元格、场地亲本）
   const tipEl = target && target.closest ? target.closest('[data-tip]') : null;

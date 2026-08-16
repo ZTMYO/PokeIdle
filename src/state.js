@@ -247,6 +247,8 @@ export function getDefaultSave() {
     berryFarm: { plots: Array(6).fill(null), stock: {} }, // 树果农场：6 块田地 + 收获库存（键为树果下标）
     massOutbreak: null,     // 大量出没事件：{ edge:[a,b], t, pokemon, remain, expiresAt, nextSpawnAt, active }；null=无事件
     massNextGenAt: 0,       // 下一次大量出没生成时间戳（毫秒）
+    twist: null,            // 时空扭曲事件：{ edge:[a,b], t, remain, expiresAt, nextSpawnAt, active }；null=无事件
+    twistNextGenAt: 0,      // 下一次时空扭曲生成时间戳（毫秒）
     follower: null,         // 随从（糖果抽卡的临时跟随）：{ index, tier, group, endsAt }；null=无随从
     followerPending: null,  // 抽卡结果待处理（未选跟随/放走就退出）：{ index, name, tier }；null=无
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
@@ -287,6 +289,16 @@ export function rollLegendIvs() {
   const ivs = rollIvs();
   const picks = new Set();
   while (picks.size < 3) picks.add(Math.floor(Math.random() * keys.length));
+  picks.forEach(i => { ivs[keys[i]] = 31; });
+  return ivs;
+}
+
+// 保底个体值：随机 n 个不同维度强制 31，其余正常随机（时空扭曲 2V 保底用）
+export function rollGuaranteedIvs(n) {
+  const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+  const ivs = rollIvs();
+  const picks = new Set();
+  while (picks.size < n) picks.add(Math.floor(Math.random() * keys.length));
   picks.forEach(i => { ivs[keys[i]] = 31; });
   return ivs;
 }
@@ -336,7 +348,7 @@ export function isPokemon(p) {
 }
 
 // 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
-export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1, gender }) {
+export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1, gender, ivs, variant }) {
   if (!gameData) return null;
   if (!Array.isArray(gameData.roster)) gameData.roster = [];
   const poke = getPokemonByIndex(String(species));
@@ -349,9 +361,10 @@ export function addRosterEntry({ species, shiny = false, source = 'normal', leve
     level, // 捕获/孵化即 Lv1（战斗系统）；野生捕获可传随机等级
     exp: 0, // 经验（对战获得）
     evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }, // 努力值（训练方向自动分配）
-    ivs: legendIv ? rollLegendIvs() : rollIvs(),
+    ivs: ivs || (legendIv ? rollLegendIvs() : rollIvs()),
     nature: rollNature(),
     source,
+    variant: variant || null, // 外观变体：'rgb' 污染等（仅外观，功能等同普通宝可梦）
     obtainedAt: Date.now(),
     inRoster: true,
   };
@@ -408,6 +421,12 @@ export async function saveGame() {
 // 当前遭遇的自定义文案（如钓鱼"上钩了"），写入会话状态以便刷新后沿用
 export let encounterMsg = null;
 export function setEncounterMsg(msg) { encounterMsg = msg; }
+// 遭遇来源 / 外观变体（仅运行时会话需要，持久存档的 entry 已含 variant）：
+// 刷新页面恢复遭遇时靠它重建特效与来源，避免 RGB/污染宝可梦恢复后变普通
+export let encounterSource = 'normal';
+export let encounterVariant = null;
+export function setEncounterSource(s) { encounterSource = s || 'normal'; }
+export function setEncounterVariant(v) { encounterVariant = v || null; }
 
 // ---------- 会话状态保存/恢复 ----------
 const SESSION_KEY = 'pokemon_idle_session';
@@ -431,6 +450,8 @@ export function saveSessionState(extra) {
         ballsUsed: encounterBallsUsed,
         balls: { ...currentEncounterBalls },
         msg: encounterMsg,
+        source: encounterSource,
+        variant: encounterVariant,
       };
     }
     if (honeyBuffActive && honeyCountdownEnd > Date.now()) {
@@ -525,6 +546,27 @@ export function calcOffline(save) {
 export function getMassOutbreak() {
   if (!gameData || !gameData.massOutbreak || !gameData.massOutbreak.active) return null;
   return gameData.massOutbreak;
+}
+
+// ---------- 时空扭曲（跨地区稀有事件）----------
+// 与大量出没共用 gps 的"事件点目标"（massTarget/massArrived）机制，
+// 事件对象独立存放，inTwistZone 按 twist 的边判断当前是否身处扭曲区域。
+export function getTwist() {
+  if (!gameData || !gameData.twist || !gameData.twist.active) return null;
+  return gameData.twist;
+}
+
+// 主角当前是否位于时空扭曲事件点（语义同 inMassZone，边匹配的是 twist 的事件边）
+export function inTwistZone() {
+  const tw = getTwist();
+  if (!tw) return false;
+  const g = gameData?.gps;
+  if (!g || !g.massArrived) return false;
+  if (!g.path || g.path.length < 2) return false;
+  const a = g.path[g.seg];
+  const b = g.path[g.seg + 1];
+  const [ea, eb] = tw.edge;
+  return (a === ea && b === eb) || (a === eb && b === ea);
 }
 
 // 主角当前是否位于大量出没事件点：事件是一个"点"而非整条路，

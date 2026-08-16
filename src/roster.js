@@ -12,7 +12,7 @@ import { NATURES } from './battle-core.js';
 
 // 获得来源 → 中文
 // 大量出没（mass）本质也是野生遭遇，显示与筛选均归入「野生」，不单列筛选项
-const SOURCE_NAMES = { normal: '野生', mass: '大量出没', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
+const SOURCE_NAMES = { normal: '野生', mass: '大量出没', twist: '时空扭曲', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
 // 六围个体值明细（键 → 显示名）
 const IV_KEYS = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速度']];
 
@@ -73,9 +73,10 @@ function ivHexagon(p) {
 
 let _sortBy = null;    // 当前排序列：null=默认时间降序 | index | name | iv | level
 let _sortDir = -1;     // 1 升序 / -1 降序
-let _srcFilter = '';    // 来源筛选：''=全部 | normal/fishing/egg/trade
+let _srcFilter = '';    // 来源筛选：''=全部 | normal/fishing/egg/trade/twist
 let _legendFilter = ''; // 稀有度：''=不限 | normal(普通) | legend(神兽)
 let _shinyFilter = '';  // 闪光：''=不限 | normal(非闪光) | shiny(闪光)
+let _variantFilter = ''; // 外观变体（时空扭曲）：''=不限 | any(全部变体) | rgb | polluted
 let _typeFilter = '';  // 属性筛选（''=全部）
 let _regionFilter = ''; // 地区筛选（''=全部）
 let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
@@ -129,8 +130,8 @@ function renderList() {
   if (!list) return;
   const q = ($('rosterSearchInput')?.value || '').trim();
   let pool = inRoster();
-  // 筛选：来源 → 普通/神兽 → 普通/闪光（三级）
-  // 大量出没（mass）归入「野生」（normal）筛选
+  // 筛选：来源 → 普通/神兽 → 普通/闪光 →（时空扭曲）变体（四级）
+  // 大量出没（mass）归入「野生」（normal）筛选；时空扭曲（twist）单列来源
   if (_srcFilter) pool = pool.filter(p => _srcFilter === 'normal' ? (p.source === 'normal' || p.source === 'mass') : p.source === _srcFilter);
   if (_legendFilter) {
     pool = pool.filter(p => {
@@ -141,6 +142,10 @@ function renderList() {
   }
   if (_shinyFilter) {
     pool = pool.filter(p => _shinyFilter === 'shiny' ? p.shiny : !p.shiny);
+  }
+  // 外观变体筛选：any=含任一变体，rgb/polluted=指定变体
+  if (_variantFilter) {
+    pool = pool.filter(p => _variantFilter === 'any' ? !!p.variant : p.variant === _variantFilter);
   }
   // 属性筛选：含有目标属性的宝可梦都筛出来（单属性/双属性均可命中）
   if (_typeFilter) pool = pool.filter(p => {
@@ -175,7 +180,7 @@ function renderList() {
     } else {
       const total = inRoster().length;
       const shinyCount = inRoster().filter(p => p.shiny).length;
-      prog.textContent = q || _srcFilter || _legendFilter || _shinyFilter || _typeFilter || _regionFilter
+      prog.textContent = q || _srcFilter || _legendFilter || _shinyFilter || _variantFilter || _typeFilter || _regionFilter
         ? `共 ${total} 只 · 匹配 ${pool.length} 只`
         : `共 ${total} 只 · 闪光 ${shinyCount} 只`;
     }
@@ -281,8 +286,9 @@ function setupSearch() {
   }
 }
 
-// 来源筛选两级：一级=来源（全部/野生/钓鱼/孵蛋/交换），
-// 二级=完整组合（全部/普通/神兽/闪光/普通闪光/神兽闪光），覆盖全部筛选情况
+// 来源筛选：一级=来源（全部/野生/钓鱼/孵蛋/交换/时空扭曲），
+// 二级=完整组合（闪光/变体/普通/神兽/非闪），覆盖全部筛选情况。
+// 闪光与变体两个带三级展开的项置顶，避免三级菜单在窗口底部显示不下。
 function setupFilter() {
   const trigger = $('rosterFilter');
   const label = $('rosterFilterLabel');
@@ -290,7 +296,7 @@ function setupFilter() {
   if (!trigger || !label || !dd) return;
 
   // 二级选项：值 → [legend 过滤, shiny 过滤]；legend ''=不限普神，shiny 'shiny'=只看闪光
-  const SRC_ORDER = [['', '全部'], ['normal', '野生'], ['fishing', '钓鱼'], ['egg', '孵蛋'], ['trade', '交换']];
+  const SRC_ORDER = [['', '全部'], ['normal', '野生'], ['fishing', '钓鱼'], ['egg', '孵蛋'], ['trade', '交换'], ['twist', '扭曲']];
   // 二级：普通/神兽直接选中；「闪光」hover 展开三级；「非闪」= 不闪光（不限普/神）
   const COMBO_ORDER = [
     ['normal', 'normal', '普通'],
@@ -305,25 +311,39 @@ function setupFilter() {
   function buildOptions() {
     dd.innerHTML = SRC_ORDER.map(([k, name]) => {
       if (!k) {
-        return `<div class="region-dropdown-item${!_srcFilter && !_legendFilter && !_shinyFilter ? ' active' : ''}" data-src="" data-legend="" data-shiny="">全部</div>`;
+        return `<div class="region-dropdown-item${!_srcFilter && !_legendFilter && !_shinyFilter && !_variantFilter ? ' active' : ''}" data-src="" data-legend="" data-shiny="">全部</div>`;
+      }
+      const sub = [];
+      if (k === 'twist') {
+        // 时空扭曲专属：二级直接列出 RGB / 污染 / 闪光三个叶子项，不套通用组合，菜单最窄
+        sub.push(`<div class="region-dropdown-item${_srcFilter === k && _variantFilter === 'rgb' && !_legendFilter && !_shinyFilter ? ' active' : ''}"
+             data-src="${k}" data-legend="" data-shiny="" data-variant="rgb">RGB</div>`);
+        sub.push(`<div class="region-dropdown-item${_srcFilter === k && _variantFilter === 'polluted' && !_legendFilter && !_shinyFilter ? ' active' : ''}"
+             data-src="${k}" data-legend="" data-shiny="" data-variant="polluted">污染</div>`);
+        sub.push(`<div class="region-dropdown-item${_srcFilter === k && _shinyFilter === 'shiny' && !_legendFilter && !_variantFilter ? ' active' : ''}"
+             data-src="${k}" data-legend="" data-shiny="shiny">闪光</div>`);
+      } else {
+        // 闪光三级：置顶，hover 展开普通闪光/神兽闪光
+        sub.push(`<div class="roster-filter-item">
+          <span class="roster-filter-leaf${_srcFilter === k && _shinyFilter === 'shiny' && !_legendFilter ? ' active' : ''}"
+                data-src="${k}" data-legend="" data-shiny="shiny">闪光</span>
+          <span class="roster-filter-arrow">▸</span>
+          <div class="roster-sub-menu">
+            ${SHINY_ORDER.map(([lk, shk, cname]) => `
+            <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk ? ' active' : ''}"
+                 data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('')}
+          </div>
+        </div>`);
+        // 普通/神兽/非闪叶子
+        sub.push(COMBO_ORDER.map(([lk, shk, cname]) => `
+          <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk && !_variantFilter ? ' active' : ''}"
+               data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join(''));
       }
       return `<div class="roster-filter-item" data-src="${k}" data-legend="" data-shiny="">
-        <span class="roster-filter-src${_srcFilter === k && !_legendFilter && !_shinyFilter ? ' active' : ''}">${name}</span>
+        <span class="roster-filter-src${_srcFilter === k && !_legendFilter && !_shinyFilter && !_variantFilter ? ' active' : ''}">${name}</span>
         <span class="roster-filter-arrow">▸</span>
         <div class="roster-sub-menu">
-          ${COMBO_ORDER.map(([lk, shk, cname]) => `
-          <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk ? ' active' : ''}"
-               data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('')}
-          <div class="roster-filter-item">
-            <span class="roster-filter-leaf${_srcFilter === k && _shinyFilter === 'shiny' && !_legendFilter ? ' active' : ''}"
-                  data-src="${k}" data-legend="" data-shiny="shiny">闪光</span>
-            <span class="roster-filter-arrow">▸</span>
-            <div class="roster-sub-menu">
-              ${SHINY_ORDER.map(([lk, shk, cname]) => `
-              <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk ? ' active' : ''}"
-                   data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('')}
-            </div>
-          </div>
+          ${sub.join('')}
         </div>
       </div>`;
     }).join('');
@@ -333,12 +353,18 @@ function setupFilter() {
     _srcFilter = el.dataset.src || '';
     _legendFilter = el.dataset.legend || '';
     _shinyFilter = el.dataset.shiny || '';
-    // 标签：来源·组合短名，如"野·闪""钓·普闪"
+    _variantFilter = el.dataset.variant || '';
+    // 标签：来源·组合短名，如"野·闪""钓·普闪"；变体筛选时显示"扭·RGB"
     if (!_srcFilter) label.textContent = '全部';
     else {
-      const srcShort = { normal: '野', fishing: '钓', egg: '蛋', trade: '换' };
-      const comboShort = { '|': '全部', 'normal|normal': '普', 'legend|normal': '神', '|normal': '非闪', '|shiny': '闪', 'normal|shiny': '普闪', 'legend|shiny': '神闪' };
-      label.textContent = `${srcShort[_srcFilter]}·${comboShort[`${_legendFilter}|${_shinyFilter}`]}`;
+      const srcShort = { normal: '野', fishing: '钓', egg: '蛋', trade: '换', twist: '扭' };
+      if (_variantFilter) {
+        const vShort = { any: '变', rgb: 'RGB', polluted: '污染' };
+        label.textContent = `${srcShort[_srcFilter]}·${vShort[_variantFilter]}`;
+      } else {
+        const comboShort = { '|': '全部', 'normal|normal': '普', 'legend|normal': '神', '|normal': '非闪', '|shiny': '闪', 'normal|shiny': '普闪', 'legend|shiny': '神闪' };
+        label.textContent = `${srcShort[_srcFilter]}·${comboShort[`${_legendFilter}|${_shinyFilter}`]}`;
+      }
     }
     dd.style.display = 'none';
     trigger.classList.remove('open');
@@ -1049,6 +1075,10 @@ function showRosterDetail(id) {
   `;
   const img = $('rosterDetailImg');
   if (img && poke) {
+    // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）
+    img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
+    if (p.variant === 'rgb') img.classList.add('fx-variant-rgb');
+    else if (p.variant === 'polluted') img.classList.add('fx-variant-polluted');
     // 等图片加载完成再启动粒子，否则 burst 时图片尺寸为 0 会定位到页面中心
     tryLoadPokemonImage(img, poke, p.shiny ? '_shiny' : '').then(() => {
       // 闪光个体：图片周围循环播放星星粒子（详情页图小 → 粒子缩小、飞行更近）

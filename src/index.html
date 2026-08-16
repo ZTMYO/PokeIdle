@@ -334,6 +334,8 @@
             <div class="idle-text" id="idleText"></div>
             <div id="walkGif" class="walk-gif"></div>
             <div id="roadLayer" class="road-layer"></div>
+            <!-- 时空扭曲氛围遮罩：进入扭曲区域时渐变闪烁的紫色滤镜层（仅视觉，不挡交互） -->
+            <div id="twistOverlay" class="twist-overlay" style="display:none;"></div>
           </div>
 
           <!-- 开场剧情（首次进入） -->
@@ -514,6 +516,7 @@
             <div class="encounter-name" id="encounterName"></div>
             <div class="encounter-types" id="encounterTypes"></div>
             <div class="encounter-right">
+              <span id="encounterVariantLabel" class="encounter-variant-label" style="display:none;"></span>
               <span id="encounterOwnedWrap" class="encounter-owned-wrap" style="display:none;">
                 <svg id="encounterOwnedIcon" class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18">
                   <use xlink:href="#icon-owned" />

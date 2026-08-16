@@ -1,6 +1,6 @@
 // ===== 闲置轮播消息 + 地区文案 =====
 import { $, showView } from './ui.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer, _fishing, getMassOutbreak, inMassZone, getRoadNumForEdge } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer, _fishing, getMassOutbreak, inMassZone, getTwist, inTwistZone, getRoadNumForEdge } from './state.js';
 import { REGION_CYCLE } from './config.js';
 import { ACHIEVEMENTS, earnedTiers, claimedTiers } from './achievements.js';
 import * as road from './road.js';
@@ -676,5 +676,79 @@ export function massMsgTick(now) {
   if (now - _lastMassMsgAt >= interval) {
     _lastMassMsgAt = now;
     pushIdleEventMsg(pickMassMsg());
+  }
+}
+
+// ===== 时空扭曲提示文案 =====
+// 与大量出没共用一套轮播机制，文案突出"跨地区异时空"的稀有感
+const TWIST_FAR_MSGS = (road, remain) => [
+  `✦ ${road}上空裂开了异时空的缝隙，时空扭曲出现了！`,
+  `✦ 异时空的波动从${road}方向传来，还剩${remain}只可遭遇！`,
+  `✦ ${road}一带时空扭曲，来自各地的宝可梦正在汇聚！`,
+  `✦ 时空扭曲出现在${road}，抓紧时间前去查看！`,
+];
+const TWIST_ZONE_MSGS = (remain) => [
+  `✦ 时空扭曲近在眼前，异时空的宝可梦正在现身！`,
+  `✦ 扭曲深处传来陌生的气息，还剩${remain}只可遭遇！`,
+  `✦ 附近的空间不断扭曲闪烁，宝可梦一只接一只出现！`,
+  `✦ 抓住机会！扭曲中的宝可梦还剩${remain}只！`,
+];
+
+// 时空扭曲事件点所在路段描述
+function twistRoadStr(tw) {
+  const num = getRoadNumForEdge(tw.edge, tw.t);
+  if (num != null) return `${num}#道路`;
+  return `${REGION_CYCLE[Math.min(tw.edge[0], tw.edge[1])]}↔${REGION_CYCLE[Math.max(tw.edge[0], tw.edge[1])]}的道路`;
+}
+
+// 按玩家所处位置随机挑一条扭曲提示
+function pickTwistMsg() {
+  const tw = getTwist();
+  if (!tw) return '';
+  const remain = Math.max(0, tw.remain);
+  if (inTwistZone()) {
+    const list = TWIST_ZONE_MSGS(remain);
+    return list[randInt(0, list.length - 1)];
+  }
+  const list = TWIST_FAR_MSGS(twistRoadStr(tw), remain);
+  return list[randInt(0, list.length - 1)];
+}
+
+// 时空扭曲轮播状态（与大量出没独立）
+let _lastTwistMsgAt = 0;
+let _wasInTwistZone = false;
+
+// 事件生成：以"此刻"为起点推送一条提示
+export function notifyTwistStart() {
+  _lastTwistMsgAt = Date.now();
+  _wasInTwistZone = inTwistZone();
+  pushIdleEventMsg(pickTwistMsg());
+}
+
+// 事件结束：提示散去并复位轮播状态
+export function notifyTwistEnd() {
+  pushIdleEventMsg(`✦ 时空扭曲逐渐平息，空间恢复如常……`);
+  _lastTwistMsgAt = 0;
+  _wasInTwistZone = false;
+}
+
+// 事件活跃期间按玩家位置轮播提示：刚进入扭曲区域立即提示，其余按远近间隔补充
+export function twistMsgTick(now) {
+  const tw = getTwist();
+  if (!tw || phase !== 'idle' || _fishing) return;
+  if ($('idleView')?.style.display === 'none') return; // 非主界面不打扰
+  const zone = inTwistZone();
+  if (zone && !_wasInTwistZone) {
+    // 刚进入事件路段：立即提示，让玩家意识到已经在扭曲区域内
+    _wasInTwistZone = true;
+    _lastTwistMsgAt = now;
+    pushIdleEventMsg(pickTwistMsg());
+    return;
+  }
+  if (!zone) _wasInTwistZone = false;
+  const interval = zone ? 60000 : 180000;
+  if (now - _lastTwistMsgAt >= interval) {
+    _lastTwistMsgAt = now;
+    pushIdleEventMsg(pickTwistMsg());
   }
 }

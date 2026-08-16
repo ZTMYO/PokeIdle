@@ -5,7 +5,7 @@
 // 没有目的地时，定位图标在水平轴中央原地上下浮动。
 // 推进由主角实际移动驱动（gpsAddDistance），遇敌/钓鱼时道路暂停、导航也随之暂停。
 import { $, showView, setupFoodTooltip, updateBackpack } from './ui.js';
-import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo, getMassOutbreak, getPokemonByIndex, inMassZone, walkedPxOnSegment, normalizeMassRemainToEnd, pushNav } from './state.js';
+import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo, getMassOutbreak, getPokemonByIndex, getTwist, inMassZone, inTwistZone, walkedPxOnSegment, normalizeMassRemainToEnd, pushNav } from './state.js';
 import { REGION_CYCLE, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
 import { isFishing } from './fishing.js';
 import * as road from './road.js';
@@ -169,16 +169,16 @@ function buildMiniMap(g) {
     ? `${Math.min(activeA, activeB)}-${Math.max(activeA, activeB)}`
     : null;
 
-  // 大量出没事件点：目标是事件边中间的一个点，最后一条事件边只高亮"到达事件点为止"的子段，
-  // 不再把整条事件边（到另一端节点）标粗。事件点坐标与 massMarkerSvg 保持一致。
+  // 事件点坐标：从当前导航目标 massTarget 取（大量出没 / 时空扭曲共用，与导航目标一致），
+  // 与 massMarkerSvg / twistMarkerSvg 的坐标算法保持一致。
   const massEndKey = (g.massTarget && g.path && g.path.length >= 2)
     ? `${Math.min(g.path[g.path.length - 2], g.path[g.path.length - 1])}-${Math.max(g.path[g.path.length - 2], g.path[g.path.length - 1])}`
     : null;
   const massPt = (() => {
-    const mo = getMassOutbreak();
-    if (!mo) return null;
-    const [ea, eb] = mo.edge;
-    return lerpPoint(MAP_POS[ea], MAP_POS[eb], mo.t);
+    const mt = g.massTarget;
+    if (!mt) return null;
+    const [ea, eb] = mt.edge;
+    return lerpPoint(MAP_POS[ea], MAP_POS[eb], mt.t);
   })();
 
   const edgeSvg = MAP_EDGES.map(([a, b]) => {
@@ -230,6 +230,7 @@ function buildMiniMap(g) {
         ${edgeSvg}
         ${nodeSvg}
         ${massMarkerSvg()}
+        ${twistMarkerSvg()}
         <g class="gps-map-marker" transform="translate(${markerX} ${markerY})${markerUsable ? ` rotate(${markerAngle}) scale(0.35) translate(-20 -15)` : ''}">
           ${markerUsable
             ? `<g class="gps-map-pin"><path d="M19.9785 8.35385C21.8358 8.35385 23.6171 9.09168 24.9304 10.405C26.2437 11.7183 26.9815 13.4996 26.9815 15.3569C26.9815 17.2143 26.2437 18.9955 24.9304 20.3089C23.6171 21.6222 21.8358 22.36 19.9785 22.36C18.1211 22.36 16.3399 21.6222 15.0265 20.3089C13.7132 18.9955 12.9754 17.2143 12.9754 15.3569C12.9754 13.4996 13.7132 11.7183 15.0265 10.405C16.3399 9.09168 18.1211 8.35385 19.9785 8.35385ZM35.3415 15.36C35.3415 12.9683 34.7829 10.6096 33.7105 8.47173C32.638 6.33391 31.0812 4.47602 29.164 3.04599C27.2469 1.61597 25.0223 0.653312 22.6675 0.234685C20.3126 -0.183942 17.8926 -0.0469785 15.6 0.634669C13.3074 1.31632 11.2057 2.52382 9.46212 4.16102C7.71855 5.79823 6.38132 7.81991 5.5569 10.0651C4.73248 12.3103 4.44366 14.7169 4.71342 17.0934C4.98319 19.4699 5.8041 21.7506 7.11077 23.7539L18.6031 39.0769C18.7307 39.3329 18.9271 39.5483 19.1703 39.6988C19.4136 39.8494 19.694 39.9291 19.98 39.9291C20.2661 39.9291 20.5464 39.8494 20.7897 39.6988C21.0329 39.5483 21.2293 39.3329 21.3569 39.0769L32.8708 23.7539C34.4215 21.3354 35.3415 18.4615 35.3415 15.36Z" fill="#96D0B9"></path><path d="M20 23C24.4183 23 28 19.4183 28 15C28 10.5817 24.4183 7 20 7C15.5817 7 12 10.5817 12 15C12 19.4183 15.5817 23 20 23Z" fill="#376D56"></path></g>`
@@ -252,6 +253,20 @@ function massMarkerSvg() {
       <circle r="8" class="gps-mass-ring"></circle>
       <circle r="3.5" class="gps-mass-dot"></circle>
       <text x="0" y="-13" text-anchor="middle" class="gps-mass-label">大量出没</text>
+    </g>`;
+}
+
+// 时空扭曲事件点标记：紫色，样式语义与大量出没一致但独立配色
+function twistMarkerSvg() {
+  const tw = getTwist();
+  if (!tw) return '';
+  const [ea, eb] = tw.edge;
+  const [x, y] = lerpPoint(MAP_POS[ea], MAP_POS[eb], tw.t);
+  return `
+    <g class="gps-twist-marker" data-twist="1" data-remain="${tw.remain}" transform="translate(${x} ${y})" style="cursor:pointer">
+      <circle r="8" class="gps-twist-ring"></circle>
+      <circle r="3.5" class="gps-twist-dot"></circle>
+      <text x="0" y="-13" text-anchor="middle" class="gps-twist-label">时空扭曲</text>
     </g>`;
 }
 
@@ -471,21 +486,21 @@ function planRoute(toIdx) {
   applyRouteCandidate(best, toIdx);
 }
 
-// ===== 大量出没事件点导航 =====
+// ===== 事件点导航（大量出没 / 时空扭曲共用） =====
 // 目标是一个"边中间点"（事件点）而非地区节点：最后一段走事件边，走到事件点即到达。
 // 到达后结束导航但保留当前段进度，主角精确停在事件点（道路中间），不会瞬移回节点。
-export function planMassRoute() {
-  if (road.isManualBike()) return; // 骑行中禁止改选大量出没事件点
-  const mo = getMassOutbreak();
-  if (!mo) return;
+function planEventRoute(getEvent, inZone) {
+  if (road.isManualBike()) return; // 骑行中禁止改选事件点
+  const ev = getEvent();
+  if (!ev) return;
   const g = gameData.gps;
   // 点击事件点导航：自动关闭漫游，保证到达事件点后自动停下（不被漫游接续下一站）
   if (g.roamEnabled) g.roamEnabled = false;
-  if (inMassZone()) return; // 已在事件路段，无需导航
+  if (inZone()) return; // 已在事件路段，无需导航
 
-  const [ea, eb] = mo.edge;
+  const [ea, eb] = ev.edge;
   const edgePx = DIST_MATRIX[ea][eb] * PX_PER_UNIT;
-  const fromA = edgePx * mo.t;  // 事件点距 ea 的像素
+  const fromA = edgePx * ev.t;  // 事件点距 ea 的像素
   const fromB = edgePx - fromA; // 事件点距 eb 的像素
 
   // 当前位置已在事件边段上（如：到达事件点后开启漫游又点回事件点，massArrived 已被
@@ -495,7 +510,7 @@ export function planMassRoute() {
     const b = g.path[g.seg + 1];
     const isEventEdge = (a === ea && b === eb) || (a === eb && b === ea);
     if (isEventEdge) {
-      const fromStart = (a === ea && b === eb) ? g.totalPx * mo.t : g.totalPx * (1 - mo.t);
+      const fromStart = (a === ea && b === eb) ? g.totalPx * ev.t : g.totalPx * (1 - ev.t);
       // 用统一换算取真实已走像素：massTarget 已设时 remainPx 是"到事件点的剩余"，未设时是"到段终点的剩余"
       const walkedPx = walkedPxOnSegment(g);
       const distToEvent = Math.abs(walkedPx - fromStart);
@@ -506,7 +521,7 @@ export function planMassRoute() {
         g.massTarget = null;
         g.massArrived = true;
         g.remainPx = g.totalPx - fromStart;
-        road.setManualBike(false); // 已站在大量出没事件点：同样自动下车（骑行中不遇敌）
+        road.setManualBike(false); // 已站在事件点：同样自动下车（骑行中不遇敌）
         render();
         saveGame();
         return;
@@ -515,7 +530,7 @@ export function planMassRoute() {
       const goForward = walkedPx <= fromStart;
       const [pa, pb] = goForward ? [a, b] : [b, a];
       g.destIdx = null;
-      g.massTarget = { edge: mo.edge, t: mo.t };
+      g.massTarget = { edge: ev.edge, t: ev.t };
       g.path = [pa, pb];
       g.seg = 0;
       g.curIdx = pa;
@@ -538,9 +553,9 @@ export function planMassRoute() {
     return { tail: [...pathB, ea], entryFrom: eb, entryEnd: ea, firstRemainPx: fromB, cost: costB };
   };
 
-  const startMassRoute = (path, entryFrom, entryEnd, firstRemainPx, firstTotalPx) => {
+  const startEventRoute = (path, entryFrom, entryEnd, firstRemainPx, firstTotalPx) => {
     g.destIdx = null; // 事件点不是地区节点：底部不显示地区目的地，到达即停
-    g.massTarget = { edge: mo.edge, t: mo.t };
+    g.massTarget = { edge: ev.edge, t: ev.t };
     g.path = path;
     g.seg = 0;
     g.curIdx = path[0];
@@ -558,7 +573,7 @@ export function planMassRoute() {
   if (!hasActiveSegment(g)) {
     // 站在节点上：直接从该节点规划到事件点，第一段按全新路段从节点出发
     const c = fromNode(g.curIdx);
-    startMassRoute(c.tail, c.entryFrom, c.entryEnd, null, null);
+    startEventRoute(c.tail, c.entryFrom, c.entryEnd, null, null);
     saveGame();
     return;
   }
@@ -572,11 +587,47 @@ export function planMassRoute() {
   const fwd = fromNode(b);
   const bwd = fromNode(a);
   if (remainPx + fwd.cost <= walkedPx + bwd.cost) {
-    startMassRoute([a, b, ...fwd.tail.slice(1)], a, b, remainPx, curEdgePx);
+    startEventRoute([a, b, ...fwd.tail.slice(1)], a, b, remainPx, curEdgePx);
   } else {
-    startMassRoute([b, a, ...bwd.tail.slice(1)], b, a, walkedPx, curEdgePx);
+    startEventRoute([b, a, ...bwd.tail.slice(1)], b, a, walkedPx, curEdgePx);
   }
   saveGame();
+}
+
+// 大量出没事件点导航入口
+export function planMassRoute() {
+  planEventRoute(getMassOutbreak, inMassZone);
+}
+
+// 时空扭曲事件点导航入口
+export function planTwistRoute() {
+  planEventRoute(getTwist, inTwistZone);
+}
+
+// 调试用：直接传送玩家到时空扭曲事件点（站在事件边上，等效于导航到点后自动停下）。
+// 用于 __resetTwist 联调，省去手动导航。
+export function teleportToTwist() {
+  const ev = getTwist();
+  if (!ev) return false;
+  const g = gameData.gps;
+  const [ea, eb] = ev.edge;
+  // 关闭漫游/导航，直接落位事件点：状态与 planEventRoute 到达分支保持一致
+  g.roamEnabled = false;
+  g.destIdx = null;
+  g.massTarget = null;
+  g.massArrived = true;
+  g.curIdx = ea;
+  g.path = [ea, eb];
+  g.seg = 0;
+  g.units = DIST_MATRIX[ea][eb];
+  g.totalPx = g.units * PX_PER_UNIT;
+  g.remainPx = g.totalPx * (1 - ev.t); // 事件点到 eb 的剩余距离（事件点停在边中间）
+  // 事件点强制非骑行（骑行中不遇敌），下车可立即遭遇
+  road.setManualBike(false);
+  road.setBike(false);
+  render();
+  saveGame();
+  return true;
 }
 
 // 主角移动推进：main.js 每秒把道路滚动距离喂进来（px 为真实行走/跑步像素）
@@ -731,10 +782,16 @@ function render() {
   if (!paused && hasActiveSegment(g)) {
     const roadInfo = getCurrentRoadInfo();
     if (g.massTarget) {
-      roamHint = roadInfo ? `${roadInfo.num}#道路（${roadInfo.name}）→大量出没` : '';
+      // 事件点目标（massTarget）由大量出没 / 时空扭曲共用，按目标边区分文案
+      const tw = getTwist();
+      const isTwist = tw && g.massTarget.edge
+        && g.massTarget.edge[0] === tw.edge[0] && g.massTarget.edge[1] === tw.edge[1]
+        && Math.abs(g.massTarget.t - tw.t) < 1e-6;
+      roamHint = roadInfo ? `${roadInfo.num}#道路（${roadInfo.name}）→${isTwist ? '时空扭曲' : '大量出没'}` : '';
     } else if (g.massArrived) {
-      // 已停在大量出没事件点：不再是"前往某地区"，提示大量出没中
-      roamHint = roadInfo ? `${roadInfo.num}#道路（${roadInfo.name}）·大量出没中` : '';
+      // 已停在事件点：不再是"前往某地区"，提示事件进行中
+      const isTwist = inTwistZone();
+      roamHint = roadInfo ? `${roadInfo.num}#道路（${roadInfo.name}）·${isTwist ? '时空扭曲中' : '大量出没中'}` : '';
     } else {
       const endIdx = g.path[g.seg + 1];
       roamHint = roadInfo ? `${roadInfo.num}#道路（${roadInfo.name}）→${REGION_CYCLE[endIdx]}` : '';
@@ -820,6 +877,20 @@ export function showGpsView() {
         return;
       }
       planMassRoute();
+      return;
+    }
+    // 点击时空扭曲事件点标记 → 同上，规划前往扭曲点
+    const twist = e.target.closest('.gps-twist-marker');
+    if (twist) {
+      if (road.isManualBike()) return;
+      if (consumePendingBike()) {
+        planTwistRoute();
+        road.setManualBike(true); // 选好目的地才上车骑行
+        render();
+        saveGame();
+        return;
+      }
+      planTwistRoute();
       return;
     }
     // 点击地图上的地区节点 → 设为目的地（骑行中锁定；待选中 = 选它作为骑行目的地）

@@ -1,6 +1,9 @@
 import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, ROAD_SWITCH_CYCLES, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BLOCK_DISTANCE, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, FARM_HELPER_STAGE_COST, FARM_HELPER_STAGE_INC, FARM_HELPER_WORK_MIN, FARM_HELPER_WORK_MAX,
   MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX,
   MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE,
+  TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_COUNT_MAX,
+  TWIST_SPAWN_MIN, TWIST_SPAWN_MAX, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS,
+  TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE,
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY,
   TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT,
   TRAIN_SATIETY_PER_BERRY, TRAIN_HUNGRY_LAZY_MULT,
@@ -1489,12 +1492,14 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '事件',
-    html: `<p>每隔 <b>${MASS_GEN_MIN}~${MASS_GEN_MAX}</b> 分钟，道路网络上会随机出现一个<b>大量出没</b>事件点：某只宝可梦在某条路段上大量出现。</p>`
+    html: `<p>道路网络上会随机出现两种<b>道路事件</b>：<b>大量出没</b>与<b>时空扭曲</b>，各有独立的事件点。</p>`
       + `<p>在<b>导航</b>页地图上能看到事件点标记，<b>点击即可导航过去</b>。</p>`
-      + `<p>事件点是一个<b>点</b>而不是整条路：只有抵达事件点并停下才算进入大量出没区域，<b>途经该路段不算</b>；到达后（未开启漫游）会<b>自动停在事件点</b>。</p>`
-      + `<p>进入区域后，事件宝可梦会大量出现：<b>锁定该宝可梦</b>，闪光率 <b>1/${Math.round(1 / MASS_SHINY_CHANCE)}</b>（不吃闪耀护符加成）。</p>`
-      + `<p>使用<b>甜甜蜜</b>可让下一只出现得更快（<b>${MASS_SPAWN_HONEY_MIN}~${MASS_SPAWN_HONEY_MAX}</b> 秒，普通 <b>${MASS_SPAWN_MIN}~${MASS_SPAWN_MAX}</b> 秒）。</p>`
-      + `<p>事件持续 <b>${MASS_DURATION}</b> 分钟，抓完剩余数量（<b>${MASS_COUNT_MIN}~${MASS_COUNT_MAX}</b> 只）或到期后结束。</p>`,
+      + `<p>事件点是一个<b>点</b>而不是整条路：只有抵达事件点并停下才算进入事件区域，<b>途经该路段不算</b>；到达后（未开启漫游）会<b>自动停在事件点</b>。</p>`
+      + `<p><b>大量出没</b>：每隔 <b>${MASS_GEN_MIN}~${MASS_GEN_MAX}</b> 分钟出现一次，<b>锁定该地区的一只宝可梦</b>大量出现，闪光率 <b>1/${Math.round(1 / MASS_SHINY_CHANCE)}</b>（不吃闪耀护符加成）。</p>`
+      + `<p>使用<b>甜甜蜜</b>可让大量出没的下一只出现得更快（<b>${MASS_SPAWN_HONEY_MIN}~${MASS_SPAWN_HONEY_MAX}</b> 秒，普通 <b>${MASS_SPAWN_MIN}~${MASS_SPAWN_MAX}</b> 秒）。事件持续 <b>${MASS_DURATION}</b> 分钟，抓完剩余数量（<b>${MASS_COUNT_MIN}~${MASS_COUNT_MAX}</b> 只）或到期后结束。</p>`
+      + `<p><b>时空扭曲</b>：每隔 <b>${TWIST_GEN_MIN}~${TWIST_GEN_MAX}</b> 分钟出现一次，从<b>全地区（排除事件所在地）</b>的宝可梦中随机现身，每次遭遇都不同。</p>`
+      + `<p>时空扭曲的宝可梦<b>个体值保底 ${TWIST_GUARANTEED_IVS}V</b>，闪光率 <b>1/${Math.round(1 / TWIST_SHINY_CHANCE)}</b>（不吃闪耀护符加成），有 <b>${Math.round(TWIST_RGB_CHANCE * 100)}%</b> 概率是 <b>RGB 分离</b>宝可梦、<b>${Math.round(TWIST_POLLUTED_CHANCE * 100)}%</b> 概率是<b>污染宝可梦</b>（仅外观变化，功能与普通宝可梦相同）。</p>`
+      + `<p>事件持续 <b>${TWIST_DURATION}</b> 分钟，抓完剩余数量（<b>${TWIST_COUNT_MIN}</b> 只）或到期后结束。</p>`,
   },
   {
     title: '悬赏',
@@ -1522,7 +1527,7 @@ const TUTORIAL_SECTIONS = [
       + `<p><b>获取</b>：随机<b>自行车道</b>骑行结束后背包 <b>+1</b>；（详见「<b>场景</b>」章节）也可在<b>商店</b>用糖果兑换（<b>${CANDY_EXCHANGE['bike']}</b> 颗）。</p>`
       + `<p><b>使用</b>：背包<b>滚轮翻到第二页</b>，点击<b>自行车</b>停止当前导航并进入<b>导航页</b>；<b>选好骑行目的地才消耗 1 个</b>上车骑行。骑行中背包再点可<b>手动下车</b>（不结束导航）。</p>`
       + `<p><b>放弃骑行</b>：未选目的地时再点背包「自行车」，或在导航页点「<b>退出</b>」结束导航。</p>`
-      + `<p><b>自动下车</b>：骑行到<b>导航目的地</b>自动下车（中途经过的地区节点<b>不停车</b>，连续骑行）；<b>手动结束导航</b>也会直接下车；抵达<b>大量出没</b>事件点自动下车（骑行中不遇敌，下车后才能进战斗）。</p>`
+      + `<p><b>自动下车</b>：骑行到<b>导航目的地</b>自动下车（中途经过的地区节点<b>不停车</b>，连续骑行）；<b>手动结束导航</b>也会直接下车；抵达<b>大量出没 / 时空扭曲</b>事件点自动下车（骑行中不遇敌，下车后才能进战斗）。</p>`
       + `<p><b>骑行中</b>：导航页漫游开关隐藏、<b>地图节点不可改选</b>，只能等到达自动下车、手动下车或退出导航。</p>`
   },
   {

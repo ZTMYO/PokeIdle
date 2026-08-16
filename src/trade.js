@@ -370,10 +370,16 @@ function renderGiveDetail(content, offerId) {
       </div>
     </div>`;
   const img = $('tradeGiveDetailImg');
-  if (img) tryLoadPokemonImage(img, givePoke, o.give.shiny ? '_shiny' : '').then(() => {
-    // 闪光个体：图片周围循环播放星星粒子（与个体详情页同款）
-    if (o.give.shiny) startShinySparkleOn($('tradeView'), img, { cls: 'sm', scale: 0.6 });
-  });
+  if (img) {
+    // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）
+    img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
+    if (o.give.variant === 'rgb') img.classList.add('fx-variant-rgb');
+    else if (o.give.variant === 'polluted') img.classList.add('fx-variant-polluted');
+    tryLoadPokemonImage(img, givePoke, o.give.shiny ? '_shiny' : '').then(() => {
+      // 闪光个体：图片周围循环播放星星粒子（与个体详情页同款）
+      if (o.give.shiny) startShinySparkleOn($('tradeView'), img, { cls: 'sm', scale: 0.6 });
+    });
+  }
 }
 
 // 选择交出哪只个体（布局与蛋仓库一致：进度 + 昵称搜索 + 表头 + 滚动列表）
