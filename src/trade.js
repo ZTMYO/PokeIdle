@@ -11,7 +11,8 @@ import { playCongratulation } from './audio.js';
 
 // ---------- NPC ----------
 // 图源 src/character/npc 的 9 帧行走图（等宽 16px），同名角色共用名字
-// 顺序必须与 npcs.png 拼图坐标一致：行0 = 0..12，行1 = 13..25
+// 顺序必须与 npcs.png 拼图坐标一致：行0 = 0..12，行1 = 13..25；
+// 末尾的作者彩蛋追加在行0 的第 14 列（物理位置不变，下标注 26 用固定偏移定位）
 const NPCS = [
   { id: 'boy_1', name: '男孩' },
   { id: 'boy_2', name: '男孩' },
@@ -39,6 +40,7 @@ const NPCS = [
   { id: 'woman_3', name: '女人' },
   { id: 'woman_4', name: '女人' },
   { id: 'woman_5', name: '女人' },
+  { id: 'author', name: 'ZTMYO' }, // 彩蛋 NPC：极低概率出现在交易市场，给出闪光 6V 神兽
 ];
 const IV_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 const IV_LABELS = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: '特防', spe: '速度' };
@@ -102,16 +104,50 @@ function makeOffer(npc) {
   };
 }
 
+// 波次生成：每波 TRADE_COUNT 个 offer；作者彩蛋以该概率取代某一格普通 offer
+const AUTHOR_CHANCE = 0.01;
+// 调试辅助：置 true 后下一波必定出现作者 offer（用于查看效果），__authorTest() 触发
+let _forceAuthor = false;
+
+// 作者彩蛋 offer：需求与普通 offer 一致（玩家仍需付出），
+// 但给出随机【神兽】闪光 6V（个体全 31）、满级
+function makeAuthorOffer() {
+  const base = makeOffer({ id: 'author' }); // 复用需求生成，npc 先用作者占位
+  const legends = allPokemon.filter(p => p.legend === true);
+  const givePoke = legends.length ? legends[randInt(0, legends.length - 1)] : allPokemon[0];
+  base.npc = 'author';
+  base.give = {
+    species: String(givePoke.index),
+    shiny: true,
+    nature: rollNature(),
+    ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
+    level: MAX_LEVEL,
+  };
+  return base;
+}
+
 // 生成并写入新一波交换 offers（重置刷新时间；通知手机主页红点按新一波刷新）
 function regenerateOffers() {
   const pool = [...NPCS];
   const offers = [];
-  for (let i = 0, n = Math.min(TRADE_COUNT, pool.length); i < n; i++) {
+  const count = Math.min(TRADE_COUNT, pool.length);
+  // 作者彩蛋：以 0.01 概率取代某一格普通 offer（调试时用 _forceAuthor 强制出现）
+  const authorSlot = (_forceAuthor || Math.random() < AUTHOR_CHANCE) ? randInt(0, count - 1) : -1;
+  _forceAuthor = false;
+  for (let i = 0; i < count; i++) {
+    if (i === authorSlot) { offers.push(makeAuthorOffer()); continue; }
     offers.push(makeOffer(pool.splice(randInt(0, pool.length - 1), 1)[0]));
   }
   gameData.trades = { refreshedAt: Date.now(), offers };
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trade-wave-changed'));
 }
+
+// 调试辅助：强制下一波刷新为包含作者 offer 的市场（需在交易页调用以立即查看效果）
+window.__authorTest = () => {
+  _forceAuthor = true;
+  regenerateOffers();
+  renderTrade();
+};
 
 // 到点或数据缺失时刷新一波
 export function ensureTrades() {
@@ -260,9 +296,12 @@ export function renderTrade() {
 // 单张 offer 卡片：NPC 行走动画 + 想要/给出说明 + 交换按钮
 function offerCard(o) {
   const npc = NPCS.find(n => n.id === o.npc) || NPCS[0];
-  // NPC 首帧拼图（npcs.png：13列×2行，每格 16×21，2x 显示），按下标定位
+  // NPC 首帧拼图（npcs.png：13列×2行 + 行0末列追加的作者彩蛋，每格 16×21，2x 显示），按下标定位；
+  // 普通 NPC 用 13 列公式（图片物理位置未变），作者固定取新增列（x=208 → -416px）
   const npcIdx = Math.max(0, NPCS.indexOf(npc));
-  const npcPos = `background-position:${-(npcIdx % 13) * 32}px ${-Math.floor(npcIdx / 13) * 42}px`;
+  const npcPos = npc.id === 'author'
+    ? 'background-position:-416px 0px'
+    : `background-position:${-(npcIdx % 13) * 32}px ${-Math.floor(npcIdx / 13) * 42}px`;
   const wantPoke = getPokemonByIndex(o.want.species);
   const givePoke = getPokemonByIndex(o.give.species);
   if (!wantPoke || !givePoke) return '';

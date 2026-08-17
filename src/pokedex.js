@@ -160,7 +160,11 @@ export function showEncounterLogs(pokemonIndex) {
           <div style="flex:1;height:4px;background:rgba(var(--ui-color-rgb),0.12);border-radius:2px;overflow:hidden;">
             <div style="height:100%;width:${(v/maxStat*100).toFixed(0)}%;background:rgba(var(--ui-color-rgb),0.5);border-radius:2px;"></div>
           </div>
-        </div>`).join('');
+        </div>`).join('') +
+        `<div style="display:flex;align-items:center;gap:2px;line-height:1.4;">
+          <span style="width:24px;flex-shrink:0;">总和</span>
+          <span style="width:16px;text-align:right;flex-shrink:0;">${poke.stats.reduce((s, v) => s + v, 0)}</span>
+        </div>`;
       })()}</div>` : ''}
     </div>`;
     // 描述文本（仅捕获后显示）

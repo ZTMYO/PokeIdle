@@ -27,6 +27,16 @@ import * as road from './road.js';
 
 // ===== 生成 / 结束 =====
 
+// 随机选一条事件路段：大量出没与时空扭曲可同时活跃，必须避开另一事件所在路段，
+// 否则玩家停在事件点时会同时满足两个事件区域（inMassZone 与 inTwistZone 共用 massArrived），
+// 两套滚动精灵同时撞向主角，战斗会被后触发的覆盖（串台）。
+function pickEventEdge(excludeEdge) {
+  const candidates = MAP_EDGES.filter(([a, b]) => !excludeEdge
+    || !((a === excludeEdge[0] && b === excludeEdge[1]) || (a === excludeEdge[1] && b === excludeEdge[0])));
+  if (candidates.length === 0) return null;
+  return candidates[randInt(0, candidates.length - 1)];
+}
+
 // 初始化下次生成时间（旧存档/新档缺字段时兜底）
 export function ensureMassInit() {
   if (!gameData) return;
@@ -39,8 +49,9 @@ export function ensureMassInit() {
 function spawnMassOutbreak() {
   if (!gameData || gameData.massOutbreak?.active) return;
   if (MAP_EDGES.length === 0) return;
-  // 随机选一条路段 + 路段中段位置（20%~80%，避开节点）
-  const edge = MAP_EDGES[randInt(0, MAP_EDGES.length - 1)];
+  // 随机选一条路段 + 路段中段位置（20%~80%，避开节点）；避开时空扭曲正在发生的路段
+  const edge = pickEventEdge(gameData.twist?.edge);
+  if (!edge) return;
   const t = 0.2 + Math.random() * 0.6;
   // 事件宝可梦：从事件点归属地区随机选（t<0.5 归小号端地区，否则归大号端）
   const regionIdx = t < 0.5 ? Math.min(edge[0], edge[1]) : Math.max(edge[0], edge[1]);
@@ -149,14 +160,23 @@ let _massRafActive = false;
 function spawnMassPoke() {
   const mo = getMassOutbreak();
   if (!mo) return;
-  const poke = getPokemonByIndex(mo.pokemon);
+  // 优先恢复持久化的当前精灵（刷新后与刷新前的 icon 一致：种类锁定、闪光标记不丢）；
+  // 没有记录（新生成/上一只已遭遇）则重新判定闪光并持久化
+  const saved = mo.cur && getPokemonByIndex(mo.cur.species) ? mo.cur : null;
+  const poke = saved
+    ? getPokemonByIndex(saved.species)
+    : getPokemonByIndex(mo.pokemon);
   const screen = $('screen');
   const charEl = $('walkGif');
   if (!poke || !screen || !charEl) return;
 
   // 闪光判定提前到生成时刻：滚动图标能像交换页面一样用星星标记闪光，
   // 碰到时复用同一判定，保证显示与战斗一致
-  _massPokeShiny = Math.random() < MASS_SHINY_CHANCE;
+  _massPokeShiny = saved ? !!saved.shiny : Math.random() < MASS_SHINY_CHANCE;
+  if (!saved) {
+    mo.cur = { species: poke.index, shiny: _massPokeShiny };
+    saveGame();
+  }
 
   // 容器内放头像 icon，闪光时右上角叠星星标记（同交换页面 NPC 旁的闪光表示）
   const el = document.createElement('div');
@@ -192,6 +212,8 @@ function spawnMassPoke() {
 function despawnMassPoke() {
   if (_massPokeEl) { _massPokeEl.remove(); _massPokeEl = null; }
   _massPokeShiny = false;
+  // 清除持久化的当前精灵：遭遇后/走过头/离开区域后，下一只重新生成
+  if (gameData?.massOutbreak) gameData.massOutbreak.cur = null;
 }
 
 function hitMassPoke() {
@@ -201,6 +223,18 @@ function hitMassPoke() {
   despawnMassPoke();
   if (!poke) return;
   startMassEncounter(poke, shiny); // 战斗画面/暂停道路由 showEncounter 处理
+}
+
+// 后台挂机（不在主界面）时的后台遭遇：与普通遇敌后台直收一致，到点直接触发战斗。
+// 优先复用持久化的当前精灵（刷新场景下闪光与刷新前一致）；无记录才另行重 roll。
+function backgroundHitMass() {
+  const mo = gameData?.massOutbreak;
+  const poke = mo ? getPokemonByIndex(mo.pokemon) : null;
+  if (!poke) return;
+  const saved = mo.cur;
+  const shiny = saved ? !!saved.shiny : Math.random() < MASS_SHINY_CHANCE;
+  mo.cur = null;
+  startMassEncounter(poke, shiny);
 }
 
 function _massFrame() {
@@ -241,10 +275,19 @@ function stopMassRaf() {
 
 function updateMassSpawner(now) {
   const mo = getMassOutbreak();
+  const idleHidden = $('idleView')?.style.display === 'none';
+  // 事件宝可梦只在事件区域内遭遇；离页时同样判断区域（位置不变，玩家停留处仍在事件路段内）
+  if (!mo || phase !== 'idle' || !inMassZone()) { stopMassRaf(); despawnMassPoke(); return; }
+  if (idleHidden) {
+    // 后台挂机：不做滚动动画但保留持久化的当前精灵（cur），到点直接触发战斗；
+    // 元素随 RAF 停止后仍在屏幕位置，此处手动移除，避免离页时残留
+    stopMassRaf();
+    if (_massPokeEl) { _massPokeEl.remove(); _massPokeEl = null; }
+    _massPokeShiny = false;
+    if (Date.now() >= mo.nextSpawnAt) backgroundHitMass();
+    return;
+  }
   // 注意不含 road.isActive()：拾取道具等道路暂停时保持 RAF，由 _massFrame 原地等待，避免捡完球 icon 消失
-  const shouldRun = !!mo && phase === 'idle' && inMassZone()
-    && $('idleView')?.style.display !== 'none';
-  if (!shouldRun) { stopMassRaf(); despawnMassPoke(); return; }
   // 大量出没事件点可能落在自行车路段上：骑行中事件宝可梦不滚动、普通遭遇也不触发，
   // 玩家到了点位却在骑车会错过事件。进入事件区域立即强制下车，恢复正常遭遇等非骑行功能。
   forceStopBikeInMassZone();
@@ -271,8 +314,9 @@ function forceStopBikeInMassZone() {
 function spawnTwist() {
   if (!gameData || gameData.twist?.active) return;
   if (MAP_EDGES.length === 0) return;
-  // 随机选一条路段 + 路段中段位置（20%~80%，避开节点）
-  const edge = MAP_EDGES[randInt(0, MAP_EDGES.length - 1)];
+  // 随机选一条路段 + 路段中段位置（20%~80%，避开节点）；避开大量出没正在发生的路段
+  const edge = pickEventEdge(gameData.massOutbreak?.edge);
+  if (!edge) return;
   const t = 0.2 + Math.random() * 0.6;
   // 事件点归属地区（t<0.5 归小号端地区，否则归大号端）；池 = 该地区以外的全部宝可梦
   const regionIdx = t < 0.5 ? Math.min(edge[0], edge[1]) : Math.max(edge[0], edge[1]);
@@ -349,19 +393,26 @@ export function syncTwistTheme() {
 
 // 主界面时空扭曲氛围遮罩 + 屏幕容器紫色化：
 // 容器变色仅在位于扭曲区域且停留在游戏页（挂机 / 野遇遭遇）时保持；
-// 切到图鉴/商店等其它页面立即恢复原配色，避免紫色主题外泄
+// 切到图鉴/商店等其它页面立即恢复原配色（跳变，不做淡出），避免紫色主题外泄
 function updateTwistOverlay() {
   const el = $('twistOverlay');
   const zone = inTwistZone();
   const onGame = isOnGameView();
   if (el) {
     const show = zone && phase === 'idle' && !_fishing;
-    if (show !== (el.style.display !== 'none')) {
-      el.style.display = show ? '' : 'none';
-    }
+    el.classList.toggle('on', show);
   }
   const scr = $('screen');
-  if (scr) scr.classList.toggle('twist-active', zone && onGame);
+  if (!scr) return;
+  const active = zone && onGame;
+  if (scr.classList.contains('twist-active') === active) return;
+  // 切离游戏页时禁用过渡实现立即跳变；留在游戏页内进入/离开扭曲区域则平滑过渡
+  if (!onGame) scr.classList.add('no-theme-trans');
+  scr.classList.toggle('twist-active', active);
+  if (!onGame) {
+    void scr.offsetWidth; // 强制重排，让"无过渡移除"立即生效
+    scr.classList.remove('no-theme-trans');
+  }
 }
 
 // 初始化下次生成时间（旧存档/新档缺字段时兜底）
@@ -400,15 +451,27 @@ let _twistRafActive = false;
 function spawnTwistPoke() {
   const tw = getTwist();
   if (!tw || tw.pool.length === 0) return;
-  const poke = getPokemonByIndex(tw.pool[randInt(0, tw.pool.length - 1)]);
+  // 优先恢复持久化的当前精灵（刷新后与刷新前的 icon/闪光/变体保持一致）；
+  // 无记录（新生成/上一只已遭遇）则重新随机并持久化
+  const saved = tw.cur && tw.pool.includes(tw.cur.species) ? tw.cur : null;
+  const poke = saved
+    ? getPokemonByIndex(saved.species)
+    : getPokemonByIndex(tw.pool[randInt(0, tw.pool.length - 1)]);
   const screen = $('screen');
   const charEl = $('walkGif');
   if (!poke || !screen || !charEl) return;
 
-  // 闪光与变体提前到生成时刻判定：滚动图标与应用与战斗一致
-  _twistPokeShiny = Math.random() < TWIST_SHINY_CHANCE;
-  const r = Math.random();
-  _twistVariant = r < TWIST_RGB_CHANCE ? 'rgb' : (r < TWIST_RGB_CHANCE + TWIST_POLLUTED_CHANCE ? 'polluted' : null);
+  if (saved) {
+    _twistPokeShiny = !!saved.shiny;
+    _twistVariant = saved.variant || null;
+  } else {
+    // 闪光与变体提前到生成时刻判定：滚动图标与应用与战斗一致
+    _twistPokeShiny = Math.random() < TWIST_SHINY_CHANCE;
+    const r = Math.random();
+    _twistVariant = r < TWIST_RGB_CHANCE ? 'rgb' : (r < TWIST_RGB_CHANCE + TWIST_POLLUTED_CHANCE ? 'polluted' : null);
+    tw.cur = { species: poke.index, shiny: _twistPokeShiny, variant: _twistVariant };
+    saveGame();
+  }
 
   const el = document.createElement('div');
   el.className = 'mass-poke';
@@ -447,6 +510,8 @@ function despawnTwistPoke() {
   _twistPokeShiny = false;
   _twistVariant = null;
   _twistPoke = null;
+  // 清除持久化的当前精灵：遭遇后/走过头/离开区域后，下一只重新生成
+  if (gameData?.twist) gameData.twist.cur = null;
 }
 
 function hitTwistPoke() {
@@ -457,6 +522,27 @@ function hitTwistPoke() {
   const variant = _twistVariant;
   despawnTwistPoke();
   if (!poke) return;
+  startTwistEncounter(poke, shiny, variant);
+}
+
+// 后台挂机（不在主界面）时的时空扭曲后台遭遇：与大量出没/普通遇敌后台直收一致，
+// 到点直接触发战斗。优先复用持久化的当前精灵（刷新场景下闪光/变体与刷新前一致）；
+// 无记录才另行随机。
+function backgroundHitTwist() {
+  const tw = gameData?.twist;
+  if (!tw) return;
+  const saved = tw.cur && tw.pool.includes(tw.cur.species) ? tw.cur : null;
+  const poke = saved
+    ? getPokemonByIndex(saved.species)
+    : getPokemonByIndex(tw.pool[randInt(0, tw.pool.length - 1)]);
+  if (!poke) return;
+  const shiny = saved ? !!saved.shiny : Math.random() < TWIST_SHINY_CHANCE;
+  let variant = saved ? (saved.variant || null) : null;
+  if (!saved) {
+    const r = Math.random();
+    variant = r < TWIST_RGB_CHANCE ? 'rgb' : (r < TWIST_RGB_CHANCE + TWIST_POLLUTED_CHANCE ? 'polluted' : null);
+  }
+  tw.cur = null;
   startTwistEncounter(poke, shiny, variant);
 }
 
@@ -496,9 +582,19 @@ function stopTwistRaf() {
 
 function updateTwistSpawner(now) {
   const tw = getTwist();
-  const shouldRun = !!tw && phase === 'idle' && inTwistZone()
-    && $('idleView')?.style.display !== 'none';
-  if (!shouldRun) { stopTwistRaf(); despawnTwistPoke(); return; }
+  const idleHidden = $('idleView')?.style.display === 'none';
+  if (!tw || phase !== 'idle' || !inTwistZone()) { stopTwistRaf(); despawnTwistPoke(); return; }
+  if (idleHidden) {
+    // 后台挂机：不做滚动动画但保留持久化的当前精灵（cur），到点直接触发战斗；
+    // 元素随 RAF 停止后仍在屏幕位置，此处手动移除，避免离页时残留
+    stopTwistRaf();
+    if (_twistPokeEl) { _twistPokeEl.remove(); _twistPokeEl = null; }
+    _twistPokeShiny = false;
+    _twistVariant = null;
+    _twistPoke = null;
+    if (Date.now() >= tw.nextSpawnAt) backgroundHitTwist();
+    return;
+  }
   forceStopBikeInTwistZone();
   startTwistRaf();
 }

@@ -209,7 +209,7 @@ export function buildIdleMessages() {
     '战胜训练家，有机会掉落经验糖果。',
     '训练家对战中，上场且最终存活的宝可梦将得到经验。',
     '在水域场景，有机会钓起稀有的宝可梦！',
-    '大量出没事件会明显提高闪光率且闪耀护符不生效！',
+    '事件点会明显提高闪光率且闪耀护符不生效！',
     '开启自动操作，遇敌会自动捕捉或逃跑，挂机更省心。',
     '在自行车道上捡到的自行车可以在需要的时候用来赶路。',
     '手机里的交换应用，可以和训练家互换宝可梦。',
@@ -442,6 +442,29 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   setIdleMsgs(msgs);
 }
 
+// buff 效果轮播文案（闪耀护符 / 树果方块 / 甜甜蜜）：
+// 单独轮播时按各自数组轮换，与普通/闲聊/教学文案混在同一显示序列
+const CHARM_BUFF_MSGS = [
+  '✦ 闪耀护符的光芒照亮了天空...',
+  '✦ 前方似乎有稀有的气息...',
+  '✦ 奇迹随时可能发生...',
+  '✦ 闪耀护符在微微发烫！',
+  '✦ 直觉告诉你，好东西要来了...',
+];
+const BLOCK_BUFF_MSGS = [
+  '✦ 树果方块的香气随风飘散...',
+  '✦ 似乎有宝可梦被树果方块吸引过来了！',
+  '✦ 树果方块散发着诱人的果香...',
+  '✦ 好像有宝可梦在靠近...',
+];
+const HONEY_BUFF_MSGS = [
+  '✦ 甜甜蜜的芬芳随风飘散...',
+  '✦ 附近的宝可梦被吸引了！',
+  '✦ 草丛里传来了动静...',
+  '✦ 甜甜蜜的味道越来越浓...',
+  '✦ 好像有什么在靠近...',
+];
+
 export function rotateIdleMessage() {
   if (phase !== 'idle') return;
   // 数据变化后重建消息列表（拾取/消费/捕获/成就/悬赏等都会改变），保持文案与实况同步
@@ -466,38 +489,18 @@ export function rotateIdleMessage() {
     return;
   }
   if (charmBuffActive) {
-    const msgs = [
-      '✦ 闪耀护符的光芒照亮了天空...',
-      '✦ 前方似乎有稀有的气息...',
-      '✦ 奇迹随时可能发生...',
-      '✦ 闪耀护符在微微发烫！',
-      '✦ 直觉告诉你，好东西要来了...',
-    ];
-    setIdleMsgIdx((_idleMsgIdx + 1) % msgs.length);
-    $('idleText').textContent = msgs[_idleMsgIdx];
+    setIdleMsgIdx((_idleMsgIdx + 1) % CHARM_BUFF_MSGS.length);
+    $('idleText').textContent = CHARM_BUFF_MSGS[_idleMsgIdx];
     return;
   }
   if (blockBuffActive) {
-    const msgs = [
-      '✦ 树果方块的香气随风飘散...',
-      '✦ 似乎有宝可梦被树果方块吸引过来了！',
-      '✦ 树果方块散发着诱人的果香...',
-      '✦ 好像有宝可梦在靠近...',
-    ];
-    setIdleMsgIdx((_idleMsgIdx + 1) % msgs.length);
-    $('idleText').textContent = msgs[_idleMsgIdx];
+    setIdleMsgIdx((_idleMsgIdx + 1) % BLOCK_BUFF_MSGS.length);
+    $('idleText').textContent = BLOCK_BUFF_MSGS[_idleMsgIdx];
     return;
   }
   if (honeyBuffActive) {
-    const msgs = [
-      '✦ 甜甜蜜的芬芳随风飘散...',
-      '✦ 附近的宝可梦被吸引了！',
-      '✦ 草丛里传来了动静...',
-      '✦ 甜甜蜜的味道越来越浓...',
-      '✦ 好像有什么在靠近...',
-    ];
-    setIdleMsgIdx((_idleMsgIdx + 1) % msgs.length);
-    $('idleText').textContent = msgs[_idleMsgIdx];
+    setIdleMsgIdx((_idleMsgIdx + 1) % HONEY_BUFF_MSGS.length);
+    $('idleText').textContent = HONEY_BUFF_MSGS[_idleMsgIdx];
     return;
   }
   // 每 3 条普通文案后插入一条地区氛围文案
@@ -671,8 +674,9 @@ export function massMsgTick(now) {
     return;
   }
   if (!zone) _wasInMassZone = false;
-  // 区域内约 1 分钟轮播一次，区域外约 3 分钟提醒一次（事件持续 60 分钟，无需频繁打扰）
-  const interval = zone ? 60000 : 180000;
+  // 区域内每 3 分钟轮播一次、区域外每 5 分钟提醒一次：事件频繁发生（一次 1~2 小时），
+  // 太密的提示会让玩家疲于应付；只需要在接近/身处事件时保持存在感即可
+  const interval = zone ? 180000 : 300000;
   if (now - _lastMassMsgAt >= interval) {
     _lastMassMsgAt = now;
     pushIdleEventMsg(pickMassMsg());
@@ -746,7 +750,9 @@ export function twistMsgTick(now) {
     return;
   }
   if (!zone) _wasInTwistZone = false;
-  const interval = zone ? 60000 : 180000;
+  // 区域内每 3 分钟轮播一次、区域外每 5 分钟提醒一次（与大量出没一致的低频，
+  // 避免事件期间提示刷屏）
+  const interval = zone ? 180000 : 300000;
   if (now - _lastTwistMsgAt >= interval) {
     _lastTwistMsgAt = now;
     pushIdleEventMsg(pickTwistMsg());

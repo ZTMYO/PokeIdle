@@ -127,6 +127,28 @@ body.browser-mode { overflow: auto; }
   min-height: 0;
 }
 
+/* 屏幕背景色变量注册为可过渡的颜色：时空扭曲进入/退出时紫色系
+   与默认绿色系之间平滑渐变，所有使用 var(--screen-bg*) 的子元素同步过渡 */
+@property --screen-bg {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #73c5a4;
+}
+@property --screen-bg-light {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #96d0b9;
+}
+@property --screen-bg-dark {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4c8d73;
+}
+
+.screen.no-theme-trans {
+  transition: none !important;
+}
+
 .screen {
   width: 100%;
   height: 100%;
@@ -137,6 +159,8 @@ body.browser-mode { overflow: auto; }
   position: relative;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 2px 4px rgba(0,0,0,0.15);
+  transition: background-color 0.5s ease-out, border-color 0.5s ease-out,
+    --screen-bg 0.5s ease-out, --screen-bg-light 0.5s ease-out, --screen-bg-dark 0.5s ease-out;
 }
 
 /* 屏幕内部渐变色块 */
@@ -388,14 +412,20 @@ body.browser-mode { overflow: auto; }
 
 /* === 时空扭曲氛围遮罩 ===
    进入扭曲区域时覆盖整个屏幕（含主角）：紫色渐变 + 慢速闪烁，营造异时空涌动感。
-   纯视觉层：pointer-events 穿透，不挡任何交互；透明度低，不影响角色/文字辨识。 */
+   纯视觉层：pointer-events 穿透，不挡任何交互；透明度低，不影响角色/文字辨识。
+   opacity 控制显隐（配合过渡淡入淡出），恢复挂机等退出场景时不再瞬间消失跳变。 */
 .twist-overlay {
   position: absolute;
   inset: 0;
   z-index: 31;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
   background: radial-gradient(ellipse at 50% 30%, rgba(255, 120, 240, 0.16), rgba(174, 45, 225, 0.08) 55%, rgba(174, 45, 225, 0.04) 80%);
-  animation: twistOverlayPulse 2.4s ease-in-out infinite;
+}
+.twist-overlay.on {
+  opacity: 1;
+  animation: twistOverlayPulse 2.4s ease-in-out 0.5s infinite;
 }
 @keyframes twistOverlayPulse {
   0%, 100% { opacity: 1; }
@@ -4791,7 +4821,7 @@ body.browser-mode { overflow: auto; }
   height: 42px;
   background-repeat: no-repeat;
   background-image: url('./character/npcs.png');
-  background-size: 416px 84px;
+  background-size: 448px 84px;
   image-rendering: pixelated;
 }
 /* 底部一小行：NPC 名 / 给出宝可梦名（闪光带星标），都靠左 */

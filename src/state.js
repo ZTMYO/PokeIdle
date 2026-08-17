@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY, BIKE_RESTORE_MAX_GAP_MS } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY, BIKE_RESTORE_MAX_GAP_MS, WILD_LEVEL_MAX } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -80,7 +80,7 @@ export function setPhase(p) { phase = p; }
 export function setCurrentEncounter(e) {
   currentEncounter = e;
   // 新遇敌生成野生等级；结束遇敌（null）时重置
-  encounterLevel = e ? 1 + Math.floor(Math.random() * 20) : 1;
+  encounterLevel = e ? 1 + Math.floor(Math.random() * WILD_LEVEL_MAX) : 1;
 }
 export function setEncounterLevel(lv) { encounterLevel = lv; }
 export function setCurrentIsShiny(s) { currentIsShiny = s; }
@@ -556,7 +556,8 @@ export function getTwist() {
   return gameData.twist;
 }
 
-// 主角当前是否位于时空扭曲事件点（语义同 inMassZone，边匹配的是 twist 的事件边）
+// 时空扭曲事件点：事件是一个"点"而非整条路。玩家停在该点（gps.massArrived）后，
+// 还需匹配玩家当前精确定位（walkedPx/totalPx）与事件点位置 t 一致：
 export function inTwistZone() {
   const tw = getTwist();
   if (!tw) return false;
@@ -566,7 +567,12 @@ export function inTwistZone() {
   const a = g.path[g.seg];
   const b = g.path[g.seg + 1];
   const [ea, eb] = tw.edge;
-  return (a === ea && b === eb) || (a === eb && b === ea);
+  if (!((a === ea && b === eb) || (a === eb && b === ea))) return false;
+  // 停在事件点后才进行点位匹配：玩家实际停在 t 位置才属于该事件
+  const walked = walkedPxOnSegment(g);
+  if (!walked || !g.totalPx) return false;
+  const twT = (a === ea && b === eb) ? tw.t : 1 - tw.t; // 反向行走时事件点比例取 1-t
+  return Math.abs(walked / g.totalPx - twT) < 1e-4;
 }
 
 // 主角当前是否位于大量出没事件点：事件是一个"点"而非整条路，
@@ -581,7 +587,12 @@ export function inMassZone() {
   const a = g.path[g.seg];
   const b = g.path[g.seg + 1];
   const [ea, eb] = mo.edge;
-  return (a === ea && b === eb) || (a === eb && b === ea);
+  if (!((a === ea && b === eb) || (a === eb && b === ea))) return false;
+  // 停在事件点后还需匹配事件点位置 t（同大量出没，见 inTwistZone 注释）
+  const walked = walkedPxOnSegment(g);
+  if (!walked || !g.totalPx) return false;
+  const moT = (a === ea && b === eb) ? mo.t : 1 - mo.t;
+  return Math.abs(walked / g.totalPx - moT) < 1e-4;
 }
 
 // ---------- 当前位置换算 ----------

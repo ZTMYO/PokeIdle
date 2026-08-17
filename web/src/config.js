@@ -57,6 +57,9 @@ export const FLEE_CHANCE_MAX = 0.4;  // 逃跑概率上限
 export const ENCOUNTER_MIN = 120;
 export const ENCOUNTER_MAX = 240;
 
+// 野生遭遇等级上限（野生 1~20，遇敌时随机生成）
+export const WILD_LEVEL_MAX = 20;
+
 // 甜甜蜜 / 闪耀护符增益
 export const BUFF_DURATION = 60;      // 持续时间（秒）
 export const BUFF_ENCOUNTER_MIN = 15; // 增益期间遇敌间隔下限（秒）
