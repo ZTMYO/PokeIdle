@@ -566,7 +566,7 @@ function doTrade(offerId, rid) {
       const arr = gameData.roster || [];
       const ri = arr.findIndex(r => r.id === rid);
       if (ri >= 0) arr.splice(ri, 1);
-      const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade', level: o.give.level || 1 });
+      const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade', level: o.give.level || 1, gender: ensureGender(o.give) });
       if (entry) { entry.ivs = o.give.ivs; entry.nature = o.give.nature; setLastObtainedEntryId(entry.id); }
       playCongratulation(); // 交换获得宝可梦 → 祝贺音效
       // 记录交换前的图鉴状态（右上角「已捕获/新发现」按交换前判定，与孵蛋一致）
