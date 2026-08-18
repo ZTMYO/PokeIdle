@@ -53,7 +53,7 @@ import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, teleportToTwist } from './gps.js';
-import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
+import { initAudio, resumeAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView } from './nursery.js';
 import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle } from './battle-view.js';
@@ -61,6 +61,7 @@ import { backFromBattlePick, isBattlePicking } from './team.js';
 import { refreshNpcs } from './npcs.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
+import { chooseNewestSave } from './save-utils.js';
 
 let ROAD_PRESETS = null;
 let ROAD_LAND = [];   // 普通陆地路段池（无垂钓点、非自行车道）
@@ -538,27 +539,25 @@ async function init() {
   // 随从增益查询入口：供各机制（路段抽取等）读取当前随从的活跃增益
   window.__followerActiveBoost = () => null;
 
-  // 加载存档（localStorage 与 Tauri 文件取较新者）
+  // 加载存档（移动端 Filesystem、localStorage 与 Tauri 文件取较新者）
   let gameDataRaw = null;
+  const saveCandidates = [];
   try {
-    const candidates = [];
     if (window.__TAURI__?.core?.invoke) {
       const raw = await window.__TAURI__.core.invoke('load_game_data');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.items) candidates.push(parsed);
-      }
-    }
-    const local = localStorage.getItem('pokemon_idle_save');
-    if (local) {
-      const parsed = JSON.parse(local);
-      if (parsed && parsed.items) candidates.push(parsed);
-    }
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => (b.stats?.lastSaveTime || 0) - (a.stats?.lastSaveTime || 0));
-      gameDataRaw = candidates[0];
+      if (raw) saveCandidates.push({ source: 'tauri', raw });
     }
   } catch (_) {}
+  try {
+    const mobile = await window.__POKEIDLE_MOBILE__?.loadGameData();
+    if (mobile?.main) saveCandidates.push({ source: 'mobile', raw: mobile.main });
+    if (mobile?.backup) saveCandidates.push({ source: 'mobile-backup', raw: mobile.backup });
+  } catch (_) {}
+  try {
+    const local = localStorage.getItem('pokemon_idle_save');
+    if (local) saveCandidates.push({ source: 'local', raw: local });
+  } catch (_) {}
+  gameDataRaw = chooseNewestSave(saveCandidates)?.data || null;
   setGameData(gameDataRaw || getDefaultSave());
   // 应用存档中的窗口倍率（未设置时默认 2 倍）
   applyWindowScale(gameData?.settings?.windowScale);
@@ -1239,12 +1238,23 @@ async function init() {
   // 关闭二次确认（右上角叉 / 任务栏关闭共用，由 Rust 拦截后触发）
   const openQuitDialog = () => $('quitDialog')?.classList.add('open');
   const closeQuitDialog = () => $('quitDialog')?.classList.remove('open');
+  window.__POKEIDLE_SAVE_NOW__ = () => saveGame();
+  window.__POKEIDLE_AUDIO_RESUME__ = () => resumeAudio();
+  window.__POKEIDLE_MOBILE_BACK__ = async () => {
+    if ($('appTitle')?.dataset.action === 'back') handleAppTitleBack();
+    else openQuitDialog();
+  };
   $('quitHide')?.addEventListener('click', async () => {
     closeQuitDialog();
+    if (window.__POKEIDLE_MOBILE__?.isMobile) return;
     try { await window.__TAURI__.core.invoke('hide_to_tray'); } catch (_) {}
   });
   $('quitExit')?.addEventListener('click', async () => {
     closeQuitDialog();
+    if (window.__POKEIDLE_MOBILE__?.isMobile) {
+      try { await window.__POKEIDLE_MOBILE__.exitApp(); } catch (_) {}
+      return;
+    }
     try { await window.__TAURI__.core.invoke('force_close_window'); } catch (_) {}
   });
   $('quitClose')?.addEventListener('click', closeQuitDialog);

@@ -1184,7 +1184,8 @@ export function renderSettings(container, s) {
   container.querySelector('#githubLink')?.addEventListener('click', (e) => {
     e.preventDefault();
     const url = 'https://github.com/ZTMYO/PokeIdle';
-    if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
+    if (window.__POKEIDLE_MOBILE__?.openExternal) window.__POKEIDLE_MOBILE__.openExternal(url);
+    else if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
     else window.open(url, '_blank');
   });
   (async () => {
@@ -1833,9 +1834,9 @@ export function showDeclarationView() {
   `;
   content.querySelector('#declarationLink')?.addEventListener('click', () => {
     const url = 'https://github.com/ZTMYO/PokeIdle';
-    if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
+    if (window.__POKEIDLE_MOBILE__?.openExternal) window.__POKEIDLE_MOBILE__.openExternal(url);
+    else if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
     else window.open(url, '_blank');
   });
   showView('declarationView');
 }
-

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chooseNewestSave, parseSaveCandidate } from '../mobile/save-utils.mjs';
+import { chooseNewestSave, parseSaveCandidate } from '../src/save-utils.js';
 
 test('只接受包含 items 的合法 JSON 存档', () => {
   assert.deepEqual(parseSaveCandidate('{"items":{},"stats":{"lastSaveTime":4}}'), {

@@ -416,6 +416,9 @@ export async function saveGame() {
     try { await window.__TAURI__.core.invoke('save_game_data', { data: s }); } catch (_) {}
   }
   try { localStorage.setItem('pokemon_idle_save', s); } catch (_) {}
+  try { await window.__POKEIDLE_MOBILE__?.saveGameData(s); } catch (error) {
+    console.warn('[mobile] save failed', error);
+  }
 }
 
 // 当前遭遇的自定义文案（如钓鱼"上钩了"），写入会话状态以便刷新后沿用

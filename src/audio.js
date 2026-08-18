@@ -113,16 +113,18 @@ function applyVolume() {
 
 // 任何用户交互时补播被拦截的音频；音效/覆盖曲播放中不打断
 function installResumeListener() {
-  const resume = () => {
-    if (_actx && _actx.state === 'suspended') _actx.resume();
-    if (_pending) { const el = _pending; _pending = null; tryPlay(el); return; }
-    if (!sfxAudio.paused) return;
-    if (!_overlayActive && _regionActive && regionAudio.paused && regionAudio.src) { regionFadeIn(300); tryPlay(regionAudio); }
-    if (_overlayActive && overlayAudio.paused && overlayAudio.src) tryPlay(overlayAudio);
-  };
+  const resume = resumeAudio;
   document.addEventListener('pointerdown', resume, true);
   document.addEventListener('click', resume, true);
   document.addEventListener('keydown', resume, true);
+}
+
+export function resumeAudio() {
+  if (_actx && _actx.state === 'suspended') _actx.resume();
+  if (_pending) { const el = _pending; _pending = null; tryPlay(el); return; }
+  if (!sfxAudio.paused) return;
+  if (!_overlayActive && _regionActive && regionAudio.paused && regionAudio.src) { regionFadeIn(300); tryPlay(regionAudio); }
+  if (_overlayActive && overlayAudio.paused && overlayAudio.src) tryPlay(overlayAudio);
 }
 
 // ---------- 地区曲 ----------
