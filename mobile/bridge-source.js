@@ -1,9 +1,11 @@
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { calculateMobileScale } from './viewport-utils.mjs';
 
 const SAVE_PATH = 'save.json';
 const BACKUP_PATH = 'save.json.bak';
+let saveQueue = Promise.resolve();
 
 async function readData(path) {
   try {
@@ -22,22 +24,26 @@ const mobileBridge = {
     return { main, backup };
   },
 
-  async saveGameData(data) {
-    const current = await readData(SAVE_PATH);
-    if (current) {
+  saveGameData(data) {
+    const operation = saveQueue.catch(() => {}).then(async () => {
+      const current = await readData(SAVE_PATH);
+      if (current) {
+        await Filesystem.writeFile({
+          path: BACKUP_PATH,
+          data: current,
+          directory: Directory.Data,
+          encoding: Encoding.UTF8,
+        });
+      }
       await Filesystem.writeFile({
-        path: BACKUP_PATH,
-        data: current,
+        path: SAVE_PATH,
+        data,
         directory: Directory.Data,
         encoding: Encoding.UTF8,
       });
-    }
-    await Filesystem.writeFile({
-      path: SAVE_PATH,
-      data,
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
     });
+    saveQueue = operation;
+    return operation;
   },
 
   openExternal(url) {
@@ -51,6 +57,31 @@ const mobileBridge = {
 
 window.__POKEIDLE_MOBILE__ = mobileBridge;
 document.documentElement.classList.add('mobile-mode');
+
+function syncMobileViewport() {
+  const viewport = window.visualViewport;
+  const width = viewport?.width || window.innerWidth;
+  const height = viewport?.height || window.innerHeight;
+  const bodyStyle = document.body ? getComputedStyle(document.body) : null;
+  const insets = bodyStyle ? {
+    top: parseFloat(bodyStyle.paddingTop) || 0,
+    right: parseFloat(bodyStyle.paddingRight) || 0,
+    bottom: parseFloat(bodyStyle.paddingBottom) || 0,
+    left: parseFloat(bodyStyle.paddingLeft) || 0,
+  } : {};
+  const scale = calculateMobileScale(width, height, insets);
+  document.documentElement.style.setProperty('--mobile-scale', String(scale));
+}
+
+function enableMobileLayout() {
+  document.body?.classList.add('mobile-mode');
+  syncMobileViewport();
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enableMobileLayout, { once: true });
+else enableMobileLayout();
+window.addEventListener('resize', syncMobileViewport);
+window.visualViewport?.addEventListener('resize', syncMobileViewport);
 
 let handlingBack = false;
 App.addListener('backButton', async () => {

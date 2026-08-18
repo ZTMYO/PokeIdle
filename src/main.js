@@ -512,12 +512,14 @@ async function init() {
   // 浏览器端（非 Tauri）：console 固定 274×342 居中显示，与 Tauri 端设计基准视口一致
   //（Tauri 端由 Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）
   const consoleEl = document.querySelector('.console');
-  if (consoleEl && !window.__TAURI__?.core?.invoke) {
+  if (consoleEl && !window.__TAURI__?.core?.invoke && !window.__POKEIDLE_MOBILE__?.isMobile) {
     document.body.classList.add('browser-mode');
   }
 
   // 系统托盘走路动画（异步加载，失败不影响主流程）
-  import('./tray.js').then(m => m.startTrayAnimation()).catch(() => {});
+  if (!window.__POKEIDLE_MOBILE__?.isMobile) {
+    import('./tray.js').then(m => m.startTrayAnimation()).catch(() => {});
+  }
 
   document.addEventListener('wheel', e => {
     const dv = document.getElementById('dataView');
