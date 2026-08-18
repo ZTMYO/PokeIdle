@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import {
   artifactFileName,
@@ -37,4 +38,11 @@ test('生成稳定的 SHA-256 文本', () => {
     sha256Text(Buffer.from('pokeidle'), 'pokeidle.apk'),
     '48e21d243280cf3591f55b9963868a049391220a9e1fe4ef0147a258a7cef5fd  pokeidle.apk\n',
   );
+});
+
+test('release 签名使用 AGP 8 支持的 V3 签名属性', async () => {
+  const buildGradle = await readFile(new URL('../android/app/build.gradle', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(buildGradle, /\bv3SigningEnabled\b/);
+  assert.match(buildGradle, /\benableV3Signing\s*=\s*true\b/);
 });
