@@ -1,6 +1,8 @@
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { createMobileSaveTransfer } from './save-native.mjs';
 import { calculateMobileScale } from './viewport-utils.mjs';
 
 const SAVE_PATH = 'save.json';
@@ -15,6 +17,8 @@ async function readData(path) {
     return null;
   }
 }
+
+const saveTransfer = createMobileSaveTransfer({ Filesystem, Share, App, Directory, Encoding });
 
 const mobileBridge = {
   isMobile: true,
@@ -45,6 +49,8 @@ const mobileBridge = {
     saveQueue = operation;
     return operation;
   },
+
+  ...saveTransfer,
 
   openExternal(url) {
     return Browser.open({ url });
