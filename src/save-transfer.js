@@ -37,6 +37,14 @@ function stringOrNull(value) {
   return typeof value === 'string' ? value : null;
 }
 
+function normalizeTimestamp(value) {
+  const timestamp = value instanceof Date ? value.getTime() : value;
+  if (!Number.isSafeInteger(timestamp) || timestamp < 0) {
+    throw new SaveTransferError('INVALID_TIME', '存档时间戳无效');
+  }
+  return timestamp;
+}
+
 export function summarizeSave(data) {
   return {
     lastSaveTime: finiteNumberOrNull(data.stats?.lastSaveTime),
@@ -82,7 +90,7 @@ function padDatePart(value) {
 }
 
 export function buildExportFileName(now = Date.now()) {
-  const date = new Date(now);
+  const date = new Date(normalizeTimestamp(now));
   const datePart = [
     date.getFullYear(),
     padDatePart(date.getMonth() + 1),
@@ -98,26 +106,31 @@ export function buildExportFileName(now = Date.now()) {
 }
 
 export function serializeSaveForExport(data, { appVersion, now = Date.now() } = {}) {
+  const exportedAt = normalizeTimestamp(now);
   const copy = structuredClone(data);
   copy.__pokeidleMeta = {
     formatVersion: SAVE_FORMAT_VERSION,
     appVersion,
-    exportedAt: now,
+    exportedAt,
   };
 
   return {
     json: JSON.stringify(copy),
-    fileName: buildExportFileName(now),
+    fileName: buildExportFileName(exportedAt),
   };
 }
 
 export function prepareImportedSave(data, { currentSave, now = Date.now() } = {}) {
+  const currentTime = normalizeTimestamp(currentSave?.stats?.lastSaveTime ?? 0);
+  const nowTime = normalizeTimestamp(now);
+  const latestTime = Math.max(currentTime, nowTime);
+  if (latestTime >= Number.MAX_SAFE_INTEGER) {
+    throw new SaveTransferError('INVALID_TIME', '存档时间戳无法安全递增');
+  }
+
   const copy = structuredClone(data);
   delete copy.__pokeidleMeta;
-  copy.stats.lastSaveTime = Math.max(
-    Number(now),
-    Number(currentSave?.stats?.lastSaveTime ?? 0),
-  ) + 1;
+  copy.stats.lastSaveTime = latestTime + 1;
 
   return copy;
 }

@@ -237,6 +237,23 @@ test('未指定导出时间时仍写入毫秒时间戳', () => {
   assert.ok(exportedAt >= before && exportedAt <= after);
 });
 
+test('导出接受 Date 并归一化为毫秒时间戳', () => {
+  const now = new Date(2026, 7, 18, 9, 5, 7);
+  const exported = serializeSaveForExport(complete, { appVersion: '1.0.8', now });
+
+  assert.equal(JSON.parse(exported.json).__pokeidleMeta.exportedAt, now.getTime());
+  assert.equal(exported.fileName, 'pokeidle-save-20260818-090507.json');
+});
+
+test('拒绝无法生成合法元数据和文件名的导出时间', () => {
+  for (const now of [NaN, Infinity, -1, '2026-08-18', new Date('invalid')]) {
+    assert.throws(
+      () => serializeSaveForExport(complete, { appVersion: '1.0.8', now }),
+      error => error instanceof SaveTransferError && error.code === 'INVALID_TIME',
+    );
+  }
+});
+
 test('准备导入副本时移除元数据并生成更新的保存时间', () => {
   const data = {
     ...structuredClone(complete),
@@ -259,4 +276,29 @@ test('准备导入副本时移除元数据并生成更新的保存时间', () =>
 
   prepared.unknown.nested.push('changed');
   assert.deepEqual(data.unknown, { nested: ['keep'] });
+});
+
+test('当前时间较新时导入时间严格等于当前时间加一', () => {
+  const prepared = prepareImportedSave(complete, {
+    currentSave: { stats: { lastSaveTime: 400 } },
+    now: 500,
+  });
+
+  assert.equal(prepared.stats.lastSaveTime, 501);
+});
+
+test('拒绝无效或无法安全递增的导入时间', () => {
+  const invalidCases = [
+    { currentSave: { stats: { lastSaveTime: Number.MAX_SAFE_INTEGER } }, now: 500 },
+    { currentSave: { stats: { lastSaveTime: '500' } }, now: 400 },
+    { currentSave: { stats: { lastSaveTime: 500 } }, now: NaN },
+    { currentSave: { stats: { lastSaveTime: 500 } }, now: Infinity },
+  ];
+
+  for (const options of invalidCases) {
+    assert.throws(
+      () => prepareImportedSave(complete, options),
+      error => error instanceof SaveTransferError && error.code === 'INVALID_TIME',
+    );
+  }
 });
