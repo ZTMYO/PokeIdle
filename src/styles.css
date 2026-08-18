@@ -4213,6 +4213,110 @@ body.browser-mode { overflow: auto; }
   border-color: var(--ui-color);
 }
 
+.reset-save-btn:disabled,
+.reset-save-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+}
+.reset-save-btn.is-busy {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.save-transfer-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.42);
+}
+.save-transfer-box {
+  width: min(300px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--ui-color);
+  border-radius: 6px;
+  background: var(--screen-bg);
+  color: var(--ui-color);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+}
+.save-transfer-title {
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+.save-transfer-source {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  text-align: center;
+  opacity: 0.78;
+}
+.save-transfer-comparison {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 7px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  border-radius: 4px;
+}
+.save-transfer-summary-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-height: 20px;
+  font-size: 10px;
+}
+.save-transfer-summary-label {
+  opacity: 0.72;
+}
+.save-transfer-summary-values {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr);
+  gap: 3px;
+  min-width: 0;
+  text-align: right;
+}
+.save-transfer-summary-values span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.save-transfer-summary-values span:nth-child(2) {
+  text-align: center;
+  opacity: 0.6;
+}
+.save-transfer-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.save-transfer-actions button {
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--ui-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ui-color);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.save-transfer-actions button.danger {
+  background: var(--ui-color);
+  color: var(--screen-bg);
+}
+.save-transfer-actions button:active {
+  transform: scale(0.98);
+}
+
 /* === 启动画面 === */
 #splash {
   position: absolute;
@@ -9237,4 +9341,3 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   image-rendering: pixelated;
   object-fit: none;
 }
-

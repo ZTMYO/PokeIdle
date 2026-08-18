@@ -21,6 +21,8 @@ import { setVolume, setBattleMusic, setMusicEnabled, setSfxEnabled, playBattle, 
 import { renderAchievements, refreshAchievements } from './achievements.js';
 import { TEAM_MAX } from './team.js';
 import { clearBattleTier } from './battle-view.js';
+import { createSavePlatform } from './save-platform.js';
+import { bindSaveTransferControls, refreshImportBackupState, showSaveTransferDialog } from './save-transfer-controller.js';
 
 // ===== 欧气综合评定 =====
 // 每场遭遇的欧气分（捕获用获得分 score，宝可梦挣脱逃跑用相遇分）取平均，映射到 9 档称号。
@@ -383,6 +385,15 @@ export function renderSystemLogs() {
       case 'region_change':
         desc = `进入 ${log.details.region} 地区`;
         break;
+      case 'export':
+        desc = '导出了存档';
+        break;
+      case 'import':
+        desc = '导入了存档';
+        break;
+      case 'restore_import_backup':
+        desc = '恢复了导入前存档';
+        break;
       case 'bounty_claim':
         desc = `完成地区悬赏，获得糖果 ×${log.details.candy}`;
         break;
@@ -728,6 +739,7 @@ export function showSettingsView() {
   const content = $('settingsContent');
   const s = gameData.settings || {};
   renderSettings(content, s);
+  refreshImportBackupState(content, createSavePlatform());
   // 滚轮减速：设置项较多，避免原生滚动一次翻太多
   const sv = $('settingsView');
   sv.onwheel = (e) => {
@@ -939,19 +951,23 @@ export function renderSettings(container, s) {
         </div>
         <div class="reset-save-row">
           <span class="auto-catch-label">导出存档</span>
-          <span class="reset-save-btn" id="exportSaveBtn">导出</span>
+          <button type="button" class="reset-save-btn" id="exportSaveBtn">导出</button>
         </div>
         <div class="reset-save-row">
           <span class="auto-catch-label">导入存档</span>
-          <span class="reset-save-btn" id="importSaveBtn">导入</span>
+          <button type="button" class="reset-save-btn" id="importSaveBtn">导入</button>
+        </div>
+        <div class="reset-save-row">
+          <span class="auto-catch-label">恢复导入前存档</span>
+          <button type="button" class="reset-save-btn" id="restoreSaveBtn" disabled aria-disabled="true">恢复</button>
         </div>
         <div class="reset-save-row">
           <span class="auto-catch-label">重置存档</span>
-          <span class="reset-save-btn" id="resetSaveBtn">重置</span>
+          <button type="button" class="reset-save-btn" id="resetSaveBtn">重置</button>
         </div>
         <div class="reset-save-row">
           <span class="auto-catch-label">刷新游戏</span>
-          <span class="reset-save-btn" id="reloadGameBtn">刷新</span>
+          <button type="button" class="reset-save-btn" id="reloadGameBtn">刷新</button>
         </div>
       </div>
       <a href="https://github.com/ZTMYO/PokeIdle" id="githubLink" class="settings-footer-link" target="_blank" rel="noopener">
@@ -1012,73 +1028,15 @@ export function renderSettings(container, s) {
     saveGame();
     location.reload();
   });
-  // 导出存档：调用 Tauri 命令打开目录选择器，导出存档并上调 lastSaveTime
-  container.querySelector('#exportSaveBtn')?.addEventListener('click', async () => {
-    const btn = container.querySelector('#exportSaveBtn');
-    if (!window.__TAURI__?.core?.invoke) {
-      btn.textContent = '仅桌面版';
-      setTimeout(() => { btn.textContent = '导出'; }, 2000);
-      return;
-    }
-    btn.textContent = '导出中…';
-    // 调整 lastSaveTime 至极大值，迁移到新设备后不会被 localStorage 覆盖
-    gameData.stats.lastSaveTime = Date.now() + 10 * 365 * 24 * 3600 * 1000;
-    try {
-      const path = await window.__TAURI__.core.invoke('export_save_data', { data: JSON.stringify(gameData) });
-      addSystemLog('export', { path });
-      updateTextBox('存档已导出');
-      btn.textContent = '已导出 ✓';
-    } catch (e) {
-      if (typeof e === 'string' && e.includes('取消')) {
-        btn.textContent = '导出';
-        return;
-      }
-      updateTextBox('存档导出失败');
-      btn.textContent = '导出失败';
-    }
-    setTimeout(() => { btn.textContent = '导出'; }, 2500);
-  });
-  // 导入存档：选择文件后比对时间戳，确保导入的 lastSaveTime > 当前，防止被旧数据回滚
-  container.querySelector('#importSaveBtn')?.addEventListener('click', async () => {
-    const btn = container.querySelector('#importSaveBtn');
-    if (!window.__TAURI__?.core?.invoke) {
-      btn.textContent = '仅桌面版';
-      setTimeout(() => { btn.textContent = '导入'; }, 2000);
-      return;
-    }
-    btn.textContent = '导入中…';
-    try {
-      const jsonStr = await window.__TAURI__.core.invoke('import_save_data');
-      const imported = JSON.parse(jsonStr);
-      if (!imported || typeof imported !== 'object' || !imported.stats) {
-        updateTextBox('存档格式无效');
-        btn.textContent = '导入失败';
-        setTimeout(() => { btn.textContent = '导入'; }, 2500);
-        return;
-      }
-      // 比对时间戳：导入存档的 lastSaveTime 必须大于当前存档，否则手动修正
-      const importedTime = imported.stats.lastSaveTime || 0;
-      const currentTime = gameData.stats.lastSaveTime || 0;
-      if (importedTime <= currentTime) {
-        imported.stats.lastSaveTime = currentTime + 1;
-      }
-      // 覆盖存档并刷新
-      setGameData(imported);
-      ensureGpsState();
-      await saveGame();
-      addSystemLog('import');
-      updateTextBox('存档导入成功，即将刷新');
-      btn.textContent = '已导入 ✓';
-      setTimeout(() => { location.reload(); }, 800);
-    } catch (e) {
-      if (typeof e === 'string' && e.includes('取消')) {
-        btn.textContent = '导入';
-        return;
-      }
-      updateTextBox('存档导入失败');
-      btn.textContent = '导入失败';
-      setTimeout(() => { btn.textContent = '导入'; }, 2500);
-    }
+  bindSaveTransferControls(container, {
+    platform: createSavePlatform(),
+    getCurrent: () => gameData,
+    saveGame,
+    apply: value => { setGameData(value); ensureGpsState(); },
+    confirm: details => showSaveTransferDialog(document, details),
+    showMessage: updateTextBox,
+    addLog: addSystemLog,
+    reload: () => setTimeout(() => location.reload(), 800),
   });
   container.querySelector('#toggleBuffHoney')?.addEventListener('click', toggleAutoBuffHoney);
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);

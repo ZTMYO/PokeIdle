@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { replaceSaveWithBackup, restoreBackupSave } from '../src/save-transfer-controller.js';
+import {
+  createSaveTransferController,
+  formatSaveTransferError,
+  replaceSaveWithBackup,
+  restoreBackupSave,
+} from '../src/save-transfer-controller.js';
 
 const current = { items: { candy: 1 }, stats: { lastSaveTime: 10 } };
 const incoming = { items: { candy: 9 }, stats: { lastSaveTime: 2 } };
@@ -65,4 +70,39 @@ test('恢复备份不会创建新的导入前备份', async () => {
     createBackup: () => { backupCalls++; },
   });
   assert.equal(backupCalls, 0);
+});
+
+test('用户取消文件选择时不备份也不显示错误', async () => {
+  const events = [];
+  const controller = createSaveTransferController({
+    platform: { pickImportFile: async () => null },
+    showMessage: message => events.push(message),
+  });
+
+  assert.equal(await controller.importSave(), null);
+  assert.deepEqual(events, []);
+});
+
+test('用户拒绝确认时不覆盖当前存档', async () => {
+  const events = [];
+  const controller = createSaveTransferController({
+    platform: { pickImportFile: async () => ({ name: 'save.json', content: JSON.stringify(incoming), size: 42 }) },
+    getCurrent: () => current,
+    confirm: async () => false,
+    saveCurrent: async () => events.push('save-current'),
+    createBackup: async () => events.push('backup'),
+    apply: () => events.push('apply'),
+    persist: async () => events.push('persist'),
+    showMessage: message => events.push(message),
+  });
+
+  assert.equal(await controller.importSave(), null);
+  assert.deepEqual(events, []);
+});
+
+test('存档错误映射为稳定的中文提示', () => {
+  assert.equal(formatSaveTransferError({ code: 'FUTURE_VERSION' }), '此存档来自更新版本，请先升级应用');
+  assert.equal(formatSaveTransferError({ code: 'SAVE_TOO_LARGE' }), '存档文件不能超过 20 MB');
+  assert.equal(formatSaveTransferError({ code: 'IMPORT_BACKUP_FAILED' }), '导入前备份失败，当前存档未改变');
+  assert.equal(formatSaveTransferError({ code: 'SAVE_WRITE_FAILED' }), '存档写入失败，已尝试恢复当前存档');
 });

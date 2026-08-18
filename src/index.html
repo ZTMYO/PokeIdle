@@ -320,6 +320,18 @@
       <div class="screen" id="screen">
         <div class="screen-inner" id="screenInner">
 
+          <div id="saveTransferDialog" class="save-transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="saveTransferTitle" hidden>
+            <div class="save-transfer-box">
+              <div class="save-transfer-title" id="saveTransferTitle">确认覆盖存档</div>
+              <div class="save-transfer-source" id="saveTransferSource"></div>
+              <div class="save-transfer-comparison" id="saveTransferComparison"></div>
+              <div class="save-transfer-actions">
+                <button type="button" id="saveTransferCancel">取消</button>
+                <button type="button" id="saveTransferConfirm" class="danger">覆盖当前存档</button>
+              </div>
+            </div>
+          </div>
+
           <!-- 空闲状态 -->
           <div id="idleView" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
             <div id="nowPlaying" class="now-playing" style="display:none;">
