@@ -1543,7 +1543,7 @@ body.browser-mode { overflow: auto; }
   border-radius: 6px;
   background: var(--screen-bg);
   opacity: 0.8;
-  color: #235a42;
+  color: var(--ui-color);
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;

@@ -7,6 +7,7 @@ import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, 
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { TYPE_COLORS, pickFamily } from './items.js';
+import { NATURES } from './battle-core.js';
 import { playCongratulation } from './audio.js';
 
 // ---------- NPC ----------
@@ -44,6 +45,16 @@ const NPCS = [
 ];
 const IV_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 const IV_LABELS = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: '特防', spe: '速度' };
+// 性格 tooltip 文案：与仓库详情页一致（NATURES 下标 1攻 2防 3特攻 4特防 5速）
+const _NATURE_STAT_CN = ['HP', '攻击', '防御', '特攻', '特防', '速度'];
+function natureBoostText(key) {
+  const n = NATURES[key];
+  if (!n) return '无性格修正';
+  const parts = [];
+  if (n.up) parts.push(`${_NATURE_STAT_CN[n.up]}＋10%`);
+  if (n.down) parts.push(`${_NATURE_STAT_CN[n.down]}－10%`);
+  return parts.join('\n');
+}
 
 // 当前正在选择交出个体的 offer（null 表示在广场列表页）
 let _tradeMode = null;
@@ -111,6 +122,15 @@ let _forceAuthor = false;
 
 // 作者彩蛋 offer：需求与普通 offer 一致（玩家仍需付出），
 // 但给出随机【神兽】闪光 6V（个体全 31）、满级
+// 性格按神兽输出向自动匹配：物攻种族值高 → 物攻向性格，特攻高 → 特攻向性格，
+// 避免出现"特攻手带固执"这类属性浪费的废性格（固执=物攻+10%/特攻-10%）
+const AUTHOR_NATURES_PHYSICAL = ['adamant', 'jolly', 'lonely', 'naive']; // 主打物攻/速度
+const AUTHOR_NATURES_SPECIAL = ['modest', 'timid', 'mild', 'rash'];     // 主打特攻/速度
+function pickAuthorNature(poke) {
+  const s = poke.stats || [0, 0, 0, 0, 0, 0];
+  const pool = s[1] >= s[3] ? AUTHOR_NATURES_PHYSICAL : AUTHOR_NATURES_SPECIAL; // [1]=攻击 [3]=特攻
+  return pool[randInt(0, pool.length - 1)];
+}
 function makeAuthorOffer() {
   const base = makeOffer({ id: 'author' }); // 复用需求生成，npc 先用作者占位
   const legends = allPokemon.filter(p => p.legend === true);
@@ -119,7 +139,7 @@ function makeAuthorOffer() {
   base.give = {
     species: String(givePoke.index),
     shiny: true,
-    nature: rollNature(),
+    nature: pickAuthorNature(givePoke),
     ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
     level: MAX_LEVEL,
   };
@@ -397,7 +417,7 @@ function renderGiveDetail(content, offerId) {
           ${(givePoke.types || []).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t] || '#888'}">${t}</span>`).join('')}
         </div>
         <div style="font-size:10px;opacity:0.7;line-height:1.5;">
-          <div>性格：${(getNature(o.give.nature) || { cn: '—' }).cn}</div>
+          <div data-tip="${natureBoostText(o.give.nature)}" style="cursor:pointer;">性格：${(getNature(o.give.nature) || { cn: '—' }).cn}</div>
         </div>
       </div>
     </div>
