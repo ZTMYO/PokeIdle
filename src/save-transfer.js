@@ -13,11 +13,35 @@ function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+function readFormatVersion(data) {
+  if (!Object.hasOwn(data, '__pokeidleMeta')) return 0;
+
+  const metadata = data.__pokeidleMeta;
+  const formatVersion = metadata?.formatVersion;
+  if (!isObject(metadata) || !Number.isInteger(formatVersion) || formatVersion < 0) {
+    throw new SaveTransferError('INVALID_VERSION', '存档格式版本无效');
+  }
+
+  if (formatVersion > SAVE_FORMAT_VERSION) {
+    throw new SaveTransferError('FUTURE_VERSION', '存档格式版本高于当前支持版本');
+  }
+
+  return formatVersion;
+}
+
+function finiteNumberOrNull(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function stringOrNull(value) {
+  return typeof value === 'string' ? value : null;
+}
+
 export function summarizeSave(data) {
   return {
-    lastSaveTime: data.stats?.lastSaveTime ?? null,
-    gender: data.settings?.gender ?? null,
-    candy: data.items?.candy ?? null,
+    lastSaveTime: finiteNumberOrNull(data.stats?.lastSaveTime),
+    gender: stringOrNull(data.settings?.gender),
+    candy: finiteNumberOrNull(data.items?.candy),
     teamCount: Array.isArray(data.team) ? data.team.length : null,
     rosterCount: Array.isArray(data.roster) ? data.roster.length : null,
     pokedexCount: isObject(data.pokedex) ? Object.keys(data.pokedex).length : null,
@@ -44,11 +68,7 @@ export function parseSaveTransfer(raw) {
     throw new SaveTransferError('INVALID_SAVE', '存档缺少有效的 items 或 stats');
   }
 
-  const formatVersion = data.__pokeidleMeta?.formatVersion ?? 0;
-
-  if (formatVersion > SAVE_FORMAT_VERSION) {
-    throw new SaveTransferError('FUTURE_VERSION', '存档格式版本高于当前支持版本');
-  }
+  const formatVersion = readFormatVersion(data);
 
   return {
     data,
@@ -61,8 +81,8 @@ function padDatePart(value) {
   return String(value).padStart(2, '0');
 }
 
-export function buildExportFileName(now = new Date()) {
-  const date = now instanceof Date ? now : new Date(now);
+export function buildExportFileName(now = Date.now()) {
+  const date = new Date(now);
   const datePart = [
     date.getFullYear(),
     padDatePart(date.getMonth() + 1),
@@ -77,7 +97,7 @@ export function buildExportFileName(now = new Date()) {
   return `pokeidle-save-${datePart}-${timePart}.json`;
 }
 
-export function serializeSaveForExport(data, { appVersion, now = new Date() } = {}) {
+export function serializeSaveForExport(data, { appVersion, now = Date.now() } = {}) {
   const copy = structuredClone(data);
   copy.__pokeidleMeta = {
     formatVersion: SAVE_FORMAT_VERSION,
