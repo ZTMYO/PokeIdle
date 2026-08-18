@@ -37,3 +37,13 @@ test('移动端 bridge 同步动态掌机布局高度', async () => {
   assert.match(bridge, /setProperty\(['"]--mobile-scale['"],\s*String\(scale\)\)/);
   assert.match(bridge, /setProperty\(['"]--mobile-layout-height['"],\s*`\$\{designHeight\}px`\)/);
 });
+
+test('移动端外壳使用动态高度并保留页面滚动边界', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+
+  assert.match(css, /html\.mobile-mode \.console\s*\{[\s\S]*?height:\s*var\(--mobile-layout-height,\s*342px\)/);
+  assert.match(css, /html\.mobile-mode \.screen-wrapper\s*\{[\s\S]*?min-height:\s*0/);
+  assert.match(css, /html\.mobile-mode \.view-scroll,[\s\S]*?html\.mobile-mode \.view-fixed,[\s\S]*?html\.mobile-mode \.rec-view\s*\{[\s\S]*?min-height:\s*0/);
+  assert.match(css, /html\.mobile-mode \.backpack-bar,[\s\S]*?html\.mobile-mode \.stats-bar\s*\{[\s\S]*?flex-shrink:\s*0/);
+  assert.match(css, /html\.mobile-mode \.save-transfer-actions button\s*\{[\s\S]*?min-height:\s*44px/);
+});

@@ -45,12 +45,24 @@ html.mobile-mode body {
 }
 html.mobile-mode .console {
   width: 274px;
-  height: 342px;
+  height: var(--mobile-layout-height, 342px);
   max-width: none;
   max-height: none;
   flex: 0 0 auto;
   transform: scale(var(--mobile-scale, 1));
   transform-origin: center;
+}
+html.mobile-mode .screen-wrapper {
+  min-height: 0;
+}
+html.mobile-mode .view-scroll,
+html.mobile-mode .view-fixed,
+html.mobile-mode .rec-view {
+  min-height: 0;
+}
+html.mobile-mode .backpack-bar,
+html.mobile-mode .stats-bar {
+  flex-shrink: 0;
 }
 html.mobile-mode .title-bar { cursor: default; }
 html.mobile-mode .control-btn.minimize,
@@ -62,6 +74,14 @@ html.mobile-mode .bag-slot,
 html.mobile-mode [role="button"] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0.12);
+}
+html.mobile-mode button,
+html.mobile-mode .bag-slot,
+html.mobile-mode [role="button"] {
+  min-height: 34px;
+}
+html.mobile-mode .save-transfer-actions button {
+  min-height: 44px;
 }
 html.mobile-mode .control-btn:active,
 html.mobile-mode .bag-slot:active,
@@ -4232,6 +4252,9 @@ body.browser-mode { overflow: auto; }
   justify-content: center;
   padding: 12px;
   background: rgba(0, 0, 0, 0.42);
+}
+.save-transfer-dialog[hidden] {
+  display: none !important;
 }
 .save-transfer-box {
   width: min(300px, calc(100% - 24px));
