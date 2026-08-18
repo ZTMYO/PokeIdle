@@ -744,7 +744,7 @@ export async function throwBall(ballType) {
       const entry = addRosterEntry({
         species: currentEncounter.index, shiny: currentIsShiny, source: _encounterSource,
         level: encounterLevel, gender: _encounterGender,
-        ivs: _encounterSource === 'twist' ? rollGuaranteedIvs(TWIST_GUARANTEED_IVS) : undefined,
+        ivs: _encounterSource === 'twist' ? rollGuaranteedIvs(currentEncounter.legend ? 3 : TWIST_GUARANTEED_IVS) : undefined,
         variant: _encounterVariant,
       });
       setLastObtainedEntryId(entry.id);
@@ -758,7 +758,7 @@ export async function throwBall(ballType) {
           pokemon: currentEncounter, source: _encounterSource, shiny: currentIsShiny,
           charmBuff: charmBuffActive, honeyBuff: honeyBuffActive,
           balls: currentEncounterBalls, finalRate: rate, ivs: entry.ivs,
-          guaranteedIvs: _encounterSource === 'twist' ? TWIST_GUARANTEED_IVS : 0,
+          guaranteedIvs: _encounterSource === 'twist' ? (currentEncounter.legend ? 3 : TWIST_GUARANTEED_IVS) : 0,
         }),
       });
       addSystemLog('pokemon_caught', { pokemon: idx, shiny: currentIsShiny, ball: ballType, auto: _autoCatching });
