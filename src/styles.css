@@ -4322,6 +4322,8 @@ body.browser-mode { overflow: auto; }
 .roster-header, .roster-row { gap: 2px; }
 /* 仓库的闪光星标列更窄，避免图标与编号之间空出太多 */
 .roster-header .pokedex-star, .roster-row .pokedex-star { width: 8px; padding-right: 0; }
+/* 时空扭曲变体（RGB/污染）的 ◐ 标记比星星小一号，避免在行内显得过大 */
+.roster-row .pokedex-star.star-variant { font-size: 8px; }
 /* 仓库编号列加宽以容纳变体扩展编号（#0058-1/#0201-10），图标列同步收窄 */
 .roster-header .pokedex-idx, .roster-row .pokedex-idx { width: 46px; }
 .roster-header .roster-icon, .roster-row .roster-icon { width: 20px; }

@@ -117,9 +117,6 @@ function makeOffer(npc) {
 
 // 波次生成：每波 TRADE_COUNT 个 offer；作者彩蛋以该概率取代某一格普通 offer
 const AUTHOR_CHANCE = 0.01;
-// 调试辅助：置 true 后下一波必定出现作者 offer（用于查看效果），__authorTest() 触发
-let _forceAuthor = false;
-
 // 作者彩蛋 offer：需求与普通 offer 一致（玩家仍需付出），
 // 但给出随机【神兽】闪光 6V（个体全 31）、满级
 // 性格按神兽输出向自动匹配：物攻种族值高 → 物攻向性格，特攻高 → 特攻向性格，
@@ -152,9 +149,8 @@ function regenerateOffers() {
   const pool = NPCS.filter(n => n.id !== 'author');
   const offers = [];
   const count = Math.min(TRADE_COUNT, pool.length);
-  // 作者彩蛋：以 0.01 概率取代某一格普通 offer（调试时用 _forceAuthor 强制出现）
-  const authorSlot = (_forceAuthor || Math.random() < AUTHOR_CHANCE) ? randInt(0, count - 1) : -1;
-  _forceAuthor = false;
+  // 作者彩蛋：以 0.01 概率取代某一格普通 offer
+  const authorSlot = Math.random() < AUTHOR_CHANCE ? randInt(0, count - 1) : -1;
   for (let i = 0; i < count; i++) {
     if (i === authorSlot) { offers.push(makeAuthorOffer()); continue; }
     offers.push(makeOffer(pool.splice(randInt(0, pool.length - 1), 1)[0]));
@@ -162,13 +158,6 @@ function regenerateOffers() {
   gameData.trades = { refreshedAt: Date.now(), offers };
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trade-wave-changed'));
 }
-
-// 调试辅助：强制下一波刷新为包含作者 offer 的市场（需在交易页调用以立即查看效果）
-window.__authorTest = () => {
-  _forceAuthor = true;
-  regenerateOffers();
-  renderTrade();
-};
 
 // 到点或数据缺失时刷新一波
 export function ensureTrades() {
@@ -567,7 +556,7 @@ function doTrade(offerId, rid) {
       const arr = gameData.roster || [];
       const ri = arr.findIndex(r => r.id === rid);
       if (ri >= 0) arr.splice(ri, 1);
-      const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade', level: o.give.level || 1 });
+      const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade', level: o.give.level || 1, gender: ensureGender(o.give) });
       if (entry) { entry.ivs = o.give.ivs; entry.nature = o.give.nature; setLastObtainedEntryId(entry.id); }
       playCongratulation(); // 交换获得宝可梦 → 祝贺音效
       // 记录交换前的图鉴状态（右上角「已捕获/新发现」按交换前判定，与孵蛋一致）
