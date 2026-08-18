@@ -6,7 +6,7 @@
 
 **架构：** 保留 `src/` 作为桌面和移动端共用的游戏源码。`mobile/build-web.mjs` 将其复制到临时 Web 目录并注入由 esbuild 打包的 Capacitor bridge；Android 工程只承载 WebView、Filesystem、App 生命周期和系统浏览器能力。移动端专用逻辑通过 `window.__POKEIDLE_MOBILE__` 与主游戏模块通信。
 
-**技术栈：** Capacitor 7、Android Gradle Plugin、Node.js 18+、esbuild、JDK 17、Android SDK API 35、Node 内置测试运行器。
+**技术栈：** Capacitor 7、Android Gradle Plugin、Node.js 18+、esbuild、JDK 21、Android SDK API 35、Node 内置测试运行器。
 
 ---
 
@@ -382,7 +382,7 @@ git commit -m "feat(Android): 添加 release 签名和构建脚本"
 
 - [ ] **步骤 1：编写发布说明**
 
-文档列出 JDK 17、Android SDK API 35、`npm install`、`node mobile/signing-init.mjs`、`npm run android:build`、SHA-256 校验、APK 安装、签名密钥备份、存档位置和免费非商业分发限制。
+文档列出 JDK 21、Android SDK API 35、`npm install`、`node mobile/signing-init.mjs`、`npm run android:build`、SHA-256 校验、APK 安装、签名密钥备份、存档位置和免费非商业分发限制。
 
 - [ ] **步骤 2：运行自动化测试**
 

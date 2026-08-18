@@ -4,7 +4,13 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { artifactFileName, gradleExecutable, gradleUserHome, sha256Text } from './android-utils.mjs';
+import {
+  androidJavaVersion,
+  artifactFileName,
+  gradleExecutable,
+  gradleUserHome,
+  sha256Text,
+} from './android-utils.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(here, '..');
@@ -52,8 +58,8 @@ async function resolveAndroidSdk() {
 async function buildEnvironment(mode) {
   const env = { ...process.env };
   env.GRADLE_USER_HOME = gradleUserHome(projectRoot);
-  if (javaMajorVersion(env) < 17) {
-    throw new Error('未检测到可用的 JDK 17+。请安装 JDK 17，并设置 JAVA_HOME 后重试。');
+  if (javaMajorVersion(env) < androidJavaVersion) {
+    throw new Error(`未检测到可用的 JDK ${androidJavaVersion}+。请安装 JDK ${androidJavaVersion}，并设置 JAVA_HOME 后重试。`);
   }
   const sdk = await resolveAndroidSdk();
   if (!sdk) throw new Error('未检测到 Android SDK。请安装 API 35，并设置 ANDROID_HOME。');

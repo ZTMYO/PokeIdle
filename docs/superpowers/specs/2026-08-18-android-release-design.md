@@ -165,7 +165,7 @@ release 构建输出到 `dist/android/`：
 
 ### 9.1 构建验收
 
-- Node.js、JDK 17、Android SDK 和 Gradle 检查通过。
+- Node.js、JDK 21、Android SDK 和 Gradle 检查通过。
 - `npm run android:build` 生成正式签名 APK 和 SHA-256 文件。
 - `apksigner verify` 验证签名通过。
 - `npm run build` 桌面构建通过，移动端文件不改变桌面行为。

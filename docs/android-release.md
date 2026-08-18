@@ -5,7 +5,7 @@
 ## 环境要求
 
 - Node.js 18 或更高版本。
-- JDK 17 或更高版本，建议使用 JDK 17。
+- JDK 21 或更高版本，建议使用 JDK 21。
 - Android SDK Platform 35。
 - Android SDK Build-Tools 35。
 - Android SDK Platform-Tools。
@@ -14,7 +14,7 @@
 macOS 常用环境变量示例：
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 export ANDROID_HOME="$HOME/Library/Android/sdk"
 export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
 ```

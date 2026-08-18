@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
+export const androidJavaVersion = 21;
+
 export function artifactFileName(version) {
   return `pokeidle-android-v${version}.apk`;
 }

@@ -23,7 +23,7 @@ if (await exists(keystorePath) || await exists(propertiesPath)) {
 
 const keytoolCheck = spawnSync('keytool', ['-help'], { encoding: 'utf8' });
 if (keytoolCheck.status !== 0) {
-  throw new Error('未检测到可用的 keytool。请先安装 JDK 17，并确认 java 和 keytool 可在 PATH 中执行。');
+  throw new Error('未检测到可用的 keytool。请先安装 JDK 21，并确认 java 和 keytool 可在 PATH 中执行。');
 }
 
 const password = randomBytes(32).toString('base64url');

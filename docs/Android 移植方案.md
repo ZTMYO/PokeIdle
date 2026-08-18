@@ -13,7 +13,7 @@
 | 权限 | 需为移动端单独拆 capabilities（tray / global-shortcut 权限在 Android 不存在） | 无此概念 |
 | 资源加载 | 自定义协议 + resource_dir 路径在 APK 内要适配 | 直接把 webDir 打进 assets，相对路径照常 |
 | 前端改造 | 需逐处适配 | 多数调用已可选链，自动跳过 |
-| 工具链 | Node + Rust + NDK + Android SDK | Node + JDK 17 + Android SDK（NDK 非必需） |
+| 工具链 | Node + Rust + NDK + Android SDK | Node + JDK 21 + Android SDK（NDK 非必需） |
 | 后端代码风险 | 高（Rust 编译/平台 cfg） | 无 |
 
 ---
@@ -62,7 +62,7 @@
 ## 2. 环境准备（一次性）
 
 1. Node（已有）
-2. **JDK 17**，设置 `JAVA_HOME`
+2. **JDK 21**，设置 `JAVA_HOME`
 3. **Android Studio**（SDK Manager 安装 Platform **API 34/35** + Build Tools + Command-line Tools）
 4. 环境变量：`ANDROID_HOME` → SDK 根目录；`%ANDROID_HOME%\platform-tools` 加入 PATH
 5. 验证：`adb --version`、`java -version`

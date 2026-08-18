@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import * as androidUtils from '../mobile/android-utils.mjs';
 
 import {
   artifactFileName,
@@ -21,6 +22,10 @@ test('按操作系统选择 Gradle Wrapper', () => {
 
 test('Gradle 缓存固定在项目可写目录', () => {
   assert.equal(gradleUserHome('/workspace/pokeidle'), '/workspace/pokeidle/mobile/.gradle-home');
+});
+
+test('Capacitor 7 Android 构建要求 JDK 21', () => {
+  assert.equal(androidUtils.androidJavaVersion, 21);
 });
 
 test('签名配置使用 Android 根目录相对路径', () => {
