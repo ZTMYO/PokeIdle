@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   artifactFileName,
   formatSigningProperties,
+  gradleUserHome,
   gradleExecutable,
   sha256Text,
 } from '../mobile/android-utils.mjs';
@@ -15,6 +16,10 @@ test('release APK 文件名包含应用版本', () => {
 test('按操作系统选择 Gradle Wrapper', () => {
   assert.equal(gradleExecutable('win32'), 'gradlew.bat');
   assert.equal(gradleExecutable('darwin'), './gradlew');
+});
+
+test('Gradle 缓存固定在项目可写目录', () => {
+  assert.equal(gradleUserHome('/workspace/pokeidle'), '/workspace/pokeidle/mobile/.gradle-home');
 });
 
 test('签名配置使用 Android 根目录相对路径', () => {

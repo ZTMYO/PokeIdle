@@ -14,6 +14,7 @@ dist-ssr/
 .worktrees/
 mobile/web/
 mobile/.tmp/
+mobile/.gradle-home/
 mobile/keystore/
 mobile/keystore.properties
 android/.gradle/

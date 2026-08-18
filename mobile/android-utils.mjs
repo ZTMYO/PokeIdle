@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { join } from 'node:path';
 
 export function artifactFileName(version) {
   return `pokeidle-android-v${version}.apk`;
@@ -6,6 +7,10 @@ export function artifactFileName(version) {
 
 export function gradleExecutable(platform = process.platform) {
   return platform === 'win32' ? 'gradlew.bat' : './gradlew';
+}
+
+export function gradleUserHome(projectRoot) {
+  return join(projectRoot, 'mobile', '.gradle-home');
 }
 
 export function formatSigningProperties({ password, alias }) {
