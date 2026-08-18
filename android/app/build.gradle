@@ -1,8 +1,33 @@
 apply plugin: 'com.android.application'
 
+def keystorePropertiesFile = rootProject.file('../mobile/keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+def releaseRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+def requiredSigningFields = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword']
+def missingSigningFields = requiredSigningFields.findAll { !keystoreProperties[it] }
+if (releaseRequested && (!keystorePropertiesFile.exists() || !missingSigningFields.isEmpty())) {
+    throw new GradleException("Release 签名配置无效：${keystorePropertiesFile}. 缺少字段：${missingSigningFields.join(', ')}")
+}
+
 android {
     namespace "com.pokemon.idle"
     compileSdk rootProject.ext.compileSdkVersion
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists() && missingSigningFields.isEmpty()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                v1SigningEnabled true
+                v2SigningEnabled true
+                v3SigningEnabled true
+            }
+        }
+    }
     defaultConfig {
         applicationId "com.pokemon.idle"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -18,6 +43,9 @@ android {
     }
     buildTypes {
         release {
+            if (keystorePropertiesFile.exists() && missingSigningFields.isEmpty()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
