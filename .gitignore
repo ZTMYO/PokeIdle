@@ -12,6 +12,14 @@ dist/
 dist-ssr/
 *.local
 .worktrees/
+mobile/web/
+mobile/.tmp/
+mobile/keystore/
+mobile/keystore.properties
+android/.gradle/
+android/build/
+android/app/build/
+dist/android/
 
 # Editor directories and files
 .vscode/*

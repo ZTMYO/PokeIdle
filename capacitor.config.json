@@ -1,0 +1,8 @@
+{
+  "appId": "com.pokemon.idle",
+  "appName": "口袋挂机",
+  "webDir": "mobile/web",
+  "server": {
+    "androidScheme": "https"
+  }
+}

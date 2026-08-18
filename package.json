@@ -6,9 +6,24 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "powershell -Command \"$env:PATH += ';D:\\nsis-3.11'; tauri build\"",
-    "icon": "tauri icon src/assets/icon.png"
+    "icon": "tauri icon src/assets/icon.png",
+    "test:mobile": "node --test test/mobile-*.test.mjs",
+    "android:prepare": "node mobile/build-web.mjs && npx cap sync android",
+    "android:build": "node mobile/android-build.mjs release",
+    "android:debug": "node mobile/android-build.mjs debug",
+    "android:install": "node mobile/android-build.mjs install",
+    "android:signing:init": "node mobile/signing-init.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.0",
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/browser": "^7.0.0",
+    "@capacitor/core": "^7.4.0",
+    "@capacitor/filesystem": "^7.1.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@capacitor/cli": "^7.4.0",
+    "@tauri-apps/cli": "^2",
+    "esbuild": "^0.25.0"
   }
 }
