@@ -139,6 +139,18 @@ npm run build
 
 构建产物输出到 `src-tauri/target/release/bundle/nsis/`，生成 NSIS 安装包。
 
+### Android 正式版
+
+Android 版本使用 Capacitor 7 封装完整离线资源，最低支持 Android 8.0（API 26）。首次发布需要创建并备份独立 release 签名：
+
+```bash
+npm install
+npm run android:signing:init
+npm run android:build
+```
+
+正式 APK 和 SHA-256 校验文件输出到 `dist/android/`。环境准备、真机安装、签名校验和免费分发要求见 [Android 正式版构建与发布](docs/android-release.md)。
+
 ## 主要素材来源
 
 - 宝可梦 GIF 动画：[play.pokemonshowdown.com](https://play.pokemonshowdown.com/)
