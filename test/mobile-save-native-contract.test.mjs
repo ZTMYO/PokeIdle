@@ -149,3 +149,11 @@ test('Tauri 提供可取消的文件选择和导入前备份命令', async () =>
   assert.match(lib, /game_data::create_import_backup/);
   assert.match(lib, /game_data::load_import_backup/);
 });
+
+test('Tauri Windows API 依赖只在 Windows 目标编译', async () => {
+  const cargo = await readFile(new URL('../src-tauri/Cargo.toml', import.meta.url), 'utf8');
+  const commonDependencies = cargo.split("[target.'cfg(windows)'.dependencies]")[0];
+
+  assert.doesNotMatch(commonDependencies, /^windows\s*=/m);
+  assert.match(cargo, /\[target\.'cfg\(windows\)'\.dependencies\][^]*^windows\s*=/m);
+});
