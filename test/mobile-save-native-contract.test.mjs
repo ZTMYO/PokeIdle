@@ -133,3 +133,19 @@ test('Android 备份读取到非文本数据时明确失败', async () => {
 
   await assert.rejects(() => transfer.loadImportBackup(), /非文本数据/);
 });
+
+test('Tauri 提供可取消的文件选择和导入前备份命令', async () => {
+  const source = await readFile(new URL('../src-tauri/src/game_data.rs', import.meta.url), 'utf8');
+  const lib = await readFile(new URL('../src-tauri/src/lib.rs', import.meta.url), 'utf8');
+
+  assert.match(source, /set_file_name/);
+  assert.match(source, /SAVE_MAX_BYTES[^]*20 \* 1024 \* 1024/);
+  assert.match(source, /SAVE_TOO_LARGE/);
+  assert.match(source, /create_import_backup/);
+  assert.match(source, /load_import_backup/);
+  assert.match(source, /save\.import-backup\.json/);
+  assert.match(source, /Result<Option<ImportedSaveFile>, String>/);
+  assert.match(source, /serde\(rename_all = "camelCase"\)/);
+  assert.match(lib, /game_data::create_import_backup/);
+  assert.match(lib, /game_data::load_import_backup/);
+});
