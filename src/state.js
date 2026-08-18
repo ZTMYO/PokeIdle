@@ -1,5 +1,6 @@
 // ===== 游戏状态 + 存档管理 =====
 import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY, BIKE_RESTORE_MAX_GAP_MS, WILD_LEVEL_MAX } from './config.js';
+import { persistSerializedSave } from './save-persistence.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -407,18 +408,17 @@ export function addIncubatorLog({ species, gender, shiny = false }) {
 }
 
 // ---------- 存档保存 ----------
-export async function saveGame() {
-  if (!gameData) return;
-  gameData.stats.lastSaveTime = Date.now();
+export async function saveGame({ strict = false, preserveTimestamp = false } = {}) {
+  if (!gameData) return { errors: [], written: 0 };
+  if (!preserveTimestamp) gameData.stats.lastSaveTime = Date.now();
   syncGpsPosition();
   const s = JSON.stringify(gameData);
-  if (window.__TAURI__?.core?.invoke) {
-    try { await window.__TAURI__.core.invoke('save_game_data', { data: s }); } catch (_) {}
-  }
-  try { localStorage.setItem('pokemon_idle_save', s); } catch (_) {}
-  try { await window.__POKEIDLE_MOBILE__?.saveGameData(s); } catch (error) {
-    console.warn('[mobile] save failed', error);
-  }
+  return persistSerializedSave(s, {
+    tauriInvoke: window.__TAURI__?.core?.invoke,
+    mobile: window.__POKEIDLE_MOBILE__,
+    storage: localStorage,
+    strict,
+  });
 }
 
 // 当前遭遇的自定义文案（如钓鱼"上钩了"），写入会话状态以便刷新后沿用
