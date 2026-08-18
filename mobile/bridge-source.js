@@ -3,7 +3,7 @@ import { Browser } from '@capacitor/browser';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { createMobileSaveTransfer } from './save-native.mjs';
-import { calculateMobileScale } from './viewport-utils.mjs';
+import { calculateMobileLayout } from './viewport-utils.mjs';
 
 const SAVE_PATH = 'save.json';
 const BACKUP_PATH = 'save.json.bak';
@@ -75,8 +75,10 @@ function syncMobileViewport() {
     bottom: parseFloat(bodyStyle.paddingBottom) || 0,
     left: parseFloat(bodyStyle.paddingLeft) || 0,
   } : {};
-  const scale = calculateMobileScale(width, height, insets);
-  document.documentElement.style.setProperty('--mobile-scale', String(scale));
+  const { scale, designHeight } = calculateMobileLayout(width, height, insets);
+  const root = document.documentElement;
+  root.style.setProperty('--mobile-scale', String(scale));
+  root.style.setProperty('--mobile-layout-height', `${designHeight}px`);
 }
 
 function enableMobileLayout() {

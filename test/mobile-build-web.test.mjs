@@ -28,3 +28,12 @@ test('递归复制 Web 源码且不修改源文件', async () => {
   assert.equal(await readFile(join(outputDir, 'audio', 'battle.mp3'), 'utf8'), 'audio');
   assert.equal(await readFile(join(sourceDir, 'index.html'), 'utf8'), '<html>source</html>');
 });
+
+test('移动端 bridge 同步动态掌机布局高度', async () => {
+  const bridge = await readFile(new URL('../mobile/bridge-source.js', import.meta.url), 'utf8');
+
+  assert.match(bridge, /import\s*\{\s*calculateMobileLayout\s*\}\s*from ['"]\.\/viewport-utils\.mjs['"]/);
+  assert.match(bridge, /calculateMobileLayout\(width, height, insets\)/);
+  assert.match(bridge, /setProperty\(['"]--mobile-scale['"],\s*String\(scale\)\)/);
+  assert.match(bridge, /setProperty\(['"]--mobile-layout-height['"],\s*`\$\{designHeight\}px`\)/);
+});
