@@ -83,6 +83,25 @@ html.mobile-mode [role="button"] {
 html.mobile-mode .save-transfer-actions button {
   min-height: 44px;
 }
+html.mobile-mode .save-transfer-dialog {
+  align-items: flex-end;
+  padding: 8px;
+}
+html.mobile-mode .save-transfer-box {
+  width: 100%;
+  max-height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 6px 6px 0 0;
+}
+html.mobile-mode .save-transfer-comparison {
+  min-height: 0;
+  overflow-y: auto;
+}
+html.mobile-mode .save-transfer-actions {
+  flex-shrink: 0;
+}
 html.mobile-mode .control-btn:active,
 html.mobile-mode .bag-slot:active,
 html.mobile-mode button:active {

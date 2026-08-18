@@ -2,14 +2,91 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  cancelSaveTransferDialog,
   createSaveTransferController,
   formatSaveTransferError,
   replaceSaveWithBackup,
   restoreBackupSave,
+  showSaveTransferDialog,
 } from '../src/save-transfer-controller.js';
 
 const current = { items: { candy: 1 }, stats: { lastSaveTime: 10 } };
 const incoming = { items: { candy: 9 }, stats: { lastSaveTime: 2 } };
+
+class FakeElement extends EventTarget {
+  constructor() {
+    super();
+    this.style = {};
+    this.hidden = true;
+    this.children = [];
+  }
+
+  replaceChildren(...children) {
+    this.children = children;
+  }
+
+  append(...children) {
+    this.children.push(...children);
+  }
+
+  focus() {}
+}
+
+function createDialogDocument() {
+  const elements = new Map([
+    ['#saveTransferDialog', new FakeElement()],
+    ['#saveTransferConfirm', new FakeElement()],
+    ['#saveTransferCancel', new FakeElement()],
+    ['#saveTransferSource', new FakeElement()],
+    ['#saveTransferTitle', new FakeElement()],
+    ['#saveTransferComparison', new FakeElement()],
+  ]);
+  const doc = new EventTarget();
+  doc.querySelector = selector => elements.get(selector) || null;
+  doc.createElement = () => new FakeElement();
+  return { doc, elements };
+}
+
+for (const [name, selector, expected] of [
+  ['取消', '#saveTransferCancel', false],
+  ['覆盖', '#saveTransferConfirm', true],
+]) {
+  test(`Android pointerup 可以${name}存档确认弹窗`, async () => {
+    const { doc, elements } = createDialogDocument();
+    const result = showSaveTransferDialog(doc, { current, incoming });
+
+    elements.get(selector).dispatchEvent(new Event('pointerup'));
+
+    assert.equal(await Promise.race([
+      result,
+      new Promise(resolve => setTimeout(() => resolve('pending'), 20)),
+    ]), expected);
+    assert.equal(elements.get('#saveTransferDialog').hidden, true);
+  });
+
+  test(`Android touchend 可以${name}存档确认弹窗`, async () => {
+    const { doc, elements } = createDialogDocument();
+    const result = showSaveTransferDialog(doc, { current, incoming });
+
+    elements.get(selector).dispatchEvent(new Event('touchend'));
+
+    assert.equal(await Promise.race([
+      result,
+      new Promise(resolve => setTimeout(() => resolve('pending'), 20)),
+    ]), expected);
+    assert.equal(elements.get('#saveTransferDialog').hidden, true);
+  });
+}
+
+test('Android 返回键可以取消打开的存档确认弹窗', async () => {
+  const { doc, elements } = createDialogDocument();
+  const result = showSaveTransferDialog(doc, { current, incoming });
+
+  assert.equal(cancelSaveTransferDialog(doc), true);
+  assert.equal(await result, false);
+  assert.equal(elements.get('#saveTransferDialog').hidden, true);
+  assert.equal(cancelSaveTransferDialog(doc), false);
+});
 
 test('确认导入严格按保存当前、备份、应用、持久化执行', async () => {
   const events = [];

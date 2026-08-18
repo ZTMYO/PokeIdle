@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import { SAVE_MAX_BYTES, SaveTransferError } from '../src/save-transfer.js';
 import { createSavePlatform, pickBrowserImportFile } from '../src/save-platform.js';
@@ -102,7 +103,7 @@ test('浏览器在读取文本前拒绝超过 20 MB 的文件', async () => {
   );
   assert.equal(textRead, false);
   assert.equal(input.type, 'file');
-  assert.equal(input.accept, 'application/json,.json');
+  assert.equal(input.accept, '*/*');
   assert.equal(input.removed, true);
 });
 
@@ -115,4 +116,29 @@ test('浏览器返回文件名、正文和字节数', async () => {
     content: '{"ok":true}',
     size: 12,
   });
+});
+
+test('启动时强制隐藏存档确认弹窗', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+
+  assert.match(css, /\.save-transfer-dialog\[hidden\]\s*\{[\s\S]*?display:\s*none\s*!important;/);
+  assert.match(main, /saveTransferDialog[\s\S]{0,240}hidden\s*=\s*true/);
+});
+
+test('Android 返回键优先取消存档弹窗', async () => {
+  const main = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+
+  assert.match(main, /import\s*\{\s*cancelSaveTransferDialog\s*\}\s*from ['"]\.\/save-transfer-controller\.js['"]/);
+  assert.match(main, /__POKEIDLE_MOBILE_BACK__[\s\S]{0,180}cancelSaveTransferDialog\(document\)[\s\S]{0,80}return true/);
+});
+
+test('Android 存档确认弹窗使用底部布局和固定操作区', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+
+  assert.match(css, /html\.mobile-mode \.save-transfer-dialog\s*\{[\s\S]*?align-items:\s*flex-end/);
+  assert.match(css, /html\.mobile-mode \.save-transfer-box\s*\{[\s\S]*?display:\s*flex[\s\S]*?flex-direction:\s*column[\s\S]*?overflow:\s*hidden/);
+  assert.match(css, /html\.mobile-mode \.save-transfer-comparison\s*\{[\s\S]*?overflow-y:\s*auto/);
+  assert.match(css, /html\.mobile-mode \.save-transfer-actions\s*\{[\s\S]*?flex-shrink:\s*0/);
+  assert.match(css, /html\.mobile-mode \.save-transfer-actions button\s*\{[\s\S]*?min-height:\s*44px/);
 });

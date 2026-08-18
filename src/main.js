@@ -62,6 +62,7 @@ import { refreshNpcs } from './npcs.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 import { chooseNewestSave } from './save-utils.js';
+import { cancelSaveTransferDialog } from './save-transfer-controller.js';
 
 let ROAD_PRESETS = null;
 let ROAD_LAND = [];   // 普通陆地路段池（无垂钓点、非自行车道）
@@ -508,6 +509,13 @@ function onIntroMusicClick() {
 // ---------- 初始化 ----------
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
+
+  // Android WebView 可能恢复上次页面 DOM；启动时强制关闭存档确认层，避免遮挡游戏。
+  const saveTransferDialog = document.getElementById('saveTransferDialog');
+  if (saveTransferDialog) {
+    saveTransferDialog.hidden = true;
+    saveTransferDialog.style.display = 'none';
+  }
 
   // 浏览器端（非 Tauri）：console 固定 274×342 居中显示，与 Tauri 端设计基准视口一致
   //（Tauri 端由 Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）
@@ -1243,8 +1251,10 @@ async function init() {
   window.__POKEIDLE_SAVE_NOW__ = () => saveGame();
   window.__POKEIDLE_AUDIO_RESUME__ = () => resumeAudio();
   window.__POKEIDLE_MOBILE_BACK__ = async () => {
+    if (cancelSaveTransferDialog(document)) return true;
     if ($('appTitle')?.dataset.action === 'back') handleAppTitleBack();
     else openQuitDialog();
+    return true;
   };
   $('quitHide')?.addEventListener('click', async () => {
     closeQuitDialog();

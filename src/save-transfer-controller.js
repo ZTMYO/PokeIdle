@@ -68,6 +68,20 @@ const SUMMARY_FIELDS = [
   ['pokedexCount', '图鉴'],
 ];
 
+const activeDialogCancels = new WeakMap();
+
+export function cancelSaveTransferDialog(doc) {
+  const dialog = doc?.querySelector?.('#saveTransferDialog');
+  if (!dialog || dialog.hidden) return false;
+  const cancel = activeDialogCancels.get(dialog);
+  if (cancel) cancel();
+  else {
+    dialog.hidden = true;
+    dialog.style.display = 'none';
+  }
+  return true;
+}
+
 function formatSummaryValue(key, value) {
   if (value == null) return '未知';
   if (key === 'gender') return { brendan: '小悠', may: '小遥' }[value] || '未知';
@@ -111,11 +125,19 @@ export function showSaveTransferDialog(doc, details) {
   dialog.hidden = false;
   dialog.style.display = 'flex';
   return new Promise(resolve => {
+    let settled = false;
+    const activationEvents = ['pointerup', 'touchend', 'click'];
+    const removeActivationListeners = (button, handler) => {
+      activationEvents.forEach(type => button.removeEventListener(type, handler));
+    };
     const finish = result => {
+      if (settled) return;
+      settled = true;
       dialog.hidden = true;
       dialog.style.display = 'none';
-      confirmButton.removeEventListener('click', onConfirm);
-      cancelButton.removeEventListener('click', onCancel);
+      activeDialogCancels.delete(dialog);
+      removeActivationListeners(confirmButton, onConfirm);
+      removeActivationListeners(cancelButton, onCancel);
       doc.removeEventListener('keydown', onKeyDown);
       resolve(result);
     };
@@ -124,9 +146,10 @@ export function showSaveTransferDialog(doc, details) {
     const onKeyDown = event => {
       if (event.key === 'Escape') finish(false);
     };
-    confirmButton.addEventListener('click', onConfirm);
-    cancelButton.addEventListener('click', onCancel);
+    activationEvents.forEach(type => confirmButton.addEventListener(type, onConfirm));
+    activationEvents.forEach(type => cancelButton.addEventListener(type, onCancel));
     doc.addEventListener('keydown', onKeyDown);
+    activeDialogCancels.set(dialog, onCancel);
     confirmButton.focus?.();
   });
 }
