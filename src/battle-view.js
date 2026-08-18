@@ -208,8 +208,7 @@ export async function showBattleView() {
   _battleLogs = []; // 彻底离开本局：清空对战记录缓存
   _logCtx = null;
   // 回到对战列表：清除战斗期间的屏幕难度边框色
-  const sc = $('screen');
-  sc.classList.remove('t-novice', 't-veteran', 't-champion');
+  clearBattleTier();
   renderBattleList();
   showView('battleView');
   startRefreshCountdown();
@@ -587,25 +586,40 @@ function promptSwitchAfterFaint(battle) {
   });
 }
 
-// 离开战斗页（进入设置等）时清除难度边框色，避免其它页面沿用战斗配色
+// 离开战斗页（进入设置等）时清除难度边框色：跳变恢复默认，避免其它页面沿用战斗配色
+// 也避免切页瞬间边框色渐变过渡（战斗配色→默认绿）的拉扯感
 export function clearBattleTier() {
   const sc = $('screen');
+  if (!sc.classList.contains('t-novice') && !sc.classList.contains('t-veteran') && !sc.classList.contains('t-champion')) return;
+  sc.classList.add('no-theme-trans'); // 切页时的主题色变化禁用过渡，直接跳变
   sc.classList.remove('t-novice', 't-veteran', 't-champion');
+  void sc.offsetWidth; // 强制重排，让"无过渡"立即生效
+  sc.classList.remove('no-theme-trans');
 }
 
-// 战斗页重新显示（从设置返回等）时恢复当前战斗的难度边框色
+// 战斗页重新显示（从设置返回等）时恢复当前战斗的难度边框色：同样跳变，
+// 返回战斗页属于切换页面，不做渐变过渡
 export function restoreBattleTier() {
   const sc = $('screen');
   sc.classList.remove('t-novice', 't-veteran', 't-champion');
-  if (_activeBattle?.preset?.tier) sc.classList.add('t-' + _activeBattle.preset.tier);
+  if (_activeBattle?.preset?.tier) {
+    sc.classList.add('no-theme-trans');
+    sc.classList.add('t-' + _activeBattle.preset.tier);
+    void sc.offsetWidth; // 强制重排，让"无过渡"立即生效
+    sc.classList.remove('no-theme-trans');
+  }
 }
 
 async function renderBattlePage(battle) {
   const box = $('battleContent');
-  // 战斗期间屏幕边框按 NPC 难度着色（返回对战列表时清除）
+  // 战斗期间屏幕边框按 NPC 难度着色（返回对战列表时清除）：
+  // 进入战斗算场景切换，边框色直接跳变，不做渐变过渡
   const sc = $('screen');
+  sc.classList.add('no-theme-trans');
   sc.classList.remove('t-novice', 't-veteran', 't-champion');
   if (battle.preset.tier) sc.classList.add('t-' + battle.preset.tier);
+  void sc.offsetWidth; // 强制重排，让"无过渡"立即生效
+  sc.classList.remove('no-theme-trans');
   box.innerHTML = `
     <div class="battle-fight t-${battle.preset.tier}">
       <div class="battle-stage-top">

@@ -117,9 +117,6 @@ function makeOffer(npc) {
 
 // 波次生成：每波 TRADE_COUNT 个 offer；作者彩蛋以该概率取代某一格普通 offer
 const AUTHOR_CHANCE = 0.01;
-// 调试辅助：置 true 后下一波必定出现作者 offer（用于查看效果），__authorTest() 触发
-let _forceAuthor = false;
-
 // 作者彩蛋 offer：需求与普通 offer 一致（玩家仍需付出），
 // 但给出随机【神兽】闪光 6V（个体全 31）、满级
 // 性格按神兽输出向自动匹配：物攻种族值高 → 物攻向性格，特攻高 → 特攻向性格，
@@ -133,7 +130,7 @@ function pickAuthorNature(poke) {
 }
 function makeAuthorOffer() {
   const base = makeOffer({ id: 'author' }); // 复用需求生成，npc 先用作者占位
-  const legends = allPokemon.filter(p => p.legend === true);
+  const legends = allPokemon.filter(p => p.legend === true && p.noEggGroup);
   const givePoke = legends.length ? legends[randInt(0, legends.length - 1)] : allPokemon[0];
   base.npc = 'author';
   base.give = {
@@ -148,12 +145,12 @@ function makeAuthorOffer() {
 
 // 生成并写入新一波交换 offers（重置刷新时间；通知手机主页红点按新一波刷新）
 function regenerateOffers() {
-  const pool = [...NPCS];
+  // 作者是彩蛋用 makeAuthorOffer 单独生成，普通 NPC 池必须剔除，否则会以普通 offer 冒充 ZTMYO
+  const pool = NPCS.filter(n => n.id !== 'author');
   const offers = [];
   const count = Math.min(TRADE_COUNT, pool.length);
-  // 作者彩蛋：以 0.01 概率取代某一格普通 offer（调试时用 _forceAuthor 强制出现）
-  const authorSlot = (_forceAuthor || Math.random() < AUTHOR_CHANCE) ? randInt(0, count - 1) : -1;
-  _forceAuthor = false;
+  // 作者彩蛋：以 0.01 概率取代某一格普通 offer
+  const authorSlot = Math.random() < AUTHOR_CHANCE ? randInt(0, count - 1) : -1;
   for (let i = 0; i < count; i++) {
     if (i === authorSlot) { offers.push(makeAuthorOffer()); continue; }
     offers.push(makeOffer(pool.splice(randInt(0, pool.length - 1), 1)[0]));
@@ -161,13 +158,6 @@ function regenerateOffers() {
   gameData.trades = { refreshedAt: Date.now(), offers };
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trade-wave-changed'));
 }
-
-// 调试辅助：强制下一波刷新为包含作者 offer 的市场（需在交易页调用以立即查看效果）
-window.__authorTest = () => {
-  _forceAuthor = true;
-  regenerateOffers();
-  renderTrade();
-};
 
 // 到点或数据缺失时刷新一波
 export function ensureTrades() {

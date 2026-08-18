@@ -253,7 +253,7 @@ function rowHtml(p) {
   return `
     <div class="pokedex-entry roster-row" data-rid="${p.id}">
       <span class="roster-icon">${icon}</span>
-      <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
+      <span class="pokedex-star${(p.variant === 'rgb' || p.variant === 'polluted') && !p.shiny ? ' star-variant' : ''}">${p.shiny ? '★' : (p.variant === 'rgb' || p.variant === 'polluted') ? '◐' : ''}</span>
       <span class="pokedex-idx">#${p.species}</span>
       <span class="pokedex-name">${rosterName(p)}</span>
       <span class="roster-lv-col">${gSpan}Lv${p.level || 1}</span>
@@ -339,7 +339,7 @@ function setupFilter() {
           <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk && !_variantFilter ? ' active' : ''}"
                data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join(''));
       }
-      return `<div class="roster-filter-item" data-src="${k}" data-legend="" data-shiny="">
+      return `<div class="roster-filter-item">
         <span class="roster-filter-src${_srcFilter === k && !_legendFilter && !_shinyFilter && !_variantFilter ? ' active' : ''}">${name}</span>
         <span class="roster-filter-arrow">▸</span>
         <div class="roster-sub-menu">

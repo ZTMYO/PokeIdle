@@ -138,9 +138,13 @@ road.onTransitionCharReach(() => {
 });
 
 // 手动骑行状态变更（上车/下车）：同步骑行音乐、角色外观、速度、日志与存档
+let _silentBikeRestore = false;
 road.onManualBikeChanged(v => {
-  if (v) addSystemLog('bike_ride', {});
-  else addSystemLog('bike_stop', {});
+  if (!_silentBikeRestore) {
+    if (v) addSystemLog('bike_ride', {});
+    else addSystemLog('bike_stop', {});
+  }
+  _silentBikeRestore = false;
   gameData.manualBike = !!v; // 随主存档持久化（saveGame 兜底），刷新/重开可恢复骑行状态
   if (road.isBike()) playCycling();
   else endCycling();
@@ -993,6 +997,7 @@ async function init() {
     // 会话（beforeunload 写入）作兜底；长时间离线（>BIKE_RESTORE_MAX_GAP_MS）不恢复，
     // 维持"离线按走路结算"的设定（calcOffline 也已清除主存档标记）
     if ((sessionState?.manualBike || gameData.manualBike) && Date.now() - (gameData.stats.lastSaveTime || 0) < BIKE_RESTORE_MAX_GAP_MS) {
+      _silentBikeRestore = true; // 恢复骑行非真实操作，不写"开始骑自行车"日志
       road.setManualBike(true);
     }
 
