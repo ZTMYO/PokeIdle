@@ -133,7 +133,7 @@ function pickAuthorNature(poke) {
 }
 function makeAuthorOffer() {
   const base = makeOffer({ id: 'author' }); // 复用需求生成，npc 先用作者占位
-  const legends = allPokemon.filter(p => p.legend === true);
+  const legends = allPokemon.filter(p => p.legend === true && p.noEggGroup);
   const givePoke = legends.length ? legends[randInt(0, legends.length - 1)] : allPokemon[0];
   base.npc = 'author';
   base.give = {
@@ -148,7 +148,8 @@ function makeAuthorOffer() {
 
 // 生成并写入新一波交换 offers（重置刷新时间；通知手机主页红点按新一波刷新）
 function regenerateOffers() {
-  const pool = [...NPCS];
+  // 作者是彩蛋用 makeAuthorOffer 单独生成，普通 NPC 池必须剔除，否则会以普通 offer 冒充 ZTMYO
+  const pool = NPCS.filter(n => n.id !== 'author');
   const offers = [];
   const count = Math.min(TRADE_COUNT, pool.length);
   // 作者彩蛋：以 0.01 概率取代某一格普通 offer（调试时用 _forceAuthor 强制出现）
