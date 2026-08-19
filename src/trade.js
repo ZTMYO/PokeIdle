@@ -734,6 +734,7 @@ document.addEventListener('click', e => {
     if (tc) { _tradeListScroll = tc.scrollTop; tc.scrollTop = 0; } // 记住列表位置，子页面从顶部开始
     pauseTradeRefresh(); // 进入选择子页面：冻结刷新倒计时
     _tradeMode = offerBtn.dataset.offer;
+    _tQuery = ''; // 进入新的候选列表：昵称搜索词一律重置，不与上次残留词混用
     renderTrade();
     return;
   }

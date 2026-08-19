@@ -3562,6 +3562,7 @@ body.browser-mode { overflow: auto; }
   flex-shrink: 0;
   padding-right: 1px;
 }
+.pokedex-star svg { width: 10px; height: 10px; vertical-align: -2px; }
 .pokedex-name {
   flex: 1;
   min-width: 0;
@@ -3744,7 +3745,7 @@ body.browser-mode { overflow: auto; }
   user-select: none;
 }
 .tutorial-nav-item {
-  padding: 4px 6px;
+  padding: 4px 9px 4px 6px;
   margin-bottom: 2px;
   border-radius: 3px;
   cursor: pointer;
@@ -3757,6 +3758,7 @@ body.browser-mode { overflow: auto; }
   display: flex;
   align-items: center;
   gap: 4px;
+  position: relative;
 }
 .tutorial-nav-icon {
   width: 12px;
@@ -3785,6 +3787,39 @@ body.browser-mode { overflow: auto; }
   border-bottom: 1px solid rgba(var(--ui-color-rgb),0.2);
   padding-bottom: 3px;
   margin-bottom: 6px;
+}
+/* 教程章节红点（未领取奖励时显示在左侧导航项右侧，颜色与标题栏红点一致） */
+.tutorial-nav-badge {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #e74c3c;
+}
+/* 教程标题行：标题 + 右侧领取糖果按钮同行（覆盖标题自带的底部边框，避免多余下划线） */
+.tutorial-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tutorial-title-row .tutorial-title {
+  flex: 1;
+  min-width: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+/* 教程领取按钮：无背景色，仅边框描边；hover 轻微提亮 */
+.tutorial-claim-btn { flex-shrink: 0; background: transparent; }
+.tutorial-claim-btn:hover:not(:disabled) { background: rgba(var(--ui-color-rgb), 0.15); }
+.tutorial-claim-btn .candy-icon {
+  width: 11px;
+  height: 11px;
+  image-rendering: pixelated;
+  vertical-align: -2px;
 }
 .settings-group {
   padding: 0 0 6px;
@@ -4328,8 +4363,8 @@ body.browser-mode { overflow: auto; }
 .roster-header, .roster-row { gap: 2px; }
 /* 仓库的闪光星标列更窄，避免图标与编号之间空出太多 */
 .roster-header .pokedex-star, .roster-row .pokedex-star { width: 8px; padding-right: 0; }
-/* 时空扭曲变体（RGB/污染）的 ◐ 标记比星星小一号，避免在行内显得过大 */
-.roster-row .pokedex-star.star-variant { font-size: 8px; }
+/* 仓库行闪光星与变体圆环共用一个类（pokedex-star-svg），统一 8px 尺寸 */
+.roster-row .pokedex-star svg { width: 8px; height: 8px; display: block; fill: currentColor; }
 /* 仓库编号列加宽以容纳变体扩展编号（#0058-1/#0201-10），图标列同步收窄 */
 .roster-header .pokedex-idx, .roster-row .pokedex-idx { width: 46px; }
 .roster-header .roster-icon, .roster-row .roster-icon { width: 20px; }

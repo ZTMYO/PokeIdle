@@ -89,6 +89,13 @@ function render() {
   closeTeamMenu();
   const box = $('teamContent');
   const roster = (gameData.roster || []).filter(p => p.inRoster !== false && isPokemon(p));
+  const rosterIds = new Set(roster.map(p => p.id));
+  // 清理已失效的队伍成员（被放生等）：残留 id 会渲染成空槽却仍被当成非空槽（可拖拽/换位）
+  const rawIds = teamIds();
+  if (rawIds.some(id => !rosterIds.has(id))) {
+    gameData.team = rawIds.filter(id => rosterIds.has(id));
+    saveGame();
+  }
   const ids = teamIds();
   const byId = new Map(roster.map(p => [p.id, p]));
   const slotPokes = _battleCb
@@ -390,7 +397,7 @@ function bindDrag(host) {
   if (_battleCb) return; // 战斗中替换模式：点击即上场，不拖拽
   host.querySelectorAll('.team-member[data-slot]').forEach(slot => {
     const i = Number(slot.dataset.slot);
-    if (!teamIds()[i]) return; // 空槽不可拖
+    if (slot.classList.contains('empty')) return; // 空槽不可拖（渲染层兜底：即使数据残留失效 id 也不可拖）
     let startX = 0, startY = 0, moved = false; // 移动超过阈值才算拖拽，纯点击仍弹菜单
     slot.addEventListener('pointerdown', (e) => {
       if (e.button === 2) return; // 右键不拖

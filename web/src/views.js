@@ -13,7 +13,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX,
   FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
-import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
+import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
@@ -74,7 +74,7 @@ function calcTodayStats() {
   for (const arr of Object.values(gameData.encounterLogs || {})) {
     for (const l of arr) {
       if (!l || !l.time || l.time < todayStart) continue;
-      if (l.source === 'egg') {
+      if (l.source === 'egg' || !l.source) {
         t.hatched++;
         if (l.shiny) t.shinyHatched++;
         continue;
@@ -143,7 +143,7 @@ function refreshDataStats() {
   for (const arr of Object.values(gameData.encounterLogs || {})) {
     for (const l of arr) {
       if (!l) continue;
-      if (l.source === 'egg' && l.shiny) totalShinyHatched++;
+      if ((l.source === 'egg' || !l.source) && l.shiny) totalShinyHatched++;
       else if (l.source === 'trade' && l.shiny) totalShinyTraded++;
     }
   }
@@ -1572,7 +1572,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '增益',
     html: `<p><b>甜甜蜜</b>与<b>闪耀护符</b>都是 <b>${BUFF_DURATION}</b> 秒增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
-      + `<p>骑行中速度<b>不叠加</b>：骑行 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，甜甜蜜的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
+      + `<p>骑行中速度以 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，增益的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
       + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`
       + tutorialTable([
@@ -1647,8 +1647,9 @@ const TUTORIAL_SECTIONS = [
   {
     title: '配队',
     html: `<p>在<b>手机</b>页面打开<b>配队</b>应用组建小队：点击<b>空位</b>从仓库选择宝可梦加入（最多 <b>${TEAM_MAX}</b> 只）。</p>`
-      + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>移除</b>（放回仓库）；<b>右键</b>点击可隐藏菜单。</p>`
-      + `<p><b>拖拽</b>可以对队伍中的宝可梦进行快速排序。<b>右键</b>空白处可随机配队或清空队伍。</p>`
+      + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>移除</b>（放回仓库）。</p>`
+      + `<p><b>拖拽</b>可以对队伍中的宝可梦进行快速排序。<b>右键</b>空白处可<b>自动配队</b>或清空队伍。</p>`
+      + `<p><b>自动配队</b>：队伍为空或已满时，从仓库（排除训练中）挑选<b>等级差最小</b>的一组补满 6 只整队；队伍<b>未满</b>时<b>保留现有成员</b>，以队内最低等级为基准，从仓库挑等级最接近的个体<b>补满空位</b>。</p>`
       + `<p>加入队伍的宝可梦会从<b>训练</b>中自动撤下（训练/队伍<b>互斥</b>，详见「<b>训练</b>」章节）。</p>`,
   },
   {
@@ -1759,6 +1760,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '自动操作',
     html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
+      + `<p><b>自动丢球</b>：判定为「捕捉」后会自动<b>连续丢球直到捕获或逃跑</b>。球种按<b>智能选球</b>——<b>神兽或捕获率低</b>的宝可梦优先 <b>大师球→高级球→精灵球</b>，捕获率高的普通宝可梦优先 <b>精灵球</b> 省资源；只在勾选的球种中挑选，优先球种没库存自动顺延。</p>`
       + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪</b> 四类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未捕获过的</b>。</p>`
       + `<p>勾选增益道具到期自动<b>续杯</b>；<b>自动补球</b>：球用光自动用糖果补 1 个（「‹ ›」调优先级）。</p>`,
   },
@@ -1786,17 +1788,106 @@ const TUTORIAL_SECTIONS = [
   },
 ];
 
+// ===== 教程章节奖励 =====
+// 每阅读一个章节可领取一次糖果（统一 30 颗，点击 title 右侧按钮直接领取）
+// 新存档默认全部可领；老存档无 tutorialRewards 字段时视为全部可领，一次性吃满福利
+const TUTORIAL_REWARD = 30;
+// 各章节领取后弹出的总结重点（key 为章节 title，领取时展示）——一句话新手建议
+const TUTORIAL_SUMMARIES = {
+  '序章': '欢迎来到口袋挂机世界！',
+  '目标': '我要成为宝可梦大师！',
+  '道具': '所有的道具都是一次性道具。',
+  '遭遇': '野生宝可梦最高等级是20级。',
+  '手机': '手机可以翻页到第二页。',
+  '图鉴': '没有遇到过的宝可梦无法被搜索到。',
+  '统计': '想知道自己欧不欧，看统计里的欧非评定。',
+  '成就': '点击任意一个领取按钮会领取所有成就奖励。',
+  '地区': '不同地区的宝可梦都不相同且不重复。',
+  '导航': '取消导航可以让主角停在当前所属地区。',
+  '事件': '时不时看看导航以免错过离得近的事件点。',
+  '悬赏': '到达对应地区后才可以提交宝可梦。',
+  '交换': '点击npc旁边的宝可梦图标可以查看其详情。',
+  '场景': '场景是随机的和导航系统无关。',
+  '自行车': '中途不能改变目的地，取消导航会直接下车。',
+  '捕捉': '高级球抓稀有和神兽有一定提升。',
+  '闪光': '遭遇闪光时会听到提示音，宝可梦名字后面也有闪光图标。',
+  '糖果': '奖励你30个糖果。',
+  '商店': '鼠标悬停到商品上可以看简介，右键兑换按钮能批量买。',
+  '增益': '闪耀护符有着甜甜蜜同样的增益。',
+  '孵蛋': '拥有两种蛋的时候，需要二次点击选择放入蛋的种类。',
+  '培育': '面板里显示的后代结果不代表最终结果。',
+  '钓鱼': '每个可钓鱼场景会自动进行一次钓鱼。',
+  '树果': '树果用处很多，多囤树果。',
+  '农场': '每日刷新的树果委托可以换到糖果。',
+  '宝可梦': '右键列表可以批量放生。',
+  '配队': '右键空白处可以随机配队。',
+  '训练': '挂机就长经验，别忘备够爱吃的树果。',
+  '对战': 'NPC的等级受到队伍等级的影响。',
+  '经验糖果': '经验糖果无法直接购买。',
+  '配招': '出门前配好 4 招，自动配招不一定是最合适的。',
+  '混合器': '混合好后确认到了对应地区再使用。',
+  '树果方块': '方块引诱的宝可梦闪光率为默认值不受增益加成。',
+  '招募帮手': '帮手也是会休息的。',
+  '游戏厅': '等糖果富余了再来玩吧。',
+  '21点': '富贵险中求。',
+  '口袋麻将': '玩法借鉴自原子碰将，只有对对胡。',
+  '抽卡机': '单纯收集卡牌，无特殊作用。',
+  '随从': '不知道干什么的时候可以抽一只随从。',
+  '自动操作': '好好设置一下，解放双手必备。',
+  '佛系模式': '慢节奏玩家可以开启。',
+  '系统日志': '开启自动操作后可以经常看看。',
+  '宝可梦难度': '稀有度越高越稀有。',
+  '状态栏图标': '点击可以隐藏任务栏图标。',
+};
+function tutorialRewards() {
+  return (gameData.tutorialRewards ||= { claimed: [] });
+}
+// 是否还有未领取的教程章节（手机"教程"app 图标与标题栏聚合红点共用）
+export function hasUnclaimedTutorialRewards() {
+  const r = gameData?.tutorialRewards;
+  if (!r) return true; // 老存档尚未有该字段：福利待领取
+  return TUTORIAL_SECTIONS.some((_, i) => !r.claimed.includes(i));
+}
+function claimTutorialReward(idx) {
+  const r = tutorialRewards();
+  if (r.claimed.includes(idx)) return false;
+  r.claimed.push(idx);
+  gameData.items.candy = (gameData.items.candy || 0) + TUTORIAL_REWARD;
+  gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + TUTORIAL_REWARD; // 教程奖励计入道具获得
+  saveGame();
+  updateBackpack('candy');
+  updateStats();
+  window.dispatchEvent(new Event('tutorial-rewards-changed')); // 通知手机红点即时刷新
+  return true;
+}
+
 export function showTutorialView() {
   pushNav('tutorialView');
   const list = $('tutorialList');
   const content = $('tutorialContent');
-  // 渲染左侧导航列表（带图标的章节在标题前显示对应 svg 图标）
+  const r = tutorialRewards();
+  // 渲染左侧导航列表（带图标的章节在标题前显示对应 svg 图标；未领取奖励的章节带红点）
   list.innerHTML = TUTORIAL_SECTIONS.map((s, i) =>
-    `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="#${s.icon}"/></svg>` : ''}${s.title}</div>`
+    `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="#${s.icon}"/></svg>` : ''}${s.title}${r.claimed.includes(i) ? '' : '<span class="tutorial-nav-badge"></span>'}</div>`
   ).join('');
   function render(idx) {
-    content.innerHTML = `<p class="tutorial-title">${TUTORIAL_SECTIONS[idx].title}</p>` + TUTORIAL_SECTIONS[idx].html;
+    const sec = TUTORIAL_SECTIONS[idx];
+    content.innerHTML = `<div class="tutorial-title-row"><p class="tutorial-title">${sec.title}</p>${
+      r.claimed.includes(idx)
+        ? ''
+        : `<button class="ach-btn ach-btn-ready tutorial-claim-btn" data-claim="${idx}"><img class="candy-icon" src="./items/candy.png" alt="">×${TUTORIAL_REWARD} 领取</button>`
+    }</div>` + sec.html;
     list.querySelectorAll('.tutorial-nav-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+    // 点击领取：直接发糖果，弹章节总结，重绘当前章节（按钮消失），并移除左侧导航红点
+    const btn = content.querySelector('.tutorial-claim-btn');
+    if (btn) btn.onclick = (e) => {
+      e.stopPropagation();
+      if (claimTutorialReward(idx)) {
+        list.querySelector(`.tutorial-nav-item[data-i="${idx}"] .tutorial-nav-badge`)?.remove();
+        showConfirmBar(`${TUTORIAL_SUMMARIES[sec.title] || ''}`, null, null, { singleButton: true, host: $('screen') });
+        render(idx);
+      }
+    };
     content.scrollTop = 0;
   }
   // 用 onclick 赋值，避免每次进入页面重复累加监听

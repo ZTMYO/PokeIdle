@@ -265,6 +265,7 @@ export function getDefaultSave() {
     systemLogs: [],
     incubatorLogs: [], // 孵蛋记录（仅孵化成功事件，最多 50 条）：{ time, species, gender, shiny }
     achievements: {}, // 成就进度：{ 成就id: 已领取档位数 }，由 achievements.js 管理
+    tutorialRewards: { claimed: [] }, // 教程章节奖励：{ claimed: [已领取章节索引] }，每章节可领一次糖果
     collectedCards: {}, // 卡牌收集：{ filename: { tier, cnName, enName, obtainedAt } }，由 gacha.js 管理
     gachaLogs: {}, // 抽卡记录：{ pool1: [{ time, card, tier, cnName, isNew }], pool2: [...] }，由 gacha.js 管理
     introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）

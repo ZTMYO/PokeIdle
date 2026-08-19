@@ -5,6 +5,7 @@ import { pushNav, anyIncubatorReady } from './state.js';
 import { hasTradableOffers, ensureTrades } from './trade.js';
 import { hasDryBerries } from './berry.js';
 import { hasClaimableAchievements } from './achievements.js';
+import { hasUnclaimedTutorialRewards } from './views.js';
 import { getNowPlaying } from './audio.js';
 
 const APPS = [
@@ -56,21 +57,27 @@ function updateAchievementBadge() {
   const badge = $('phone-badge-achievement');
   if (badge) badge.style.display = hasClaimableAchievements() ? '' : 'none';
 }
+// 教程应用红点：有未领取的教程章节奖励即点亮
+function updateTutorialBadge() {
+  const badge = $('phone-badge-tutorial');
+  if (badge) badge.style.display = hasUnclaimedTutorialRewards() ? '' : 'none';
+}
 
-// 标题栏手机图标聚合红点：任意 app 有红点（孵蛋完成/可交换/干涸树果/成就可领）即点亮
+// 标题栏手机图标聚合红点：任意 app 有红点（孵蛋完成/可交换/干涸树果/成就可领/教程奖励可领）即点亮
 function updatePhoneBadge() {
   const badge = $('title-badge-phone');
   if (!badge) return;
   ensureTrades(); // 波次过期先刷新，保证与交换红点口径一致
-  badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries() || hasClaimableAchievements()) ? '' : 'none';
+  badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries() || hasClaimableAchievements() || hasUnclaimedTutorialRewards()) ? '' : 'none';
 }
-export { updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge };
+export { updateTradeBadge, updateBerryBadge, updateAchievementBadge, updateTutorialBadge, updatePhoneBadge };
 
 // 状态变化时即时刷新红点：树果浇水/收获/种植、仓库宝可梦变化（捕获/孵化/交换）、交换波次刷新、成就领取，无需等 5 秒轮询
 window.addEventListener('berry-farm-changed', () => { updateBerryBadge(); updatePhoneBadge(); });
 window.addEventListener('roster-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
 window.addEventListener('trade-wave-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
 window.addEventListener('achievements-changed', () => { updateAchievementBadge(); updatePhoneBadge(); });
+window.addEventListener('tutorial-rewards-changed', () => { updateTutorialBadge(); updatePhoneBadge(); });
 
 // 顶部系统时间，每秒刷新一次（仅启动一次）
 function startClock() {
@@ -131,7 +138,7 @@ export function showPhoneView() {
           ${page.map(a => `
             <div class="phone-app" data-app="${a.id}">
               <div class="phone-app-icon"><svg><use xlink:href="#${a.icon}"/></svg>
-                ${['incubator', 'trade', 'berry', 'achievement'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
+                ${['incubator', 'trade', 'berry', 'achievement', 'tutorial'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
               </div>
               <div class="phone-app-name">${a.name}</div>
             </div>`).join('')}
@@ -143,6 +150,7 @@ export function showPhoneView() {
   updateTradeBadge();
   updateBerryBadge();
   updateAchievementBadge();
+  updateTutorialBadge();
   updatePhoneBadge();
   // 翻页：页码指示点点击 + 原生 scroll-snap 横向滑动
   let _page = 0;
