@@ -30,7 +30,7 @@ import {
 import { computeObtainScore } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak, twistTick, ensureTwistInit, forceRefreshTwist } from './events.js';
 import {
-  $, showView, updateTextBox, hideTextBox,
+  $, showView, updateTextBox, hideTextBox, showConfirmBar,
   isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
   renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip,
   isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView,
@@ -290,7 +290,11 @@ function goBack() {
 // 有存货且未骑行 = 进入待选骑行目的地（停止当前导航 + 跳转导航页，玩家选好目的地才消耗 1 个上车）。
 // 上车前先取消面前滑入/拾取中的道具，保证骑行界面干净（遇敌中不可使用，见 onBagClick）。
 function tryUseBike() {
-  if (road.isManualBike()) { road.setManualBike(false); return; }
+  if (road.isManualBike()) {
+    // 骑行中再点 = 手动下车：弹二次确认，下车不返还已消耗的自行车道具
+    showConfirmBar('确认下车？不返还自行车', () => { road.setManualBike(false); });
+    return;
+  }
   if (gameData.gps.pendingBike) {
     // 待选中再点：放弃选择，恢复进入待选前的导航（未消耗道具，下次再点重新进入待选）
     abandonBikeTarget();
