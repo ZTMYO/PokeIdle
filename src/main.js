@@ -16,13 +16,13 @@ import {
   _catchConfirmStep, _pokedexInLogView, _idleMsgIdx,
   _lastRegionId, gameTick, _fishing,
   setAllPokemon, setGameData, setPhase, setCurrentEncounter,
-  setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls,
+  setCurrentIsShiny, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls,
   setGameTick, pushNav, popNav, resetNav, setLastRegionId,
   setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd,
   setHoneyPausedRemaining, setCharmPausedRemaining,
   setCharmEncounterCount, setIdleMsgIdx, setCatchConfirmStep,
   setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState,
-  getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
+  getDefaultSave, normalizeBackgroundState, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
   hasAnyBall, saveSessionState, rand, randInt, formatNum,
   setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant,
@@ -40,7 +40,8 @@ import { spawnItemDrop, activateHoney, activateShinyCharm,
   doCandyExchange, grantItem, cancelItemDrop } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
-  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill, catchFilterResult } from './battle.js';
+  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill, catchFilterResult,
+  settleBackgroundEncounters } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
 import { helperTick, refreshBerryView } from './berry.js';
@@ -573,6 +574,7 @@ async function init() {
   } catch (_) {}
   gameDataRaw = chooseNewestSave(saveCandidates)?.data || null;
   setGameData(gameDataRaw || getDefaultSave());
+  gameData.background = normalizeBackgroundState(gameData.background);
   // 应用存档中的窗口倍率（未设置时默认 2 倍）
   applyWindowScale(gameData?.settings?.windowScale);
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
@@ -1255,6 +1257,44 @@ async function init() {
   const closeQuitDialog = () => $('quitDialog')?.classList.remove('open');
   window.__POKEIDLE_SAVE_NOW__ = () => saveGame();
   window.__POKEIDLE_AUDIO_RESUME__ = () => resumeAudio();
+  window.__POKEIDLE_BACKGROUND_ENTER__ = async () => {
+    if (!gameData?.background?.enabled) return false;
+    const now = Date.now();
+    gameData.background.startedAt = now;
+    gameData.background.settledAt = now;
+    gameData.background.encounterRemainderMs = 0;
+    await saveGame();
+    return true;
+  };
+  window.__POKEIDLE_BACKGROUND_TICK__ = now => settleBackgroundEncounters(now);
+  window.__POKEIDLE_BACKGROUND_RESUME__ = async () => {
+    const result = await settleBackgroundEncounters(Date.now());
+    const pending = gameData?.background?.pendingEncounter;
+    if (pending) {
+      const poke = getPokemonByIndex(pending.index);
+      if (poke) {
+        delete gameData.background.pendingEncounter;
+        try {
+          await saveGame({ strict: true });
+        } catch (error) {
+          gameData.background.pendingEncounter = pending;
+          throw error;
+        }
+        setCurrentEncounter(poke);
+        setCurrentIsShiny(!!pending.shiny);
+        setEncounterLevel(pending.level || 1);
+        setEncounterBallsUsed(0);
+        setCurrentEncounterBalls({ 'poke-ball': 0, 'ultra-ball': 0, 'master-ball': 0 });
+        setEncounterSource(pending.source || 'normal');
+        setEncounterVariant(pending.variant || null);
+        setPhase('encounter');
+        showEncounter(poke);
+      }
+    }
+    updateBackpack();
+    updateStats();
+    return result;
+  };
   window.__POKEIDLE_MOBILE_BACK__ = async () => {
     if (cancelSaveTransferDialog(document)) return true;
     if ($('appTitle')?.dataset.action === 'back') handleAppTitleBack();

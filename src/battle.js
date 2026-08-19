@@ -1,5 +1,5 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, WILD_LEVEL_MAX } from './config.js';
-import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, setEncounterSource, setEncounterVariant } from './state.js';
+import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, buildRosterEntry, setGameData, setLastObtainedEntryId, rollGender, genderBadge, setEncounterSource, setEncounterVariant } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage } from './ui.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
@@ -9,6 +9,86 @@ import { startIdleRotation } from './messages.js';
 import { playBattle, endBattle, playVictory, stopVictory, consumeShowCardOnEncounterEnd, showRegionNowPlaying, playShiny } from './audio.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
+import { settleBackgroundSlice } from './background-settlement.js';
+import { resolveBackgroundEncounter } from './background-battle.js';
+
+let _backgroundSettlementQueue = Promise.resolve();
+
+export function settleBackgroundEncounters(now = Date.now()) {
+  const operation = _backgroundSettlementQueue.catch(() => {}).then(async () => {
+    if (!gameData?.background?.enabled) return { encounters: 0, results: [] };
+    const original = gameData;
+    const background = original.background;
+    if (background.pendingEncounter) return { encounters: 0, results: [] };
+    const state = {
+      settledAt: background.settledAt || now,
+      encounterRemainderMs: background.encounterRemainderMs || 0,
+      balls: {
+        'poke-ball': original.items?.['poke-ball'] || 0,
+        'ultra-ball': original.items?.['ultra-ball'] || 0,
+        'master-ball': original.items?.['master-ball'] || 0,
+      },
+      gameData: original,
+    };
+    const intervalMs = (honeyBuffActive || charmBuffActive)
+      ? 22_500
+      : ((ENCOUNTER_MIN + ENCOUNTER_MAX) / 2) * 1000;
+    const settled = settleBackgroundSlice(state, {
+      now,
+      encounterEveryMs: intervalMs,
+      random: Math.random,
+      resolveEncounter: ({ state: next, at }) => {
+        const pokemon = pickRandomPokemon();
+        return resolveBackgroundEncounter({
+          state: next,
+          pokemon,
+          shiny: Math.random() < (charmBuffActive ? CHARM_SHINY_CHANCE : SHINY_CHANCE),
+          level: randInt(1, WILD_LEVEL_MAX),
+          now: at,
+          random: Math.random,
+          charmBuff: charmBuffActive,
+          honeyBuff: honeyBuffActive,
+          makeGender: rollGender,
+          makeRosterEntry: buildRosterEntry,
+        });
+      },
+    });
+    const nextData = settled.state.gameData;
+    for (const ball of ['poke-ball', 'ultra-ball', 'master-ball']) {
+      nextData.items[ball] = settled.state.balls[ball] || 0;
+    }
+    nextData.background ||= {};
+    nextData.background.settledAt = settled.state.settledAt;
+    nextData.background.encounterRemainderMs = settled.state.encounterRemainderMs || 0;
+    nextData.background.stats ||= { encounters: 0, caught: 0, fled: 0, ballsUsed: 0 };
+    nextData.background.stats.encounters += settled.encounters;
+    for (const result of settled.results) {
+      if (result.result === 'caught') nextData.background.stats.caught += 1;
+      if (result.result === 'fled') nextData.background.stats.fled += 1;
+      nextData.background.stats.ballsUsed += result.ballsUsed || 0;
+      nextData.background.lastResult = result;
+      if (result.result === 'paused') {
+        nextData.background.pendingEncounter = {
+          index: result.pokemon,
+          shiny: result.shiny,
+          level: result.level,
+          source: result.source,
+          variant: result.variant,
+        };
+      }
+    }
+    setGameData(nextData);
+    try {
+      await saveGame({ strict: true });
+    } catch (error) {
+      setGameData(original);
+      throw error;
+    }
+    return settled;
+  });
+  _backgroundSettlementQueue = operation;
+  return operation;
+}
 
 // 丢球挣脱文案（按摇晃轮数 0~3 分组）
 const BREAK_MSGS = {

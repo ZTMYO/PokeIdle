@@ -19,7 +19,9 @@ function copyState(state) {
  * Settles one time slice against an internal state copy.
  * `balls` is the pending inventory map. The resolver may update other fields
  * on the provided next state, but must not deduct balls; this core deducts
- * exactly one returned `ball` itself so adapters cannot double-charge.
+ * the returned `ballCosts` map (or one legacy `ball`) so adapters cannot
+ * double-charge. A `paused` result stops the slice at that encounter and
+ * leaves the remaining time after that encounter for the next settlement.
  */
 export function settleBackgroundSlice(state, options = {}) {
   const nextState = copyState(state);
@@ -57,25 +59,45 @@ export function settleBackgroundSlice(state, options = {}) {
     : 0;
   const processingStart = capped ? now - elapsedMs : settledAt;
   const accumulatedEncounterMs = previousRemainderMs + elapsedMs;
-  const encounters = hasEncounterInterval
+  const plannedEncounters = hasEncounterInterval
     ? Math.floor(accumulatedEncounterMs / encounterEveryMs)
     : 0;
   const results = [];
+  let encounters = 0;
+  let pausedAt = null;
 
-  for (let index = 0; index < encounters; index += 1) {
+  for (let index = 0; index < plannedEncounters; index += 1) {
+    const at = processingStart + (encounterEveryMs - previousRemainderMs) + (index * encounterEveryMs);
     const result = options.resolveEncounter({
       state: nextState,
       random: options.random?.(),
       encounterIndex: index,
-      at: processingStart + (encounterEveryMs - previousRemainderMs) + (index * encounterEveryMs),
+      at,
     });
     results.push(result);
+    encounters += 1;
 
-    if (result?.ball && (nextState.balls[result.ball] || 0) > 0) {
-      nextState.balls[result.ball] -= 1;
+    const costs = result?.ballCosts || (result?.ball ? { [result.ball]: 1 } : {});
+    for (const [ball, rawCount] of Object.entries(costs)) {
+      const count = Number.isInteger(rawCount) && rawCount > 0 ? rawCount : 0;
+      nextState.balls[ball] = Math.max(0, (nextState.balls[ball] || 0) - count);
+    }
+    if (result?.result === 'paused') {
+      pausedAt = at;
+      break;
     }
   }
 
+  if (pausedAt != null) {
+    nextState.encounterRemainderMs = 0;
+    nextState.settledAt = pausedAt;
+    return {
+      state: nextState,
+      encounters,
+      elapsedMs: Math.max(0, pausedAt - processingStart),
+      results,
+    };
+  }
   if (hasEncounterInterval) {
     nextState.encounterRemainderMs = accumulatedEncounterMs % encounterEveryMs;
   }

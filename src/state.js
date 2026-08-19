@@ -225,9 +225,35 @@ export function ensureGpsState() {
   return gameData.gps;
 }
 
+const BACKGROUND_STATS = ['encounters', 'caught', 'fled', 'ballsUsed'];
+
+export function normalizeBackgroundState(value, now = Date.now()) {
+  const source = value && typeof value === 'object' ? value : {};
+  const validTime = candidate => Number.isFinite(candidate) && candidate >= 0 ? candidate : 0;
+  const normalizedNow = validTime(now);
+  const statsSource = source.stats && typeof source.stats === 'object' ? source.stats : {};
+  const stats = Object.fromEntries(BACKGROUND_STATS.map(key => [
+    key,
+    Number.isInteger(statsSource[key]) && statsSource[key] >= 0 ? statsSource[key] : 0,
+  ]));
+  const normalized = {
+    enabled: source.enabled === true,
+    startedAt: validTime(source.startedAt),
+    settledAt: validTime(source.settledAt) || normalizedNow,
+    encounterRemainderMs: validTime(source.encounterRemainderMs),
+    stats,
+    lastResult: source.lastResult && typeof source.lastResult === 'object' ? source.lastResult : null,
+  };
+  if (source.pendingEncounter && typeof source.pendingEncounter === 'object') {
+    normalized.pendingEncounter = source.pendingEncounter;
+  }
+  return normalized;
+}
+
 // ---------- 存档默认值 ----------
 export function getDefaultSave() {
   return {
+    background: normalizeBackgroundState(null),
     manualBike: false, // 手动骑行状态标记（上车/下车时随主存档持久化，刷新/重开可恢复）
     items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'casinoCoin':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
     stats: {
@@ -348,13 +374,11 @@ export function isPokemon(p) {
   return !p || !p.kind || p.kind !== 'egg';
 }
 
-// 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
-export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1, gender, ivs, variant }) {
-  if (!gameData) return null;
-  if (!Array.isArray(gameData.roster)) gameData.roster = [];
+// 构造仓库条目但不写入全局存档，供后台事务结算复用。
+export function buildRosterEntry({ species, shiny = false, source = 'normal', level = 1, gender, ivs, variant }) {
   const poke = getPokemonByIndex(String(species));
   const legendIv = source !== 'egg' && poke && poke.legend === true;
-  const entry = {
+  return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     species,
     shiny: !!shiny,
@@ -369,6 +393,13 @@ export function addRosterEntry({ species, shiny = false, source = 'normal', leve
     obtainedAt: Date.now(),
     inRoster: true,
   };
+}
+
+// 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
+export function addRosterEntry(options) {
+  if (!gameData) return null;
+  if (!Array.isArray(gameData.roster)) gameData.roster = [];
+  const entry = buildRosterEntry(options);
   gameData.roster.push(entry);
   // 通知依赖仓库变化的界面（如交换页实时刷新按钮可用状态）
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('roster-changed'));
