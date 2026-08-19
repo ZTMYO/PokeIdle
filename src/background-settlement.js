@@ -21,7 +21,10 @@ export function settleBackgroundSlice(state, options = {}) {
   const now = Number(options.now);
 
   if (!Number.isFinite(now) || now <= settledAt) {
-    if (Number.isFinite(now) && now < settledAt) nextState.settledAt = now;
+    if (Number.isFinite(now) && now < settledAt) {
+      nextState.settledAt = now;
+      nextState.encounterRemainderMs = 0;
+    }
     return { state: nextState, encounters: 0, elapsedMs: 0, results: [] };
   }
 
@@ -31,8 +34,16 @@ export function settleBackgroundSlice(state, options = {}) {
     : DEFAULT_MAX_ELAPSED_MS;
   const elapsedMs = Math.min(now - settledAt, maxElapsedMs);
   const encounterEveryMs = Number(options.encounterEveryMs);
-  const encounters = Number.isFinite(encounterEveryMs) && encounterEveryMs > 0
-    ? Math.floor(elapsedMs / encounterEveryMs)
+  const hasEncounterInterval = Number.isFinite(encounterEveryMs) && encounterEveryMs > 0;
+  const configuredRemainder = Number(state.encounterRemainderMs);
+  const previousRemainderMs = hasEncounterInterval
+    && Number.isFinite(configuredRemainder)
+    && configuredRemainder >= 0
+    ? configuredRemainder % encounterEveryMs
+    : 0;
+  const accumulatedEncounterMs = previousRemainderMs + elapsedMs;
+  const encounters = hasEncounterInterval
+    ? Math.floor(accumulatedEncounterMs / encounterEveryMs)
     : 0;
   const results = [];
 
@@ -41,7 +52,7 @@ export function settleBackgroundSlice(state, options = {}) {
       state: nextState,
       random: options.random?.(),
       encounterIndex: index,
-      at: settledAt + ((index + 1) * encounterEveryMs),
+      at: settledAt + (encounterEveryMs - previousRemainderMs) + (index * encounterEveryMs),
     });
     results.push(result);
 
@@ -50,6 +61,9 @@ export function settleBackgroundSlice(state, options = {}) {
     }
   }
 
+  if (hasEncounterInterval) {
+    nextState.encounterRemainderMs = accumulatedEncounterMs % encounterEveryMs;
+  }
   nextState.settledAt = settledAt + elapsedMs;
   return { state: nextState, encounters, elapsedMs, results };
 }

@@ -39,6 +39,29 @@ test('按经过时间生成遭遇并保证同一游标幂等', () => {
   assert.deepEqual(repeat.results, []);
 });
 
+test('跨多个短时间片累计不足一个遇敌间隔的余数', () => {
+  const options = {
+    encounterEveryMs: 15_000,
+    random: () => 0,
+    resolveEncounter: () => ({ result: 'fled' }),
+  };
+  const initial = { settledAt: 0, balls: {}, stats: {} };
+
+  const first = settleBackgroundSlice(initial, { ...options, now: 10_000 });
+  const second = settleBackgroundSlice(first.state, { ...options, now: 20_000 });
+  const third = settleBackgroundSlice(second.state, { ...options, now: 30_000 });
+  const repeat = settleBackgroundSlice(third.state, { ...options, now: 30_000 });
+
+  assert.deepEqual(
+    [first.encounters, second.encounters, third.encounters, repeat.encounters],
+    [0, 1, 1, 0],
+  );
+  assert.equal(first.state.encounterRemainderMs, 10_000);
+  assert.equal(second.state.encounterRemainderMs, 5_000);
+  assert.equal(third.state.encounterRemainderMs, 0);
+  assert.equal(repeat.state.encounterRemainderMs, 0);
+});
+
 test('累计 caught、fled 和 continue 结果并扣除各自返回的球', () => {
   const resolutions = [
     { result: 'caught', ball: 'poke-ball' },
@@ -64,7 +87,12 @@ test('累计 caught、fled 和 continue 结果并扣除各自返回的球', () =
 });
 
 test('时间相等或回拨时不结算，并从回拨后的时间继续推进', () => {
-  const state = { settledAt: 100_000, balls: { 'poke-ball': 1 }, stats: {} };
+  const state = {
+    settledAt: 100_000,
+    encounterRemainderMs: 900,
+    balls: { 'poke-ball': 1 },
+    stats: {},
+  };
   let resolutions = 0;
   const options = {
     encounterEveryMs: 1_000,
@@ -82,10 +110,15 @@ test('时间相等或回拨时不结算，并从回拨后的时间继续推进',
   assert.equal(rolledBack.encounters, 0);
   assert.equal(rolledBack.elapsedMs, 0);
   assert.equal(rolledBack.state.settledAt, 99_000);
+  assert.equal(rolledBack.state.encounterRemainderMs, 0);
   assert.equal(resolutions, 0);
 
-  const resumed = settleBackgroundSlice(rolledBack.state, { ...options, now: 100_000 });
+  const partial = settleBackgroundSlice(rolledBack.state, { ...options, now: 99_500 });
+  const resumed = settleBackgroundSlice(partial.state, { ...options, now: 100_000 });
+  assert.equal(partial.encounters, 0);
+  assert.equal(partial.state.encounterRemainderMs, 500);
   assert.equal(resumed.encounters, 1);
+  assert.equal(resumed.state.encounterRemainderMs, 0);
   assert.equal(resumed.state.balls['poke-ball'], 0);
 });
 
