@@ -119,13 +119,22 @@ function makeOffer(npc) {
 const AUTHOR_CHANCE = 0.01;
 // 作者彩蛋 offer：需求与普通 offer 一致（玩家仍需付出），
 // 但给出随机【神兽】闪光 6V（个体全 31）、满级
-// 性格按神兽输出向自动匹配：物攻种族值高 → 物攻向性格，特攻高 → 特攻向性格，
+// 性格按神兽种族值最高项匹配：哪项种族最高就加哪项（HP 不吃性格修正，改给耐久向），
 // 避免出现"特攻手带固执"这类属性浪费的废性格（固执=物攻+10%/特攻-10%）
-const AUTHOR_NATURES_PHYSICAL = ['adamant', 'jolly', 'lonely', 'naive']; // 主打物攻/速度
-const AUTHOR_NATURES_SPECIAL = ['modest', 'timid', 'mild', 'rash'];     // 主打特攻/速度
+// stats 下标：0HP 1攻 2防 3特攻 4特防 5速（与 battle-core NATURES 的 up/down 对应）
+const AUTHOR_NATURE_POOLS = {
+  0: ['bold', 'impish', 'calm', 'careful'],       // HP 最高：耐久向（加防/特防）
+  1: ['adamant', 'lonely', 'brave', 'naughty'],   // 物攻最高：加物攻
+  2: ['bold', 'impish', 'lax', 'relaxed'],        // 防御最高：加防御
+  3: ['modest', 'mild', 'quiet', 'rash'],         // 特攻最高：加特攻
+  4: ['calm', 'gentle', 'careful', 'sassy'],      // 特防最高：加特防
+  5: ['jolly', 'timid', 'hasty', 'naive'],        // 速度最高：加速度
+};
 function pickAuthorNature(poke) {
   const s = poke.stats || [0, 0, 0, 0, 0, 0];
-  const pool = s[1] >= s[3] ? AUTHOR_NATURES_PHYSICAL : AUTHOR_NATURES_SPECIAL; // [1]=攻击 [3]=特攻
+  let top = 0;
+  for (let i = 1; i < s.length; i++) if (s[i] > s[top]) top = i;
+  const pool = AUTHOR_NATURE_POOLS[top];
   return pool[randInt(0, pool.length - 1)];
 }
 function makeAuthorOffer() {

@@ -582,7 +582,7 @@ body.browser-mode { overflow: auto; }
   background: var(--screen-bg-dark);
   color: #fff;
   font-size: 9px;
-  font-weight: normal; /* 不继承标题粗体 */
+  font-weight: normal;
   line-height: 1.5;
   padding: 3px 6px;
   border-radius: 3px;
