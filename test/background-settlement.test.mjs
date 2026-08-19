@@ -62,6 +62,33 @@ test('跨多个短时间片累计不足一个遇敌间隔的余数', () => {
   assert.equal(repeat.state.encounterRemainderMs, 0);
 });
 
+test('resolver 接收片内序号和包含前片余数的准确遭遇时间', () => {
+  const calls = [];
+  const state = {
+    settledAt: 10_000,
+    encounterRemainderMs: 400,
+    balls: {},
+    stats: {},
+  };
+
+  const settled = settleBackgroundSlice(state, {
+    now: 12_600,
+    encounterEveryMs: 1_000,
+    random: () => 0,
+    resolveEncounter: ({ encounterIndex, at }) => {
+      calls.push({ encounterIndex, at });
+      return { result: 'fled' };
+    },
+  });
+
+  assert.equal(settled.encounters, 3);
+  assert.deepEqual(calls, [
+    { encounterIndex: 0, at: 10_600 },
+    { encounterIndex: 1, at: 11_600 },
+    { encounterIndex: 2, at: 12_600 },
+  ]);
+});
+
 test('累计 caught、fled 和 continue 结果并扣除各自返回的球', () => {
   const resolutions = [
     { result: 'caught', ball: 'poke-ball' },
@@ -122,22 +149,89 @@ test('时间相等或回拨时不结算，并从回拨后的时间继续推进',
   assert.equal(resumed.state.balls['poke-ball'], 0);
 });
 
-test('默认和显式上限都把单次结算限制为 24 小时', () => {
+test('默认和显式上限都只结算最近 24 小时并直接推进到 now', () => {
   const state = { settledAt: 100_000, balls: {}, stats: {} };
+  const now = 100_000 + 48 * 60 * 60 * 1000;
   const options = {
-    now: 100_000 + 48 * 60 * 60 * 1000,
+    now,
     encounterEveryMs: 60 * 60 * 1000,
     random: () => 0,
-    resolveEncounter: () => ({ result: 'fled' }),
   };
 
-  const cappedByDefault = settleBackgroundSlice(state, options);
-  const cappedExplicitly = settleBackgroundSlice(state, { ...options, maxElapsedMs: DAY_MS });
+  for (const maxElapsedMs of [undefined, DAY_MS]) {
+    const encounterTimes = [];
+    const settled = settleBackgroundSlice(state, {
+      ...options,
+      maxElapsedMs,
+      resolveEncounter: ({ at }) => {
+        encounterTimes.push(at);
+        return { result: 'fled' };
+      },
+    });
+    const repeat = settleBackgroundSlice(settled.state, {
+      ...options,
+      maxElapsedMs,
+      resolveEncounter: () => ({ result: 'fled' }),
+    });
 
-  for (const settled of [cappedByDefault, cappedExplicitly]) {
     assert.equal(settled.elapsedMs, DAY_MS);
     assert.equal(settled.encounters, 24);
-    assert.equal(settled.state.settledAt, state.settledAt + DAY_MS);
+    assert.equal(encounterTimes[0], now - DAY_MS + 60 * 60 * 1000);
+    assert.equal(encounterTimes.at(-1), now);
+    assert.equal(settled.state.settledAt, now);
+    assert.equal(repeat.encounters, 0);
+  }
+});
+
+test('非法 now 不结算且不修改时间游标或余数', () => {
+  const state = {
+    settledAt: 5_000,
+    encounterRemainderMs: 750,
+    balls: {},
+    stats: {},
+  };
+
+  for (const now of [null, '', Number.NaN, Number.POSITIVE_INFINITY]) {
+    const settled = settleBackgroundSlice(state, {
+      now,
+      encounterEveryMs: 1_000,
+      random: () => 0,
+      resolveEncounter: () => ({ result: 'fled' }),
+    });
+
+    assert.equal(settled.encounters, 0);
+    assert.equal(settled.elapsedMs, 0);
+    assert.equal(settled.state.settledAt, state.settledAt);
+    assert.equal(settled.state.encounterRemainderMs, state.encounterRemainderMs);
+  }
+});
+
+test('maxElapsedMs 和 encounterEveryMs 不接受隐式数值转换', () => {
+  const initial = { settledAt: 0, balls: {}, stats: {} };
+  const invalidNumbers = [null, '', '1000', Number.NaN, Number.POSITIVE_INFINITY];
+
+  for (const maxElapsedMs of invalidNumbers) {
+    const settled = settleBackgroundSlice(initial, {
+      now: 2_000,
+      maxElapsedMs,
+      encounterEveryMs: 1_000,
+      random: () => 0,
+      resolveEncounter: () => ({ result: 'fled' }),
+    });
+    assert.equal(settled.elapsedMs, 2_000);
+    assert.equal(settled.encounters, 2);
+    assert.equal(settled.state.settledAt, 2_000);
+  }
+
+  for (const encounterEveryMs of invalidNumbers) {
+    const settled = settleBackgroundSlice(initial, {
+      now: 2_000,
+      encounterEveryMs,
+      random: () => 0,
+      resolveEncounter: () => ({ result: 'fled' }),
+    });
+    assert.equal(settled.encounters, 0);
+    assert.equal(settled.state.settledAt, 2_000);
   }
 });
 
