@@ -1,9 +1,11 @@
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { createMobileSaveTransfer } from './save-native.mjs';
 import { calculateMobileLayout } from './viewport-utils.mjs';
+import { createBackgroundMode } from './background-mode.mjs';
 
 const SAVE_PATH = 'save.json';
 const BACKUP_PATH = 'save.json.bak';
@@ -19,6 +21,7 @@ async function readData(path) {
 }
 
 const saveTransfer = createMobileSaveTransfer({ Filesystem, Share, App, Directory, Encoding });
+const backgroundMode = createBackgroundMode({ capacitor: Capacitor });
 
 const mobileBridge = {
   isMobile: true,
@@ -51,6 +54,11 @@ const mobileBridge = {
   },
 
   ...saveTransfer,
+
+  startBackgroundMode: () => backgroundMode.startBackgroundMode(),
+  stopBackgroundMode: () => backgroundMode.stopBackgroundMode(),
+  isBackgroundModeSupported: () => backgroundMode.isBackgroundModeSupported(),
+  onBackgroundTick: callback => backgroundMode.onBackgroundTick(callback),
 
   openExternal(url) {
     return Browser.open({ url });
@@ -103,8 +111,24 @@ App.addListener('backButton', async () => {
 });
 
 App.addListener('appStateChange', ({ isActive }) => {
-  if (isActive) window.__POKEIDLE_AUDIO_RESUME__?.();
-  else window.__POKEIDLE_SAVE_NOW__?.();
+  if (isActive) {
+    Promise.resolve(window.__POKEIDLE_BACKGROUND_RESUME__?.())
+      .catch(() => {})
+      .finally(() => backgroundMode.stopBackgroundMode().catch?.(() => {}));
+    window.__POKEIDLE_AUDIO_RESUME__?.();
+  } else {
+    Promise.resolve(window.__POKEIDLE_BACKGROUND_ENTER__?.())
+      .then(started => {
+        if (started !== false) return backgroundMode.startBackgroundMode();
+        return null;
+      })
+      .catch(() => {});
+    window.__POKEIDLE_SAVE_NOW__?.();
+  }
 });
 
 App.addListener('pause', () => window.__POKEIDLE_SAVE_NOW__?.());
+
+backgroundMode.onBackgroundTick(({ now }) => {
+  Promise.resolve(window.__POKEIDLE_BACKGROUND_TICK__?.(now)).catch(() => {});
+});
