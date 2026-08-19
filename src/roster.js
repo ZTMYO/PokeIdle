@@ -1040,6 +1040,7 @@ async function loadMovesBlock(id) {
 // ---------- 个体详情 ----------
 // 点击列表行进入；返回按钮（标题栏 back）→ restoreRosterList 回到列表
 function showRosterDetail(id) {
+  _renderSeq++; // 详情页直接覆盖列表内容：作废未完成的分片渲染，防止 rAF 分片把列表行追加到详情下方
   const p = (gameData.roster || []).find(r => r.id === id);
   if (!p) return;
   _detailId = id;

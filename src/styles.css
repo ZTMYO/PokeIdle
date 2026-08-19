@@ -581,7 +581,8 @@ body.browser-mode { overflow: auto; }
   transform: translateY(-50%);
   background: var(--screen-bg-dark);
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
+  font-weight: normal; /* 不继承标题粗体 */
   line-height: 1.5;
   padding: 3px 6px;
   border-radius: 3px;

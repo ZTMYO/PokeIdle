@@ -399,6 +399,10 @@ function renderGiveDetail(content, offerId) {
   content.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
       <span>${givePoke.form || givePoke.name}<span class="roster-detail-lv">${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</span>${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>' : ''}</span>
+      <span class="encounter-owned-wrap" id="tradeGiveOwnedWrap" style="display:none;">
+        <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-owned" /></svg>
+        <span class="encounter-tooltip" id="tradeGiveOwnedTip"></span>
+      </span>
     </div>
     <div class="roster-detail-head">
       <div class="poke-img-grid"><img id="tradeGiveDetailImg" class="poke-img-in-grid" alt="" /></div>
@@ -418,6 +422,27 @@ function renderGiveDetail(content, offerId) {
         <div class="roster-iv-bars">${bars}</div>
       </div>
     </div>`;
+  // 已捕获标记：右上角 owned 图标（普通/闪光分开），hover 显示首次捕获时间
+  const ownedWrap = $('tradeGiveOwnedWrap');
+  if (ownedWrap) {
+    const entry = gameData.pokedex[String(o.give.species)];
+    const hasCaught = entry && (o.give.shiny ? entry.shinyCaught > 0 : entry.caught > 0);
+    ownedWrap.style.display = hasCaught ? '' : 'none';
+    if (hasCaught) {
+      const tip = $('tradeGiveOwnedTip');
+      if (tip) {
+        const logs = (gameData.encounterLogs || {})[String(o.give.species)] || [];
+        const first = logs.find(l => l.result === 'caught' && !!l.shiny === !!o.give.shiny);
+        if (first && first.time) {
+          const d = new Date(first.time);
+          const pad = n => String(n).padStart(2, '0');
+          tip.textContent = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        } else {
+          tip.textContent = '首次捕获：较早前';
+        }
+      }
+    }
+  }
   const img = $('tradeGiveDetailImg');
   if (img) {
     // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）

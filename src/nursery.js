@@ -71,6 +71,7 @@ let _pickSlot = null;         // 非 null 时告示牌显示"放入宝可梦"列
 let _pickSortBy = null;   // 放入列表排序列：null=默认按编号+等级 | name | iv | level
 let _pickSortDir = 1;     // 1 升序 / -1 降序
 let _pickSearch = '';         // 放入列表搜索词
+let _pickListScroll = 0;      // 进入个体详情前记住放入列表滚动位置，返回后恢复
 let _pickTypeFilter = '';     // 放入列表属性筛选
 let _pickRegionFilter = '';   // 放入列表地区筛选
 let _pickIvSel = [];        // 放入列表个体值多选：[{stat,min}]，全部条件需同时满足（AND）
@@ -1426,10 +1427,17 @@ function bindPickRows(root) {
     row.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = row.dataset.pickView;
+      const pickList = root.querySelector('.nursery-pick-list');
+      if (pickList) _pickListScroll = pickList.scrollTop; // 记住列表位置，返回后恢复
       import('./roster.js').then(m => m.showRosterDetailFromList(id, () => {
         showView('nurseryView');
         render(); // _pickSlot 未清空，仍显示放入列表
         startTimer();
+        // render() 重建了列表 DOM，等渲染完成再恢复滚动位置
+        requestAnimationFrame(() => {
+          const l = $('nurseryContent')?.querySelector('.nursery-pick-list');
+          if (l) l.scrollTop = _pickListScroll;
+        });
       }));
     });
   });
