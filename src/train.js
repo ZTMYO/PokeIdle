@@ -54,8 +54,13 @@ TRAIN.w = TRAIN.tiles[0].length;
 TRAIN.h = TRAIN.tiles.length;
 const TRAIN_W = TRAIN.w * TILE;
 const TRAIN_H = TRAIN.h * TILE;
-// 水系贴图浸水裁切高度占总高的比例（与 styles.css 的 --water-clip 同步）
-const WATER_CLIP = 0.1;
+
+// 移动帧动画（pokemon-move 9 帧 sprite，单帧 32×32）：方向帧序列（0-indexed，对应 1-7-2-7 / 3-8-4-8 / 5-9-6-9）
+// 向左复用向右序列，靠 scaleX(-1) 镜像
+const MOVE_SEQ = { right: [0, 6, 1, 6], up: [2, 7, 3, 7], down: [4, 8, 5, 8] };
+const MOVE_FRAME_MS = 200;
+const MOVE_DUR_MS = 600; // 覆盖 0.5s 位移过渡，帧动画稍长避免瞬停
+const MOVE_SCALE = 1.4; // 移动帧单帧 32px 比 icon 视觉小，放大到接近 icon 尺寸（可调）
 
 // 可走动瓦片：水域（水系宝可梦专属）与陆地；陆地宝可梦不去第一行、最下面一行与最后一列
 const TILE_WATER = new Set(['1,26', '1,22']); // 深水 + 水池上缘浅水，四行高度
@@ -297,36 +302,22 @@ function syncWalkers() {
     el.className = 'train-walker' + (isWater ? ' water' : '');
     el.style.left = (start.c * TILE) + 'px';
     el.style.top = (start.r * TILE) + 'px';
-    // 水系宝可梦：贴图包一层裁切容器（底部浸水被水面裁掉）+ 水面上配翻转渐隐倒影
-    const body = isWater
-      ? '<div class="train-walker-clip"><div class="train-walker-flip"><img class="train-walker-img" alt=""></div></div>'
-        + '<div class="train-walker-refl"><img class="train-walker-refl-img" alt=""></div>'
-      : '<div class="train-walker-flip"><img class="train-walker-img" alt=""></div>';
-    el.innerHTML = body + '<span class="train-walker-zzz"><i>z</i><i>z</i><i>z</i></span>';
+    // 俯视层级：靠下的宝可梦（y 大）盖住靠上的，避免相邻时互相遮挡
+    el.style.zIndex = 10 + start.r * TILE;
+    el.innerHTML = '<div class="train-walker-flip"><img class="train-walker-img" alt=""></div>'
+      + '<span class="train-walker-zzz"><i>z</i><i>z</i><i>z</i></span>';
     layer.appendChild(el);
     const img = el.querySelector('.train-walker-img');
     if (poke.icon) tryLoadImage(img, poke.icon);
-    if (isWater) {
-      const refl = el.querySelector('.train-walker-refl');
-      const reflImg = el.querySelector('.train-walker-refl-img');
-      if (poke.icon) tryLoadImage(reflImg, poke.icon);
-      if (start.facing < 0) refl.style.transform = 'scale(-1,-1)'; // 倒影朝向与本体镜像一致
-      // 倒影高度受限，不伸出水池底部（walker 高 32，倒影从裁切后的视觉底部开始）
-      const reflTop = el.offsetTop + 32 * (1 - WATER_CLIP);
-      const maxBottom = (waterBottom + 1) * TILE;
-      refl.style.height = Math.max(0, Math.min(32, maxBottom - reflTop)) + 'px';
-    }
     // 随机相位：多个宝可梦的闪烁动画错开，避免同步
     img.style.animationDelay = '-' + (Math.random() * 0.5).toFixed(2) + 's';
-    // 倒影动画与本体同相位同步跳动（视线向上时倒影也向上，贴合水面）
-    const reflImg = el.querySelector('.train-walker-refl-img');
-    if (reflImg) reflImg.style.animationDelay = img.style.animationDelay;
     if (start.facing < 0) el.querySelector('.train-walker-flip').style.transform = 'scaleX(-1)';
     el.classList.toggle('lazy', isLazy(slot));
-    if (isLazy(slot)) {
-      img.classList.add('lazy');
-      if (reflImg) reflImg.classList.add('lazy');
-    }
+    if (isLazy(slot)) img.classList.add('lazy');
+    // 初始站着不动：先不跳，首次移动时才起跳
+    img.classList.add('idle');
+    // 位移结束（停下）后停止跳动；再次移动时恢复
+    el.addEventListener('transitionend', () => img.classList.add('idle'));
     // 点击（抓取）偷懒的宝可梦：把它叫醒，立即恢复训练
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -338,10 +329,71 @@ function syncWalkers() {
     _walkerPos.set(slot.id, { c: start.c, r: start.r, facing: start.facing || 1 });
     _walkers.set(slot.id, {
       el, img, isWater,
-      reflImg: el.querySelector('.train-walker-refl-img') || null,
+      move: false,           // 是否启用移动帧动画
+      scale: 1,              // 本体显示放大倍率（move 素材启用后设为 MOVE_SCALE）
+      frameCount: 1, frameW: 1,
+      seq: MOVE_SEQ.right, frame: 0,
+      moving: false, moveUntil: 0, lastFrameAt: 0,
       nextAt: Date.now() + randInt(400, 1400),
     });
+    // 移动帧动画：仅无变体本体尝试；素材缺失/非多帧自动回退 icon+跳动
+    const w = _walkers.get(slot.id);
+    if (!String(poke.index).includes('-')) {
+      const moveSrc = './pokemon-data/pokemon-move/' + String(poke.index).padStart(4, '0') + '-' + poke.name + '.png';
+      const iconSrc = poke.icon;
+      tryLoadImage(img, moveSrc).then(ok => {
+        if (!ok) { if (iconSrc) tryLoadImage(img, iconSrc); return; }
+        const nw = img.naturalWidth, nh = img.naturalHeight;
+        const fc = nw && nh ? Math.max(1, Math.round(nw / nh)) : 1;
+        if (fc < 2) { if (iconSrc) tryLoadImage(img, iconSrc); return; } // 非多帧素材不启用
+        w.move = true;
+        w.frameCount = fc;
+        w.frameW = nw / fc;
+        img.style.objectFit = 'none';
+        img.style.objectPosition = '0px 0px';
+        img.classList.add('move'); // 移动帧模式彻底停用上下跳动，行走切帧、静止保持帧
+        // 放大本体：水系贴水面向上（origin bottom，底部不浸水）、陆地居中放大
+        w.scale = MOVE_SCALE;
+        const pf = (_walkerPos.get(slot.id) || { facing: 1 }).facing;
+        const flipEl = el.querySelector('.train-walker-flip');
+        flipEl.style.transformOrigin = isWater ? 'bottom' : 'center';
+        flipEl.style.transform = (pf < 0 ? 'scaleX(-1) ' : '') + 'scale(' + MOVE_SCALE + ')';
+        addMoveAnim(w);
+      });
+    }
   });
+}
+
+// ---------- 移动帧驱动（共享 RAF 切帧，参考随从走马灯） ----------
+let _moveImgs = [];
+let _moveRaf = null;
+
+function addMoveAnim(w) {
+  _moveImgs.push(w);
+  if (!_moveRaf) _moveRaf = requestAnimationFrame(moveTick);
+}
+
+function moveTick() {
+  const now = performance.now();
+  _moveImgs = _moveImgs.filter(m => m.img && m.img.isConnected);
+  for (const w of _moveImgs) {
+    if (!w.moving) continue;
+    if (now > w.moveUntil) {
+      w.moving = false; // 位移结束：切到站立过渡帧（帧7/8/9，序列第二帧），别停在抬脚的帧
+      const idx = w.seq[1] % w.frameCount;
+      w.img.style.objectPosition = `-${idx * w.frameW}px 0px`;
+      continue;
+    }
+    if (now - w.lastFrameAt >= MOVE_FRAME_MS) {
+      w.lastFrameAt = now;
+      w.frame = (w.frame + 1) % w.seq.length;
+      const idx = w.seq[w.frame] % w.frameCount;
+      const pos = `-${idx * w.frameW}px 0px`;
+      w.img.style.objectPosition = pos;
+    }
+  }
+  if (_moveImgs.length > 0) _moveRaf = requestAnimationFrame(moveTick);
+  else _moveRaf = null;
 }
 
 // 每 tick 让在场宝可梦随机移动一格；偷懒中的原地发呆；不与其它宝可梦重叠
@@ -351,10 +403,15 @@ function walkerTick(now = Date.now()) {
   for (const [id, w] of _walkers) {
     const slot = slotById.get(id);
     const lazy = !!slot && isLazy(slot);
-    // 偷懒的宝可梦暂停上下跳动画（本体与倒影同步停）
+    // 偷懒的宝可梦暂停上下跳动画并停掉移动帧
     w.img.classList.toggle('lazy', lazy);
-    if (w.reflImg) w.reflImg.classList.toggle('lazy', lazy);
     w.el.classList.toggle('lazy', lazy);
+    if (lazy && w.moving) {
+      w.moving = false;
+      // 偷懒原地：切到站立过渡帧（帧7/8/9），别停在抬脚的帧
+      const idx = w.seq[1] % w.frameCount;
+      w.img.style.objectPosition = `-${idx * w.frameW}px 0px`;
+    }
     if (now < w.nextAt) continue;
     if (lazy) continue; // 偷懒中不动
     w.nextAt = now + randInt(900, 2200);
@@ -374,16 +431,26 @@ function walkerTick(now = Date.now()) {
       if (occupied.has(nc + ',' + nr)) continue;
       prev.c = nc;
       prev.r = nr;
-      // 图标素材默认朝左：向左走不镜像，向右走才镜像
-      if (dc !== 0) prev.facing = dc < 0 ? 1 : -1;
+      // 图标素材默认朝左、move 素材默认朝右：向左走 icon 不镜像 / move 镜像，向右相反
+      if (dc !== 0) prev.facing = w.move ? (dc < 0 ? -1 : 1) : (dc < 0 ? 1 : -1);
       _walkerPos.set(id, prev);
       w.el.style.left = (nc * TILE) + 'px';
       w.el.style.top = (nr * TILE) + 'px';
-      // 转向直接镜像，不做 3D 翻转
-      w.el.querySelector('.train-walker-flip').style.transform = prev.facing < 0 ? 'scaleX(-1)' : '';
-      // 倒影镜像同步（朝右时水平翻转，保持与本体一致；空串回退 CSS 默认 scaleY(-1)）
-      const refl = w.el.querySelector('.train-walker-refl');
-      if (refl) refl.style.transform = prev.facing < 0 ? 'scale(-1,-1)' : '';
+      w.el.style.zIndex = 10 + nr * TILE; // 俯视层级随 y 递增
+      w.img.classList.remove('idle'); // 开始走动：恢复上下跳动（停下时 transitionend 再加回）
+      // 移动帧：按方向选帧序列并启动切帧（左/右共用向右序列，向左靠镜像翻转）
+      if (w.move) {
+        w.seq = dc === 0 && dr < 0 ? MOVE_SEQ.up : dc === 0 && dr > 0 ? MOVE_SEQ.down : MOVE_SEQ.right;
+        w.frame = 0;
+        w.lastFrameAt = performance.now();
+        w.moveUntil = w.lastFrameAt + MOVE_DUR_MS;
+        w.moving = true;
+        // 立即切到新方向第一帧：贴图先朝移动方向，再开始位移（避免起步时仍显示旧方向帧）
+        w.img.style.objectPosition = `-${(w.seq[0] % w.frameCount) * w.frameW}px 0px`;
+      }
+      // 镜像与缩放：水系贴水面向上放大（origin bottom 已在 move 回调设置），陆地居中
+      const flipEl = w.el.querySelector('.train-walker-flip');
+      flipEl.style.transform = (prev.facing < 0 ? 'scaleX(-1) ' : '') + (w.scale > 1 ? 'scale(' + w.scale + ')' : '');
       break;
     }
   }

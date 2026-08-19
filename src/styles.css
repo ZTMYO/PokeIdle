@@ -757,9 +757,14 @@ body.browser-mode { overflow: auto; }
   transition: transform 0.12s;
   user-select: none;
   line-height: 1;
+  animation: textBoxArrowBounce 0.9s steps(1, end) infinite;
 }
-.text-box-arrow:hover { transform: scale(1.25); }
-.text-box-arrow:active { transform: scale(0.85); }
+.text-box-arrow:active { animation: none; transform: scale(0.85); }
+@keyframes textBoxArrowBounce {
+  0%, 33% { transform: translateY(0); }
+  34%, 66% { transform: translateY(2px); }
+  67%, 100% { transform: translateY(0); }
+}
 
 .flee-btn {
   position: absolute;
@@ -6633,16 +6638,12 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   position: absolute;
   width: 32px;
   height: 32px;
-  /* 不设 z-index：避免创建层叠上下文，否则倒影（z-index:-1）会被困在本体内
-     无法沉到 walkers 容器底，导致上方宝可梦的倒影盖住下方宝可梦本体 */
   pointer-events: auto;
   transition: left 0.5s linear, top 0.5s linear;
 }
 /* 偷懒中的宝可梦：光标提示可点击（grab）叫醒 */
 .train-walker.lazy { cursor: grab; }
 .train-walker.lazy:active { cursor: grabbing; }
-/* 水系泡水裁切比例：按总高百分比（--water-clip），本体与倒影共同继承 */
-.train-walker.water { --water-clip: 10%; }
 .train-walker-flip {
   width: 100%;
   height: 100%;
@@ -6654,52 +6655,21 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
-  animation: pokeJump 0.5s steps(1, end) infinite;
-}
-/* 水系宝可梦泡水效果：贴图容器裁掉底部一截（身体下半浸在水里）。
-   裁切量按总高百分比（--water-clip），用 top 而非 margin-top：margin 百分比相对宽度，
-   top 相对父元素高度，与 JS 的 WATER_CLIP 保持一致 */
-.train-walker-clip {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-.train-walker-clip .train-walker-img {
-  position: relative;
-  top: var(--water-clip);
-}
-/* 水面倒影：外层负责翻转 + 渐隐，内层播放反向动画与本体同步跳动 */
-.train-walker-refl {
-  position: absolute;
-  left: 0;
-  top: calc(100% - var(--water-clip));
-  width: 100%;
-  height: 100%;
-  z-index: -1; /* 沉到所有宝可梦本体之下，避免倒影盖住下方/后方的宝可梦 */
-  transform: scaleY(-1);
-  opacity: 0.35;
-  overflow: hidden; /* 配合内层下沉，裁掉贴近水面的倒影段，与本体浸水裁切对称 */
-  pointer-events: none;
-  /* 元素被 scaleY(-1) 翻转，这里按翻转前坐标写：底部不透明、顶部透明，翻转后呈近本体端不透明、远端渐隐 */
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 70%);
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 70%);
-}
-.train-walker-refl-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  top: var(--water-clip); /* 下沉百分比：翻转后视觉上贴近水面的倒影段溢出容器被裁，与本体对称 */
-  object-fit: contain;
-  image-rendering: pixelated;
-  /* 用原版 pokeJump：外层 scaleY(-1) 翻转坐标系后，视觉方向与本体相反（本体跳起时倒影回落） */
-  animation: pokeJump 0.5s steps(1, end) infinite;
-}
-.train-walker-refl-img.lazy {
-  animation: none;
+  animation: pokeJump 0.7s steps(1, end) infinite;
 }
 /* 偷懒中的宝可梦：停止上下跳动画，原地待着 */
 .train-walker-img.lazy {
+  animation: none;
+}
+/* 停下休息的宝可梦：停止跳动并保持落底姿势（move 帧动画不受影响） */
+.train-walker-img.idle {
+  animation: none;
+}
+.train-walker-img.idle:not(.move) {
+  transform: translateY(5px);
+}
+/* 使用移动帧动画的宝可梦：彻底停用上下跳动，行走切帧、静止保持帧 */
+.train-walker-img.move {
   animation: none;
 }
 /* 偷懒睡觉粒子：三个 z 从头顶错开上飘、放大淡出循环（仅偷懒时显示） */
@@ -6981,7 +6951,18 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
-  animation: pokeJump 0.5s steps(1, end) infinite;
+  animation: pokeJump 0.7s steps(1, end) infinite;
+}
+/* 使用移动帧动画的亲本：彻底停用上下跳动，行走切帧、静止保持帧 */
+.nursery-walker-img.move {
+  animation: none;
+}
+/* 停下休息的亲本：停止跳动并保持落底姿势（move 帧动画不受影响） */
+.nursery-walker-img.idle {
+  animation: none;
+}
+.nursery-walker-img.idle:not(.move) {
+  transform: translateY(5px);
 }
 /* 繁殖中亲本头顶的爱心粒子：♥ 上浮放大淡出（与战斗着迷同款表现，错峰飘散） */
 .nursery-walker-fx {
