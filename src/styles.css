@@ -3937,6 +3937,24 @@ body.browser-mode { overflow: auto; }
   cursor: pointer;
   flex-shrink: 0;
 }
+.toggle-switch.disabled {
+  cursor: default;
+  opacity: 0.45;
+  pointer-events: none;
+}
+.background-mode-status {
+  margin: 0 4px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.background-mode-status.on { color: var(--ui-color); }
+.background-mode-hint {
+  margin: 0 4px 5px;
+  font-size: 9px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
 .toggle-track {
   width: 100%;
   height: 100%;

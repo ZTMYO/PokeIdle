@@ -1267,6 +1267,12 @@ async function init() {
     return true;
   };
   window.__POKEIDLE_BACKGROUND_TICK__ = now => settleBackgroundEncounters(now);
+  window.__POKEIDLE_BACKGROUND_STOPPED__ = async () => {
+    if (!gameData?.background) return;
+    gameData.background.enabled = false;
+    await saveGame({ strict: true });
+    window.dispatchEvent(new CustomEvent('pokeidle-background-state-change'));
+  };
   window.__POKEIDLE_BACKGROUND_RESUME__ = async () => {
     const result = await settleBackgroundEncounters(Date.now());
     const pending = gameData?.background?.pendingEncounter;

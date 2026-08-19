@@ -15,6 +15,7 @@ test('浏览器环境的后台模式安全降级且不抛异常', async () => {
   assert.equal(await mode.stopBackgroundMode(), false);
   assert.equal(await mode.isBackgroundModeSupported(), false);
   assert.equal(typeof await mode.onBackgroundTick(() => {}), 'function');
+  assert.equal(typeof await mode.onBackgroundStopped(() => {}), 'function');
 });
 
 test('后台模式封装调用原生插件并转发心跳时间戳', async () => {
@@ -34,10 +35,14 @@ test('后台模式封装调用原生插件并转发心跳时间戳', async () =>
   assert.deepEqual(await mode.stopBackgroundMode(), { stopped: true });
   assert.deepEqual(await mode.isBackgroundModeSupported(), { supported: true });
   await mode.onBackgroundTick(event => ticks.push(event));
+  let stopped = false;
+  await mode.onBackgroundStopped(() => { stopped = true; });
   listeners.get('backgroundTick')({ now: 1234 });
+  listeners.get('backgroundStopped')({ stopped: true });
 
   assert.deepEqual(calls, ['start', 'stop', 'supported']);
   assert.deepEqual(ticks, [{ now: 1234 }]);
+  assert.equal(stopped, true);
 });
 
 test('移动端 bridge 暴露后台模式并绑定前后台生命周期', async () => {
@@ -48,9 +53,11 @@ test('移动端 bridge 暴露后台模式并绑定前后台生命周期', async 
   assert.match(bridge, /stopBackgroundMode/);
   assert.match(bridge, /isBackgroundModeSupported/);
   assert.match(bridge, /onBackgroundTick/);
+  assert.match(bridge, /onBackgroundStopped/);
   assert.match(bridge, /__POKEIDLE_BACKGROUND_ENTER__/);
   assert.match(bridge, /__POKEIDLE_BACKGROUND_TICK__/);
   assert.match(bridge, /__POKEIDLE_BACKGROUND_RESUME__/);
+  assert.match(bridge, /__POKEIDLE_BACKGROUND_STOPPED__/);
 });
 
 test('Android 前台服务和插件声明启动、停止、心跳与通知权限契约', async () => {

@@ -13,6 +13,7 @@ export function isBackgroundModeSupported({ capacitor } = {}) {
 export function createBackgroundMode({ capacitor = globalThis.Capacitor } = {}) {
   const plugin = getPlugin(capacitor);
   let removeTickListener = null;
+  let removeStoppedListener = null;
 
   return {
     async startBackgroundMode() {
@@ -41,6 +42,16 @@ export function createBackgroundMode({ capacitor = globalThis.Capacitor } = {}) 
       });
       removeTickListener = () => listener?.remove?.();
       return removeTickListener;
+    },
+
+    async onBackgroundStopped(callback) {
+      if (!plugin?.addListener || typeof callback !== 'function') {
+        return () => {};
+      }
+      removeStoppedListener?.();
+      const listener = await plugin.addListener('backgroundStopped', callback);
+      removeStoppedListener = () => listener?.remove?.();
+      return removeStoppedListener;
     },
   };
 }

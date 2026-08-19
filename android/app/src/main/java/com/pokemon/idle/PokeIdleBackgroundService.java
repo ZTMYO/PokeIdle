@@ -42,6 +42,9 @@ public class PokeIdleBackgroundService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (ACTION_STOP.equals(intent != null ? intent.getAction() : null)) {
+            if (intent != null && intent.getBooleanExtra(PokeIdleBackgroundPlugin.EXTRA_NOTIFY_STOPPED, false)) {
+                PokeIdleBackgroundPlugin.emitBackgroundStopped();
+            }
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -75,7 +78,8 @@ public class PokeIdleBackgroundService extends Service {
 
     private Notification buildNotification() {
         Intent stopIntent = new Intent(this, PokeIdleBackgroundService.class)
-            .setAction(ACTION_STOP);
+            .setAction(ACTION_STOP)
+            .putExtra(PokeIdleBackgroundPlugin.EXTRA_NOTIFY_STOPPED, true);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
         PendingIntent stopPendingIntent = PendingIntent.getService(this, 4103, stopIntent, flags);

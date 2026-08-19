@@ -59,6 +59,7 @@ const mobileBridge = {
   stopBackgroundMode: () => backgroundMode.stopBackgroundMode(),
   isBackgroundModeSupported: () => backgroundMode.isBackgroundModeSupported(),
   onBackgroundTick: callback => backgroundMode.onBackgroundTick(callback),
+  onBackgroundStopped: callback => backgroundMode.onBackgroundStopped(callback),
 
   openExternal(url) {
     return Browser.open({ url });
@@ -132,4 +133,8 @@ App.addListener('pause', () => window.__POKEIDLE_SAVE_NOW__?.());
 
 backgroundMode.onBackgroundTick(({ now }) => {
   Promise.resolve(window.__POKEIDLE_BACKGROUND_TICK__?.(now)).catch(() => {});
+});
+
+backgroundMode.onBackgroundStopped(() => {
+  Promise.resolve(window.__POKEIDLE_BACKGROUND_STOPPED__?.()).catch(() => {});
 });

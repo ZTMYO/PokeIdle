@@ -12,7 +12,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE,
   TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX,
   FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, normalizeBackgroundState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
 import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
@@ -747,6 +747,30 @@ export function showSettingsView() {
     sv.scrollTop += e.deltaY * 0.4;
   };
   showView('settingsView');
+  refreshBackgroundModeSupport();
+}
+
+let _backgroundModeSupport = null;
+let _backgroundModeBusy = false;
+let _backgroundModeMessage = '';
+
+async function refreshBackgroundModeSupport() {
+  const mobile = window.__POKEIDLE_MOBILE__;
+  if (!mobile?.isMobile || typeof mobile.isBackgroundModeSupported !== 'function') {
+    _backgroundModeSupport = false;
+    return;
+  }
+  try {
+    const result = await mobile.isBackgroundModeSupported();
+    _backgroundModeSupport = result === true || result?.supported === true;
+  } catch (_) {
+    _backgroundModeSupport = false;
+  }
+  if ($('settingsView')?.style.display !== 'none') {
+    const content = $('settingsContent');
+    renderSettings(content, gameData.settings || {});
+    refreshImportBackupState(content, createSavePlatform());
+  }
 }
 
 // 捕捉条件表格：四行四类遇敌 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪）
@@ -781,6 +805,13 @@ export function renderSettings(container, s) {
   const musicEnabled = s.musicEnabled !== false;
   const sfxEnabled = s.sfxEnabled !== false;
   const battleMusic = s.battleMusic !== false;
+  const backgroundEnabled = gameData.background?.enabled === true;
+  const backgroundMobile = window.__POKEIDLE_MOBILE__?.isMobile === true;
+  const backgroundSupported = backgroundMobile && _backgroundModeSupport !== false;
+  const backgroundStatus = _backgroundModeMessage
+    || (!backgroundMobile ? '当前平台不支持后台挂机'
+      : _backgroundModeSupport == null ? '正在检查系统支持...'
+        : backgroundEnabled ? '已开启，退到后台后继续运行' : '已关闭');
   // 捕捉条件表格：四行（普通/普通闪/神兽/神兽闪），策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
   const cfTbody = CF_ROWS.map(({ key, label }) => {
@@ -857,6 +888,19 @@ export function renderSettings(container, s) {
             <div class="toggle-knob"></div>
           </div>
         </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">Android 后台挂机</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">后台挂机</div>
+          <div class="toggle-switch ${(!backgroundSupported || _backgroundModeBusy) ? 'disabled' : ''}" id="toggleBackgroundMode" aria-disabled="${!backgroundSupported || _backgroundModeBusy}">
+            <div class="toggle-track ${backgroundEnabled ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        <div class="background-mode-status ${backgroundEnabled ? 'on' : ''}">${backgroundStatus}</div>
+        <div class="background-mode-hint">通过常驻通知在锁屏或退到后台后继续自动遇敌与抓捕，运行期间会增加耗电。</div>
       </div>
 
       <div class="settings-group">
@@ -984,6 +1028,7 @@ export function renderSettings(container, s) {
   container.querySelector('#genderBrendan')?.addEventListener('click', () => toggleGender('brendan'));
   container.querySelector('#genderMay')?.addEventListener('click', () => toggleGender('may'));
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
+  container.querySelector('#toggleBackgroundMode')?.addEventListener('click', toggleBackgroundMode);
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
   // 窗口倍率下拉：展开/收起（同一时刻只开一个）
   const scaleSel = container.querySelector('#windowScaleSelect');
@@ -1155,6 +1200,55 @@ export function renderSettings(container, s) {
   // 版权声明：跳转声明视图
   container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
 }
+
+export async function toggleBackgroundMode() {
+  if (_backgroundModeBusy) return;
+  const mobile = window.__POKEIDLE_MOBILE__;
+  if (!mobile?.isMobile || _backgroundModeSupport === false) {
+    _backgroundModeMessage = '当前平台不支持后台挂机';
+    renderSettings($('settingsContent'), gameData.settings || {});
+    return;
+  }
+
+  _backgroundModeBusy = true;
+  _backgroundModeMessage = '';
+  const previous = JSON.parse(JSON.stringify(gameData.background || normalizeBackgroundState(null)));
+  gameData.background = normalizeBackgroundState(gameData.background);
+  try {
+    if (gameData.background.enabled) {
+      const stopped = await mobile.stopBackgroundMode();
+      if (stopped === false || stopped?.stopped === false) throw new Error('后台服务停止失败');
+      gameData.background.enabled = false;
+      await saveGame({ strict: true });
+    } else {
+      const now = Date.now();
+      gameData.background.startedAt = now;
+      gameData.background.settledAt = now;
+      gameData.background.encounterRemainderMs = 0;
+      await saveGame({ strict: true });
+      const started = await mobile.startBackgroundMode();
+      if (started === false || started?.started === false) throw new Error('后台服务启动失败');
+      gameData.background.enabled = true;
+      await saveGame({ strict: true });
+    }
+  } catch (error) {
+    try {
+      if (previous.enabled) await mobile.startBackgroundMode();
+      else await mobile.stopBackgroundMode();
+    } catch (_) {}
+    gameData.background = previous;
+    _backgroundModeMessage = error?.message || '后台挂机操作失败';
+    try { await saveGame({ strict: true }); } catch (_) {}
+  } finally {
+    _backgroundModeBusy = false;
+    renderSettings($('settingsContent'), gameData.settings || {});
+  }
+}
+
+window.addEventListener('pokeidle-background-state-change', () => {
+  _backgroundModeMessage = '';
+  if ($('settingsView')?.style.display !== 'none') renderSettings($('settingsContent'), gameData.settings || {});
+});
 
 // 重置存档：清空本地存档并开新档
 export async function resetSave() {

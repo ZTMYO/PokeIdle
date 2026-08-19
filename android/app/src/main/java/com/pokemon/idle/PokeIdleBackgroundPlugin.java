@@ -17,6 +17,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "PokeIdleBackground")
 public class PokeIdleBackgroundPlugin extends Plugin {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
+    public static final String EXTRA_NOTIFY_STOPPED = "notifyBackgroundStopped";
     private static PokeIdleBackgroundPlugin instance;
 
     @Override
@@ -74,6 +75,12 @@ public class PokeIdleBackgroundPlugin extends Plugin {
         if (plugin == null) return;
         JSObject payload = new JSObject().put("now", now);
         plugin.notifyListeners("backgroundTick", payload);
+    }
+
+    static void emitBackgroundStopped() {
+        PokeIdleBackgroundPlugin plugin = instance;
+        if (plugin == null) return;
+        plugin.notifyListeners("backgroundStopped", new JSObject().put("stopped", true));
     }
 
     private boolean isSupportedPlatform() {
