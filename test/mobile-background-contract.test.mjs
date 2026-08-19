@@ -52,3 +52,25 @@ test('移动端 bridge 暴露后台模式并绑定前后台生命周期', async 
   assert.match(bridge, /__POKEIDLE_BACKGROUND_TICK__/);
   assert.match(bridge, /__POKEIDLE_BACKGROUND_RESUME__/);
 });
+
+test('Android 前台服务和插件声明启动、停止、心跳与通知权限契约', async () => {
+  const plugin = await readFile(new URL('../android/app/src/main/java/com/pokemon/idle/PokeIdleBackgroundPlugin.java', import.meta.url), 'utf8');
+  const service = await readFile(new URL('../android/app/src/main/java/com/pokemon/idle/PokeIdleBackgroundService.java', import.meta.url), 'utf8');
+  const activity = await readFile(new URL('../android/app/src/main/java/com/pokemon/idle/MainActivity.java', import.meta.url), 'utf8');
+  const manifest = await readFile(new URL('../android/app/src/main/AndroidManifest.xml', import.meta.url), 'utf8');
+
+  assert.match(plugin, /@CapacitorPlugin\(name\s*=\s*"PokeIdleBackground"/);
+  assert.match(plugin, /@PluginMethod[\s\S]*start\(/);
+  assert.match(plugin, /@PluginMethod[\s\S]*stop\(/);
+  assert.match(plugin, /@PluginMethod[\s\S]*isSupported\(/);
+  assert.match(plugin, /PokeIdleBackgroundService/);
+  assert.match(plugin, /notifyListeners\(["']backgroundTick["']/);
+  assert.match(service, /startForeground\(/);
+  assert.match(service, /START_NOT_STICKY/);
+  assert.match(service, /ACTION_STOP/);
+  assert.match(activity, /registerPlugin\(PokeIdleBackgroundPlugin\.class\)/);
+  assert.match(manifest, /android\.permission\.FOREGROUND_SERVICE/);
+  assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/);
+  assert.match(manifest, /PokeIdleBackgroundService/);
+  assert.match(manifest, /foregroundServiceType="dataSync"/);
+});
