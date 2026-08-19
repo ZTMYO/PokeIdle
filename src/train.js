@@ -54,18 +54,27 @@ TRAIN.w = TRAIN.tiles[0].length;
 TRAIN.h = TRAIN.tiles.length;
 const TRAIN_W = TRAIN.w * TILE;
 const TRAIN_H = TRAIN.h * TILE;
+// 水系贴图浸水裁切高度占总高的比例（与 styles.css 的 --water-clip 同步）
+const WATER_CLIP = 0.1;
 
 // 可走动瓦片：水域（水系宝可梦专属）与陆地；陆地宝可梦不去第一行、最下面一行与最后一列
-const TILE_WATER = '1,26';
+const TILE_WATER = new Set(['1,26', '1,22']); // 深水 + 水池上缘浅水，四行高度
 const TILE_LAND = new Set(['1,0', '5,1', '1,41']);
 const BLOCKED_CELLS = new Set(['8,1', '9,1', '10,1']);
 const WATER_CELLS = [];
 const LAND_CELLS = [];
+// 水域最下面一行不放行：先求出水池实际底部行，水系宝可梦只在底部行之上活动（水池底部留白）
+let waterBottom = -1;
+for (let r = 0; r < TRAIN.h; r++) {
+  for (let c = 0; c < TRAIN.w; c++) {
+    if (TILE_WATER.has(TRAIN.tiles[r][c].join(','))) waterBottom = Math.max(waterBottom, r);
+  }
+}
 for (let r = 0; r < TRAIN.h; r++) {
   for (let c = 0; c < TRAIN.w; c++) {
     const key = TRAIN.tiles[r][c].join(',');
     if (BLOCKED_CELLS.has(c + ',' + r)) continue;
-    if (key === TILE_WATER && r < TRAIN.h - 1) WATER_CELLS.push({ c, r });
+    if (TILE_WATER.has(key) && r < waterBottom) WATER_CELLS.push({ c, r });
     else if (TILE_LAND.has(key) && r > 0 && r < TRAIN.h - 1 && c < TRAIN.w - 1) LAND_CELLS.push({ c, r });
   }
 }
@@ -267,7 +276,8 @@ function syncWalkers() {
     if (!entry || entry.inRoster === false) return;
     const poke = getPokemonByIndex(String(entry.species));
     if (!poke) return;
-    const isWater = (poke.types || []).includes('水');
+    // 仅主属性为水的宝可梦下水（types[0] 是主属性；双属性水排后面的如波尔凯尼恩不算）
+    const isWater = (poke.types || [])[0] === '水';
     const cells = isWater ? WATER_CELLS : LAND_CELLS;
     if (!cells.length) return;
     const prev = _walkerPos.get(slot.id);
@@ -284,19 +294,39 @@ function syncWalkers() {
       start = free.length ? free[Math.floor(Math.random() * free.length)] : cells[Math.floor(Math.random() * cells.length)];
     }
     const el = document.createElement('div');
-    el.className = 'train-walker';
+    el.className = 'train-walker' + (isWater ? ' water' : '');
     el.style.left = (start.c * TILE) + 'px';
     el.style.top = (start.r * TILE) + 'px';
-    el.innerHTML = '<div class="train-walker-flip"><img class="train-walker-img" alt=""></div>'
-      + '<span class="train-walker-zzz"><i>z</i><i>z</i><i>z</i></span>';
+    // 水系宝可梦：贴图包一层裁切容器（底部浸水被水面裁掉）+ 水面上配翻转渐隐倒影
+    const body = isWater
+      ? '<div class="train-walker-clip"><div class="train-walker-flip"><img class="train-walker-img" alt=""></div></div>'
+        + '<div class="train-walker-refl"><img class="train-walker-refl-img" alt=""></div>'
+      : '<div class="train-walker-flip"><img class="train-walker-img" alt=""></div>';
+    el.innerHTML = body + '<span class="train-walker-zzz"><i>z</i><i>z</i><i>z</i></span>';
     layer.appendChild(el);
-    const img = el.querySelector('img');
+    const img = el.querySelector('.train-walker-img');
     if (poke.icon) tryLoadImage(img, poke.icon);
+    if (isWater) {
+      const refl = el.querySelector('.train-walker-refl');
+      const reflImg = el.querySelector('.train-walker-refl-img');
+      if (poke.icon) tryLoadImage(reflImg, poke.icon);
+      if (start.facing < 0) refl.style.transform = 'scale(-1,-1)'; // 倒影朝向与本体镜像一致
+      // 倒影高度受限，不伸出水池底部（walker 高 32，倒影从裁切后的视觉底部开始）
+      const reflTop = el.offsetTop + 32 * (1 - WATER_CLIP);
+      const maxBottom = (waterBottom + 1) * TILE;
+      refl.style.height = Math.max(0, Math.min(32, maxBottom - reflTop)) + 'px';
+    }
     // 随机相位：多个宝可梦的闪烁动画错开，避免同步
     img.style.animationDelay = '-' + (Math.random() * 0.5).toFixed(2) + 's';
+    // 倒影动画与本体同相位同步跳动（视线向上时倒影也向上，贴合水面）
+    const reflImg = el.querySelector('.train-walker-refl-img');
+    if (reflImg) reflImg.style.animationDelay = img.style.animationDelay;
     if (start.facing < 0) el.querySelector('.train-walker-flip').style.transform = 'scaleX(-1)';
     el.classList.toggle('lazy', isLazy(slot));
-    if (isLazy(slot)) img.classList.add('lazy');
+    if (isLazy(slot)) {
+      img.classList.add('lazy');
+      if (reflImg) reflImg.classList.add('lazy');
+    }
     // 点击（抓取）偷懒的宝可梦：把它叫醒，立即恢复训练
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -308,6 +338,7 @@ function syncWalkers() {
     _walkerPos.set(slot.id, { c: start.c, r: start.r, facing: start.facing || 1 });
     _walkers.set(slot.id, {
       el, img, isWater,
+      reflImg: el.querySelector('.train-walker-refl-img') || null,
       nextAt: Date.now() + randInt(400, 1400),
     });
   });
@@ -320,8 +351,9 @@ function walkerTick(now = Date.now()) {
   for (const [id, w] of _walkers) {
     const slot = slotById.get(id);
     const lazy = !!slot && isLazy(slot);
-    // 偷懒的宝可梦暂停上下跳动画
+    // 偷懒的宝可梦暂停上下跳动画（本体与倒影同步停）
     w.img.classList.toggle('lazy', lazy);
+    if (w.reflImg) w.reflImg.classList.toggle('lazy', lazy);
     w.el.classList.toggle('lazy', lazy);
     if (now < w.nextAt) continue;
     if (lazy) continue; // 偷懒中不动
@@ -349,6 +381,9 @@ function walkerTick(now = Date.now()) {
       w.el.style.top = (nr * TILE) + 'px';
       // 转向直接镜像，不做 3D 翻转
       w.el.querySelector('.train-walker-flip').style.transform = prev.facing < 0 ? 'scaleX(-1)' : '';
+      // 倒影镜像同步（朝右时水平翻转，保持与本体一致；空串回退 CSS 默认 scaleY(-1)）
+      const refl = w.el.querySelector('.train-walker-refl');
+      if (refl) refl.style.transform = prev.facing < 0 ? 'scale(-1,-1)' : '';
       break;
     }
   }

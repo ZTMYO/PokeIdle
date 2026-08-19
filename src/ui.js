@@ -233,8 +233,8 @@ export function showConfirmBar(text, onYes, onNo, opts = {}) {
       ${opts.singleButton ? '' : `<span class="catch-confirm-btn" data-cb-no>取消</span>`}
     </div>`;
   bar.innerHTML = `<div class="text-box-content">${text}</div>${btnsHtml}`;
-  // 挂到当前可见的 view 容器内
-  const host = document.querySelector('.view-fixed[style*="display: flex"], .view-fixed[style*="display:flex"]')
+  const host = opts.host
+    || document.querySelector('.view-fixed[style*="display: flex"], .view-fixed[style*="display:flex"]')
     || document.querySelector('.view-scroll[style*="display: flex"], .view-scroll[style*="display:flex"]')
     || document.body;
   host.appendChild(bar);

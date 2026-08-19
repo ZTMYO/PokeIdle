@@ -1572,7 +1572,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '增益',
     html: `<p><b>甜甜蜜</b>与<b>闪耀护符</b>都是 <b>${BUFF_DURATION}</b> 秒增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
-      + `<p>骑行中速度<b>不叠加</b>：骑行 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，甜甜蜜的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
+      + `<p>骑行中速度以 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，增益的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
       + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`
       + tutorialTable([

@@ -292,7 +292,7 @@ function goBack() {
 function tryUseBike() {
   if (road.isManualBike()) {
     // 骑行中再点 = 手动下车：弹二次确认，下车不返还已消耗的自行车道具
-    showConfirmBar('确认下车？不返还自行车', () => { road.setManualBike(false); });
+    showConfirmBar('确认下车？不返还自行车', () => { road.setManualBike(false); }, null, { host: $('screen') });
     return;
   }
   if (gameData.gps.pendingBike) {

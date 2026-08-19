@@ -1460,7 +1460,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '遭遇',
     html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只当前地区的野生宝可梦。</p>`
-      + `<p>野生宝可梦的<b>等级在 ${1}~${WILD_LEVEL_MAX} 级</b>之间随机生成，不同地区的宝可梦等级上限一致。</p>`
+      + `<p>野生宝可梦的<b>等级在 ${1}~${WILD_LEVEL_MAX} 级</b>之间随机生成。</p>`
   },
   {
     title: '手机',
