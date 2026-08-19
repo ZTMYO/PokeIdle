@@ -26,6 +26,7 @@ import {
   restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
   hasAnyBall, saveSessionState, rand, randInt, formatNum,
   setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant,
+  nextEncounterTimer,
 } from './state.js';
 import { computeObtainScore } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak, twistTick, ensureTwistInit, forceRefreshTwist } from './events.js';
@@ -47,7 +48,7 @@ import { helperTick, refreshBerryView } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch } from './pokedex.js';
-import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor } from './roster.js';
+import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease } from './roster.js';
 import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
@@ -231,6 +232,8 @@ function goBack() {
   }
   // 仓库选取模式（配队/训练点击空位进入）：返回恢复来源页
   if (isRosterPicking() && $('rosterView')?.style.display === 'flex') { leaveRosterPicker(); return; }
+  // 批量放生模式：返回 = 取消批量放生（留在仓库列表）
+  if (isBatchReleasing() && $('rosterView')?.style.display === 'flex') { cancelBatchRelease(); return; }
   // 手动配招独立页：返回回个体详情
   if (isRosterInMoveEdit() && $('moveEditView')?.style.display === 'flex') { leaveMoveEditor(); return; }
   // 详情页跳转图鉴（第 4 层子页）：返回先回详情页，再按详情返回逻辑走
@@ -399,6 +402,12 @@ function onGameTick() {
   twistTick();
 
   if (phase !== 'idle') { updateStats(); return; }
+
+  // 遇敌调度心跳：空闲但调度计时器丢失时（如补播被 NPC 对战取消等异常路径）自动补排，
+  // 避免"玩完 NPC 对战后再也不遇敌"这类卡死；事件区/钓鱼/自行车内不预排，交给各自流程延后调度
+  if (!nextEncounterTimer && !isFishingPending() && !inMassZone() && !inTwistZone() && !road.isBike()) {
+    scheduleNextEncounter();
+  }
 
   // 过渡完成：应用新路段的骑行状态（骑行/行走与骑行音乐一起切换）
   // 兜底分支：onTransitionCharReach 未触发时（过渡结束仍未消费 _pendingBike）同样结算"离开自行车路段"奖励

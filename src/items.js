@@ -655,7 +655,7 @@ export async function hatchFromIncubator(slotIndex) {
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
   if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
   gameData.encounterLogs[idx].push({
-    time: Date.now(), shiny: eggIsShiny, result: 'caught', balls: {},
+    time: Date.now(), shiny: eggIsShiny, result: 'caught', balls: {}, source: 'egg', // source 供统计页区分孵蛋/交换/遭遇
     charmBuff: false, // 闪耀护符不提升孵蛋闪光率（蛋的闪光在放入孵蛋器时已按 1/1000 判定），恒为 false
     score: computeObtainScore({
       pokemon: poke, source: 'egg', shiny: eggIsShiny,

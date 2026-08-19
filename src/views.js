@@ -74,7 +74,7 @@ function calcTodayStats() {
   for (const arr of Object.values(gameData.encounterLogs || {})) {
     for (const l of arr) {
       if (!l || !l.time || l.time < todayStart) continue;
-      if (l.source === 'egg') {
+      if (l.source === 'egg' || !l.source) {
         t.hatched++;
         if (l.shiny) t.shinyHatched++;
         continue;
@@ -143,7 +143,7 @@ function refreshDataStats() {
   for (const arr of Object.values(gameData.encounterLogs || {})) {
     for (const l of arr) {
       if (!l) continue;
-      if (l.source === 'egg' && l.shiny) totalShinyHatched++;
+      if ((l.source === 'egg' || !l.source) && l.shiny) totalShinyHatched++;
       else if (l.source === 'trade' && l.shiny) totalShinyTraded++;
     }
   }

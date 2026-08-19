@@ -410,13 +410,15 @@ async function startNpcBattle(npcId, startAuto = false) {
   };
   // 后台结果补播只是视觉回放；开始 NPC 对战前若仍在补播，直接取消，
   // 避免把已结算的遭遇再次交给后台继续捕捉/逃跑。
-  await import('./battle.js').then(m => m.cancelBgResultReplay());
+  const canceledReplay = await import('./battle.js').then(m => m.cancelBgResultReplay());
   // 进战斗前存在进行中的野生遭遇：转后台异步结算（自动捕捉继续丢球 / 或记录逃跑），
   // 避免 setPhase('battle') 中断遭遇流程导致遇敌直接丢失。
   // 记录打断前的遭遇 phase（setPhase('battle') 后已不可再取）：'encounter' 未出结果，
   // 后台继续捕捉或逃跑；'caught'/'fled' 判定已落库，只交给原流程收尾清理，防止重复捕捉/记录
   const pendingEncounter = (phase === 'encounter' || phase === 'caught' || phase === 'fled') && !!currentEncounter;
-  battle._hadPendingEncounter = pendingEncounter;
+  // 补播被本场战斗取消也算"有被打断的遭遇"：遭遇已结算但遇敌调度也被清空，
+  // 战斗结束后同样要恢复调度，否则会永远不再遇敌
+  battle._hadPendingEncounter = pendingEncounter || canceledReplay;
   battle._pendingEncounterPhase = pendingEncounter ? phase : null;
   _activeBattle = battle;
   _fleeing = false;

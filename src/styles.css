@@ -4356,6 +4356,15 @@ body.browser-mode { overflow: auto; }
 }
 /* 行高固定，保证各行高度一致 */
 .roster-row { height: 30px; }
+#rosterList.batch-compact .roster-row {
+  height: 24px;
+  padding: 1px 0;
+}
+#rosterList.batch-compact .roster-row > * { font-size: 10px; }
+#rosterList.batch-compact .roster-row .roster-icon-img {
+  width: 16px;
+  height: 16px;
+}
 /* 仓库列表独立等级列：左对齐（紧贴名称列），不加粗 */
 .roster-lv-col {
   width: 44px;

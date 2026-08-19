@@ -1223,14 +1223,49 @@ function hideContextMenu() {
 function startBatchRelease() {
   _batchRelease = true;
   _batchSelected = new Set();
+  setRosterTitle('批量放生');
+  setBatchWheel(true);
   renderList();
 }
 
-function cancelBatchRelease() {
+export function cancelBatchRelease() {
+  if (!_batchRelease) return;
   _batchRelease = false;
   _batchSelected = new Set();
-  removeBatchBar();
+  setBatchWheel(false);
+  hideConfirmBar();
+  restoreRosterTitle();
   renderList();
+}
+
+export function isBatchReleasing() {
+  return _batchRelease;
+}
+
+// 批量放生时降低列表滚轮灵敏度（增量减半），避免误滚过目标行；并切换到紧凑行样式，一次展示更多行
+let _batchWheel = null;
+function setBatchWheel(on) {
+  const list = $('rosterList');
+  if (!list) return;
+  list.classList.toggle('batch-compact', on);
+  if (on && !_batchWheel) {
+    _batchWheel = e => { e.preventDefault(); list.scrollTop += e.deltaY * 0.5; };
+    list.addEventListener('wheel', _batchWheel, { passive: false });
+  } else if (!on && _batchWheel) {
+    list.removeEventListener('wheel', _batchWheel);
+    _batchWheel = null;
+  }
+}
+
+// 标题 helper：与 ui.js showView 的标题格式保持一致（返回图标 + 文本）
+function setRosterTitle(text) {
+  const t = $('appTitle');
+  if (!t) return;
+  t.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${text}`;
+  t.dataset.action = 'back';
+}
+function restoreRosterTitle() {
+  setRosterTitle('宝可梦');
 }
 
 function toggleBatchRow(row) {
@@ -1240,21 +1275,23 @@ function toggleBatchRow(row) {
   updateBatchBar();
 }
 
+// 确认框固定挂到整个游戏窗口（screen）底部，不遮挡列表；
+// 已弹出时只更新数字不重建，避免每选一只都滑入滑出
 function updateBatchBar() {
   const n = _batchSelected.size;
-  if (n === 0) {
-    hideConfirmBar();
+  if (n === 0) { hideConfirmBar(); return; }
+  const exist = document.getElementById('confirmBar');
+  if (exist && exist.dataset.role === 'batchRelease') {
+    exist.querySelector('.text-box-content').textContent = `已选中 ${n} 只，确定放生？`;
     return;
   }
-  showConfirmBar(
+  const bar = showConfirmBar(
     `已选中 ${n} 只，确定放生？`,
     () => { doBatchRelease(); return true; }, // 保持显示结果
-    () => cancelBatchRelease()
+    () => cancelBatchRelease(),
+    { host: $('screen'), height: '40px' } // 批量放生专用矮框，不占用列表空间
   );
-}
-
-function removeBatchBar() {
-  hideConfirmBar();
+  if (bar) bar.dataset.role = 'batchRelease';
 }
 
 function doBatchRelease() {
@@ -1276,8 +1313,10 @@ function doBatchRelease() {
   const candies = addReleaseXp(gained); // 结算返还：累计经验池并产出糖果
   _batchRelease = false;
   _batchSelected = new Set();
+  setBatchWheel(false);
+  restoreRosterTitle();
   // 显示结果 1.5 秒后关闭并刷新（含放生返还经验/糖果产出提示）
-  showConfirmBar(`已放生 ${n} 只宝可梦${releaseXpText(gained, candies)}`, null, null, { noButtons: true });
+  showConfirmBar(`已放生 ${n} 只宝可梦${releaseXpText(gained, candies)}`, null, null, { noButtons: true, host: $('screen'), height: '40px' });
   setTimeout(() => {
     hideConfirmBar();
     renderList();
@@ -1466,6 +1505,8 @@ export function showRosterView(noNav) {
   }
   _detailId = null;
   _detailJumpedToPokedex = false;
+  // 从其它入口重新进入仓库列表：清掉残留的批量放生状态（标题由 showView 统一恢复）
+  if (_batchRelease) { _batchRelease = false; _batchSelected = new Set(); setBatchWheel(false); hideConfirmBar(); }
   const rootEl = $('rosterView');
   if (rootEl) {
     const s = rootEl.querySelector('.pokedex-search');
