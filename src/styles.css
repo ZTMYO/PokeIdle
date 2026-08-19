@@ -6168,6 +6168,9 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   border-top: 2px solid var(--console-border);
   z-index: 3;
 }
+html.mobile-mode .b-bottom {
+  height: 92px;
+}
 /* 自动战斗遮罩：覆盖底部文案区，右下角闪烁提示，点击恢复手动 */
 .b-auto-mask {
   position: absolute;
