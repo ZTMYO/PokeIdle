@@ -9,6 +9,26 @@ const BATTLE_BALLS = {
   'master-ball': { closed: 'ball-04.png', open: 'ball-04-open.png' },
 };
 
+const CATCH_LAYOUT_PROPERTIES = ['position', 'left', 'top', 'right', 'bottom', 'width', 'height'];
+let _catchLayoutSnapshot = null;
+
+export function captureCatchLayout(view, stage) {
+  if (_catchLayoutSnapshot || !view || !stage) return;
+  const snapshot = element => Object.fromEntries(
+    CATCH_LAYOUT_PROPERTIES.map(property => [property, element.style[property]])
+  );
+  _catchLayoutSnapshot = { view, stage, viewStyle: snapshot(view), stageStyle: snapshot(stage) };
+}
+
+export function restoreCatchLayout() {
+  const snapshot = _catchLayoutSnapshot;
+  if (!snapshot) return;
+  for (const [element, styles] of [[snapshot.view, snapshot.viewStyle], [snapshot.stage, snapshot.stageStyle]]) {
+    for (const property of CATCH_LAYOUT_PROPERTIES) element.style[property] = styles[property] || '';
+  }
+  _catchLayoutSnapshot = null;
+}
+
 export function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 export function animate(duration, fn) {
@@ -38,6 +58,8 @@ export async function setupCatchAnim(ballType) {
   const msg = $('animMsg');
   const pkmn = $('encounterGif');
   const throwChar = $('animThrowChar');
+
+  captureCatchLayout($('encounterView'), stage);
 
   // 设置球种图片（初始为 closed）
   setBallImage(ball, ballType, 'closed');
@@ -160,17 +182,18 @@ export function playFleeAnim(duration = 1000) {
 
 export function restoreCatchAnim() {
   const pkmn = $('encounterGif');
-  if (!pkmn) return;
-  // 清除动画中的像素定位，恢复为 CSS 居中
-  pkmn.style.position = '';
-  pkmn.style.left = '';
-  pkmn.style.top = '';
-  pkmn.style.transform = '';
-  pkmn.style.opacity = '';
-  pkmn.style.zIndex = '';
-  // 保持 animation:none，避免恢复 CSS 的 encGrow 放大动画（挣脱/摇晃结束后会重新从头播放）
-  // 新遭遇的入场动画由 renderEncounterScene 重新启用
-  pkmn.style.animation = 'none';
+  if (pkmn) {
+    // 清除动画中的像素定位，恢复为 CSS 居中
+    pkmn.style.position = '';
+    pkmn.style.left = '';
+    pkmn.style.top = '';
+    pkmn.style.transform = '';
+    pkmn.style.opacity = '';
+    pkmn.style.zIndex = '';
+    // 保持 animation:none，避免恢复 CSS 的 encGrow 放大动画（挣脱/摇晃结束后会重新从头播放）
+    // 新遭遇的入场动画由 renderEncounterScene 重新启用
+    pkmn.style.animation = 'none';
+  }
   // 移除丢球角色动画状态（回到默认最后一帧）
   const tc = $('animThrowChar');
   if (tc) { tc.classList.remove('throwing'); }
@@ -188,8 +211,9 @@ export function restoreCatchAnim() {
       stage.appendChild(ball);
     }
   }
+  restoreCatchLayout();
   // 强制重新计算布局，确保样式立即生效
-  void pkmn.offsetHeight;
+  if (pkmn) void pkmn.offsetHeight;
 }
 
 // 闪光星星粒子单次爆发：围绕 view 内 target 元素中心
@@ -640,8 +664,11 @@ async function animCatchSuccess(ball, starsContainer, ballCX, ballCY) {
 
 // === 动画序列编排 ===
 export async function playCatchSequence(ballType, outcome, breakRound) {
-  const { stage, ball, ballType: bt, pkmn, stars, msg, stageW, stageH, pkmnOrigX, pkmnOrigY, pkmnW, pkmnH, throwChar } = await setupCatchAnim(ballType);
-  await delay(50);
+  let stage, ball, bt, pkmn, stars, msg, stageW, stageH, pkmnOrigX, pkmnOrigY, pkmnW, pkmnH, throwChar;
+  try {
+    const anim = await setupCatchAnim(ballType);
+    ({ stage, ball, ballType: bt, pkmn, stars, msg, stageW, stageH, pkmnOrigX, pkmnOrigY, pkmnW, pkmnH, throwChar } = anim);
+    await delay(50);
 
   // ---- 阶段1：抛球 ----
   await animThrow(stage, ball, bt, stageW, stageH, pkmnOrigY, throwChar);
@@ -684,8 +711,6 @@ export async function playCatchSequence(ballType, outcome, breakRound) {
     ball.style.zIndex = '25';
     ball.style.pointerEvents = 'none';
     $('encounterView').appendChild(ball);
-    stage.classList.remove('active');
-    restoreCatchAnim();
     if (ballType === 'master-ball') return { result: 'caught', shakes: 0, master: true };
     return { result: 'caught', shakes: 3, master: false };
   }
@@ -705,10 +730,11 @@ export async function playCatchSequence(ballType, outcome, breakRound) {
     curBallCX, curBallCY,
     pkmnOrigX + pkmnW / 2, pkmnOrigY + pkmnH / 2);
 
-  stage.classList.remove('active');
-  restoreCatchAnim();
-
   // 是否逃跑也已由调用方提前判定
   if (outcome === 'fled') return { result: 'fled', shakes: breakRound };
   return { result: 'continue', shakes: breakRound };
+  } finally {
+    stage?.classList.remove('active');
+    restoreCatchAnim();
+  }
 }

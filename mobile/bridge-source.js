@@ -87,6 +87,7 @@ function syncMobileViewport() {
   const root = document.documentElement;
   root.style.setProperty('--mobile-scale', String(scale));
   root.style.setProperty('--mobile-layout-height', `${designHeight}px`);
+  window.__POKEIDLE_INVALIDATE_STAGE_SIZE__?.();
 }
 
 function enableMobileLayout() {

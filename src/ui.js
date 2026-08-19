@@ -356,22 +356,36 @@ export function setIdleCharacter(state, itemKey) {
 
 // ---------- 图片尺寸自适应 ----------
 let _stageCache = null;
+export function invalidateStageSize() {
+  _stageCache = null;
+}
+
 export function getStageSize() {
-  if (_stageCache && _stageCache.w >= 280 && _stageCache.h >= 250) return _stageCache;
-  const innerRect = $('screenInner')?.getBoundingClientRect();
-  let w = innerRect?.width || 0;
-  let h = innerRect?.height || 0;
+  // 使用布局坐标而不是 getBoundingClientRect：后者包含移动端 .console 的 CSS
+  // transform: scale，会把放大后的物理像素误写回内部 CSS 坐标，造成整页偏移。
+  const inner = $('screenInner');
+  let w = inner?.clientWidth || 0;
+  let h = inner?.clientHeight || 0;
+  if (_stageCache && Math.abs(_stageCache.w - w) <= 1 && Math.abs(_stageCache.h - h) <= 1) {
+    return _stageCache;
+  }
   if (w < 50 || h < 50) {
-    const screenRect = document.querySelector('.screen')?.getBoundingClientRect();
-    w = (screenRect?.width || 0) - 6;
-    h = (screenRect?.height || 0) - 6;
+    const screen = document.querySelector('.screen');
+    w = screen?.clientWidth || 0;
+    h = screen?.clientHeight || 0;
   }
   if (w < 50 || h < 50) {
     w = window.innerWidth;
     h = window.innerHeight;
   }
-  if (w >= 280 && h >= 250) _stageCache = { w, h };
+  if (w >= 50 && h >= 50) _stageCache = { w, h };
   return { w, h };
+}
+
+if (typeof window !== 'undefined') {
+  window.__POKEIDLE_INVALIDATE_STAGE_SIZE__ = invalidateStageSize;
+  window.addEventListener?.('resize', invalidateStageSize);
+  window.visualViewport?.addEventListener?.('resize', invalidateStageSize);
 }
 
 export function fitPokemonImage(img) {
