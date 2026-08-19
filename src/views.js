@@ -76,7 +76,7 @@ function calcTodayStats() {
   for (const arr of Object.values(gameData.encounterLogs || {})) {
     for (const l of arr) {
       if (!l || !l.time || l.time < todayStart) continue;
-      if (l.source === 'egg') {
+      if (l.source === 'egg' || !l.source) {
         t.hatched++;
         if (l.shiny) t.shinyHatched++;
         continue;
@@ -145,7 +145,7 @@ function refreshDataStats() {
   for (const arr of Object.values(gameData.encounterLogs || {})) {
     for (const l of arr) {
       if (!l) continue;
-      if (l.source === 'egg' && l.shiny) totalShinyHatched++;
+      if ((l.source === 'egg' || !l.source) && l.shiny) totalShinyHatched++;
       else if (l.source === 'trade' && l.shiny) totalShinyTraded++;
     }
   }
@@ -1512,7 +1512,8 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '遭遇',
-    html: `<p>拥有精灵球时，每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只野生宝可梦。</p>`
+    html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只当前地区的野生宝可梦。</p>`
+      + `<p>野生宝可梦的<b>等级在 ${1}~${WILD_LEVEL_MAX} 级</b>之间随机生成。</p>`
   },
   {
     title: '手机',
@@ -1624,7 +1625,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '增益',
     html: `<p><b>甜甜蜜</b>与<b>闪耀护符</b>都是 <b>${BUFF_DURATION}</b> 秒增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
-      + `<p>骑行中速度<b>不叠加</b>：骑行 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，甜甜蜜的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
+      + `<p>骑行中速度以 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，增益的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
       + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`
       + tutorialTable([

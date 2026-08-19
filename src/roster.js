@@ -84,6 +84,7 @@ let _detailFromView = null; // 详情跳转来源（捕获/孵蛋后“查看详
 let _detailReturnFn = null; // 从悬赏提交/交换选择列表进入详情时注册的返回回调（返回时恢复来源列表）
 let _detailJumpedToPokedex = false; // 详情页跳转图鉴中（返回键应先回详情页，再按来源返回）
 let _picker = null; // 选取模式：配队/训练点击空位跳转仓库选择，{ mode:'team'|'train', slot, from, exclude[] }
+let _renderSeq = 0; // 列表分片渲染版本号：新一轮渲染作废旧一轮，避免快速切换筛选时乱序
 
 // 个体值总和
 function ivSum(p) {
@@ -203,19 +204,39 @@ function renderList() {
     if (typeof va === 'string') return va.localeCompare(vb) * _sortDir;
     return (va - vb) * _sortDir;
   });
-  // 渲染行（复用图鉴 .pokedex-entry 样式）
-  list.innerHTML = sorted.length === 0
-    ? `<div class="roster-empty">${_picker ? '没有可选择的宝可梦' : '仓库空空如也，去捕获一些宝可梦吧'}</div>`
-    : sorted.map(p => {
+  // 渲染行（复用图鉴 .pokedex-entry 样式）：分片插入 + 分片加载图标，
+  // 避免几百条一次性 innerHTML 与全量图片请求长时间阻塞主线程
+  _renderSeq++;
+  const seq = _renderSeq;
+  list.innerHTML = '';
+  if (sorted.length === 0) {
+    list.innerHTML = `<div class="roster-empty">${_picker ? '没有可选择的宝可梦' : '仓库空空如也，去捕获一些宝可梦吧'}</div>`;
+  } else {
+    let i = 0;
+    const CHUNK = 40;
+    const step = () => {
+      if (seq !== _renderSeq || !list.isConnected) return; // 已被新一轮渲染取代或列表已卸载
+      const view = $('rosterView');
+      if (view && view.style.display === 'none') return; // 视图已隐藏：暂停分片，避免后台继续抢图片 I/O
+      const rows = [];
+      const end = Math.min(i + CHUNK, sorted.length);
+      for (; i < end; i++) {
+        const p = sorted[i];
         const sel = _batchRelease && _batchSelected.has(p.id);
-        return rowHtml(p).replace('<div class="pokedex-entry roster-row"',
-          `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}"`);
-      }).join('');
-  // 加载个体图标
-  list.querySelectorAll('.roster-icon-img').forEach(img => {
-    const poke = getPokemonByIndex(img.dataset.icon);
-    if (poke?.icon) tryLoadImage(img, poke.icon);
-  });
+        rows.push(rowHtml(p).replace('<div class="pokedex-entry roster-row"',
+          `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}"`));
+      }
+      const before = list.querySelectorAll('.roster-icon-img').length;
+      list.insertAdjacentHTML('beforeend', rows.join(''));
+      const imgs = list.querySelectorAll('.roster-icon-img');
+      for (let k = before; k < imgs.length; k++) {
+        const poke = getPokemonByIndex(imgs[k].dataset.icon);
+        if (poke?.icon) tryLoadImage(imgs[k], poke.icon);
+      }
+      if (i < sorted.length) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
   // 点击行：选取模式直接加入目标；批量模式切换选中；否则进详情
   list.onclick = (e) => {
     const row = e.target.closest('.roster-row');
@@ -1019,6 +1040,7 @@ async function loadMovesBlock(id) {
 // ---------- 个体详情 ----------
 // 点击列表行进入；返回按钮（标题栏 back）→ restoreRosterList 回到列表
 function showRosterDetail(id) {
+  _renderSeq++; // 详情页直接覆盖列表内容：作废未完成的分片渲染，防止 rAF 分片把列表行追加到详情下方
   const p = (gameData.roster || []).find(r => r.id === id);
   if (!p) return;
   _detailId = id;
@@ -1201,14 +1223,49 @@ function hideContextMenu() {
 function startBatchRelease() {
   _batchRelease = true;
   _batchSelected = new Set();
+  setRosterTitle('批量放生');
+  setBatchWheel(true);
   renderList();
 }
 
-function cancelBatchRelease() {
+export function cancelBatchRelease() {
+  if (!_batchRelease) return;
   _batchRelease = false;
   _batchSelected = new Set();
-  removeBatchBar();
+  setBatchWheel(false);
+  hideConfirmBar();
+  restoreRosterTitle();
   renderList();
+}
+
+export function isBatchReleasing() {
+  return _batchRelease;
+}
+
+// 批量放生时降低列表滚轮灵敏度（增量减半），避免误滚过目标行；并切换到紧凑行样式，一次展示更多行
+let _batchWheel = null;
+function setBatchWheel(on) {
+  const list = $('rosterList');
+  if (!list) return;
+  list.classList.toggle('batch-compact', on);
+  if (on && !_batchWheel) {
+    _batchWheel = e => { e.preventDefault(); list.scrollTop += e.deltaY * 0.5; };
+    list.addEventListener('wheel', _batchWheel, { passive: false });
+  } else if (!on && _batchWheel) {
+    list.removeEventListener('wheel', _batchWheel);
+    _batchWheel = null;
+  }
+}
+
+// 标题 helper：与 ui.js showView 的标题格式保持一致（返回图标 + 文本）
+function setRosterTitle(text) {
+  const t = $('appTitle');
+  if (!t) return;
+  t.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${text}`;
+  t.dataset.action = 'back';
+}
+function restoreRosterTitle() {
+  setRosterTitle('宝可梦');
 }
 
 function toggleBatchRow(row) {
@@ -1218,21 +1275,23 @@ function toggleBatchRow(row) {
   updateBatchBar();
 }
 
+// 确认框固定挂到整个游戏窗口（screen）底部，不遮挡列表；
+// 已弹出时只更新数字不重建，避免每选一只都滑入滑出
 function updateBatchBar() {
   const n = _batchSelected.size;
-  if (n === 0) {
-    hideConfirmBar();
+  if (n === 0) { hideConfirmBar(); return; }
+  const exist = document.getElementById('confirmBar');
+  if (exist && exist.dataset.role === 'batchRelease') {
+    exist.querySelector('.text-box-content').textContent = `已选中 ${n} 只，确定放生？`;
     return;
   }
-  showConfirmBar(
+  const bar = showConfirmBar(
     `已选中 ${n} 只，确定放生？`,
     () => { doBatchRelease(); return true; }, // 保持显示结果
-    () => cancelBatchRelease()
+    () => cancelBatchRelease(),
+    { host: $('screen'), height: '40px' } // 批量放生专用矮框，不占用列表空间
   );
-}
-
-function removeBatchBar() {
-  hideConfirmBar();
+  if (bar) bar.dataset.role = 'batchRelease';
 }
 
 function doBatchRelease() {
@@ -1254,8 +1313,10 @@ function doBatchRelease() {
   const candies = addReleaseXp(gained); // 结算返还：累计经验池并产出糖果
   _batchRelease = false;
   _batchSelected = new Set();
+  setBatchWheel(false);
+  restoreRosterTitle();
   // 显示结果 1.5 秒后关闭并刷新（含放生返还经验/糖果产出提示）
-  showConfirmBar(`已放生 ${n} 只宝可梦${releaseXpText(gained, candies)}`, null, null, { noButtons: true });
+  showConfirmBar(`已放生 ${n} 只宝可梦${releaseXpText(gained, candies)}`, null, null, { noButtons: true, host: $('screen'), height: '40px' });
   setTimeout(() => {
     hideConfirmBar();
     renderList();
@@ -1444,6 +1505,8 @@ export function showRosterView(noNav) {
   }
   _detailId = null;
   _detailJumpedToPokedex = false;
+  // 从其它入口重新进入仓库列表：清掉残留的批量放生状态（标题由 showView 统一恢复）
+  if (_batchRelease) { _batchRelease = false; _batchSelected = new Set(); setBatchWheel(false); hideConfirmBar(); }
   const rootEl = $('rosterView');
   if (rootEl) {
     const s = rootEl.querySelector('.pokedex-search');

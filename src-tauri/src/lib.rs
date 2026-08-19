@@ -10,6 +10,67 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
+// ===== 单实例互斥 =====
+// 双击图标再次启动时，不允许开第二个进程/窗口（两份存档会互相覆盖）：
+// 创建命名互斥锁，若已存在说明已有实例在运行，唤醒它的主窗口后本进程直接退出。
+// 互斥锁句柄 Box::leak 永久存活，进程退出前不释放（提前 CloseHandle 会让后续实例误判为无实例）。
+#[cfg(target_os = "windows")]
+fn claim_single_instance() -> bool {
+    use windows::Win32::Foundation::{ERROR_ALREADY_EXISTS, GetLastError};
+    use windows::Win32::System::Threading::CreateMutexW;
+    use windows::core::w;
+
+    unsafe {
+        let mutex = CreateMutexW(None, false, w!("PokeIdle_SingleInstance"))
+            .expect("创建单实例互斥锁失败");
+        if GetLastError() == ERROR_ALREADY_EXISTS {
+            // 已有实例：把它可能隐藏/最小化的主窗口弹到前台
+            wake_existing_window();
+            return false;
+        }
+        Box::leak(Box::new(mutex));
+        true
+    }
+}
+
+// 遍历所有顶层窗口找到游戏主窗口（窗口隐藏到托盘也能枚举到，不依赖标题精确匹配）
+// 找到后显示并激活：SW_RESTORE 激活显示并还原最小化，再加一层 SetForegroundWindow 抢前台
+#[cfg(target_os = "windows")]
+fn wake_existing_window() {
+    use windows::core::BOOL;
+    use windows::Win32::Foundation::LPARAM;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetWindowTextLengthW, GetWindowTextW, SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW,
+    };
+
+    unsafe extern "system" fn find_main_window(hwnd: windows::Win32::Foundation::HWND, lparam: LPARAM) -> BOOL {
+        let slot = &mut *(lparam.0 as *mut Option<windows::Win32::Foundation::HWND>);
+        if slot.is_some() { return BOOL(0); }
+        let len = GetWindowTextLengthW(hwnd);
+        if len == 0 { return BOOL(1); }
+        let mut buf = vec![0u16; (len as usize) + 1];
+        let n = GetWindowTextW(hwnd, &mut buf);
+        if n > 0 {
+            let title = String::from_utf16_lossy(&buf[..n as usize]);
+            if title.contains("口袋挂机") {
+                *slot = Some(hwnd);
+                return BOOL(0);
+            }
+        }
+        BOOL(1)
+    }
+
+    let mut found: Option<windows::Win32::Foundation::HWND> = None;
+    unsafe {
+        let _ = EnumWindows(Some(find_main_window), LPARAM(&mut found as *mut _ as isize));
+        if let Some(hwnd) = found {
+            let _ = ShowWindow(hwnd, SW_RESTORE);
+            let _ = ShowWindow(hwnd, SW_SHOW);
+            let _ = SetForegroundWindow(hwnd);
+        }
+    }
+}
+
 // ===== 托盘走路动画 =====
 // 前端一次性传入动画帧（RGBA 字节）与每帧间隔 delay（毫秒），后台线程按帧率循环切换托盘图标
 #[derive(Default)]
@@ -100,6 +161,12 @@ fn toggle_window_visibility(app_handle: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 单实例：已有实例在运行时直接退出（该实例已负责弹出原窗口）
+    #[cfg(target_os = "windows")]
+    if !claim_single_instance() {
+        std::process::exit(0);
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(

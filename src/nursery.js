@@ -20,6 +20,12 @@ const BOARD_IMG = './items/berry-trees/board.png';
 const BOX_IMG = './items/berry-trees/box.png';
 const randInt = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
 
+// 移动帧动画（与训练场一致）：pokemon-move 9 帧 sprite，单帧 32×32；向左复用向右序列，靠 scaleX(-1) 镜像
+const MOVE_SEQ = { right: [0, 6, 1, 6], up: [2, 7, 3, 7], down: [4, 8, 5, 8] };
+const MOVE_FRAME_MS = 200;
+const MOVE_DUR_MS = 600; // 覆盖 0.5s 位移过渡，帧动画稍长避免瞬停
+const MOVE_SCALE = 1.4; // 移动帧单帧 32px 比 icon 视觉小，放大到接近 icon 尺寸
+
 // 饲育屋地图（{col,row} 为 terrain tileset 坐标）：围栏环绕 + 草地/花丛，11x9
 const NURSERY = {
   tiles: [
@@ -65,6 +71,7 @@ let _pickSlot = null;         // 非 null 时告示牌显示"放入宝可梦"列
 let _pickSortBy = null;   // 放入列表排序列：null=默认按编号+等级 | name | iv | level
 let _pickSortDir = 1;     // 1 升序 / -1 降序
 let _pickSearch = '';         // 放入列表搜索词
+let _pickListScroll = 0;      // 进入个体详情前记住放入列表滚动位置，返回后恢复
 let _pickTypeFilter = '';     // 放入列表属性筛选
 let _pickRegionFilter = '';   // 放入列表地区筛选
 let _pickIvSel = [];        // 放入列表个体值多选：[{stat,min}]，全部条件需同时满足（AND）
@@ -514,7 +521,18 @@ function syncWalkers() {
     const entry = (gameData.roster || []).find(x => x.id === slot.id);
     if (!entry || entry.inRoster === false) continue;
     const poke = getPokemonByIndex(String(entry.species));
-    const cell = _walkerPos.get(slot.id) || LAND_CELLS[Math.floor(Math.random() * LAND_CELLS.length)];
+    // 初始落点：已有存档沿用；新放置则随机挑一个不与其它亲本同格的格子
+    let cell = _walkerPos.get(slot.id);
+    if (!cell) {
+      const far = LAND_CELLS.filter(lc => {
+        for (const [oid, op] of _walkerPos) {
+          if (oid !== slot.id && op.c === lc.c && op.r === lc.r) return false;
+        }
+        return true;
+      });
+      const pool = far.length ? far : LAND_CELLS;
+      cell = pool[Math.floor(Math.random() * pool.length)];
+    }
     const w = {
       id: slot.id,
       el: document.createElement('div'),
@@ -525,6 +543,11 @@ function syncWalkers() {
       facing: cell.facing ?? (Math.random() < 0.5 ? 1 : -1),
       // 各自随机起步时间，避免两只同时迈步（共速）
       nextAt: Date.now() + randInt(400, 1400),
+      move: false,           // 是否启用移动帧动画
+      scale: 1,              // 本体显示放大倍率（move 素材启用后设为 MOVE_SCALE）
+      frameCount: 1, frameW: 1,
+      seq: MOVE_SEQ.right, frame: 0,
+      moving: false, moveUntil: 0, lastFrameAt: 0,
     };
     w.el.className = 'nursery-walker';
     w.flipEl.className = 'nursery-walker-flip';
@@ -534,6 +557,26 @@ function syncWalkers() {
     // 随机相位：多只亲本的弹跳动画错开，避免同步
     w.img.style.animationDelay = '-' + (Math.random() * 0.5).toFixed(2) + 's';
     if (w.facing < 0) w.flipEl.style.transform = 'scaleX(-1)';
+    // 移动帧动画（与训练场一致）：仅无变体本体尝试；素材缺失/非多帧自动回退 icon+跳动
+    if (poke && !String(poke.index).includes('-')) {
+      const moveSrc = './pokemon-data/pokemon-move/' + String(poke.index).padStart(4, '0') + '-' + poke.name + '.png';
+      tryLoadImage(w.img, moveSrc).then(ok => {
+        if (!ok) { if (poke?.icon) tryLoadImage(w.img, poke.icon); return; } // 无 move 素材回退 icon+跳动
+        const nw = w.img.naturalWidth, nh = w.img.naturalHeight;
+        const fc = nw && nh ? Math.max(1, Math.round(nw / nh)) : 1;
+        if (fc < 2) { if (poke?.icon) tryLoadImage(w.img, poke.icon); return; } // 非多帧素材回退 icon+跳动
+        w.move = true;
+        w.frameCount = fc;
+        w.frameW = nw / fc;
+        w.img.style.objectFit = 'none';
+        w.img.style.objectPosition = '0px 0px';
+        w.img.classList.add('move'); // 移动帧模式彻底停用上下跳动，行走切帧、静止保持帧
+        w.scale = MOVE_SCALE;
+        w.flipEl.style.transformOrigin = 'center';
+        w.flipEl.style.transform = (w.facing < 0 ? 'scaleX(-1) ' : '') + 'scale(' + MOVE_SCALE + ')';
+        addMoveAnim(w);
+      });
+    }
     w.flipEl.appendChild(w.img);
     w.el.appendChild(w.flipEl);
     // 爱心粒子层（繁殖进行中才显示，由 syncWalkers 末尾同步显隐）：头顶 ♥ 上浮放大淡出
@@ -555,6 +598,11 @@ function syncWalkers() {
     if (tip) w.el.setAttribute('data-tip', tip);
     w.el.style.left = w.x + 'px';
     w.el.style.top = w.y + 'px';
+    w.el.style.zIndex = 10 + w.y; // 俯视层级：靠下的亲本盖住靠上的，避免相邻时互相遮挡
+    // 初始站着不动：先不跳，首次移动时才起跳
+    w.img.classList.add('idle');
+    // 位移结束（停下）后停止跳动；再次移动时恢复
+    w.el.addEventListener('transitionend', () => w.img.classList.add('idle'));
     wrap.appendChild(w.el);
     _walkers.set(slot.id, w);
     _walkerPos.set(slot.id, { c: cell.c, r: cell.r, facing: w.facing });
@@ -567,6 +615,37 @@ function syncWalkers() {
     const isFollower = love && _leaderId && w.id !== _leaderId;
     w.fx.style.display = isFollower ? '' : 'none';
   }
+}
+
+// ---------- 移动帧驱动（与训练场一致：共享 RAF 切帧，参考随从走马灯） ----------
+let _moveImgs = [];
+let _moveRaf = null;
+
+function addMoveAnim(w) {
+  _moveImgs.push(w);
+  if (!_moveRaf) _moveRaf = requestAnimationFrame(moveTick);
+}
+
+function moveTick() {
+  const now = performance.now();
+  _moveImgs = _moveImgs.filter(m => m.img && m.img.isConnected);
+  for (const w of _moveImgs) {
+    if (!w.moving) continue;
+    if (now > w.moveUntil) {
+      w.moving = false; // 位移结束：切到站立过渡帧（帧7/8/9，序列第二帧），别停在抬脚的帧
+      const idx = w.seq[1] % w.frameCount;
+      w.img.style.objectPosition = `-${idx * w.frameW}px 0px`;
+      continue;
+    }
+    if (now - w.lastFrameAt >= MOVE_FRAME_MS) {
+      w.lastFrameAt = now;
+      w.frame = (w.frame + 1) % w.seq.length;
+      const idx = w.seq[w.frame] % w.frameCount;
+      w.img.style.objectPosition = `-${idx * w.frameW}px 0px`;
+    }
+  }
+  if (_moveImgs.length > 0) _moveRaf = requestAnimationFrame(moveTick);
+  else _moveRaf = null;
 }
 
 // 繁殖进行中才飘爱心：两只亲本配对有效且 breeding 处于 running（已产蛋后停止）
@@ -610,12 +689,12 @@ function walkerTick() {
       const nc = cur.c + dc, nr = cur.r + dr;
       if (nr < 1 || nr >= NURSERY.h - 1 || nc < 1 || nc >= NURSERY.w - 1) continue;
       if (!NURSERY_LAND.has(NURSERY.tiles[nr][nc].join(','))) continue;
-      // 不与另一只亲本重叠
-      let overlap = false;
+      // 贴图碰撞：只禁止与另一只亲本同格（相邻格允许，靠面对面逻辑让两只并排对望）
+      let clash = false;
       for (const [oid, op] of _walkerPos) {
-        if (oid !== w.id && op.c === nc && op.r === nr) { overlap = true; break; }
+        if (oid !== w.id && op.c === nc && op.r === nr) { clash = true; break; }
       }
-      if (overlap) continue;
+      if (clash) continue;
       opts.push({ c: nc, r: nr });
     }
     if (!opts.length) continue;
@@ -631,14 +710,28 @@ function walkerTick() {
     w.busy = true;
     w.x = next.c * TILE;
     w.y = next.r * TILE;
-    // 图标素材默认朝左：向左走不镜像，向右走才镜像
-    const nf = next.c < cur.c ? 1 : next.c > cur.c ? -1 : w.facing;
+    // move 素材默认朝右、icon 素材默认朝左：向左走 icon 不镜像 / move 镜像，向右相反
+    const nf = w.move
+      ? (next.c < cur.c ? -1 : next.c > cur.c ? 1 : w.facing)
+      : (next.c < cur.c ? 1 : next.c > cur.c ? -1 : w.facing);
     if (nf !== w.facing) {
-      w.flipEl.style.transform = nf < 0 ? 'scaleX(-1)' : '';
+      w.flipEl.style.transform = (nf < 0 ? 'scaleX(-1) ' : '') + (w.scale > 1 ? 'scale(' + w.scale + ')' : '');
       w.facing = nf;
+    }
+    // 移动帧：按方向选帧序列并启动切帧（左/右共用向右序列，向左靠镜像翻转）
+    if (w.move) {
+      w.seq = next.c === cur.c && next.r < cur.r ? MOVE_SEQ.up : next.c === cur.c && next.r > cur.r ? MOVE_SEQ.down : MOVE_SEQ.right;
+      w.frame = 0;
+      w.lastFrameAt = performance.now();
+      w.moveUntil = w.lastFrameAt + MOVE_DUR_MS;
+      w.moving = true;
+      // 立即切到新方向第一帧：贴图先朝移动方向，再开始位移（避免起步时仍显示旧方向帧）
+      w.img.style.objectPosition = `-${(w.seq[0] % w.frameCount) * w.frameW}px 0px`;
     }
     w.el.style.left = w.x + 'px';
     w.el.style.top = w.y + 'px';
+    w.el.style.zIndex = 10 + w.y; // 俯视层级随 y 递增
+    w.img.classList.remove('idle'); // 开始走动：恢复上下跳动（停下时 transitionend 再加回）
     _walkerPos.set(w.id, { c: next.c, r: next.r, facing: w.facing });
     w.nextAt = now + randInt(900, 2200); // 迈步后随机歇息，节奏各异
   }
@@ -651,12 +744,14 @@ function walkerTick() {
         const w = _walkers.get(id);
         if (!w || w.facing === f) return;
         w.facing = f;
-        w.flipEl.style.transform = f < 0 ? 'scaleX(-1)' : '';
+        w.flipEl.style.transform = (f < 0 ? 'scaleX(-1) ' : '') + (w.scale > 1 ? 'scale(' + w.scale + ')' : '');
       };
       const leftId = pa.c < pb.c ? aId : bId;
       const rightId = pa.c < pb.c ? bId : aId;
-      applyFacing(leftId, -1); // 左边的朝右（镜像）
-      applyFacing(rightId, 1); // 右边的朝左（不镜像）
+      // 面对面：左边的朝右、右边的朝左。move 素材默认朝右（朝右不镜像）、icon 默认朝左（朝右才镜像），facing 取值相反
+      const lw = _walkers.get(leftId), rw = _walkers.get(rightId);
+      applyFacing(leftId, lw && lw.move ? 1 : -1);
+      applyFacing(rightId, rw && rw.move ? -1 : 1);
     }
   }
 }
@@ -1332,10 +1427,17 @@ function bindPickRows(root) {
     row.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = row.dataset.pickView;
+      const pickList = root.querySelector('.nursery-pick-list');
+      if (pickList) _pickListScroll = pickList.scrollTop; // 记住列表位置，返回后恢复
       import('./roster.js').then(m => m.showRosterDetailFromList(id, () => {
         showView('nurseryView');
         render(); // _pickSlot 未清空，仍显示放入列表
         startTimer();
+        // render() 重建了列表 DOM，等渲染完成再恢复滚动位置
+        requestAnimationFrame(() => {
+          const l = $('nurseryContent')?.querySelector('.nursery-pick-list');
+          if (l) l.scrollTop = _pickListScroll;
+        });
       }));
     });
   });

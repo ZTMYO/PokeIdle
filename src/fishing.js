@@ -51,7 +51,7 @@ function spawnFloatingItems() {
   const rowY = (row - 1) * 24;                     // 该行在路面层内的 y（每行 24px）
   const topMin = row === 1 ? 0 : 12;               // 第1行(上)图标靠上半，第3行(下)图标靠下半
   const topMax = row === 1 ? 12 : 24;
-  const icons = Object.keys(ITEM_ICONS);
+  const icons = Object.keys(ITEM_RATES);
   const count = randInt(3, 5);
   for (let i = 0; i < count; i++) {
     const img = document.createElement('img');

@@ -658,7 +658,8 @@ body.browser-mode { overflow: auto; }
   transform: translateY(-50%);
   background: var(--screen-bg-dark);
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
+  font-weight: normal;
   line-height: 1.5;
   padding: 3px 6px;
   border-radius: 3px;
@@ -834,9 +835,14 @@ body.browser-mode { overflow: auto; }
   transition: transform 0.12s;
   user-select: none;
   line-height: 1;
+  animation: textBoxArrowBounce 0.9s steps(1, end) infinite;
 }
-.text-box-arrow:hover { transform: scale(1.25); }
-.text-box-arrow:active { transform: scale(0.85); }
+.text-box-arrow:active { animation: none; transform: scale(0.85); }
+@keyframes textBoxArrowBounce {
+  0%, 33% { transform: translateY(0); }
+  34%, 66% { transform: translateY(2px); }
+  67%, 100% { transform: translateY(0); }
+}
 
 .flee-btn {
   position: absolute;
@@ -4533,6 +4539,15 @@ body.browser-mode { overflow: auto; }
 }
 /* 行高固定，保证各行高度一致 */
 .roster-row { height: 30px; }
+#rosterList.batch-compact .roster-row {
+  height: 24px;
+  padding: 1px 0;
+}
+#rosterList.batch-compact .roster-row > * { font-size: 10px; }
+#rosterList.batch-compact .roster-row .roster-icon-img {
+  width: 16px;
+  height: 16px;
+}
 /* 仓库列表独立等级列：左对齐（紧贴名称列），不加粗 */
 .roster-lv-col {
   width: 44px;
@@ -6816,7 +6831,6 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   position: absolute;
   width: 32px;
   height: 32px;
-  z-index: 5;
   pointer-events: auto;
   transition: left 0.5s linear, top 0.5s linear;
 }
@@ -6834,10 +6848,21 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
-  animation: pokeJump 0.5s steps(1, end) infinite;
+  animation: pokeJump 0.7s steps(1, end) infinite;
 }
 /* 偷懒中的宝可梦：停止上下跳动画，原地待着 */
 .train-walker-img.lazy {
+  animation: none;
+}
+/* 停下休息的宝可梦：停止跳动并保持落底姿势（move 帧动画不受影响） */
+.train-walker-img.idle {
+  animation: none;
+}
+.train-walker-img.idle:not(.move) {
+  transform: translateY(5px);
+}
+/* 使用移动帧动画的宝可梦：彻底停用上下跳动，行走切帧、静止保持帧 */
+.train-walker-img.move {
   animation: none;
 }
 /* 偷懒睡觉粒子：三个 z 从头顶错开上飘、放大淡出循环（仅偷懒时显示） */
@@ -7119,7 +7144,18 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
-  animation: pokeJump 0.5s steps(1, end) infinite;
+  animation: pokeJump 0.7s steps(1, end) infinite;
+}
+/* 使用移动帧动画的亲本：彻底停用上下跳动，行走切帧、静止保持帧 */
+.nursery-walker-img.move {
+  animation: none;
+}
+/* 停下休息的亲本：停止跳动并保持落底姿势（move 帧动画不受影响） */
+.nursery-walker-img.idle {
+  animation: none;
+}
+.nursery-walker-img.idle:not(.move) {
+  transform: translateY(5px);
 }
 /* 繁殖中亲本头顶的爱心粒子：♥ 上浮放大淡出（与战斗着迷同款表现，错峰飘散） */
 .nursery-walker-fx {
