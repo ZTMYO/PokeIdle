@@ -35140,8 +35140,8 @@
   "index": "0898-1",
   "name": "蕾冠王",
   "name_en": "Calyrex",
-  "image": "pokemon-data/images/0898-1-蕾冠王-骑白马的样子.gif",
-  "icon": "pokemon-data/icon/0898-1-蕾冠王-骑白马的样子.png",
+  "image": "pokemon-data/images/0898-1-蕾冠王-骑白马.gif",
+  "icon": "pokemon-data/icon/0898-1-蕾冠王-骑白马.png",
   "types": [
    "超能",
    "冰"
@@ -35179,8 +35179,8 @@
   "index": "0898-2",
   "name": "蕾冠王",
   "name_en": "Calyrex",
-  "image": "pokemon-data/images/0898-2-蕾冠王-骑黑马的样子.gif",
-  "icon": "pokemon-data/icon/0898-2-蕾冠王-骑黑马的样子.png",
+  "image": "pokemon-data/images/0898-2-蕾冠王-骑黑马.gif",
+  "icon": "pokemon-data/icon/0898-2-蕾冠王-骑黑马.png",
   "types": [
    "超能",
    "幽灵"

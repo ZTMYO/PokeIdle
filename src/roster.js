@@ -1566,27 +1566,42 @@ export function showRosterDetailFromList(id, returnFn) {
   showRosterDetail(id);
 }
 
+// 从其他页面查看「仓库情况」：跳到仓库列表并预填搜索词（如交换详情页的「仓库情况」按钮）
+// returnFn：仓库页按返回时执行，负责切回来源视图并恢复其子页状态
+export function showRosterSearch(q, returnFn) {
+  _detailFromView = null;
+  _detailReturnFn = typeof returnFn === 'function' ? returnFn : null;
+  const input = $('rosterSearchInput');
+  if (input) input.value = q || '';
+  showRosterView(true); // 不压栈：返回靠 returnFn 恢复来源视图
+  // 同步清空按钮显隐（有搜索词时显示清空按钮）
+  const clearBtn = $('rosterSearchClear');
+  if (clearBtn) clearBtn.style.display = (q || '').trim() ? '' : 'none';
+}
+
 // 是否从悬赏提交/交换选择列表进入的详情页（返回时应直接恢复来源列表）
 export function isRosterDetailFromList() {
   return _detailReturnFn != null;
 }
 
 // 从悬赏提交/交换选择列表进入的详情页按返回：清理详情状态，恢复来源列表
+// 列表搜索模式（showRosterSearch，_detailId 为空）同样走此返回，仅跳过详情清理
 export function leaveRosterDetailToList() {
   stopShinySparkleLoop();
-  if (_detailId == null) return;
-  _detailId = null;
-  _detailJumpedToPokedex = false;
-  const rootEl = $('rosterView');
-  if (rootEl) {
-    rootEl.querySelector('.pokedex-search').style.display = '';
-    rootEl.querySelector('.roster-header').style.display = '';
-  }
-  const prog = $('rosterProgress');
-  if (prog) prog.style.display = '';
   const fn = _detailReturnFn;
   _detailReturnFn = null;
-  showView('idleView'); // 先隐藏仓库详情页，由来源列表自行显示
+  if (_detailId != null) {
+    _detailId = null;
+    _detailJumpedToPokedex = false;
+    const rootEl = $('rosterView');
+    if (rootEl) {
+      rootEl.querySelector('.pokedex-search').style.display = '';
+      rootEl.querySelector('.roster-header').style.display = '';
+    }
+    const prog = $('rosterProgress');
+    if (prog) prog.style.display = '';
+  }
+  showView('idleView'); // 先隐藏仓库页，由来源视图自行显示
   if (fn) fn();
 }
 

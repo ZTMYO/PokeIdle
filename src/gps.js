@@ -790,7 +790,8 @@ function render() {
     : isFishing() ? '正在钓鱼，移动暂停'
     : '';
   let roamHint = '';
-  if (!paused && hasActiveSegment(g)) {
+  // 无导航目标（未选目的地、未漫游、非待选骑行）时不显示道路提示，避免取消导航后残留
+  if (!paused && (hasDest || g.roamEnabled || g.pendingBike) && hasActiveSegment(g)) {
     const roadInfo = getCurrentRoadInfo();
     if (g.massTarget) {
       // 事件点目标（massTarget）由大量出没 / 时空扭曲共用，按目标边区分文案
@@ -831,7 +832,7 @@ function render() {
           <span class="gps-bottom-cancel-text">${riding ? '下车' : '退出'}</span>
         </span>` : ''}
           <span class="gps-bottom-info">
-          <span class="gps-bottom-line1">${hasDest ? `${remain.kmStr}${remain.timeStr}` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>
+          <span class="gps-bottom-line1${!hasDest ? ' gps-pick-dest' : ''}" id="gpsPickDest">${hasDest ? `${remain.kmStr}${remain.timeStr}` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>
           ${hasDest ? `<span class="gps-bottom-line2">${remain.arriveStr}到达</span>` : ''}
         </span>
       </div>
@@ -859,12 +860,71 @@ function consumePendingBike() {
   return true;
 }
 
+// 目的地选择对话框：底部"点击地图选择目的地"入口，9 个地区按钮 + 事件点按钮（存在才显示）
+function openDestDialog() {
+  const grid = $('gpsDestGrid');
+  grid.innerHTML = REGION_CYCLE.map((name, idx) =>
+    `<button class="gps-dest-btn" data-region="${idx}">${name}</button>`).join('');
+  const events = $('gpsDestEvents');
+  events.innerHTML = '';
+  if (getMassOutbreak()) events.innerHTML += `<button class="gps-dest-btn" id="gpsDestMass">大量出没</button>`;
+  if (getTwist()) events.innerHTML += `<button class="gps-dest-btn" id="gpsDestTwist">时空扭曲</button>`;
+  $('gpsDestDialog').classList.add('open');
+}
+
+function closeDestDialog() {
+  $('gpsDestDialog')?.classList.remove('open');
+}
+
 export function showGpsView() {
+  closeDestDialog(); // 避免上次离开时对话框残留（返回再进入时重置）
   pushNav('gpsView'); // 导航页入栈：返回逐级回来源页（手机主页/悬赏/挂机）
   render();
   showView('gpsView');
   // 确保游戏内自制 tooltip 委托已激活（大量出没标记悬停提示用，幂等）
   setupFoodTooltip();
+  // 目的地选择对话框：点击遮罩/关闭叉收起
+  const dd = $('gpsDestDialog');
+  dd.onclick = (e) => {
+    if (e.target === dd || e.target.closest('#gpsDestClose')) { closeDestDialog(); return; }
+    // 选择地区目的地（与点击地图节点同逻辑，含待选骑行消耗）
+    const node = e.target.closest('.gps-dest-btn[data-region]');
+    if (node) {
+      const idx = Number(node.dataset.region);
+      const g = gameData.gps;
+      closeDestDialog();
+      if (road.isManualBike()) return;
+      if (consumePendingBike()) {
+        planRoute(idx);
+        road.setManualBike(true); // 选好目的地才上车骑行
+        render();
+        saveGame();
+        return;
+      }
+      if (!isNaN(idx) && !(g.destIdx == null && !hasActiveSegment(g) && idx === g.curIdx)) {
+        planRoute(idx);
+        saveGame();
+      }
+      return;
+    }
+    // 选择大量出没 / 时空扭曲事件点
+    const isMass = e.target.closest('#gpsDestMass');
+    const isTwist = e.target.closest('#gpsDestTwist');
+    if (isMass || isTwist) {
+      closeDestDialog();
+      if (road.isManualBike()) return;
+      const go = isMass ? planMassRoute : planTwistRoute;
+      if (consumePendingBike()) {
+        go();
+        road.setManualBike(true); // 选好目的地才上车骑行
+        render();
+        saveGame();
+        return;
+      }
+      go();
+      return;
+    }
+  };
   // 事件委托：漫游开关 + 点击地图节点选择目的地 / 取消导航
   const el = $('gpsContent');
   el.onclick = (e) => {
@@ -876,6 +936,13 @@ export function showGpsView() {
     }
     const cancel = e.target.closest('#gpsCancelBtn');
     if (cancel) { cancelNavigation(); return; }
+    // 点击底部"点击地图选择目的地"（无导航目标时）→ 弹出目的地选择对话框
+    const pick = e.target.closest('#gpsPickDest');
+    if (pick) {
+      const g = gameData.gps;
+      if (g.destIdx == null && g.massTarget == null) openDestDialog();
+      return;
+    }
     // 点击大量出没事件点标记 → 规划前往事件点（骑行中锁定；待选中 = 选它作为骑行目的地）
     const mass = e.target.closest('.gps-mass-marker');
     if (mass) {

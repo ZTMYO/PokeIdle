@@ -1339,6 +1339,12 @@ function bindSlots(host) {
       const n = ensureNursery();
       const i = Number(el.dataset.slot);
       if (n.parents[i]) {
+        // 二次确认仅限繁殖中取出（会终止剩余轮次）：未开始/已完成直接取出，繁殖中需双击确认
+        if (breedingState(n).key !== 'running') {
+          _confirmTakeSlot = -1;
+          removeParent(i);
+          return;
+        }
         // 双击取出：第一次点击进入待确认态（上方文字提示），再次点击同槽才真正取出
         if (_confirmTakeSlot === i) {
           _confirmTakeSlot = -1;

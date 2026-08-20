@@ -440,9 +440,12 @@ function renderGiveDetail(content, offerId) {
   content.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
       <span>${givePoke.form || givePoke.name}<span class="roster-detail-lv">${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</span>${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>' : ''}</span>
-      <span class="encounter-owned-wrap" id="tradeGiveOwnedWrap" style="display:none;">
-        <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-owned" /></svg>
-        <span class="encounter-tooltip" id="tradeGiveOwnedTip"></span>
+      <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <button class="trade-check-roster" data-trade-roster>仓库情况</button>
+        <span class="encounter-owned-wrap" id="tradeGiveOwnedWrap" style="display:none;">
+          <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-owned" /></svg>
+          <span class="encounter-tooltip" id="tradeGiveOwnedTip"></span>
+        </span>
       </span>
     </div>
     <div class="roster-detail-head">
@@ -792,6 +795,20 @@ document.addEventListener('click', e => {
     pauseTradeRefresh(); // 详情期间同样冻结刷新倒计时
     import('./roster.js').then(m => m.showRosterDetailFromList(viewRow.dataset.tradeView, () => {
       resumeTradeRefresh(); // 返回选择列表：恢复刷新倒计时
+      showView('tradeView');
+      renderTrade();
+    }));
+    return;
+  }
+  // 详情页右上角「仓库情况」：跳转仓库列表并预填该宝可梦名称搜索，返回恢复交换详情
+  const rosterBtn = e.target.closest('[data-trade-roster]');
+  if (rosterBtn) {
+    const o = (gameData.trades?.offers || []).find(x => x.id === _tradeDetail);
+    const givePoke = o && getPokemonByIndex(o.give.species);
+    if (!givePoke) return;
+    pauseTradeRefresh(); // 查看仓库期间冻结刷新倒计时
+    import('./roster.js').then(m => m.showRosterSearch(givePoke.name, () => {
+      resumeTradeRefresh(); // 返回交换详情：恢复刷新倒计时
       showView('tradeView');
       renderTrade();
     }));

@@ -1504,7 +1504,8 @@ body.browser-mode { overflow: auto; }
 }
 #quitDialog.open { display: flex; }
 
-#quitDialog .dialog-box {
+#quitDialog .dialog-box,
+#gpsDestDialog .dialog-box {
   position: relative;
   background: var(--console-body);
   border: 2px solid var(--ui-color);
@@ -1513,7 +1514,8 @@ body.browser-mode { overflow: auto; }
   padding: 12px 16px;
   min-width: 160px;
 }
-#quitDialog .dialog-title {
+#quitDialog .dialog-title,
+#gpsDestDialog .dialog-title {
   font-size: 12px;
   font-weight: 700;
   color: var(--ui-color);
@@ -1521,7 +1523,8 @@ body.browser-mode { overflow: auto; }
   margin-bottom: 10px;
 }
 /* 右上角关闭叉 */
-#quitDialog .quit-close {
+#quitDialog .quit-close,
+#gpsDestDialog .quit-close {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -1538,9 +1541,12 @@ body.browser-mode { overflow: auto; }
   cursor: pointer;
   transition: opacity 0.12s;
 }
-#quitDialog .quit-close:hover { opacity: 1; }
-#quitDialog .quit-close svg { width: 11px; height: 11px; fill: currentColor; }
-#quitDialog .dialog-opt {
+#quitDialog .quit-close:hover,
+#gpsDestDialog .quit-close:hover { opacity: 1; }
+#quitDialog .quit-close svg,
+#gpsDestDialog .quit-close svg { width: 11px; height: 11px; fill: currentColor; }
+#quitDialog .dialog-opt,
+#gpsDestDialog .dialog-opt {
   display: block;
   width: fit-content;
   margin: 0 auto 8px;
@@ -1556,9 +1562,57 @@ body.browser-mode { overflow: auto; }
   user-select: none;
   transition: background 0.12s, transform 0.06s;
 }
-#quitDialog .dialog-opt:last-of-type { margin-bottom: 0; }
-#quitDialog .dialog-opt:hover { opacity: 1; }
-#quitDialog .dialog-opt:active { transform: translateY(2px); }
+#quitDialog .dialog-opt:last-of-type,
+#gpsDestDialog .dialog-opt:last-of-type { margin-bottom: 0; }
+#quitDialog .dialog-opt:hover,
+#gpsDestDialog .dialog-opt:hover { opacity: 1; }
+#quitDialog .dialog-opt:active,
+#gpsDestDialog .dialog-opt:active { transform: translateY(2px); }
+
+/* ===== 导航目的地选择框（点击底部"点击地图选择目的地"弹出） ===== */
+#gpsDestDialog {
+  position: absolute;
+  inset: 0;
+  z-index: 99;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.25);
+}
+#gpsDestDialog.open { display: flex; }
+#gpsDestDialog .dialog-box { min-width: 210px; }
+.gps-dest-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gps-dest-events {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.gps-dest-btn {
+  padding: 7px 4px;
+  border: 2px solid var(--ui-color);
+  border-radius: 6px;
+  background: var(--screen-bg);
+  opacity: 0.8;
+  color: var(--ui-color);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s, transform 0.06s;
+}
+.gps-dest-btn:hover { opacity: 1; }
+.gps-dest-btn:active { transform: translateY(2px); }
+/* 底部"点击地图选择目的地"提示可点击（父容器 pointer-events:none，需单独放开） */
+.gps-pick-dest {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.gps-pick-dest:hover { color: var(--ui-color-dark); }
 
 /* ===== 图鉴列表 ===== */
 /* 列表型页面容器：图鉴/仓库/饲育屋放入页共用的边距、字号、颜色 */
@@ -4951,6 +5005,21 @@ body.browser-mode { overflow: auto; }
   object-fit: contain;
   image-rendering: pixelated;
 }
+/* 交换详情页右上角「仓库情况」按钮：跳转仓库并预填搜索 */
+.trade-check-roster {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: var(--screen-bg);
+  border: 1px solid var(--ui-color);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.8;
+  transition: opacity 0.12s;
+}
+.trade-check-roster:hover { opacity: 1; }
 .trade-btn {
   flex-shrink: 0;
   font-family: inherit;

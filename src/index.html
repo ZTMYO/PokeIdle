@@ -573,6 +573,18 @@
             </div>
           </div>
 
+          <!-- 导航页目的地选择（点击底部"点击地图选择目的地"弹出，9 地区 + 事件点按钮） -->
+          <div id="gpsDestDialog">
+            <div class="dialog-box">
+              <button class="quit-close" id="gpsDestClose" aria-label="关闭">
+                <svg><use xlink:href="#icon-close" /></svg>
+              </button>
+              <div class="dialog-title">选择目的地</div>
+              <div id="gpsDestGrid" class="gps-dest-grid"></div>
+              <div id="gpsDestEvents" class="gps-dest-events"></div>
+            </div>
+          </div>
+
           <!-- 捕捉成功（仅蛋孵化用） -->
           <div id="caughtView" style="display:none;">
             <div id="caughtInfo"

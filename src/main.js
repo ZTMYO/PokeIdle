@@ -239,10 +239,14 @@ function goBack() {
   // 详情页跳转图鉴（第 4 层子页）：返回先回详情页，再按详情返回逻辑走
   if (isRosterDetailJumpedToPokedex()) { returnRosterDetailFromPokedex(); return; }
   if (_pokedexInLogView && $('pokedexView')?.style.display === 'flex') { restorePokedex(); return; }
+  // 从悬赏提交/交换选择列表进入的详情，或「仓库情况」列表搜索（无详情）：按返回直接回来源视图
+  if (isRosterDetailFromList() && $('rosterView')?.style.display === 'flex') {
+    leaveRosterDetailToList();
+    return;
+  }
   if (isRosterInDetail() && $('rosterView')?.style.display === 'flex') {
     // 仅当正显示仓库详情时按返回才离开详情；从详情跳设置/商店等压栈页面返回时走 popNav 回到详情本身
-    if (isRosterDetailFromList()) { leaveRosterDetailToList(); }
-    else if (isRosterDetailFromObtain()) { leaveRosterDetailToSource(); }
+    if (isRosterDetailFromObtain()) { leaveRosterDetailToSource(); }
     else { restoreRosterList(); }
     return;
   }
