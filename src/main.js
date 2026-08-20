@@ -538,6 +538,8 @@ function setupShortcuts() {
       case 'b': showBattleView(); break;
       case 'g': showGpsView(); break;
       case 'n': showNurseryView(); break;
+      // Esc 等同标题栏返回（与点击返回按钮同一套逐级逻辑）
+      case 'escape': goBack(); break;
     }
   });
 }
@@ -1099,6 +1101,20 @@ async function init() {
       if (e.deltaY > 0 && _bagPage < 2) showBagPage(2);
       else if (e.deltaY < 0 && _bagPage > 1) showBagPage(1);
     });
+    // 触屏横滑翻页：记录滑动起点，结束时按横向位移与方向翻页
+    let _bagTouchX = null;
+    backpackEl.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      _bagTouchX = e.touches[0].clientX;
+    }, { passive: true });
+    backpackEl.addEventListener('touchend', e => {
+      if (_bagTouchX == null) return;
+      const dx = e.changedTouches[0].clientX - _bagTouchX;
+      _bagTouchX = null;
+      if (Math.abs(dx) < 30) return; // 位移过小视为点击
+      if (dx < 0 && _bagPage < 2) showBagPage(2);
+      else if (dx > 0 && _bagPage > 1) showBagPage(1);
+    }, { passive: true });
     // 点击页码指示条的短段直接翻到对应页
     const bagInd = $('bagPageIndicator');
     if (bagInd) {

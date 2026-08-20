@@ -118,12 +118,15 @@ function computeRouteRemain(g) {
   const pxPerSec = road.getSpeed() * 60;
   const pxPerMin = pxPerSec * 60;
   const remainMin = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerMin)) : 0;
+  const remainSec = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerSec)) : 0;
   const remainKm = hasDest ? Math.max(0, remainPxTotal / PX_PER_METER / 1000) : 0;
+  const timeStr = hasDest ? (remainMin >= 2 ? remainMin + '分' : remainSec + '秒') : '';
+  const kmStr = hasDest && remainKm >= 0.1 ? remainKm.toFixed(1) + '公里 ' : '';
   const arriveStr = hasDest ? (() => {
     const d = new Date(Date.now() + remainMin * 60000);
     return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   })() : '';
-  return { hasDest, remainKm, remainMin, arriveStr };
+  return { hasDest, remainKm, remainMin, remainSec, timeStr, kmStr, arriveStr };
 }
 
 // 导航推进时增量更新地图（定位点位置/朝向 + 底部剩余信息），不重建 DOM，
@@ -143,7 +146,7 @@ function updateGpsViewport() {
   if (info) {
     const remain = computeRouteRemain(g);
     const pendingBike = g.pendingBike === true;
-    info.innerHTML = `<span class="gps-bottom-line1">${remain.hasDest ? `${remain.remainKm.toFixed(1)}公里 ${remain.remainMin}分` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>`
+    info.innerHTML = `<span class="gps-bottom-line1">${remain.hasDest ? `${remain.kmStr}${remain.timeStr}` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>`
       + (remain.hasDest ? `<span class="gps-bottom-line2">${remain.arriveStr}到达</span>` : '');
   }
 }
@@ -248,11 +251,12 @@ function massMarkerSvg() {
   const [x, y] = lerpPoint(MAP_POS[ea], MAP_POS[eb], mo.t);
   const poke = getPokemonByIndex(mo.pokemon);
   const name = poke ? poke.name : '';
+  const lp = eventLabelPlacement(x, y, '大量出没');
   return `
     <g class="gps-mass-marker" data-mass="1" data-name="${name}" data-remain="${mo.remain}" transform="translate(${x} ${y})" style="cursor:pointer">
       <circle r="8" class="gps-mass-ring"></circle>
       <circle r="3.5" class="gps-mass-dot"></circle>
-      <text x="0" y="-13" text-anchor="middle" class="gps-mass-label">大量出没</text>
+      <text x="${lp.dx}" y="${lp.dy}" text-anchor="${lp.anchor}" class="gps-mass-label">大量出没</text>
     </g>`;
 }
 
@@ -262,12 +266,42 @@ function twistMarkerSvg() {
   if (!tw) return '';
   const [ea, eb] = tw.edge;
   const [x, y] = lerpPoint(MAP_POS[ea], MAP_POS[eb], tw.t);
+  const lp = eventLabelPlacement(x, y, '时空扭曲');
   return `
     <g class="gps-twist-marker" data-twist="1" data-remain="${tw.remain}" transform="translate(${x} ${y})" style="cursor:pointer">
       <circle r="8" class="gps-twist-ring"></circle>
       <circle r="3.5" class="gps-twist-dot"></circle>
-      <text x="0" y="-13" text-anchor="middle" class="gps-twist-label">时空扭曲</text>
+      <text x="${lp.dx}" y="${lp.dy}" text-anchor="${lp.anchor}" class="gps-twist-label">时空扭曲</text>
     </g>`;
+}
+
+// 事件点 label 避让：默认放点位上方（text-anchor=middle，y 下移 -13）；
+// 若与任一地区节点 label 的近似矩形重叠，依次尝试 左 / 右 / 下 四个方位，
+// 避免「大量出没 / 时空扭曲」文字盖住邻近地区的名字。
+// 节点 label 与地区名共用同一套 MAP_LABEL 方位配置（right/left/tr/bl）。
+const _nodeLabelRects = REGION_CYCLE.map((name, i) => {
+  const [nx, ny] = MAP_POS[i];
+  const pos = MAP_LABEL[i] || 'right';
+  const w = name.length * 10;   // 10px 字号下中文近似宽
+  const h = 10;
+  // 地区名 text 的 baseline 由 nodeSvg 计算：right/left→y+3.5，tr→y-10，bl→y+14；x 偏移 ±10
+  const left = pos === 'left' || pos === 'bl';
+  const yTop = pos === 'tr' ? ny - 10 - h : (pos === 'bl' ? ny + 14 - h : ny + 3.5 - h);
+  return { x: left ? nx - 10 - w : nx + 10, y: yTop, w, h };
+});
+function eventLabelPlacement(x, y, text) {
+  const w = text.length * 10, h = 10;
+  const cands = [
+    { dx: 0, dy: -13, anchor: 'middle', rect: { x: x - w / 2, y: y - 13 - h, w, h } },
+    { dx: -8, dy: 0, anchor: 'end', rect: { x: x - 8 - w, y: y - h / 2, w, h } },
+    { dx: 8, dy: 0, anchor: 'start', rect: { x: x + 8, y: y - h / 2, w, h } },
+    { dx: 0, dy: 14, anchor: 'middle', rect: { x: x - w / 2, y: y + 14, w, h } },
+  ];
+  const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  for (const c of cands) {
+    if (!_nodeLabelRects.some(r => hit(c.rect, r))) return c;
+  }
+  return cands[0]; // 全被占时退回上方
 }
 
 // 从距离矩阵提取节点 i 的直达边（跳过自身 / 无直达 / 不可通行）
@@ -747,32 +781,9 @@ function render() {
   // 导航中 = 有地区目的地 或 正在前往大量出没事件点（事件点不是地区节点，destIdx 为 null）
   const hasDest = g.destIdx != null || g.massTarget != null;
 
-  // 剩余真实距离 = 当前路段剩余 + 后续各路段全长（换目的地/绕行时正确反映总里程；
-  // 前往大量出没事件点时，事件边只算到事件点的距离）
-  let remainPxTotal = hasDest ? (g.remainPx || 0) : 0;
-  if (hasDest && g.path) {
-    for (let i = g.seg + 1; i < g.path.length - 1; i++) {
-      const segA = g.path[i], segB = g.path[i + 1];
-      let segPx = DIST_MATRIX[segA][segB] * PX_PER_UNIT;
-      if (g.massTarget && i === g.path.length - 2) {
-        const [ea, eb] = g.massTarget.edge;
-        const fromA = segPx * g.massTarget.t;
-        segPx = (segA === ea && segB === eb) ? fromA : (segPx - fromA);
-      }
-      remainPxTotal += segPx;
-    }
-  }
-  // 剩余真实时间：按主角当前移速（走路/跑步/骑车）实时估算，buff 生效即按跑步速度重算
-  const pxPerSec = road.getSpeed() * 60;
-  const pxPerMin = pxPerSec * 60;
-  const remainMin = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerMin)) : 0;
-  // 剩余距离换算公里
-  const remainKm = hasDest ? Math.max(0, remainPxTotal / PX_PER_METER / 1000) : 0;
-  // 预计到达时刻 = 当前时间 + 剩余分钟，HH:MM 格式
-  const arriveStr = hasDest ? (() => {
-    const d = new Date(Date.now() + remainMin * 60000);
-    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  })() : '';
+  // 剩余真实距离/时间：按主角当前移速（走路/跑步/骑车）实时估算，buff 生效即按跑步速度重算；
+  // 前往大量出没事件点时，事件边只算到事件点的距离
+  const remain = computeRouteRemain(g);
 
   // 漫游行右侧互斥文案：暂停时显示暂停原因；非暂停时显示 当前道路→最近节点（当前段目标端）
   const paused = phase !== 'idle' ? '正在与宝可梦对战，移动暂停'
@@ -819,9 +830,9 @@ function render() {
           <svg viewBox="0 0 12 12" width="13" height="13"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
           <span class="gps-bottom-cancel-text">${riding ? '下车' : '退出'}</span>
         </span>` : ''}
-        <span class="gps-bottom-info">
-          <span class="gps-bottom-line1">${hasDest ? `${remainKm.toFixed(1)}公里 ${remainMin}分` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>
-          ${hasDest ? `<span class="gps-bottom-line2">${arriveStr}到达</span>` : ''}
+          <span class="gps-bottom-info">
+          <span class="gps-bottom-line1">${hasDest ? `${remain.kmStr}${remain.timeStr}` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>
+          ${hasDest ? `<span class="gps-bottom-line2">${remain.arriveStr}到达</span>` : ''}
         </span>
       </div>
     </div>`;

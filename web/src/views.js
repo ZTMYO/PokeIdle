@@ -363,6 +363,9 @@ export function renderSystemLogs() {
       case 'shop_purchase':
         desc = `商店兑换${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（消耗${log.details.cost}糖果）`;
         break;
+      case 'shop_sell':
+        desc = `商店出售${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（获得${log.details.gain}糖果）`;
+        break;
       case 'encounter':
         desc = log.details.source === 'fishing'
           ? ` 钓鱼上钩了 ${log.details.shiny ? '闪光' : ''}${logName(log)}`
@@ -733,8 +736,8 @@ function hideShopContextMenu() {
 
 // ===== 设置视图 =====
 // 窗口倍率档位（相对 320×400 基础尺寸的等比缩放，尺寸换算在 Rust 侧 set_window_scale 完成）
-// 1~10 整数档；超出显示器容纳上限时由 Rust 侧自动钳制到实际生效倍率
-const WINDOW_SCALES = Array.from({ length: 10 }, (_, i) => i + 1);
+// 1 / 1.5 / 2~10 整数档；超出显示器容纳上限时由 Rust 侧自动钳制到实际生效倍率
+const WINDOW_SCALES = [1, 1.5, ...Array.from({ length: 9 }, (_, i) => i + 2)];
 
 // 当前 WebView2 zoom 因子（Rust set_window_scale 返回，初始 1）。
 // 用于把 window.devicePixelRatio 还原成系统 dpr：WebView2 的 devicePixelRatio 包含 zoom，
@@ -1089,17 +1092,27 @@ export function renderSettings(container, s) {
     saveGame();
     location.reload();
   });
-  // 导出存档：调用 Tauri 命令打开目录选择器，导出存档并上调 lastSaveTime
+  // 导出存档：桌面版调 Tauri 命令打开目录选择器；网页版直接下载 JSON 文件。
+  // 两种途径都会上调 lastSaveTime，迁移到新设备后不会被 localStorage 旧数据覆盖
   container.querySelector('#exportSaveBtn')?.addEventListener('click', async () => {
     const btn = container.querySelector('#exportSaveBtn');
+    gameData.stats.lastSaveTime = Date.now() + 10 * 365 * 24 * 3600 * 1000;
     if (!window.__TAURI__?.core?.invoke) {
-      btn.textContent = '仅桌面版';
-      setTimeout(() => { btn.textContent = '导出'; }, 2000);
+      // 网页版：生成 JSON 触发浏览器下载
+      const blob = new Blob([JSON.stringify(gameData)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pokemon-idle-save.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      addSystemLog('export', { path: 'download' });
+      updateTextBox('存档已导出');
+      btn.textContent = '已导出 ✓';
+      setTimeout(() => { btn.textContent = '导出'; }, 2500);
       return;
     }
     btn.textContent = '导出中…';
-    // 调整 lastSaveTime 至极大值，迁移到新设备后不会被 localStorage 覆盖
-    gameData.stats.lastSaveTime = Date.now() + 10 * 365 * 24 * 3600 * 1000;
     try {
       const path = await window.__TAURI__.core.invoke('export_save_data', { data: JSON.stringify(gameData) });
       addSystemLog('export', { path });
@@ -1115,12 +1128,36 @@ export function renderSettings(container, s) {
     }
     setTimeout(() => { btn.textContent = '导出'; }, 2500);
   });
-  // 导入存档：选择文件后比对时间戳，确保导入的 lastSaveTime > 当前，防止被旧数据回滚
+  // 导入存档：桌面版调 Tauri 命令选文件；网页版用浏览器文件选择器读取 JSON。
+  // 两种途径都会比对时间戳，确保导入的 lastSaveTime > 当前，防止被旧数据回滚
   container.querySelector('#importSaveBtn')?.addEventListener('click', async () => {
     const btn = container.querySelector('#importSaveBtn');
     if (!window.__TAURI__?.core?.invoke) {
-      btn.textContent = '仅桌面版';
-      setTimeout(() => { btn.textContent = '导入'; }, 2000);
+      // 网页版：弹出文件选择器读取 JSON
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        btn.textContent = '导入中…';
+        try {
+          const jsonStr = await file.text();
+          const imported = JSON.parse(jsonStr);
+          if (!imported || typeof imported !== 'object' || !imported.stats) {
+            updateTextBox('存档格式无效');
+            btn.textContent = '导入失败';
+            setTimeout(() => { btn.textContent = '导入'; }, 2500);
+            return;
+          }
+          applyImportedSave(imported);
+        } catch (e) {
+          updateTextBox('存档导入失败');
+          btn.textContent = '导入失败';
+          setTimeout(() => { btn.textContent = '导入'; }, 2500);
+        }
+      };
+      input.click();
       return;
     }
     btn.textContent = '导入中…';
@@ -1133,20 +1170,7 @@ export function renderSettings(container, s) {
         setTimeout(() => { btn.textContent = '导入'; }, 2500);
         return;
       }
-      // 比对时间戳：导入存档的 lastSaveTime 必须大于当前存档，否则手动修正
-      const importedTime = imported.stats.lastSaveTime || 0;
-      const currentTime = gameData.stats.lastSaveTime || 0;
-      if (importedTime <= currentTime) {
-        imported.stats.lastSaveTime = currentTime + 1;
-      }
-      // 覆盖存档并刷新
-      setGameData(imported);
-      ensureGpsState();
-      await saveGame();
-      addSystemLog('import');
-      updateTextBox('存档导入成功，即将刷新');
-      btn.textContent = '已导入 ✓';
-      setTimeout(() => { location.reload(); }, 800);
+      applyImportedSave(imported);
     } catch (e) {
       if (typeof e === 'string' && e.includes('取消')) {
         btn.textContent = '导入';
@@ -1157,6 +1181,23 @@ export function renderSettings(container, s) {
       setTimeout(() => { btn.textContent = '导入'; }, 2500);
     }
   });
+  // 导入的存档：比对时间戳后覆盖并刷新（桌面版/网页版共用）
+  function applyImportedSave(imported) {
+    const importedTime = imported.stats.lastSaveTime || 0;
+    const currentTime = gameData.stats.lastSaveTime || 0;
+    if (importedTime <= currentTime) {
+      imported.stats.lastSaveTime = currentTime + 1;
+    }
+    setGameData(imported);
+    ensureGpsState();
+    saveGame().then(() => {
+      addSystemLog('import');
+      updateTextBox('存档导入成功，即将刷新');
+      const b = container.querySelector('#importSaveBtn');
+      if (b) b.textContent = '已导入 ✓';
+      setTimeout(() => { location.reload(); }, 800);
+    });
+  }
   container.querySelector('#toggleBuffHoney')?.addEventListener('click', toggleAutoBuffHoney);
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);
   container.querySelector('#toggleAutoRefill')?.addEventListener('click', toggleAutoRefill);
@@ -1607,6 +1648,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出想要的宝可梦与愿意给的宝可梦，有 <b>${TRADE_SHINY_CHANCE * 100}</b>% 的概率给出闪光宝可梦。</p>`
       + `<p>NPC 有 <b>${TRADE_LEVEL_CHANCE * 100}</b>% 的概率指定想要的宝可梦<b>等级下限</b>（<b>${TRADE_WANT_LEVEL_MIN}~${TRADE_WANT_LEVEL_MAX}</b> 级）：个体必须达到等级要求才能提交。孵化攒下的 1 级宝可梦可用<b>经验糖果</b>快速拉到等级线（详见「<b>经验糖果</b>」章节）。</p>`
       + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「<b>交换</b>」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`
+      + `<p>跟随<b>毒 / 超能</b>属性随从（增益「<b>交换闪光概率提升</b>」）时，会<b>强制刷新一波交易</b>，让新加成立即生效。</p>`
       + `<p>右键可交换的条目可「<b>忽略</b>」：忽略后不再计入手机主页的红点提醒，但随时可右键恢复，忽略后仍可正常交换。</p>`,
   },
   {
@@ -1652,8 +1694,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '商店',
     html: `<p>点击标题栏右侧区域的商店按钮者点击主界面左下角的糖果数量文字进入<b>商店</b>。可以消耗<b>糖果</b>兑换基础道具。</p>`
-      + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 20 / 50 个，糖果不够的档位会置灰）。</p>`
-      + `<p>点击左上角的「出售」按钮将进入出售模式，可按照<b>40%</b>的价格出售道具。`
+      + `<p>点击「兑换」买 1 个，<b>右键</b>可批量购买。</p>`
+      + `<p>点击左上角的「出售」进入出售模式，按 <b>40%</b> 价格卖出，点击卖 1 个，<b>右键</b>同样可批量出售。</p>`
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto']),
   },
@@ -1855,7 +1897,7 @@ const TUTORIAL_SECTIONS = [
     title: '自动操作',
     html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
       + `<p><b>自动丢球</b>：判定为「捕捉」后会自动<b>连续丢球直到捕获或逃跑</b>。球种按<b>智能选球</b>——<b>神兽或捕获率低</b>的宝可梦优先 <b>大师球→高级球→精灵球</b>，捕获率高的普通宝可梦优先 <b>精灵球</b> 省资源；只在勾选的球种中挑选，优先球种没库存自动顺延。</p>`
-      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪</b> 四类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未捕获过的</b>。</p>`
+      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏</b> 五类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未捕获过的</b>。</p>`
       + `<p>勾选增益道具到期自动<b>续杯</b>；<b>自动补球</b>：球用光自动用糖果补 1 个（「‹ ›」调优先级）。</p>`,
   },
   {

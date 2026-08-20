@@ -363,6 +363,9 @@ export function renderSystemLogs() {
       case 'shop_purchase':
         desc = `商店兑换${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（消耗${log.details.cost}糖果）`;
         break;
+      case 'shop_sell':
+        desc = `商店出售${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（获得${log.details.gain}糖果）`;
+        break;
       case 'encounter':
         desc = log.details.source === 'fishing'
           ? ` 钓鱼上钩了 ${log.details.shiny ? '闪光' : ''}${logName(log)}`
@@ -733,8 +736,8 @@ function hideShopContextMenu() {
 
 // ===== 设置视图 =====
 // 窗口倍率档位（相对 320×400 基础尺寸的等比缩放，尺寸换算在 Rust 侧 set_window_scale 完成）
-// 1~10 整数档；超出显示器容纳上限时由 Rust 侧自动钳制到实际生效倍率
-const WINDOW_SCALES = Array.from({ length: 10 }, (_, i) => i + 1);
+// 1 / 1.5 / 2~10 整数档；超出显示器容纳上限时由 Rust 侧自动钳制到实际生效倍率
+const WINDOW_SCALES = [1, 1.5, ...Array.from({ length: 9 }, (_, i) => i + 2)];
 
 // 当前 WebView2 zoom 因子（Rust set_window_scale 返回，初始 1）。
 // 用于把 window.devicePixelRatio 还原成系统 dpr：WebView2 的 devicePixelRatio 包含 zoom，
@@ -1645,6 +1648,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出想要的宝可梦与愿意给的宝可梦，有 <b>${TRADE_SHINY_CHANCE * 100}</b>% 的概率给出闪光宝可梦。</p>`
       + `<p>NPC 有 <b>${TRADE_LEVEL_CHANCE * 100}</b>% 的概率指定想要的宝可梦<b>等级下限</b>（<b>${TRADE_WANT_LEVEL_MIN}~${TRADE_WANT_LEVEL_MAX}</b> 级）：个体必须达到等级要求才能提交。孵化攒下的 1 级宝可梦可用<b>经验糖果</b>快速拉到等级线（详见「<b>经验糖果</b>」章节）。</p>`
       + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「<b>交换</b>」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`
+      + `<p>跟随<b>毒 / 超能</b>属性随从（增益「<b>交换闪光概率提升</b>」）时，会<b>强制刷新一波交易</b>，让新加成立即生效。</p>`
       + `<p>右键可交换的条目可「<b>忽略</b>」：忽略后不再计入手机主页的红点提醒，但随时可右键恢复，忽略后仍可正常交换。</p>`,
   },
   {
@@ -1690,8 +1694,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '商店',
     html: `<p>点击标题栏右侧区域的商店按钮者点击主界面左下角的糖果数量文字进入<b>商店</b>。可以消耗<b>糖果</b>兑换基础道具。</p>`
-      + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 20 / 50 个，糖果不够的档位会置灰）。</p>`
-      + `<p>点击左上角的「出售」按钮将进入出售模式，可按照<b>40%</b>的价格出售道具。`
+      + `<p>点击「兑换」买 1 个，<b>右键</b>可批量购买。</p>`
+      + `<p>点击左上角的「出售」进入出售模式，按 <b>40%</b> 价格卖出，点击卖 1 个，<b>右键</b>同样可批量出售。</p>`
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto']),
   },
@@ -1893,7 +1897,7 @@ const TUTORIAL_SECTIONS = [
     title: '自动操作',
     html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
       + `<p><b>自动丢球</b>：判定为「捕捉」后会自动<b>连续丢球直到捕获或逃跑</b>。球种按<b>智能选球</b>——<b>神兽或捕获率低</b>的宝可梦优先 <b>大师球→高级球→精灵球</b>，捕获率高的普通宝可梦优先 <b>精灵球</b> 省资源；只在勾选的球种中挑选，优先球种没库存自动顺延。</p>`
-      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪</b> 四类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未捕获过的</b>。</p>`
+      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏</b> 五类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未捕获过的</b>。</p>`
       + `<p>勾选增益道具到期自动<b>续杯</b>；<b>自动补球</b>：球用光自动用糖果补 1 个（「‹ ›」调优先级）。</p>`,
   },
   {

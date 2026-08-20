@@ -490,6 +490,21 @@ export function showBountyView() {
     _pageIdx = (_pageIdx + (total > 0 ? steps : -steps) + n * 4) % n;
     renderBounty();
   };
+  // 触屏横滑翻页：左滑下一页、右滑上一页（参考背包手势），提交列表是仓库滚动列表不劫持
+  let _touchX = null;
+  content.addEventListener('touchstart', e => {
+    if (_tradeMode || e.touches.length !== 1) return;
+    _touchX = e.touches[0].clientX;
+  }, { passive: true });
+  content.addEventListener('touchend', e => {
+    if (_tradeMode || _touchX == null) return;
+    const dx = e.changedTouches[0].clientX - _touchX;
+    _touchX = null;
+    if (Math.abs(dx) < 30) return; // 位移过小视为点击
+    const n = REGION_CYCLE.length;
+    _pageIdx = (_pageIdx + (dx < 0 ? 1 : -1) + n) % n;
+    renderBounty();
+  }, { passive: true });
   // 右键可提交的悬赏行：弹出「忽略/恢复」菜单（参考商店批量购买右键菜单）
   content.oncontextmenu = (e) => {
     const row = e.target.closest('.bounty-line');
