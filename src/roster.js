@@ -13,6 +13,16 @@ import { NATURES } from './battle-core.js';
 // 获得来源 → 中文
 // 大量出没（mass）本质也是野生遭遇，显示与筛选均归入「野生」，不单列筛选项
 const SOURCE_NAMES = { normal: '野生', mass: '大量出没', twist: '时空扭曲', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
+
+// 个体当前所处状态标签：训练中 / 繁育中 / 队伍中（可多状态并存），无则不渲染
+function memberStatusTags(p) {
+  const tags = [];
+  if ((gameData.training?.slots || []).some(s => s && s.id === p.id)) tags.push('训练中');
+  if ((gameData.nursery?.parents || []).some(s => s && s.id === p.id)) tags.push('繁育中');
+  if ((gameData.teams || []).some(t => (t.ids || []).includes(p.id))) tags.push('队伍中');
+  if (!tags.length) return '';
+  return tags.map(t => `<span class="roster-status-tag">${t}</span>`).join('');
+}
 const TWIST_ICON = '<svg class="pokedex-star-svg" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M512 0c282.7776 0 512 229.2224 512 512s-229.2224 512-512 512S0 794.7776 0 512 229.2224 0 512 0z m0 947.2c240.3584 0 435.2-194.8416 435.2-435.2S752.3584 76.8 512 76.8v870.4z" fill="currentColor"></path></svg>';
 const STAR_FILLED = '<svg class="pokedex-star-svg" viewBox="2 2 20.2 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.77272 14.5899L5.24822 20.9745C5.1866 21.2304 5.28549 21.498 5.49671 21.6536C5.70873 21.8087 5.99207 21.8238 6.21922 21.6891L11.9527 18.2844L17.6835 21.6891C17.787 21.7505 17.9027 21.7812 18.0178 21.7812C18.1547 21.7812 18.2907 21.7387 18.406 21.6543C18.6173 21.4985 18.7162 21.231 18.6545 20.9752L17.13 14.5905L22.1907 10.3017C22.3931 10.131 22.4721 9.85483 22.3911 9.60288C22.3106 9.35093 22.0855 9.17223 21.8217 9.15074L15.1466 8.59969L12.5534 2.54696C12.4506 2.30605 12.2138 2.15039 11.952 2.15039C11.6902 2.15039 11.4534 2.30605 11.3507 2.54696L8.7555 8.59969L2.08241 9.14997C1.81862 9.17165 1.59348 9.35026 1.51299 9.60226C1.43185 9.85421 1.51107 10.1304 1.7133 10.301L6.77272 14.5899Z" fill="currentColor"></path></svg>';
 const TWIST_SHINY = '<svg class="pokedex-star-svg" viewBox="1.9 2 20.2 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.3357 8.67501L15.3966 8.23626L13.1615 2.76251C13.076 2.53826 12.9196 2.3446 12.7136 2.2081C12.5076 2.07159 12.2623 1.99891 12.0111 2.00001C11.7577 2.00048 11.5104 2.0735 11.3014 2.20953C11.0924 2.34556 10.9315 2.53828 10.8396 2.76251L8.60456 8.23626L2.66547 8.67626C1.53478 8.78751 1.09119 10.1625 1.94941 10.8775L6.47744 14.7038L5.0677 20.4538C5.03842 20.5699 5.02689 20.6895 5.03347 20.8088C5.03479 20.8438 5.04137 20.8775 5.04532 20.9125C5.05585 20.9925 5.07165 21.0688 5.09666 21.1438C5.1085 21.1775 5.11903 21.2113 5.13351 21.2438C5.16721 21.3212 5.20957 21.3949 5.25988 21.4638C5.27304 21.4825 5.28357 21.5038 5.29805 21.5225C5.36518 21.6063 5.44284 21.68 5.5284 21.7437C5.54946 21.76 5.57315 21.7712 5.59553 21.7862C5.69221 21.8497 5.79762 21.9001 5.90881 21.9363C5.98366 21.9596 6.06085 21.9755 6.13916 21.9837C6.17075 21.9875 6.20234 21.9937 6.23393 21.995C6.24841 21.995 6.26157 22 6.27605 22C6.34055 22 6.40636 21.9825 6.47218 21.9725C6.51166 21.9663 6.55115 21.9663 6.59064 21.9563C6.71572 21.9228 6.83468 21.8713 6.94341 21.8037L11.9993 18.6925L12.0098 18.6988L17.0551 21.8025C17.2464 21.923 17.4706 21.9877 17.7001 21.9888C18.4504 21.9888 19.1256 21.2875 18.9308 20.4525L17.5211 14.7025L22.0518 10.8775C22.9073 10.1613 22.4664 8.75876 21.3357 8.67501ZM21.1791 9.94251L16.6484 13.7675C16.4714 13.9168 16.34 14.1087 16.2682 14.323C16.1964 14.5373 16.1868 14.766 16.2403 14.985L17.6922 20.7038L12.7153 17.6425C12.505 17.5134 12.2602 17.444 12.0098 17.4425V3.40376L14.1685 8.68876C14.2579 8.90857 14.4111 9.0998 14.6103 9.24029C14.8095 9.38078 15.0465 9.46477 15.2939 9.48251L21.1909 9.91876C21.1856 9.92126 21.1804 9.92876 21.1791 9.94251Z" fill="currentColor"></path></svg>';
@@ -1093,6 +1103,7 @@ function showRosterDetail(id) {
       <div style="min-width:0;">
         <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:3px;">
           ${(poke && poke.types || []).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t] || '#888'}">${t}</span>`).join('')}
+          ${memberStatusTags(p)}
         </div>
         <div style="font-size:10px;opacity:0.7;line-height:1.6;">
           <div style="display:flex;flex-wrap:wrap;column-gap:8px;"><div data-tip="${natureBoostText(p.nature)}" style="cursor:pointer;">性格：${natureText(p.nature)}</div><span>来源：${srcName(p.source)}</span></div>
@@ -1600,8 +1611,14 @@ export function leaveRosterDetailToList() {
     }
     const prog = $('rosterProgress');
     if (prog) prog.style.display = '';
+  } else {
+    const input = $('rosterSearchInput');
+    if (input) input.value = '';
+    const clearBtn = $('rosterSearchClear');
+    if (clearBtn) clearBtn.style.display = 'none';
   }
-  showView('idleView'); // 先隐藏仓库页，由来源视图自行显示
+  const rv = $('rosterView');
+  if (rv) rv.style.display = 'none';
   if (fn) fn();
 }
 

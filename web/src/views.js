@@ -846,11 +846,13 @@ export function renderSettings(container, s) {
     const actCells = CF_ACTIONS.map(a => `
       <td class="cf-cell act ${r.action === a.v ? 'on' : ''}" data-row="${key}" data-act="${a.v}">${a.t}</td>`).join('');
     const dim = r.action === 'catch' ? '' : ' dim'; // 非捕捉行：等级/未捕获不生效，弱化显示
-    // 仅「捕捉」行显示等级输入框，其余行占位；可悬赏行不支持等级筛选，恒为占位
-    const lvCell = (r.action === 'catch' && key !== 'bounty') ? `
+    // 仅「捕捉」行显示等级输入框，其余行占位
+    const lvCell = (r.action === 'catch') ? `
       <td class="cf-cell lv">
-        <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="min" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMin || 1}" />
-        <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="max" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMax || 20}" />
+        <div class="cf-lv-inner">
+          <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="min" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMin || 1}" />
+          <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="max" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMax || 20}" />
+        </div>
       </td>` : `<td class="cf-cell lv${dim}">—</td>`;
     return `
       <tr data-row="${key}">
@@ -905,7 +907,7 @@ export function renderSettings(container, s) {
                 <th>暂停</th>
                 <th>逃跑</th>
                 <th class="cf-col-lv">捕捉等级</th>
-                <th>未捕获</th>
+                <th>未拥有</th>
               </tr>
             </thead>
             <tbody>${cfTbody}</tbody>
@@ -1897,7 +1899,7 @@ const TUTORIAL_SECTIONS = [
     title: '自动操作',
     html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
       + `<p><b>自动丢球</b>：判定为「捕捉」后会自动<b>连续丢球直到捕获或逃跑</b>。球种按<b>智能选球</b>——<b>神兽或捕获率低</b>的宝可梦优先 <b>大师球→高级球→精灵球</b>，捕获率高的普通宝可梦优先 <b>精灵球</b> 省资源；只在勾选的球种中挑选，优先球种没库存自动顺延。</p>`
-      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏</b> 五类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未捕获过的</b>。</p>`
+      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏</b> 五类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未拥有过的</b>（仓库里已有对应形态直接放跑）。</p>`
       + `<p>勾选增益道具到期自动<b>续杯</b>；<b>自动补球</b>：球用光自动用糖果补 1 个（「‹ ›」调优先级）。</p>`,
   },
   {

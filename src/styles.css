@@ -4146,6 +4146,9 @@ body.browser-mode { overflow: auto; }
 .cf-cell.lv {
   cursor: default;
   padding: 2px;
+}
+/* 等级输入框用内层 flex 容器排列，td 保持 table-cell 以免边框合并失效产生双线 */
+.cf-cell.lv .cf-lv-inner {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4484,6 +4487,23 @@ body.browser-mode { overflow: auto; }
   opacity: 0.75;
   margin-left: 6px;
   vertical-align: 1px;
+}
+/* 详情页个体状态标签：训练中 / 繁育中 / 队伍中（跟在属性徽章右侧，高度与 type-badge 对齐） */
+.roster-status-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ui-color);
+  border: 1px solid var(--ui-color);
+  opacity: 0.85;
+  white-space: nowrap;
+  margin-left: 4px;
 }
 /* 改名按钮 */
 .roster-nick-btn {

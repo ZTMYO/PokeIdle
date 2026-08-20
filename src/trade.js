@@ -74,10 +74,9 @@ function pauseTradeRefresh() {}
 function resumeTradeRefresh() {}
 
 // ---------- 波次生成 ----------
-// 权重 = 0.3 + 稀有度 × 0.7（与悬赏选角一致的稀有度倾向）；
-// 家族归一：多变体家族按单个形态权重计，不因形态数叠加
+// 交易物种：按演化家族聚类后等概率抽取（家族内成员再等概率随机）
 function pickTradePokemon() {
-  return pickFamily(allPokemon, p => 0.3 + (p.rarity || 0) * 0.7);
+  return pickFamily(allPokemon, () => 1);
 }
 
 // 给出的宝可梦个体值：神兽保底 3 项 31（与玩家捕获到的一致），

@@ -1076,15 +1076,15 @@ function pickAutoBallType(availableBalls) {
   return availableBalls[0] || null;
 }
 
-// 单行策略判定：逃跑 > 暂停 > 未捕获 > 等级范围（skipLevel 行不参与等级筛选）
+// 单行策略判定：逃跑 > 暂停 > 未拥有 > 等级范围（skipLevel 行不参与等级筛选）
 function evalCatchRow(row, skipLevel = false) {
   if (row.action === 'flee') return 'flee';
   if (row.action === 'stop') return 'stop';
-  // 捕捉：仅捕捉未捕获过的 → 已捕获对应形态直接放跑
+  // 捕捉：仅捕捉未捕获过的 → 仓库里已有对应形态直接放跑（普通看非闪个体、闪光看闪光个体）
   if (row.uncaughtOnly) {
-    const entry = gameData.pokedex?.[String(currentEncounter?.index)];
-    const caught = entry ? (currentIsShiny ? (entry.shinyCaught || 0) > 0 : (entry.caught || 0) > 0) : false;
-    if (caught) return 'flee';
+    const idx = String(currentEncounter?.index);
+    const has = (gameData.roster || []).some(p => p.inRoster && String(p.species) === idx && (currentIsShiny ? p.shiny : !p.shiny));
+    if (has) return 'flee';
   }
   // 等级范围（0 = 不限制）
   if (!skipLevel) {
@@ -1097,14 +1097,14 @@ function evalCatchRow(row, skipLevel = false) {
 
 // 遇敌过滤（设置-捕捉条件表格）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
 // 五类策略：普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏，各自独立选择 捕捉/暂停/逃跑，
-// 并各自带等级范围（0=不限制）与「仅捕捉未捕获过的」（普通看 caught、闪光看 shinyCaught）。
+// 并各自带等级范围（0=不限制）与「仅捕捉未拥有过的」（普通看仓库非闪个体、闪光看仓库闪光个体）。
 // 「可悬赏」行优先：遭遇目标是今日已解锁悬赏宝可梦时按该行策略执行，其余按遭遇类型定位对应行。
 export function catchFilterResult() {
   const f = gameData.settings?.catchFilter || {};
   const rows = f.rows || {};
-  // 可悬赏行优先于四行：命中今日悬赏目标时不受普通/神兽行策略影响，且不支持等级筛选
+  // 可悬赏行优先于四行：命中今日悬赏目标时按该行策略执行，等级范围、未捕获等条件同样生效
   if (currentEncounter && getBountyTargetIndexes().has(String(currentEncounter.index))) {
-    return evalCatchRow(rows.bounty || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false }, true);
+    return evalCatchRow(rows.bounty || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false });
   }
   // 按当前遭遇类型定位对应策略行：神兽闪 > 神兽 / 普通闪 > 普通
   const row = (isLegendEncounter() ? (currentIsShiny ? rows.legendShiny : rows.legend) : (currentIsShiny ? rows.normalShiny : rows.normal))
