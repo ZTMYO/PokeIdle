@@ -17,9 +17,9 @@
   --item-border: rgba(0,0,0,0.08);
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; outline: none !important; user-select: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none !important; user-select: none; -webkit-tap-highlight-color: transparent; }
 input, textarea { user-select: text; }
-button { -webkit-tap-highlight-color: transparent; user-select: none; }
+button { user-select: none; }
 button:focus { outline: none !important; box-shadow: none !important; }
 
 html, body {
