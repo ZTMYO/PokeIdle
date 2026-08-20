@@ -9,6 +9,7 @@ import {
   TRAIN_SATIETY_PER_BERRY, TRAIN_HUNGRY_LAZY_MULT,
 } from './config.js';
 import { ensureBerryFarm } from './berry.js';
+import { removePokemonFromAllTeams } from './team.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 
 // 升级经验需求（与对战结算一致）
@@ -192,10 +193,8 @@ export function addToTraining(id, slot) {
     ? Math.max(0, Math.min(TRAIN_SATIETY_MAX, entry.satiety))
     : TRAIN_SATIETY_MAX;
   t.slots[slot] = { id, startAt: Date.now(), satiety };
-  // 训练中的宝可梦不能留在配队队伍里
-  if (Array.isArray(gameData.team)) {
-    gameData.team = gameData.team.filter(x => x !== id);
-  }
+  // 训练中的宝可梦不能留在任何配队队伍里
+  removePokemonFromAllTeams(id);
   // 训练/饲育屋/配队三方互斥：放入训练后从饲育屋移除
   import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
   if (entry) addSystemLog('train_start', { pokemon: entry.species, slot });

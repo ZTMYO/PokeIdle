@@ -252,7 +252,9 @@ export function getDefaultSave() {
     follower: null,         // 随从（糖果抽卡的临时跟随）：{ index, tier, group, endsAt }；null=无随从
     followerPending: null,  // 抽卡结果待处理（未选跟随/放走就退出）：{ index, name, tier }；null=无
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
-    team: [], // 出战队伍：仓库条目 id 数组（首元素为首发），由仓库详情页管理
+    team: [], // 出战队伍（镜像：始终 = teams[activeTeam].ids 引用，战斗等逻辑直接读它）
+    teams: Array.from({ length: 6 }, (_, i) => ({ name: `队伍${i + 1}`, ids: [] })), // 6 组配队：{ name, ids }
+    activeTeam: 0, // 当前上场队伍下标
     training: { slots: [] }, // 训练场：{ slots: [{ id, startAt } | null] }，随时间自动获得经验
     nursery: { parents: [null, null] }, // 饲育屋：{ parents: [{ id, placedAt } | null, ...] }，配对繁殖（与训练/配队互斥）
     casinoRecords: [],   // 21点战绩（滑动窗口 50 条）：{ time, bet, action, result, net }

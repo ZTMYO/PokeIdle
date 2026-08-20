@@ -539,11 +539,14 @@ export function showEncounter(poke, opts = {}) {
   // 遇敌后同样立即自动处理，无需切回战斗页才触发。
   if (!skipAuto) {
     if (gameData.settings?.autoCatch) {
-      // 遇敌过滤优先 — "暂停"则强制切到战斗页让用户手动；"逃跑"则不匹配直接逃跑
+      // 遇敌过滤优先 — "暂停"则不自动处理，玩家在游戏页时展示战斗页等手动；
+      // 在其他页面（图鉴/手机等）不强制跳转，切回游戏页时由 showView 统一接管
       const fr = catchFilterResult();
       if (fr === 'stop') {
-        showView('encounterView');
-        $('fleeBtn').style.display = '';
+        if (_onHome) {
+          showView('encounterView');
+          $('fleeBtn').style.display = '';
+        }
       } else if (fr === 'flee') {
         setTimeout(async () => {
           await loadPromise; // 等图片加载完再逃，避免画面残留
@@ -1054,10 +1057,12 @@ let _abortAutoCatch = false;
 
 export function setAbortAutoCatch() { _abortAutoCatch = true; }
 
-// 智能选球：根据精灵捕获率与当前可用球，选出本次丢球用哪种球
+// 智能选球：根据精灵捕获率与当前可用球，选出本次丢球用哪种球。
+// 闪光使用大师球（设置-自动捕捉）勾选后，闪光优先大师球，捕获率极高不逃跑
 function pickAutoBallType(availableBalls) {
   const cr = currentEncounter?.catchRate ?? 1;
-  const preferred = currentEncounter?.legend
+  const shinyMaster = !!gameData.settings?.shinyMasterBall && !!currentIsShiny;
+  const preferred = (shinyMaster || currentEncounter?.legend)
     ? ['master-ball', 'ultra-ball', 'poke-ball']
     : cr <= 0.2
     ? ['master-ball', 'ultra-ball', 'poke-ball']

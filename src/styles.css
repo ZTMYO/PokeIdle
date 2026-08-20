@@ -6587,6 +6587,131 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .team-footer-btn:active { transform: scale(0.94); }
 
 /* 槽位操作菜单（查看/替换/交换/移除）：点击位置弹出 */
+/* ---------- 配队：队伍列表页（6 组队伍预览，2 列 × 3 行，仿孵蛋器卡片） ---------- */
+.team-list-hint {
+  font-size: 10px;
+  color: var(--ui-color);
+  padding: 4px 6px 2px;
+  opacity: 0.8;
+}
+.team-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px 8px;
+  padding: 4px 3px 8px;
+}
+.team-list-card {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--item-border);
+  padding: 3px 5px;
+  cursor: pointer;
+  user-select: none;
+}
+.team-list-card:hover { border-color: rgba(var(--ui-color-rgb), 0.45); }
+.team-list-card.active { border-color: var(--ui-color); }
+.team-card-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.team-card-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ui-color-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+.team-card-rename {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--ui-color);
+  opacity: 0.55;
+  cursor: pointer;
+}
+.team-card-rename:hover { opacity: 1; }
+.team-card-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 0;
+}
+.team-card-mon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.team-card-mon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.team-card-mon.empty {
+  border: 1px solid rgba(var(--ui-color-rgb), 0.12);
+  border-radius: 2px;
+}
+.team-card-mon.shiny img { filter: drop-shadow(0 0 2px #fff); }
+.team-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.team-card-count {
+  font-size: 9px;
+  color: var(--ui-color);
+  opacity: 0.7;
+}
+.team-card-set {
+  flex-shrink: 0;
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.4);
+  background: transparent;
+  color: var(--ui-color);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.team-card-set:hover { background: rgba(var(--ui-color-rgb), 0.12); }
+.team-card-set:active { transform: scale(0.94); }
+.team-card-set.on {
+  border-color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb), 0.22);
+  font-weight: 800;
+  cursor: default;
+}
+.team-name-input {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ui-color-dark);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  padding: 0 3px;
+  outline: none;
+  box-sizing: border-box;
+}
+
 .team-menu {
   position: absolute;
   z-index: 50;

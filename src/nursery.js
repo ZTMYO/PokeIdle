@@ -6,6 +6,7 @@ import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender
 import { matchPinyinPartial } from './pokedex.js';
 import { BERRY_ICONS, BERRY_NAMES, TYPE_COLORS } from './items.js';
 import { ensureBerryFarm } from './berry.js';
+import { removePokemonFromAllTeams } from './team.js';
 import { REGION_CYCLE } from './config.js';
 
 const BERRY_DIR = './items/berries/';
@@ -189,10 +190,8 @@ export function addToNursery(id, slot) {
   if (n.parents[slot]) return; // 目标槽已被占用则不处理
   n.parents[slot] = { id, placedAt: Date.now() };
   _pickSearch = ''; // 放入成功后清空搜索词，避免放第二只时残留第一只页面的输入
-  // 饲育屋中的宝可梦不能留在配队队伍 / 训练槽里
-  if (Array.isArray(gameData.team)) {
-    gameData.team = gameData.team.filter(x => x !== id);
-  }
+  // 饲育屋中的宝可梦不能留在任何配队队伍 / 训练槽里
+  removePokemonFromAllTeams(id);
   import('./train.js').then(m => m.removeTrainingByPokemon(id));
   saveGame();
   render();

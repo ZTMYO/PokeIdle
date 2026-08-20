@@ -120,6 +120,9 @@ export function showView(id) {
         // 后台捕捉仍在进行：切回遭遇画面，后续丢球动画在可见状态下照常播放
         if (await m.resumeBgEncounter()) return;
         if (phase === 'encounter' && currentEncounter) {
+          // 遭遇待处理（暂停策略等后台遭遇）：切到战斗页展示，避免回到挂机页看不见
+          showView('encounterView');
+          $('fleeBtn').style.display = '';
           const loadPromise = m.renderEncounterScene(currentEncounter);
           const fr = m.catchFilterResult();
           if (gameData.settings?.autoCatch && fr === 'catch') {
@@ -401,11 +404,14 @@ function _cacheSet(key, val) {
 const _TRANSPARENT = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 export function tryLoadImage(img, relPath) {
+  // 竞态防护：记录当前期望加载的目标路径。旧请求的慢通道（fetch/IPC）完成时，
+  // 若发现目标已被新请求接管则作废，防止把遭遇图等覆盖回上一只宝可梦
+  img.dataset.loadTarget = relPath;
   const hit = _imgCache.get(relPath);
   if (hit) {
     return new Promise(resolve => {
       img.onload = () => { img.onerror = null; resolve(true); };
-      img.onerror = () => { _imgCache.delete(relPath); img.src = _TRANSPARENT; resolve(false); };
+      img.onerror = () => { if (img.dataset.loadTarget !== relPath) { resolve(true); return; } _imgCache.delete(relPath); img.src = _TRANSPARENT; resolve(false); };
       img.src = hit;
       if (img.complete) resolve(true);
     });
@@ -420,14 +426,14 @@ export function tryLoadImage(img, relPath) {
     // 透明占位已在函数入口设置，失败时保持透明即可
     const doRaw = () => new Promise(r => {
       dbg.raw++;
-      img.onload = () => { img.onerror = null; _cacheSet(relPath, relPath); r(true); };
-      img.onerror = () => r(false);
+      img.onload = () => { img.onerror = null; if (img.dataset.loadTarget !== relPath) { r(true); return; } _cacheSet(relPath, relPath); r(true); };
+      img.onerror = () => { if (img.dataset.loadTarget !== relPath) { r(true); return; } r(false); };
       img.src = relPath;
     });
     const doEncoded = () => new Promise(r => {
       dbg.encoded++;
-      img.onload = () => { img.onerror = null; _cacheSet(relPath, encodeURI(relPath)); r(true); };
-      img.onerror = () => r(false);
+      img.onload = () => { img.onerror = null; if (img.dataset.loadTarget !== relPath) { r(true); return; } _cacheSet(relPath, encodeURI(relPath)); r(true); };
+      img.onerror = () => { if (img.dataset.loadTarget !== relPath) { r(true); return; } r(false); };
       img.src = encodeURI(relPath);
     });
     const doFetch = () => fetch(encodeURI(relPath)).then(r => {
@@ -441,8 +447,10 @@ export function tryLoadImage(img, relPath) {
         if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
         _cacheSet(relPath, url);
         return new Promise(r => {
-          img.onload = () => { r(true); };
-          img.onerror = () => { URL.revokeObjectURL(url); if (_imgCache.get(relPath) === url) _imgCache.delete(relPath); r(false); };
+          img.onload = () => { if (img.dataset.loadTarget !== relPath) { r(true); return; } r(true); };
+          img.onerror = () => { URL.revokeObjectURL(url); if (_imgCache.get(relPath) === url) _imgCache.delete(relPath); if (img.dataset.loadTarget !== relPath) { r(true); return; } r(false); };
+          // 等待期间目标已被新请求接管：回收 blob 并作废，不再写回旧图
+          if (img.dataset.loadTarget !== relPath) { URL.revokeObjectURL(url); if (_imgCache.get(relPath) === url) _imgCache.delete(relPath); r(true); return; }
           img.src = url;
         });
       });
@@ -460,8 +468,10 @@ export function tryLoadImage(img, relPath) {
             if (done) return;
             done = true; clearTimeout(timer);
             new Promise(r2 => {
-              img.onload = () => { _cacheSet(relPath, `data:image/${ext};base64,${b64}`); r2(true); };
-              img.onerror = () => r2(false);
+              img.onload = () => { if (img.dataset.loadTarget !== relPath) { r2(true); return; } _cacheSet(relPath, `data:image/${ext};base64,${b64}`); r2(true); };
+              img.onerror = () => { if (img.dataset.loadTarget !== relPath) { r2(true); return; } r2(false); };
+              // 等待期间目标已被新请求接管：直接作废，不再写回旧图
+              if (img.dataset.loadTarget !== relPath) { r2(true); return; }
               img.src = `data:image/${ext};base64,${b64}`;
             }).then(r);
           })

@@ -34659,8 +34659,8 @@
   "index": "0888",
   "name": "苍响",
   "name_en": "Zacian",
-  "image": "pokemon-data/images/0888-苍响.gif",
-  "icon": "pokemon-data/icon/0888-苍响.png",
+  "image": "pokemon-data/images/0888-苍响-百战勇者.gif",
+  "icon": "pokemon-data/icon/0888-苍响-百战勇者.png",
   "types": [
    "妖精"
   ],
@@ -34689,14 +34689,53 @@
   ],
   "genderRate": -1,
   "eggGroup": [],
-  "noEggGroup": true
+  "noEggGroup": true,
+  "form": "苍响-百战勇者"
+ },
+ {
+  "index": "0888-1",
+  "name": "苍响",
+  "name_en": "Zacian",
+  "image": "pokemon-data/images/0888-1-苍响-剑之王.gif",
+  "icon": "pokemon-data/icon/0888-1-苍响-剑之王.png",
+  "types": [
+   "妖精",
+   "钢"
+  ],
+  "pinyin": "CangXiang",
+  "pinyinInitials": "CX",
+  "catchRate": 0.1,
+  "genus": "强者宝可梦",
+  "description": "用过去使用的兵器武装自己。即使是超极巨化宝可梦，也能以一剑将之拿下。",
+  "height": 28,
+  "weight": 3550,
+  "stats": [
+   92,
+   150,
+   115,
+   80,
+   115,
+   148
+  ],
+  "rarity": 0.9117,
+  "legend": true,
+  "region": "伽勒尔",
+  "foods": [
+   0,
+   1,
+   2
+  ],
+  "genderRate": -1,
+  "eggGroup": [],
+  "noEggGroup": true,
+  "form": "苍响-剑之王"
  },
  {
   "index": "0889",
   "name": "藏玛然特",
   "name_en": "Zamazenta",
-  "image": "pokemon-data/images/0889-藏玛然特.gif",
-  "icon": "pokemon-data/icon/0889-藏玛然特.png",
+  "image": "pokemon-data/images/0889-藏玛然特-百战勇者.gif",
+  "icon": "pokemon-data/icon/0889-藏玛然特-百战勇者.png",
   "types": [
    "格斗"
   ],
@@ -34725,7 +34764,46 @@
   ],
   "genderRate": -1,
   "eggGroup": [],
-  "noEggGroup": true
+  "noEggGroup": true,
+  "form": "藏玛然特-百战勇者"
+ },
+ {
+  "index": "0889-1",
+  "name": "藏玛然特",
+  "name_en": "Zamazenta",
+  "image": "pokemon-data/images/0889-1-藏玛然特-盾之王.gif",
+  "icon": "pokemon-data/icon/0889-1-藏玛然特-盾之王.png",
+  "types": [
+   "格斗",
+   "钢"
+  ],
+  "pinyin": "CangMaRanTe",
+  "pinyinInitials": "CMRT",
+  "catchRate": 0.1,
+  "genus": "强者宝可梦",
+  "description": "全副武装的样子。即使是极巨化宝可梦的攻击也能轻易抵挡。",
+  "height": 29,
+  "weight": 7850,
+  "stats": [
+   92,
+   130,
+   145,
+   80,
+   145,
+   128
+  ],
+  "rarity": 0.9117,
+  "legend": true,
+  "region": "伽勒尔",
+  "foods": [
+   0,
+   3,
+   6
+  ],
+  "genderRate": -1,
+  "eggGroup": [],
+  "noEggGroup": true,
+  "form": "藏玛然特-盾之王"
  },
  {
   "index": "0890",
