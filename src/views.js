@@ -1089,17 +1089,27 @@ export function renderSettings(container, s) {
     saveGame();
     location.reload();
   });
-  // 导出存档：调用 Tauri 命令打开目录选择器，导出存档并上调 lastSaveTime
+  // 导出存档：桌面版调 Tauri 命令打开目录选择器；网页版直接下载 JSON 文件。
+  // 两种途径都会上调 lastSaveTime，迁移到新设备后不会被 localStorage 旧数据覆盖
   container.querySelector('#exportSaveBtn')?.addEventListener('click', async () => {
     const btn = container.querySelector('#exportSaveBtn');
+    gameData.stats.lastSaveTime = Date.now() + 10 * 365 * 24 * 3600 * 1000;
     if (!window.__TAURI__?.core?.invoke) {
-      btn.textContent = '仅桌面版';
-      setTimeout(() => { btn.textContent = '导出'; }, 2000);
+      // 网页版：生成 JSON 触发浏览器下载
+      const blob = new Blob([JSON.stringify(gameData)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pokemon-idle-save.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      addSystemLog('export', { path: 'download' });
+      updateTextBox('存档已导出');
+      btn.textContent = '已导出 ✓';
+      setTimeout(() => { btn.textContent = '导出'; }, 2500);
       return;
     }
     btn.textContent = '导出中…';
-    // 调整 lastSaveTime 至极大值，迁移到新设备后不会被 localStorage 覆盖
-    gameData.stats.lastSaveTime = Date.now() + 10 * 365 * 24 * 3600 * 1000;
     try {
       const path = await window.__TAURI__.core.invoke('export_save_data', { data: JSON.stringify(gameData) });
       addSystemLog('export', { path });
@@ -1115,12 +1125,36 @@ export function renderSettings(container, s) {
     }
     setTimeout(() => { btn.textContent = '导出'; }, 2500);
   });
-  // 导入存档：选择文件后比对时间戳，确保导入的 lastSaveTime > 当前，防止被旧数据回滚
+  // 导入存档：桌面版调 Tauri 命令选文件；网页版用浏览器文件选择器读取 JSON。
+  // 两种途径都会比对时间戳，确保导入的 lastSaveTime > 当前，防止被旧数据回滚
   container.querySelector('#importSaveBtn')?.addEventListener('click', async () => {
     const btn = container.querySelector('#importSaveBtn');
     if (!window.__TAURI__?.core?.invoke) {
-      btn.textContent = '仅桌面版';
-      setTimeout(() => { btn.textContent = '导入'; }, 2000);
+      // 网页版：弹出文件选择器读取 JSON
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        btn.textContent = '导入中…';
+        try {
+          const jsonStr = await file.text();
+          const imported = JSON.parse(jsonStr);
+          if (!imported || typeof imported !== 'object' || !imported.stats) {
+            updateTextBox('存档格式无效');
+            btn.textContent = '导入失败';
+            setTimeout(() => { btn.textContent = '导入'; }, 2500);
+            return;
+          }
+          applyImportedSave(imported);
+        } catch (e) {
+          updateTextBox('存档导入失败');
+          btn.textContent = '导入失败';
+          setTimeout(() => { btn.textContent = '导入'; }, 2500);
+        }
+      };
+      input.click();
       return;
     }
     btn.textContent = '导入中…';
@@ -1133,20 +1167,7 @@ export function renderSettings(container, s) {
         setTimeout(() => { btn.textContent = '导入'; }, 2500);
         return;
       }
-      // 比对时间戳：导入存档的 lastSaveTime 必须大于当前存档，否则手动修正
-      const importedTime = imported.stats.lastSaveTime || 0;
-      const currentTime = gameData.stats.lastSaveTime || 0;
-      if (importedTime <= currentTime) {
-        imported.stats.lastSaveTime = currentTime + 1;
-      }
-      // 覆盖存档并刷新
-      setGameData(imported);
-      ensureGpsState();
-      await saveGame();
-      addSystemLog('import');
-      updateTextBox('存档导入成功，即将刷新');
-      btn.textContent = '已导入 ✓';
-      setTimeout(() => { location.reload(); }, 800);
+      applyImportedSave(imported);
     } catch (e) {
       if (typeof e === 'string' && e.includes('取消')) {
         btn.textContent = '导入';
@@ -1157,6 +1178,23 @@ export function renderSettings(container, s) {
       setTimeout(() => { btn.textContent = '导入'; }, 2500);
     }
   });
+  // 导入的存档：比对时间戳后覆盖并刷新（桌面版/网页版共用）
+  function applyImportedSave(imported) {
+    const importedTime = imported.stats.lastSaveTime || 0;
+    const currentTime = gameData.stats.lastSaveTime || 0;
+    if (importedTime <= currentTime) {
+      imported.stats.lastSaveTime = currentTime + 1;
+    }
+    setGameData(imported);
+    ensureGpsState();
+    saveGame().then(() => {
+      addSystemLog('import');
+      updateTextBox('存档导入成功，即将刷新');
+      const b = container.querySelector('#importSaveBtn');
+      if (b) b.textContent = '已导入 ✓';
+      setTimeout(() => { location.reload(); }, 800);
+    });
+  }
   container.querySelector('#toggleBuffHoney')?.addEventListener('click', toggleAutoBuffHoney);
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);
   container.querySelector('#toggleAutoRefill')?.addEventListener('click', toggleAutoRefill);
