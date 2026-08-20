@@ -49,15 +49,15 @@ import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease } from './roster.js';
-import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from './trade.js';
+import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade, showTradeView } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
-import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
+import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge, showIncubatorView } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, teleportToTwist } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
-import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView } from './nursery.js';
-import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle } from './battle-view.js';
+import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView, showNurseryView } from './nursery.js';
+import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle, showBattleView } from './battle-view.js';
 import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit } from './team.js';
 import { refreshNpcs } from './npcs.js';
 import * as road from './road.js';
@@ -522,6 +522,26 @@ function onIntroMusicClick() {
 }
 
 // ---------- 初始化 ----------
+// 全局快捷键：H 孵蛋器 / S 仓库 / T 交换 / B 对战（每个页面一个键）
+// 组合键、输入框聚焦、确认框弹出、开场剧情期间均不响应，避免误触打断流程
+function setupShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (window.__introActive) return;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+    if (document.getElementById('confirmBar')) return;
+    switch (e.key.toLowerCase()) {
+      case 'h': showIncubatorView(); break;
+      case 's': showRosterView(); break;
+      case 't': showTradeView(); break;
+      case 'b': showBattleView(); break;
+      case 'g': showGpsView(); break;
+      case 'n': showNurseryView(); break;
+    }
+  });
+}
+
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
 
@@ -542,6 +562,9 @@ async function init() {
       dv.scrollTop += e.deltaY * 0.4;
     }
   }, { passive: false });
+
+  // 全局快捷键（输入框聚焦 / 确认框弹出 / 开场剧情期间不响应）
+  setupShortcuts();
 
   // 加载宝可梦数据
   try {

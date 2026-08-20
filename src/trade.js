@@ -110,6 +110,8 @@ function makeOffer(npc) {
       nature: rollNature(),
       ivs: rollTradeIvs(givePoke.legend === true), // 神兽保底 3 项 31
       level: randInt(1, TRADE_GIVE_LEVEL_MAX),
+      // 生成时即固定性别：预览与交换实得共用同一字段，避免两次 roll 导致不一致
+      gender: givePoke.genderRate === -1 ? 'genderless' : rollGender(String(givePoke.index)),
     },
     traded: false,
   };
@@ -148,6 +150,8 @@ function makeAuthorOffer() {
     nature: pickAuthorNature(givePoke),
     ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
     level: MAX_LEVEL,
+    // 与普通 offer 一致：生成时固定性别
+    gender: givePoke.genderRate === -1 ? 'genderless' : rollGender(String(givePoke.index)),
   };
   return base;
 }

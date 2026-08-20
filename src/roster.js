@@ -314,17 +314,17 @@ function setupSearch() {
   }
 }
 
-// 来源筛选：一级=来源（全部/野生/钓鱼/孵蛋/交换/时空扭曲），
+// 来源筛选：一级=来源（全部/神兽/野生/钓鱼/孵蛋/交换/时空扭曲），
 // 二级=完整组合（闪光/变体/普通/神兽/非闪），覆盖全部筛选情况。
-// 闪光与变体两个带三级展开的项置顶，避免三级菜单在窗口底部显示不下。
+// 神兽为独立入口（不限来源，子菜单仅「非闪光」「闪光」）；闪光与变体两个带三级展开的项置顶。
 function setupFilter() {
   const trigger = $('rosterFilter');
   const label = $('rosterFilterLabel');
   const dd = $('rosterFilterDropdown');
   if (!trigger || !label || !dd) return;
 
-  // 二级选项：值 → [legend 过滤, shiny 过滤]；legend ''=不限普神，shiny 'shiny'=只看闪光
-  const SRC_ORDER = [['', '全部'], ['normal', '野生'], ['fishing', '钓鱼'], ['egg', '孵蛋'], ['trade', '交换'], ['twist', '扭曲']];
+  // 一级选项：legend 为神兽独立入口（非来源）；value ''=全部
+  const SRC_ORDER = [['', '全部'], ['legend', '神兽'], ['normal', '野生'], ['fishing', '钓鱼'], ['egg', '孵蛋'], ['trade', '交换'], ['twist', '扭曲']];
   // 二级：普通/神兽直接选中；「闪光」hover 展开三级；「非闪」= 不闪光（不限普/神）
   const COMBO_ORDER = [
     ['normal', 'normal', '普通'],
@@ -342,7 +342,13 @@ function setupFilter() {
         return `<div class="region-dropdown-item${!_srcFilter && !_legendFilter && !_shinyFilter && !_variantFilter ? ' active' : ''}" data-src="" data-legend="" data-shiny="">全部</div>`;
       }
       const sub = [];
-      if (k === 'twist') {
+      if (k === 'legend') {
+        // 神兽独立入口：一级点击=全部神兽，子菜单仅「非闪光」「闪光」
+        sub.push(`<div class="region-dropdown-item${_legendFilter === 'legend' && _shinyFilter === 'normal' && !_srcFilter ? ' active' : ''}"
+             data-src="" data-legend="legend" data-shiny="normal">非闪光</div>`);
+        sub.push(`<div class="region-dropdown-item${_legendFilter === 'legend' && _shinyFilter === 'shiny' && !_srcFilter ? ' active' : ''}"
+             data-src="" data-legend="legend" data-shiny="shiny">闪光</div>`);
+      } else if (k === 'twist') {
         // 时空扭曲专属：二级直接列出 RGB / 污染 / 闪光三个叶子项，不套通用组合，菜单最窄
         sub.push(`<div class="region-dropdown-item${_srcFilter === k && _variantFilter === 'rgb' && !_legendFilter && !_shinyFilter ? ' active' : ''}"
              data-src="${k}" data-legend="" data-shiny="" data-variant="rgb">RGB</div>`);
@@ -368,7 +374,7 @@ function setupFilter() {
                data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join(''));
       }
       return `<div class="roster-filter-item">
-        <span class="roster-filter-src${_srcFilter === k && !_legendFilter && !_shinyFilter && !_variantFilter ? ' active' : ''}" data-src="${k}">${name}</span>
+        <span class="roster-filter-src${(k === 'legend' ? _legendFilter === 'legend' && !_srcFilter && !_shinyFilter && !_variantFilter : _srcFilter === k && !_legendFilter && !_shinyFilter && !_variantFilter) ? ' active' : ''}" data-src="${k}">${name}</span>
         <span class="roster-filter-arrow">▸</span>
         <div class="roster-sub-menu">
           ${sub.join('')}
@@ -382,17 +388,17 @@ function setupFilter() {
     _legendFilter = el.dataset.legend || '';
     _shinyFilter = el.dataset.shiny || '';
     _variantFilter = el.dataset.variant || '';
-    // 标签：来源·组合短名，如"野·闪""钓·普闪"；变体筛选时显示"扭·RGB"
-    if (!_srcFilter) label.textContent = '全部';
-    else {
-      const srcShort = { normal: '野', fishing: '钓', egg: '蛋', trade: '换', twist: '扭' };
-      if (_variantFilter) {
-        const vShort = { any: '变', rgb: 'RGB', polluted: '污染' };
-        label.textContent = `${srcShort[_srcFilter]}·${vShort[_variantFilter]}`;
-      } else {
-        const comboShort = { '|': '全部', 'normal|normal': '普', 'legend|normal': '神', '|normal': '非闪', '|shiny': '闪', 'normal|shiny': '普闪', 'legend|shiny': '神闪' };
-        label.textContent = `${srcShort[_srcFilter]}·${comboShort[`${_legendFilter}|${_shinyFilter}`]}`;
-      }
+    // 标签：来源·组合短名，如"野·闪""钓·普闪"；变体筛选时显示"扭·RGB"；
+    // 神兽入口不限定来源，直接显示"神"或"神闪"
+    const srcShort = { normal: '野', fishing: '钓', egg: '蛋', trade: '换', twist: '扭' };
+    const comboShort = { '|': '全部', 'legend|': '神', 'normal|normal': '普', 'legend|normal': '神', '|normal': '非闪', '|shiny': '闪', 'normal|shiny': '普闪', 'legend|shiny': '神闪' };
+    if (!_srcFilter) {
+      label.textContent = comboShort[`${_legendFilter}|${_shinyFilter}`] || '全部';
+    } else if (_variantFilter) {
+      const vShort = { any: '变', rgb: 'RGB', polluted: '污染' };
+      label.textContent = `${srcShort[_srcFilter]}·${vShort[_variantFilter]}`;
+    } else {
+      label.textContent = `${srcShort[_srcFilter]}·${comboShort[`${_legendFilter}|${_shinyFilter}`]}`;
     }
     dd.style.display = 'none';
     trigger.classList.remove('open');
@@ -404,9 +410,14 @@ function setupFilter() {
     e.stopPropagation();
     const el = e.target.closest('[data-src][data-legend]');
     if (el) { pickItem(el); return; }
-    // 点击来源标题（如「扭曲」）：直接筛出该来源全部宝可梦，不限普/神/闪/变体
+    // 点击来源标题（如「扭曲」）：直接筛出该来源全部宝可梦，不限普/神/闪/变体；
+    // 神兽是独立入口，点击 = 筛选全部神兽（不限来源与闪光）
     const srcEl = e.target.closest('.roster-filter-src');
-    if (srcEl) pickItem({ dataset: { src: srcEl.dataset.src || '', legend: '', shiny: '', variant: '' } });
+    if (srcEl) {
+      pickItem(srcEl.dataset.src === 'legend'
+        ? { dataset: { src: '', legend: 'legend', shiny: '', variant: '' } }
+        : { dataset: { src: srcEl.dataset.src || '', legend: '', shiny: '', variant: '' } });
+    }
   });
   trigger.addEventListener('click', (e) => {
     e.stopPropagation();

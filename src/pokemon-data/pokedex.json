@@ -35137,6 +35137,83 @@
   "noEggGroup": true
  },
  {
+  "index": "0898-1",
+  "name": "蕾冠王",
+  "name_en": "Calyrex",
+  "image": "pokemon-data/images/0898-1-蕾冠王-骑白马的样子.gif",
+  "icon": "pokemon-data/icon/0898-1-蕾冠王-骑白马的样子.png",
+  "types": [
+   "超能",
+   "冰"
+  ],
+  "pinyin": "LeiGuanWang",
+  "pinyinInitials": "LGW",
+  "catchRate": 0.03,
+  "genus": "帝皇宝可梦",
+  "description": "用精神能量增强了雪暴马的能力，使放出的冷气温度能够低至零下300度。不管多险恶的道路，都能一边将挡路之物瞬间冻结后粉碎掉，一边连续奔驰七天七夜。",
+  "height": 24,
+  "weight": 8091,
+  "stats": [
+   100,
+   165,
+   150,
+   85,
+   130,
+   50
+  ],
+  "rarity": 0.85,
+  "legend": true,
+  "region": "伽勒尔",
+  "foods": [
+   0,
+   5,
+   6,
+   11
+  ],
+  "genderRate": -1,
+  "eggGroup": [],
+  "noEggGroup": true,
+  "form": "蕾冠王-骑白马"
+ },
+ {
+  "index": "0898-2",
+  "name": "蕾冠王",
+  "name_en": "Calyrex",
+  "image": "pokemon-data/images/0898-2-蕾冠王-骑黑马的样子.gif",
+  "icon": "pokemon-data/icon/0898-2-蕾冠王-骑黑马的样子.png",
+  "types": [
+   "超能",
+   "幽灵"
+  ],
+  "pinyin": "LeiGuanWang",
+  "pinyinInitials": "LGW",
+  "catchRate": 0.03,
+  "genus": "帝皇宝可梦",
+  "description": "用精神能量增强了灵幽马的能力，使其拥有更强大的灵力，且能够在1日之内疾驰万里。",
+  "height": 24,
+  "weight": 536,
+  "stats": [
+   100,
+   85,
+   80,
+   165,
+   100,
+   150
+  ],
+  "rarity": 0.85,
+  "legend": true,
+  "region": "伽勒尔",
+  "foods": [
+   0,
+   6,
+   10
+  ],
+  "genderRate": -1,
+  "eggGroup": [],
+  "noEggGroup": true,
+  "form": "蕾冠王-骑黑马"
+ },
+ {
   "index": "0899",
   "name": "诡角鹿",
   "name_en": "Wyrdeer",
