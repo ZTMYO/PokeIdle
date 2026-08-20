@@ -1681,7 +1681,7 @@ const TUTORIAL_SECTIONS = [
         ['走路（挂机默认）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_WALK * 60) / 60 * 10) / 10}</b> 分钟`],
         ['跑步（增益生效）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_RUN * 60) / 60 * 10) / 10}</b> 分钟`],
         ['骑行', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_BIKE * 60) / 60 * 10) / 10}</b> 分钟`],
-      ], ['移动方式', '1 公里耗时'], [130, 'auto'])
+      ], ['移动方式', '1 公里耗时'], [92, 'auto'])
       + `<p>孵化完成后点击孵化按钮即可获得宝可梦，结果完全随机，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`,
   },
   {

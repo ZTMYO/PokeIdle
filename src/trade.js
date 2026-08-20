@@ -42,6 +42,7 @@ const NPCS = [
   { id: 'woman_4', name: '女人' },
   { id: 'woman_5', name: '女人' },
   { id: 'author', name: 'ZTMYO' }, // 彩蛋 NPC：极低概率出现在交易市场，给出闪光 6V 神兽
+  { id: 'imiti', name: '伊美蒂' }, // 彩蛋 NPC：与 ZTMYO 同概率出现在交易市场，只给百变怪（10% 概率 6V）
 ];
 const IV_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 const IV_LABELS = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: '特防', spe: '速度' };
@@ -156,16 +157,41 @@ function makeAuthorOffer() {
   return base;
 }
 
+// 彩蛋 NPC「伊美蒂」offer：需求与普通 offer 一致，但只给【百变怪】；
+// 10% 概率给出 6V 闪光百变怪，其余为普通百变怪；等级/性格按普通随机
+const IMITI_6V_CHANCE = 0.1;
+function makeImitiOffer() {
+  const base = makeOffer({ id: 'imiti' });
+  const ditto = allPokemon.find(p => String(p.index) === '0132') || allPokemon[0];
+  base.npc = 'imiti';
+  const sixV = Math.random() < IMITI_6V_CHANCE;
+  base.give = {
+    species: String(ditto.index),
+    shiny: sixV,
+    nature: rollNature(),
+    ivs: sixV
+      ? { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }
+      : rollTradeIvs(false),
+    level: randInt(1, TRADE_GIVE_LEVEL_MAX),
+    gender: ditto.genderRate === -1 ? 'genderless' : rollGender(String(ditto.index)),
+  };
+  return base;
+}
+
 // 生成并写入新一波交换 offers（重置刷新时间；通知手机主页红点按新一波刷新）
 function regenerateOffers() {
   // 作者是彩蛋用 makeAuthorOffer 单独生成，普通 NPC 池必须剔除，否则会以普通 offer 冒充 ZTMYO
-  const pool = NPCS.filter(n => n.id !== 'author');
+  const pool = NPCS.filter(n => n.id !== 'author' && n.id !== 'imiti');
   const offers = [];
   const count = Math.min(TRADE_COUNT, pool.length);
   // 作者彩蛋：以 0.01 概率取代某一格普通 offer
   const authorSlot = Math.random() < AUTHOR_CHANCE ? randInt(0, count - 1) : -1;
+  // 伊美蒂彩蛋：与作者独立 roll 一格（避免同格冲突，若撞格则本波不出伊美蒂）
+  let imitiSlot = Math.random() < AUTHOR_CHANCE ? randInt(0, count - 1) : -1;
+  if (imitiSlot === authorSlot) imitiSlot = -1;
   for (let i = 0; i < count; i++) {
     if (i === authorSlot) { offers.push(makeAuthorOffer()); continue; }
+    if (i === imitiSlot) { offers.push(makeImitiOffer()); continue; }
     offers.push(makeOffer(pool.splice(randInt(0, pool.length - 1), 1)[0]));
   }
   gameData.trades = { refreshedAt: Date.now(), offers };
@@ -324,6 +350,8 @@ function offerCard(o) {
   const npcIdx = Math.max(0, NPCS.indexOf(npc));
   const npcPos = npc.id === 'author'
     ? 'background-position:-416px 0px'
+    : npc.id === 'imiti'
+    ? 'background-position:-416px -42px'
     : `background-position:${-(npcIdx % 13) * 32}px ${-Math.floor(npcIdx / 13) * 42}px`;
   const wantPoke = getPokemonByIndex(o.want.species);
   const givePoke = getPokemonByIndex(o.give.species);
