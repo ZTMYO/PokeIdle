@@ -11,10 +11,10 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST,
   GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE,
   TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX,
-  FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST } from './config.js';
+  FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar } from './ui.js';
-import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
+import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
 import { setVolume, setBattleMusic, setMusicEnabled, setSfxEnabled, playBattle, endBattle } from './audio.js';
@@ -515,6 +515,15 @@ export function showSystemLogs() {
 // ===== 商店视图 =====
 // 右键兑换按钮弹出的批量购买数量选项（按余额置灰）
 const BUY_QTY_OPTIONS = [5, 10, 20, 50];
+// 右键出售按钮弹出的批量出售数量选项（按持有量置灰）
+const SELL_QTY_OPTIONS = [5, 20, 50, 100];
+// 出售模式开关：顶部按钮切换「兑换 / 出售」两种列表
+let _shopSellMode = false;
+
+// 出售单价 = 兑换价 × 回收比例（四舍五入）
+function sellPriceOf(itemKey) {
+  return Math.round((CANDY_EXCHANGE[itemKey] || 0) * ITEM_SELL_RATE);
+}
 
 // ===== 商店兑换确认（行内二次确认，替代弹框） =====
 let _pendingExchange = null; // { item, qty } 待确认的兑换项
@@ -564,18 +573,38 @@ export function showShopView() {
   // 兑换结算后 doCandyExchange 会重渲染本页：此时文案框保持固定，不清空不隐藏
   const isReRender = $('shopView')?.style.display === 'flex';
   pushNav('shopView');
-  hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
+  if (!isReRender) hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
   if (!isReRender) {
-    // 首次进入商店：清空待确认的兑换
+    // 真正进入商店：清空待确认的兑换，并重置为兑换模式（避免玩家上次停在出售，
+    // 下次进来本想购买却错看成出售列表）
     _pendingExchange = null;
+    _shopSellMode = false;
   }
   const content = $('shopContent');
   const candy = gameData.items['candy'] || 0;
 
   let itemsHtml = '';
-  for (const [item, cost] of Object.entries(CANDY_EXCHANGE)) {
-    const enough = candy >= cost;
-    itemsHtml += `
+  if (_shopSellMode) {
+    // 出售列表：全部道具按回收价换糖果
+    for (const item of Object.keys(CANDY_EXCHANGE)) {
+      const have = gameData.items[item] || 0;
+      const price = sellPriceOf(item);
+      itemsHtml += `
+      <div class="shop-item ${have > 0 ? '' : 'disabled'}" data-item="${item}">
+        <div class="shop-item-left" data-tip="${(ITEM_DESC[item] || '').replace(/"/g, '&quot;')}">
+          <img src="./items/${ITEM_ICONS[item]}" class="shop-icon" alt="${ITEM_NAMES[item]}" />
+          <span class="shop-item-name">${ITEM_NAMES[item]}</span>
+        </div>
+        <div class="shop-item-right">
+          <span class="shop-cost"><img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ×${price}</span>
+          <span class="shop-btn" title="右键可批量出售">出售</span>
+        </div>
+      </div>`;
+    }
+  } else {
+    for (const [item, cost] of Object.entries(CANDY_EXCHANGE)) {
+      const enough = candy >= cost;
+      itemsHtml += `
       <div class="shop-item ${enough ? '' : 'disabled'}" data-item="${item}">
         <div class="shop-item-left" data-tip="${(ITEM_DESC[item] || '').replace(/"/g, '&quot;')}">
           <img src="./items/${ITEM_ICONS[item]}" class="shop-icon" alt="${ITEM_NAMES[item]}" />
@@ -586,19 +615,29 @@ export function showShopView() {
           <span class="shop-btn" title="右键可批量购买">兑换</span>
         </div>
       </div>`;
+    }
   }
 
   content.innerHTML = `
     <div style="padding:6px 8px;color:var(--ui-color);">
-      <div style="text-align:center;font-weight:700;margin-bottom:6px;">
-        当前糖果：<span><img src="./items/candy.png" style="width:16px;height:16px;vertical-align:middle;image-rendering:pixelated;" /> ${candy}</span>
+      <div style="position:relative;text-align:center;font-weight:700;margin-bottom:6px;">
+        <span class="shop-mode-btn" id="shopModeBtn" style="position:absolute;left:0;top:50%;transform:translateY(-50%);">${_shopSellMode ? '兑换' : '出售'}</span>
+        当前糖果：<img src="./items/candy.png" style="width:16px;height:16px;vertical-align:middle;image-rendering:pixelated;" /> ${candy}
       </div>
       ${itemsHtml}
     </div>
   `;
-  // 事件委托处理兑换点击：
-  // 普通态点「兑换」进入行内确认；确认态点确认文字直接结算；点其他区域取消确认
+  // 事件委托：
+  // 顶部模式按钮切换列表；兑换模式左键点「兑换」进入行内确认，确认态点确认文字结算；
+  // 出售模式左键点「出售」直接卖出 1 个；点其他区域取消兑换确认
   content.onclick = (e) => {
+    const modeBtn = e.target.closest('#shopModeBtn');
+    if (modeBtn) {
+      _shopSellMode = !_shopSellMode;
+      cancelPendingExchange();
+      showShopView();
+      return;
+    }
     const confirm = e.target.closest('.shop-confirm');
     if (confirm) {
       confirmCandyExchange();
@@ -608,28 +647,37 @@ export function showShopView() {
     if (btn) {
       const item = btn.closest('.shop-item');
       if (!item || item.classList.contains('disabled')) return;
+      if (_shopSellMode) {
+        doSellBall(item.dataset.item, 1);
+        return;
+      }
       requestCandyExchange(item.dataset.item);
       return;
     }
     cancelPendingExchange(); // 点到非按钮区域取消行内确认
   };
-  // 右键"兑换"按钮弹出批量购买菜单（确认态下右键同样有效）
+  // 右键"兑换/出售"按钮弹出批量菜单（确认态下右键同样有效）
   content.oncontextmenu = (e) => {
     const btn = e.target.closest('.shop-btn, .shop-confirm');
     if (!btn) return;
     const item = btn.closest('.shop-item');
     if (!item || item.classList.contains('disabled')) return;
     e.preventDefault();
-    showShopContextMenu(item.dataset.item, e.clientX, e.clientY);
+    showShopContextMenu(item.dataset.item, e.clientX, e.clientY, _shopSellMode ? 'sell' : 'buy');
   };
   showView('shopView');
+  // 出售模式：标题栏显示「出售」，切回兑换模式时由 showView 恢复「商店」
+  if (_shopSellMode) {
+    const t = $('appTitle');
+    t.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 出售`;
+    t.dataset.action = 'back';
+  }
 }
 
-// 批量购买菜单：在右键位置弹出，钱不够的选项降透明度并禁用
-function showShopContextMenu(itemKey, x, y) {
+// 批量菜单：在右键位置弹出。mode='buy' 为兑换（糖果不够的选项置灰），'sell' 为出售（持有不够的置灰）。
+// 点击选项结算后菜单保持打开并刷新可操作状态，可连续批量操作（同游戏厅兑换游戏币）
+function showShopContextMenu(itemKey, x, y, mode = 'buy') {
   hideShopContextMenu();
-  const cost = CANDY_EXCHANGE[itemKey];
-  const candy = gameData.items['candy'] || 0;
   let menu = $('shopCtxMenu');
   if (!menu) {
     menu = document.createElement('div');
@@ -637,26 +685,42 @@ function showShopContextMenu(itemKey, x, y) {
     menu.className = 'shop-ctx-menu';
     document.body.appendChild(menu);
   }
-  menu.innerHTML = BUY_QTY_OPTIONS.map(q => {
-    const total = cost * q;
-    const ok = candy >= total;
-    return `<div class="shop-ctx-item${ok ? '' : ' disabled'}" data-item="${itemKey}" data-q="${q}">
+  const renderMenu = () => {
+    const candyNow = gameData.items['candy'] || 0;
+    const options = mode === 'sell' ? SELL_QTY_OPTIONS : BUY_QTY_OPTIONS;
+    menu.innerHTML = options.map(q => {
+      if (mode === 'sell') {
+        const have = gameData.items[itemKey] || 0;
+        const gain = sellPriceOf(itemKey) * q;
+        const ok = have >= q;
+        return `<div class="shop-ctx-item${ok ? '' : ' disabled'}" data-item="${itemKey}" data-q="${q}">
+      <span class="shop-ctx-qty">×${q}</span>
+      <span class="shop-ctx-cost"><img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" /> ×${gain}</span>
+    </div>`;
+      }
+      const cost = CANDY_EXCHANGE[itemKey];
+      const total = cost * q;
+      const ok = candyNow >= total;
+      return `<div class="shop-ctx-item${ok ? '' : ' disabled'}" data-item="${itemKey}" data-q="${q}">
       <span class="shop-ctx-qty">×${q}</span>
       <span class="shop-ctx-cost"><img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" /> ×${total}</span>
     </div>`;
-  }).join('');
+    }).join('');
+  };
+  renderMenu();
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
   menu.style.left = Math.max(0, Math.min(x - 24, window.innerWidth - mw - 4)) + 'px';
   menu.style.top = Math.max(0, Math.min(y, window.innerHeight - mh - 4)) + 'px';
   // 菜单内点击不触发外部关闭；点击外部任意位置关闭
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
-  menu.onclick = (e) => {
+  menu.onclick = async (e) => {
     const opt = e.target.closest('.shop-ctx-item');
     if (!opt || opt.classList.contains('disabled')) return;
-    hideShopContextMenu();
-    cancelPendingExchange(); // 清掉可能存在的行内确认态，批量购买无需二次确认
-    doCandyExchange(opt.dataset.item, Number(opt.dataset.q));
+    cancelPendingExchange(); // 清掉可能存在的行内确认态，批量操作无需二次确认
+    if (mode === 'sell') await doSellBall(opt.dataset.item, Number(opt.dataset.q));
+    else await doCandyExchange(opt.dataset.item, Number(opt.dataset.q));
+    renderMenu(); // 结算后刷新可操作状态，菜单保持打开可连续操作
   };
   document.addEventListener('pointerdown', hideShopContextMenu);
 }
@@ -1589,6 +1653,7 @@ const TUTORIAL_SECTIONS = [
     title: '商店',
     html: `<p>点击标题栏右侧区域的商店按钮者点击主界面左下角的糖果数量文字进入<b>商店</b>。可以消耗<b>糖果</b>兑换基础道具。</p>`
       + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 20 / 50 个，糖果不够的档位会置灰）。</p>`
+      + `<p>点击左上角的「出售」按钮将进入出售模式，可按照<b>40%</b>的价格出售道具。`
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto']),
   },

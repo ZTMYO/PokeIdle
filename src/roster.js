@@ -566,7 +566,7 @@ function currentMoveIds(p) {
     });
   }
   const pd = getPokemonByIndex(String(p.species));
-  return chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [], includeTm: true });
+  return chooseMoves(_learnset[p.species] || {}, p.level || 1, _moveData, { types: pd ? pd.types : [], includeTm: true });
 }
 
 // 可学习候选：升级习得（≤当前等级）+ 蛋招式 + 招式机，过滤未实现招式，按学习等级升序（TM 排最后）
@@ -641,7 +641,7 @@ function bindMovesBlock(id) {
   if (!p) return;
   box.querySelector('#rosterAutoSet')?.addEventListener('click', () => {
     const pd = getPokemonByIndex(String(p.species));
-    p.moves = chooseMoves(_learnset[p.species], p.level || 1, _moveData, { types: pd ? pd.types : [], includeTm: true });
+    p.moves = chooseMoves(_learnset[p.species] || {}, p.level || 1, _moveData, { types: pd ? pd.types : [], includeTm: true });
     saveGame();
     renderMovesBlock(id);
   });

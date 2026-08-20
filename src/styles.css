@@ -3631,6 +3631,16 @@ body.browser-mode { overflow: auto; }
 }
 .shop-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
 .shop-btn:active { transform: scale(0.95); }
+.shop-mode-btn {
+  font-size: 9px;
+  padding: 2px 6px;
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  color: var(--ui-color);
+  font-weight: 700;
+  cursor: pointer;
+}
+.shop-mode-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
 
 /* 商店批量兑换右键菜单（钱不够的选项降透明度并禁用） */
 .shop-ctx-menu {

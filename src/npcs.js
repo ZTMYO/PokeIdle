@@ -117,7 +117,7 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
     npc.team = npc.mons.map((idx, i) => {
       const pd = getPokemonByIndex(idx);
       const level = Math.min(MAX_LEVEL, base - i);
-      const moveIds = chooseMoves(learnset[idx], level, data, { types: pd.types, shuffle: true });
+      const moveIds = chooseMoves(learnset[idx] || {}, level, data, { types: pd.types, shuffle: true });
       // 神兽个体值同样强化：3 项强制 31，与玩家捕获到的一致
       const ivs = pd.legend === true ? rollLegendIvs() : rollIvs();
       // NPC 也有几率拿出闪光宝可梦（与野生同基础概率，不吃护符加成；同波次内固定不重 roll）
