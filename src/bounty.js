@@ -80,6 +80,22 @@ function hasInRoster(pokemonIdx) {
   return (gameData.roster || []).some(p => String(p.species) === idx && p.inRoster);
 }
 
+// 今日已解锁的悬赏目标（已到访地区、未提交、未忽略）图鉴 index 集合，
+// 供设置-捕捉条件「可悬赏」行判定：遭遇命中时按该行策略执行
+export function getBountyTargetIndexes() {
+  ensureBounty();
+  const g = gameData.bounty;
+  const set = new Set();
+  if (!g || !Array.isArray(g.rewards) || !Array.isArray(g.visited)) return set;
+  g.rewards.forEach((rewards, rid) => {
+    if (!g.visited[rid] || !Array.isArray(rewards)) return;
+    for (const b of rewards) {
+      if (b && !b.claimed && !b.ignored) set.add(String(b.pokemon));
+    }
+  });
+  return set;
+}
+
 // 标题栏悬赏入口红点：当前地区是否有可提交的悬赏（未提交且仓库有该个体）
 export function hasRedeemableBounty() {
   ensureBounty();

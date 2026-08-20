@@ -6,7 +6,7 @@ import { initTutorial, openTutorial } from './tutorial.js';
    下载选项：加Q群下载（复制群号）/ GitHub Release
    ============================================================ */
 // QQ 群下载：点击复制群号，加群后从群文件下载安装包
-const QQ_GROUP = '1011321822';
+const QQ_GROUP = '1029218365';
 const dQQ = document.getElementById('downloadQQ');
 if (dQQ) {
   dQQ.addEventListener('click', e => {
