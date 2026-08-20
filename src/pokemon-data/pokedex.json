@@ -33,7 +33,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -74,7 +74,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -115,7 +115,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -155,7 +155,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -195,7 +195,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -236,7 +236,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -275,7 +275,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -314,7 +314,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -353,7 +353,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -905,7 +905,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "龙群"
   ],
   "noEggGroup": false
@@ -945,7 +945,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "龙群"
   ],
   "noEggGroup": false
@@ -985,7 +985,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -1025,7 +1025,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -1142,7 +1142,7 @@
   ],
   "genderRate": 8,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -1256,7 +1256,7 @@
   ],
   "genderRate": 0,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -1296,7 +1296,7 @@
   ],
   "genderRate": 0,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -1335,7 +1335,7 @@
   ],
   "genderRate": 0,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -1807,7 +1807,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "植物群"
   ],
   "noEggGroup": false
@@ -1848,7 +1848,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "植物群"
   ],
   "noEggGroup": false
@@ -2119,7 +2119,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -2157,7 +2157,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -3093,7 +3093,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -3134,7 +3134,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -3255,7 +3255,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -3373,7 +3373,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -3412,7 +3412,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -4340,7 +4340,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -4381,7 +4381,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -4536,7 +4536,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -4576,7 +4576,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -5046,7 +5046,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中2",
+   "水中2群",
    "龙群"
   ],
   "noEggGroup": false
@@ -5087,7 +5087,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中2",
+   "水中2群",
    "龙群"
   ],
   "noEggGroup": false
@@ -5128,7 +5128,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -5397,7 +5397,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -5438,7 +5438,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -5478,7 +5478,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -5519,7 +5519,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -5750,7 +5750,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -5789,7 +5789,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -5829,7 +5829,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -5941,7 +5941,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -5981,7 +5981,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -6020,7 +6020,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -6174,7 +6174,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -6214,7 +6214,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -6254,7 +6254,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -6879,7 +6879,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -6996,7 +6996,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -7036,7 +7036,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -7076,7 +7076,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -7155,7 +7155,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -7196,7 +7196,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -7312,7 +7312,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false
@@ -7352,7 +7352,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false
@@ -7391,7 +7391,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false
@@ -7586,7 +7586,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -7627,7 +7627,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -7784,7 +7784,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -8172,7 +8172,7 @@
   ],
   "genderRate": 6,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -8212,7 +8212,7 @@
   ],
   "genderRate": 6,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -8679,7 +8679,7 @@
   ],
   "genderRate": 6,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -8719,7 +8719,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -8759,7 +8759,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -8800,7 +8800,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -9000,7 +9000,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -9836,7 +9836,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -9875,7 +9875,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -9914,7 +9914,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -10073,7 +10073,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -10114,7 +10114,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -10155,7 +10155,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -10541,7 +10541,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "植物群"
   ],
   "noEggGroup": false
@@ -10582,7 +10582,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "植物群"
   ],
   "noEggGroup": false
@@ -10623,7 +10623,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "植物群"
   ],
   "noEggGroup": false
@@ -10663,7 +10663,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -10704,7 +10704,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -10744,7 +10744,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -10863,7 +10863,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -10903,7 +10903,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -10944,7 +10944,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "人型",
+   "人型群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -10984,7 +10984,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "人型",
+   "人型群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -11024,7 +11024,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "人型",
+   "人型群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -11065,7 +11065,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "虫群"
   ],
   "noEggGroup": false
@@ -11106,7 +11106,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "虫群"
   ],
   "noEggGroup": false
@@ -11145,7 +11145,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false
@@ -11185,7 +11185,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false
@@ -11460,7 +11460,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -11500,7 +11500,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -11540,7 +11540,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -11735,7 +11735,7 @@
   ],
   "genderRate": 6,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -11774,7 +11774,7 @@
   ],
   "genderRate": 6,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -11853,7 +11853,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -12245,7 +12245,7 @@
   ],
   "genderRate": 0,
   "eggGroup": [
-   "虫",
+   "虫群",
    "人型群"
   ],
   "noEggGroup": false
@@ -12285,7 +12285,7 @@
   ],
   "genderRate": 8,
   "eggGroup": [
-   "虫",
+   "虫群",
    "人型群"
   ],
   "noEggGroup": false
@@ -12325,7 +12325,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false
@@ -12519,7 +12519,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -12558,7 +12558,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -12791,7 +12791,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -12831,7 +12831,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "龙群"
   ],
   "noEggGroup": false
@@ -12872,7 +12872,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "龙群"
   ],
   "noEggGroup": false
@@ -12912,7 +12912,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "龙群"
   ],
   "noEggGroup": false
@@ -12951,7 +12951,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "人型群"
   ],
   "noEggGroup": false
@@ -12992,7 +12992,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "人型群"
   ],
   "noEggGroup": false
@@ -13033,7 +13033,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "龙群"
   ],
   "noEggGroup": false
@@ -13074,7 +13074,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "龙群"
   ],
   "noEggGroup": false
@@ -13153,7 +13153,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "龙群"
   ],
   "noEggGroup": false
@@ -13350,7 +13350,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -13389,7 +13389,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -13665,7 +13665,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -13705,7 +13705,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -13745,7 +13745,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -13977,7 +13977,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -14128,7 +14128,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -14168,7 +14168,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -14208,7 +14208,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -14248,7 +14248,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -14289,7 +14289,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -14442,7 +14442,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -15128,7 +15128,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -15168,7 +15168,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -15208,7 +15208,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -15248,7 +15248,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -15287,7 +15287,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -15327,7 +15327,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -15367,7 +15367,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -15407,7 +15407,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -15447,7 +15447,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -15605,7 +15605,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -15646,7 +15646,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -15915,7 +15915,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false
@@ -16310,7 +16310,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -16349,7 +16349,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -16389,7 +16389,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -16427,7 +16427,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false
@@ -16467,7 +16467,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false,
@@ -16508,7 +16508,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -16550,7 +16550,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -16709,7 +16709,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -16749,7 +16749,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -17331,7 +17331,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -17371,7 +17371,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -17412,7 +17412,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -17525,7 +17525,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -17641,7 +17641,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -17682,7 +17682,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -17955,7 +17955,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -17995,7 +17995,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "植物群"
   ],
   "noEggGroup": false
@@ -18154,7 +18154,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -18311,7 +18311,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -18587,7 +18587,7 @@
   ],
   "genderRate": 0,
   "eggGroup": [
-   "人型",
+   "人型群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -18704,7 +18704,7 @@
   ],
   "genderRate": 8,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -19149,7 +19149,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -19338,7 +19338,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -19377,7 +19377,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -19417,7 +19417,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -20580,7 +20580,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -20621,7 +20621,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -21324,7 +21324,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -21364,7 +21364,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -21752,7 +21752,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -21793,7 +21793,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -21834,7 +21834,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "龙群"
   ],
   "noEggGroup": false
@@ -21875,7 +21875,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "龙群"
   ],
   "noEggGroup": false
@@ -21954,7 +21954,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -21994,7 +21994,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -22034,7 +22034,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -22075,7 +22075,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -22116,7 +22116,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -22157,7 +22157,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -22657,7 +22657,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -22697,7 +22697,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -23213,7 +23213,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -23333,7 +23333,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -23373,7 +23373,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -23832,7 +23832,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -23872,7 +23872,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -23912,7 +23912,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -24145,7 +24145,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -24185,7 +24185,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -24225,7 +24225,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -24265,7 +24265,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "龙",
+   "龙群",
    "怪兽群"
   ],
   "noEggGroup": false
@@ -26329,7 +26329,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -26369,7 +26369,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -26801,7 +26801,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -26842,7 +26842,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -26961,7 +26961,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -27002,7 +27002,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "龙群"
   ],
   "noEggGroup": false
@@ -27040,7 +27040,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -27080,7 +27080,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -27121,7 +27121,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -27162,7 +27162,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -27203,7 +27203,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -27243,7 +27243,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -27401,7 +27401,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "人型群"
   ],
   "noEggGroup": false
@@ -27442,7 +27442,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -27483,7 +27483,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -27677,7 +27677,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -27718,7 +27718,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -27834,7 +27834,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -27874,7 +27874,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -27913,7 +27913,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "龙群"
   ],
   "noEggGroup": false
@@ -27954,7 +27954,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "龙群"
   ],
   "noEggGroup": false
@@ -28453,7 +28453,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -28493,7 +28493,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -28534,7 +28534,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -29004,7 +29004,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -29045,7 +29045,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -29359,7 +29359,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "虫群"
   ],
   "noEggGroup": false
@@ -29400,7 +29400,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "虫群"
   ],
   "noEggGroup": false
@@ -29597,7 +29597,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -29637,7 +29637,7 @@
   ],
   "genderRate": 8,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -29989,7 +29989,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -30029,7 +30029,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "虫",
+   "虫群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -30340,7 +30340,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -30379,7 +30379,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -30498,7 +30498,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false
@@ -31622,7 +31622,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -31660,7 +31660,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -31699,7 +31699,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -31739,7 +31739,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -31777,7 +31777,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -31817,7 +31817,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "人型群"
   ],
   "noEggGroup": false
@@ -31857,7 +31857,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -31896,7 +31896,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -31935,7 +31935,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -32516,7 +32516,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -32557,7 +32557,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -32794,7 +32794,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "龙群"
   ],
   "noEggGroup": false
@@ -32835,7 +32835,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "龙群"
   ],
   "noEggGroup": false
@@ -32875,7 +32875,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "龙群"
   ],
   "noEggGroup": false
@@ -32915,7 +32915,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "龙群"
   ],
   "noEggGroup": false
@@ -32955,7 +32955,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "龙群"
   ],
   "noEggGroup": false
@@ -32996,7 +32996,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -33271,7 +33271,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "人型群"
   ],
   "noEggGroup": false
@@ -33311,7 +33311,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "人型群"
   ],
   "noEggGroup": false
@@ -33349,7 +33349,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -33389,7 +33389,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -33545,7 +33545,7 @@
   ],
   "genderRate": 0,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "人型群"
   ],
   "noEggGroup": false
@@ -33586,7 +33586,7 @@
   ],
   "genderRate": 0,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "人型群"
   ],
   "noEggGroup": false
@@ -33627,7 +33627,7 @@
   ],
   "genderRate": 0,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "人型群"
   ],
   "noEggGroup": false
@@ -33743,7 +33743,7 @@
   ],
   "genderRate": 6,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false
@@ -33783,7 +33783,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -33862,7 +33862,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -33902,7 +33902,7 @@
   ],
   "genderRate": 8,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -33942,7 +33942,7 @@
   ],
   "genderRate": 8,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -33982,7 +33982,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -34021,7 +34021,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -34179,7 +34179,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -34259,7 +34259,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -34299,7 +34299,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -34338,7 +34338,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -34528,7 +34528,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "龙群"
   ],
   "noEggGroup": false
@@ -34569,7 +34569,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "不定形",
+   "不定形群",
    "龙群"
   ],
   "noEggGroup": false
@@ -34610,7 +34610,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "不定形",
+   "不定形群",
    "龙群"
   ],
   "noEggGroup": false
@@ -34650,7 +34650,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "不定形",
+   "不定形群",
    "龙群"
   ],
   "noEggGroup": false
@@ -35446,7 +35446,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -35486,7 +35486,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -35527,7 +35527,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "植物群"
   ],
   "noEggGroup": false
@@ -35684,7 +35684,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -35724,7 +35724,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -35765,7 +35765,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "水中1群"
   ],
   "noEggGroup": false
@@ -36153,7 +36153,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -36193,7 +36193,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false
@@ -36233,7 +36233,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -36273,7 +36273,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -36777,7 +36777,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -36818,7 +36818,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "飞行群"
   ],
   "noEggGroup": false
@@ -37681,7 +37681,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -37721,7 +37721,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "水中2群"
   ],
   "noEggGroup": false
@@ -38349,7 +38349,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false
@@ -38957,7 +38957,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "龙",
+   "龙群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -38996,7 +38996,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "龙",
+   "龙群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -39036,7 +39036,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "龙",
+   "龙群",
    "矿物群"
   ],
   "noEggGroup": false
@@ -39525,7 +39525,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "龙群"
   ],
   "noEggGroup": false
@@ -39566,7 +39566,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -39606,7 +39606,7 @@
   ],
   "genderRate": -1,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "不定形群"
   ],
   "noEggGroup": false
@@ -39793,7 +39793,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "龙群"
   ],
   "noEggGroup": false
@@ -39834,7 +39834,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "植物",
+   "植物群",
    "龙群"
   ],
   "noEggGroup": false
@@ -39910,10 +39910,8 @@
    8
   ],
   "genderRate": -1,
-  "eggGroup": [
-   "未知蛋群"
-  ],
-  "noEggGroup": false
+  "eggGroup": [],
+  "noEggGroup": true
  },
  {
   "index": "1022",
@@ -40099,7 +40097,7 @@
   ],
   "genderRate": 1,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "龙群"
   ],
   "noEggGroup": false,
@@ -40214,7 +40212,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false,
@@ -40865,7 +40863,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false,
@@ -40905,7 +40903,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false,
@@ -40945,7 +40943,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "飞行",
+   "飞行群",
    "陆上群"
   ],
   "noEggGroup": false,
@@ -41556,7 +41554,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "陆上群"
   ],
   "noEggGroup": false,
@@ -41596,7 +41594,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "水中1群"
   ],
   "noEggGroup": false,
@@ -42686,7 +42684,7 @@
   ],
   "genderRate": 6,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "水中3群"
   ],
   "noEggGroup": false,
@@ -42801,7 +42799,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -42840,7 +42838,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -42879,7 +42877,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -43180,7 +43178,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "妖精",
+   "妖精群",
    "植物群"
   ],
   "noEggGroup": false,
@@ -43219,7 +43217,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -43259,7 +43257,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -44485,7 +44483,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "矿物",
+   "矿物群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -44835,7 +44833,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "水中1",
+   "水中1群",
    "不定形群"
   ],
   "noEggGroup": false,
@@ -46863,7 +46861,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "怪兽",
+   "怪兽群",
    "矿物群"
   ],
   "noEggGroup": false,
@@ -46977,7 +46975,7 @@
   ],
   "genderRate": 4,
   "eggGroup": [
-   "陆上",
+   "陆上群",
    "妖精群"
   ],
   "noEggGroup": false,

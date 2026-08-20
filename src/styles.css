@@ -6801,7 +6801,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 5;
+  z-index: 10; /* 高于告示牌/纸箱（8），宝可梦走动时不被入口图标盖住 */
   pointer-events: none;
 }
 .train-walker {
@@ -7099,7 +7099,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 8;
+  z-index: 10; /* 高于告示牌/纸箱（9），宝可梦走动时不被入口图标盖住 */
   pointer-events: none;
 }
 .nursery-walker {
