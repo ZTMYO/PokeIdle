@@ -191,6 +191,7 @@ export function createSaveTransferController({
 
   async function importSave() {
     let file;
+    let persistenceWarnings = [];
     try {
       file = await platform.pickImportFile();
       if (!file) return null;
@@ -212,7 +213,9 @@ export function createSaveTransferController({
         apply,
         persist: async () => {
           try {
-            await persistReplacement();
+            const result = await persistReplacement();
+            persistenceWarnings = result?.warnings || [];
+            return result;
           } catch (error) {
             if (!error.code) error.code = 'SAVE_WRITE_FAILED';
             throw error;
@@ -221,7 +224,12 @@ export function createSaveTransferController({
         now: now(),
       });
       addLog('import', { fileName: file.name, summary: parsed.summary });
-      showMessage('存档导入成功，即将刷新');
+      if (persistenceWarnings.length) {
+        addLog('save_warning', { sources: persistenceWarnings.map(error => error.source) });
+      }
+      showMessage(persistenceWarnings.length
+        ? '存档导入成功，备用存储不可用，即将刷新'
+        : '存档导入成功，即将刷新');
       reload();
       return replacement;
     } catch (error) {
@@ -231,6 +239,7 @@ export function createSaveTransferController({
   }
 
   async function restoreSave() {
+    let persistenceWarnings = [];
     try {
       const raw = await platform.loadImportBackup();
       if (!raw) return null;
@@ -241,10 +250,24 @@ export function createSaveTransferController({
         getCurrent,
         backupData: parsed.data,
         apply,
-        persist: persistReplacement,
+        persist: async () => {
+          try {
+            const result = await persistReplacement();
+            persistenceWarnings = result?.warnings || [];
+            return result;
+          } catch (error) {
+            if (!error.code) error.code = 'SAVE_WRITE_FAILED';
+            throw error;
+          }
+        },
       });
       addLog('restore_import_backup');
-      showMessage('已恢复导入前存档，即将刷新');
+      if (persistenceWarnings.length) {
+        addLog('save_warning', { sources: persistenceWarnings.map(error => error.source) });
+      }
+      showMessage(persistenceWarnings.length
+        ? '已恢复导入前存档，备用存储不可用，即将刷新'
+        : '已恢复导入前存档，即将刷新');
       reload();
       return replacement;
     } catch (error) {

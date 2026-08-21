@@ -71,6 +71,13 @@ const mobileBridge = {
 };
 
 window.__POKEIDLE_MOBILE__ = mobileBridge;
+window.__POKEIDLE_MOBILE_RELOAD__ = () => {
+  try {
+    window.location.reload();
+  } catch (_) {
+    return App.exitApp();
+  }
+};
 document.documentElement.classList.add('mobile-mode');
 
 function syncMobileViewport() {

@@ -439,7 +439,11 @@ export function addIncubatorLog({ species, gender, shiny = false }) {
 }
 
 // ---------- 存档保存 ----------
-export async function saveGame({ strict = false, preserveTimestamp = false } = {}) {
+export async function saveGame({
+  strict = false,
+  preserveTimestamp = false,
+  requiredSource = null,
+} = {}) {
   if (!gameData) return { errors: [], written: 0 };
   if (!preserveTimestamp) gameData.stats.lastSaveTime = Date.now();
   syncGpsPosition();
@@ -449,6 +453,7 @@ export async function saveGame({ strict = false, preserveTimestamp = false } = {
     mobile: window.__POKEIDLE_MOBILE__,
     storage: localStorage,
     strict,
+    requiredSource,
   });
 }
 

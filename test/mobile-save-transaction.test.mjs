@@ -177,6 +177,23 @@ test('用户拒绝确认时不覆盖当前存档', async () => {
   assert.deepEqual(events, []);
 });
 
+test('恢复导入存档的写入失败映射为稳定提示', async () => {
+  const messages = [];
+  const controller = createSaveTransferController({
+    platform: {
+      loadImportBackup: async () => JSON.stringify(incoming),
+    },
+    getCurrent: () => current,
+    confirm: async () => true,
+    apply: () => {},
+    persist: async () => { throw new Error('write failed'); },
+    showMessage: message => messages.push(message),
+  });
+
+  assert.equal(await controller.restoreSave(), null);
+  assert.deepEqual(messages, ['存档写入失败，已尝试恢复当前存档']);
+});
+
 test('存档错误映射为稳定的中文提示', () => {
   assert.equal(formatSaveTransferError({ code: 'FUTURE_VERSION' }), '此存档来自更新版本，请先升级应用');
   assert.equal(formatSaveTransferError({ code: 'SAVE_TOO_LARGE' }), '存档文件不能超过 20 MB');

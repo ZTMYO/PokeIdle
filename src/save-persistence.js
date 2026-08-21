@@ -3,6 +3,7 @@ export async function persistSerializedSave(serialized, {
   mobile,
   storage,
   strict = false,
+  requiredSource = null,
 } = {}) {
   const writes = [];
   if (tauriInvoke) {
@@ -24,6 +25,24 @@ export async function persistSerializedSave(serialized, {
       error.source = source;
       errors.push(error);
     }
+  }
+
+  if (requiredSource) {
+    const requiredAvailable = writes.some(([source]) => source === requiredSource);
+    const requiredErrors = errors.filter(error => error.source === requiredSource);
+    if (!requiredAvailable) {
+      const error = new Error(`${requiredSource}: 存档来源不可用`);
+      error.source = requiredSource;
+      requiredErrors.push(error);
+    }
+    if (requiredErrors.length) {
+      throw new AggregateError(requiredErrors, `存档写入失败：${requiredSource}`);
+    }
+    return {
+      errors: [],
+      warnings: errors.filter(error => error.source !== requiredSource),
+      written: writes.length - errors.length,
+    };
   }
 
   if (strict && errors.length) {

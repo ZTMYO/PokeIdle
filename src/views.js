@@ -1013,6 +1013,7 @@ export function renderSettings(container, s) {
           <span class="auto-catch-label">刷新游戏</span>
           <button type="button" class="reset-save-btn" id="reloadGameBtn">刷新</button>
         </div>
+        <div id="saveTransferStatus" class="save-transfer-status" aria-live="polite" role="status"></div>
       </div>
       <a href="https://github.com/ZTMYO/PokeIdle" id="githubLink" class="settings-footer-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 1024 1024" width="16" height="16" style="flex-shrink:0;"><use xlink:href="#icon-github"/></svg>
@@ -1068,20 +1069,44 @@ export function renderSettings(container, s) {
     }
     resetSave();
   });
-  // 刷新游戏：先保存再重载，等效 Ctrl+R 调试刷新
-  container.querySelector('#reloadGameBtn')?.addEventListener('click', () => {
-    saveGame();
-    location.reload();
+  const requiredSaveSource = window.__POKEIDLE_MOBILE__?.saveGameData ? 'mobile' : null;
+  const persistImportedSave = () => saveGame({
+    strict: true,
+    preserveTimestamp: true,
+    requiredSource: requiredSaveSource,
+  });
+  const reloadGame = () => {
+    const mobileReload = window.__POKEIDLE_MOBILE_RELOAD__;
+    if (typeof mobileReload === 'function') return mobileReload();
+    return location.reload();
+  };
+  const showSaveTransferMessage = message => {
+    const status = container.querySelector('#saveTransferStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.classList.remove('success', 'error');
+    status.classList.add('show', /成功|已恢复|已导出/.test(message) ? 'success' : 'error');
+    updateTextBox(message);
+  };
+  // 刷新游戏：先完成保存，再重载当前页面。
+  container.querySelector('#reloadGameBtn')?.addEventListener('click', async () => {
+    await saveGame();
+    reloadGame();
   });
   bindSaveTransferControls(container, {
     platform: createSavePlatform(),
     getCurrent: () => gameData,
     saveGame,
+    saveCurrent: () => saveGame({
+      strict: true,
+      requiredSource: requiredSaveSource,
+    }),
     apply: value => { setGameData(value); ensureGpsState(); },
+    persist: persistImportedSave,
     confirm: details => showSaveTransferDialog(document, details),
-    showMessage: updateTextBox,
+    showMessage: showSaveTransferMessage,
     addLog: addSystemLog,
-    reload: () => setTimeout(() => location.reload(), 800),
+    reload: () => setTimeout(reloadGame, 800),
   });
   container.querySelector('#toggleBuffHoney')?.addEventListener('click', toggleAutoBuffHoney);
   container.querySelector('#toggleBuffCharm')?.addEventListener('click', toggleAutoBuffCharm);
