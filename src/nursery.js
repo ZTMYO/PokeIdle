@@ -199,12 +199,14 @@ export function addToNursery(id, slot) {
   Promise.all([
     import('./train.js').then(m => m.isTrainingPokemon(id)),
     import('./team.js').then(m => m.isInAnyTeam(id)),
-  ]).then(([inTrain, inTeam]) => {
+    import('./dispatch.js').then(m => m.isDispatchPokemon(id)),
+  ]).then(([inTrain, inTeam, inDispatch]) => {
     const occ = [];
     if (inTrain) occ.push('训练');
     if (inTeam) occ.push('队伍');
+    if (inDispatch) occ.push('派遣');
     if (occ.length) {
-      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。放入饲育屋将自动将其撤下，确定放入？`, () => doAddToNursery(id, slot), null);
+      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。放入饲育屋将自动将其撤下，确定放入？`, () => doAddToNursery(id, slot), null, { overlay: true });
       return;
     }
     doAddToNursery(id, slot);
@@ -220,6 +222,7 @@ function doAddToNursery(id, slot) {
   // 饲育屋中的宝可梦不能留在任何配队队伍 / 训练槽里
   removePokemonFromAllTeams(id);
   import('./train.js').then(m => m.removeTrainingByPokemon(id));
+  import('./dispatch.js').then(m => m.removeDispatchByPokemon(id));
   saveGame();
   render();
   openBoard(); // 放入后回场地，打开配对面板查看状态

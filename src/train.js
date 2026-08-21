@@ -236,10 +236,14 @@ export function addToTraining(id, slot) {
   if (t.slots[slot]) return;
   const occ = [];
   if (isInAnyTeam(id)) occ.push('队伍');
-  import('./nursery.js').then(m => {
-    if (m.isNurseryPokemon(id)) occ.push('饲育屋');
+  Promise.all([
+    import('./nursery.js').then(m => m.isNurseryPokemon(id)),
+    import('./dispatch.js').then(m => m.isDispatchPokemon(id)),
+  ]).then(([inNursery, inDispatch]) => {
+    if (inNursery) occ.push('饲育屋');
+    if (inDispatch) occ.push('派遣');
     if (occ.length) {
-      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。放入训练将自动将其撤下，确定放入？`, () => doAddToTraining(id, slot), null);
+      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。放入训练将自动将其撤下，确定放入？`, () => doAddToTraining(id, slot), null, { overlay: true });
       return;
     }
     doAddToTraining(id, slot);
@@ -259,8 +263,9 @@ function doAddToTraining(id, slot) {
   _pickSlot = null; // 退出放入页
   // 训练中的宝可梦不能留在任何配队队伍里
   removePokemonFromAllTeams(id);
-  // 训练/饲育屋/配队三方互斥：放入训练后从饲育屋移除
+  // 训练/饲育屋/配队/派遣互斥：放入训练后从其它槽位移除
   import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
+  import('./dispatch.js').then(m => m.removeDispatchByPokemon(id));
   if (entry) addSystemLog('train_start', { pokemon: entry.species, slot });
   saveGame();
   processTrainingXp();

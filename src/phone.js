@@ -28,6 +28,7 @@ const APPS = [
   { id: 'casino', icon: 'icon-casino', name: '游戏厅' },
   { id: 'album', icon: 'icon-album', name: '卡册' },
   { id: 'follower', icon: 'icon-follower', name: '随从' },
+  { id: 'dispatch', icon: 'icon-dispatch', name: '派遣' },
 ];
 
 // 每页 App 数量（5 列 × 2 行）
@@ -62,15 +63,23 @@ function updateTutorialBadge() {
   const badge = $('phone-badge-tutorial');
   if (badge) badge.style.display = hasUnclaimedTutorialRewards() ? '' : 'none';
 }
+// 派遣应用红点：有完成的派遣待领取即点亮
+function updateDispatchBadge() {
+  const badge = $('phone-badge-dispatch');
+  if (!badge) return;
+  import('./dispatch.js').then(m => { badge.style.display = m.hasDispatchRewards() ? '' : 'none'; });
+}
 
-// 标题栏手机图标聚合红点：任意 app 有红点（孵蛋完成/可交换/干涸树果/成就可领/教程奖励可领）即点亮
+// 标题栏手机图标聚合红点：任意 app 有红点（孵蛋完成/可交换/干涸树果/成就可领/教程奖励可领/派遣完成可领）即点亮
 function updatePhoneBadge() {
   const badge = $('title-badge-phone');
   if (!badge) return;
   ensureTrades(); // 波次过期先刷新，保证与交换红点口径一致
-  badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries() || hasClaimableAchievements() || hasUnclaimedTutorialRewards()) ? '' : 'none';
+  import('./dispatch.js').then(m => {
+    badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries() || hasClaimableAchievements() || hasUnclaimedTutorialRewards() || m.hasDispatchRewards()) ? '' : 'none';
+  });
 }
-export { updateTradeBadge, updateBerryBadge, updateAchievementBadge, updateTutorialBadge, updatePhoneBadge };
+export { updateTradeBadge, updateBerryBadge, updateAchievementBadge, updateTutorialBadge, updateDispatchBadge, updatePhoneBadge };
 
 // 状态变化时即时刷新红点：树果浇水/收获/种植、仓库宝可梦变化（捕获/孵化/交换）、交换波次刷新、成就领取，无需等 5 秒轮询
 window.addEventListener('berry-farm-changed', () => { updateBerryBadge(); updatePhoneBadge(); });
@@ -78,6 +87,7 @@ window.addEventListener('roster-changed', () => { updateTradeBadge(); updatePhon
 window.addEventListener('trade-wave-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
 window.addEventListener('achievements-changed', () => { updateAchievementBadge(); updatePhoneBadge(); });
 window.addEventListener('tutorial-rewards-changed', () => { updateTutorialBadge(); updatePhoneBadge(); });
+window.addEventListener('dispatch-changed', () => { updateDispatchBadge(); updatePhoneBadge(); });
 
 // 顶部系统时间，每秒刷新一次（仅启动一次）
 function startClock() {
@@ -138,7 +148,7 @@ export function showPhoneView() {
           ${page.map(a => `
             <div class="phone-app" data-app="${a.id}">
               <div class="phone-app-icon"><svg><use xlink:href="#${a.icon}"/></svg>
-                ${['incubator', 'trade', 'berry', 'achievement', 'tutorial'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
+                ${['incubator', 'trade', 'berry', 'achievement', 'tutorial', 'dispatch'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
               </div>
               <div class="phone-app-name">${a.name}</div>
             </div>`).join('')}
@@ -151,6 +161,7 @@ export function showPhoneView() {
   updateBerryBadge();
   updateAchievementBadge();
   updateTutorialBadge();
+  updateDispatchBadge();
   updatePhoneBadge();
   // 翻页：页码指示点点击 + 原生 scroll-snap 横向滑动
   let _page = 0;
@@ -205,6 +216,7 @@ export function showPhoneView() {
     else if (id === 'casino') import('./casino.js').then(m => m.showCasinoView());
     else if (id === 'album') import('./album.js').then(m => m.showAlbumView());
     else if (id === 'follower') import('./follower.js').then(m => m.showFollowerView());
+    else if (id === 'dispatch') import('./dispatch.js').then(m => m.showDispatchView());
   };
   showView('phoneView');
 }

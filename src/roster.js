@@ -15,12 +15,13 @@ import { setupSourceFilter } from './filters.js';
 // 大量出没（mass）本质也是野生遭遇，显示与筛选均归入「野生」，不单列筛选项
 const SOURCE_NAMES = { normal: '野生', mass: '大量出没', twist: '时空扭曲', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
 
-// 个体当前所处状态标签：训练中 / 繁育中 / 队伍中（可多状态并存），无则不渲染
+// 个体当前所处状态标签：训练中 / 繁育中 / 队伍中 / 派遣中（可多状态并存），无则不渲染
 function memberStatusTags(p) {
   const tags = [];
   if ((gameData.training?.slots || []).some(s => s && s.id === p.id)) tags.push('训练中');
   if ((gameData.nursery?.parents || []).some(s => s && s.id === p.id)) tags.push('繁育中');
   if ((gameData.teams || []).some(t => (t.ids || []).includes(p.id))) tags.push('队伍中');
+  if ((gameData.dispatch?.slots || []).some(s => s && s.id === p.id)) tags.push('派遣中');
   if (!tags.length) return '';
   return tags.map(t => `<span class="roster-status-tag">${t}</span>`).join('');
 }
@@ -1276,6 +1277,8 @@ function releasePokemon(id) {
       arr.splice(ri, 1);
       // 若该个体正放在饲育屋繁育：同步清出亲本槽并终止繁殖（否则场地贴图/配对预览残留）
       import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
+      // 若该个体正在派遣中：放生后清出派遣槽（已完成待领取的保留奖励）
+      import('./dispatch.js').then(m => m.removeDispatchByPokemon(id));
       gained = releaseXpOf(p);
       gainedCandies = addReleaseXp(gained);
       committed = true;

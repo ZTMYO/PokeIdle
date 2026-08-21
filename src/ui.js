@@ -53,7 +53,7 @@ export function showNowPlaying(title, artist) {
 
 // ---------- 视图切换 ----------
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
-const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','followerView'];
+const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','followerView','dispatchView'];
 const CASINO_VIEWS = new Set(['casinoView', 'casinoGameView', 'mahjongView', 'gachaView', 'gachaHistoryView', 'casinoHistoryView']);
 let _currentView = 'idleView';
 
@@ -185,7 +185,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', hatchView:'孵化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', casinoView:'游戏厅', casinoGameView:'21 点', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', followerView:'随从' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', hatchView:'孵化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', dispatchView:'派遣', casinoView:'游戏厅', casinoGameView:'21 点', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', followerView:'随从' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${names[id]||''}`;
     title.dataset.action = 'back';
   }
@@ -241,6 +241,19 @@ export function showConfirmBar(text, onYes, onNo, opts = {}) {
     || document.querySelector('.view-scroll[style*="display: flex"], .view-scroll[style*="display:flex"]')
     || document.body;
   host.appendChild(bar);
+  // opts.overlay：加全屏透明遮罩，点击遮罩（textbox 以外）视为取消；同时挡住下层按钮防止重复触发
+  let overlay = null;
+  if (opts.overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'confirmOverlay';
+    overlay.style.cssText = 'position:absolute;inset:0;z-index:40;background:transparent;';
+    host.appendChild(overlay);
+    overlay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (onNo) onNo();
+      hideConfirmBar();
+    });
+  }
   bar.style.display = 'flex';
   bar.style.transform = 'translateY(100%)'; // 先藏在底部
   // 下一帧滑入，触发 .text-box 的 transition: transform 0.25s
@@ -271,6 +284,8 @@ export function showConfirmBar(text, onYes, onNo, opts = {}) {
 export function hideConfirmBar() {
   const bar = document.getElementById('confirmBar');
   if (bar) bar.remove();
+  const ov = document.getElementById('confirmOverlay');
+  if (ov) ov.remove();
 }
 
 export function isOnGameView() {

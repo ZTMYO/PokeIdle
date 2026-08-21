@@ -1071,6 +1071,30 @@ body.browser-mode { overflow: auto; }
 .incubator-row.locked { cursor: default; position: relative; }
 .incubator-row.locked .incubator-hatch-text { margin-left: auto; margin-right: 4px; }
 .incubator-hatch-text.hatched { margin-left: auto; margin-right: 4px; }
+/* 派遣待出发槽位：上方配置/出发按钮，下方显示当前时长档位 */
+.dispatch-launch-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+.dispatch-launch-time {
+  text-align: center;
+  font-size: 8px;
+  color: var(--ui-color);
+  opacity: 0.75;
+  line-height: 1.3;
+  margin-top: 1px;
+}
+/* 派遣页按钮收紧：仅缩小主列表内按钮，槽位尺寸与孵蛋器一致 */
+#dispatchContent .incubator-row {
+  padding: 4px 3px;
+  gap: 4px;
+}
+#dispatchContent .incubator-hatch-text {
+  font-size: 9px;
+  padding: 1px 4px;
+}
 .incubator-lock-icon {
   flex-shrink: 0;
   display: flex;
@@ -1142,6 +1166,80 @@ body.browser-mode { overflow: auto; }
   font-size: 12px;
   font-weight: 700;
 }
+
+/* === 派遣（主列表复用孵蛋器布局）=== */
+#dispatchView { overflow-y: auto; }
+
+/* 时长选择面板（复用 berry-picker 底栏；配色对齐游戏内对话框：米黄底 + 绿字，按钮浅绿底绿边） */
+.dispatch-dur-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dispatch-dur-info {
+  padding: 2px 8px 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui-color);
+  text-align: center;
+  opacity: 0.85;
+}
+.dispatch-dur-row {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+.dispatch-dur-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 0;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ui-color);
+  background: var(--screen-bg);
+  border: 2px solid var(--ui-color);
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.8;
+  transition: opacity 0.12s, transform 0.06s;
+}
+.dispatch-dur-btn:hover { opacity: 1; }
+.dispatch-dur-btn:active { transform: translateY(2px); }
+.dispatch-dur-btn em { font-style: normal; font-weight: 700; }
+.dispatch-dur-btn.active {
+  opacity: 1;
+  background: var(--ui-color);
+  color: var(--screen-bg);
+}
+.dispatch-dur-preview {
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui-color);
+  text-align: center;
+  min-height: 13px;
+}
+.dispatch-dur-start {
+  margin: 2px 8px 4px;
+  padding: 6px 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui-color);
+  background: var(--screen-bg);
+  border: 2px solid var(--ui-color);
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.12s, transform 0.06s;
+}
+.dispatch-dur-start:hover { opacity: 1; }
+.dispatch-dur-start:active { transform: translateY(2px); }
 
 /* 仓库蛋条目行：蛋图标（icon-egg 随主题色） */
 .roster-icon-egg {
@@ -5188,6 +5286,99 @@ body.browser-mode { overflow: auto; }
 }
 .goodbye-box-arrow:active { transform: translateY(1px); }
 
+/* 派遣领取结果：全屏页（图标列表居中展示，底部 textbox 用 goodbye-box） */
+#dispatchResultView {
+  display: none;
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 54;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: var(--screen-bg);
+  overflow: hidden;
+}
+/* 结果页 textbox 从底部弹出，高度压矮 */
+#dispatchResultView .goodbye-box {
+  height: 34px;
+  transform: translateY(100%);
+  transition: transform 0.25s;
+}
+#dispatchResultView .goodbye-box-text {
+  font-size: 11px;
+  padding: 4px 10px;
+  padding-right: 80px; /* 为确定按钮让位 */
+}
+#dispatchResultView.open .goodbye-box {
+  transform: translateY(0);
+}
+/* 领取列表：单个领取一行、一键领取多行，宽度拉满、顶部紧凑排列 */
+.dispatch-result-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 2px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 6px 46px; /* 底部留白给矮版 textbox 让位 */
+}
+.dispatch-result-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  width: 100%;
+}
+.dispatch-result-poke {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+.dispatch-result-items {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.dispatch-result-item {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.dispatch-result-item img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.dispatch-result-item b {
+  font-family: monospace;
+  font-size: 9px;
+  color: var(--ui-color);
+}
+/* 总计行：与普通行同高，顶部虚线分隔，「总」字占宝可梦图标位 */
+.dispatch-result-total {
+  border-top: 1px dashed var(--ui-color);
+  margin-top: 2px;
+  padding-top: 2px;
+}
+.dispatch-result-total-label {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  flex-shrink: 0;
+}
+
 /* === 经验糖果使用场景：全屏独立场景，宝可梦居中 + 数量加减 + 经验变化预览 === */
 #expCandyView {
   display: none;
@@ -6603,6 +6794,11 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 /* 菜单归属槽位高亮 */
 .team-member.menu-open {
+  background: rgba(var(--ui-color-rgb), 0.16);
+  border-color: var(--ui-color);
+}
+/* 派遣槽位菜单归属高亮（复用配队菜单样式） */
+.incubator-row.menu-open {
   background: rgba(var(--ui-color-rgb), 0.16);
   border-color: var(--ui-color);
 }

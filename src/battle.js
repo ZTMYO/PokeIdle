@@ -1098,22 +1098,29 @@ function evalCatchRow(row, skipLevel = false) {
 // 遇敌过滤（设置-捕捉条件表格）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
 // 五类策略：普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏，各自独立选择 捕捉/暂停/逃跑，
 // 并各自带等级范围（0=不限制）与「仅捕捉未拥有过的」（普通看仓库非闪个体、闪光看仓库闪光个体）。
-// 优先级：神兽/神兽闪行 > 可悬赏行 > 普通/普通闪行。神兽按类型行硬约束判定，
-// 可悬赏行只作用于普通遭遇（防止悬赏目标绕过神兽暂停等设置）。
+// 优先级：神兽/神兽闪 > 普通/普通闪 > 可悬赏。神兽按类型行硬约束判定；
+// 普通遭遇命中今日悬赏时，先由普通/普通闪行裁决，放行捕捉后才轮到可悬赏行兜底。
 export function catchFilterResult() {
   const f = gameData.settings?.catchFilter || {};
   const rows = f.rows || {};
   const isLegend = isLegendEncounter();
-  // 按当前遭遇类型定位对应策略行：神兽闪 > 神兽 / 普通闪 > 普通
-  const typeRow = (isLegend ? (currentIsShiny ? rows.legendShiny : rows.legend) : (currentIsShiny ? rows.normalShiny : rows.normal))
+  // 神兽/神兽闪行（最高优先级）：神兽按类型行判定，可悬赏行不作用于神兽
+  if (isLegend) {
+    const row = (currentIsShiny ? rows.legendShiny : rows.legend)
+      || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false };
+    return evalCatchRow(row);
+  }
+  // 普通/普通闪行（优先于可悬赏行）：普通遭遇一律先按该行策略执行
+  const typeRow = (currentIsShiny ? rows.normalShiny : rows.normal)
     || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false };
-  // 神兽/神兽闪行优先：神兽按类型行判定，可悬赏行不覆盖神兽行策略
-  if (isLegend) return evalCatchRow(typeRow);
-  // 可悬赏行优先于普通/普通闪行：普通遭遇命中今日悬赏目标时按该行策略执行
+  const fr = evalCatchRow(typeRow);
+  // 普通/普通闪行明确暂停/逃跑时直接采纳，不再落入可悬赏行
+  if (fr !== 'catch') return fr;
+  // 普通/普通闪行放行捕捉，且命中今日悬赏目标 → 由可悬赏行兜底最终决策
   if (currentEncounter && getBountyTargetIndexes().has(String(currentEncounter.index))) {
     return evalCatchRow(rows.bounty || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false });
   }
-  return evalCatchRow(typeRow);
+  return 'catch';
 }
 
 // 自动补球：勾选的球数量为 0 时，用糖果按补球优先级补 1 个（手动/自动丢球都生效）。

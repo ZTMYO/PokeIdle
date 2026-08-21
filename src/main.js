@@ -58,6 +58,7 @@ import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongra
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView, showNurseryView } from './nursery.js';
 import { isTrainPicking, leaveTrainPick, showTrainView } from './train.js';
+import { isDispatchPicking, leaveDispatchPick } from './dispatch.js';
 import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle, showBattleView } from './battle-view.js';
 import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit, isTeamPicking, leaveTeamPick, showTeamView } from './team.js';
 import { refreshNpcs } from './npcs.js';
@@ -261,6 +262,8 @@ function goBack() {
   if (isNurseryPicking()) { leaveNurseryPick(); return; }
   // 训练放入列表：标题栏返回回训练场地（放入页未压栈）
   if (isTrainPicking()) { leaveTrainPick(); return; }
+  // 派遣放入列表：标题栏返回回派遣主列表（放入页未压栈）
+  if (isDispatchPicking()) { leaveDispatchPick(); return; }
   // 配队"加入队伍"放入列表：标题栏返回回队伍编辑页（放入页未压栈）
   if (isTeamPicking()) { leaveTeamPick(); return; }
   // 结算页返回：回 NPC 战斗列表（与「返回列表」按钮一致），不弹栈（列表页仍在 battleView 内）
@@ -320,6 +323,15 @@ function tryUseBike() {
 
 // 告别场景（放生确认/悬赏提交/交换展示）是否打开：期间锁定顶部导航、底部三区与背包，防止误点打断流程
 const isGoodbyeActive = () => $('goodbyeView')?.style.display === 'flex';
+// 全屏确认场景总锁：告别/派遣结算/孵蛋动画/经验糖场景/NPC对战/批量放生期间，
+// 顶部导航、底部三区、标题返回、全局快捷键一律禁用，防止误触打断流程
+const isModalLocked = () =>
+  $('goodbyeView')?.style.display === 'flex' ||
+  $('dispatchResultView')?.style.display === 'flex' ||
+  $('hatchView')?.style.display === 'flex' ||
+  $('expCandyView')?.style.display === 'flex' ||
+  (isBattleActive() && $('battleView')?.style.display === 'flex') ||
+  (isBatchReleasing() && $('rosterView')?.style.display === 'flex');
 
 function onBagClick(itemKey) {
   // 告别场景中锁定背包：禁止点击任何道具
@@ -538,10 +550,13 @@ function setupShortcuts() {
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (window.__introActive) return;
+    const key = e.key.toLowerCase();
+    // 全屏场景锁定：字母快捷键一律不响应防误触跳页；Esc 放行（走 goBack 逐级安全退出场景）
+    if (isModalLocked() && key !== 'escape') return;
     const ae = document.activeElement;
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
     if (document.getElementById('confirmBar')) return;
-    switch (e.key.toLowerCase()) {
+    switch (key) {
       case 'g': showGpsView(); break;
       case 't': showPokedex(); break;
       case 'b': showRosterView(); break;
@@ -628,6 +643,7 @@ async function init() {
   if (!gameData.collectedCards) gameData.collectedCards = {}; // 旧存档补齐卡牌收集
   if (!gameData.gachaLogs) gameData.gachaLogs = {}; // 旧存档补齐抽卡记录
   migrateTeams(); // 6 组配队：旧档 team 迁入队伍 1，并建立 gameData.team 镜像引用
+  import('./dispatch.js').then(m => m.ensureDispatch()); // 旧档补齐派遣槽
   initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
   // 旧档迁移：静音开关已并入「音乐」开关（默认播放音乐），清理孤立的 muted 字段
   if (gameData.settings?.muted !== undefined) delete gameData.settings.muted;
@@ -1211,8 +1227,8 @@ async function init() {
   // header 图标：当前页面体系内（图标高亮）再次点击 → 直接返回首页挂机页；否则打开对应页面
   const bindHeaderIcon = (btn, open) => {
     btn?.addEventListener('click', () => {
-      // 告别场景（放生确认/悬赏提交/交换展示）锁定：顶部导航全部禁用
-      if (isGoodbyeActive()) return;
+      // 全屏确认场景（告别/派遣结算）锁定：顶部导航全部禁用
+      if (isModalLocked()) return;
       // 战斗中锁定：仅允许进入设置（返回仍回战斗页），其余页面一律拦截；
       // 中途退出战斗只能通过战斗页的标题栏返回按钮撤退
       if (isBattleActive()) {
@@ -1236,7 +1252,7 @@ async function init() {
   // 统一逻辑：在挂机页面时点击跳转对应页面；不在挂机页面时点击直接返回挂机页面（即"再次点击返回"）。
   // 跳转时同步 prevView，保证标题栏返回按钮也回到挂机/战斗页。
   const footerNav = (open) => () => {
-    if (isGoodbyeActive()) return; // 告别场景锁定：底部三区禁止点击跳转
+    if (isModalLocked()) return; // 全屏确认场景锁定：底部三区禁止点击跳转
     if (isBattleActive()) return; // 战斗中锁定：底部三区同样禁止点击跳转
     open(); // 打开目标页，返回目标由导航栈记录（从哪来回哪去）
   };
@@ -1246,7 +1262,7 @@ async function init() {
   $('statTime')?.addEventListener('click', footerNav(showGpsView));
   // 标题栏返回逻辑：点击 appTitle 与鼠标后侧键（button 4）共用
   const handleAppTitleBack = () => {
-    if (isGoodbyeActive()) return; // 告别场景锁定：标题返回也不处理，只能通过场景内确定/取消退出
+    if (isModalLocked()) return; // 全屏确认场景锁定：标题返回也不处理，只能通过场景内确定退出（派遣结算确定=返回）
     if ($('appTitle').dataset.action !== 'back') return;
     // 孵蛋记录页打开且正处孵蛋器视图：点击标题只关记录页回主列表，否则走正常返回
     if (isIncubatorLogOpen() && $('incubatorView')?.style.display === 'flex') { closeIncubatorLog(); return; }

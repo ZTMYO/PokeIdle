@@ -335,3 +335,51 @@ export const FOLLOWER_GROUP_BOOST = {
   hatch:    'hatchDist',      // 孵蛋所需里程降低
   trade:    'tradeShiny',     // 交换时 NPC 给出闪光概率提升
 };
+
+// ===== 派遣（手机 app，唯一离线收益来源）=====
+export const DISPATCH_SLOTS = 6;              // 槽位总数
+export const DISPATCH_FREE_SLOTS = 2;         // 初始免费解锁槽位数（后续槽位解锁价与孵蛋器一致，走 getIncubatorUnlockCost）
+// 派遣时长档位（小时）与对应收益系数
+export const DISPATCH_DURATIONS = [1, 4, 8, 12, 24];
+export const DISPATCH_DUR_MULT = [1.0, 1.1, 1.25, 1.4, 1.8];
+export const DISPATCH_CANDY_PER_HOUR = 25;    // 糖果/小时（糖果是货币，派遣糖果应占大头；约为在线挂机的 1/3）
+export const DISPATCH_CANDY_JITTER = 0.05;     // 糖果结算随机浮动幅度（±5%）
+export const DISPATCH_EXTRA_CHANCE = 0.5;     // 完成时追加第 2 个道具的概率
+// 速度种族值 → 派遣耗时系数：指数衰减映射，速度越快完成越快（永不超过档位时长）
+export const DISPATCH_SPEED_REF = 100;                                  // 无种族值数据时的兜底速度
+export const DISPATCH_SPEED_MIN = 0.6;                                  // 最快完成 = 60% 时长
+export const DISPATCH_SPEED_MAX = 1.0;                                  // 最慢 = 档位时长，速度只加速不拖慢
+export const DISPATCH_SPEED_DECAY = 64;                                 // 衰减尺度：越大速度差异越平缓，速度 6 → 系数 ≈0.96，速度 80+ → 收敛到 0.63
+export const DISPATCH_SPEED_FLAT = 5;                                   // 面板速度 ≤ 此值：按档位满时长，不加速
+// 派遣道具基础权重（糖果权重参照挂机稀有度，占大头；道具仅少量调味）
+export const DISPATCH_BASE_WEIGHTS = {
+  'candy': 60, 'poke-ball': 14, 'ultra-ball': 6, 'sweet-honey': 4,
+  'exp-candy': 3, 'mystery-egg': 2, 'bike': 2, 'master-ball': 1, 'shiny-charm': 1,
+};
+// 主属性侧重：18 属性各对应一种特色道具，数字为权重增量（非掉落数量），只提高抽中该道具的概率
+export const DISPATCH_TYPE_BOOST = {
+  '一般': { 'candy': 20 },
+  '岩石': { 'candy': 10 }, '地面': { 'candy': 10 },
+  '虫':   { 'sweet-honey': 12 }, '草': { 'sweet-honey': 12 }, '妖精': { 'sweet-honey': 12 },
+  '幽灵': { 'mystery-egg': 8 }, '毒': { 'mystery-egg': 8 },
+  '超能': { 'bike': 8 }, '格斗': { 'bike': 8 },
+  '火':   { 'exp-candy': 8 }, '恶': { 'exp-candy': 8 },
+  '水':   { 'ultra-ball': 6 }, '冰': { 'ultra-ball': 4 },
+  '飞行': { 'poke-ball': 6 }, '电': { 'poke-ball': 6 },
+  '钢':   { 'master-ball': 2 },
+  '龙':   { 'shiny-charm': 6 },
+};
+// 道具单件价值（糖果价体系）：道具数量 = 价值预算 ÷ 单价，便宜的多、贵重的少
+export const DISPATCH_ITEM_VALUE = {
+  'poke-ball': 10, 'ultra-ball': 25, 'sweet-honey': 40, 'exp-candy': 40,
+  'mystery-egg': 100, 'bike': 200, 'master-ball': 500, 'shiny-charm': 1000,
+};
+// 单种道具单次派遣的掉落上限（贵重道具限 1，防止单种爆量）
+export const DISPATCH_ITEM_CAP = {
+  'poke-ball': 10, 'ultra-ball': 5, 'sweet-honey': 4, 'exp-candy': 4,
+  'mystery-egg': 2, 'bike': 2, 'master-ball': 1, 'shiny-charm': 1,
+};
+export const DISPATCH_BOOST_DISCOUNT = 0.5; // 属性侧重时，非侧重道具权重统一打折，突出侧重道具
+export const DISPATCH_VALUE_PER_HOUR = 15; // 道具价值预算 / 实际小时（24h → 约 360 价值，6 格全满约 2100/天）
+export const DISPATCH_PICKS_MAX = 5;       // 单次派遣最多抽取道具种类数
+

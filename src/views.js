@@ -11,7 +11,8 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST,
   GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE,
   TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX,
-  FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE } from './config.js';
+  FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE,
+  DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_VALUE_PER_HOUR, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar } from './ui.js';
 import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
@@ -465,6 +466,12 @@ export function renderSystemLogs() {
       case 'nursery_egg':
         desc = `产下 ${log.details.shiny ? '闪光' : ''}${logName(log)} 的蛋`;
         break;
+      case 'dispatch_start':
+        desc = `${logName(log)} 出发派遣 ${log.details.duration / 60} 小时`;
+        break;
+      case 'dispatch_done':
+        desc = `${logName(log)} 完成派遣，带回${(log.details.rewards || []).map(r => `${ITEM_NAMES[r.key] || r.key}×${r.qty}`).join('、')}`;
+        break;
       case 'pokemon_release':
         desc = `放生了${log.details.shiny ? '闪光' : ''}${logName(log)}`;
         break;
@@ -805,7 +812,7 @@ export function showSettingsView() {
 }
 
 // 捕捉条件表格：遇敌类型 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏）
-// 优先级：神兽/神兽闪 > 可悬赏 > 普通/普通闪；可悬赏行只作用于非神兽遭遇
+// 优先级：神兽/神兽闪 > 普通/普通闪 >可悬赏；可悬赏行只作用于非神兽遭遇
 const CF_ROWS = [
   { key: 'normal', label: '普通' },
   { key: 'normalShiny', label: '普通闪' },
@@ -1595,7 +1602,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '手机',
     html: `<p>点击标题栏的<b>手机</b>按钮进入，里面放着常用的应用（<b>导航</b>、<b>图鉴</b>、<b>孵蛋器</b>、<b>混合器</b>、<b>农场</b>、<b>交换</b>、<b>成就</b>、<b>统计</b>……），也可以查看当前系统时间。</p>`
-      + `<p>滚动滚轮或点击底部圆点可翻到<b>第二页</b>，那里放着<b>日志</b>、<b>饲育屋</b>、<b>训练</b>、<b>配队</b>、<b>对战</b>、<b>游戏厅</b>与<b>卡册</b>应用。科学的力量真伟大！</p>`
+      + `<p>滚动滚轮或点击底部圆点可翻到<b>第二页</b>，那里放着<b>日志</b>、<b>饲育屋</b>、<b>训练</b>、<b>配队</b>、<b>对战</b>、<b>游戏厅</b>、<b>卡册</b>与<b>派遣</b>应用。科学的力量真伟大！</p>`
   },
   {
     title: '图鉴',
@@ -1690,7 +1697,7 @@ const TUTORIAL_SECTIONS = [
 
   {
     title: '糖果',
-    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托、完成悬赏、对战、成就等获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
+    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托、完成悬赏、对战、成就、派遣等获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子、解锁<b>派遣</b>格子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
       + `<p>注意区分道具<b>经验糖果</b>：它不是货币，而是给宝可梦直接加经验的消耗品，只能从 NPC 对战掉落获得（详见「<b>经验糖果</b>」章节）。</p>`
   },
   {
@@ -1896,6 +1903,18 @@ const TUTORIAL_SECTIONS = [
         ], ['属性', '增益'], ['auto', 'auto'])
   },
   {
+    title: '派遣',
+    html: `<p>在<b>手机</b>第二页打开<b>派遣</b>应用：把仓库里的宝可梦派出去探险，带回<b>糖果</b>与道具。初始 <b>${DISPATCH_FREE_SLOTS}</b> 格，更多格子用<b>糖果</b>解锁。</p>`
+      + `<p>放入后槽位上点<b>配置</b>选时长、点<b>出发</b>才开始计时；速度越快的宝可梦完成得越早（耗时系数 <b>${DISPATCH_SPEED_MIN} ~ ${DISPATCH_SPEED_MAX}</b>）。糖果按档位小时结算（基准如下，结算时随机浮动 <b>±${Math.round(DISPATCH_CANDY_JITTER * 100)}%</b>），选更久带倍率加成：</p>`
+      + tutorialTable(DISPATCH_DURATIONS.map((h, i) => [`<b>${h}</b> 小时`, `<b>${h * DISPATCH_CANDY_PER_HOUR}</b> 颗（基准）`, `×<b>${DISPATCH_DUR_MULT[i]}</b>`]), ['时长', '糖果', '档位加成'], [60, 'auto', 'auto'])
+      + `<p>道具方面，每 <b>1 小时</b> 攒 <b>${DISPATCH_VALUE_PER_HOUR}</b> 价值预算，按道具价值分配数量——便宜的堆数量、贵重的限 1 个。不同<b>属性</b>带回的道具侧重不同（按<b>主属性</b>计算，双属性只看第一个）：</p>`
+      + tutorialTable(Object.entries(Object.entries(DISPATCH_TYPE_BOOST).reduce((acc, [type, boost]) => {
+        for (const k of Object.keys(boost)) (acc[k] ||= []).push(type);
+        return acc;
+      }, {})).map(([k, types]) => [ITEM_NAMES[k] || k, types.join('、')]), ['道具', '属性'], ['auto', 'auto'])
+      + `<p>派遣是<b>唯一的离线收益</b>：离线照常计时，完成后领取，宝可梦留在槽位可直接再出发。</p>`,
+  },
+  {
     title: '自动操作',
     html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
       + `<p><b>自动丢球</b>：判定为「捕捉」后会自动<b>连续丢球直到捕获或逃跑</b>。球种按<b>智能选球</b>——<b>神兽或捕获率低</b>的宝可梦优先 <b>大师球→高级球→精灵球</b>，捕获率高的普通宝可梦优先 <b>精灵球</b> 省资源；只在勾选的球种中挑选，优先球种没库存自动顺延。</p>`
@@ -1971,6 +1990,7 @@ const TUTORIAL_SUMMARIES = {
   '口袋麻将': '玩法借鉴自原子碰将，只有对对胡。',
   '抽卡机': '单纯收集卡牌，无特殊作用。',
   '随从': '不知道干什么的时候可以抽一只随从。',
+  '派遣': '离线也计入派遣时长。',
   '自动操作': '好好设置一下，解放双手必备。',
   '佛系模式': '慢节奏玩家可以开启。',
   '系统日志': '开启自动操作后可以经常看看。',

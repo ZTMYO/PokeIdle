@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY, BIKE_RESTORE_MAX_GAP_MS, WILD_LEVEL_MAX } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY, BIKE_RESTORE_MAX_GAP_MS, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -256,6 +256,7 @@ export function getDefaultSave() {
     teams: Array.from({ length: 6 }, (_, i) => ({ name: `队伍${i + 1}`, ids: [] })), // 6 组配队：{ name, ids }
     activeTeam: 0, // 当前上场队伍下标
     training: { slots: [] }, // 训练场：{ slots: [{ id, startAt } | null] }，随时间自动获得经验
+    dispatch: { unlockedSlots: DISPATCH_FREE_SLOTS, slots: [] }, // 派遣：唯一离线收益来源（离线照常计时），格子糖果解锁
     nursery: { parents: [null, null] }, // 饲育屋：{ parents: [{ id, placedAt } | null, ...] }，配对繁殖（与训练/配队互斥）
     casinoRecords: [],   // 21点战绩（滑动窗口 50 条）：{ time, bet, action, result, net }
     mahjongRecords: [],  // 麻将战绩（滑动窗口 50 条，整场一条）：{ time, net, rank, stake }
@@ -540,6 +541,7 @@ export function calcOffline(save) {
     if (save.trades?.refreshedAt) save.trades.refreshedAt += ms;
     // 随从：跟随倒计时只按在线时间累计，离线期间不走表（关闭不计算）
     if (save.follower?.endsAt) save.follower.endsAt += ms;
+    // 派遣：唯一例外——离线照常计时，不后移 startAt，由真实时间自然推进完成
   }
   return elapsed;
 }

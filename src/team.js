@@ -197,12 +197,14 @@ export function addToTeam(id, slot) {
   Promise.all([
     import('./train.js').then(m => m.isTrainingPokemon(id)),
     import('./nursery.js').then(m => m.isNurseryPokemon(id)),
-  ]).then(([inTrain, inNursery]) => {
+    import('./dispatch.js').then(m => m.isDispatchPokemon(id)),
+  ]).then(([inTrain, inNursery, inDispatch]) => {
     const occ = [];
     if (inTrain) occ.push('训练');
     if (inNursery) occ.push('饲育屋');
+    if (inDispatch) occ.push('派遣');
     if (occ.length) {
-      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。加入队伍将自动将其撤下，确定加入？`, () => doAddToTeam(id, slot), null);
+      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。加入队伍将自动将其撤下，确定加入？`, () => doAddToTeam(id, slot), null, { overlay: true });
       return;
     }
     doAddToTeam(id, slot);
@@ -219,9 +221,10 @@ function doAddToTeam(id, slot) {
   arr.splice(0, arr.length, ...next);
   _hint = null; // 加入成员后不再提示"队伍为空"
   saveGame();
-  // 训练/饲育屋/队伍三方互斥：入队后从训练槽与饲育屋移除
+  // 训练/饲育屋/队伍/派遣互斥：入队后从其它槽位移除
   import('./train.js').then(m => m.removeTrainingByPokemon(id));
   import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
+  import('./dispatch.js').then(m => m.removeDispatchByPokemon(id));
   ensureEditTitle();
   render();
   showView('teamView');

@@ -91,7 +91,7 @@ const TUT_ICONS = {
   自行车: 'icon-bike',
   游戏厅: 'icon-casino', '21点': 'icon-blackjack', '口袋麻将': 'icon-mahjong',
   抽卡机: 'icon-album','经验糖果': 'icon-poffin',
-  随从: 'icon-follower',
+  随从: 'icon-follower', 派遣: 'icon-dispatch',
 };
 const tutIcon = (title) => TUT_ICONS[title] || 'icon-tutorial';
 // 判断图标是否为内联 SVG（TUT_ICONS 值以 '<' 开头）而不是 sprite 引用
