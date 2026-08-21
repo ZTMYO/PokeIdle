@@ -985,11 +985,35 @@ body.browser-mode { overflow: auto; }
 .incubator-egg-slot img {
   width: 22px;
   height: 22px;
+  object-fit: contain;
   image-rendering: pixelated;
 }
 .incubator-egg-slot img.shake {
   animation: incubatorShake 0.8s ease-in-out infinite;
   transform-origin: bottom center;
+}
+/* 派遣进行中：无移动素材的图标上下跳动（跳幅 3px 不溢出容器，动画内已含水平翻转） */
+.incubator-egg-slot img.dispatch-cell-icon.dispatch-bob {
+  animation: dispatchBob 0.5s steps(1, end) infinite;
+}
+@keyframes dispatchBob {
+  0%, 55%  { transform: translateY(3px) scaleX(-1); }
+  58%, 68% { transform: translateY(0) scaleX(-1); }
+  71%, 100% { transform: translateY(3px) scaleX(-1); }
+}
+/* 派遣进行中：使用移动帧素材向右行走（素材默认朝右，覆盖静态翻转；切帧循环，视觉约 22px） */
+.incubator-egg-slot img.dispatch-cell-icon.dispatch-move {
+  width: 32px;
+  height: 32px;
+  object-fit: none;
+  object-position: 0px 0px;
+  transform: scale(0.7);
+  transform-origin: center;
+  animation: none;
+}
+/* 派遣静态图标（待出发/完成/空槽放入）默认素材朝左，统一水平翻转朝右 */
+.incubator-egg-slot img.dispatch-cell-icon {
+  transform: scaleX(-1);
 }
 @keyframes incubatorShake {
   0%, 100% { transform: rotate(0deg); }
@@ -1001,10 +1025,24 @@ body.browser-mode { overflow: auto; }
   min-width: 0;
 }
 .incubator-name {
-  display: inline;
+  display: inline-flex;
+  align-items: center;
   font-size: 10px;
   color: var(--ui-color);
   font-weight: 600;
+}
+/* 名字/标题内嵌的来源徽章（闪光/污染/RGB），跟随文字并排显示；尺寸按各自字号适配 */
+.incubator-name svg {
+  width: 8px;
+  height: 8px;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+.berry-picker-title svg {
+  width: 10px;
+  height: 10px;
+  margin-left: 3px;
+  vertical-align: middle;
 }
 .incubator-progress-wrap {
   height: 10px;
@@ -1150,6 +1188,7 @@ body.browser-mode { overflow: auto; }
   transition: background 0.12s;
 }
 .incubator-log-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
+.incubator-log-btn.disabled { opacity: 0.4; pointer-events: none; cursor: default; }
 
 /* 宝可梦蛋列表（挑蛋入槽） */
 .incubator-egg-list {
@@ -2128,6 +2167,8 @@ body.browser-mode { overflow: auto; }
   padding: 2px 0 0;
 }
 .berry-picker-title {
+  display: inline-flex;
+  align-items: center;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 1px;
@@ -3584,7 +3625,7 @@ body.browser-mode { overflow: auto; }
   font-weight: 700;
 }
 /* 来源筛选三级菜单：一级=来源，二级=普通/神兽，三级=闪光（hover 逐级展开） */
-#rosterFilterDropdown, #trainPickSrcFilterDropdown, #teamPickSrcFilterDropdown { max-height: none; overflow: visible; padding: 2px 0; }
+#rosterFilterDropdown, #trainPickSrcFilterDropdown, #teamPickSrcFilterDropdown, #dispatchPickSrcFilterDropdown { max-height: none; overflow: visible; padding: 2px 0; }
 /* 图鉴解锁/稀有度/闪光筛选三级菜单（同仓库样式） */
 #pokedexStatusDropdown { max-height: none; overflow: visible; padding: 2px 0; }
 .roster-filter-item {
@@ -7760,6 +7801,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   text-overflow: ellipsis;
 }
 .npv-range.locked { font-weight: 600; }
+.npv-range.rot-on { color: var(--ui-color); font-weight: 600; }
 /* M2 繁殖区：树果需求 + 开始按钮 / 进度条 / 收取蛋 */
 .nursery-breed {
   margin: 0 8px 8px;

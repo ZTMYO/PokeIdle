@@ -6,10 +6,10 @@ import {
   DISPATCH_SLOTS, DISPATCH_FREE_SLOTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT,
   DISPATCH_CANDY_PER_HOUR, DISPATCH_EXTRA_CHANCE, DISPATCH_SPEED_REF, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_SPEED_DECAY, DISPATCH_SPEED_FLAT,
   DISPATCH_BASE_WEIGHTS, DISPATCH_TYPE_BOOST, DISPATCH_ITEM_VALUE, DISPATCH_ITEM_CAP,
-  DISPATCH_VALUE_PER_HOUR, DISPATCH_PICKS_MAX, REGION_CYCLE, ITEM_NAMES, DISPATCH_BOOST_DISCOUNT, DISPATCH_CANDY_JITTER,
+  DISPATCH_VALUE_PER_HOUR, DISPATCH_PICKS_MAX, REGION_CYCLE, ITEM_NAMES, DISPATCH_BOOST_DISCOUNT, DISPATCH_CANDY_JITTER, DISPATCH_VARIANT_CANDY_BONUS,
 } from './config.js';
 import { removePokemonFromAllTeams, isInAnyTeam } from './team.js';
-import { grantItem, TYPE_COLORS, ITEM_ICONS } from './items.js';
+import { grantItem, TYPE_COLORS, ITEM_ICONS, pokemonSourceBadge } from './items.js';
 import { NATURES } from './battle-core.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
@@ -51,6 +51,9 @@ export function ensureDispatch() {
   }
   if (typeof gameData.dispatch.unlockedSlots !== 'number') gameData.dispatch.unlockedSlots = DISPATCH_FREE_SLOTS;
   while (gameData.dispatch.slots.length < DISPATCH_SLOTS) gameData.dispatch.slots.push(null);
+  // 每槽预设时长（分钟）：空槽配置面板写入；放入宝可梦时作为默认档（替换沿用原槽时长）
+  if (!Array.isArray(gameData.dispatch.slotDurs)) gameData.dispatch.slotDurs = [];
+  while (gameData.dispatch.slotDurs.length < DISPATCH_SLOTS) gameData.dispatch.slotDurs.push(DISPATCH_DURATIONS[0] * 60);
   return gameData.dispatch;
 }
 
@@ -108,6 +111,7 @@ function itemPicks(hours) {
 }
 
 // 糖果基准值（档位小时 × 倍率 + 属性糖果侧重），结算与预览共用；结算时另加随机浮动
+// RGB / 污染（时空扭曲）变体额外糖果加成，预览与结算一致
 function candyBase(entry, durationMin) {
   const poke = getPokemonByIndex(String(entry.species));
   const boost = poke ? DISPATCH_TYPE_BOOST[poke.types?.[0]] : null;
@@ -117,6 +121,9 @@ function candyBase(entry, durationMin) {
   // 属性糖果侧重（一般/岩石/地面）：直接附赠糖果，每 5 权重 → 额外 2 颗/小时
   const candyBoost = boost ? (boost['candy'] || 0) : 0;
   if (candyBoost) candy += Math.round((candyBoost / 5) * hours * 2);
+  if (entry.variant === 'rgb' || entry.variant === 'polluted') {
+    candy = Math.round(candy * (1 + DISPATCH_VARIANT_CANDY_BONUS));
+  }
   return candy;
 }
 
@@ -356,13 +363,16 @@ function addToDispatch(id, slot) {
 }
 
 // 确认放入/重设配置：落槽待出发（startAt 为空），点击槽位「出发」后才开始计时。
-// durationMin 由配置面板传入（_durSel）；替换场景沿用 _pickPreset，否则默认档
+// durationMin 由配置面板传入（_durSel）；否则取槽位预设时长 slotDurs（空槽配置的默认档）；
+// 替换场景沿用 _pickPreset（原槽时长）
 function doAddToDispatch(id, slot, durationMin) {
   const d = ensureDispatch();
   if (slot >= d.unlockedSlots) return;
   const entry = (gameData.roster || []).find(x => x.id === id);
   if (!entry) return;
-  d.slots[slot] = { id, durationMin: durationMin || _pickPreset || DISPATCH_DURATIONS[0] * 60, startAt: null, done: false };
+  const presetDurs = d.slotDurs || [];
+  const useMin = durationMin || _pickPreset || presetDurs[slot] || DISPATCH_DURATIONS[0] * 60;
+  d.slots[slot] = { id, durationMin: useMin, startAt: null, done: false };
   _pending = null;
   _durSel = DISPATCH_DURATIONS[0] * 60;
   removePokemonFromAllTeams(id);
@@ -434,12 +444,11 @@ function closeDurPanel() {
   _pending = null;
 }
 
-function openDurPanel(id, slot, presetMin) {
-  const entry = (gameData.roster || []).find(x => x.id === id);
-  if (!entry) return;
+// 打开时长面板。entry 为空表示空槽「配置」：只设槽位预设时长，不确定宝可梦
+function openDurPanel(entry, slot, presetMin) {
   const d = ensureDispatch();
   if (slot >= d.unlockedSlots) return;
-  _pending = { id, slot };
+  _pending = { id: entry ? entry.id : null, slot, empty: !entry };
   _durSel = presetMin || DISPATCH_DURATIONS[0] * 60;
   const host = durHost();
   host.innerHTML = durPanelHtml(entry);
@@ -449,18 +458,18 @@ function openDurPanel(id, slot, presetMin) {
 }
 
 function durPanelHtml(entry) {
-  const poke = getPokemonByIndex(String(entry.species));
-  const name = entry.nickname || (poke ? poke.name : `#${entry.species}`);
-  const speed = speedOf(entry);
-  const mult = speedMultOf(entry);
-  const shiny = entry.shiny ? '★' : '';
+  const poke = entry ? getPokemonByIndex(String(entry.species)) : null;
+  const name = entry ? (entry.nickname || (poke ? poke.name : `#${entry.species}`)) : '空槽';
+  const speedInfo = entry
+    ? `<div class="dispatch-dur-info">速度 ${Math.round(speedOf(entry))} · 完成耗时 ×${speedMultOf(entry).toFixed(2)}</div>`
+    : `<div class="dispatch-dur-info">预设在空槽上，放入宝可梦后按此档位出发</div>`;
   return `
     <div class="berry-picker dispatch-dur-panel">
       <div class="berry-picker-head">
-        <span class="berry-picker-title">派遣 ${name}${shiny}</span>
+        <span class="berry-picker-title">配置 ${name}${entry ? pokemonSourceBadge(entry) : ''}</span>
         <div class="berry-picker-x" data-dur-close>✕</div>
       </div>
-      <div class="dispatch-dur-info">速度 ${Math.round(speed)} · 完成耗时 ×${mult.toFixed(2)}</div>
+      ${speedInfo}
       <div class="dispatch-dur-row">
         ${DISPATCH_DURATIONS.map((h) => `
           <button class="dispatch-dur-btn${h * 60 === _durSel ? ' active' : ''}" data-dur="${h * 60}">
@@ -468,7 +477,7 @@ function durPanelHtml(entry) {
           </button>`).join('')}
       </div>
       <div class="dispatch-dur-preview" id="dispatchDurPreview"></div>
-      <button class="dispatch-dur-start" data-dur-start>确定</button>
+      <button class="dispatch-dur-start" data-dur-start>${entry ? '确定' : '设为槽位时长'}</button>
     </div>`;
 }
 
@@ -476,10 +485,12 @@ function bindDurPanel(host, entry) {
   const btns = [...host.querySelectorAll('.dispatch-dur-btn')];
   const preview = host.querySelector('#dispatchDurPreview');
   const refreshPreview = () => {
+    const [pLo, pHi] = itemPickRange(_durSel / 60);
+    if (preview) preview.textContent = `道具 ${pLo}~${pHi} 种`;
+    if (!entry) return;
     const base = candyBase(entry, _durSel); // 含属性侧重，不含随机浮动
     const lo = Math.floor(base * (1 - DISPATCH_CANDY_JITTER));
     const hi = Math.ceil(base * (1 + DISPATCH_CANDY_JITTER));
-    const [pLo, pHi] = itemPickRange(_durSel / 60);
     if (preview) preview.textContent = `糖果 ${lo}~${hi} · 道具 ${pLo}~${pHi} 种`;
   };
   btns.forEach(btn => btn.addEventListener('click', (e) => {
@@ -492,6 +503,15 @@ function bindDurPanel(host, entry) {
   host.querySelector('[data-dur-start]')?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!_pending) return;
+    if (_pending.empty) {
+      // 空槽配置：只写入槽位预设时长，不清空 _pickPreset 相关状态
+      const d = ensureDispatch();
+      d.slotDurs[_pending.slot] = _durSel;
+      saveGame();
+      closeDurPanel();
+      render();
+      return;
+    }
     doAddToDispatch(_pending.id, _pending.slot, _durSel);
   });
   refreshPreview();
@@ -517,7 +537,9 @@ function render() {
       <span></span>
       ${doneCount
         ? `<button class="incubator-log-btn" data-claim-all>一键领取</button>`
-        : (launchCount ? `<button class="incubator-log-btn" data-launch-all>一键出发</button>` : '')}
+        : (launchCount
+            ? `<button class="incubator-log-btn" data-launch-all>一键出发</button>`
+            : `<button class="incubator-log-btn disabled" data-claim-all disabled>一键领取</button>`)}
     </div>
     <div class="incubator-grid">
       ${d.slots.map((slot, i) => cellHtml(slot, i, d)).join('')}
@@ -541,10 +563,20 @@ function cellHtml(slot, i, d) {
   const entry = slot && (gameData.roster || []).find(x => x.id === slot.id);
   if (!slot || !entry || entry.inRoster === false) {
     const plus = '<span style="font-size:14px;color:var(--ui-color);transform:translateY(-2px);">+</span>';
+    // 空槽：保留放入入口（+），旁边提供「配置」（设槽位预设时长）与禁用的「出发」
+    const presetMin = (d.slotDurs || [])[i] || DISPATCH_DURATIONS[0] * 60;
+    const hours = presetMin / 60;
+    const hoursTxt = Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
     return `
     <div class="incubator-row">
       <div class="incubator-egg-slot" data-slot="${i}" style="cursor:pointer;">${plus}</div>
-      <div class="incubator-info"><div class="incubator-name">空派遣格</div></div>
+      <div class="incubator-info">
+        <div class="dispatch-launch-actions">
+          <span class="incubator-hatch-text" data-config="${i}">配置</span>
+          <span class="incubator-hatch-text disabled" style="pointer-events:none;">出发</span>
+        </div>
+        <div class="dispatch-launch-time">预设 ${hoursTxt}h</div>
+      </div>
     </div>`;
   }
   if (slot.done) {
@@ -575,10 +607,12 @@ function cellHtml(slot, i, d) {
   const total = endAt - slot.startAt;
   const remain = Math.max(0, endAt - Date.now());
   const ratio = Math.min(100, Math.max(0, (1 - remain / total) * 100));
+  const pokeName = entry.nickname || (getPokemonByIndex(String(entry.species))?.name || `#${entry.species}`);
   return `
     <div class="incubator-row">
       <div class="incubator-egg-slot has-egg"><img class="dispatch-cell-icon" data-icon="${entry.species}" data-menu="${i}" style="cursor:pointer;" alt="" /></div>
       <div class="incubator-info">
+        <div class="incubator-name">${pokeName}${pokemonSourceBadge(entry)}</div>
         <div class="incubator-progress-wrap">
           <div class="incubator-progress-fill" data-dfill="${i}" style="width:${ratio.toFixed(1)}%"></div>
           <div class="incubator-progress-text" data-dtime="${i}">${fmtRemain(remain)}</div>
@@ -587,7 +621,8 @@ function cellHtml(slot, i, d) {
     </div>`;
 }
 
-// ---------- 槽位操作菜单（查看/替换/移除，复用配队样式） ----------
+// ---------- 槽位操作菜单（复用配队样式） ----------
+// 派遣中：只提供「查看 / 结束」（强制作废，需二次确认）；待出发/已完成保留「查看 / 替换 / 移除」
 let _menuEl = null;
 let _menuSlot = -1;
 let _menuSlotEl = null;
@@ -615,7 +650,13 @@ function openDispatchMenu(e, i) {
   const r = box.getBoundingClientRect();
   const menu = document.createElement('div');
   menu.className = 'team-menu';
-  menu.innerHTML = `
+  // 派遣中（已出发计时）只允许查看/结束；其余状态保留替换/移除
+  const active = slot.startAt != null && !slot.done;
+  menu.innerHTML = active
+    ? `
+    <button data-menu-act="view">查看</button>
+    <button data-menu-act="end">结束</button>`
+    : `
     <button data-menu-act="view">查看</button>
     <button data-menu-act="replace">替换</button>
     <button data-menu-act="remove">移除</button>`;
@@ -635,6 +676,8 @@ function openDispatchMenu(e, i) {
       }));
     } else if (act.dataset.menuAct === 'replace') {
       replaceDispatch(idx);
+    } else if (act.dataset.menuAct === 'end') {
+      endDispatch(idx);
     } else {
       cancelDispatch(idx);
     }
@@ -682,6 +725,20 @@ function cancelDispatch(i) {
   render();
 }
 
+// 结束派遣：强制终止进行中的任务，作废本次收益（需二次确认）；宝可梦留在槽位回到待出发，可再出发
+function endDispatch(i) {
+  const d = ensureDispatch();
+  const slot = d.slots[i];
+  if (!slot || slot.done || slot.startAt == null) return;
+  const entry = (gameData.roster || []).find(x => x.id === slot.id);
+  const name = entry ? (entry.nickname || getPokemonByIndex(String(entry.species))?.name || `#${entry.species}`) : '该宝可梦';
+  showConfirmBar(`结束${name}本次派遣，收益将作废，确定？`, () => {
+    slot.startAt = null;
+    saveGame();
+    render();
+  }, null, { overlay: true });
+}
+
 // 待出发槽：点击「出发」才开始派遣（开始计时）
 function launchSlot(i) {
   const d = ensureDispatch();
@@ -695,14 +752,18 @@ function launchSlot(i) {
   render();
 }
 
-// 待出发槽：重新打开时长面板调整配置，确定后按新时长重新落槽
+// 待出发槽：重新打开时长面板调整配置，确定后按新时长重新落槽；空槽同样可配置预设时长
 function configSlot(i) {
   const d = ensureDispatch();
   const slot = d.slots[i];
-  if (!slot || slot.done || slot.startAt != null) return;
+  if (slot && (slot.done || slot.startAt != null)) return;
+  if (!slot) {
+    openDurPanel(null, i, (d.slotDurs || [])[i]);
+    return;
+  }
   const entry = (gameData.roster || []).find(x => x.id === slot.id);
   if (!entry || entry.inRoster === false) return;
-  openDurPanel(entry.id, i, slot.durationMin);
+  openDurPanel(entry, i, slot.durationMin);
 }
 
 // 点击菜单外空白处关闭菜单
@@ -760,13 +821,20 @@ function launchAll() {
   render();
 }
 
-// 加载格子宝可梦图标
+// ---------- 派遣槽位图标 ----------
+// 加载格子宝可梦图标：进行中槽位统一上下跳动（与交换页 NPC 旁图标一致），其余状态静态
 function loadCellIcons(root) {
   // 主列表图标（放入列表的行图标走 pickRowHtml 内部分片加载）
   if (_pickSlot != null) return;
+  const d = ensureDispatch();
   root.querySelectorAll('.dispatch-cell-icon[data-icon]').forEach(img => {
+    const i = +img.dataset.menu;
+    const slot = d.slots[i];
     const poke = getPokemonByIndex(img.dataset.icon);
-    if (poke?.icon) tryLoadImage(img, poke.icon);
+    if (!poke?.icon) return;
+    const isActive = !!(slot && slot.startAt != null && !slot.done);
+    if (isActive) img.classList.add('dispatch-bob');
+    tryLoadImage(img, poke.icon);
   });
 }
 
@@ -831,7 +899,7 @@ export function leaveDispatchPick() {
 function renderPickPage(box) {
   box.style.padding = '0';
   box.innerHTML = `
-    <div class="view-list" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+    <div class="view-list" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:visible;">
       <div class="pokedex-progress" id="dispatchPickProgress">
         <span id="dispatchPickProgressCount"></span>
       </div>
@@ -987,7 +1055,7 @@ function pickRowHtml(p) {
   return `
   <div class="pokedex-entry roster-row bounty-trade-row" data-pick-view="${p.id}">
     <span class="roster-icon">${icon}</span>
-    <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
+    <span class="pokedex-star">${pokemonSourceBadge(p)}</span>
     <span class="pokedex-name">${name}</span>
     <span class="roster-lv-col">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
     <span class="roster-iv">${Math.round(speedOf(p))}</span>

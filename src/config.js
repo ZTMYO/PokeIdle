@@ -169,6 +169,7 @@ export const SPECIAL_SPRITE_SCALE = {
   '0497': 0.8,  // 君主蛇
   '0550': 0.7, // 野蛮鲈鱼
   '0604': 0.65,  // 麻麻鳗鱼王
+  '0843': 0.5, // 沙包蛇
   '0844': 0.5, // 沙螺蟒
   '0950': 0.7, // 毛崖蟹
   '0968': 0.7, // 拖拖蚓
@@ -344,6 +345,7 @@ export const DISPATCH_DURATIONS = [1, 4, 8, 12, 24];
 export const DISPATCH_DUR_MULT = [1.0, 1.1, 1.25, 1.4, 1.8];
 export const DISPATCH_CANDY_PER_HOUR = 25;    // 糖果/小时（糖果是货币，派遣糖果应占大头；约为在线挂机的 1/3）
 export const DISPATCH_CANDY_JITTER = 0.05;     // 糖果结算随机浮动幅度（±5%）
+export const DISPATCH_VARIANT_CANDY_BONUS = 0.25; // 时空扭曲的 RGB/污染宝可梦派遣糖果加成（特色联动）
 export const DISPATCH_EXTRA_CHANCE = 0.5;     // 完成时追加第 2 个道具的概率
 // 速度种族值 → 派遣耗时系数：指数衰减映射，速度越快完成越快（永不超过档位时长）
 export const DISPATCH_SPEED_REF = 100;                                  // 无种族值数据时的兜底速度
@@ -356,18 +358,17 @@ export const DISPATCH_BASE_WEIGHTS = {
   'candy': 60, 'poke-ball': 14, 'ultra-ball': 6, 'sweet-honey': 4,
   'exp-candy': 3, 'mystery-egg': 2, 'bike': 2, 'master-ball': 1, 'shiny-charm': 1,
 };
-// 主属性侧重：18 属性各对应一种特色道具，数字为权重增量（非掉落数量），只提高抽中该道具的概率
+// 主属性侧重：18 属性各对应一种特色道具，数字为权重增量（非掉落数量），只提高抽中该道具的概率。
+// 贵重的（大师球/闪耀护符）不设侧重，留在全随机池按基础权重掉落，避免被某一属性定向刷
 export const DISPATCH_TYPE_BOOST = {
   '一般': { 'candy': 20 },
   '岩石': { 'candy': 10 }, '地面': { 'candy': 10 },
   '虫':   { 'sweet-honey': 12 }, '草': { 'sweet-honey': 12 }, '妖精': { 'sweet-honey': 12 },
-  '幽灵': { 'mystery-egg': 8 }, '毒': { 'mystery-egg': 8 },
+  '幽灵': { 'mystery-egg': 8 }, '毒': { 'mystery-egg': 8 }, '龙': { 'mystery-egg': 6 },
   '超能': { 'bike': 8 }, '格斗': { 'bike': 8 },
   '火':   { 'exp-candy': 8 }, '恶': { 'exp-candy': 8 },
-  '水':   { 'ultra-ball': 6 }, '冰': { 'ultra-ball': 4 },
+  '水':   { 'ultra-ball': 6 }, '冰': { 'ultra-ball': 4 }, '钢': { 'ultra-ball': 4 },
   '飞行': { 'poke-ball': 6 }, '电': { 'poke-ball': 6 },
-  '钢':   { 'master-ball': 2 },
-  '龙':   { 'shiny-charm': 6 },
 };
 // 道具单件价值（糖果价体系）：道具数量 = 价值预算 ÷ 单价，便宜的多、贵重的少
 export const DISPATCH_ITEM_VALUE = {

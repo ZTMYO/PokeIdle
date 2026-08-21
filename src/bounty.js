@@ -7,7 +7,7 @@ import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BO
 import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
-import { pickFamily } from './items.js';
+import { pickFamily, pokemonSourceBadge } from './items.js';
 
 // 日期字符串（YYYY-MM-DD，本地时区）
 function dateStr(d = new Date()) {
@@ -311,7 +311,7 @@ function renderBountyTrade(content, regionIdx, bi) {
         return `
         <div class="pokedex-entry roster-row bounty-trade-row" data-trade-view="${p.id}">
           <span class="roster-icon">${icon}</span>
-          <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
+          <span class="pokedex-star">${pokemonSourceBadge(p)}</span>
           <span class="roster-ivs">${ivsText}</span>
           <span class="roster-nature">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">提交</button></span>

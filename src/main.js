@@ -323,14 +323,15 @@ function tryUseBike() {
 
 // 告别场景（放生确认/悬赏提交/交换展示）是否打开：期间锁定顶部导航、底部三区与背包，防止误点打断流程
 const isGoodbyeActive = () => $('goodbyeView')?.style.display === 'flex';
-// 全屏确认场景总锁：告别/派遣结算/孵蛋动画/经验糖场景/NPC对战/批量放生期间，
-// 顶部导航、底部三区、标题返回、全局快捷键一律禁用，防止误触打断流程
+// 全屏确认场景总锁：告别/派遣结算/孵蛋动画/经验糖/批量放生期间，
+// 顶部导航、底部三区、标题返回、全局快捷键一律禁用，防止误触打断流程。
+// 注意：NPC 对战（isBattleActive）不在此列——战斗中的「撤退」是合法操作（标题返回/Esc 均可），
+// 跳转锁定由各入口自己的 isBattleActive() 拦截单独负责（header/footer 已实现）
 const isModalLocked = () =>
   $('goodbyeView')?.style.display === 'flex' ||
   $('dispatchResultView')?.style.display === 'flex' ||
   $('hatchView')?.style.display === 'flex' ||
   $('expCandyView')?.style.display === 'flex' ||
-  (isBattleActive() && $('battleView')?.style.display === 'flex') ||
   (isBatchReleasing() && $('rosterView')?.style.display === 'flex');
 
 function onBagClick(itemKey) {
@@ -552,7 +553,8 @@ function setupShortcuts() {
     if (window.__introActive) return;
     const key = e.key.toLowerCase();
     // 全屏场景锁定：字母快捷键一律不响应防误触跳页；Esc 放行（走 goBack 逐级安全退出场景）
-    if (isModalLocked() && key !== 'escape') return;
+    // 战斗中同样禁用字母键（跳页会打断对局），Esc 保留用于撤退
+    if ((isModalLocked() || isBattleActive()) && key !== 'escape') return;
     const ae = document.activeElement;
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
     if (document.getElementById('confirmBar')) return;

@@ -6,7 +6,7 @@ import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TR
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
-import { TYPE_COLORS, pickFamily } from './items.js';
+import { TYPE_COLORS, pickFamily, pokemonSourceBadge } from './items.js';
 import { NATURES } from './battle-core.js';
 import { playCongratulation } from './audio.js';
 
@@ -530,7 +530,7 @@ function renderSelect(content, offerId) {
         return `
         <div class="pokedex-entry roster-row bounty-trade-row" data-trade-view="${p.id}">
           <span class="roster-icon"><img class="roster-icon-img" data-trade-icon="${p.id}" alt="" /></span>
-          <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
+          <span class="pokedex-star">${pokemonSourceBadge(p)}</span>
           <span class="roster-ivs">${ivsText}</span>
           <span class="roster-nature">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
           <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-trade-submit="${p.id}">交换</button></span>

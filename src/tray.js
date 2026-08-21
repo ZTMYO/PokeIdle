@@ -286,7 +286,16 @@ function buildStatusText() {
   let tradeTxt = '可交换: 0';
   if (g) tradeTxt = `可交换: ${countTradableOffers()}`;
 
-  return ['地点：' + loc, '主角：' + hero, '模式：' + mode, '农场：' + farmTxt, '饲育屋：' + nurseryTxt, '悬赏：' + bountyTxt, tradeTxt, egg].join('\n');
+  // 派遣：已完成数 / 已完成+进行中 的任务总数（不含空槽与未解锁槽）
+  let dispatchTxt = '0/0';
+  if (g && g.dispatch && Array.isArray(g.dispatch.slots)) {
+    const filled = g.dispatch.slots.filter(s => s && (s.done || s.startAt != null));
+    if (filled.length > 0) {
+      dispatchTxt = `${filled.filter(s => s.done).length}/${filled.length}`;
+    }
+  }
+
+  return ['地点：' + loc, '主角：' + hero, '模式：' + mode, '农场：' + farmTxt, '饲育屋：' + nurseryTxt, '悬赏：' + bountyTxt, '派遣：' + dispatchTxt + '已完成', tradeTxt, egg].join('\n');
 }
 
 // 推送悬停状态文本

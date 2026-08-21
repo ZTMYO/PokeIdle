@@ -468,6 +468,13 @@ function tintBlockVisual() {
   });
 }
 
+// 目标宝可梦文案：已解锁图鉴 → 概率提示；配方正确但未见到过（图鉴未解锁）→ 调侃引导；无目标 → 当地没人吃
+function blockTargetText(target, targetCaught, quality) {
+  if (target && targetCaught) return `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`;
+  if (target) return '图鉴没有解锁此宝可梦，配方无法生效';
+  return '当地没有宝可梦喜欢吃这个配方！';
+}
+
 function cooldownHtml() {
   const target = findBerryTarget(blockRecipe);
   const targetCaught = !!(target && (gameData.pokedex?.[String(target.index)]?.caught || 0) > 0);
@@ -481,9 +488,7 @@ function cooldownHtml() {
         <div class="mixer-cool-quality ${blockQuality}">${quality.label}</div>
         <div class="mixer-cool-timer">剩余 <span id="mixerCoolMeters">${blockMetersRemaining()}</span> 米</div>
         <div class="mixer-result-target show">
-          ${targetCaught
-            ? `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`
-            : '当地没有宝可梦喜欢吃这个配方！'}
+          ${blockTargetText(target, targetCaught, quality)}
         </div>
       </div>
       <button class="bottom-dock" id="mixerCancelBtn">取消使用</button>
@@ -760,9 +765,7 @@ function showResult() {
         <img class="mixer-block-visual" id="mixerResultCube" src="./items/cube.png" alt="树果方块" />
         <div class="mixer-result-berries">${berryImgsHtml(recipe)}</div>
         <div class="mixer-result-target" id="mixerResultTarget">
-          ${target && targetCaught
-            ? `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`
-            : '当地没有宝可梦喜欢吃这个配方！'}
+          ${blockTargetText(target, targetCaught, quality)}
         </div>
       </div>
       <div class="mixer-result-actions">
@@ -794,7 +797,7 @@ function showResult() {
 }
 
 // 结果页（领取页）地区监听：冷却页已有里程轮询刷新，结果页同样需要跨地区即时切换
-// 「遇敌时 X% 概率…」↔「当地没有宝可梦喜欢吃这个配方！」。只更新文案元素，
+// 三种文案（已解锁概率 / 未解锁调侃 / 当地无人吃）随地区变化即时更新。只更新文案元素，
 // 不整页重渲染（避免重播飞入动画与获得音效）。
 function startResultRegionWatch() {
   clearResultRegionWatch();
@@ -811,11 +814,7 @@ function startResultRegionWatch() {
     const targetCaught = !!(target && (gameData.pokedex?.[String(target.index)]?.caught || 0) > 0);
     const quality = BLOCK_QUALITY[s.quality || 'good'] || BLOCK_QUALITY.good;
     const el = $('mixerResultTarget');
-    if (el) {
-      el.textContent = targetCaught
-        ? `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`
-        : '当地没有宝可梦喜欢吃这个配方！';
-    }
+    if (el) el.textContent = blockTargetText(target, targetCaught, quality);
   }, 500);
 }
 
