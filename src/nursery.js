@@ -6,6 +6,7 @@ import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender
 import { matchPinyinPartial } from './pokedex.js';
 import { BERRY_ICONS, BERRY_NAMES, TYPE_COLORS } from './items.js';
 import { ensureBerryFarm } from './berry.js';
+import { removePokemonFromAllTeams } from './team.js';
 import { REGION_CYCLE } from './config.js';
 
 const BERRY_DIR = './items/berries/';
@@ -76,6 +77,7 @@ let _pickTypeFilter = '';     // 放入列表属性筛选
 let _pickRegionFilter = '';   // 放入列表地区筛选
 let _pickIvSel = [];        // 放入列表个体值多选：[{stat,min}]，全部条件需同时满足（AND）
 let _eggView = false;         // 蛋仓库视图
+let _confirmTakeSlot = -1;    // 双击取出：第一次点击进入待确认的槽位（-1=无）
 let _eggQuery = '';           // 蛋搜索关键词
 let _eggSortBy = null;    // 蛋列表排序列：null=默认按时间降序 | name | iv
 let _eggSortDir = -1;     // 1 升序 / -1 降序
@@ -189,10 +191,8 @@ export function addToNursery(id, slot) {
   if (n.parents[slot]) return; // 目标槽已被占用则不处理
   n.parents[slot] = { id, placedAt: Date.now() };
   _pickSearch = ''; // 放入成功后清空搜索词，避免放第二只时残留第一只页面的输入
-  // 饲育屋中的宝可梦不能留在配队队伍 / 训练槽里
-  if (Array.isArray(gameData.team)) {
-    gameData.team = gameData.team.filter(x => x !== id);
-  }
+  // 饲育屋中的宝可梦不能留在任何配队队伍 / 训练槽里
+  removePokemonFromAllTeams(id);
   import('./train.js').then(m => m.removeTrainingByPokemon(id));
   saveGame();
   render();
@@ -774,6 +774,7 @@ function boardHost() {
 }
 
 function openBoard() {
+  _confirmTakeSlot = -1; // 新打开面板不残留上次的待确认态
   const host = boardHost();
   host.innerHTML = boardHtml();
   host.style.display = '';
@@ -783,6 +784,7 @@ function openBoard() {
 }
 
 function closeBoard() {
+  _confirmTakeSlot = -1;
   const host = $('nurseryBoardHost');
   if (!host) return;
   host.innerHTML = '';
@@ -955,7 +957,7 @@ function slotHtml(slot, i) {
   return `<div class="nursery-slot" data-slot="${i}" title="${tip}">
     <img class="nursery-slot-icon" data-icon="${entry.species}" alt="">
     <div class="nursery-slot-info">
-      <div class="nursery-slot-name">${name}${shiny}<em>${genderBadge(ensureGender(entry))}</em></div>
+      <div class="nursery-slot-name">${_confirmTakeSlot === i ? '再次点击取出' : `${name}${shiny}<em>${genderBadge(ensureGender(entry))}</em>`}</div>
       <div class="nursery-slot-egg">${egg}</div>
     </div>
   </div>`;
@@ -1337,7 +1339,20 @@ function bindSlots(host) {
       const n = ensureNursery();
       const i = Number(el.dataset.slot);
       if (n.parents[i]) {
-        removeParent(i);
+        // 二次确认仅限繁殖中取出（会终止剩余轮次）：未开始/已完成直接取出，繁殖中需双击确认
+        if (breedingState(n).key !== 'running') {
+          _confirmTakeSlot = -1;
+          removeParent(i);
+          return;
+        }
+        // 双击取出：第一次点击进入待确认态（上方文字提示），再次点击同槽才真正取出
+        if (_confirmTakeSlot === i) {
+          _confirmTakeSlot = -1;
+          removeParent(i);
+        } else {
+          _confirmTakeSlot = i;
+          refreshBoard();
+        }
       } else {
         // 关闭面板，切到全页"放入宝可梦"列表
         closeBoard();

@@ -17,9 +17,9 @@
   --item-border: rgba(0,0,0,0.08);
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; outline: none !important; user-select: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none !important; user-select: none; -webkit-tap-highlight-color: transparent; }
 input, textarea { user-select: text; }
-button { -webkit-tap-highlight-color: transparent; user-select: none; }
+button { user-select: none; }
 button:focus { outline: none !important; box-shadow: none !important; }
 
 html, body {
@@ -1581,7 +1581,8 @@ body.browser-mode { overflow: auto; }
 }
 #quitDialog.open { display: flex; }
 
-#quitDialog .dialog-box {
+#quitDialog .dialog-box,
+#gpsDestDialog .dialog-box {
   position: relative;
   background: var(--console-body);
   border: 2px solid var(--ui-color);
@@ -1590,7 +1591,8 @@ body.browser-mode { overflow: auto; }
   padding: 12px 16px;
   min-width: 160px;
 }
-#quitDialog .dialog-title {
+#quitDialog .dialog-title,
+#gpsDestDialog .dialog-title {
   font-size: 12px;
   font-weight: 700;
   color: var(--ui-color);
@@ -1598,7 +1600,8 @@ body.browser-mode { overflow: auto; }
   margin-bottom: 10px;
 }
 /* 右上角关闭叉 */
-#quitDialog .quit-close {
+#quitDialog .quit-close,
+#gpsDestDialog .quit-close {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -1615,9 +1618,12 @@ body.browser-mode { overflow: auto; }
   cursor: pointer;
   transition: opacity 0.12s;
 }
-#quitDialog .quit-close:hover { opacity: 1; }
-#quitDialog .quit-close svg { width: 11px; height: 11px; fill: currentColor; }
-#quitDialog .dialog-opt {
+#quitDialog .quit-close:hover,
+#gpsDestDialog .quit-close:hover { opacity: 1; }
+#quitDialog .quit-close svg,
+#gpsDestDialog .quit-close svg { width: 11px; height: 11px; fill: currentColor; }
+#quitDialog .dialog-opt,
+#gpsDestDialog .dialog-opt {
   display: block;
   width: fit-content;
   margin: 0 auto 8px;
@@ -1633,9 +1639,57 @@ body.browser-mode { overflow: auto; }
   user-select: none;
   transition: background 0.12s, transform 0.06s;
 }
-#quitDialog .dialog-opt:last-of-type { margin-bottom: 0; }
-#quitDialog .dialog-opt:hover { opacity: 1; }
-#quitDialog .dialog-opt:active { transform: translateY(2px); }
+#quitDialog .dialog-opt:last-of-type,
+#gpsDestDialog .dialog-opt:last-of-type { margin-bottom: 0; }
+#quitDialog .dialog-opt:hover,
+#gpsDestDialog .dialog-opt:hover { opacity: 1; }
+#quitDialog .dialog-opt:active,
+#gpsDestDialog .dialog-opt:active { transform: translateY(2px); }
+
+/* ===== 导航目的地选择框（点击底部"点击地图选择目的地"弹出） ===== */
+#gpsDestDialog {
+  position: absolute;
+  inset: 0;
+  z-index: 99;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.25);
+}
+#gpsDestDialog.open { display: flex; }
+#gpsDestDialog .dialog-box { min-width: 210px; }
+.gps-dest-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gps-dest-events {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.gps-dest-btn {
+  padding: 7px 4px;
+  border: 2px solid var(--ui-color);
+  border-radius: 6px;
+  background: var(--screen-bg);
+  opacity: 0.8;
+  color: var(--ui-color);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s, transform 0.06s;
+}
+.gps-dest-btn:hover { opacity: 1; }
+.gps-dest-btn:active { transform: translateY(2px); }
+/* 底部"点击地图选择目的地"提示可点击（父容器 pointer-events:none，需单独放开） */
+.gps-pick-dest {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.gps-pick-dest:hover { color: var(--ui-color-dark); }
 
 /* ===== 图鉴列表 ===== */
 /* 列表型页面容器：图鉴/仓库/饲育屋放入页共用的边距、字号、颜色 */
@@ -3624,6 +3678,7 @@ body.browser-mode { overflow: auto; }
   flex-shrink: 0;
   padding-right: 1px;
 }
+.pokedex-star svg { width: 10px; height: 10px; vertical-align: -2px; }
 .pokedex-name {
   flex: 1;
   min-width: 0;
@@ -3692,6 +3747,16 @@ body.browser-mode { overflow: auto; }
 }
 .shop-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
 .shop-btn:active { transform: scale(0.95); }
+.shop-mode-btn {
+  font-size: 9px;
+  padding: 2px 6px;
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  color: var(--ui-color);
+  font-weight: 700;
+  cursor: pointer;
+}
+.shop-mode-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
 
 /* 商店批量兑换右键菜单（钱不够的选项降透明度并禁用） */
 .shop-ctx-menu {
@@ -3806,7 +3871,7 @@ body.browser-mode { overflow: auto; }
   user-select: none;
 }
 .tutorial-nav-item {
-  padding: 4px 6px;
+  padding: 4px 9px 4px 6px;
   margin-bottom: 2px;
   border-radius: 3px;
   cursor: pointer;
@@ -3819,6 +3884,7 @@ body.browser-mode { overflow: auto; }
   display: flex;
   align-items: center;
   gap: 4px;
+  position: relative;
 }
 .tutorial-nav-icon {
   width: 12px;
@@ -3847,6 +3913,39 @@ body.browser-mode { overflow: auto; }
   border-bottom: 1px solid rgba(var(--ui-color-rgb),0.2);
   padding-bottom: 3px;
   margin-bottom: 6px;
+}
+/* 教程章节红点（未领取奖励时显示在左侧导航项右侧，颜色与标题栏红点一致） */
+.tutorial-nav-badge {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #e74c3c;
+}
+/* 教程标题行：标题 + 右侧领取糖果按钮同行（覆盖标题自带的底部边框，避免多余下划线） */
+.tutorial-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tutorial-title-row .tutorial-title {
+  flex: 1;
+  min-width: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+/* 教程领取按钮：无背景色，仅边框描边；hover 轻微提亮 */
+.tutorial-claim-btn { flex-shrink: 0; background: transparent; }
+.tutorial-claim-btn:hover:not(:disabled) { background: rgba(var(--ui-color-rgb), 0.15); }
+.tutorial-claim-btn .candy-icon {
+  width: 11px;
+  height: 11px;
+  image-rendering: pixelated;
+  vertical-align: -2px;
 }
 .settings-group {
   padding: 0 0 6px;
@@ -4127,6 +4226,9 @@ body.browser-mode { overflow: auto; }
 .cf-cell.lv {
   cursor: default;
   padding: 2px;
+}
+/* 等级输入框用内层 flex 容器排列，td 保持 table-cell 以免边框合并失效产生双线 */
+.cf-cell.lv .cf-lv-inner {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4540,8 +4642,8 @@ body.browser-mode { overflow: auto; }
 .roster-header, .roster-row { gap: 2px; }
 /* 仓库的闪光星标列更窄，避免图标与编号之间空出太多 */
 .roster-header .pokedex-star, .roster-row .pokedex-star { width: 8px; padding-right: 0; }
-/* 时空扭曲变体（RGB/污染）的 ◐ 标记比星星小一号，避免在行内显得过大 */
-.roster-row .pokedex-star.star-variant { font-size: 8px; }
+/* 仓库行闪光星与变体圆环共用一个类（pokedex-star-svg），统一 8px 尺寸 */
+.roster-row .pokedex-star svg { width: 8px; height: 8px; display: block; fill: currentColor; }
 /* 仓库编号列加宽以容纳变体扩展编号（#0058-1/#0201-10），图标列同步收窄 */
 .roster-header .pokedex-idx, .roster-row .pokedex-idx { width: 46px; }
 .roster-header .roster-icon, .roster-row .roster-icon { width: 20px; }
@@ -4597,6 +4699,23 @@ body.browser-mode { overflow: auto; }
   opacity: 0.75;
   margin-left: 6px;
   vertical-align: 1px;
+}
+/* 详情页个体状态标签：训练中 / 繁育中 / 队伍中（跟在属性徽章右侧，高度与 type-badge 对齐） */
+.roster-status-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ui-color);
+  border: 1px solid var(--ui-color);
+  opacity: 0.85;
+  white-space: nowrap;
+  margin-left: 4px;
 }
 /* 改名按钮 */
 .roster-nick-btn {
@@ -5118,6 +5237,21 @@ body.browser-mode { overflow: auto; }
   object-fit: contain;
   image-rendering: pixelated;
 }
+/* 交换详情页右上角「仓库情况」按钮：跳转仓库并预填搜索 */
+.trade-check-roster {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: var(--screen-bg);
+  border: 1px solid var(--ui-color);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.8;
+  transition: opacity 0.12s;
+}
+.trade-check-roster:hover { opacity: 1; }
 .trade-btn {
   flex-shrink: 0;
   font-family: inherit;
@@ -6767,6 +6901,131 @@ html.mobile-mode .b-bottom {
 .team-footer-btn:active { transform: scale(0.94); }
 
 /* 槽位操作菜单（查看/替换/交换/移除）：点击位置弹出 */
+/* ---------- 配队：队伍列表页（6 组队伍预览，2 列 × 3 行，仿孵蛋器卡片） ---------- */
+.team-list-hint {
+  font-size: 10px;
+  color: var(--ui-color);
+  padding: 4px 6px 2px;
+  opacity: 0.8;
+}
+.team-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px 8px;
+  padding: 4px 3px 8px;
+}
+.team-list-card {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--item-border);
+  padding: 3px 5px;
+  cursor: pointer;
+  user-select: none;
+}
+.team-list-card:hover { border-color: rgba(var(--ui-color-rgb), 0.45); }
+.team-list-card.active { border-color: var(--ui-color); }
+.team-card-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.team-card-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ui-color-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+.team-card-rename {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--ui-color);
+  opacity: 0.55;
+  cursor: pointer;
+}
+.team-card-rename:hover { opacity: 1; }
+.team-card-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 0;
+}
+.team-card-mon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.team-card-mon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.team-card-mon.empty {
+  border: 1px solid rgba(var(--ui-color-rgb), 0.12);
+  border-radius: 2px;
+}
+.team-card-mon.shiny img { filter: drop-shadow(0 0 2px #fff); }
+.team-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.team-card-count {
+  font-size: 9px;
+  color: var(--ui-color);
+  opacity: 0.7;
+}
+.team-card-set {
+  flex-shrink: 0;
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.4);
+  background: transparent;
+  color: var(--ui-color);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.team-card-set:hover { background: rgba(var(--ui-color-rgb), 0.12); }
+.team-card-set:active { transform: scale(0.94); }
+.team-card-set.on {
+  border-color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb), 0.22);
+  font-weight: 800;
+  cursor: default;
+}
+.team-name-input {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ui-color-dark);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  padding: 0 3px;
+  outline: none;
+  box-sizing: border-box;
+}
+
 .team-menu {
   position: absolute;
   z-index: 50;
@@ -6856,7 +7115,7 @@ html.mobile-mode .b-bottom {
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 5;
+  z-index: 10; /* 高于告示牌/纸箱（8），宝可梦走动时不被入口图标盖住 */
   pointer-events: none;
 }
 .train-walker {
@@ -7154,7 +7413,7 @@ html.mobile-mode .b-bottom {
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 8;
+  z-index: 10; /* 高于告示牌/纸箱（9），宝可梦走动时不被入口图标盖住 */
   pointer-events: none;
 }
 .nursery-walker {

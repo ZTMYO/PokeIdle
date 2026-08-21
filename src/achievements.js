@@ -97,8 +97,8 @@ export const ACHIEVEMENTS = [
   {
     id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
     metric: () => dexCount(), base: 10, reward: 30, maxTiers: 7,
-    // 满级阈值对齐当前全图鉴 1208 种（本体 1025 + 变体 183），最后一级 1208
-    tiers: [10, 20, 50, 100, 200, 500, 1208],
+    // 满级阈值对齐当前全图鉴 1212 种（本体 1025 + 变体 187），最后一级 1212
+    tiers: [10, 20, 50, 100, 200, 500, 1212],
     fmt: v => `${formatNum(v)} 种`,
   },
   {
@@ -112,6 +112,8 @@ export const ACHIEVEMENTS = [
       if (!gameData.collectedCards) return 0;
       return Object.keys(gameData.collectedCards).length;
     }, base: 5, reward: 50, maxTiers: 7,
+    // 满级阈值对齐全部卡牌 60 张（抽卡机 1、2 号池各 30 张），最后一级 60
+    tiers: [5, 10, 20, 30, 40, 50, 60],
     fmt: v => `${formatNum(v)} 种`,
   },
 ];

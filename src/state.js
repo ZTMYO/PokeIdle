@@ -279,7 +279,9 @@ export function getDefaultSave() {
     follower: null,         // 随从（糖果抽卡的临时跟随）：{ index, tier, group, endsAt }；null=无随从
     followerPending: null,  // 抽卡结果待处理（未选跟随/放走就退出）：{ index, name, tier }；null=无
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）
-    team: [], // 出战队伍：仓库条目 id 数组（首元素为首发），由仓库详情页管理
+    team: [], // 出战队伍（镜像：始终 = teams[activeTeam].ids 引用，战斗等逻辑直接读它）
+    teams: Array.from({ length: 6 }, (_, i) => ({ name: `队伍${i + 1}`, ids: [] })), // 6 组配队：{ name, ids }
+    activeTeam: 0, // 当前上场队伍下标
     training: { slots: [] }, // 训练场：{ slots: [{ id, startAt } | null] }，随时间自动获得经验
     nursery: { parents: [null, null] }, // 饲育屋：{ parents: [{ id, placedAt } | null, ...] }，配对繁殖（与训练/配队互斥）
     casinoRecords: [],   // 21点战绩（滑动窗口 50 条）：{ time, bet, action, result, net }
@@ -292,6 +294,7 @@ export function getDefaultSave() {
     systemLogs: [],
     incubatorLogs: [], // 孵蛋记录（仅孵化成功事件，最多 50 条）：{ time, species, gender, shiny }
     achievements: {}, // 成就进度：{ 成就id: 已领取档位数 }，由 achievements.js 管理
+    tutorialRewards: { claimed: [] }, // 教程章节奖励：{ claimed: [已领取章节索引] }，每章节可领一次糖果
     collectedCards: {}, // 卡牌收集：{ filename: { tier, cnName, enName, obtainedAt } }，由 gacha.js 管理
     gachaLogs: {}, // 抽卡记录：{ pool1: [{ time, card, tier, cnName, isNew }], pool2: [...] }，由 gacha.js 管理
     introDone: false, // 是否已完成开场剧情（首次进入必须看完才能开始挂机）

@@ -1,6 +1,7 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, WILD_LEVEL_MAX } from './config.js';
 import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, buildRosterEntry, setGameData, setLastObtainedEntryId, rollGender, genderBadge, setEncounterSource, setEncounterVariant } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage, getScreenLayoutMetrics } from './ui.js';
+import { getBountyTargetIndexes } from './bounty.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
@@ -620,11 +621,14 @@ export function showEncounter(poke, opts = {}) {
   // 遇敌后同样立即自动处理，无需切回战斗页才触发。
   if (!skipAuto) {
     if (gameData.settings?.autoCatch) {
-      // 遇敌过滤优先 — "暂停"则强制切到战斗页让用户手动；"逃跑"则不匹配直接逃跑
+      // 遇敌过滤优先 — "暂停"则不自动处理，玩家在游戏页时展示战斗页等手动；
+      // 在其他页面（图鉴/手机等）不强制跳转，切回游戏页时由 showView 统一接管
       const fr = catchFilterResult();
       if (fr === 'stop') {
-        showView('encounterView');
-        $('fleeBtn').style.display = '';
+        if (_onHome) {
+          showView('encounterView');
+          $('fleeBtn').style.display = '';
+        }
       } else if (fr === 'flee') {
         setTimeout(async () => {
           await loadPromise; // 等图片加载完再逃，避免画面残留
@@ -1135,10 +1139,12 @@ let _abortAutoCatch = false;
 
 export function setAbortAutoCatch() { _abortAutoCatch = true; }
 
-// 智能选球：根据精灵捕获率与当前可用球，选出本次丢球用哪种球
+// 智能选球：根据精灵捕获率与当前可用球，选出本次丢球用哪种球。
+// 闪光使用大师球（设置-自动捕捉）勾选后，闪光优先大师球，捕获率极高不逃跑
 function pickAutoBallType(availableBalls) {
   const cr = currentEncounter?.catchRate ?? 1;
-  const preferred = currentEncounter?.legend
+  const shinyMaster = !!gameData.settings?.shinyMasterBall && !!currentIsShiny;
+  const preferred = (shinyMaster || currentEncounter?.legend)
     ? ['master-ball', 'ultra-ball', 'poke-ball']
     : cr <= 0.2
     ? ['master-ball', 'ultra-ball', 'poke-ball']
@@ -1151,29 +1157,44 @@ function pickAutoBallType(availableBalls) {
   return availableBalls[0] || null;
 }
 
+// 单行策略判定：逃跑 > 暂停 > 未拥有 > 等级范围（skipLevel 行不参与等级筛选）
+function evalCatchRow(row, skipLevel = false) {
+  if (row.action === 'flee') return 'flee';
+  if (row.action === 'stop') return 'stop';
+  // 捕捉：仅捕捉未捕获过的 → 仓库里已有对应形态直接放跑（普通看非闪个体、闪光看闪光个体）
+  if (row.uncaughtOnly) {
+    const idx = String(currentEncounter?.index);
+    const has = (gameData.roster || []).some(p => p.inRoster && String(p.species) === idx && (currentIsShiny ? p.shiny : !p.shiny));
+    if (has) return 'flee';
+  }
+  // 等级范围（0 = 不限制）
+  if (!skipLevel) {
+    const lvMin = row.levelMin || 0;
+    const lvMax = row.levelMax || 0;
+    if ((lvMin > 0 && encounterLevel < lvMin) || (lvMax > 0 && encounterLevel > lvMax)) return 'flee';
+  }
+  return 'catch';
+}
+
 // 遇敌过滤（设置-捕捉条件表格）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
-// 四行策略：普通 / 普通闪 / 神兽 / 神兽闪，各自独立选择 捕捉/暂停/逃跑，
-// 并各自带等级范围（0=不限制）与「仅捕捉未捕获过的」（普通看 caught、闪光看 shinyCaught）。
-// 单行内优先级：逃跑 > 暂停 > 未捕获 > 等级范围。
+// 五类策略：普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏，各自独立选择 捕捉/暂停/逃跑，
+// 并各自带等级范围（0=不限制）与「仅捕捉未拥有过的」（普通看仓库非闪个体、闪光看仓库闪光个体）。
+// 优先级：神兽/神兽闪行 > 可悬赏行 > 普通/普通闪行。神兽按类型行硬约束判定，
+// 可悬赏行只作用于普通遭遇（防止悬赏目标绕过神兽暂停等设置）。
 export function catchFilterResult() {
   const f = gameData.settings?.catchFilter || {};
   const rows = f.rows || {};
+  const isLegend = isLegendEncounter();
   // 按当前遭遇类型定位对应策略行：神兽闪 > 神兽 / 普通闪 > 普通
-  const row = (isLegendEncounter() ? (currentIsShiny ? rows.legendShiny : rows.legend) : (currentIsShiny ? rows.normalShiny : rows.normal))
+  const typeRow = (isLegend ? (currentIsShiny ? rows.legendShiny : rows.legend) : (currentIsShiny ? rows.normalShiny : rows.normal))
     || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false };
-  if (row.action === 'flee') return 'flee';
-  if (row.action === 'stop') return 'stop';
-  // 捕捉：仅捕捉未捕获过的 → 已捕获对应形态直接放跑
-  if (row.uncaughtOnly) {
-    const entry = gameData.pokedex?.[String(currentEncounter?.index)];
-    const caught = entry ? (currentIsShiny ? (entry.shinyCaught || 0) > 0 : (entry.caught || 0) > 0) : false;
-    if (caught) return 'flee';
+  // 神兽/神兽闪行优先：神兽按类型行判定，可悬赏行不覆盖神兽行策略
+  if (isLegend) return evalCatchRow(typeRow);
+  // 可悬赏行优先于普通/普通闪行：普通遭遇命中今日悬赏目标时按该行策略执行
+  if (currentEncounter && getBountyTargetIndexes().has(String(currentEncounter.index))) {
+    return evalCatchRow(rows.bounty || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false });
   }
-  // 等级范围（0 = 不限制）
-  const lvMin = row.levelMin || 0;
-  const lvMax = row.levelMax || 0;
-  if ((lvMin > 0 && encounterLevel < lvMin) || (lvMax > 0 && encounterLevel > lvMax)) return 'flee';
-  return 'catch';
+  return evalCatchRow(typeRow);
 }
 
 // 自动补球：勾选的球数量为 0 时，用糖果按补球优先级补 1 个（手动/自动丢球都生效）。

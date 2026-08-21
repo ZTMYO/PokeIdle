@@ -48,6 +48,9 @@ export const CANDY_EXCHANGE = {
   'bike': 200, // 自行车：赶路工具（骑行路段也能免费获得，商店是保底渠道）
 };
 
+// 商店出售回收比例：出售价 = 兑换价 × 该比例（四舍五入），低于半价防止倒卖刷糖
+export const ITEM_SELL_RATE = 0.4;
+
 // 丢球挣脱后宝可梦逃跑的概率（随丢球次数递增，上限 FLEE_CHANCE_MAX）
 export const FLEE_CHANCE = 0.04;     // 第 1 球挣脱后的逃跑概率
 export const FLEE_CHANCE_INC = 0.04; // 每多丢一球额外增加的逃跑概率

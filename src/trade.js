@@ -42,6 +42,7 @@ const NPCS = [
   { id: 'woman_4', name: '女人' },
   { id: 'woman_5', name: '女人' },
   { id: 'author', name: 'ZTMYO' }, // 彩蛋 NPC：极低概率出现在交易市场，给出闪光 6V 神兽
+  { id: 'imiti', name: '伊美蒂' }, // 彩蛋 NPC：与 ZTMYO 同概率出现在交易市场，只给百变怪（10% 概率 6V）
 ];
 const IV_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 const IV_LABELS = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: '特防', spe: '速度' };
@@ -73,10 +74,9 @@ function pauseTradeRefresh() {}
 function resumeTradeRefresh() {}
 
 // ---------- 波次生成 ----------
-// 权重 = 0.3 + 稀有度 × 0.7（与悬赏选角一致的稀有度倾向）；
-// 家族归一：多变体家族按单个形态权重计，不因形态数叠加
+// 交易物种：按演化家族聚类后等概率抽取（家族内成员再等概率随机）
 function pickTradePokemon() {
-  return pickFamily(allPokemon, p => 0.3 + (p.rarity || 0) * 0.7);
+  return pickFamily(allPokemon, () => 1);
 }
 
 // 给出的宝可梦个体值：神兽保底 3 项 31（与玩家捕获到的一致），
@@ -110,6 +110,8 @@ function makeOffer(npc) {
       nature: rollNature(),
       ivs: rollTradeIvs(givePoke.legend === true), // 神兽保底 3 项 31
       level: randInt(1, TRADE_GIVE_LEVEL_MAX),
+      // 生成时即固定性别：预览与交换实得共用同一字段，避免两次 roll 导致不一致
+      gender: givePoke.genderRate === -1 ? 'genderless' : rollGender(String(givePoke.index)),
     },
     traded: false,
   };
@@ -148,6 +150,29 @@ function makeAuthorOffer() {
     nature: pickAuthorNature(givePoke),
     ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
     level: MAX_LEVEL,
+    // 与普通 offer 一致：生成时固定性别
+    gender: givePoke.genderRate === -1 ? 'genderless' : rollGender(String(givePoke.index)),
+  };
+  return base;
+}
+
+// 彩蛋 NPC「伊美蒂」offer：需求与普通 offer 一致，但只给【百变怪】；
+// 10% 概率给出 6V 闪光百变怪，其余为普通百变怪；等级/性格按普通随机
+const IMITI_6V_CHANCE = 0.1;
+function makeImitiOffer() {
+  const base = makeOffer({ id: 'imiti' });
+  const ditto = allPokemon.find(p => String(p.index) === '0132') || allPokemon[0];
+  base.npc = 'imiti';
+  const sixV = Math.random() < IMITI_6V_CHANCE;
+  base.give = {
+    species: String(ditto.index),
+    shiny: sixV,
+    nature: rollNature(),
+    ivs: sixV
+      ? { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }
+      : rollTradeIvs(false),
+    level: randInt(1, TRADE_GIVE_LEVEL_MAX),
+    gender: ditto.genderRate === -1 ? 'genderless' : rollGender(String(ditto.index)),
   };
   return base;
 }
@@ -155,13 +180,17 @@ function makeAuthorOffer() {
 // 生成并写入新一波交换 offers（重置刷新时间；通知手机主页红点按新一波刷新）
 function regenerateOffers() {
   // 作者是彩蛋用 makeAuthorOffer 单独生成，普通 NPC 池必须剔除，否则会以普通 offer 冒充 ZTMYO
-  const pool = NPCS.filter(n => n.id !== 'author');
+  const pool = NPCS.filter(n => n.id !== 'author' && n.id !== 'imiti');
   const offers = [];
   const count = Math.min(TRADE_COUNT, pool.length);
   // 作者彩蛋：以 0.01 概率取代某一格普通 offer
   const authorSlot = Math.random() < AUTHOR_CHANCE ? randInt(0, count - 1) : -1;
+  // 伊美蒂彩蛋：与作者独立 roll 一格（避免同格冲突，若撞格则本波不出伊美蒂）
+  let imitiSlot = Math.random() < AUTHOR_CHANCE ? randInt(0, count - 1) : -1;
+  if (imitiSlot === authorSlot) imitiSlot = -1;
   for (let i = 0; i < count; i++) {
     if (i === authorSlot) { offers.push(makeAuthorOffer()); continue; }
+    if (i === imitiSlot) { offers.push(makeImitiOffer()); continue; }
     offers.push(makeOffer(pool.splice(randInt(0, pool.length - 1), 1)[0]));
   }
   gameData.trades = { refreshedAt: Date.now(), offers };
@@ -320,6 +349,8 @@ function offerCard(o) {
   const npcIdx = Math.max(0, NPCS.indexOf(npc));
   const npcPos = npc.id === 'author'
     ? 'background-position:-416px 0px'
+    : npc.id === 'imiti'
+    ? 'background-position:-416px -42px'
     : `background-position:${-(npcIdx % 13) * 32}px ${-Math.floor(npcIdx / 13) * 42}px`;
   const wantPoke = getPokemonByIndex(o.want.species);
   const givePoke = getPokemonByIndex(o.give.species);
@@ -408,9 +439,12 @@ function renderGiveDetail(content, offerId) {
   content.innerHTML = `
     <div style="font-size:14px;font-weight:700;padding:6px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
       <span>${givePoke.form || givePoke.name}<span class="roster-detail-lv">${genderBadge(ensureGender(o.give))}Lv${o.give.level || 1}</span>${o.give.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>' : ''}</span>
-      <span class="encounter-owned-wrap" id="tradeGiveOwnedWrap" style="display:none;">
-        <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-owned" /></svg>
-        <span class="encounter-tooltip" id="tradeGiveOwnedTip"></span>
+      <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <button class="trade-check-roster" data-trade-roster>仓库情况</button>
+        <span class="encounter-owned-wrap" id="tradeGiveOwnedWrap" style="display:none;">
+          <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-owned" /></svg>
+          <span class="encounter-tooltip" id="tradeGiveOwnedTip"></span>
+        </span>
       </span>
     </div>
     <div class="roster-detail-head">
@@ -734,6 +768,7 @@ document.addEventListener('click', e => {
     if (tc) { _tradeListScroll = tc.scrollTop; tc.scrollTop = 0; } // 记住列表位置，子页面从顶部开始
     pauseTradeRefresh(); // 进入选择子页面：冻结刷新倒计时
     _tradeMode = offerBtn.dataset.offer;
+    _tQuery = ''; // 进入新的候选列表：昵称搜索词一律重置，不与上次残留词混用
     renderTrade();
     return;
   }
@@ -759,6 +794,20 @@ document.addEventListener('click', e => {
     pauseTradeRefresh(); // 详情期间同样冻结刷新倒计时
     import('./roster.js').then(m => m.showRosterDetailFromList(viewRow.dataset.tradeView, () => {
       resumeTradeRefresh(); // 返回选择列表：恢复刷新倒计时
+      showView('tradeView');
+      renderTrade();
+    }));
+    return;
+  }
+  // 详情页右上角「仓库情况」：跳转仓库列表并预填该宝可梦名称搜索，返回恢复交换详情
+  const rosterBtn = e.target.closest('[data-trade-roster]');
+  if (rosterBtn) {
+    const o = (gameData.trades?.offers || []).find(x => x.id === _tradeDetail);
+    const givePoke = o && getPokemonByIndex(o.give.species);
+    if (!givePoke) return;
+    pauseTradeRefresh(); // 查看仓库期间冻结刷新倒计时
+    import('./roster.js').then(m => m.showRosterSearch(givePoke.name, () => {
+      resumeTradeRefresh(); // 返回交换详情：恢复刷新倒计时
       showView('tradeView');
       renderTrade();
     }));

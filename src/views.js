@@ -11,10 +11,10 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST,
   GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE,
   TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX,
-  FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST } from './config.js';
+  FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, normalizeBackgroundState, _fishing } from './state.js';
-import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites } from './ui.js';
-import { doCandyExchange, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
+import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar } from './ui.js';
+import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
 import { setVolume, setBattleMusic, setMusicEnabled, setSfxEnabled, playBattle, endBattle } from './audio.js';
@@ -365,6 +365,9 @@ export function renderSystemLogs() {
       case 'shop_purchase':
         desc = `商店兑换${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（消耗${log.details.cost}糖果）`;
         break;
+      case 'shop_sell':
+        desc = `商店出售${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（获得${log.details.gain}糖果）`;
+        break;
       case 'encounter':
         desc = log.details.source === 'fishing'
           ? ` 钓鱼上钩了 ${log.details.shiny ? '闪光' : ''}${logName(log)}`
@@ -526,6 +529,15 @@ export function showSystemLogs() {
 // ===== 商店视图 =====
 // 右键兑换按钮弹出的批量购买数量选项（按余额置灰）
 const BUY_QTY_OPTIONS = [5, 10, 20, 50];
+// 右键出售按钮弹出的批量出售数量选项（按持有量置灰）
+const SELL_QTY_OPTIONS = [5, 20, 50, 100];
+// 出售模式开关：顶部按钮切换「兑换 / 出售」两种列表
+let _shopSellMode = false;
+
+// 出售单价 = 兑换价 × 回收比例（四舍五入）
+function sellPriceOf(itemKey) {
+  return Math.round((CANDY_EXCHANGE[itemKey] || 0) * ITEM_SELL_RATE);
+}
 
 // ===== 商店兑换确认（行内二次确认，替代弹框） =====
 let _pendingExchange = null; // { item, qty } 待确认的兑换项
@@ -575,18 +587,38 @@ export function showShopView() {
   // 兑换结算后 doCandyExchange 会重渲染本页：此时文案框保持固定，不清空不隐藏
   const isReRender = $('shopView')?.style.display === 'flex';
   pushNav('shopView');
-  hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
+  if (!isReRender) hideShopContextMenu(); // 重新进入商店时清理可能残留的批量菜单
   if (!isReRender) {
-    // 首次进入商店：清空待确认的兑换
+    // 真正进入商店：清空待确认的兑换，并重置为兑换模式（避免玩家上次停在出售，
+    // 下次进来本想购买却错看成出售列表）
     _pendingExchange = null;
+    _shopSellMode = false;
   }
   const content = $('shopContent');
   const candy = gameData.items['candy'] || 0;
 
   let itemsHtml = '';
-  for (const [item, cost] of Object.entries(CANDY_EXCHANGE)) {
-    const enough = candy >= cost;
-    itemsHtml += `
+  if (_shopSellMode) {
+    // 出售列表：全部道具按回收价换糖果
+    for (const item of Object.keys(CANDY_EXCHANGE)) {
+      const have = gameData.items[item] || 0;
+      const price = sellPriceOf(item);
+      itemsHtml += `
+      <div class="shop-item ${have > 0 ? '' : 'disabled'}" data-item="${item}">
+        <div class="shop-item-left" data-tip="${(ITEM_DESC[item] || '').replace(/"/g, '&quot;')}">
+          <img src="./items/${ITEM_ICONS[item]}" class="shop-icon" alt="${ITEM_NAMES[item]}" />
+          <span class="shop-item-name">${ITEM_NAMES[item]}</span>
+        </div>
+        <div class="shop-item-right">
+          <span class="shop-cost"><img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ×${price}</span>
+          <span class="shop-btn" title="右键可批量出售">出售</span>
+        </div>
+      </div>`;
+    }
+  } else {
+    for (const [item, cost] of Object.entries(CANDY_EXCHANGE)) {
+      const enough = candy >= cost;
+      itemsHtml += `
       <div class="shop-item ${enough ? '' : 'disabled'}" data-item="${item}">
         <div class="shop-item-left" data-tip="${(ITEM_DESC[item] || '').replace(/"/g, '&quot;')}">
           <img src="./items/${ITEM_ICONS[item]}" class="shop-icon" alt="${ITEM_NAMES[item]}" />
@@ -597,19 +629,29 @@ export function showShopView() {
           <span class="shop-btn" title="右键可批量购买">兑换</span>
         </div>
       </div>`;
+    }
   }
 
   content.innerHTML = `
     <div style="padding:6px 8px;color:var(--ui-color);">
-      <div style="text-align:center;font-weight:700;margin-bottom:6px;">
-        当前糖果：<span><img src="./items/candy.png" style="width:16px;height:16px;vertical-align:middle;image-rendering:pixelated;" /> ${candy}</span>
+      <div style="position:relative;text-align:center;font-weight:700;margin-bottom:6px;">
+        <span class="shop-mode-btn" id="shopModeBtn" style="position:absolute;left:0;top:50%;transform:translateY(-50%);">${_shopSellMode ? '兑换' : '出售'}</span>
+        当前糖果：<img src="./items/candy.png" style="width:16px;height:16px;vertical-align:middle;image-rendering:pixelated;" /> ${candy}
       </div>
       ${itemsHtml}
     </div>
   `;
-  // 事件委托处理兑换点击：
-  // 普通态点「兑换」进入行内确认；确认态点确认文字直接结算；点其他区域取消确认
+  // 事件委托：
+  // 顶部模式按钮切换列表；兑换模式左键点「兑换」进入行内确认，确认态点确认文字结算；
+  // 出售模式左键点「出售」直接卖出 1 个；点其他区域取消兑换确认
   content.onclick = (e) => {
+    const modeBtn = e.target.closest('#shopModeBtn');
+    if (modeBtn) {
+      _shopSellMode = !_shopSellMode;
+      cancelPendingExchange();
+      showShopView();
+      return;
+    }
     const confirm = e.target.closest('.shop-confirm');
     if (confirm) {
       confirmCandyExchange();
@@ -619,28 +661,37 @@ export function showShopView() {
     if (btn) {
       const item = btn.closest('.shop-item');
       if (!item || item.classList.contains('disabled')) return;
+      if (_shopSellMode) {
+        doSellBall(item.dataset.item, 1);
+        return;
+      }
       requestCandyExchange(item.dataset.item);
       return;
     }
     cancelPendingExchange(); // 点到非按钮区域取消行内确认
   };
-  // 右键"兑换"按钮弹出批量购买菜单（确认态下右键同样有效）
+  // 右键"兑换/出售"按钮弹出批量菜单（确认态下右键同样有效）
   content.oncontextmenu = (e) => {
     const btn = e.target.closest('.shop-btn, .shop-confirm');
     if (!btn) return;
     const item = btn.closest('.shop-item');
     if (!item || item.classList.contains('disabled')) return;
     e.preventDefault();
-    showShopContextMenu(item.dataset.item, e.clientX, e.clientY);
+    showShopContextMenu(item.dataset.item, e.clientX, e.clientY, _shopSellMode ? 'sell' : 'buy');
   };
   showView('shopView');
+  // 出售模式：标题栏显示「出售」，切回兑换模式时由 showView 恢复「商店」
+  if (_shopSellMode) {
+    const t = $('appTitle');
+    t.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 出售`;
+    t.dataset.action = 'back';
+  }
 }
 
-// 批量购买菜单：在右键位置弹出，钱不够的选项降透明度并禁用
-function showShopContextMenu(itemKey, x, y) {
+// 批量菜单：在右键位置弹出。mode='buy' 为兑换（糖果不够的选项置灰），'sell' 为出售（持有不够的置灰）。
+// 点击选项结算后菜单保持打开并刷新可操作状态，可连续批量操作（同游戏厅兑换游戏币）
+function showShopContextMenu(itemKey, x, y, mode = 'buy') {
   hideShopContextMenu();
-  const cost = CANDY_EXCHANGE[itemKey];
-  const candy = gameData.items['candy'] || 0;
   let menu = $('shopCtxMenu');
   if (!menu) {
     menu = document.createElement('div');
@@ -648,26 +699,42 @@ function showShopContextMenu(itemKey, x, y) {
     menu.className = 'shop-ctx-menu';
     document.body.appendChild(menu);
   }
-  menu.innerHTML = BUY_QTY_OPTIONS.map(q => {
-    const total = cost * q;
-    const ok = candy >= total;
-    return `<div class="shop-ctx-item${ok ? '' : ' disabled'}" data-item="${itemKey}" data-q="${q}">
+  const renderMenu = () => {
+    const candyNow = gameData.items['candy'] || 0;
+    const options = mode === 'sell' ? SELL_QTY_OPTIONS : BUY_QTY_OPTIONS;
+    menu.innerHTML = options.map(q => {
+      if (mode === 'sell') {
+        const have = gameData.items[itemKey] || 0;
+        const gain = sellPriceOf(itemKey) * q;
+        const ok = have >= q;
+        return `<div class="shop-ctx-item${ok ? '' : ' disabled'}" data-item="${itemKey}" data-q="${q}">
+      <span class="shop-ctx-qty">×${q}</span>
+      <span class="shop-ctx-cost"><img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" /> ×${gain}</span>
+    </div>`;
+      }
+      const cost = CANDY_EXCHANGE[itemKey];
+      const total = cost * q;
+      const ok = candyNow >= total;
+      return `<div class="shop-ctx-item${ok ? '' : ' disabled'}" data-item="${itemKey}" data-q="${q}">
       <span class="shop-ctx-qty">×${q}</span>
       <span class="shop-ctx-cost"><img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" /> ×${total}</span>
     </div>`;
-  }).join('');
+    }).join('');
+  };
+  renderMenu();
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
   menu.style.left = Math.max(0, Math.min(x - 24, window.innerWidth - mw - 4)) + 'px';
   menu.style.top = Math.max(0, Math.min(y, window.innerHeight - mh - 4)) + 'px';
   // 菜单内点击不触发外部关闭；点击外部任意位置关闭
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
-  menu.onclick = (e) => {
+  menu.onclick = async (e) => {
     const opt = e.target.closest('.shop-ctx-item');
     if (!opt || opt.classList.contains('disabled')) return;
-    hideShopContextMenu();
-    cancelPendingExchange(); // 清掉可能存在的行内确认态，批量购买无需二次确认
-    doCandyExchange(opt.dataset.item, Number(opt.dataset.q));
+    cancelPendingExchange(); // 清掉可能存在的行内确认态，批量操作无需二次确认
+    if (mode === 'sell') await doSellBall(opt.dataset.item, Number(opt.dataset.q));
+    else await doCandyExchange(opt.dataset.item, Number(opt.dataset.q));
+    renderMenu(); // 结算后刷新可操作状态，菜单保持打开可连续操作
   };
   document.addEventListener('pointerdown', hideShopContextMenu);
 }
@@ -680,8 +747,8 @@ function hideShopContextMenu() {
 
 // ===== 设置视图 =====
 // 窗口倍率档位（相对 320×400 基础尺寸的等比缩放，尺寸换算在 Rust 侧 set_window_scale 完成）
-// 1~10 整数档；超出显示器容纳上限时由 Rust 侧自动钳制到实际生效倍率
-const WINDOW_SCALES = Array.from({ length: 10 }, (_, i) => i + 1);
+// 1 / 1.5 / 2~10 整数档；超出显示器容纳上限时由 Rust 侧自动钳制到实际生效倍率
+const WINDOW_SCALES = [1, 1.5, ...Array.from({ length: 9 }, (_, i) => i + 2)];
 
 // 当前 WebView2 zoom 因子（Rust set_window_scale 返回，初始 1）。
 // 用于把 window.devicePixelRatio 还原成系统 dpr：WebView2 的 devicePixelRatio 包含 zoom，
@@ -773,12 +840,14 @@ async function refreshBackgroundModeSupport() {
   }
 }
 
-// 捕捉条件表格：四行四类遇敌 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪）
+// 捕捉条件表格：遇敌类型 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏）
+// 优先级：神兽/神兽闪 > 可悬赏 > 普通/普通闪；可悬赏行只作用于非神兽遭遇
 const CF_ROWS = [
   { key: 'normal', label: '普通' },
   { key: 'normalShiny', label: '普通闪' },
   { key: 'legend', label: '神兽' },
   { key: 'legendShiny', label: '神兽闪' },
+  { key: 'bounty', label: '可悬赏' },
 ];
 const CF_ACTIONS = [
   { v: 'catch', t: '捕捉' },
@@ -796,6 +865,7 @@ export function renderSettings(container, s) {
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
   const autoRefill = s.autoRefill || false;
+  const shinyMasterBall = s.shinyMasterBall || false;
   const refillBalls = s.autoRefillBalls || { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
   const order = (Array.isArray(s.autoRefillOrder) && s.autoRefillOrder.length === 3)
     ? s.autoRefillOrder : ['poke-ball', 'ultra-ball', 'master-ball'];
@@ -812,7 +882,7 @@ export function renderSettings(container, s) {
     || (!backgroundMobile ? '当前平台不支持后台挂机'
       : _backgroundModeSupport == null ? '正在检查系统支持...'
         : backgroundEnabled ? '已开启，退到后台后继续运行' : '已关闭');
-  // 捕捉条件表格：四行（普通/普通闪/神兽/神兽闪），策略列选中即换底色
+  // 捕捉条件表格：各遇敌类型行，策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
   const cfTbody = CF_ROWS.map(({ key, label }) => {
     const r = cfRow(key);
@@ -820,10 +890,12 @@ export function renderSettings(container, s) {
       <td class="cf-cell act ${r.action === a.v ? 'on' : ''}" data-row="${key}" data-act="${a.v}">${a.t}</td>`).join('');
     const dim = r.action === 'catch' ? '' : ' dim'; // 非捕捉行：等级/未捕获不生效，弱化显示
     // 仅「捕捉」行显示等级输入框，其余行占位
-    const lvCell = r.action === 'catch' ? `
+    const lvCell = (r.action === 'catch') ? `
       <td class="cf-cell lv">
-        <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="min" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMin || 1}" />
-        <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="max" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMax || 20}" />
+        <div class="cf-lv-inner">
+          <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="min" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMin || 1}" />
+          <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="max" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMax || 20}" />
+        </div>
       </td>` : `<td class="cf-cell lv${dim}">—</td>`;
     return `
       <tr data-row="${key}">
@@ -853,6 +925,14 @@ export function renderSettings(container, s) {
             `).join('')}
           </div>
         </div>
+        ${balls['master-ball'] !== false ? `
+        <div style="padding:4px 4px 2px;">
+          <div class="settings-sub-title">闪光使用大师球</div>
+          <div class="ball-check-row">
+            <span class="ball-check ${shinyMasterBall ? 'on' : ''}" id="toggleShinyMaster">${shinyMasterBall ? '☑' : '☐'}启用</span>
+          </div>
+        </div>
+        ` : ''}
         <div style="padding:4px 4px 2px;">
           <div class="settings-sub-title">自动使用增益道具</div>
           <div class="ball-check-row">
@@ -870,7 +950,7 @@ export function renderSettings(container, s) {
                 <th>暂停</th>
                 <th>逃跑</th>
                 <th class="cf-col-lv">捕捉等级</th>
-                <th>未捕获</th>
+                <th>未拥有</th>
               </tr>
             </thead>
             <tbody>${cfTbody}</tbody>
@@ -888,6 +968,7 @@ export function renderSettings(container, s) {
             <div class="toggle-knob"></div>
           </div>
         </div>
+        <div class="cf-hint" style="padding:0 4px 4px;">遇敌后 30 秒未处理宝可梦会自动逃跑，防止挂机进度卡住</div>
       </div>
 
       <div class="settings-group">
@@ -1024,6 +1105,7 @@ export function renderSettings(container, s) {
     </div>
   `;
   container.querySelector('#toggleAutoCatch')?.addEventListener('click', toggleAutoCatch);
+  container.querySelector('#toggleShinyMaster')?.addEventListener('click', toggleShinyMasterBall);
   container.querySelector('#toggleMusicEnabled')?.addEventListener('click', toggleMusicEnabled);
   container.querySelector('#toggleSfxEnabled')?.addEventListener('click', toggleSfxEnabled);
   container.querySelector('#genderBrendan')?.addEventListener('click', () => toggleGender('brendan'));
@@ -1177,7 +1259,7 @@ export function renderSettings(container, s) {
       });
     });
   });
-  // 捕捉条件：恢复默认（四行全部复位为 捕捉 / 等级 1~20 / 不勾选未捕获）
+  // 捕捉条件：恢复默认（全部行复位为 捕捉 / 等级 1~20 / 不勾选未捕获）
   container.querySelector('#cfReset')?.addEventListener('click', () => {
     const rows = gameData.settings.catchFilter?.rows;
     if (!rows) return;
@@ -1220,7 +1302,7 @@ export function renderSettings(container, s) {
     let v = '';
     try { v = await window.__TAURI__?.app?.getVersion?.(); } catch (_) {}
     const el = container.querySelector('#settingsVersion');
-    if (el) el.textContent = v ? `v${v}` : 'v1.0.8';
+    if (el) el.textContent = v ? `v${v}` : 'v1.0.9';
   })();
   // 版权声明：跳转声明视图
   container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
@@ -1292,6 +1374,7 @@ function ensureSettings() {
   if (!gameData.settings) gameData.settings = { autoCatch: false, autoFlee: false, windowPinned: false, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, gender: 'brendan' };
   if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   if (gameData.settings.autoRefill == null) gameData.settings.autoRefill = false;
+  if (gameData.settings.shinyMasterBall == null) gameData.settings.shinyMasterBall = false; // 闪光使用大师球（默认关）
   if (!gameData.settings.autoRefillBalls) gameData.settings.autoRefillBalls = { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
   if (!Array.isArray(gameData.settings.autoRefillOrder) || gameData.settings.autoRefillOrder.length !== 3) {
     gameData.settings.autoRefillOrder = ['poke-ball', 'ultra-ball', 'master-ball']; // 默认便宜优先
@@ -1311,8 +1394,8 @@ function ensureSettings() {
       },
     };
   }
-  // 四行字段兜底 + 等级收敛
-  for (const k of ['normal', 'normalShiny', 'legend', 'legendShiny']) {
+  // 各行字段兜底 + 等级收敛
+  for (const k of ['normal', 'normalShiny', 'legend', 'legendShiny', 'bounty']) {
     const r = gameData.settings.catchFilter.rows[k] = gameData.settings.catchFilter.rows[k] || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
     if (!['catch', 'stop', 'flee'].includes(r.action)) r.action = 'catch';
     r.levelMin = Math.max(0, Math.min(20, Number(r.levelMin) || 0));
@@ -1376,6 +1459,15 @@ export function toggleAutoBuffCharm() {
   if (gameData.settings.autoBuffCharm && phase === 'idle' && !charmBuffActive && !honeyBuffActive) {
     activateShinyCharm();
   }
+}
+
+// 闪光使用大师球：勾选后自动捕捉遇到闪光优先用大师球（捕获率极高不逃跑）
+function toggleShinyMasterBall() {
+  ensureSettings();
+  gameData.settings.shinyMasterBall = !gameData.settings.shinyMasterBall;
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
 }
 
 export function toggleAutoCatch() {
@@ -1598,6 +1690,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出想要的宝可梦与愿意给的宝可梦，有 <b>${TRADE_SHINY_CHANCE * 100}</b>% 的概率给出闪光宝可梦。</p>`
       + `<p>NPC 有 <b>${TRADE_LEVEL_CHANCE * 100}</b>% 的概率指定想要的宝可梦<b>等级下限</b>（<b>${TRADE_WANT_LEVEL_MIN}~${TRADE_WANT_LEVEL_MAX}</b> 级）：个体必须达到等级要求才能提交。孵化攒下的 1 级宝可梦可用<b>经验糖果</b>快速拉到等级线（详见「<b>经验糖果</b>」章节）。</p>`
       + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「<b>交换</b>」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`
+      + `<p>跟随<b>毒 / 超能</b>属性随从（增益「<b>交换闪光概率提升</b>」）时，会<b>强制刷新一波交易</b>，让新加成立即生效。</p>`
       + `<p>右键可交换的条目可「<b>忽略</b>」：忽略后不再计入手机主页的红点提醒，但随时可右键恢复，忽略后仍可正常交换。</p>`,
   },
   {
@@ -1643,7 +1736,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '商店',
     html: `<p>点击标题栏右侧区域的商店按钮者点击主界面左下角的糖果数量文字进入<b>商店</b>。可以消耗<b>糖果</b>兑换基础道具。</p>`
-      + `<p>左键点击「兑换」兑换 1 个，<b>右键</b>兑换按钮可<b>批量购买</b>（一次 5 / 10 / 20 / 50 个，糖果不够的档位会置灰）。</p>`
+      + `<p>点击「兑换」买 1 个，<b>右键</b>可批量购买。</p>`
+      + `<p>点击左上角的「出售」进入出售模式，按 <b>40%</b> 价格卖出，点击卖 1 个，<b>右键</b>同样可批量出售。</p>`
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto']),
   },
@@ -1671,12 +1765,13 @@ const TUTORIAL_SECTIONS = [
         ['走路（挂机默认）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_WALK * 60) / 60 * 10) / 10}</b> 分钟`],
         ['跑步（增益生效）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_RUN * 60) / 60 * 10) / 10}</b> 分钟`],
         ['骑行', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_BIKE * 60) / 60 * 10) / 10}</b> 分钟`],
-      ], ['移动方式', '1 公里耗时'], [130, 'auto'])
+      ], ['移动方式', '1 公里耗时'], [92, 'auto'])
       + `<p>孵化完成后点击孵化按钮即可获得宝可梦，结果完全随机，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`,
   },
   {
     title: '培育',
-    html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦，<b>一雄一雌且共有蛋组</b>即可配对；<b>百变怪</b>万能配对（无视性别，非百变怪一方决定后代物种）。</p>`
+    html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦配对。普通配对要求<b>一雄一雌</b>且<b>至少共有一个蛋组</b>——只有<b>同蛋组</b>的宝可梦才能一起孵蛋。</p>`
+      + `<p><b>百变怪</b>可无视性别，与<b>任意非「未发现蛋组」</b>的宝可梦繁殖（后代为另一方的物种）；但神兽幻兽等<b>「未发现蛋组」</b>的宝可梦<b>不能</b>与百变怪配对。</p>`
       + `<p>投喂它们爱吃的<b>树果</b>开始繁殖：先选择<b>连续繁殖轮数</b>（<b>1~10 轮</b>），树果按轮数 <b>×N</b> 一次性扣除；每轮 <b>5~10 分钟</b>产一枚蛋并<b>自动入库</b>、自动续下一轮，无需手动收蛋；一批完成后直接恢复轮数选择界面，可立即开始下一批。</p>`
       + `<p>繁殖期间取出亲本会<b>终止剩余轮次</b>（树果不退，已产蛋不丢）；产出的<b>宝可梦蛋</b>放入<b>孵蛋器</b>里孵化（详见「<b>孵蛋</b>」章节）。</p>`
       + `<p><b>个体值遗传</b>：<b>1 项</b>完全随机，<b>5 项</b>继承自双亲（默认 50% 随机取父或母）。可从这 5 项中<b>锁定一项</b>，指定该维固定继承父方或母方的数值。</p>`
@@ -1724,10 +1819,12 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '配队',
-    html: `<p>在<b>手机</b>页面打开<b>配队</b>应用组建小队：点击<b>空位</b>从仓库选择宝可梦加入（最多 <b>${TEAM_MAX}</b> 只）。</p>`
-      + `<p>点击<b>已有成员</b>弹出菜单：<b>替换</b>（从仓库换一只到该位置）、<b>移除</b>（放回仓库）；<b>右键</b>点击可隐藏菜单。</p>`
-      + `<p><b>拖拽</b>可以对队伍中的宝可梦进行快速排序。<b>右键</b>空白处可随机配队或清空队伍。</p>`
-      + `<p>加入队伍的宝可梦会从<b>训练</b>中自动撤下（训练/队伍<b>互斥</b>，详见「<b>训练</b>」章节）。</p>`,
+    html: `<p>在<b>手机</b>页面打开<b>配队</b>应用：一共可以保存 <b>6 组</b>队伍，每队最多 <b>${TEAM_MAX}</b> 只。进入后是<b>队伍列表</b>，每张卡片显示成员预览，点名称或笔图标可<b>改名</b>，点卡片进入<b>编辑</b>对应队伍。</p>`
+      + `<p>卡片右下可<b>设为上场</b>：标着「<b>上场中</b>」的队伍会用于<b>对战</b>出战与自动配招参考，切换上场队伍无需重新组建阵容。</p>`
+      + `<p>编辑队伍时点击<b>空位</b>从仓库选择宝可梦加入；点击<b>已有成员</b>弹出菜单：<b>查看</b>个体详情、<b>替换</b>（从仓库换一只到该位置）、<b>移除</b>（放回仓库）。</p>`
+      + `<p><b>拖拽</b>可以对队伍中的宝可梦进行快速排序。<b>右键</b>空白处可<b>自动配队</b>或清空当前队伍。</p>`
+      + `<p><b>自动配队</b>：队伍为空或已满时，从仓库（排除训练中）挑选<b>等级差最小</b>的一组补满 6 只整队；队伍<b>未满</b>时<b>保留现有成员</b>，以队内最低等级为基准，从仓库挑等级最接近的个体<b>补满空位</b>。</p>`
+      + `<p>入队的宝可梦会从<b>训练</b>、<b>饲育屋</b>中自动撤下，训练/配对中的宝可梦也不能留在任何队伍里（三者<b>互斥</b>）。</p>`,
   },
   {
     title: '训练',
@@ -1745,7 +1842,11 @@ const TUTORIAL_SECTIONS = [
       + `<p>战胜后经验只分给<b>上过场且存活</b>的宝可梦，并按<b>等级差</b>结算：NPC 等级跟随你的队伍生成，基本都是<b>同级或低打高</b>，经验倍率最高 <b>3 倍</b>。</p>`
       + `<p>战胜后还有概率掉落<b>经验糖果</b>：普通 <b>${EXP_CANDY_DROP.novice * 100}</b>%、精英 <b>${EXP_CANDY_DROP.veteran * 100}</b>%、冠军 <b>${EXP_CANDY_DROP.champion * 100}</b>%（详见「<b>经验糖果</b>」章节）。</p>`
       + `<p>挑战失败可<b>再战一次</b>，随时都能重复挑战。</p>`
-      + `<p>右键点击底部文字区域可查看实时<b>对战记录</b>。</p>`,
+      + `<p>右键点击底部文字区域可查看实时<b>对战记录</b>。</p>`
+      + `<p><b>伤害计算</b>（NPC 对战）：</p>`
+      + `<p>伤害 = ⌊( 2×等级÷5 + 2 ) × 招式威力 × 攻击 ÷ 防御 ÷ 50 + 2 ⌋ × 本系 × 克制 × 随机(0.85~1.00)</p>`
+      + `<p><b>本系</b>：招式属性与自身属性相同 ×1.5，否则 ×1；<b>克制</b>按标准属性克制表（效果绝佳 ×2、收效甚微 ×0.5、无效 ×0，双属性连乘）；<b>攻击/防御</b>按招式类别取物攻/物防或特攻/特防，为受等级、个体值、性格影响的面板能力值。</p>`
+      + `<p>实际伤害最终保底 <b>1</b> 点。</p>`,
   },
   {
     title: '经验糖果',
@@ -1782,7 +1883,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '游戏厅',
-    html: `<p>在<b>手机</b>第二页打开<b>游戏厅</b>应用。在这里可以用<b>糖果</b>兑换<b>游戏币</b>（<b>${COIN_RATE} 糖果 = 1 游戏币</b>），柜台处选择兑换档位即可。</p>`
+    html: `<p>在<b>手机</b>第二页打开<b>游戏厅</b>应用。点击前台区域可以用<b>糖果</b>兑换<b>游戏币</b>（<b>${COIN_RATE} 糖果 = 1 游戏币</b>），柜台处选择兑换档位即可。</p>`
       + `<p>游戏厅目前提供：<b>21点</b>（详见「<b>21点</b>」章节）、<b>口袋麻将</b>（详见「<b>口袋麻将</b>」章节），<b>抽卡机</b>（详见「<b>抽卡机</b>」章节）。</p>`,
   },
   {
@@ -1837,7 +1938,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '自动操作',
     html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
-      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪</b> 四类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未捕获过的</b>。</p>`
+      + `<p><b>自动丢球</b>：判定为「捕捉」后会自动<b>连续丢球直到捕获或逃跑</b>。球种按<b>智能选球</b>——<b>神兽或捕获率低</b>的宝可梦优先 <b>大师球→高级球→精灵球</b>，捕获率高的普通宝可梦优先 <b>精灵球</b> 省资源；只在勾选的球种中挑选，优先球种没库存自动顺延。</p>`
+      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏</b> 五类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未拥有过的</b>（仓库里已有对应形态直接放跑）。</p>`
       + `<p>勾选增益道具到期自动<b>续杯</b>；<b>自动补球</b>：球用光自动用糖果补 1 个（「‹ ›」调优先级）。</p>`,
   },
   {
@@ -1864,17 +1966,106 @@ const TUTORIAL_SECTIONS = [
   },
 ];
 
+// ===== 教程章节奖励 =====
+// 每阅读一个章节可领取一次糖果（统一 30 颗，点击 title 右侧按钮直接领取）
+// 新存档默认全部可领；老存档无 tutorialRewards 字段时视为全部可领，一次性吃满福利
+const TUTORIAL_REWARD = 30;
+// 各章节领取后弹出的总结重点（key 为章节 title，领取时展示）——一句话新手建议
+const TUTORIAL_SUMMARIES = {
+  '序章': '欢迎来到口袋挂机世界！',
+  '目标': '我要成为宝可梦大师！',
+  '道具': '所有的道具都是一次性道具。',
+  '遭遇': '野生宝可梦最高等级是20级。',
+  '手机': '手机可以翻页到第二页。',
+  '图鉴': '没有遇到过的宝可梦无法被搜索到。',
+  '统计': '想知道自己欧不欧，看统计里的欧非评定。',
+  '成就': '点击任意一个领取按钮会领取所有成就奖励。',
+  '地区': '不同地区的宝可梦都不相同且不重复。',
+  '导航': '取消导航可以让主角停在当前所属地区。',
+  '事件': '时不时看看导航以免错过离得近的事件点。',
+  '悬赏': '到达对应地区后才可以提交宝可梦。',
+  '交换': '点击npc旁边的宝可梦图标可以查看其详情。',
+  '场景': '场景是随机的和导航系统无关。',
+  '自行车': '中途不能改变目的地，取消导航会直接下车。',
+  '捕捉': '高级球抓稀有和神兽有一定提升。',
+  '闪光': '遭遇闪光时会听到提示音，宝可梦名字后面也有闪光图标。',
+  '糖果': '奖励你30个糖果。',
+  '商店': '鼠标悬停到商品上可以看简介，右键兑换按钮能批量买。',
+  '增益': '闪耀护符有着甜甜蜜同样的增益。',
+  '孵蛋': '拥有两种蛋的时候，需要二次点击选择放入蛋的种类。',
+  '培育': '只有同蛋组才能繁殖，百变怪配「未发现蛋组」无效。',
+  '钓鱼': '每个可钓鱼场景会自动进行一次钓鱼。',
+  '树果': '树果用处很多，多囤树果。',
+  '农场': '每日刷新的树果委托可以换到糖果。',
+  '宝可梦': '右键列表可以批量放生。',
+  '配队': '可以存 6 组队伍，右键空白处能随机配队。',
+  '训练': '挂机就长经验，别忘备够爱吃的树果。',
+  '对战': 'NPC的等级受到队伍等级的影响。',
+  '经验糖果': '经验糖果无法直接购买。',
+  '配招': '出门前配好 4 招，自动配招不一定是最合适的。',
+  '混合器': '混合好后确认到了对应地区再使用。',
+  '树果方块': '方块引诱的宝可梦闪光率为默认值不受增益加成。',
+  '招募帮手': '帮手也是会休息的。',
+  '游戏厅': '等糖果富余了再来玩吧。',
+  '21点': '富贵险中求。',
+  '口袋麻将': '玩法借鉴自原子碰将，只有对对胡。',
+  '抽卡机': '单纯收集卡牌，无特殊作用。',
+  '随从': '不知道干什么的时候可以抽一只随从。',
+  '自动操作': '好好设置一下，解放双手必备。',
+  '佛系模式': '慢节奏玩家可以开启。',
+  '系统日志': '开启自动操作后可以经常看看。',
+  '宝可梦难度': '稀有度越高越稀有。',
+  '状态栏图标': '点击可以隐藏任务栏图标。',
+};
+function tutorialRewards() {
+  return (gameData.tutorialRewards ||= { claimed: [] });
+}
+// 是否还有未领取的教程章节（手机"教程"app 图标与标题栏聚合红点共用）
+export function hasUnclaimedTutorialRewards() {
+  const r = gameData?.tutorialRewards;
+  if (!r) return true; // 老存档尚未有该字段：福利待领取
+  return TUTORIAL_SECTIONS.some((_, i) => !r.claimed.includes(i));
+}
+function claimTutorialReward(idx) {
+  const r = tutorialRewards();
+  if (r.claimed.includes(idx)) return false;
+  r.claimed.push(idx);
+  gameData.items.candy = (gameData.items.candy || 0) + TUTORIAL_REWARD;
+  gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + TUTORIAL_REWARD; // 教程奖励计入道具获得
+  saveGame();
+  updateBackpack('candy');
+  updateStats();
+  window.dispatchEvent(new Event('tutorial-rewards-changed')); // 通知手机红点即时刷新
+  return true;
+}
+
 export function showTutorialView() {
   pushNav('tutorialView');
   const list = $('tutorialList');
   const content = $('tutorialContent');
-  // 渲染左侧导航列表（带图标的章节在标题前显示对应 svg 图标）
+  const r = tutorialRewards();
+  // 渲染左侧导航列表（带图标的章节在标题前显示对应 svg 图标；未领取奖励的章节带红点）
   list.innerHTML = TUTORIAL_SECTIONS.map((s, i) =>
-    `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="#${s.icon}"/></svg>` : ''}${s.title}</div>`
+    `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="#${s.icon}"/></svg>` : ''}${s.title}${r.claimed.includes(i) ? '' : '<span class="tutorial-nav-badge"></span>'}</div>`
   ).join('');
   function render(idx) {
-    content.innerHTML = `<p class="tutorial-title">${TUTORIAL_SECTIONS[idx].title}</p>` + TUTORIAL_SECTIONS[idx].html;
+    const sec = TUTORIAL_SECTIONS[idx];
+    content.innerHTML = `<div class="tutorial-title-row"><p class="tutorial-title">${sec.title}</p>${
+      r.claimed.includes(idx)
+        ? ''
+        : `<button class="ach-btn ach-btn-ready tutorial-claim-btn" data-claim="${idx}"><img class="candy-icon" src="./items/candy.png" alt="">×${TUTORIAL_REWARD} 领取</button>`
+    }</div>` + sec.html;
     list.querySelectorAll('.tutorial-nav-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+    // 点击领取：直接发糖果，弹章节总结，重绘当前章节（按钮消失），并移除左侧导航红点
+    const btn = content.querySelector('.tutorial-claim-btn');
+    if (btn) btn.onclick = (e) => {
+      e.stopPropagation();
+      if (claimTutorialReward(idx)) {
+        list.querySelector(`.tutorial-nav-item[data-i="${idx}"] .tutorial-nav-badge`)?.remove();
+        showConfirmBar(`${TUTORIAL_SUMMARIES[sec.title] || ''}`, null, null, { singleButton: true, host: $('screen') });
+        render(idx);
+      }
+    };
     content.scrollTop = 0;
   }
   // 用 onclick 赋值，避免每次进入页面重复累加监听

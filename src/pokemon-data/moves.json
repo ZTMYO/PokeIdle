@@ -1302,7 +1302,7 @@
                 "kind": "multihit",
                 "hits": [
                     2,
-                    5
+                    2
                 ],
                 "cat": "phys",
                 "power": 30
@@ -1625,7 +1625,7 @@
                 "kind": "multihit",
                 "hits": [
                     2,
-                    5
+                    2
                 ],
                 "cat": "phys",
                 "power": 25
@@ -3812,7 +3812,7 @@
                 "kind": "multihit",
                 "hits": [
                     2,
-                    5
+                    2
                 ],
                 "cat": "phys",
                 "power": 50
@@ -4034,8 +4034,8 @@
             "effect": {
                 "kind": "multihit",
                 "hits": [
-                    2,
-                    5
+                    3,
+                    3
                 ],
                 "cat": "phys",
                 "power": 10
@@ -12200,11 +12200,7 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "multihit",
-                "hits": [
-                    2,
-                    5
-                ],
+                "kind": "damage",
                 "cat": "phys",
                 "power": 100
             },
@@ -15658,8 +15654,8 @@
             "effect": {
                 "kind": "multihit",
                 "hits": [
-                    2,
-                    5
+                    3,
+                    3
                 ],
                 "cat": "phys",
                 "power": 25

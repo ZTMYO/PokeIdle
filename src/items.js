@@ -1,5 +1,5 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
+import { ITEM_NAMES, CANDY_EXCHANGE, ITEM_SELL_RATE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, isPokemon } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, getScreenLayoutMetrics } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
@@ -702,6 +702,22 @@ export async function doCandyExchange(itemKey, qty = 1) {
   gameData.items[itemKey] = (gameData.items[itemKey]||0) + qty;
   gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey]||0) + qty; // 商店购买也计入道具获得
   addSystemLog('shop_purchase', { item: itemKey, qty, cost: total });
+  updateBackpack(itemKey);
+  updateStats();
+  if ($('shopView')?.style.display === 'flex') {
+    const { showShopView } = await import('./views.js');
+    showShopView();
+  }
+}
+
+// 商店出售道具换糖果（与兑换对称）：扣道具加糖，出售价 = 兑换价 × ITEM_SELL_RATE
+export async function doSellBall(itemKey, qty = 1) {
+  const price = Math.round((CANDY_EXCHANGE[itemKey] || 0) * ITEM_SELL_RATE);
+  if (!price || qty <= 0) return;
+  if ((gameData.items[itemKey] || 0) < qty) return;
+  gameData.items[itemKey] -= qty;
+  gameData.items['candy'] = (gameData.items['candy'] || 0) + price * qty;
+  addSystemLog('shop_sell', { item: itemKey, qty, gain: price * qty });
   updateBackpack(itemKey);
   updateStats();
   if ($('shopView')?.style.display === 'flex') {

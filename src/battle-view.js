@@ -369,7 +369,7 @@ function buildPlayerTeam() {
           const m = entry.moves[i];
           return m && _data.moves[m] && _data.moves[m].effect.kind !== 'unimplemented' ? m : null;
         })
-      : chooseMoves(_learnset[entry.species], entry.level, _data, { types: pd ? pd.types : [], includeTm: true });
+      : chooseMoves(_learnset[entry.species] || {}, entry.level, _data, { types: pd ? pd.types : [], includeTm: true });
     return (() => {
       const mon = createMon(pd, entry.level || 1, entry.ivs, entry.nature, moveIds);
       mon.shiny = !!entry.shiny; // 战斗大图按闪光贴图（_shiny 后缀）加载

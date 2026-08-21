@@ -50,16 +50,16 @@ import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease } from './roster.js';
-import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade } from './trade.js';
+import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade, showTradeView } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
-import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge } from './phone.js';
+import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge, showIncubatorView } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, teleportToTwist } from './gps.js';
 import { initAudio, resumeAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
-import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView } from './nursery.js';
-import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle } from './battle-view.js';
-import { backFromBattlePick, isBattlePicking } from './team.js';
+import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView, showNurseryView } from './nursery.js';
+import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle, showBattleView } from './battle-view.js';
+import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit } from './team.js';
 import { refreshNpcs } from './npcs.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
@@ -242,10 +242,14 @@ function goBack() {
   // 详情页跳转图鉴（第 4 层子页）：返回先回详情页，再按详情返回逻辑走
   if (isRosterDetailJumpedToPokedex()) { returnRosterDetailFromPokedex(); return; }
   if (_pokedexInLogView && $('pokedexView')?.style.display === 'flex') { restorePokedex(); return; }
+  // 从悬赏提交/交换选择列表进入的详情，或「仓库情况」列表搜索（无详情）：按返回直接回来源视图
+  if (isRosterDetailFromList() && $('rosterView')?.style.display === 'flex') {
+    leaveRosterDetailToList();
+    return;
+  }
   if (isRosterInDetail() && $('rosterView')?.style.display === 'flex') {
     // 仅当正显示仓库详情时按返回才离开详情；从详情跳设置/商店等压栈页面返回时走 popNav 回到详情本身
-    if (isRosterDetailFromList()) { leaveRosterDetailToList(); }
-    else if (isRosterDetailFromObtain()) { leaveRosterDetailToSource(); }
+    if (isRosterDetailFromObtain()) { leaveRosterDetailToSource(); }
     else { restoreRosterList(); }
     return;
   }
@@ -525,6 +529,28 @@ function onIntroMusicClick() {
 }
 
 // ---------- 初始化 ----------
+// 全局快捷键：H 孵蛋器 / S 仓库 / T 交换 / B 对战（每个页面一个键）
+// 组合键、输入框聚焦、确认框弹出、开场剧情期间均不响应，避免误触打断流程
+function setupShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (window.__introActive) return;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+    if (document.getElementById('confirmBar')) return;
+    switch (e.key.toLowerCase()) {
+      case 'h': showIncubatorView(); break;
+      case 's': showRosterView(); break;
+      case 't': showTradeView(); break;
+      case 'b': showBattleView(); break;
+      case 'g': showGpsView(); break;
+      case 'n': showNurseryView(); break;
+      // Esc 等同标题栏返回（与点击返回按钮同一套逐级逻辑）
+      case 'escape': goBack(); break;
+    }
+  });
+}
+
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
 
@@ -554,6 +580,9 @@ async function init() {
       dv.scrollTop += e.deltaY * 0.4;
     }
   }, { passive: false });
+
+  // 全局快捷键（输入框聚焦 / 确认框弹出 / 开场剧情期间不响应）
+  setupShortcuts();
 
   // 加载宝可梦数据
   try {
@@ -595,6 +624,7 @@ async function init() {
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
   if (!gameData.collectedCards) gameData.collectedCards = {}; // 旧存档补齐卡牌收集
   if (!gameData.gachaLogs) gameData.gachaLogs = {}; // 旧存档补齐抽卡记录
+  migrateTeams(); // 6 组配队：旧档 team 迁入队伍 1，并建立 gameData.team 镜像引用
   initAudio(gameData.settings?.musicVolume ?? 0.6); // 背景音乐：读取存档音量并初始化
   // 旧档迁移：静音开关已并入「音乐」开关（默认播放音乐），清理孤立的 muted 字段
   if (gameData.settings?.muted !== undefined) delete gameData.settings.muted;
@@ -1245,6 +1275,8 @@ async function init() {
     if (isIncubatorLogOpen() && $('incubatorView')?.style.display === 'flex') { closeIncubatorLog(); return; }
     // 对战记录页打开且正处战斗视图：点击标题只关记录页，否则走正常返回
     if (isLogOpen() && $('battleView')?.style.display === 'flex') { closeLogPage(); return; }
+    // 配队子页（队伍编辑页）打开：只回队伍列表页
+    if (isTeamEditing() && $('teamView')?.style.display === 'flex') { closeTeamEdit(); return; }
     goBack();
   };
   $('appTitle')?.addEventListener('click', handleAppTitleBack);

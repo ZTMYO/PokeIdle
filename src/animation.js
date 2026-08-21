@@ -297,12 +297,13 @@ export function stopShinySparkleLoop() {
 }
 
 // 告别场景（放生 / 提交悬赏复用）：确认框询问，确认后播放图标缩小动画并显示「再见！xxx」
+// onOk：可选，点击「确定」确认的瞬间立即调用（放生用它即时移除个体并结算返还，动画仅作展示，之后不可取消）
 // confirmText：可选，确认动画第二阶段展示的文本（字符串或返回字符串的函数；缺省为「再见！xxx」）
 // poolText：可选，宝可梦隐藏后在其原位置展示的文本（字符串或函数），与 confirmText 一同在动画结束后显示
 // twoStep：可选，启用两阶段展示——确认后先显示「再见！xxx」+ 缩小动画，动画结束后自动切换 confirmText 并结束
 // title：可选，场景打开时接管顶部 appTitle 显示该标题，点击标题等同于取消（关闭场景时自动恢复原标题）
 let _savedTitle = null; // 被接管前的 appTitle 状态
-export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false, nick = '', confirmText = null, poolText = null, twoStep = false, title = null }) {    
+export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false, nick = '', confirmText = null, poolText = null, twoStep = false, title = null, onOk = null }) {    
   const view = $('goodbyeView');
   if (!poke || !view) { onConfirm && onConfirm(); return; }
   if (view._busy) return;
@@ -358,6 +359,8 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
     ok ? onConfirm && onConfirm() : onCancel && onCancel();
   };
   okBtn.onclick = () => {
+    // 确认瞬间即调用 onOk（放生：立即移除个体并结算返还，动画仅作展示，之后不可取消）
+    onOk && onOk();
     // 确认：图标缩小淡出 + 文案「再见！xxx」
     textEl.textContent = `再见！${nick || poke.name}`;
     okBtn.style.display = 'none';
