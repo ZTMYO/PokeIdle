@@ -39,27 +39,29 @@ import {
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
   doCandyExchange, grantItem, cancelItemDrop } from './items.js';
-import { syncBlockVisual, startBlockCountdown, clearBlockCountdown } from './mixer.js';
+import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
   tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill, catchFilterResult } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
-import { helperTick, refreshBerryView } from './berry.js';
+import { helperTick, refreshBerryView, showBerryView } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease } from './roster.js';
 import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade, showTradeView } from './trade.js';
-import { showShopView, showSettingsView, showSystemLogs,
+import { showShopView, showSettingsView, showSystemLogs, showAchievementView,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge, showIncubatorView } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, teleportToTwist } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView, showNurseryView } from './nursery.js';
+import { isTrainPicking, leaveTrainPick, showTrainView } from './train.js';
 import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle, showBattleView } from './battle-view.js';
-import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit } from './team.js';
+import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit, isTeamPicking, leaveTeamPick, showTeamView } from './team.js';
 import { refreshNpcs } from './npcs.js';
+import { showCasinoView } from './casino.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -257,6 +259,10 @@ function goBack() {
   if (isNurseryEggView()) { leaveNurseryEggView(); return; }
   // 饲育屋放入列表：标题栏返回回饲育屋场地（选取页未压栈）
   if (isNurseryPicking()) { leaveNurseryPick(); return; }
+  // 训练放入列表：标题栏返回回训练场地（放入页未压栈）
+  if (isTrainPicking()) { leaveTrainPick(); return; }
+  // 配队"加入队伍"放入列表：标题栏返回回队伍编辑页（放入页未压栈）
+  if (isTeamPicking()) { leaveTeamPick(); return; }
   // 结算页返回：回 NPC 战斗列表（与「返回列表」按钮一致），不弹栈（列表页仍在 battleView 内）
   if (isBattleSettled() && $('battleView')?.style.display === 'flex') {
     import('./battle-view.js').then(m => m.showBattleView());
@@ -526,7 +532,7 @@ function onIntroMusicClick() {
 }
 
 // ---------- 初始化 ----------
-// 全局快捷键：H 孵蛋器 / S 仓库 / T 交换 / B 对战（每个页面一个键）
+// 全局快捷键：G 导航 / T 图鉴 / B 仓库 / J 交换 / F 孵蛋器 / N 农场 / H 混合器 / C 成就 / R 日志 / S 饲育屋 / X 训练 / P 配队 / D 对战 / Y 游戏厅
 // 组合键、输入框聚焦、确认框弹出、开场剧情期间均不响应，避免误触打断流程
 function setupShortcuts() {
   document.addEventListener('keydown', (e) => {
@@ -536,12 +542,20 @@ function setupShortcuts() {
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
     if (document.getElementById('confirmBar')) return;
     switch (e.key.toLowerCase()) {
-      case 'h': showIncubatorView(); break;
-      case 's': showRosterView(); break;
-      case 't': showTradeView(); break;
-      case 'b': showBattleView(); break;
       case 'g': showGpsView(); break;
-      case 'n': showNurseryView(); break;
+      case 't': showPokedex(); break;
+      case 'b': showRosterView(); break;
+      case 'j': showTradeView(); break;
+      case 'f': showIncubatorView(); break;
+      case 'n': showBerryView(); break;
+      case 'h': showMixerView(); break;
+      case 'c': showAchievementView(); break;
+      case 'r': showSystemLogs(); break;
+      case 's': showNurseryView(); break;
+      case 'x': showTrainView(); break;
+      case 'p': showTeamView(); break;
+      case 'd': showBattleView(); break;
+      case 'y': showCasinoView(); break;
       // Esc 等同标题栏返回（与点击返回按钮同一套逐级逻辑）
       case 'escape': goBack(); break;
     }
@@ -1238,6 +1252,8 @@ async function init() {
     if (isIncubatorLogOpen() && $('incubatorView')?.style.display === 'flex') { closeIncubatorLog(); return; }
     // 对战记录页打开且正处战斗视图：点击标题只关记录页，否则走正常返回
     if (isLogOpen() && $('battleView')?.style.display === 'flex') { closeLogPage(); return; }
+    // 配队"加入队伍"放入页打开：只退出放入页回队伍编辑页
+    if (isTeamPicking() && $('teamView')?.style.display === 'flex') { leaveTeamPick(); return; }
     // 配队子页（队伍编辑页）打开：只回队伍列表页
     if (isTeamEditing() && $('teamView')?.style.display === 'flex') { closeTeamEdit(); return; }
     goBack();

@@ -9,6 +9,7 @@ import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE } from './config.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { chooseMoves, fallbackMoves } from './moves.js';
 import { NATURES } from './battle-core.js';
+import { setupSourceFilter } from './filters.js';
 
 // 获得来源 → 中文
 // 大量出没（mass）本质也是野生遭遇，显示与筛选均归入「野生」，不单列筛选项
@@ -328,121 +329,17 @@ function setupSearch() {
 // 二级=完整组合（闪光/变体/普通/神兽/非闪），覆盖全部筛选情况。
 // 神兽为独立入口（不限来源，子菜单仅「非闪光」「闪光」）；闪光与变体两个带三级展开的项置顶。
 function setupFilter() {
-  const trigger = $('rosterFilter');
-  const label = $('rosterFilterLabel');
-  const dd = $('rosterFilterDropdown');
-  if (!trigger || !label || !dd) return;
-
-  // 一级选项：legend 为神兽独立入口（非来源）；value ''=全部
-  const SRC_ORDER = [['', '全部'], ['legend', '神兽'], ['normal', '野生'], ['fishing', '钓鱼'], ['egg', '孵蛋'], ['trade', '交换'], ['twist', '扭曲']];
-  // 二级：普通/神兽直接选中；「闪光」hover 展开三级；「非闪」= 不闪光（不限普/神）
-  const COMBO_ORDER = [
-    ['normal', 'normal', '普通'],
-    ['legend', 'normal', '神兽'],
-    ['', 'normal', '非闪'],
-  ];
-  const SHINY_ORDER = [
-    ['normal', 'shiny', '普通闪光'],
-    ['legend', 'shiny', '神兽闪光'],
-  ];
-
-  function buildOptions() {
-    dd.innerHTML = SRC_ORDER.map(([k, name]) => {
-      if (!k) {
-        return `<div class="region-dropdown-item${!_srcFilter && !_legendFilter && !_shinyFilter && !_variantFilter ? ' active' : ''}" data-src="" data-legend="" data-shiny="">全部</div>`;
-      }
-      const sub = [];
-      if (k === 'legend') {
-        // 神兽独立入口：一级点击=全部神兽，子菜单仅「非闪光」「闪光」
-        sub.push(`<div class="region-dropdown-item${_legendFilter === 'legend' && _shinyFilter === 'normal' && !_srcFilter ? ' active' : ''}"
-             data-src="" data-legend="legend" data-shiny="normal">非闪光</div>`);
-        sub.push(`<div class="region-dropdown-item${_legendFilter === 'legend' && _shinyFilter === 'shiny' && !_srcFilter ? ' active' : ''}"
-             data-src="" data-legend="legend" data-shiny="shiny">闪光</div>`);
-      } else if (k === 'twist') {
-        // 时空扭曲专属：二级直接列出 RGB / 污染 / 闪光三个叶子项，不套通用组合，菜单最窄
-        sub.push(`<div class="region-dropdown-item${_srcFilter === k && _variantFilter === 'rgb' && !_legendFilter && !_shinyFilter ? ' active' : ''}"
-             data-src="${k}" data-legend="" data-shiny="" data-variant="rgb">RGB</div>`);
-        sub.push(`<div class="region-dropdown-item${_srcFilter === k && _variantFilter === 'polluted' && !_legendFilter && !_shinyFilter ? ' active' : ''}"
-             data-src="${k}" data-legend="" data-shiny="" data-variant="polluted">污染</div>`);
-        sub.push(`<div class="region-dropdown-item${_srcFilter === k && _shinyFilter === 'shiny' && !_legendFilter && !_variantFilter ? ' active' : ''}"
-             data-src="${k}" data-legend="" data-shiny="shiny">闪光</div>`);
-      } else {
-        // 闪光三级：置顶，hover 展开普通闪光/神兽闪光
-        sub.push(`<div class="roster-filter-item">
-          <span class="roster-filter-leaf${_srcFilter === k && _shinyFilter === 'shiny' && !_legendFilter ? ' active' : ''}"
-                data-src="${k}" data-legend="" data-shiny="shiny">闪光</span>
-          <span class="roster-filter-arrow">▸</span>
-          <div class="roster-sub-menu">
-            ${SHINY_ORDER.map(([lk, shk, cname]) => `
-            <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk ? ' active' : ''}"
-                 data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('')}
-          </div>
-        </div>`);
-        // 普通/神兽/非闪叶子
-        sub.push(COMBO_ORDER.map(([lk, shk, cname]) => `
-          <div class="region-dropdown-item${_srcFilter === k && _legendFilter === lk && _shinyFilter === shk && !_variantFilter ? ' active' : ''}"
-               data-src="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join(''));
-      }
-      return `<div class="roster-filter-item">
-        <span class="roster-filter-src${(k === 'legend' ? _legendFilter === 'legend' && !_srcFilter && !_shinyFilter && !_variantFilter : _srcFilter === k && !_legendFilter && !_shinyFilter && !_variantFilter) ? ' active' : ''}" data-src="${k}">${name}</span>
-        <span class="roster-filter-arrow">▸</span>
-        <div class="roster-sub-menu">
-          ${sub.join('')}
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  function pickItem(el) {
-    _srcFilter = el.dataset.src || '';
-    _legendFilter = el.dataset.legend || '';
-    _shinyFilter = el.dataset.shiny || '';
-    _variantFilter = el.dataset.variant || '';
-    // 标签：来源·组合短名，如"野·闪""钓·普闪"；变体筛选时显示"扭·RGB"；
-    // 神兽入口不限定来源，直接显示"神"或"神闪"
-    const srcShort = { normal: '野', fishing: '钓', egg: '蛋', trade: '换', twist: '扭' };
-    const comboShort = { '|': '全部', 'legend|': '神', 'normal|normal': '普', 'legend|normal': '神', '|normal': '非闪', '|shiny': '闪', 'normal|shiny': '普闪', 'legend|shiny': '神闪' };
-    if (!_srcFilter) {
-      label.textContent = comboShort[`${_legendFilter}|${_shinyFilter}`] || '全部';
-    } else if (_variantFilter) {
-      const vShort = { any: '变', rgb: 'RGB', polluted: '污染' };
-      label.textContent = `${srcShort[_srcFilter]}·${vShort[_variantFilter]}`;
-    } else {
-      label.textContent = `${srcShort[_srcFilter]}·${comboShort[`${_legendFilter}|${_shinyFilter}`]}`;
-    }
-    dd.style.display = 'none';
-    trigger.classList.remove('open');
-    renderList();
-  }
-
-  // 点击叶子项（带完整组合值）直接选中
-  dd.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const el = e.target.closest('[data-src][data-legend]');
-    if (el) { pickItem(el); return; }
-    // 点击来源标题（如「扭曲」）：直接筛出该来源全部宝可梦，不限普/神/闪/变体；
-    // 神兽是独立入口，点击 = 筛选全部神兽（不限来源与闪光）
-    const srcEl = e.target.closest('.roster-filter-src');
-    if (srcEl) {
-      pickItem(srcEl.dataset.src === 'legend'
-        ? { dataset: { src: '', legend: 'legend', shiny: '', variant: '' } }
-        : { dataset: { src: srcEl.dataset.src || '', legend: '', shiny: '', variant: '' } });
-    }
-  });
-  trigger.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const open = dd.style.display !== 'none';
-    document.querySelectorAll('.region-dropdown').forEach(d => d.style.display = 'none');
-    document.querySelectorAll('.pokedex-region-select').forEach(s => s.classList.remove('open'));
-    if (!open) {
-      buildOptions();
-      dd.style.display = '';
-      trigger.classList.add('open');
-    }
-  });
-  document.addEventListener('click', () => {
-    dd.style.display = 'none';
-    trigger.classList.remove('open');
+  setupSourceFilter({
+    trigger: $('rosterFilter'),
+    label: $('rosterFilterLabel'),
+    dd: $('rosterFilterDropdown'),
+    state: {
+      get src() { return _srcFilter; }, set src(v) { _srcFilter = v; },
+      get legend() { return _legendFilter; }, set legend(v) { _legendFilter = v; },
+      get shiny() { return _shinyFilter; }, set shiny(v) { _shinyFilter = v; },
+      get variant() { return _variantFilter; }, set variant(v) { _variantFilter = v; },
+    },
+    onPick: renderList,
   });
 }
 

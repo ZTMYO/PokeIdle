@@ -3486,7 +3486,7 @@ body.browser-mode { overflow: auto; }
   font-weight: 700;
 }
 /* 来源筛选三级菜单：一级=来源，二级=普通/神兽，三级=闪光（hover 逐级展开） */
-#rosterFilterDropdown { max-height: none; overflow: visible; padding: 2px 0; }
+#rosterFilterDropdown, #trainPickSrcFilterDropdown, #teamPickSrcFilterDropdown { max-height: none; overflow: visible; padding: 2px 0; }
 /* 图鉴解锁/稀有度/闪光筛选三级菜单（同仓库样式） */
 #pokedexStatusDropdown { max-height: none; overflow: visible; padding: 2px 0; }
 .roster-filter-item {
@@ -7065,14 +7065,14 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .train-status-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   padding: 3px 6px;
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.12);
   min-width: 0;
 }
 .train-status-name {
-  flex: 0 0 90px;
+  flex: 0 0 76px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -7088,31 +7088,34 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.train-status-name em { flex-shrink: 0; font-style: normal; font-weight: 700; }
+.train-status-name .train-status-g { flex: 0 0 12px; font-style: normal; }
+.train-status-sat-num { flex: 0 0 auto; text-align: left; font-style: normal; }
+.train-status-xp {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ui-color);
+  font-variant-numeric: tabular-nums;
+}
+.train-status-xp-lv { flex: 0 0 auto; text-align: left; font-style: normal; }
 .train-status-bar {
   flex: 1;
   min-width: 0;
-  max-width: 110px;
   height: 4px;
   border-radius: 2px;
   background: rgba(0, 0, 0, 0.14);
   overflow: hidden;
 }
 .train-status-bar .xp-fill {
+  display: block;
   height: 100%;
   border-radius: 2px;
   background: var(--ui-color);
   transition: width 0.3s;
-}
-.train-status-nums {
-  flex-shrink: 0;
-  font-size: 8px;
-  font-weight: 700;
-  color: var(--ui-color);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  width: 58px;
-  text-align: right;
 }
 /* 训练状态点：训练中绿色 / 偷懒中灰色，位于行首名字前 */
 .train-status-dot {
@@ -7125,18 +7128,20 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .train-status-dot.lazy { background: var(--color-muted); }
 /* 饱食度：迷你进度条 + 数值，颜色随饥饿程度变化（满/中/低） */
 .train-status-satiety {
-  flex-shrink: 0;
-  display: inline-flex;
+  flex: 1;
+  min-width: 0;
+  display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   font-size: 8px;
   font-weight: 700;
   color: var(--ui-color);
   font-variant-numeric: tabular-nums;
 }
 .train-status-sat-track {
-  width: 28px;
-  height: 3px;
+  flex: 1;
+  min-width: 0;
+  height: 4px;
   border-radius: 2px;
   background: rgba(0, 0, 0, 0.14);
   overflow: hidden;

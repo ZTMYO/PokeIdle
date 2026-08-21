@@ -251,13 +251,16 @@ export function showConfirmBar(text, onYes, onNo, opts = {}) {
   });
   if (opts.height) bar.style.height = opts.height;
   if (!opts.noButtons) {
-    bar.querySelector('[data-cb-yes]').addEventListener('click', () => {
+    bar.querySelector('[data-cb-yes]').addEventListener('click', (e) => {
+      // 确认按钮不冒泡：避免误触 document 级"点击面板外部关闭"等监听（如确认后刚打开的面板被瞬间关闭）
+      e.stopPropagation();
       const keep = onYes ? onYes() : undefined;
       if (!keep) hideConfirmBar();
     });
     // singleButton 模式无「取消」按钮，需判空再绑定
     const noBtn = bar.querySelector('[data-cb-no]');
-    if (noBtn) noBtn.addEventListener('click', () => {
+    if (noBtn) noBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (onNo) onNo();
       hideConfirmBar();
     });
@@ -394,9 +397,21 @@ export function fitPokemonImage(img) {
 
 // ---------- 图片加载 ----------
 const _imgCache = new Map();
+// 加载失败路径缓存（negative cache）：失败后不再重试，避免大列表反复请求不存在的图标
+// 耗尽浏览器资源（ERR_INSUFFICIENT_RESOURCES）；重启会话后清空可重新尝试
+const _imgFail = new Set();
+// 同一路径正在加载中的队列：多个 img 元素（如多只同种宝可梦）请求同一图标时，
+// 只发一次网络请求，其余挂入等待列表，加载完成后统一回填
+const _imgLoads = new Map(); // relPath -> { imgs: [{img, resolve}] }
 function _cacheSet(key, val) {
+  if (_imgCache.size >= 800) {
+    const oldKey = _imgCache.keys().next().value;
+    const oldVal = _imgCache.get(oldKey);
+    // 淘汰时释放 blob URL，否则反复渲染大列表会持续泄漏内存直至资源耗尽
+    if (oldVal && oldVal.startsWith('blob:')) URL.revokeObjectURL(oldVal);
+    _imgCache.delete(oldKey);
+  }
   _imgCache.set(key, val);
-  if (_imgCache.size > 800) _imgCache.delete(_imgCache.keys().next().value); // 超限淘汰最早插入的
 }
 
 // 加载中的透明占位图（1px 透明 gif）：未命中缓存的图在加载期间显示它，
@@ -407,6 +422,12 @@ export function tryLoadImage(img, relPath) {
   // 竞态防护：记录当前期望加载的目标路径。旧请求的慢通道（fetch/IPC）完成时，
   // 若发现目标已被新请求接管则作废，防止把遭遇图等覆盖回上一只宝可梦
   img.dataset.loadTarget = relPath;
+  if (_imgFail.has(relPath)) {
+    // 之前已确认加载失败：直接透明占位，不再发任何请求
+    img.onload = null; img.onerror = null;
+    if (img.src !== _TRANSPARENT) img.src = _TRANSPARENT;
+    return Promise.resolve(false);
+  }
   const hit = _imgCache.get(relPath);
   if (hit) {
     return new Promise(resolve => {
@@ -416,8 +437,28 @@ export function tryLoadImage(img, relPath) {
       if (img.complete) resolve(true);
     });
   }
+  // 同一路径已有加载流程在跑：挂入等待列表，完成后统一回填，避免多只同种个体并发重复请求
+  const existing = _imgLoads.get(relPath);
+  if (existing) {
+    // 等待期间先透明占位，避免空 src 露出破图
+    if (img.src !== _TRANSPARENT) img.src = _TRANSPARENT;
+    return new Promise(resolve => {
+      const w = { img, resolve };
+      existing.imgs.push(w);
+      // 兜底：首请求若卡死（如行图标被移出 DOM 后加载中断、onload/onerror 不再触发），
+      // 等待者 3s 后自行建立加载链路，避免永久不显示
+      w.timer = setTimeout(() => {
+        const i = existing.imgs.indexOf(w);
+        if (i >= 0) existing.imgs.splice(i, 1);
+        _imgLoads.delete(relPath);
+        tryLoadImage(img, relPath).then(resolve);
+      }, 3000);
+    });
+  }
   // 立即切透明占位：加载期间与失败后都不会露出浏览器破图图标
   if (img.src !== _TRANSPARENT) img.src = _TRANSPARENT;
+  const entry = { imgs: [] };
+  _imgLoads.set(relPath, entry);
   return new Promise(resolve => {
     const ext = (relPath.split('.').pop() || 'png').toLowerCase();
     const dbg = { raw: 0, encoded: 0, fetch: 0, tauri: 0, fail: 0, key: relPath };
@@ -426,14 +467,42 @@ export function tryLoadImage(img, relPath) {
     // 透明占位已在函数入口设置，失败时保持透明即可
     const doRaw = () => new Promise(r => {
       dbg.raw++;
-      img.onload = () => { img.onerror = null; if (img.dataset.loadTarget !== relPath) { r(true); return; } _cacheSet(relPath, relPath); r(true); };
-      img.onerror = () => { if (img.dataset.loadTarget !== relPath) { r(true); return; } r(false); };
+      // 兜底超时：img 被移出 DOM 时浏览器可能不再触发 onload/onerror，避免链路永久挂起
+      let settled = false;
+      const timer = setTimeout(() => { if (!settled) { settled = true; r(false); } }, 4000);
+      img.onload = () => {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        img.onerror = null;
+        // 网络加载成功即入缓存：即使首请求已被新请求接管（作废），缓存仍供等待者回填
+        _cacheSet(relPath, relPath);
+        r(true);
+      };
+      img.onerror = () => {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        if (img.dataset.loadTarget !== relPath) { r(true); return; }
+        r(false);
+      };
       img.src = relPath;
     });
     const doEncoded = () => new Promise(r => {
       dbg.encoded++;
-      img.onload = () => { img.onerror = null; if (img.dataset.loadTarget !== relPath) { r(true); return; } _cacheSet(relPath, encodeURI(relPath)); r(true); };
-      img.onerror = () => { if (img.dataset.loadTarget !== relPath) { r(true); return; } r(false); };
+      let settled = false;
+      const timer = setTimeout(() => { if (!settled) { settled = true; r(false); } }, 4000);
+      img.onload = () => {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        img.onerror = null;
+        _cacheSet(relPath, encodeURI(relPath));
+        r(true);
+      };
+      img.onerror = () => {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        if (img.dataset.loadTarget !== relPath) { r(true); return; }
+        r(false);
+      };
       img.src = encodeURI(relPath);
     });
     const doFetch = () => fetch(encodeURI(relPath)).then(r => {
@@ -449,8 +518,8 @@ export function tryLoadImage(img, relPath) {
         return new Promise(r => {
           img.onload = () => { if (img.dataset.loadTarget !== relPath) { r(true); return; } r(true); };
           img.onerror = () => { URL.revokeObjectURL(url); if (_imgCache.get(relPath) === url) _imgCache.delete(relPath); if (img.dataset.loadTarget !== relPath) { r(true); return; } r(false); };
-          // 等待期间目标已被新请求接管：回收 blob 并作废，不再写回旧图
-          if (img.dataset.loadTarget !== relPath) { URL.revokeObjectURL(url); if (_imgCache.get(relPath) === url) _imgCache.delete(relPath); r(true); return; }
+          // 等待期间目标已被新请求接管：blob 已入缓存供等待者回填，不再写回旧图
+          if (img.dataset.loadTarget !== relPath) { r(true); return; }
           img.src = url;
         });
       });
@@ -462,7 +531,7 @@ export function tryLoadImage(img, relPath) {
       // IPC 读图可能被其他后台命令阻塞，加超时避免 Promise 永久挂起（否则遭遇图等待会一直 pending）
       return new Promise(r => {
         let done = false;
-        const timer = setTimeout(() => { if (!done) { done = true; r(false); } }, 15000);
+        const timer = setTimeout(() => { if (!done) { done = true; r(false); } }, 3000);
         window.__TAURI__.core.invoke('read_gif_base64', { path: fp })
           .then(b64 => {
             if (done) return;
@@ -470,26 +539,44 @@ export function tryLoadImage(img, relPath) {
             new Promise(r2 => {
               img.onload = () => { if (img.dataset.loadTarget !== relPath) { r2(true); return; } _cacheSet(relPath, `data:image/${ext};base64,${b64}`); r2(true); };
               img.onerror = () => { if (img.dataset.loadTarget !== relPath) { r2(true); return; } r2(false); };
-              // 等待期间目标已被新请求接管：直接作废，不再写回旧图
-              if (img.dataset.loadTarget !== relPath) { r2(true); return; }
+              // 等待期间目标已被新请求接管：数据仍入缓存供等待者回填，不再写回旧图
+              if (img.dataset.loadTarget !== relPath) { _cacheSet(relPath, `data:image/${ext};base64,${b64}`); r2(true); return; }
               img.src = `data:image/${ext};base64,${b64}`;
             }).then(r);
           })
           .catch(() => { if (!done) { done = true; clearTimeout(timer); r(false); } });
       });
     };
+    // 首个加载流程完成：登记失败缓存并回填所有等待的 img（成功用缓存 URL，失败透明占位）
+    const finish = (ok) => {
+      _imgLoads.delete(relPath);
+      if (!ok) {
+        _imgFail.add(relPath); dbg.fail++; dbgLog();
+        // 首图失败时恢复透明占位：避免 src 停留在失败 URL 露出破图
+        if (img.dataset.loadTarget === relPath && img.src !== _TRANSPARENT) img.src = _TRANSPARENT;
+      }
+      const url = _imgCache.get(relPath);
+      entry.imgs.forEach(w => {
+        clearTimeout(w.timer);
+        w.img.onload = null; w.img.onerror = null;
+        if (ok && url) {
+          w.img.src = url;
+          if (!w.img.complete) w.img.onload = () => { w.img.onerror = null; w.resolve(true); };
+          w.resolve(true);
+        } else {
+          if (w.img.src !== _TRANSPARENT) w.img.src = _TRANSPARENT;
+          w.resolve(false);
+        }
+      });
+      resolve(ok);
+    };
     // 依次尝试各通道：任一成功即短路（返回 true 沿链路传播），全失败才记录日志
     doRaw()
       .then(ok => (ok ? true : doEncoded()))
       .then(ok => (ok ? true : doFetch()))
       .then(ok => (ok ? true : doTauri()))
-      .then(ok => {
-        if (ok) { resolve(true); return; }
-        dbg.fail++;
-        dbgLog();
-        resolve(false);
-      })
-      .catch(() => { dbg.fail++; dbgLog(); resolve(false); });
+      .then(finish)
+      .catch(() => finish(false));
   });
 }
 

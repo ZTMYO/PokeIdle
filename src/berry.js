@@ -19,6 +19,8 @@ import {
   FARM_BOARD_QTY_MAX as BOARD_QTY_MAX,
   FARM_BOARD_BIG_QTY_MIN as BIG_QTY_MIN,
   FARM_BOARD_BIG_QTY_MAX as BIG_QTY_MAX,
+  FARM_BOARD_MEGA_QTY_MIN as MEGA_QTY_MIN,
+  FARM_BOARD_MEGA_QTY_MAX as MEGA_QTY_MAX,
   FARM_CANDY_PER_BERRY as CANDY_PER_BERRY,
   FARM_HARVEST_MIN as HARVEST_MIN,
   FARM_HARVEST_MAX as HARVEST_MAX,
@@ -115,13 +117,17 @@ function generateDailyDemands() {
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
   return pool.slice(0, BOARD_DEMANDS).map((type, k) => {
-    const big = k === BOARD_DEMANDS - 1;
-    const qty = big ? randInt(BIG_QTY_MIN, BIG_QTY_MAX) : randInt(BOARD_QTY_MIN, BOARD_QTY_MAX);
+    const mega = k === BOARD_DEMANDS - 1;
+    const big = k === BOARD_DEMANDS - 2;
+    const qty = mega ? randInt(MEGA_QTY_MIN, MEGA_QTY_MAX)
+      : big ? randInt(BIG_QTY_MIN, BIG_QTY_MAX)
+      : randInt(BOARD_QTY_MIN, BOARD_QTY_MAX);
     return {
       type,
       qty,
       big,
-      candy: qty * CANDY_PER_BERRY + randInt(0, big ? 30 : 8),
+      mega,
+      candy: qty * CANDY_PER_BERRY + randInt(0, mega ? 60 : big ? 30 : 8),
       claimed: false,
     };
   });

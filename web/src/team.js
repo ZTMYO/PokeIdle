@@ -1,5 +1,9 @@
-import { $, showView, tryLoadImage } from './ui.js';
+import { $, showView, tryLoadImage, showConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, isPokemon } from './state.js';
+import { matchPinyinPartial } from './pokedex.js';
+import { TYPE_COLORS } from './items.js';
+import { REGION_CYCLE } from './config.js';
+import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
 
 export const TEAM_MAX = 6;
 
@@ -112,6 +116,19 @@ let _battleParty = null;   // 出战队伍 [{ entry, pd, mon }]
 let _battleFieldIdx = -1;  // 当前场上成员下标（不可替换给自己）
 let _battleCb = null;      // 选择回调：idx 为上场下标，-1 表示取消
 let _battleCanCancel = false; // 战斗中替换是否可取消：主动替换可取消，宝可梦倒下必须换人
+// "加入队伍"放入页状态（空槽点击进入，与训练/饲育屋放入页一致的样式与交互）
+let _pickSlot = null;        // 目标槽位（非空 = 处于放入页）
+let _pickSearch = '';
+let _pickSortBy = null;
+let _pickSortDir = 1;
+let _pickTypeFilter = '';
+let _pickRegionFilter = '';
+let _pickSrc = '';
+let _pickLegend = '';
+let _pickShiny = '';
+let _pickVariant = '';
+let _pickListScroll = 0;
+let _pickRenderSeq = 0;
 // 拖拽换位状态
 let _dragFrom = -1;      // 正在拖拽的源槽位（-1 = 未拖拽）
 let _dragTarget = -1;    // 指针当前悬停的目标槽位
@@ -164,8 +181,35 @@ export function isBattlePicking() {
   return !!_battleCb;
 }
 
-// 仓库选取：从列表项加入队伍（空槽点击跳转仓库后由列表项触发），按被点击的槽位落位
+// 该个体是否在任意队伍中（放入页占用确认用）
+export function isInAnyTeam(id) {
+  const tms = Array.isArray(gameData.teams) ? gameData.teams : null;
+  if (tms) return tms.some(t => t && Array.isArray(t.ids) && t.ids.includes(id));
+  return Array.isArray(gameData.team) && gameData.team.includes(id);
+}
+
+// 仓库选取：从列表项加入队伍（空槽点击跳转仓库后由列表项触发），按被点击的槽位落位。
+// 若该个体正被训练/饲育屋占用，先弹确认框，确认后才入队（自动撤下原占用方）
 export function addToTeam(id, slot) {
+  const arr = editIds();
+  // 按实际成员数判断满员（数组可能含空位）；已占用的槽位视为替换，不受满员限制
+  if ((!arr[slot] && arr.filter(Boolean).length >= TEAM_MAX) || arr.includes(id)) return;
+  Promise.all([
+    import('./train.js').then(m => m.isTrainingPokemon(id)),
+    import('./nursery.js').then(m => m.isNurseryPokemon(id)),
+  ]).then(([inTrain, inNursery]) => {
+    const occ = [];
+    if (inTrain) occ.push('训练');
+    if (inNursery) occ.push('饲育屋');
+    if (occ.length) {
+      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。加入队伍将自动将其撤下，确定加入？`, () => doAddToTeam(id, slot), null);
+      return;
+    }
+    doAddToTeam(id, slot);
+  });
+}
+
+function doAddToTeam(id, slot) {
   const arr = editIds();
   // 按实际成员数判断满员（数组可能含空位）；已占用的槽位视为替换，不受满员限制
   if ((!arr[slot] && arr.filter(Boolean).length >= TEAM_MAX) || arr.includes(id)) return;
@@ -193,6 +237,7 @@ function render() {
   const box = $('teamContent');
   if (!box) return;
   if (_battleCb) { renderBattlePick(box); return; }
+  if (_pickSlot != null) { renderTeamPick(box); return; }
   if (_editing >= 0) { renderTeamEdit(box); return; }
   renderTeamList(box);
 }
@@ -282,6 +327,402 @@ function renderTeamList(box) {
   });
 }
 
+// ---------- "加入队伍"全页列表（与训练/饲育屋放入页一致：搜索/筛选/排序/详情，标题栏为「放入」） ----------
+
+// 点击队伍编辑页空槽：切到全页放入列表
+function openTeamPick(slot) {
+  _pickSlot = slot;
+  render();
+}
+
+// 放入页是否打开（供 main.js 标题栏返回使用）
+export function isTeamPicking() {
+  return _pickSlot != null && $('teamView')?.style.display !== 'none';
+}
+
+// 标题栏返回：退出放入页，回队伍编辑页并恢复子页标题
+export function leaveTeamPick() {
+  if (_pickSlot == null) return;
+  _pickSlot = null;
+  _pickSearch = '';
+  _pickTypeFilter = '';
+  _pickRegionFilter = '';
+  _pickSrc = '';
+  _pickLegend = '';
+  _pickShiny = '';
+  _pickVariant = '';
+  render();
+  enterTeamEditTitle(`队伍${_editing + 1}`); // 恢复队伍编辑子页标题
+}
+
+// 全页"加入队伍"列表：顶部搜索/筛选/排序，行点击跳个体详情，按钮加入该槽位
+function renderTeamPick(box) {
+  box.innerHTML = `
+    <div class="view-list" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+      <div class="pokedex-progress" id="teamPickProgress">
+        <span id="teamPickProgressCount"></span>
+      </div>
+      <div class="pokedex-search">
+        <div class="pokedex-search-row">
+          <div class="pokedex-search-input-wrap">
+            <input id="teamPickSearch" class="pokedex-search-input" type="text" placeholder="搜索宝可梦"
+              autocomplete="off" value="${_pickSearch.replace(/"/g, '&quot;')}" />
+            <button class="pokedex-search-clear" id="teamPickSearchClear" style="${_pickSearch ? '' : 'display:none'}" aria-label="清空搜索">
+              <svg><use xlink:href="#icon-close"></use></svg>
+            </button>
+          </div>
+          <div id="teamPickSrcFilter" class="pokedex-region-select" tabindex="0" title="按来源筛选">
+            <span id="teamPickSrcFilterLabel">${sourceFilterLabel({ src: _pickSrc, legend: _pickLegend, shiny: _pickShiny, variant: _pickVariant })}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="teamPickSrcFilterDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="teamPickTypeFilter" class="pokedex-region-select" tabindex="0" title="按属性筛选">
+            <span id="teamPickTypeFilterLabel">${_pickTypeFilter ? _pickTypeFilter : '属性'}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="teamPickTypeFilterDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="teamPickRegionFilter" class="pokedex-region-select" tabindex="0" title="按地区筛选">
+            <span id="teamPickRegionFilterLabel">${_pickRegionFilter || '地区'}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="teamPickRegionFilterDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="pokedex-header roster-header nursery-pick-header team-pick-header">
+        <span class="roster-icon"></span>
+        <span class="pokedex-star"></span>
+        <span class="pokedex-name" data-sort="name">名称</span>
+        <span class="roster-lv-col" data-sort="level">等级</span>
+        <span class="roster-iv" data-sort="iv">个体值</span>
+        <span class="bounty-trade-btn-col">加入</span>
+      </div>
+      <div class="list-scroll nursery-pick-list team-pick-list">
+      </div>
+    </div>`;
+  // 进度：可加入总数（已排除当前队伍内个体）
+  const prog = box.querySelector('#teamPickProgressCount');
+  if (prog) prog.textContent = `共 ${teamPickRows().length} 只可加入`;
+  // 设置标题栏
+  const title = $('appTitle');
+  if (title) {
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 放入';
+    title.dataset.action = 'back';
+  }
+  // 行事件委托：行 DOM 由分片渲染动态插入，委托绑定一次，避免每片重复绑定
+  const list = box.querySelector('.team-pick-list');
+  if (list) {
+    list.onclick = (e) => {
+      const btn = e.target.closest('[data-pick-submit]');
+      if (btn) {
+        e.stopPropagation();
+        const slot = _pickSlot;
+        _pickSlot = null;
+        addToTeam(btn.dataset.pickSubmit, slot);
+        return;
+      }
+      const row = e.target.closest('[data-pick-view]');
+      if (!row) return;
+      e.stopPropagation();
+      _pickListScroll = list.scrollTop; // 记住列表位置，返回后恢复
+      import('./roster.js').then(m => m.showRosterDetailFromList(row.dataset.pickView, () => {
+        showView('teamView');
+        render(); // _pickSlot 未清空，仍显示放入列表
+      }));
+    };
+    // 分片渲染完成后恢复详情返回前的滚动位置
+    renderTeamPickRows(list, () => { list.scrollTop = _pickListScroll; });
+  }
+  bindTeamPickPersistent(box);
+  bindTeamPickFilters(box);
+}
+
+// 个体值总和
+function pickIvSum(p) {
+  if (!p.ivs) return 0;
+  return ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].reduce((s, k) => s + (p.ivs[k] || 0), 0);
+}
+// 个体值明细（hover 个体值单元格的 tooltip 显示；HP 用全角 ＨＰ，与中文标签同宽，数值自然对齐）
+function pickIvTip(p) {
+  return [['ＨＰ', 'hp'], ['攻击', 'atk'], ['防御', 'def'], ['特攻', 'spa'], ['特防', 'spd'], ['速度', 'spe']]
+    .map(([label, k]) => `${label}  ${p.ivs ? (p.ivs[k] || 0) : 0}`)
+    .join('\n');
+}
+
+// 放入列表来源筛选状态（供共享来源下拉读写）
+function pickSrcState() {
+  return {
+    get src() { return _pickSrc; }, set src(v) { _pickSrc = v; },
+    get legend() { return _pickLegend; }, set legend(v) { _pickLegend = v; },
+    get shiny() { return _pickShiny; }, set shiny(v) { _pickShiny = v; },
+    get variant() { return _pickVariant; }, set variant(v) { _pickVariant = v; },
+  };
+}
+
+// "加入队伍"列表候选：全部在仓个体（排除当前队伍内个体与蛋），行结构与训练/饲育屋放入页一致
+function teamPickRows() {
+  const exclude = new Set(editIds().filter(Boolean));
+  const q = _pickSearch.trim();
+  return (gameData.roster || [])
+    .filter(p => p.inRoster && !exclude.has(p.id))
+    .filter(p => !p.kind || p.kind !== 'egg') // 宝可梦蛋不能入队
+    // 属性筛选
+    .filter(p => {
+      if (!_pickTypeFilter) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      return poke?.types?.includes(_pickTypeFilter);
+    })
+    // 地区筛选
+    .filter(p => {
+      if (!_pickRegionFilter) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      return poke?.region === _pickRegionFilter;
+    })
+    // 来源筛选：来源 → 神兽 → 闪光 → 变体（与 roster 一致；mass 归入「野生」）
+    .filter(p => {
+      if (_pickSrc) return _pickSrc === 'normal' ? (p.source === 'normal' || p.source === 'mass') : p.source === _pickSrc;
+      return true;
+    })
+    .filter(p => {
+      if (!_pickLegend) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      const isLegend = poke?.legend === true;
+      return _pickLegend === 'legend' ? isLegend : !isLegend;
+    })
+    .filter(p => {
+      if (!_pickShiny) return true;
+      return _pickShiny === 'shiny' ? p.shiny : !p.shiny;
+    })
+    .filter(p => {
+      if (!_pickVariant) return true;
+      return _pickVariant === 'any' ? !!p.variant : p.variant === _pickVariant;
+    })
+    // 搜索过滤：名称 / 拼音 / 首字母 / 昵称
+    .filter(p => {
+      if (!q) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      if (!poke) return true;
+      const upper = q.toUpperCase();
+      return poke.name.includes(q) ||
+        (poke.pinyin || '').toUpperCase().includes(upper) ||
+        (poke.pinyinInitials || '').toUpperCase().includes(upper) ||
+        matchPinyinPartial(q, poke.pinyin) ||
+        (p.nickname && p.nickname.includes(q));
+    })
+    .sort((a, b) => {
+      let va, vb;
+      if (_pickSortBy === 'name') {
+        va = getPokemonByIndex(String(a.species))?.name || '';
+        vb = getPokemonByIndex(String(b.species))?.name || '';
+      } else if (_pickSortBy === 'iv') {
+        va = pickIvSum(a); vb = pickIvSum(b);
+      } else if (_pickSortBy === 'level') {
+        va = a.level || 1; vb = b.level || 1;
+      } else {
+        // 默认按编号排序：纯数字保持"编号+等级"语义，扩展编号（变体）按字符串比较
+        const ai = String(a.species), bi = String(b.species);
+        const an = Number(ai), bn = Number(bi);
+        if (Number.isFinite(an) && Number.isFinite(bn)) {
+          va = an * 1000 + (a.level || 1);
+          vb = bn * 1000 + (b.level || 1);
+        } else {
+          va = ai; vb = bi;
+        }
+      }
+      if (typeof va === 'string') return va.localeCompare(vb) * _pickSortDir;
+      return (va - vb) * _pickSortDir;
+    });
+}
+
+// 放入列表单行渲染
+function teamPickRowHtml(p) {
+  const poke = getPokemonByIndex(String(p.species));
+  const name = p.nickname || (poke ? poke.name : `#${p.species}`);
+  const icon = poke?.icon ? `<img class="roster-icon-img" data-icon="${p.species}" alt="" />` : '';
+  return `
+  <div class="pokedex-entry roster-row bounty-trade-row" data-pick-view="${p.id}">
+    <span class="roster-icon">${icon}</span>
+    <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
+    <span class="pokedex-name">${name}</span>
+    <span class="roster-lv-col">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
+    <span class="roster-iv" data-tip="${pickIvTip(p)}">${pickIvSum(p)}</span>
+    <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-pick-submit="${p.id}">加入</button></span>
+  </div>`;
+}
+
+// 分片渲染放入列表：每帧插一批 + 分片加载图标（与仓库/训练/饲育屋同款方案）
+function renderTeamPickRows(list, onDone) {
+  const sorted = teamPickRows();
+  _pickRenderSeq++;
+  const seq = _pickRenderSeq;
+  list.innerHTML = '';
+  if (!sorted.length) {
+    list.innerHTML = _pickSearch.trim()
+      ? `<div class="roster-trade-empty">没有匹配的宝可梦</div>`
+      : `<div class="roster-trade-empty">仓库里没有可以加入的宝可梦</div>`;
+    onDone?.();
+    return;
+  }
+  let i = 0;
+  const CHUNK = 40;
+  const step = () => {
+    if (seq !== _pickRenderSeq || !list.isConnected) return; // 已被新一轮渲染取代或列表已卸载
+    const view = $('teamView');
+    if (view && view.style.display === 'none') return; // 视图已隐藏：暂停分片，避免后台继续抢图片 I/O
+    const rows = [];
+    const end = Math.min(i + CHUNK, sorted.length);
+    for (; i < end; i++) rows.push(teamPickRowHtml(sorted[i]));
+    const before = list.querySelectorAll('.roster-icon-img').length;
+    list.insertAdjacentHTML('beforeend', rows.join(''));
+    const imgs = list.querySelectorAll('.roster-icon-img');
+    for (let k = before; k < imgs.length; k++) {
+      const poke = getPokemonByIndex(imgs[k].dataset.icon);
+      if (poke?.icon) tryLoadImage(imgs[k], poke.icon);
+    }
+    if (i < sorted.length) { requestAnimationFrame(step); return; }
+    onDone?.(); // 分片完成
+  };
+  requestAnimationFrame(step);
+}
+
+// 局部刷新放入列表（搜索/排序时只重建列表，不重建搜索框避免失焦）。
+// 防抖合并快速连续触发（连点排序/连续输入）：否则多轮分片渲染的图标请求并发叠加，
+// 触发浏览器资源上限 ERR_INSUFFICIENT_RESOURCES
+let _pickRefreshT = null;
+function refreshTeamPick() {
+  clearTimeout(_pickRefreshT);
+  _pickRefreshT = setTimeout(() => {
+    const page = $('teamContent');
+    if (!page || _pickSlot == null) return;
+    const list = page.querySelector('.team-pick-list');
+    if (!list) return;
+    renderTeamPickRows(list); // 新一轮分片渲染自动取代旧轮（行 DOM 由委托绑定）
+    const prog = page.querySelector('#teamPickProgressCount');
+    if (prog) prog.textContent = `共 ${teamPickRows().length} 只可加入`;
+    markTeamPickSort(page); // 点击排序后同步三角箭头（表头是持久 DOM，需主动刷新标记）
+  }, 80);
+}
+
+// 页面级持久监听（搜索 / 表头排序）：仅在 render() 重建页面时绑定一次
+function bindTeamPickPersistent(root) {
+  // 搜索输入：实时过滤列表，不清空排序状态
+  const searchInput = root.querySelector('#teamPickSearch');
+  const searchClear = root.querySelector('#teamPickSearchClear');
+  if (searchInput) {
+    const doSearch = () => {
+      _pickSearch = searchInput.value.trim();
+      if (searchClear) searchClear.style.display = _pickSearch ? '' : 'none';
+      refreshTeamPick();
+    };
+    searchInput.addEventListener('input', doSearch);
+    searchClear?.addEventListener('click', () => {
+      searchInput.value = '';
+      doSearch();
+      searchInput.focus();
+    });
+  }
+  // 表头点击排序（3 段 toggle：升序 → 降序 → 回到默认编号排序）
+  root.querySelectorAll('.team-pick-header [data-sort]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const field = el.dataset.sort;
+      if (_pickSortBy === field) {
+        if (_pickSortDir === 1) _pickSortDir = -1;
+        else { _pickSortBy = null; _pickSortDir = 1; }
+      } else { _pickSortBy = field; _pickSortDir = 1; }
+      refreshTeamPick();
+    });
+  });
+  markTeamPickSort(root);
+}
+
+// 标记当前排序列的三角箭头（先清旧标记再加新标记）
+function markTeamPickSort(root) {
+  const header = root.querySelector('.team-pick-header');
+  if (!header) return;
+  header.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+  const cur = _pickSortBy ? header.querySelector(`[data-sort="${_pickSortBy}"]`) : null;
+  if (cur) cur.classList.add(_pickSortDir === 1 ? 'sort-asc' : 'sort-desc');
+}
+
+// 筛选下拉菜单绑定（只在 renderTeamPick 时调用一次，避免 refreshTeamPick 重复绑定）
+function bindTeamPickFilters(root) {
+  // 属性筛选下拉
+  const typeTrigger = root.querySelector('#teamPickTypeFilter');
+  const typeLabel = root.querySelector('#teamPickTypeFilterLabel');
+  const typeDd = root.querySelector('#teamPickTypeFilterDropdown');
+  if (typeTrigger && typeLabel && typeDd) {
+    const typeList = Object.keys(TYPE_COLORS);
+    function buildTypeOptions() {
+      typeDd.innerHTML = `<div class="region-dropdown-item${!_pickTypeFilter ? ' active' : ''}" data-type="">全部</div>`
+        + typeList.map(t => `<div class="region-dropdown-item${t === _pickTypeFilter ? ' active' : ''}" data-type="${t}"><span class="roster-type-dot" style="background:${TYPE_COLORS[t]}"></span>${t}</div>`).join('');
+      typeDd.querySelectorAll('.region-dropdown-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _pickTypeFilter = el.dataset.type || '';
+          typeLabel.innerHTML = _pickTypeFilter
+            ? `<span class="roster-type-dot" style="background:${TYPE_COLORS[_pickTypeFilter]}"></span>${_pickTypeFilter}`
+            : '属性';
+          closeAllDropdowns();
+          refreshTeamPick();
+        });
+      });
+    }
+    typeTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = typeDd.style.display !== 'none';
+      closeAllDropdowns(); // 关闭全部下拉（含来源）
+      if (!isOpen) {
+        buildTypeOptions();
+        typeDd.style.display = '';
+        typeTrigger.classList.add('open');
+      }
+    });
+  }
+  // 地区筛选下拉
+  const regionTrigger = root.querySelector('#teamPickRegionFilter');
+  const regionLabel = root.querySelector('#teamPickRegionFilterLabel');
+  const regionDd = root.querySelector('#teamPickRegionFilterDropdown');
+  if (regionTrigger && regionLabel && regionDd) {
+    function buildRegionOptions() {
+      regionDd.innerHTML = `<div class="region-dropdown-item${!_pickRegionFilter ? ' active' : ''}" data-region="">全部</div>`
+        + REGION_CYCLE.map(r => `<div class="region-dropdown-item${r === _pickRegionFilter ? ' active' : ''}" data-region="${r}">${r}</div>`).join('');
+      regionDd.querySelectorAll('.region-dropdown-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _pickRegionFilter = el.dataset.region || '';
+          regionLabel.textContent = _pickRegionFilter || '地区';
+          closeAllDropdowns();
+          refreshTeamPick();
+        });
+      });
+    }
+    regionTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = regionDd.style.display !== 'none';
+      closeAllDropdowns(); // 关闭全部下拉（含来源）
+      if (!isOpen) {
+        buildRegionOptions();
+        regionDd.style.display = '';
+        regionTrigger.classList.add('open');
+      }
+    });
+  }
+  // 来源筛选下拉（与 roster 共用的二级三级菜单）
+  setupSourceFilter({
+    trigger: root.querySelector('#teamPickSrcFilter'),
+    label: root.querySelector('#teamPickSrcFilterLabel'),
+    dd: root.querySelector('#teamPickSrcFilterDropdown'),
+    state: pickSrcState(),
+    onPick: refreshTeamPick,
+  });
+}
+
 // ---------- 队伍编辑页（子页）：槽位/拖拽/菜单 ----------
 function renderTeamEdit(box) {
   const roster = (gameData.roster || []).filter(p => p.inRoster !== false && isPokemon(p));
@@ -315,7 +756,7 @@ function renderTeamEdit(box) {
       if (_suppressClick) return; // 刚拖拽结束，本次点击只算收尾，不弹菜单
       const i = Number(slot.dataset.slot);
       if (!slotPokes[i]) {
-        import('./roster.js').then(m => m.showRosterPicker({ mode: 'team', slot: i, from: 'teamView', exclude: editIds() }));
+        openTeamPick(i); // 空槽：进入全页"加入队伍"列表
         return;
       }
       openTeamMenu(e, i, slotPokes[i]);
@@ -563,8 +1004,8 @@ function openTeamMenu(e, i, p) {
       // 查看个体详情（方便配队时配招），返回时恢复配队页
       import('./roster.js').then(m => m.showRosterDetailFromList(p.id, () => restoreTeamView()));
     } else {
-      // 从仓库选一只替换该位置（弹层保留配队页，选完回到配队）
-      import('./roster.js').then(m => m.showRosterPicker({ mode: 'team', slot: idx, from: 'teamView', exclude: editIds() }));
+      // 替换该位置：进入全页"加入队伍"列表（选中后按槽位落位）
+      openTeamPick(idx);
     }
   });
   box.appendChild(menu);

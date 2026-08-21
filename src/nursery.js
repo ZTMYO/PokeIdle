@@ -73,6 +73,7 @@ let _pickSortBy = null;   // 放入列表排序列：null=默认按编号+等级
 let _pickSortDir = 1;     // 1 升序 / -1 降序
 let _pickSearch = '';         // 放入列表搜索词
 let _pickListScroll = 0;      // 进入个体详情前记住放入列表滚动位置，返回后恢复
+let _pickRenderSeq = 0;       // 放入列表渲染序号：新一轮分片渲染取代旧轮
 let _pickTypeFilter = '';     // 放入列表属性筛选
 let _pickRegionFilter = '';   // 放入列表地区筛选
 let _pickIvSel = [];        // 放入列表个体值多选：[{stat,min}]，全部条件需同时满足（AND）
@@ -185,18 +186,43 @@ export function removeNurseryByPokemon(id) {
   return changed;
 }
 
-// 仓库选取：从列表项放入饲育屋（空槽点击跳转仓库后由列表项触发）
+// 该个体是否在饲育屋亲本槽中（放入页占用确认用）
+export function isNurseryPokemon(id) {
+  return ensureNursery().parents.some(p => p && p.id === id);
+}
+
+// 仓库选取：从列表项放入饲育屋（空槽点击跳转仓库后由列表项触发）。
+// 若该个体正被训练/队伍占用，先弹确认框，确认后才放入（自动撤下原占用方）
 export function addToNursery(id, slot) {
+  const n = ensureNursery();
+  if (n.parents[slot]) return; // 目标槽已被占用则不处理
+  Promise.all([
+    import('./train.js').then(m => m.isTrainingPokemon(id)),
+    import('./team.js').then(m => m.isInAnyTeam(id)),
+  ]).then(([inTrain, inTeam]) => {
+    const occ = [];
+    if (inTrain) occ.push('训练');
+    if (inTeam) occ.push('队伍');
+    if (occ.length) {
+      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。放入饲育屋将自动将其撤下，确定放入？`, () => doAddToNursery(id, slot), null);
+      return;
+    }
+    doAddToNursery(id, slot);
+  });
+}
+
+function doAddToNursery(id, slot) {
   const n = ensureNursery();
   if (n.parents[slot]) return; // 目标槽已被占用则不处理
   n.parents[slot] = { id, placedAt: Date.now() };
   _pickSearch = ''; // 放入成功后清空搜索词，避免放第二只时残留第一只页面的输入
+  _pickSlot = null; // 退出放入页
   // 饲育屋中的宝可梦不能留在任何配队队伍 / 训练槽里
   removePokemonFromAllTeams(id);
   import('./train.js').then(m => m.removeTrainingByPokemon(id));
   saveGame();
   render();
-  refreshBoard(); // 弹框保持打开，仅刷新内容
+  openBoard(); // 放入后回场地，打开配对面板查看状态
   showView('nurseryView');
   startTimer();
 }
@@ -303,7 +329,6 @@ function renderPickPage(box) {
         <span class="bounty-trade-btn-col">放入</span>
       </div>
       <div class="list-scroll nursery-pick-list">
-        ${pickListHtml(_pickSlot, _pickSearch)}
       </div>
     </div>`;
   // 更新进度文字（与目标蛋组同行显示）
@@ -319,7 +344,31 @@ function renderPickPage(box) {
     title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 放入';
     title.dataset.action = 'back';
   }
-  loadSlotIcons(box);
+  // 行事件委托：行 DOM 由分片渲染动态插入，委托绑定一次，避免每片重复绑定
+  const list = box.querySelector('.nursery-pick-list');
+  if (list) {
+    list.onclick = (e) => {
+      const btn = e.target.closest('[data-pick-submit]');
+      if (btn) {
+        e.stopPropagation();
+        // 放入动作由 addToNursery 内部处理：占用时弹确认框（确认后才回场地开面板），
+        // 无占用直接放入回场地；不能在此同步 openBoard，否则确认框弹出时面板也一起弹出
+        addToNursery(btn.dataset.pickSubmit, _pickSlot);
+        return;
+      }
+      const row = e.target.closest('[data-pick-view]');
+      if (!row) return;
+      e.stopPropagation();
+      _pickListScroll = list.scrollTop; // 记住列表位置，返回后恢复
+      import('./roster.js').then(m => m.showRosterDetailFromList(row.dataset.pickView, () => {
+        showView('nurseryView');
+        render(); // _pickSlot 未清空，仍显示放入列表
+        startTimer();
+      }));
+    };
+    // 分片渲染完成后恢复详情返回前的滚动位置
+    renderPickRows(list, () => { list.scrollTop = _pickListScroll; });
+  }
   bindPick(box);
   bindPickFilters(box);
 }
@@ -552,8 +601,9 @@ function syncWalkers() {
     w.el.className = 'nursery-walker';
     w.flipEl.className = 'nursery-walker-flip';
     w.img.className = 'nursery-walker-img';
-    // 像素图标（与训练场一致）；素材默认朝左，向右走才镜像
-    if (poke?.icon) tryLoadImage(w.img, poke.icon);
+    // 像素图标（与训练场一致）；素材默认朝左，向右走才镜像。
+    // 同一 img 只走一个请求：非变体先试 move，失败回退 icon；变体直接加载 icon，
+    // 避免静态 icon 请求被 move 请求抢占导致缓存未建立、src 停留失败 URL 破图
     // 随机相位：多只亲本的弹跳动画错开，避免同步
     w.img.style.animationDelay = '-' + (Math.random() * 0.5).toFixed(2) + 's';
     if (w.facing < 0) w.flipEl.style.transform = 'scaleX(-1)';
@@ -576,6 +626,9 @@ function syncWalkers() {
         w.flipEl.style.transform = (w.facing < 0 ? 'scaleX(-1) ' : '') + 'scale(' + MOVE_SCALE + ')';
         addMoveAnim(w);
       });
+    } else if (poke?.icon) {
+      // 变体无移动素材：直接加载静态图标
+      tryLoadImage(w.img, poke.icon);
     }
     w.flipEl.appendChild(w.img);
     w.el.appendChild(w.flipEl);
@@ -816,16 +869,19 @@ function boardHtml() {
     </div>`;
 }
 
-// 局部刷新放入列表（搜索/排序时只重建列表，不重建搜索框避免失焦）
+// 局部刷新放入列表（搜索/排序时只重建列表）。防抖合并快速连续触发（连点排序/连续输入），
+// 否则多轮分片渲染的图标请求并发叠加，触发浏览器资源上限 ERR_INSUFFICIENT_RESOURCES
+let _pickRefreshT = null;
 function refreshPickList() {
-  const page = $('nurseryContent');
-  if (!page || _pickSlot == null) return;
-  const list = page.querySelector('.nursery-pick-list');
-  if (!list) return;
-  list.innerHTML = pickListHtml(_pickSlot, _pickSearch);
-  loadSlotIcons(page);
-  bindPickRows(page); // 只绑列表行（行是新 DOM）；搜索/表头监听在 render() 时绑一次，避免累积
-  markPickSort(page); // 点击排序后同步三角箭头（表头是持久 DOM，需主动刷新标记）
+  clearTimeout(_pickRefreshT);
+  _pickRefreshT = setTimeout(() => {
+    const page = $('nurseryContent');
+    if (!page || _pickSlot == null) return;
+    const list = page.querySelector('.nursery-pick-list');
+    if (!list) return;
+    renderPickRows(list); // 新一轮分片渲染自动取代旧轮（行 DOM 由委托绑定）
+    markPickSort(page); // 点击排序后同步三角箭头（表头是持久 DOM，需主动刷新标记）
+  }, 80);
 }
 
 // 个体值总和
@@ -846,17 +902,17 @@ function pickIvFilterLabel() {
   return _pickIvSel.length ? `个体*${_pickIvSel.length}` : '个体值';
 }
 
-// "放入宝可梦"列表：全部在仓个体（排除另一槽已放入的），复用悬赏提交列表的行结构——
+// "放入宝可梦"列表候选：全部在仓个体（排除另一槽已放入的），复用悬赏提交列表的行结构——
 // 个体值（综合，hover 看明细） / 等级（性别跟在等级边上） / 放入；点击行跳转个体详情（返回后仍在列表）
-function pickListHtml(slot, query = '') {
+function pickPickRows() {
   const n = ensureNursery();
   const exclude = new Set(n.parents.filter(s => s && s.id).map(s => s.id));
-  const other = n.parents[1 - slot];
+  const other = n.parents[1 - _pickSlot];
   const otherEntry = other && other.id
     ? (gameData.roster || []).find(x => x.id === other.id) || null
     : null;
-  const q = (query || '').trim();
-  const rows = (gameData.roster || [])
+  const q = _pickSearch.trim();
+  return (gameData.roster || [])
     .filter(p => p.inRoster && !exclude.has(p.id))
     .filter(p => !p.kind || p.kind !== 'egg')
     .filter(p => {
@@ -916,28 +972,59 @@ function pickListHtml(slot, query = '') {
       }
       if (typeof va === 'string') return va.localeCompare(vb) * _pickSortDir;
       return (va - vb) * _pickSortDir;
-    })
-    .map(p => {
-      const poke = getPokemonByIndex(String(p.species));
-      const name = p.nickname || (poke ? poke.name : `#${p.species}`);
-      const icon = poke?.icon ? `<img class="roster-icon-img" data-icon="${p.species}" alt="" />` : '';
-      return `
-      <div class="pokedex-entry roster-row bounty-trade-row" data-pick-view="${p.id}">
-        <span class="roster-icon">${icon}</span>
-        <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
-        <span class="pokedex-name">${name}</span>
-        <span class="roster-lv-col">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
-        <span class="roster-iv" data-tip="${pickIvTip(p)}">${pickIvSum(p)}</span>
-        <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-pick-submit="${p.id}">放入</button></span>
-      </div>`;
-    }).join('');
-  // 空状态提示
-  if (!rows) {
-    return q
+    });
+}
+
+// 放入列表单行渲染
+function pickRowHtml(p) {
+  const poke = getPokemonByIndex(String(p.species));
+  const name = p.nickname || (poke ? poke.name : `#${p.species}`);
+  const icon = poke?.icon ? `<img class="roster-icon-img" data-icon="${p.species}" alt="" />` : '';
+  return `
+  <div class="pokedex-entry roster-row bounty-trade-row" data-pick-view="${p.id}">
+    <span class="roster-icon">${icon}</span>
+    <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
+    <span class="pokedex-name">${name}</span>
+    <span class="roster-lv-col">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
+    <span class="roster-iv" data-tip="${pickIvTip(p)}">${pickIvSum(p)}</span>
+    <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-pick-submit="${p.id}">放入</button></span>
+  </div>`;
+}
+
+// 分片渲染放入列表：每帧插一批 + 分片加载图标，避免大仓库一次性 innerHTML 和
+// 全量图片请求长时间阻塞主线程 / 触发资源上限（与仓库列表 renderList 同款方案）
+function renderPickRows(list, onDone) {
+  const sorted = pickPickRows();
+  _pickRenderSeq++;
+  const seq = _pickRenderSeq;
+  list.innerHTML = '';
+  if (!sorted.length) {
+    list.innerHTML = _pickSearch.trim()
       ? `<div class="roster-trade-empty">没有匹配的宝可梦</div>`
       : `<div class="roster-trade-empty">仓库里没有可以放入的宝可梦</div>`;
+    onDone?.();
+    return;
   }
-  return rows;
+  let i = 0;
+  const CHUNK = 40;
+  const step = () => {
+    if (seq !== _pickRenderSeq || !list.isConnected) return; // 已被新一轮渲染取代或列表已卸载
+    const view = $('nurseryView');
+    if (view && view.style.display === 'none') return; // 视图已隐藏：暂停分片，避免后台继续抢图片 I/O
+    const rows = [];
+    const end = Math.min(i + CHUNK, sorted.length);
+    for (; i < end; i++) rows.push(pickRowHtml(sorted[i]));
+    const before = list.querySelectorAll('.roster-icon-img').length;
+    list.insertAdjacentHTML('beforeend', rows.join(''));
+    const imgs = list.querySelectorAll('.roster-icon-img');
+    for (let k = before; k < imgs.length; k++) {
+      const poke = getPokemonByIndex(imgs[k].dataset.icon);
+      if (poke?.icon) tryLoadImage(imgs[k], poke.icon);
+    }
+    if (i < sorted.length) { requestAnimationFrame(step); return; }
+    onDone?.(); // 分片完成
+  };
+  requestAnimationFrame(step);
 }
 
 // 亲本槽位：空位点击去仓库放入；已有宝可梦点击取出（繁殖中取出=终止，已产蛋先收取）
@@ -1422,40 +1509,7 @@ function bindSlots(host) {
 // "放入宝可梦"全页列表交互：行内按钮放入该槽；点击行跳转个体详情（返回后恢复列表）
 function bindPick(root) {
   if (_pickSlot == null) return;
-  bindPickRows(root);
   bindPickPersistent(root); // 搜索 / 表头排序：页面级持久监听，仅 render() 重建时绑定
-}
-
-// 绑定列表行（行 DOM 每次刷新重建，需重新绑定）
-function bindPickRows(root) {
-  if (_pickSlot == null) return;
-  root.querySelectorAll('[data-pick-submit]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const slot = _pickSlot;
-      _pickSlot = null;
-      addToNursery(btn.dataset.pickSubmit, slot);
-      openBoard(); // 放入后回到场地，打开告示牌查看配对状态
-    });
-  });
-  root.querySelectorAll('[data-pick-view]').forEach(row => {
-    row.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = row.dataset.pickView;
-      const pickList = root.querySelector('.nursery-pick-list');
-      if (pickList) _pickListScroll = pickList.scrollTop; // 记住列表位置，返回后恢复
-      import('./roster.js').then(m => m.showRosterDetailFromList(id, () => {
-        showView('nurseryView');
-        render(); // _pickSlot 未清空，仍显示放入列表
-        startTimer();
-        // render() 重建了列表 DOM，等渲染完成再恢复滚动位置
-        requestAnimationFrame(() => {
-          const l = $('nurseryContent')?.querySelector('.nursery-pick-list');
-          if (l) l.scrollTop = _pickListScroll;
-        });
-      }));
-    });
-  });
 }
 
 // 页面级持久监听（搜索 / 表头排序）：仅在 render() 重建页面时绑定一次，

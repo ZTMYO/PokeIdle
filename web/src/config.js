@@ -197,12 +197,15 @@ export const FARM_MAX_WATER = 100;
 export const FARM_WATER_DROP = 100 / (10 * 60); // 每秒下降点数
 // 种植消耗糖果 + 告示牌树果委托
 export const FARM_PLANT_COST = 10;
-export const FARM_BOARD_DEMANDS = 5;   // 委托条数
+export const FARM_BOARD_DEMANDS = 6;   // 委托条数
 export const FARM_BOARD_QTY_MIN = 3;   // 单条需求最少树果数
 export const FARM_BOARD_QTY_MAX = 10;   // 单条需求最多树果数
 // 「大量需求」：需求量远超单轮产量，需专门种植较久
 export const FARM_BOARD_BIG_QTY_MIN = 25;
 export const FARM_BOARD_BIG_QTY_MAX = 45;
+// 「巨量需求」：几乎要攒上一整天，报酬最丰厚
+export const FARM_BOARD_MEGA_QTY_MIN = 100;
+export const FARM_BOARD_MEGA_QTY_MAX = 200;
 export const FARM_CANDY_PER_BERRY = 8; // 每颗树果兑换糖果数
 export const FARM_HARVEST_MIN = 3;   // 收获最少树果数
 export const FARM_HARVEST_MAX = 6;   // 收获最多树果数
@@ -236,20 +239,20 @@ export const MAX_LEVEL = 100;
 
 // ---- 训练（训练场） ----
 export const TRAIN_SLOTS = 6;        // 训练槽位数
-export const TRAIN_XP_PER_MIN = 30;  // 每分钟获得经验（挂机，不消耗糖果）
+export const TRAIN_XP_PER_MIN = 20;  // 每分钟获得经验（挂机，不消耗糖果）
 // 随机偷懒：类比农场帮手休息，但触发是随机的（不扣已结算经验，只暂停后续积累）
 export const TRAIN_LAZY = {
   enabled: true,           // 是否启用随机偷懒
-  chancePerMin: 0.3,       // 训练中每分钟触发偷懒的概率
+  chancePerMin: 0.08,      // 训练中每分钟触发偷懒的概率（吃饱时约 8%，饥饿时按倍率放大）
   durationMin: 90 * 1000,  // 偷懒最短时长（毫秒）
   durationMax: 240 * 1000, // 偷懒最长时长（毫秒）
 };
-// 饱食度（喂食系统）：训练中的宝可梦随时间消耗饱食度，饿了会自动吃掉库存里爱吃的树果补充；饱食度越低越容易偷懒
+// 饱食度（喂食系统）：训练中的宝可梦随时间消耗饱食度，饿了会自动吃掉库存里爱吃的树果补充；饱食度归零会停止训练
 export const TRAIN_SATIETY_MAX = 100;          // 饱食度上限
 export const TRAIN_SATIETY_DRAIN_PER_MIN = 1;  // 训练中每分钟下降量
-export const TRAIN_SATIETY_EAT_AT = 50;        // 饱食度低于该值自动进食
-export const TRAIN_SATIETY_PER_BERRY = 35;     // 每颗爱吃的树果补充的饱食度
-export const TRAIN_HUNGRY_LAZY_MULT = 3;       // 饱食度归零时偷懒概率的倍率上限（满饱食为 1 倍）
+export const TRAIN_SATIETY_PER_BERRY = 50;     // 每颗爱吃的树果补充的饱食度
+// 进食阈值：饱食度降到该值（含）自动进食，吃一颗正好回满上限，既不补不满也不浪费树果
+export const TRAIN_SATIETY_EAT_AT = 50;
 
 // ===== 钓鱼 =====
 export const FISH_POKEMON_CHANCE = 0.1;   // 每次钓鱼钓到宝可梦的几率

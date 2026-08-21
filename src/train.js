@@ -1,16 +1,18 @@
 // 训练 App：训练场 —— 把宝可梦放进训练槽，按真实时间挂机自动获得经验（不消耗糖果）
 // 页面为 tile 地图铺满 + 告示牌入口：点击告示牌弹出配置/数据面板
 // 训练中的宝可梦会以像素图标在场地上随机走动
-import { $, showView, tryLoadImage, setupFoodTooltip } from './ui.js';
+import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog, ensureGender, genderBadge } from './state.js';
 import {
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, MAX_LEVEL,
   TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT,
-  TRAIN_SATIETY_PER_BERRY, TRAIN_HUNGRY_LAZY_MULT,
+  TRAIN_SATIETY_PER_BERRY, REGION_CYCLE,
 } from './config.js';
 import { ensureBerryFarm } from './berry.js';
-import { removePokemonFromAllTeams } from './team.js';
-import { BERRY_ICONS, BERRY_NAMES } from './items.js';
+import { removePokemonFromAllTeams, isInAnyTeam } from './team.js';
+import { BERRY_ICONS, BERRY_NAMES, TYPE_COLORS } from './items.js';
+import { matchPinyinPartial } from './pokedex.js';
+import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
 
 // 升级经验需求（与对战结算一致）
 const expNeed = (lv) => 25 + lv * 20;
@@ -89,6 +91,31 @@ let _timer = null;
 const _walkers = new Map();  // id -> walker 状态
 const _walkerPos = new Map(); // id -> 上次位置 {c,r,facing}（页面重绘后沿用）
 
+// "放入训练"全页列表状态（点击训练空槽进入，与饲育屋放入页一致；放入/返回后清空）
+let _pickSlot = null;          // 当前放入槽位；null = 不在放入页
+let _pickSearch = '';          // 放入列表搜索词
+let _pickSortBy = null;        // 放入列表排序列：null=默认按编号+等级 | name | iv | level
+let _pickSortDir = 1;          // 1 升序 / -1 降序
+let _pickTypeFilter = '';      // 放入列表属性筛选
+let _pickRegionFilter = '';    // 放入列表地区筛选
+let _pickSrc = '';             // 放入列表来源筛选（''=全部 | normal | fishing | egg | trade | twist）
+let _pickLegend = '';          // 神兽筛选：''=不限 | legend | normal
+let _pickShiny = '';           // 闪光筛选：''=不限 | shiny | normal
+let _pickVariant = '';         // 变体筛选：''=不限 | any | rgb | polluted
+let _pickListScroll = 0;       // 进入个体详情前记住放入列表滚动位置，返回后恢复
+let _pickRenderSeq = 0;        // 放入列表渲染序号：新一轮分片渲染取代旧轮
+
+// 当前打开的筛选下拉（放入页）。模块级统一关闭：仅注册一次 document 监听，
+// 避免每次进入放入页重复注册（旧 DOM 被闭包引用无法回收，反复进出会累积卡顿）
+let _openDd = null;
+function closeOpenDd() {
+  if (!_openDd) return;
+  _openDd.dd.style.display = 'none';
+  _openDd.trigger.classList.remove('open');
+  _openDd = null;
+}
+document.addEventListener('click', closeOpenDd);
+
 // 保证训练场数据存在并补齐槽位数（兼容旧存档）
 export function ensureTraining() {
   if (!gameData.training || !Array.isArray(gameData.training.slots)) {
@@ -107,25 +134,39 @@ export function processTrainingXp(now = Date.now()) {
     if (!slot) continue;
     const entry = (gameData.roster || []).find(x => x.id === slot.id);
     if (!entry || entry.inRoster === false) { t.slots[i] = null; continue; }
-    if (slot.lazyUntil && now < slot.lazyUntil) continue; // 偷懒中：暂停积累
+    // 偷懒中：暂停经验积累；但饿了仍会进食，吃上树果后自动结束偷懒恢复训练
+    if (slot.lazyUntil && now < slot.lazyUntil) {
+      if (slot.satiety == null) slot.satiety = TRAIN_SATIETY_MAX;
+      if (slot.satiety <= TRAIN_SATIETY_EAT_AT && eatFavorite(slot, entry)) fed = true;
+      if (slot.satiety > 0) slot.lazyUntil = 0;
+      continue;
+    }
     slot.lazyUntil = 0;
     const elapsed = Math.max(0, now - slot.startAt);
     if (elapsed <= 0) continue;
     const effMin = Math.min(10, elapsed / 60000); // 离线补算时长截断：饱食度/偷懒都与它一致，避免一次返回瞬间扣光
+    slot.startAt = now; // 先推进时间：偷懒/停训期间不积累经验，恢复后也不会一次性补算
+    // 饱食度：训练中随时间下降；降到阈值（含）时自动吃库存里爱吃的树果，
+    // 单颗补充与阈值相等，吃一颗正好回满饱食度
+    if (slot.satiety == null) slot.satiety = TRAIN_SATIETY_MAX;
+    slot.satiety = Math.max(0, slot.satiety - effMin * TRAIN_SATIETY_DRAIN_PER_MIN);
+    if (slot.satiety <= TRAIN_SATIETY_EAT_AT && eatFavorite(slot, entry)) fed = true;
+    entry.satiety = slot.satiety; // 同步到个体记录：取出再放回时沿用当前饱食度
+    // 饱食度归零：保持偷懒（持续暂停训练），直到吃上树果恢复
+    if (slot.satiety <= 0) {
+      slot.lazyUntil = now + randInt(TRAIN_LAZY.durationMin, TRAIN_LAZY.durationMax);
+      if (!lazyStarted) { lazyStarted = true; addSystemLog('train_lazy', { pokemon: entry.species }); }
+      continue;
+    }
+    // 结算经验
     const ups = applyXp(entry, (elapsed / 1000) * (TRAIN_XP_PER_MIN / 60));
-    slot.startAt = now;
     if (ups > 0) {
       leveled = true;
       // 一次补算可能连升多级：只记一条最终等级，避免刷屏
       addSystemLog('train_levelup', { pokemon: entry.species, level: entry.level });
     }
-    // 饱食度：训练中随时间下降；低于阈值自动吃库存里爱吃的树果
-    if (slot.satiety == null) slot.satiety = TRAIN_SATIETY_MAX;
-    slot.satiety = Math.max(0, slot.satiety - effMin * TRAIN_SATIETY_DRAIN_PER_MIN);
-    if (slot.satiety < TRAIN_SATIETY_EAT_AT && eatFavorite(slot, entry)) fed = true;
-    entry.satiety = slot.satiety; // 同步到个体记录：取出再放回时沿用当前饱食度
-    // 随机偷懒：只影响之后，不扣已结算经验；饱食度越低越容易偷懒（满饱食 1 倍，归零 TRAIN_HUNGRY_LAZY_MULT 倍）
-    const hungerMult = 1 + (1 - slot.satiety / TRAIN_SATIETY_MAX) * (TRAIN_HUNGRY_LAZY_MULT - 1);
+    // 随机偷懒：只影响之后，不扣已结算经验；饱食度越低越容易偷懒（满饱食 1 倍，越饿越高）
+    const hungerMult = 1 + (1 - slot.satiety / TRAIN_SATIETY_MAX);
     if (TRAIN_LAZY.enabled && Math.random() < Math.min(0.8, TRAIN_LAZY.chancePerMin * hungerMult * effMin)) {
       slot.lazyUntil = now + randInt(TRAIN_LAZY.durationMin, TRAIN_LAZY.durationMax);
       lazyStarted = true;
@@ -183,8 +224,29 @@ export function removeTrainingByPokemon(id) {
   return changed;
 }
 
-// 仓库选取：从列表项放入训练（空槽点击跳转仓库后由列表项触发）
+// 该个体是否正在训练中（放入页占用确认用）
+export function isTrainingPokemon(id) {
+  return ensureTraining().slots.some(s => s && s.id === id);
+}
+
+// 仓库选取：从列表项放入训练（空槽点击跳转仓库后由列表项触发）。
+// 若该个体正被饲育屋/队伍占用，先弹确认框，确认后才放入（自动撤下原占用方）
 export function addToTraining(id, slot) {
+  const t = ensureTraining();
+  if (t.slots[slot]) return;
+  const occ = [];
+  if (isInAnyTeam(id)) occ.push('队伍');
+  import('./nursery.js').then(m => {
+    if (m.isNurseryPokemon(id)) occ.push('饲育屋');
+    if (occ.length) {
+      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。放入训练将自动将其撤下，确定放入？`, () => doAddToTraining(id, slot), null);
+      return;
+    }
+    doAddToTraining(id, slot);
+  });
+}
+
+function doAddToTraining(id, slot) {
   const t = ensureTraining();
   if (t.slots[slot]) return; // 目标槽已被占用则不处理
   const entry = (gameData.roster || []).find(x => x.id === id);
@@ -193,6 +255,8 @@ export function addToTraining(id, slot) {
     ? Math.max(0, Math.min(TRAIN_SATIETY_MAX, entry.satiety))
     : TRAIN_SATIETY_MAX;
   t.slots[slot] = { id, startAt: Date.now(), satiety };
+  _pickSearch = ''; // 放入成功后清空搜索词，避免放第二只时残留第一只页面的输入
+  _pickSlot = null; // 退出放入页
   // 训练中的宝可梦不能留在任何配队队伍里
   removePokemonFromAllTeams(id);
   // 训练/饲育屋/配队三方互斥：放入训练后从饲育屋移除
@@ -201,7 +265,7 @@ export function addToTraining(id, slot) {
   saveGame();
   processTrainingXp();
   render();
-  refreshBoard(); // 弹框保持打开，仅刷新内容
+  openBoard(); // 放入后回到场地，打开告示牌查看状态
   showView('trainView');
   startTimer();
 }
@@ -209,6 +273,8 @@ export function addToTraining(id, slot) {
 function render() {
   const box = $('trainContent');
   if (!box) return;
+  // 放入训练：切到全页列表（不占用告示牌面板）
+  if (_pickSlot != null) { renderPickPage(box); return; }
   const t = ensureTraining();
   box.innerHTML = `
     <div class="train-app">
@@ -307,7 +373,6 @@ function syncWalkers() {
       + '<span class="train-walker-zzz"><i>z</i><i>z</i><i>z</i></span>';
     layer.appendChild(el);
     const img = el.querySelector('.train-walker-img');
-    if (poke.icon) tryLoadImage(img, poke.icon);
     // 随机相位：多个宝可梦的闪烁动画错开，避免同步
     img.style.animationDelay = '-' + (Math.random() * 0.5).toFixed(2) + 's';
     if (start.facing < 0) el.querySelector('.train-walker-flip').style.transform = 'scaleX(-1)';
@@ -335,7 +400,9 @@ function syncWalkers() {
       moving: false, moveUntil: 0, lastFrameAt: 0,
       nextAt: Date.now() + randInt(400, 1400),
     });
-    // 移动帧动画：仅无变体本体尝试；素材缺失/非多帧自动回退 icon+跳动
+    // 移动帧动画：仅无变体本体尝试；素材缺失/非多帧自动回退 icon+跳动。
+    // 同一 img 只走一个请求：非变体先试 move，失败回退 icon；变体直接加载 icon，
+    // 避免静态 icon 请求被 move 请求抢占导致缓存未建立、src 停留失败 URL 破图
     const w = _walkers.get(slot.id);
     if (!String(poke.index).includes('-')) {
       const moveSrc = './pokemon-data/pokemon-move/' + String(poke.index).padStart(4, '0') + '-' + poke.name + '.png';
@@ -359,6 +426,9 @@ function syncWalkers() {
         flipEl.style.transform = (pf < 0 ? 'scaleX(-1) ' : '') + 'scale(' + MOVE_SCALE + ')';
         addMoveAnim(w);
       });
+    } else if (poke.icon) {
+      // 变体无移动素材：直接加载静态图标
+      tryLoadImage(img, poke.icon);
     }
   });
 }
@@ -679,10 +749,9 @@ function statusRowHtml(slot, i) {
     : '';
   return `<div class="train-status-row" data-slot="${i}">
     <span class="train-status-dot${lazy ? ' lazy' : ''}"></span>
-    <span class="train-status-name"><span class="train-status-name-text">${name}</span>${shiny}<em>${genderBadge(ensureGender(entry))}Lv${lv}</em></span>
-    <div class="train-status-bar"><div class="xp-fill" style="width:${ratio.toFixed(1)}%"></div></div>
+    <span class="train-status-name"><span class="train-status-name-text">${name}</span>${shiny}<em class="train-status-g">${genderBadge(ensureGender(entry))}</em></span>
     <span class="train-status-satiety ${satCls}" title="饱食度"><span class="train-status-sat-track"><span class="train-status-sat-fill" style="width:${sat}%"></span></span><em class="train-status-sat-num">${sat}</em></span>
-    <span class="train-status-nums">${Math.floor(cur)} / ${need}</span>
+    <span class="train-status-xp" title="经验"><span class="train-status-bar"><span class="xp-fill" style="width:${ratio.toFixed(1)}%"></span></span><em class="train-status-xp-lv">Lv${lv}</em></span>
   </div>`;
 }
 
@@ -695,9 +764,8 @@ function bindSlots(host) {
       if (t.slots[i]) {
         stopTraining(i);
       } else {
-        // 弹框保持打开，去仓库选一只放进该槽
-        const exclude = t.slots.filter(Boolean).map(s => s.id);
-        import('./roster.js').then(m => m.showRosterPicker({ mode: 'train', slot: i, from: 'trainView', exclude }));
+        // 关闭面板，切到全页"放入训练"列表（与饲育屋放入页一致）
+        openTrainPick(i);
       }
     });
   });
@@ -713,6 +781,423 @@ function stopTraining(idx) {
   saveGame();
   render();
   refreshBoard(); // 弹框保持打开，仅刷新内容
+}
+
+// ---------- "放入训练"全页列表（与饲育屋放入页一致：搜索/筛选/排序/详情，标题栏为「放入」） ----------
+
+// 点击训练空槽：关闭面板，切到全页放入列表
+function openTrainPick(slot) {
+  closeBoard();
+  _pickSlot = slot;
+  render();
+}
+
+// 放入页是否打开（供 main.js 标题栏返回使用）
+export function isTrainPicking() {
+  return _pickSlot != null && $('trainView')?.style.display !== 'none';
+}
+
+// 标题栏返回：退出放入页，回训练场地并打开告示牌
+export function leaveTrainPick() {
+  if (_pickSlot == null) return;
+  _pickSlot = null;
+  _pickSearch = '';
+  _pickTypeFilter = '';
+  _pickRegionFilter = '';
+  _pickSrc = '';
+  _pickLegend = '';
+  _pickShiny = '';
+  _pickVariant = '';
+  render();
+  // 恢复标题栏
+  const title = $('appTitle');
+  if (title) {
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 训练';
+    title.dataset.action = 'back';
+  }
+  // 延迟到当前 click 冒泡结束后再打开告示牌弹窗：document 上注册了"点击面板外部关闭"
+  // 的全局监听，标题栏返回的 click 会冒泡触发它；若同步 openBoard，弹窗刚打开就会被误关
+  setTimeout(openBoard, 0);
+}
+
+// 全页"放入训练"列表：顶部仅标题，返回走标题栏（appTitle）
+function renderPickPage(box) {
+  box.innerHTML = `
+    <div class="view-list" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+      <div class="pokedex-progress" id="trainPickProgress">
+        <span id="trainPickProgressCount"></span>
+      </div>
+      <div class="pokedex-search">
+        <div class="pokedex-search-row">
+          <div class="pokedex-search-input-wrap">
+            <input id="trainPickSearch" class="pokedex-search-input" type="text" placeholder="搜索宝可梦"
+              autocomplete="off" value="${_pickSearch.replace(/"/g, '&quot;')}" />
+            <button class="pokedex-search-clear" id="trainPickSearchClear" style="${_pickSearch ? '' : 'display:none'}" aria-label="清空搜索">
+              <svg><use xlink:href="#icon-close"></use></svg>
+            </button>
+          </div>
+          <div id="trainPickSrcFilter" class="pokedex-region-select" tabindex="0" title="按来源筛选">
+            <span id="trainPickSrcFilterLabel">${sourceFilterLabel({ src: _pickSrc, legend: _pickLegend, shiny: _pickShiny, variant: _pickVariant })}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="trainPickSrcFilterDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="trainPickTypeFilter" class="pokedex-region-select" tabindex="0" title="按属性筛选">
+            <span id="trainPickTypeFilterLabel">${_pickTypeFilter ? _pickTypeFilter : '属性'}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="trainPickTypeFilterDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="trainPickRegionFilter" class="pokedex-region-select" tabindex="0" title="按地区筛选">
+            <span id="trainPickRegionFilterLabel">${_pickRegionFilter || '地区'}</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div id="trainPickRegionFilterDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="pokedex-header roster-header nursery-pick-header train-pick-header">
+        <span class="roster-icon"></span>
+        <span class="pokedex-star"></span>
+        <span class="pokedex-name" data-sort="name">名称</span>
+        <span class="roster-lv-col" data-sort="level">等级</span>
+        <span class="roster-iv" data-sort="iv">个体值</span>
+        <span class="bounty-trade-btn-col">放入</span>
+      </div>
+      <div class="list-scroll nursery-pick-list train-pick-list">
+      </div>
+    </div>`;
+  // 进度：可放入总数（与饲育屋放入页一致）
+  const prog = box.querySelector('#trainPickProgressCount');
+  if (prog) prog.textContent = `共 ${pickPickRows().length} 只可放入`;
+  // 设置标题栏
+  const title = $('appTitle');
+  if (title) {
+    title.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 放入';
+    title.dataset.action = 'back';
+  }
+  // 行事件委托：行 DOM 由分片渲染动态插入，委托绑定一次，避免每片重复绑定
+  const list = box.querySelector('.train-pick-list');
+  if (list) {
+    list.onclick = (e) => {
+      const btn = e.target.closest('[data-pick-submit]');
+      if (btn) {
+        e.stopPropagation();
+        const slot = _pickSlot;
+        _pickSlot = null;
+        addToTraining(btn.dataset.pickSubmit, slot);
+        return;
+      }
+      const row = e.target.closest('[data-pick-view]');
+      if (!row) return;
+      e.stopPropagation();
+      _pickListScroll = list.scrollTop; // 记住列表位置，返回后恢复
+      import('./roster.js').then(m => m.showRosterDetailFromList(row.dataset.pickView, () => {
+        showView('trainView');
+        render(); // _pickSlot 未清空，仍显示放入列表
+        startTimer();
+      }));
+    };
+    // 分片渲染完成后恢复详情返回前的滚动位置
+    renderPickRows(list, () => { list.scrollTop = _pickListScroll; });
+  }
+  bindPick(box);
+  bindPickFilters(box);
+}
+
+// 个体值总和
+function pickIvSum(p) {
+  if (!p.ivs) return 0;
+  return ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].reduce((s, k) => s + (p.ivs[k] || 0), 0);
+}
+// 个体值明细（hover 个体值单元格的 tooltip 显示；HP 用全角 ＨＰ，与中文标签同宽，数值自然对齐）
+function pickIvTip(p) {
+  return [['ＨＰ', 'hp'], ['攻击', 'atk'], ['防御', 'def'], ['特攻', 'spa'], ['特防', 'spd'], ['速度', 'spe']]
+    .map(([label, k]) => `${label}  ${p.ivs ? (p.ivs[k] || 0) : 0}`)
+    .join('\n');
+}
+// 放入列表来源筛选状态（供共享来源下拉读写）
+function pickSrcState() {
+  return {
+    get src() { return _pickSrc; }, set src(v) { _pickSrc = v; },
+    get legend() { return _pickLegend; }, set legend(v) { _pickLegend = v; },
+    get shiny() { return _pickShiny; }, set shiny(v) { _pickShiny = v; },
+    get variant() { return _pickVariant; }, set variant(v) { _pickVariant = v; },
+  };
+}
+
+// "放入训练"列表候选：全部在仓个体（排除已放入训练槽的），行结构与饲育屋放入页一致——
+// 个体值（综合，hover 看明细） / 等级（性别跟在等级边上） / 放入；点击行跳转个体详情（返回后仍在列表）
+function pickPickRows() {
+  const t = ensureTraining();
+  const exclude = new Set(t.slots.filter(s => s && s.id).map(s => s.id));
+  const q = _pickSearch.trim();
+  return (gameData.roster || [])
+    .filter(p => p.inRoster && !exclude.has(p.id))
+    .filter(p => !p.kind || p.kind !== 'egg') // 宝可梦蛋不能放入训练
+    // 属性筛选
+    .filter(p => {
+      if (!_pickTypeFilter) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      return poke?.types?.includes(_pickTypeFilter);
+    })
+    // 地区筛选
+    .filter(p => {
+      if (!_pickRegionFilter) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      return poke?.region === _pickRegionFilter;
+    })
+    // 来源筛选：来源 → 神兽 → 闪光 → 变体（与 roster 一致；mass 归入「野生」）
+    .filter(p => {
+      if (_pickSrc) return _pickSrc === 'normal' ? (p.source === 'normal' || p.source === 'mass') : p.source === _pickSrc;
+      return true;
+    })
+    .filter(p => {
+      if (!_pickLegend) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      const isLegend = poke?.legend === true;
+      return _pickLegend === 'legend' ? isLegend : !isLegend;
+    })
+    .filter(p => {
+      if (!_pickShiny) return true;
+      return _pickShiny === 'shiny' ? p.shiny : !p.shiny;
+    })
+    .filter(p => {
+      if (!_pickVariant) return true;
+      return _pickVariant === 'any' ? !!p.variant : p.variant === _pickVariant;
+    })
+    // 搜索过滤：名称 / 拼音 / 首字母 / 昵称
+    .filter(p => {
+      if (!q) return true;
+      const poke = getPokemonByIndex(String(p.species));
+      if (!poke) return true;
+      const upper = q.toUpperCase();
+      return poke.name.includes(q) ||
+        (poke.pinyin || '').toUpperCase().includes(upper) ||
+        (poke.pinyinInitials || '').toUpperCase().includes(upper) ||
+        matchPinyinPartial(q, poke.pinyin) ||
+        (p.nickname && p.nickname.includes(q));
+    })
+    .sort((a, b) => {
+      let va, vb;
+      if (_pickSortBy === 'name') {
+        va = getPokemonByIndex(String(a.species))?.name || '';
+        vb = getPokemonByIndex(String(b.species))?.name || '';
+      } else if (_pickSortBy === 'iv') {
+        va = pickIvSum(a); vb = pickIvSum(b);
+      } else if (_pickSortBy === 'level') {
+        va = a.level || 1; vb = b.level || 1;
+      } else {
+        // 默认按编号排序：纯数字保持"编号+等级"语义，扩展编号（变体）按字符串比较
+        const ai = String(a.species), bi = String(b.species);
+        const an = Number(ai), bn = Number(bi);
+        if (Number.isFinite(an) && Number.isFinite(bn)) {
+          va = an * 1000 + (a.level || 1);
+          vb = bn * 1000 + (b.level || 1);
+        } else {
+          va = ai; vb = bi;
+        }
+      }
+      if (typeof va === 'string') return va.localeCompare(vb) * _pickSortDir;
+      return (va - vb) * _pickSortDir;
+    });
+}
+
+// 放入列表单行渲染
+function pickRowHtml(p) {
+  const poke = getPokemonByIndex(String(p.species));
+  const name = p.nickname || (poke ? poke.name : `#${p.species}`);
+  const icon = poke?.icon ? `<img class="roster-icon-img" data-icon="${p.species}" alt="" />` : '';
+  return `
+  <div class="pokedex-entry roster-row bounty-trade-row" data-pick-view="${p.id}">
+    <span class="roster-icon">${icon}</span>
+    <span class="pokedex-star">${p.shiny ? '★' : ''}</span>
+    <span class="pokedex-name">${name}</span>
+    <span class="roster-lv-col">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
+    <span class="roster-iv" data-tip="${pickIvTip(p)}">${pickIvSum(p)}</span>
+    <span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-pick-submit="${p.id}">放入</button></span>
+  </div>`;
+}
+
+// 分片渲染放入列表：每帧插一批 + 分片加载图标，避免大仓库一次性 innerHTML 和
+// 全量图片请求长时间阻塞主线程 / 触发资源上限（与仓库列表 renderList 同款方案）
+function renderPickRows(list, onDone) {
+  const sorted = pickPickRows();
+  _pickRenderSeq++;
+  const seq = _pickRenderSeq;
+  list.innerHTML = '';
+  if (!sorted.length) {
+    list.innerHTML = _pickSearch.trim()
+      ? `<div class="roster-trade-empty">没有匹配的宝可梦</div>`
+      : `<div class="roster-trade-empty">仓库里没有可以放入的宝可梦</div>`;
+    onDone?.();
+    return;
+  }
+  let i = 0;
+  const CHUNK = 40;
+  const step = () => {
+    if (seq !== _pickRenderSeq || !list.isConnected) return; // 已被新一轮渲染取代或列表已卸载
+    const view = $('trainView');
+    if (view && view.style.display === 'none') return; // 视图已隐藏：暂停分片，避免后台继续抢图片 I/O
+    const rows = [];
+    const end = Math.min(i + CHUNK, sorted.length);
+    for (; i < end; i++) rows.push(pickRowHtml(sorted[i]));
+    const before = list.querySelectorAll('.roster-icon-img').length;
+    list.insertAdjacentHTML('beforeend', rows.join(''));
+    const imgs = list.querySelectorAll('.roster-icon-img');
+    for (let k = before; k < imgs.length; k++) {
+      const poke = getPokemonByIndex(imgs[k].dataset.icon);
+      if (poke?.icon) tryLoadImage(imgs[k], poke.icon);
+    }
+    if (i < sorted.length) { requestAnimationFrame(step); return; }
+    onDone?.(); // 分片完成
+  };
+  requestAnimationFrame(step);
+}
+
+// 局部刷新放入列表（搜索/排序时只重建列表，不重建搜索框避免失焦）。
+// 防抖合并快速连续触发（连点排序/连续输入）：否则多轮分片渲染的图标请求并发叠加，
+// 触发浏览器资源上限 ERR_INSUFFICIENT_RESOURCES
+let _pickRefreshT = null;
+function refreshPickList() {
+  clearTimeout(_pickRefreshT);
+  _pickRefreshT = setTimeout(() => {
+    const page = $('trainContent');
+    if (!page || _pickSlot == null) return;
+    const list = page.querySelector('.train-pick-list');
+    if (!list) return;
+    renderPickRows(list); // 新一轮分片渲染自动取代旧轮（行 DOM 由委托绑定）
+    const prog = page.querySelector('#trainPickProgressCount');
+    if (prog) prog.textContent = `共 ${pickPickRows().length} 只可放入`;
+    markPickSort(page); // 点击排序后同步三角箭头（表头是持久 DOM，需主动刷新标记）
+  }, 80);
+}
+
+// "放入训练"全页列表交互：行内按钮放入该槽；点击行跳转个体详情（返回后恢复列表）
+function bindPick(root) {
+  if (_pickSlot == null) return;
+  bindPickPersistent(root); // 搜索 / 表头排序：页面级持久监听，仅 render() 重建时绑定
+}
+
+// 页面级持久监听（搜索 / 表头排序）：仅在 render() 重建页面时绑定一次，
+// 不要放进 refreshPickList，否则同一持久 DOM 会累积监听导致多次触发/卡死
+function bindPickPersistent(root) {
+  // 搜索输入：实时过滤列表，不清空排序状态
+  const searchInput = root.querySelector('#trainPickSearch');
+  const searchClear = root.querySelector('#trainPickSearchClear');
+  if (searchInput) {
+    const doSearch = () => {
+      _pickSearch = searchInput.value.trim();
+      if (searchClear) searchClear.style.display = _pickSearch ? '' : 'none';
+      refreshPickList();
+    };
+    searchInput.addEventListener('input', doSearch);
+    searchClear?.addEventListener('click', () => {
+      searchInput.value = '';
+      doSearch();
+      searchInput.focus();
+    });
+  }
+  // 表头点击排序（3 段 toggle：升序 → 降序 → 回到默认编号排序）
+  root.querySelectorAll('.train-pick-header [data-sort]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const field = el.dataset.sort;
+      if (_pickSortBy === field) {
+        if (_pickSortDir === 1) _pickSortDir = -1;
+        else { _pickSortBy = null; _pickSortDir = 1; }
+      } else { _pickSortBy = field; _pickSortDir = 1; }
+      refreshPickList();
+    });
+  });
+  markPickSort(root);
+}
+
+// 标记当前排序列的三角箭头（先清旧标记再加新标记）
+function markPickSort(root) {
+  const header = root.querySelector('.train-pick-header');
+  if (!header) return;
+  header.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+  const cur = _pickSortBy ? header.querySelector(`[data-sort="${_pickSortBy}"]`) : null;
+  if (cur) cur.classList.add(_pickSortDir === 1 ? 'sort-asc' : 'sort-desc');
+}
+
+// 筛选下拉菜单绑定（只在 renderPickPage 时调用一次，避免 refreshPickList 重复绑定）
+function bindPickFilters(root) {
+  // 属性筛选下拉
+  const typeTrigger = root.querySelector('#trainPickTypeFilter');
+  const typeLabel = root.querySelector('#trainPickTypeFilterLabel');
+  const typeDd = root.querySelector('#trainPickTypeFilterDropdown');
+  if (typeTrigger && typeLabel && typeDd) {
+    const typeList = Object.keys(TYPE_COLORS);
+    function buildTypeOptions() {
+      typeDd.innerHTML = `<div class="region-dropdown-item${!_pickTypeFilter ? ' active' : ''}" data-type="">全部</div>`
+        + typeList.map(t => `<div class="region-dropdown-item${t === _pickTypeFilter ? ' active' : ''}" data-type="${t}"><span class="roster-type-dot" style="background:${TYPE_COLORS[t]}"></span>${t}</div>`).join('');
+      typeDd.querySelectorAll('.region-dropdown-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _pickTypeFilter = el.dataset.type || '';
+          typeLabel.innerHTML = _pickTypeFilter
+            ? `<span class="roster-type-dot" style="background:${TYPE_COLORS[_pickTypeFilter]}"></span>${_pickTypeFilter}`
+            : '属性';
+          closeAllDropdowns();
+          refreshPickList();
+        });
+      });
+    }
+    typeTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = typeDd.style.display !== 'none';
+      closeAllDropdowns(); // 关闭全部下拉（含来源）
+      if (!isOpen) {
+        buildTypeOptions();
+        typeDd.style.display = '';
+        typeTrigger.classList.add('open');
+        _openDd = { dd: typeDd, trigger: typeTrigger };
+      }
+    });
+  }
+  // 地区筛选下拉
+  const regionTrigger = root.querySelector('#trainPickRegionFilter');
+  const regionLabel = root.querySelector('#trainPickRegionFilterLabel');
+  const regionDd = root.querySelector('#trainPickRegionFilterDropdown');
+  if (regionTrigger && regionLabel && regionDd) {
+    function buildRegionOptions() {
+      regionDd.innerHTML = `<div class="region-dropdown-item${!_pickRegionFilter ? ' active' : ''}" data-region="">全部</div>`
+        + REGION_CYCLE.map(r => `<div class="region-dropdown-item${r === _pickRegionFilter ? ' active' : ''}" data-region="${r}">${r}</div>`).join('');
+      regionDd.querySelectorAll('.region-dropdown-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _pickRegionFilter = el.dataset.region || '';
+          regionLabel.textContent = _pickRegionFilter || '地区';
+          closeAllDropdowns();
+          refreshPickList();
+        });
+      });
+    }
+    regionTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = regionDd.style.display !== 'none';
+      closeAllDropdowns(); // 关闭全部下拉（含来源）
+      if (!isOpen) {
+        buildRegionOptions();
+        regionDd.style.display = '';
+        regionTrigger.classList.add('open');
+        _openDd = { dd: regionDd, trigger: regionTrigger };
+      }
+    });
+  }
+  // 来源筛选下拉（与 roster 共用的二级三级菜单）
+  setupSourceFilter({
+    trigger: root.querySelector('#trainPickSrcFilter'),
+    label: root.querySelector('#trainPickSrcFilterLabel'),
+    dd: root.querySelector('#trainPickSrcFilterDropdown'),
+    state: pickSrcState(),
+    onPick: refreshPickList,
+  });
 }
 
 // 弹框保持打开时局部刷新内容（不重建弹层，避免闪烁/关闭）
@@ -761,11 +1246,23 @@ function refreshSlots() {
     const el = host.querySelector(`.train-status-row[data-slot="${i}"]`);
     if (el) {
       const fill = el.querySelector('.xp-fill');
-      if (fill) fill.style.width = ratio.toFixed(1) + '%';
-      const nums = el.querySelector('.train-status-nums');
-      if (nums) nums.textContent = `${Math.floor(cur)} / ${need}`;
-      const lv = el.querySelector('.train-status-name em');
-      if (lv) lv.innerHTML = `${genderBadge(ensureGender(entry))}Lv${entry.level || 1}`;
+      if (fill) {
+        const next = ratio.toFixed(1) + '%';
+        const prev = parseFloat(fill.style.width) || 0;
+        // 升级瞬间条从满跳到空：临时禁用过渡让它立即归零，避免 0.3s 平滑收缩看起来像倒退
+        if (ratio < prev - 1) {
+          fill.style.transition = 'none';
+          fill.style.width = next;
+          void fill.offsetWidth; // 强制重排，令 transition:none 生效后再恢复
+          fill.style.transition = '';
+        } else {
+          fill.style.width = next;
+        }
+      }
+      const g = el.querySelector('.train-status-name .train-status-g');
+      if (g) g.innerHTML = genderBadge(ensureGender(entry));
+      const lv = el.querySelector('.train-status-xp-lv');
+      if (lv) lv.textContent = 'Lv' + (entry.level || 1);
       const st = el.querySelector('.train-status-dot');
       if (st) st.classList.toggle('lazy', isLazy(slot));
       // 饱食度条与数字：随每秒结算同步（吃到树果时数值会上涨）

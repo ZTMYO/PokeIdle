@@ -33,7 +33,7 @@ const APPS = [
 // 每页 App 数量（5 列 × 2 行）
 const PAGE_SIZE = 10;
 
-// 打开孵蛋器应用（从手机进入，返回回到手机主页；全局快捷键 H 也走这里）
+// 打开孵蛋器应用（从手机进入，返回回到手机主页；全局快捷键 F 也走这里）
 export function showIncubatorView() {
   pushNav('incubatorView');
   showView('incubatorView');
