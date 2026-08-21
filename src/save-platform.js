@@ -6,7 +6,7 @@ export function pickBrowserImportFile(doc = globalThis.document) {
   return new Promise((resolve, reject) => {
     const input = doc.createElement('input');
     input.type = 'file';
-    input.accept = 'application/json,.json';
+    input.accept = '*/*';
 
     let settled = false;
     const finish = (callback, value) => {
