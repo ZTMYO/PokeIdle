@@ -40144,8 +40144,8 @@
   "index": "0006-1",
   "name": "喷火龙",
   "name_en": "Charizard",
-  "image": "pokemon-data/images/0006-1-喷火龙-超级Ｙ.gif",
-  "icon": "pokemon-data/icon/0006-1-喷火龙-超级Ｙ.png",
+  "image": "pokemon-data/images/0006-1-超级喷火龙Ｙ.gif",
+  "icon": "pokemon-data/icon/0006-1-超级喷火龙Ｙ.png",
   "types": [
    "火",
    "飞行"
@@ -40178,7 +40178,7 @@
    "龙群"
   ],
   "noEggGroup": false,
-  "form": "喷火龙-超级Ｙ"
+  "form": "超级喷火龙Ｙ"
  },
  {
   "index": "0019-1",

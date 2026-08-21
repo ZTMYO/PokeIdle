@@ -3771,7 +3771,7 @@
             "why": "",
             "impl": true,
             "effect": {
-                "kind": "damage",
+                "kind": "explode",
                 "cat": "phys",
                 "power": 250
             },

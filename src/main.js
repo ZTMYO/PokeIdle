@@ -1264,8 +1264,13 @@ async function init() {
   $('statTime')?.addEventListener('click', footerNav(showGpsView));
   // 标题栏返回逻辑：点击 appTitle 与鼠标后侧键（button 4）共用
   const handleAppTitleBack = () => {
-    if (isModalLocked()) return; // 全屏确认场景锁定：标题返回也不处理，只能通过场景内确定退出（派遣结算确定=返回）
     if ($('appTitle').dataset.action !== 'back') return;
+    // 经验糖果使用场景尚未结算时：返回 = 取消并关闭场景（结算后只能点「确定」退出，标题返回维持锁定）
+    if ($('expCandyView')?.style.display === 'flex' && $('expCandyBox')?.style.display !== 'flex') {
+      import('./exp-candy.js').then(m => m.cancelExpCandyScene());
+      return;
+    }
+    if (isModalLocked()) return; // 全屏确认场景锁定：标题返回也不处理，只能通过场景内确定退出（派遣结算确定=返回）
     // 孵蛋记录页打开且正处孵蛋器视图：点击标题只关记录页回主列表，否则走正常返回
     if (isIncubatorLogOpen() && $('incubatorView')?.style.display === 'flex') { closeIncubatorLog(); return; }
     // 对战记录页打开且正处战斗视图：点击标题只关记录页，否则走正常返回

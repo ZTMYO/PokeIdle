@@ -55,7 +55,7 @@ const STAT_NAMES = ['攻击', '防御', '特攻', '特防', '速度', '命中率
 const MOVE_CAT_CN = { phys: '物理', spec: '特殊', status: '变化' };
 function moveCat(mv) {
   const ef = mv.effect || {};
-  if (ef.kind === 'damage' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'fixed' || ef.kind === 'counter' || ef.kind === 'mirrorCoat') {
+  if (ef.kind === 'damage' || ef.kind === 'explode' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'fixed' || ef.kind === 'counter' || ef.kind === 'mirrorCoat') {
     if (ef.kind === 'mirrorCoat') return 'spec'; // 镜面反射：返还特殊伤害，属特殊攻击
     return ef.cat === 'spec' ? 'spec' : 'phys';
   }

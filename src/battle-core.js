@@ -289,6 +289,18 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     case 'damage':
       hit(actor, target, mv, ef, events);
       break;
+    case 'explode': {
+      // 大爆炸：造成伤害后使用者直接倒下（命中或被守住挡下均倒下，miss/属性免疫不倒下）
+      const landed = hit(actor, target, mv, ef, events);
+      const blocked = !landed && target.protected && mv.accuracy !== 0 && typeMult(mv.type, target.types) !== 0;
+      if (landed || blocked) {
+        const fromHp = actor.hp;
+        actor.hp = 0;
+        events.push({ t: 'dmg', who: actor.name, uid: actor.uid, amount: fromHp, from: fromHp, to: 0, text: `${actor.name}倒下了！` });
+        events.push({ t: 'faint', who: actor.name, uid: actor.uid, text: `${actor.name}倒下了！` });
+      }
+      break;
+    }
     case 'multihit': {
       const n = rand(ef.hits[0], ef.hits[1]);
       for (let i = 0; i < n; i++) {
@@ -890,7 +902,7 @@ export function tickBattleTurns(battle, events) {
 }
 
 // ---------- AI：按属性克制与威力择优（克制的招优先，免疫的尽量避开） ----------
-const AI_DMG_KIND = ['damage', 'multihit', 'fixed', 'drain', 'recoil', 'counter', 'mirrorCoat'];
+const AI_DMG_KIND = ['damage', 'explode', 'multihit', 'fixed', 'drain', 'recoil', 'counter', 'mirrorCoat'];
 export function aiMove(actor, enemy, data) {
   const usable = actor.moves.filter((m) => {
     const ms = String(m);

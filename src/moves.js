@@ -33,7 +33,7 @@ export function chooseMoves(learnsetEntry, level, data, opts = {}) {
     const mv = moves[m];
     const ef = mv.effect;
     let s = 0;
-    const isAtk = ef.kind === 'damage' || ef.kind === 'fixed' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'counter';
+    const isAtk = ef.kind === 'damage' || ef.kind === 'explode' || ef.kind === 'fixed' || ef.kind === 'multihit' || ef.kind === 'drain' || ef.kind === 'recoil' || ef.kind === 'counter';
     if (isAtk) {
       s += 20;
       const pw = ef.power || 0;
