@@ -1311,7 +1311,7 @@ export function renderSettings(container, s) {
     let v = '';
     try { v = await window.__TAURI__?.app?.getVersion?.(); } catch (_) {}
     const el = container.querySelector('#settingsVersion');
-    if (el) el.textContent = v ? `v${v}` : 'v1.0.9';
+    if (el) el.textContent = v ? `v${v}` : 'v1.1.0';
   })();
   // 版权声明：跳转声明视图
   container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
