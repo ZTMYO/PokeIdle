@@ -1086,6 +1086,46 @@ async function init() {
       if (e.deltaY > 0 && _bagPage < 2) showBagPage(2);
       else if (e.deltaY < 0 && _bagPage > 1) showBagPage(1);
     });
+    let swipeStart = null;
+    let suppressNextBagClick = false;
+    let suppressClickTimer = null;
+    backpackEl.style.touchAction = 'pan-y';
+    backpackEl.addEventListener('pointerdown', event => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      swipeStart = {
+        x: event.clientX,
+        y: event.clientY,
+        time: performance.now(),
+        id: event.pointerId,
+      };
+    });
+    backpackEl.addEventListener('pointerup', event => {
+      if (!swipeStart || event.pointerId !== swipeStart.id) return;
+      const { x, y, time } = swipeStart;
+      swipeStart = null;
+      const dx = event.clientX - x;
+      const dy = event.clientY - y;
+      if (Math.abs(dx) <= Math.abs(dy)) return;
+      const duration = Math.max(1, performance.now() - time);
+      const farEnough = Math.abs(dx) >= (backpackEl.clientWidth || 1) * 0.25;
+      const fastEnough = Math.abs(dx) / duration >= 0.45;
+      if (!farEnough && !fastEnough) return;
+      event.preventDefault();
+      suppressNextBagClick = true;
+      clearTimeout(suppressClickTimer);
+      suppressClickTimer = setTimeout(() => { suppressNextBagClick = false; }, 400);
+      if (dx < 0 && _bagPage < 2) showBagPage(2);
+      else if (dx > 0 && _bagPage > 1) showBagPage(1);
+    });
+    backpackEl.addEventListener('pointercancel', () => { swipeStart = null; });
+    // 槽位 click 在冒泡到背包父节点前触发，因此必须使用捕获阶段拦截滑动后的合成 click。
+    backpackEl.addEventListener('click', event => {
+      if (!suppressNextBagClick) return;
+      suppressNextBagClick = false;
+      clearTimeout(suppressClickTimer);
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
     // 点击页码指示条的短段直接翻到对应页
     const bagInd = $('bagPageIndicator');
     if (bagInd) {

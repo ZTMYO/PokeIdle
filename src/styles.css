@@ -1720,12 +1720,12 @@ body.browser-mode { overflow: auto; }
   height: 100%;
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-  gap: 4px 2px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 10px 7px;
   justify-items: center;
   align-content: center;
-  padding: 2px 2px 4px;
+  padding: 5px 8px 7px;
 }
 /* 音乐栏平滑展开/收起：max-height+opacity 过渡，与时钟放大/压缩互补，过渡期间总高度恒定 */
 .phone-music {
@@ -1821,6 +1821,10 @@ body.browser-mode { overflow: auto; }
 .phone-app-name {
   font-size: 10px;
   font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* 手机主页应用红点：孵蛋完成 / 有可交换宝可梦 / 有干涸树果时点亮 */
 .phone-app-badge {
@@ -4265,6 +4269,31 @@ body.browser-mode { overflow: auto; }
 .reset-save-btn.is-busy {
   opacity: 0.7;
   cursor: wait;
+}
+
+.save-transfer-status {
+  display: none;
+  margin: 6px 4px 0;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--color-text);
+  background: rgba(var(--ui-color-rgb), 0.1);
+}
+
+.save-transfer-status.show {
+  display: block;
+}
+
+.save-transfer-status.success {
+  color: #1f7a42;
+  background: rgba(50, 180, 95, 0.14);
+}
+
+.save-transfer-status.error {
+  color: #a33a32;
+  background: rgba(220, 70, 60, 0.14);
 }
 
 .save-transfer-dialog {
