@@ -4,7 +4,7 @@
 // 属性归类到 9 大增益类，同类去重；多属性每类增益同时生效、不减半
 import { FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, FOLLOWER_TYPE_GROUP, FOLLOWER_GROUP_BOOST } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, phase, saveGame, pushNav } from './state.js';
-import { $, showView, isOnGameView, updateBackpack, updateStats, tryLoadImage } from './ui.js';
+import { $, showView, isOnGameView, updateBackpack, updateStats, tryLoadImage, getScreenLayoutMetrics } from './ui.js';
 import { TYPE_COLORS } from './items.js';
 import * as road from './road.js';
 
@@ -1004,20 +1004,20 @@ function positionFollowerOnRoad() {
   const charEl = $('walkGif');
   const screen = $('screen');
   if (!charEl || !screen) return;
-  const sRect = screen.getBoundingClientRect();
-  const cRect = charEl.getBoundingClientRect();
+  const layout = getScreenLayoutMetrics();
+  const cRect = layout?.rect(charEl);
   // 布局有效性检查：主角或屏幕无布局（视图隐藏 / 刚切换尚未渲染）时跳过定位，
   // 避免用全 0 坐标把随从写到屏幕顶部外面，等可见后由动画帧兜底重定位
-  if (cRect.width === 0 || cRect.height === 0 || sRect.width === 0 || sRect.height === 0) return;
+  if (!layout || !cRect) return;
   // 主角中心 x（相对 screen）
-  const charCX = cRect.left - sRect.left + cRect.width / 2;
+  const charCX = cRect.left + cRect.width / 2;
   // 放在主角左侧，隔开约 1.5 个身位，避免与主角行走图重叠
   const gap = 46;
   el.style.left = (charCX - gap - cRect.width) + 'px';
   // 随从脚底与主角脚底对齐：主角底部相对 screen 顶部的距离 - 随从视觉高度（含 transform 放大）
-  const charBottomRel = cRect.bottom - sRect.top;
+  const charBottomRel = cRect.top + cRect.height;
   const imgEl = $('followerRoadImg');
-  const fh = imgEl ? imgEl.getBoundingClientRect().height : 64;
+  const fh = layout.rect(imgEl)?.height || 64;
   el.style.top = (charBottomRel - fh) + 'px';
 }
 

@@ -17,7 +17,7 @@ import {
   gameData, allPokemon, getPokemonByIndex, getMassOutbreak, getTwist, honeyBuffActive, phase,
   randInt, rand, saveGame, addSystemLog, inMassZone, inTwistZone, normalizeMassRemainToEnd, _fishing,
 } from './state.js';
-import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView } from './ui.js';
+import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView, getScreenLayoutMetrics } from './ui.js';
 import { endCycling } from './audio.js';
 import { MAP_EDGES, showGpsView } from './gps.js';
 import { startMassEncounter, startTwistEncounter, scheduleNextEncounter } from './battle.js';
@@ -197,13 +197,14 @@ function spawnMassPoke() {
     if (!ok || !el.isConnected) { el.remove(); if (_massPokeEl === el) _massPokeEl = null; }
   });
 
-  const sRect = screen.getBoundingClientRect();
-  const cRect = charEl.getBoundingClientRect();
-  _massCharX = cRect.left - sRect.left + 24;
+  const layout = getScreenLayoutMetrics();
+  const cRect = layout?.rect(charEl);
   const roadEl = document.querySelector('.road-layer');
-  const rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
-  const y = (rRect.top - sRect.top) + 14; // 底边贴近路面
-  _massPokeX = sRect.width + 16;
+  const rRect = layout?.rect(roadEl || charEl);
+  if (!layout || !cRect || !rRect) { el.remove(); return; }
+  _massCharX = cRect.left + 24;
+  const y = rRect.top + 14; // 底边贴近路面
+  _massPokeX = layout.width + 16;
   el.style.left = _massPokeX + 'px';
   el.style.top = y + 'px';
   _massPokeEl = el;
@@ -493,13 +494,14 @@ function spawnTwistPoke() {
     if (!ok || !el.isConnected) { el.remove(); if (_twistPokeEl === el) _twistPokeEl = null; }
   });
 
-  const sRect = screen.getBoundingClientRect();
-  const cRect = charEl.getBoundingClientRect();
-  _twistCharX = cRect.left - sRect.left + 24;
+  const layout = getScreenLayoutMetrics();
+  const cRect = layout?.rect(charEl);
   const roadEl = document.querySelector('.road-layer');
-  const rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
-  const y = (rRect.top - sRect.top) + 14;
-  _twistPokeX = sRect.width + 16;
+  const rRect = layout?.rect(roadEl || charEl);
+  if (!layout || !cRect || !rRect) { el.remove(); return; }
+  _twistCharX = cRect.left + 24;
+  const y = rRect.top + 14;
+  _twistPokeX = layout.width + 16;
   el.style.left = _twistPokeX + 'px';
   el.style.top = y + 'px';
   _twistPokeEl = el;

@@ -360,6 +360,35 @@ export function invalidateStageSize() {
   _stageCache = null;
 }
 
+// 道路实体统一使用 screen 内部布局坐标，避免移动端 .console 的 transform
+// 把 getBoundingClientRect 返回的物理像素直接写回 left/top。
+export function getScreenLayoutMetrics() {
+  const screen = $('screen');
+  if (!screen) return null;
+  const width = Number(screen.clientWidth) || 0;
+  const height = Number(screen.clientHeight) || 0;
+  const screenRect = screen.getBoundingClientRect?.();
+  if (!screenRect || width <= 0 || height <= 0 || screenRect.width <= 0 || screenRect.height <= 0) return null;
+  const rawScaleX = screenRect.width / width;
+  const rawScaleY = screenRect.height / height;
+  const scaleX = Number.isFinite(rawScaleX) && rawScaleX > 0 ? rawScaleX : 1;
+  const scaleY = Number.isFinite(rawScaleY) && rawScaleY > 0 ? rawScaleY : 1;
+  return {
+    width,
+    height,
+    rect(element) {
+      const rect = element?.getBoundingClientRect?.();
+      if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+      return {
+        left: (rect.left - screenRect.left) / scaleX,
+        top: (rect.top - screenRect.top) / scaleY,
+        width: rect.width / scaleX,
+        height: rect.height / scaleY,
+      };
+    },
+  };
+}
+
 export function getStageSize() {
   // 使用布局坐标而不是 getBoundingClientRect：后者包含移动端 .console 的 CSS
   // transform: scale，会把放大后的物理像素误写回内部 CSS 坐标，造成整页偏移。

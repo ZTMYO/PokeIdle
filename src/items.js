@@ -1,7 +1,7 @@
 // ===== 道具相关逻辑 =====
 import { ITEM_NAMES, CANDY_EXCHANGE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, isPokemon } from './state.js';
-import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge } from './ui.js';
+import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, getScreenLayoutMetrics } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay } from './animation.js';
 import { computeObtainScore } from './scoring.js';
@@ -273,22 +273,29 @@ export function spawnItemDrop(itemKey) {
     if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
   };
 
-  const sRect = screen.getBoundingClientRect();
-  const cRect = charEl.getBoundingClientRect();
-  const charLeft = cRect.left - sRect.left;
+  const layout = getScreenLayoutMetrics();
+  const cRect = layout?.rect(charEl);
+  const roadEl = document.querySelector('.road-layer');
+  const rRect = layout?.rect(roadEl || charEl);
+  if (!layout || !cRect || !rRect) {
+    _dropEl = null;
+    _dropCancelCb = null;
+    el.remove();
+    setItemDropActive(false);
+    return;
+  }
+  const charLeft = cRect.left;
 
   // 物品放在路面上
-  const roadEl = document.querySelector('.road-layer');
-  const rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
-  const itemY = (rRect.top - sRect.top) + 24;
+  const itemY = rRect.top + 24;
 
-  let itemX = sRect.width + 10;
+  let itemX = layout.width + 10;
   el.style.left = itemX + 'px';
   el.style.top = itemY + 'px';
   el.style.opacity = '1';
 
   const pickupX = charLeft + 10;
-  const cTop = cRect.top - sRect.top;
+  const cTop = cRect.top;
   let active = true;
 
   function cleanup() {
@@ -319,7 +326,7 @@ export function spawnItemDrop(itemKey) {
     const roadSpeed = road.getSpeed();
     itemX -= roadSpeed;
 
-    if (itemX > sRect.width + 100) { cleanup(); return; }
+    if (itemX > layout.width + 100) { cleanup(); return; }
 
     if (road.isBike()) {
       el.style.left = itemX + 'px';
