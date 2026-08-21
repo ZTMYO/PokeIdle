@@ -526,7 +526,7 @@ function footerHtml() {
   return '';
 }
 
-// 点击宝可梦时在点击位置弹出操作菜单（交换 / 移除）
+// 点击宝可梦时在卡片中部偏下弹出操作菜单（查看 / 替换 / 移除）
 let _menuEl = null;
 let _menuSlot = -1;
 let _menuSlotEl = null;
@@ -570,8 +570,12 @@ function openTeamMenu(e, i, p) {
   box.appendChild(menu);
   // 追加后按实际尺寸定位（菜单内容变化时高度随按钮数浮动）
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  menu.style.left = `${Math.max(0, Math.min(e.clientX - r.left, r.width - mw - 4))}px`;
-  menu.style.top = `${Math.max(0, Math.min(e.clientY - r.top, r.height - mh - 4))}px`;
+  // 菜单固定在卡片中部偏下，不跟随点击位置
+  const sr = slotEl.getBoundingClientRect();
+  const left = sr.left - r.left + sr.width / 2 - mw / 2;
+  const top = sr.top - r.top + sr.height * 0.65;
+  menu.style.left = `${Math.max(0, Math.min(left, r.width - mw - 4))}px`;
+  menu.style.top = `${Math.max(0, Math.min(top, r.height - mh - 4))}px`;
   _menuEl = menu;
 }
 

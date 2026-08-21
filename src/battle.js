@@ -1098,18 +1098,22 @@ function evalCatchRow(row, skipLevel = false) {
 // 遇敌过滤（设置-捕捉条件表格）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
 // 五类策略：普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏，各自独立选择 捕捉/暂停/逃跑，
 // 并各自带等级范围（0=不限制）与「仅捕捉未拥有过的」（普通看仓库非闪个体、闪光看仓库闪光个体）。
-// 「可悬赏」行优先：遭遇目标是今日已解锁悬赏宝可梦时按该行策略执行，其余按遭遇类型定位对应行。
+// 优先级：神兽/神兽闪行 > 可悬赏行 > 普通/普通闪行。神兽按类型行硬约束判定，
+// 可悬赏行只作用于普通遭遇（防止悬赏目标绕过神兽暂停等设置）。
 export function catchFilterResult() {
   const f = gameData.settings?.catchFilter || {};
   const rows = f.rows || {};
-  // 可悬赏行优先于四行：命中今日悬赏目标时按该行策略执行，等级范围、未捕获等条件同样生效
+  const isLegend = isLegendEncounter();
+  // 按当前遭遇类型定位对应策略行：神兽闪 > 神兽 / 普通闪 > 普通
+  const typeRow = (isLegend ? (currentIsShiny ? rows.legendShiny : rows.legend) : (currentIsShiny ? rows.normalShiny : rows.normal))
+    || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false };
+  // 神兽/神兽闪行优先：神兽按类型行判定，可悬赏行不覆盖神兽行策略
+  if (isLegend) return evalCatchRow(typeRow);
+  // 可悬赏行优先于普通/普通闪行：普通遭遇命中今日悬赏目标时按该行策略执行
   if (currentEncounter && getBountyTargetIndexes().has(String(currentEncounter.index))) {
     return evalCatchRow(rows.bounty || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false });
   }
-  // 按当前遭遇类型定位对应策略行：神兽闪 > 神兽 / 普通闪 > 普通
-  const row = (isLegendEncounter() ? (currentIsShiny ? rows.legendShiny : rows.legend) : (currentIsShiny ? rows.normalShiny : rows.normal))
-    || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false };
-  return evalCatchRow(row);
+  return evalCatchRow(typeRow);
 }
 
 // 自动补球：勾选的球数量为 0 时，用糖果按补球优先级补 1 个（手动/自动丢球都生效）。

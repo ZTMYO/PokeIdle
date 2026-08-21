@@ -1360,7 +1360,9 @@ function releasePokemon(id) {
   _releasing = true;
   const poke = getPokemonByIndex(String(p.species));
   const poolBefore = gameData.stats.releaseXpPool || 0; // 放生前池值，供进度条/数字滚动动画用
-  let gainedCandies = 0; // 本次放生产出的经验糖果数（confirmText 结算时写入）
+  let gainedCandies = 0; // 本次放生产出的经验糖果数
+  let gained = 0; // 本次放生返还经验
+  let committed = false; // 确认瞬间是否已提交（移除个体并结算返还）
   showGoodbyeConfirm({
     poke,
     nick: p.nickname || '',
@@ -1368,32 +1370,49 @@ function releasePokemon(id) {
     shiny: !!p.shiny,
     twoStep: true, // 两阶段：确认后先「再见！」+ 图标缩小，动画结束后自动展示返还经验提示
     title: '放生', // 顶部标题显示「放生」，点击标题等同于取消
-    // 动画结束自动结算返还经验（个体尚在仓库）：返还经验 + 累计池子 + 产出糖果
-    confirmText: () => {
-      const gained = releaseXpOf(p);
+    // 点击「确定」的瞬间立即提交：移除个体 + 结算返还经验并产糖 + 存档。
+    // 提交后宝可梦已不在仓库，后续无论点确定还是按返回都只是收尾展示，杜绝结算完成但个体未移除的空窗刷糖。
+    onOk: () => {
+      const arr = gameData.roster || [];
+      const ri = arr.findIndex(r => r.id === id);
+      if (ri < 0) return; // 个体已不在仓库，无需重复提交
+      arr.splice(ri, 1);
+      // 若该个体正放在饲育屋繁育：同步清出亲本槽并终止繁殖（否则场地贴图/配对预览残留）
+      import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
+      gained = releaseXpOf(p);
       gainedCandies = addReleaseXp(gained);
-      return releaseXpText(gained, gainedCandies);
+      committed = true;
+      stopShinySparkleLoop();
+      addSystemLog('pokemon_release', { pokemon: p.species, shiny: !!p.shiny });
+      saveGame();
     },
-    // 宝可梦隐藏后在其原位置展示经验池进度动画（须在 confirmText 结算之后读取新值）
+    // 动画结束自动展示返还经验（个体已在 onOk 移除，此处只读已结算结果）
+    confirmText: () => releaseXpText(gained, gainedCandies),
+    // 宝可梦隐藏后在其原位置展示经验池进度动画（onOk 已结算，直接读新值）
     poolText: () => {
       return { before: poolBefore, after: gameData.stats.releaseXpPool || 0, max: EXP_CANDY_XP, candies: gainedCandies };
     },
     onConfirm: () => {
-      const arr = gameData.roster || [];
-      const ri = arr.findIndex(r => r.id === id);
-      if (ri >= 0) {
-        arr.splice(ri, 1);
-        // 若该个体正放在饲育屋繁育：同步清出亲本槽并终止繁殖（否则场地贴图/配对预览残留）
-        import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
-      }
-      stopShinySparkleLoop();
       _releasing = false;
-      addSystemLog('pokemon_release', { pokemon: p.species, shiny: !!p.shiny });
-      saveGame();
+      // 兜底：动画确认路径异常导致 onOk 未提交时补一次移除结算（正常流程 onOk 已处理）
+      if (!committed) {
+        const arr = gameData.roster || [];
+        const ri = arr.findIndex(r => r.id === id);
+        if (ri >= 0) {
+          arr.splice(ri, 1);
+          gained = releaseXpOf(p);
+          addReleaseXp(gained);
+          stopShinySparkleLoop();
+          addSystemLog('pokemon_release', { pokemon: p.species, shiny: !!p.shiny });
+          saveGame();
+        }
+      }
       restoreRosterList();
     },
     onCancel: () => {
       _releasing = false;
+      // 确认后按返回：放生已提交（个体已移除），等同确认收尾回列表
+      if (committed) restoreRosterList();
     },
   });
 }
