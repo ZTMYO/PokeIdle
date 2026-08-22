@@ -262,13 +262,6 @@ async function forceRefreshWave() {
   renderBattleList();
 }
 
-// 调试：一键清空 NPC 列表（F12 控制台调用 window.__debugClearNpcs() 后回列表页即显示空状态）
-window.__debugClearNpcs = () => {
-  if (gameData.battleNpcs?.list) gameData.battleNpcs.list = [];
-  renderBattleList();
-  return 'NPC 列表已清空';
-};
-
 // 距下一波刷新剩余时间文案（与交换页同款）
 function refreshText() {
   const left = Math.max(0, BATTLE_REFRESH_MS - (Date.now() - (gameData.battleNpcs?.refreshedAt || 0)));

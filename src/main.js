@@ -582,11 +582,19 @@ function setupShortcuts() {
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
 
-  // 浏览器端（非 Tauri）：console 固定 274×342 居中显示，与 Tauri 端设计基准视口一致
-  //（Tauri 端由 Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）
+  // 浏览器端（非 Tauri）：console 基准 274×342，按窗口比例设置 zoom 等比缩放，与 Tauri 端
+  //（Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）保持一致的画面
   const consoleEl = document.querySelector('.console');
   if (consoleEl && !window.__TAURI__?.core?.invoke) {
     document.body.classList.add('browser-mode');
+
+    // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时保持 100%
+    const fitConsole = () => {
+      const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / 342));
+      consoleEl.style.zoom = scale;
+    };
+    fitConsole();
+    window.addEventListener('resize', fitConsole);
   }
 
   // 系统托盘走路动画（异步加载，失败不影响主流程）
@@ -672,190 +680,8 @@ async function init() {
   setLastRegionId(getCurrentRegion().id);
   await saveGame();
 
-  // 调试辅助：DevTools 控制台快速增加糖果
-  window.__addCandy = (n = 1000) => {
-    const amount = Number(n) || 1000;
-    gameData.items['candy'] = (gameData.items['candy'] || 0) + amount;
-    gameData.stats.totalItemsEarned = gameData.stats.totalItemsEarned || {};
-    gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + amount;
-    saveGame();
-    updateBackpack('candy');
-    updateStats();
-    console.log('糖果 +' + amount);
-  };
-
-  // 调试辅助：DevTools 控制台快速完成所有孵蛋
-  window.__completeAllEggs = () => {
-    gameData.incubators.forEach(s => {
-      if (s && s.eggIndex != null && !s.hatched) {
-        s.hatched = true;
-      }
-    });
-    saveGame();
-    if ($('incubatorView')?.style.display === 'flex') renderIncubatorView();
-    updateIncubatorBadge();
-    console.log('所有孵蛋中的蛋已标记为孵化完成');
-  };
-
-  // 调试辅助：DevTools 控制台一键让农场所有已种植地块成熟（window.__matureBerries()）
-  window.__matureBerries = () => {
-    const f = gameData.berryFarm;
-    if (!f || !Array.isArray(f.plots)) { console.warn('__matureBerries: 尚未开启农场'); return; }
-    let n = 0;
-    f.plots.forEach(p => {
-      if (!p) return;
-      p.grownMs = p.totalMs || 30 * 60 * 1000; // 生长进度直接拉满，进入「可收获」
-      n++;
-    });
-    if (!n) { console.warn('__matureBerries: 农场没有已种植的树果'); return; }
-    saveGame();
-    refreshBerryView();
-    console.log(`__matureBerries: ${n} 棵树果已成熟，可以收获了`);
-  };
-
-  // 调试辅助：DevTools 控制台清空当前 GPS 状态，恢复为默认丰缘（含默认漫游自动规划首站）
-  window.__resetGps = async () => {
-    gameData.gps = defaultGpsState();
-    ensureGpsState();
-    setRoamEnabled(true); // 默认开启漫游：无目的地时自动规划首站路线
-    setLastRegionId(getCurrentRegion().id);
-    await saveGame();
-    updateStats();
-    if ($('gpsView')?.style.display === 'flex') showGpsView();
-    console.log('GPS 已重置为默认丰缘');
-  };
-
-  // 调试辅助：一键刷新大量出没事件（清掉当前事件并立即生成一次新事件）
-  window.__resetMassOutbreak = () => {
-    forceRefreshMassOutbreak();
-    if ($('gpsView')?.style.display === 'flex') showGpsView();
-    const mo = gameData.massOutbreak;
-    if (mo) {
-      const poke = getPokemonByIndex(mo.pokemon);
-      console.log(`大量出没已刷新：${poke ? poke.name : '#' + mo.pokemon}，剩余 ${mo.remain} 只，路段 ${mo.edge.join('-')} @ ${(mo.t * 100).toFixed(0)}%`);
-    } else {
-      console.warn('大量出没刷新失败：暂无可生成的宝可梦，1 秒后自动重试');
-    }
-  };
-
-  // 调试辅助：一键刷新时空扭曲事件并直接传送到事件点（清掉当前事件、立即生成新事件、瞬移过去）
-  window.__resetTwist = () => {
-    forceRefreshTwist();
-    const tw = gameData.twist;
-    if (tw) {
-      teleportToTwist();
-      console.log(`时空扭曲已刷新并传送：剩余 ${tw.remain} 只，路段 ${tw.edge.join('-')} @ ${(tw.t * 100).toFixed(0)}%`);
-    } else {
-      console.warn('时空扭曲刷新失败：暂无可生成的宝可梦，1 秒后自动重试');
-    }
-  };
-
-  // 调试：按宝可梦编号直接写入一只 6V 孵蛋宝可梦（如 window.__addPoke(25) 写入皮卡丘）
-  // 默认 Lv10（调试状态异常等招式时等级太低学不到招式）；__addPokeLv 可指定等级
-  // __addShinyPoke 相同，但为蛋闪
-  async function addDebugPoke(idx, shiny, level = 10) {
-    // 纯数字按 4 位编号补零；扩展编号（如 "0058-1"）原样匹配
-    const raw = String(idx);
-    const dexIdx = /^\d+$/.test(raw) ? raw.padStart(4, '0') : raw;
-    const poke = getPokemonByIndex(dexIdx);
-    if (!poke) { console.warn(`__addPoke: 未找到编号 ${idx}`); return null; }
-    const entry = addRosterEntry({ species: poke.index, source: 'egg', shiny, level });
-    if (entry) entry.ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
-    // 同步解锁图鉴（与孵蛋流程一致）
-    const pdx = String(poke.index);
-    if (!gameData.pokedex[pdx]) {
-      gameData.pokedex[pdx] = { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0 };
-    }
-    gameData.pokedex[pdx].seen++;
-    gameData.pokedex[pdx].caught = (gameData.pokedex[pdx].caught || 0) + 1;
-    gameData.pokedex[pdx].lastTime = new Date().toISOString();
-    if (shiny) {
-      gameData.pokedex[pdx].shinyCaught = (gameData.pokedex[pdx].shinyCaught || 0) + 1;
-      gameData.stats.totalShinyEggsHatched = (gameData.stats.totalShinyEggsHatched || 0) + 1;
-    }
-    gameData.stats.totalCatches++;
-    gameData.stats.totalEggsHatched++;
-    // 配套写一条「孵蛋获得」遭遇日志，详情页的日志行才有内容
-    if (!gameData.encounterLogs) gameData.encounterLogs = {};
-    if (!gameData.encounterLogs[poke.index]) gameData.encounterLogs[poke.index] = [];
-    gameData.encounterLogs[poke.index].push({
-      time: Date.now(),
-      shiny,
-      result: 'caught',
-      balls: {},
-      charmBuff: false,
-      score: computeObtainScore({ pokemon: poke, source: 'egg', shiny, charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1, ivs: entry.ivs }),
-    });
-    await saveGame();
-    if (isRosterInDetail()) restoreRosterList();
-    else if ($('rosterView')?.style.display === 'flex') showRosterView();
-    console.log(`__addPoke: 已添加 6V Lv${level} ${shiny ? '闪光 ' : ''}${poke.name}（${shiny ? '蛋闪' : '孵蛋'}）`);
-    return entry;
-  }
-  window.__addPoke = idx => addDebugPoke(idx, false);
-  window.__addShinyPoke = idx => addDebugPoke(idx, true);
-  window.__addPokeLv = (idx, lv) => addDebugPoke(idx, false, lv);
-  window.__addShinyPokeLv = (idx, lv) => addDebugPoke(idx, true, lv);
-
-  // 调试辅助：一键解锁全图鉴（含变体）。
-  // window.__unlockAllPokedex() 全解锁普通记录；传 true 时额外把闪光也标记为已见/已捕获
-  window.__unlockAllPokedex = async (withShiny = false) => {
-    if (!gameData.pokedex) gameData.pokedex = {};
-    const now = new Date().toISOString();
-    let n = 0;
-    for (const poke of allPokemon) {
-      const key = String(poke.index);
-      const rec = gameData.pokedex[key] || { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0 };
-      rec.seen = Math.max(rec.seen, 1);
-      rec.caught = Math.max(rec.caught, 1);
-      rec.lastTime = now;
-      if (withShiny) {
-        rec.shinySeen = Math.max(rec.shinySeen, 1);
-        rec.shinyCaught = Math.max(rec.shinyCaught, 1);
-      }
-      gameData.pokedex[key] = rec;
-      n++;
-    }
-    await saveGame();
-    if ($('pokedexView')?.style.display !== 'none') showPokedex();
-    console.log(`__unlockAllPokedex: 已解锁 ${n} 条图鉴记录${withShiny ? '（含闪光）' : ''}`);
-    return n;
-  };
-
-  // 调试辅助：指定下一次遇敌的宝可梦（window.__nextEncounter(25) 下次遇皮卡丘；
-  // window.__nextEncounter(25, true) 下次遇闪光皮卡丘；遇到后自动清空）
-  window.__nextEncounter = (idx, shiny = false) => {
-    setDebugNextEncounter(idx, shiny);
-    const raw = String(idx);
-    const dexIdx = /^\d+$/.test(raw) ? raw.padStart(4, '0') : raw;
-    const poke = getPokemonByIndex(dexIdx);
-    console.log(`__nextEncounter: 下次遇敌已指定为 ${poke ? poke.name : '#' + idx}${shiny ? '（闪光）' : ''}，用后即焚`);
-  };
-
-  // 调试辅助：同时刷新对战与交换（重置各自倒计时并立即换新一波；页面正打开则同步重绘）
-  window.__refreshBattleAndTrade = () => {
-    refreshNpcs();
-    refreshTrades();
-    if ($('battleView')?.style.display !== 'none' && !isBattleActive()) renderBattleList();
-    if ($('tradeView')?.style.display !== 'none') renderTrade();
-    console.log('对战与交换已刷新');
-  };
-
-  // 调试辅助：刷新一波对战 NPC，并让全部 NPC 的队伍都使用指定的宝可梦
-  // 用法：window.__npcTeam(25) 全部用皮卡丘；window.__npcTeam(25, 6, 149) 全部用这三只；也支持传数组
-  window.__npcTeam = (...ids) => {
-    const list = ids.length === 1 && Array.isArray(ids[0]) ? ids[0] : ids;
-    const mons = list.map((v) => String(v).padStart(4, '0'));
-    const bad = mons.filter((idx) => !getPokemonByIndex(idx));
-    if (!mons.length || bad.length) {
-      console.warn(`__npcTeam: 无效编号 ${bad.join(', ')}，用法如 __npcTeam(25, 6)`);
-      return;
-    }
-    refreshNpcs(); // 生成新一波并重置刷新倒计时
-    gameData.battleNpcs.list.forEach((n) => { n.mons = [...mons]; });
-    if ($('battleView')?.style.display !== 'none' && !isBattleActive()) renderBattleList();
-    console.log(`__npcTeam: 对战 NPC 已刷新，全部队伍=${mons.join(', ')}`);
-  };
+  // 调试命令统一在 debug.js 中登记（F12 控制台 window.__* 系列）
+  await import('./debug.js');
 
   // 固定窗口
   if (gameData.settings?.windowPinned) {

@@ -242,7 +242,7 @@ function removeParent(slot) {
 }
 
 // ---------- 页面渲染 ----------
-function render() {
+export function render() {
   const box = $('nurseryContent');
   if (!box) return;
   // 蛋仓库视图
@@ -1328,7 +1328,7 @@ function startBreeding() {
 // 结算已完成轮次：每完成一轮自动生成蛋入库存并继续下一轮，直至全部完成。
 // 用真实时间戳结算，离开页面/离线期间产出的蛋在进入页面时一次性补齐。
 // 返回本次结算产出的蛋数（供进入饲育屋页面时弹出提示）。
-function settleBreeding() {
+export function settleBreeding() {
   const n = ensureNursery();
   const b = n.breeding;
   if (!b) return 0;
@@ -1637,7 +1637,7 @@ function removeEggConfirmBar() {
   hideConfirmBar();
 }
 
-function renderEggView() {
+export function renderEggView() {
   const box = $('nurseryContent');
   if (!box) return;
   const eggs = (gameData.roster || []).filter(p => p.inRoster && !isPokemon(p));
@@ -1814,52 +1814,3 @@ export function leaveNurseryEggView() {
   render();
   startTimer();
 }
-
-// ---------- 调试辅助 ----------
-// 直接完成当前繁殖批次：跳过投喂树果消耗与等待计时，立即产完本批所有蛋（自动入库）。
-// 控制台执行 window.__finishBreeding()。
-window.__finishBreeding = function () {
-  const n = ensureNursery();
-  if (!n || !n.breeding) {
-    console.log('[调试] 当前没有进行中的繁殖（需先投喂开始繁殖）');
-    return false;
-  }
-  n.breeding.startedAt = Date.now() - (n.breeding.durMs || 1) * n.breeding.roundsTotal - 1;
-  const produced = settleBreeding();
-  saveGame();
-  render();
-  console.log(`[调试] 已直接完成当前繁殖，${produced} 枚蛋已自动入库`);
-  return true;
-};
-
-// 调试：直接添加宝可梦蛋到仓库（6V 个体值）
-// 参数 speciesIndex 为图鉴编号，默认为 1（妙蛙种子）
-// 用法：__addEgg(25)  → 获得一只皮卡丘的蛋
-//       __addEgg()    → 获得一只妙蛙种子的蛋
-window.__addEgg = function (speciesIndex) {
-  const species = String(speciesIndex || 1).padStart(4, '0');
-  const poke = getPokemonByIndex(species);
-  if (!poke) { console.log('[调试] 无效的图鉴编号:', species); return false; }
-  if (!Array.isArray(gameData.roster)) gameData.roster = [];
-  const ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
-  const entry = {
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-    kind: 'egg',
-    species,
-    gender: rollGender(species),
-    level: 1,
-    exp: 0,
-    evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
-    ivs,
-    nature: rollNature(),
-    shiny: false,
-    source: 'egg',
-    obtainedAt: Date.now(),
-    inRoster: true,
-  };
-  gameData.roster.push(entry);
-  saveGame();
-  if (_eggView) renderEggView();
-  console.log(`[调试] 已添加 ${poke.name} 的蛋（6V），可在「饲育屋→纸箱」或「孵蛋器→宝可梦蛋」中查看`);
-  return true;
-};

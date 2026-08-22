@@ -135,7 +135,7 @@ export function massTick() {
   updateMassSpawner(now);
 }
 
-// 调试/测试用：清掉当前事件并立即生成一次新事件，同时刷新地图显示（挂在 window.__resetMassOutbreak）
+// 强制刷新：清掉当前大量出没并立即生成一次新事件，同时刷新地图显示（debug.js 的 window.__resetMassOutbreak 调用）
 export function forceRefreshMassOutbreak() {
   if (!gameData) return;
   if (gameData.massOutbreak) {
@@ -423,7 +423,7 @@ export function ensureTwistInit() {
   }
 }
 
-// 调试/测试用：清掉当前事件并立即生成一次新事件，同时刷新地图显示（挂在 window.__resetTwist）
+// 强制刷新：清掉当前时空扭曲并立即生成一次新事件，同时刷新地图显示（debug.js 的 window.__resetTwist 调用）
 export function forceRefreshTwist() {
   if (!gameData) return;
   if (gameData.twist) {

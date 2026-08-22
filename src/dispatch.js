@@ -129,7 +129,7 @@ function candyBase(entry, durationMin) {
 
 // 结算奖励：糖果与道具价值按「所选档位小时」计算（收益与速度无关，速度只影响完成时间），
 // 糖果固定给大头；道具按价值反比分配数量：便宜的掉得多（精灵球 10 个）、贵重的掉得少（闪耀护符 1 个）
-function rollRewards(entry, durationMin) {
+export function rollRewards(entry, durationMin) {
   const poke = getPokemonByIndex(String(entry.species));
   const boost = poke ? DISPATCH_TYPE_BOOST[poke.types?.[0]] : null;
   const weights = { ...DISPATCH_BASE_WEIGHTS };
@@ -524,7 +524,7 @@ function openDurHint(entry) {
 }
 
 // ---------- 页面渲染（主列表复用孵蛋器 2 列网格；放入页与训练/饲育屋一致） ----------
-function render() {
+export function render() {
   const box = $('dispatchContent');
   if (!box) return;
   if (_pickSlot != null) { renderPickPage(box); return; }
@@ -1249,25 +1249,3 @@ function bindPickFilters(root) {
     onPick: refreshPickList,
   });
 }
-
-// 调试辅助：DevTools 控制台一键完成所有派遣（window.__finishAllDispatch()）
-window.__finishAllDispatch = () => {
-  const d = ensureDispatch();
-  if (!d || !Array.isArray(d.slots)) return 0;
-  let n = 0;
-  d.slots.forEach((slot) => {
-    if (!slot || slot.done) return;
-    const entry = (gameData.roster || []).find(x => x.id === slot.id);
-    if (!entry || entry.inRoster === false) return;
-    slot.done = true;
-    slot.rewards = rollRewards(entry, slot.durationMin);
-    n++;
-  });
-  if (n) {
-    saveGame();
-    window.dispatchEvent(new Event('dispatch-changed'));
-    render();
-  }
-  console.log(`__finishAllDispatch: ${n} 个派遣已完成`);
-  return n;
-};

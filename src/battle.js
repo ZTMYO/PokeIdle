@@ -58,7 +58,7 @@ let _bgReplayActive = false;
 let _bgReplayToken = 0;
 // 当前遭遇宝可梦性别（每次遇敌 roll 一次；currentEncounter 是共享图鉴对象，直接写 gender 会污染数据源）
 let _encounterGender = 'male';
-// 调试辅助：指定下一次遇敌的宝可梦（window.__nextEncounter 写入，用后即焚）
+// 指定下一次遇敌的宝可梦（debug.js 的 window.__nextEncounter 写入，用后即焚）
 let _debugNextEncounter = null;
 export function setDebugNextEncounter(idx, shiny) {
   // 纯数字按 4 位编号补零；扩展编号（如 "0058-1"）原样匹配

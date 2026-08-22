@@ -34,7 +34,9 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 /* === 主机外壳 === */
 /* Tauri 端：CSS 视口恒为 274×342（设计基准，Rust set_window_scale 用 JS 真实 dpr 计算 zoom，
    任意设备画面一致），用 100% 撑满即可。
-   浏览器端（body.browser-mode）：固定 274×342 与 Tauri 端设计基准一致 */
+   浏览器端（body.browser-mode）：基准尺寸 274×342 由 JS 按窗口比例设置 zoom（等价 Tauri 端
+   WebView2 zoom factor）整体等比缩放——宽屏时上下贴边、窄屏时左右贴边，窗口不足
+   274×342 时 zoom 保持 1 交由滚动查看 */
 .console {
   width: 100%; height: 100%;
   max-width: 274px; max-height: 342px;
