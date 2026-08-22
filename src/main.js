@@ -739,6 +739,8 @@ async function init() {
   setGameData(gameDataRaw || getDefaultSave());
   // 应用存档中的窗口倍率（未设置时默认 2 倍）
   applyWindowScale(gameData?.settings?.windowScale);
+  // 应用夜间模式
+  if (gameData.settings?.darkMode) document.documentElement.dataset.theme = 'dark';
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
   if (gameData.gps.roamEnabled && gameData.gps.destIdx == null) setRoamEnabled(true);
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度

@@ -111,6 +111,10 @@ function editIds() {
 }
 
 let _hint = null;       // 底部提示文案（如对战前队伍为空跳转时给出引导）
+// 当前操作队伍是否为空（空才显示"队伍为空"引导提示，配好即隐藏）
+function editTeamEmpty() {
+  return !(editIds() || []).some(id => id != null);
+}
 // 战斗中替换：非空时配队页处于"选择上场宝可梦"模式
 let _battleParty = null;   // 出战队伍 [{ entry, pd, mon }]
 let _battleFieldIdx = -1;  // 当前场上成员下标（不可替换给自己）
@@ -252,7 +256,7 @@ function renderTeamList(box) {
   const active = gameData.activeTeam;
   const teams = gameData.teams || [];
   box.innerHTML = `
-    ${_hint ? `<div class="team-list-hint">${_hint}</div>` : ''}
+    ${_hint && editTeamEmpty() ? `<div class="team-list-hint">${_hint}</div>` : ''}
     <div class="team-list-grid">
       ${teams.map((t, i) => {
         const isActive = i === active;
@@ -746,7 +750,7 @@ function renderTeamEdit(box) {
         ${[0, 1, 2, 3, 4, 5].map(i => slotHtml(i, slotPokes[i], false)).join('')}
       </div>
     </div>
-    ${_hint ? '' : trashDockHtml()}
+    ${_hint && editTeamEmpty() ? '' : trashDockHtml()}
     ${footerHtml()}`;
   // 加载个体图标
   box.querySelectorAll('img[data-icon]').forEach(img => {
@@ -964,7 +968,7 @@ function footerHtml() {
       ${_battleCanCancel ? '<button class="team-footer-btn" id="teamBattleBack">返回</button>' : ''}
     </div>`;
   }
-  if (_hint) {
+  if (_hint && editTeamEmpty()) {
     return `<div class="team-footer">
       <span class="team-footer-text">${_hint}</span>
     </div>`;

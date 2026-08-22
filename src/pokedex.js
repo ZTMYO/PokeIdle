@@ -210,7 +210,7 @@ export function showEncounterLogs(pokemonIndex) {
         return '多种球混用';
       })();
       const shinyIcon = '<svg viewBox="0 0 1024 1024" width="10" height="10" style="vertical-align:-1px;color:var(--ui-color);"><use xlink:href="#icon-star"/></svg>';
-      content += `<div style="padding:4px 0;border-bottom:1px solid rgba(48,98,48,0.06);">
+      content += `<div style="padding:4px 0;border-bottom:1px solid rgba(var(--ui-color-rgb),0.06);">
         <div style="font-size:9px;opacity:0.4;line-height:1.4;">${formatLogTime(log.time)}</div>
         <div >${label}${log.shiny ? ' ' + shinyIcon : ''}${typeLabel ? '，' + typeLabel : ''}</div>
         <div style="font-size:10px;line-height:1.4;">${describeLogEntry(log)}</div>

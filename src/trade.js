@@ -401,7 +401,7 @@ function ivHexagon(ivs) {
   const data = IV_KEYS.map((k, i) => pt(i, (ivs[k] || 0) / 31).map(n => n.toFixed(1)).join(',')).join(' ');
   const axes = IV_KEYS.map((_, i) => {
     const [x, y] = pt(i, 1);
-    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(48,98,48,0.15)" stroke-width="0.5"/>`;
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(var(--ui-color-rgb),0.15)" stroke-width="0.5"/>`;
   }).join('');
   const labels = IV_KEYS.map((k, i) => {
     const [x, y] = pt(i, 1.32);
@@ -412,11 +412,11 @@ function ivHexagon(ivs) {
     return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.7" fill="var(--ui-color)"/>`;
   }).join('');
   return `<svg viewBox="0 0 100 100" class="roster-hex">
-    <polygon points="${poly(0.34)}" fill="none" stroke="rgba(48,98,48,0.18)" stroke-width="0.5"/>
-    <polygon points="${poly(0.67)}" fill="none" stroke="rgba(48,98,48,0.18)" stroke-width="0.5"/>
-    <polygon points="${poly(1)}" fill="none" stroke="rgba(48,98,48,0.18)" stroke-width="0.5"/>
+    <polygon points="${poly(0.34)}" fill="none" stroke="rgba(var(--ui-color-rgb),0.18)" stroke-width="0.5"/>
+    <polygon points="${poly(0.67)}" fill="none" stroke="rgba(var(--ui-color-rgb),0.18)" stroke-width="0.5"/>
+    <polygon points="${poly(1)}" fill="none" stroke="rgba(var(--ui-color-rgb),0.18)" stroke-width="0.5"/>
     ${axes}
-    <polygon points="${data}" fill="rgba(48,98,48,0.22)" stroke="var(--ui-color)" stroke-width="1.2"/>
+    <polygon points="${data}" fill="rgba(var(--ui-color-rgb),0.22)" stroke="var(--ui-color)" stroke-width="1.2"/>
     ${dots}
     ${labels}
   </svg>`;

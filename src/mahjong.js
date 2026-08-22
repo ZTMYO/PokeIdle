@@ -30,8 +30,8 @@ const SPECIES_MAP = new Map(SPECIES.map(s => [s.id, s]));
 const TIER_COUNT = { adv: 9, low: 9, legend: 4 };
 
 const TYPE_COLORS = {
-  electric: '#f6c700', fire: '#e75357', water: '#3f98ea', grass: '#3fa129',
-  flying: '#81b9ef', normal: '#a8a095', bug: '#9cae1e', psychic: '#f8669c', ghost: '#7b4fa2',
+  electric: '#D9AF00', fire: '#CB494D', water: '#3786CE', grass: '#378E24',
+  flying: '#72A3D2', normal: '#948D83', bug: '#89991A', psychic: '#DA5A89', ghost: '#6C468F',
 };
 
 const BETS = [5, 10, 25, 50, 100, 250];

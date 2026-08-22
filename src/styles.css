@@ -14,7 +14,31 @@
   --console-border: #c4b692;
   --console-shadow: #b8a88a;
   --item-bg: rgba(255,255,255,0.15);
+  --item-hover-bg: rgba(255,255,255,0.32);
   --item-border: rgba(0,0,0,0.08);
+  --mj-overlay-bg: rgba(227,255,241,0.5);
+  --mj-label-color: #2f6a4a;
+}
+
+/* 夜间模式：覆盖核心主题变量（深绿掌机调，外壳稍亮、内部屏幕更暗），开关入口在设置页 */
+[data-theme="dark"] {
+  --color-text: #dfe7e1;
+  --color-muted: #8da69a;
+  --screen-bg: #12211a;
+  --screen-bg-dark: #0e1a13;
+  --screen-bg-light: #172920;
+  --ui-color: #5cb48d;
+  --ui-color-dark: #3e8a68;
+  --ui-color-darker: #2f6b4f;
+  --ui-color-rgb: 92, 180, 141;
+  --console-body: #0a0a0a;
+  --console-border: #1f1f1f;
+  --console-shadow: #000000;
+  --item-bg: rgba(255,255,255,0.06);
+  --item-hover-bg: rgba(255,255,255,0.14);
+  --item-border: rgba(255,255,255,0.12);
+  --mj-overlay-bg: rgba(255,255,255,0.08);
+  --mj-label-color: #dfe7e1;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; outline: none !important; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -72,7 +96,7 @@ body.browser-mode { overflow: auto; }
   opacity: 0.8;
   user-select: none;
 }
-.window-controls { display: flex; gap: 3px; }
+.window-controls { display: flex; gap: 3px; color: var(--color-text); }
 
 .window-controls.controls-disabled {
   pointer-events: none;
@@ -92,7 +116,7 @@ body.browser-mode { overflow: auto; }
 .control-btn.window-icon { opacity: 0.7; }
 .control-btn.window-icon:hover { opacity: 1; background: rgba(0,0,0,0.08); }
 .control-btn.window-icon.active { opacity: 1; background: rgba(0,0,0,0.12); }
-.control-btn svg { width: 15px; height: 15px; display: block; }
+.control-btn svg { width: 15px; height: 15px; display: block; color: var(--color-text); fill: currentColor; }
 
 /* 开场静音提示：静音按钮左侧的引导文案（仅开场显示，点击静音后消失） */
 .intro-mute-hint {
@@ -401,6 +425,34 @@ body.browser-mode { overflow: auto; }
   transition: filter 0.4s ease-out;
 }
 
+/* 夜间模式滚动道路变暗（同时空扭曲的降亮度手法） */
+[data-theme="dark"] .road-layer .road-canvas {
+  filter: brightness(0.65) saturate(0.85);
+  transition: filter 0.4s ease-out;
+}
+
+/* 夜间模式 tile 场景画布（饲育屋/训练场/田地/开场选角）降亮度 */
+[data-theme="dark"] .nursery-field-canvas,
+[data-theme="dark"] .train-field-canvas,
+[data-theme="dark"] .berry-field-canvas,
+[data-theme="dark"] .casino-scene-canvas,
+[data-theme="dark"] #introSceneCanvas {
+  filter: brightness(0.65);
+}
+
+/* 夜间模式场景贴图（box/告示牌/行走宝可梦/果树）降亮度 */
+[data-theme="dark"] .train-walker-img,
+[data-theme="dark"] .nursery-walker-img,
+[data-theme="dark"] .train-box-sign,
+[data-theme="dark"] .train-board-sign,
+[data-theme="dark"] .nursery-box-sign,
+[data-theme="dark"] .nursery-board-sign,
+[data-theme="dark"] .berry-box-sign,
+[data-theme="dark"] .berry-board-sign,
+[data-theme="dark"] .berry-frame {
+  filter: brightness(0.65);
+}
+
 /* 时空扭曲期间屏幕容器变色：背景与边框换成紫色系（场景整体泛紫，随遮罩一起显隐）。
    UI 文字色改白，避免深绿与紫底撞色看不清 */
 .screen.twist-active {
@@ -410,6 +462,15 @@ body.browser-mode { overflow: auto; }
   --screen-bg-dark: #5d3a78;
   --ui-color: #ffffff;
   --ui-color-rgb: 255, 255, 255;
+}
+/* 夜间模式时空扭曲：紫色套件整体调暗，白字改柔和（与暗紫背景协调） */
+[data-theme="dark"] .screen.twist-active {
+  background: #523069;
+  --screen-bg: #523069;
+  --screen-bg-light: #6d4a86;
+  --screen-bg-dark: #3a2149;
+  --ui-color: var(--color-text);
+  --ui-color-rgb: 223, 231, 225;
 }
 
 /* === 时空扭曲氛围遮罩 ===
@@ -702,6 +763,10 @@ body.browser-mode { overflow: auto; }
   background: #6b4490; /* 比屏幕边框紫更深一档，文字框与场景有清晰分界 */
   border-top: 2px solid #a98ac4; /* 浅紫上边框线，维持文字框分隔感 */
 }
+[data-theme="dark"] #screen.twist-active .text-box {
+  background: #3f2858;
+  border-top-color: #6d4a86;
+}
 #screen.twist-active .text-box .text-box-content {
   color: #ffffff;
   text-shadow:
@@ -714,6 +779,10 @@ body.browser-mode { overflow: auto; }
   88% { transform: translate(-0.8px, 0); text-shadow: 1.5px 0 0 rgba(255,45,85,.6), -0.8px 0 0 rgba(45,220,255,.45); }
   90% { transform: translate(0.8px, 0); text-shadow: 0.8px 0 0 rgba(255,45,85,.45), -1.5px 0 0 rgba(45,220,255,.6); }
   92% { transform: translate(0, 0); }
+}
+/* 夜间模式扭曲文字框：纯白改柔和淡色，故障色影保留 */
+[data-theme="dark"] #screen.twist-active .text-box .text-box-content {
+  color: var(--color-text);
 }
 /* 逃跑按钮：同文字框一起换白字白框，紫底可读 */
 #screen.twist-active .text-box .flee-btn {
@@ -732,6 +801,17 @@ body.browser-mode { overflow: auto; }
 #screen.twist-active .text-box .text-box-arrow path {
   fill: #ffffff;
 }
+[data-theme="dark"] #screen.twist-active .text-box .flee-btn,
+[data-theme="dark"] #screen.twist-active .catch-confirm-btn {
+  color: var(--color-text);
+  border-color: var(--color-text);
+}
+[data-theme="dark"] #screen.twist-active .catch-confirm-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] #screen.twist-active .text-box .text-box-arrow path {
+  fill: var(--color-text);
+}
 .text-box.show {
   transform: translateY(0) !important;
 }
@@ -742,7 +822,7 @@ body.browser-mode { overflow: auto; }
   font-family: monospace;
   font-size: 12px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
   line-height: 1.4;
   user-select: none;
 }
@@ -775,15 +855,15 @@ body.browser-mode { overflow: auto; }
   bottom: 6px;
   font-size: 10px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
   cursor: pointer;
   padding: 2px 6px;
-  border: 1px solid #306230;
+  border: 1px solid var(--ui-color);
   border-radius: 3px;
   user-select: none;
   transition: background 0.15s;
 }
-.flee-btn:hover { background: rgba(48,98,48,0.15); }
+.flee-btn:hover { background: rgba(var(--ui-color-rgb),0.15); }
 .flee-btn:active { transform: scale(0.92); }
 .flee-btn.disabled { opacity: 0.4; pointer-events: none; cursor: default; }
 
@@ -798,14 +878,14 @@ body.browser-mode { overflow: auto; }
 .catch-confirm-btn {
   font-size: 10px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
   cursor: pointer;
   padding: 2px 8px;
-  border: 1px solid #306230;
+  border: 1px solid var(--ui-color);
   border-radius: 3px;
   transition: background 0.15s;
 }
-.catch-confirm-btn:hover { background: rgba(48,98,48,0.15); }
+.catch-confirm-btn:hover { background: rgba(var(--ui-color-rgb),0.15); }
 .catch-confirm-btn:active { transform: scale(0.92); }
 
 /* === 神秘蛋 === */
@@ -876,18 +956,20 @@ body.browser-mode { overflow: auto; }
 }
 .bag-page-indicator .seg-page {
   width: 22px;
-  background: rgba(0, 0, 0, 0.12);
-  transition: background 0.2s ease;
+  background: var(--console-border);
+  filter: brightness(0.92);
+  transition: background 0.2s ease, filter 0.2s ease;
   cursor: pointer;
 }
 .bag-page-indicator .seg-page:hover {
-  background: var(--console-border);
+  filter: brightness(1.15);
 }
 .bag-page-indicator .seg-page.on:hover {
   background: var(--ui-color);
 }
 .bag-page-indicator .seg-page.on {
   background: var(--ui-color);
+  filter: brightness(1); /* 选中态原色显示 */
 }
 
 .backpack-items {
@@ -929,6 +1011,13 @@ body.browser-mode { overflow: auto; }
 .bag-slot.disabled:active { transform: none; }
 .bag-slot.disabled .bag-icon { opacity: 0.6; }
 .bag-slot.disabled .bag-qty { color: var(--color-muted); font-weight: 600; }
+/* 夜间模式背包格子：黑底在暗背景上不可见，改浅色叠加 */
+[data-theme="dark"] .bag-slot { background: var(--item-bg); }
+[data-theme="dark"] .bag-slot:hover { background: rgba(255,255,255,0.2); }
+[data-theme="dark"] .bag-slot.disabled,
+[data-theme="dark"] .bag-slot.disabled:hover { background: rgba(0,0,0,0.3); }
+[data-theme="dark"] .bag-slot--empty,
+[data-theme="dark"] .bag-slot--empty:hover { background: transparent; }
 /* 骑行中自行车槽：仍可点击下车 → 指针恢复、下车文字缩小 */
 .bag-slot[data-item="bike"].disabled { cursor: pointer; }
 .bag-slot[data-item="bike"].disabled .bag-qty { font-size: 9px; }
@@ -963,7 +1052,7 @@ body.browser-mode { overflow: auto; }
   border-radius: 6px;
   padding: 5px 4px;
   min-height: 34px;
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid var(--item-border);
 }
 .incubator-egg-slot {
   flex-shrink: 0;
@@ -1183,7 +1272,7 @@ body.browser-mode { overflow: auto; }
   font-family: inherit;
   color: var(--ui-color);
   background: rgba(0,0,0,0.04);
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid var(--item-border);
   border-radius: 5px;
   cursor: pointer;
   user-select: none;
@@ -1315,7 +1404,7 @@ body.browser-mode { overflow: auto; }
   width: 40px;
   height: 4px;
   background: #8BAC8F;
-  border: 1px solid #306230;
+  border: 1px solid var(--ui-color);
   border-radius: 2px;
   vertical-align: middle;
   overflow: hidden;
@@ -1324,7 +1413,7 @@ body.browser-mode { overflow: auto; }
   display: none;
   height: 100%;
   width: 100%;
-  background: #306230;
+  background: var(--ui-color);
   border-radius: 1px;
   transition: width 0.2s linear;
 }
@@ -1953,6 +2042,7 @@ body.browser-mode { overflow: auto; }
   color: #fff;
 }
 .phone-app-icon svg { width: 22px; height: 22px; display: block; }
+[data-theme="dark"] .phone-app-icon { color: var(--color-text); }
 .phone-app-name {
   font-size: 10px;
   font-weight: 700;
@@ -2754,7 +2844,7 @@ body.browser-mode { overflow: auto; }
   flex: 1;
   min-height: 240px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--item-bg);
   border: 1px solid rgba(0, 0, 0, 0.08);
   overflow: hidden;
   cursor: pointer;
@@ -3107,6 +3197,10 @@ body.browser-mode { overflow: auto; }
   stroke-width: 2px;
   stroke-linejoin: round;
 }
+/* 夜间模式地图扭曲标记：紫色降档，文字改柔和紫 */
+[data-theme="dark"] .gps-twist-ring { stroke: #6d3a72; }
+[data-theme="dark"] .gps-twist-dot { fill: #6d3a72; }
+[data-theme="dark"] .gps-twist-label { fill: #8a5fa0; }
 /* 漫游开关行：位于地图与底部信息栏之间的空隙区，靠左显示 */
 .gps-roam-row {
   display: flex;
@@ -3604,7 +3698,7 @@ body.browser-mode { overflow: auto; }
   min-width: 100%;
   max-height: 160px;
   overflow-y: auto;
-  background: rgba(232,220,192,0.97);
+  background: var(--console-body);
   border: 1px solid rgba(var(--ui-color-rgb),0.2);
   border-radius: 0 0 3px 3px;
   z-index: 100;
@@ -3665,7 +3759,7 @@ body.browser-mode { overflow: auto; }
   left: 100%;
   top: -3px;
   min-width: 100%;
-  background: rgba(232,220,192,0.97);
+  background: var(--console-body);
   border: 1px solid rgba(var(--ui-color-rgb),0.2);
   border-radius: 3px;
   z-index: 102;
@@ -3692,7 +3786,7 @@ body.browser-mode { overflow: auto; }
   right: 0;
   max-height: 160px;
   overflow-y: auto;
-  background: rgba(232,220,192,0.97);
+  background: var(--console-body);
   border: 1px solid rgba(var(--ui-color-rgb),0.2);
   border-radius: 0 0 3px 3px;
   z-index: 100;
@@ -3786,7 +3880,7 @@ body.browser-mode { overflow: auto; }
   margin-bottom: 4px;
   border: 1px solid rgba(var(--ui-color-rgb),0.15);
   border-radius: 4px;
-  background: rgba(255,255,255,0.2);
+  background: var(--item-bg);
 }
 .shop-item.disabled { opacity: 0.35; pointer-events: none; }
 .shop-item-left {
@@ -4074,6 +4168,11 @@ body.browser-mode { overflow: auto; }
   font-size: 12px;
   cursor: pointer;
   transition: color 0.15s, opacity 0.15s;
+}
+/* GitHub 图标：currentColor 在 <use> shadow DOM 不穿透，显式继承链接颜色（含 hover） */
+.settings-footer-link svg {
+  color: inherit;
+  fill: currentColor;
 }
 .settings-footer-link:hover {
   opacity: 1;
@@ -4817,7 +4916,7 @@ body.browser-mode { overflow: auto; }
   padding: 3px 5px;
   border: 1px solid rgba(var(--ui-color-rgb),0.3);
   border-radius: 5px;
-  background: rgba(255,255,255,0.18);
+  background: var(--item-bg);
   font-size: 10px;
   font-weight: 500;
   color: var(--ui-color);
@@ -5037,15 +5136,15 @@ body.browser-mode { overflow: auto; }
   line-height: 1;
   font-size: 9px;
   font-weight: 700;
-  color: #306230;
+  color: rgb(var(--ui-color-rgb));
   padding: 2px 6px;
-  border: 1px solid #306230;
+  border: 1px solid rgb(var(--ui-color-rgb));
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
 }
-.bounty-trade-btn:hover { background: rgba(48,98,48,0.15); }
+.bounty-trade-btn:hover { background: rgba(var(--ui-color-rgb),0.15); }
 .bounty-trade-btn:active { transform: scale(0.92); }
 .bounty-trade-btn:disabled {
   opacity: 0.4;
@@ -5080,7 +5179,7 @@ body.browser-mode { overflow: auto; }
   flex-direction: column;
   gap: 2px;
   padding: 5px 2px;
-  border-bottom: 1px solid rgba(48, 98, 48, 0.15);
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.15);
 }
 .trade-row:last-child { border-bottom: none; }
 .trade-row.traded { opacity: 0.5; }
@@ -5187,15 +5286,15 @@ body.browser-mode { overflow: auto; }
   line-height: 1;
   font-size: 10px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
   padding: 5px 8px;
-  border: 1px solid #306230;
+  border: 1px solid var(--ui-color);
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
 }
-.trade-btn:hover { background: rgba(48, 98, 48, 0.15); }
+.trade-btn:hover { background: rgba(var(--ui-color-rgb), 0.15); }
 .trade-btn:active { transform: scale(0.92); }
 .trade-btn.locked { opacity: 0.4; cursor: default; }
 .trade-btn.done { opacity: 0.4; cursor: default; }
@@ -5263,7 +5362,7 @@ body.browser-mode { overflow: auto; }
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums; /* 数字滚动时不抖动 */
-  color: #306230;
+  color: var(--ui-color);
   text-align: center;
   white-space: nowrap;
 }
@@ -5301,7 +5400,7 @@ body.browser-mode { overflow: auto; }
   font-family: monospace;
   font-size: 12px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
   line-height: 1.4;
   white-space: nowrap; /* 单行显示，超长省略号 */
   overflow: hidden;
@@ -6190,6 +6289,13 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .battle-fight.t-novice, .battle-result.t-novice { background: #a9dcc0; }
 .battle-fight.t-veteran, .battle-result.t-veteran { background: #8fb6e0; }
 .battle-fight.t-champion, .battle-result.t-champion { background: #dcc06a; }
+/* 夜间模式三档 NPC 战斗背景统一为遭遇页暗色（不改 .battle-fight 上 filter，避免连内部内容一起降亮；
+   难度差异仅保留在 screen 边框三色） */
+[data-theme="dark"] .battle-fight.t-novice, [data-theme="dark"] .battle-result.t-novice,
+[data-theme="dark"] .battle-fight.t-veteran, [data-theme="dark"] .battle-result.t-veteran,
+[data-theme="dark"] .battle-fight.t-champion, [data-theme="dark"] .battle-result.t-champion {
+  background: var(--screen-bg);
+}
 /* 战斗期间屏幕边框按 NPC 难度着色（.screen 的 t- 类由战斗页挂载/清除） */
 .screen.t-novice { border-color: #57a86a; }
 .screen.t-veteran { border-color: #4a78c9; }
@@ -6215,8 +6321,8 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .b-enemy-box .b-panel,
 .b-player-box .b-panel {
   background: rgba(255, 255, 255, 0.32);
-  padding: 4px 10px;
-  flex-shrink: 0;
+  padding: 4px 8px;
+  min-width: 0;
 }
 .b-enemy-box .b-panel {
   border-radius: 0 4px 4px 0;
@@ -6259,6 +6365,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0; /* 允许在窄屏下收缩，避免信息面板撑破屏幕右边界 */
 }
 /* 名字/等级一行，属性标签另起一行；行宽与血条一致保证名字与血条左端对齐 */
 .b-meta-row {
@@ -6267,7 +6374,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   align-items: flex-start;
   gap: 1px;
   width: 96px;
-  flex-shrink: 0;
+  max-width: 100%;
 }
 .b-name-row {
   display: flex;
@@ -6314,6 +6421,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 .b-hp {
   width: 96px;
+  max-width: 100%;
   height: 5px;
   background: rgba(0, 0, 0, 0.32);
   border: 1px solid #fff;
@@ -6330,12 +6438,21 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 /* 血条过渡开关：连击逐段扣血时先瞬时定位再过渡 */
 .b-hp i.no-trans { transition: none; }
+/* 夜间模式战斗面板：白底改浅色叠加，名字/等级提亮避免与暗色战斗背景撞色 */
+[data-theme="dark"] .b-enemy-box .b-panel,
+[data-theme="dark"] .b-player-box .b-panel { background: var(--item-bg); }
+[data-theme="dark"] .b-name,
+[data-theme="dark"] .b-lv { color: var(--color-text); }
+[data-theme="dark"] .b-hp { background: rgba(0, 0, 0, 0.5); border-color: rgba(255, 255, 255, 0.45); }
+[data-theme="dark"] .b-status-dot { border-color: rgba(255, 255, 255, 0.25); }
 /* 队伍剩余数量：精灵球图标，剩几只显示几个 */
 .b-team {
   display: flex;
   align-items: center;
   gap: 2px;
   min-height: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 .b-ball {
   width: 11px;
@@ -6406,7 +6523,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   padding: 12px 4px;
   text-align: center;
   font-size: 11px;
-  color: #888;
+  color: var(--color-muted);
 }
 .rec-row {
   font-size: 10px;
@@ -6441,7 +6558,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   gap: 5px;
   border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
   padding: 2px 0;
-  color: #306230;
+  color: var(--ui-color);
 }
 .rec-dot {
   flex-shrink: 0;
@@ -6487,9 +6604,9 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
-  padding: 3px 5px;
+  padding: 3px 4px;
   background: var(--console-body);
   border: 1px solid var(--console-border);
   border-radius: 6px;
@@ -6504,7 +6621,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .b-move-name {
   flex: 1;
   min-width: 0;
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 700;
   color: var(--ui-color-dark);
   white-space: nowrap;
@@ -6514,16 +6631,16 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 /* 属性标签：类型色圆形底 + 白色属性图标（取自 sprites.svg 的 icon-type-* symbol） */
 .b-move-type {
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
 }
 .b-move-type-icon {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   color: #fff;
 }
 /* 招式详情 PP 耗尽红色 */
@@ -6534,7 +6651,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   font-family: monospace;
   font-size: 12px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
   line-height: 1.4;
   white-space: normal;
   overflow-wrap: break-word;
@@ -6570,7 +6687,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .b-eff-hint {
   font-size: 8px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
 }
 .b-eff-hint.weak { color: #434644; }
 .b-eff-hint.no { color: #d73939; }
@@ -6585,7 +6702,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   gap: 2px;
   font-size: 9px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
 }
 /* hover 招式详情：两列——左列属性/类型，右列威力/命中 */
 .b-detail-grid {
@@ -6606,15 +6723,15 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   font-family: inherit;
   font-size: 10px;
   font-weight: 700;
-  color: #306230;
-  border: 1px solid #306230;
+  color: var(--ui-color);
+  border: 1px solid var(--ui-color);
   border-radius: 6px; /* 与文案区域技能按钮 .b-move 保持一致 */
   padding: 0 8px;
   background: transparent;
   cursor: pointer;
   transition: background 0.12s, transform 0.08s;
 }
-.b-act:hover { background: rgba(48, 98, 48, 0.1); }
+.b-act:hover { background: rgba(var(--ui-color-rgb), 0.1); }
 .b-act:active { transform: scale(0.94); }
 .b-act.auto { border-color: #a06161; color: #a06161; flex: none; }
 .b-act.auto:hover { background: rgba(100, 97, 97, 0.12); }
@@ -6630,7 +6747,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   min-width: 0;
   font-size: 8px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6733,7 +6850,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   gap: 5px;
   padding: 2px 6px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--item-bg);
   border: 1px solid var(--item-border);
   cursor: pointer;
   touch-action: none; /* 允许指针拖拽换位（鼠标/触摸） */
@@ -6903,7 +7020,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   font-family: monospace;
   font-size: 11px;
   font-weight: 700;
-  color: #306230;
+  color: var(--ui-color);
   line-height: 1.5;
   white-space: nowrap;
   overflow: hidden;
@@ -6914,14 +7031,14 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   font-family: inherit;
   font-size: 10px;
   font-weight: 700;
-  color: #306230;
-  border: 1px solid #306230;
+  color: var(--ui-color);
+  border: 1px solid var(--ui-color);
   border-radius: 999px;
   padding: 1px 8px;
   background: transparent;
   cursor: pointer;
 }
-.team-footer-btn:hover { background: rgba(48, 98, 48, 0.1); }
+.team-footer-btn:hover { background: rgba(var(--ui-color-rgb), 0.1); }
 .team-footer-btn:active { transform: scale(0.94); }
 
 /* 槽位操作菜单（查看/替换/交换/移除）：点击位置弹出 */
@@ -6945,14 +7062,14 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   display: flex;
   flex-direction: column;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--item-bg);
   border: 1px solid var(--item-border);
   padding: 3px 5px;
   cursor: pointer;
   user-select: none;
 }
 .team-list-card:hover { border-color: rgba(var(--ui-color-rgb), 0.45); }
-.team-list-card.active { border-color: var(--ui-color); }
+.team-list-card.active { border-color: var(--ui-color); background: rgba(var(--ui-color-rgb), 0.12); }
 .team-card-head {
   display: flex;
   align-items: center;
@@ -7090,7 +7207,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   height: 28px;
   border: 1px dashed var(--item-border);
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--item-bg);
   color: var(--ui-color);
   opacity: 0.55;
   transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -7257,7 +7374,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   padding: 5px 2px;
   border: 1px solid rgba(var(--ui-color-rgb), 0.3);
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--item-bg);
   font-size: 9px;
   font-weight: 600;
   color: var(--ui-color);
@@ -7267,7 +7384,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   text-overflow: ellipsis;
   transition: background 0.15s;
 }
-.train-cell:hover { background: rgba(255, 255, 255, 0.32); }
+.train-cell:hover { background: var(--item-hover-bg); }
 .train-cell-icon {
   width: 18px;
   height: 18px;
@@ -7620,11 +7737,13 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   padding: 5px;
   border: 1px solid rgba(var(--ui-color-rgb), 0.3);
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--item-bg);
   cursor: pointer;
   transition: background 0.15s;
 }
-.nursery-slot:hover { background: rgba(255, 255, 255, 0.32); }
+.nursery-slot:hover { background: var(--item-hover-bg); }
+/* 夜间模式：列表行白底 hover 过亮，单独降档 */
+[data-theme="dark"] .nursery-pick-list .bounty-trade-row[data-pick-view]:hover { background: rgba(255, 255, 255, 0.1); }
 .nursery-slot.empty {
   border-style: dashed;
   opacity: 0.5;
@@ -7679,7 +7798,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   margin: 2px 8px 8px;
   padding: 6px 8px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--item-bg);
   font-size: 10px;
   color: var(--ui-color);
   display: flex;
@@ -7718,7 +7837,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   margin: 0 8px 8px;
   padding: 5px 8px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.16); /* 与下方配对预览背景一致 */
+  background: var(--item-bg); /* 与下方配对预览背景一致 */
   font-size: 10px;
   color: var(--ui-color);
 }
@@ -7809,7 +7928,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   margin: 0 8px 8px;
   padding: 6px 8px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--item-bg);
   font-size: 10px;
   color: var(--ui-color);
 }
@@ -8052,7 +8171,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   width: 13px;
   height: 13px;
   transform: translate(-50%, -50%);
-  color: #2f6a4a; /* icon-owned 使用 fill="currentColor"，渲染为麻将边框色 */
+  color: var(--mj-label-color); /* icon-owned 使用 fill="currentColor"，渲染为麻将边框色 */
   pointer-events: none;
 }
 /* 白/绿夹层叠加：白-6px / 绿-4px，视觉白上绿下 */
@@ -8218,7 +8337,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 #mahjongView .mj-river-lane {
   min-width: 0;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--item-bg);
   border-radius: 5px;
   padding: 2px 3px;
   display: flex;
@@ -8302,7 +8421,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 #mahjongView .mj-c-label {
   font-size: 10px;
   font-weight: 800;
-  color: #2f6a4a;
+  color: var(--mj-label-color);
   white-space: nowrap;
 }
 #mahjongView .mj-dora {
@@ -8322,7 +8441,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   text-align: center;
   font-size: 11px;
   font-weight: 800;
-  color: rgba(55, 109, 86, 0.92);
+  color: var(--mj-label-color);
   letter-spacing: 0.3px;
   line-height: 1;
   height: 11px;
@@ -8345,7 +8464,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   align-items: center;
   gap: 6px;
   z-index: 5;
-  background: rgba(227, 255, 241, 0.5);
+  background: var(--mj-overlay-bg);
   border-radius: 4px;
   padding: 3px 8px;
 }
@@ -9804,13 +9923,10 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   color: var(--ui-color-dark);
 }
 
-/* 高级筛选浮层面板：全屏遮罩 + 居中面板；配色对齐派遣配置面板（berry-picker）：米黄底 + 深绿字 */
+/* 高级筛选浮层面板：遮罩限定在 console 区域内 + 居中面板；配色对齐派遣配置面板（berry-picker）：米黄底 + 深绿字 */
 .adv-filter-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: absolute;
+  inset: 0;
   z-index: 1000;
   display: flex;
   align-items: center;

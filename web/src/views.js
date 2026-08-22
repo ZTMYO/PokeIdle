@@ -14,7 +14,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE,
   DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_VALUE_PER_HOUR, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
-import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar } from './ui.js';
+import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar, logicViewport } from './ui.js';
 import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
@@ -720,8 +720,9 @@ function showShopContextMenu(itemKey, x, y, mode = 'buy') {
   renderMenu();
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  menu.style.left = Math.max(0, Math.min(x - 24, window.innerWidth - mw - 4)) + 'px';
-  menu.style.top = Math.max(0, Math.min(y, window.innerHeight - mh - 4)) + 'px';
+  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  menu.style.left = Math.max(0, Math.min(lx - 24, vw - mw - 4)) + 'px';
+  menu.style.top = Math.max(0, Math.min(ly, vh - mh - 4)) + 'px';
   // 菜单内点击不触发外部关闭；点击外部任意位置关闭
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
   menu.onclick = async (e) => {
@@ -846,6 +847,7 @@ export function renderSettings(container, s) {
   const musicEnabled = s.musicEnabled !== false;
   const sfxEnabled = s.sfxEnabled !== false;
   const battleMusic = s.battleMusic !== false;
+  const darkMode = s.darkMode || false;
   // 捕捉条件表格：各遇敌类型行，策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
   const cfTbody = CF_ROWS.map(({ key, label }) => {
@@ -984,6 +986,17 @@ export function renderSettings(container, s) {
       </div>
 
       <div class="settings-group">
+        <div class="settings-group-title">外观</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">夜间模式</div>
+          <div class="toggle-switch" id="toggleDarkMode">
+            <div class="toggle-track ${darkMode ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
         <div class="settings-group-title">声音</div>
         <div class="auto-catch-row">
           <div class="auto-catch-label">音乐</div>
@@ -1058,6 +1071,7 @@ export function renderSettings(container, s) {
   container.querySelector('#genderMay')?.addEventListener('click', () => toggleGender('may'));
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
+  container.querySelector('#toggleDarkMode')?.addEventListener('click', toggleDarkMode);
   // 窗口倍率下拉：展开/收起（同一时刻只开一个）
   const scaleSel = container.querySelector('#windowScaleSelect');
   scaleSel?.addEventListener('click', (e) => {
@@ -1373,6 +1387,17 @@ function ensureSettings() {
   if (gameData.settings.musicVolume == null) gameData.settings.musicVolume = 0.6;
   if (gameData.settings.musicEnabled == null) gameData.settings.musicEnabled = true;
   if (gameData.settings.sfxEnabled == null) gameData.settings.sfxEnabled = true;
+  if (gameData.settings.darkMode == null) gameData.settings.darkMode = false; // 夜间模式（默认关闭）
+}
+
+// 夜间模式开关：立即应用到根元素 data-theme（样式层已定义深色变量覆盖），并持久化
+export function toggleDarkMode() {
+  ensureSettings();
+  gameData.settings.darkMode = !gameData.settings.darkMode;
+  document.documentElement.dataset.theme = gameData.settings.darkMode ? 'dark' : 'light';
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
 }
 
 // 音乐总开关：关闭时暂停所有背景音乐（地区曲/覆盖曲），音效不受影响；重开恢复播放

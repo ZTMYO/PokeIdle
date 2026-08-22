@@ -1,4 +1,4 @@
-import { $, showView, tryLoadImage, showConfirmBar } from './ui.js';
+import { $, showView, tryLoadImage, showConfirmBar, logicViewport } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, isPokemon } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
@@ -111,6 +111,10 @@ function editIds() {
 }
 
 let _hint = null;       // 底部提示文案（如对战前队伍为空跳转时给出引导）
+// 当前操作队伍是否为空（空才显示"队伍为空"引导提示，配好即隐藏）
+function editTeamEmpty() {
+  return !(editIds() || []).some(id => id != null);
+}
 // 战斗中替换：非空时配队页处于"选择上场宝可梦"模式
 let _battleParty = null;   // 出战队伍 [{ entry, pd, mon }]
 let _battleFieldIdx = -1;  // 当前场上成员下标（不可替换给自己）
@@ -252,7 +256,7 @@ function renderTeamList(box) {
   const active = gameData.activeTeam;
   const teams = gameData.teams || [];
   box.innerHTML = `
-    ${_hint ? `<div class="team-list-hint">${_hint}</div>` : ''}
+    ${_hint && editTeamEmpty() ? `<div class="team-list-hint">${_hint}</div>` : ''}
     <div class="team-list-grid">
       ${teams.map((t, i) => {
         const isActive = i === active;
@@ -746,7 +750,7 @@ function renderTeamEdit(box) {
         ${[0, 1, 2, 3, 4, 5].map(i => slotHtml(i, slotPokes[i], false)).join('')}
       </div>
     </div>
-    ${_hint ? '' : trashDockHtml()}
+    ${_hint && editTeamEmpty() ? '' : trashDockHtml()}
     ${footerHtml()}`;
   // 加载个体图标
   box.querySelectorAll('img[data-icon]').forEach(img => {
@@ -853,8 +857,9 @@ function openTeamCtxMenu(e) {
   });
   box.appendChild(menu);
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  menu.style.left = `${Math.max(0, Math.min(e.clientX - r.left, r.width - mw - 4))}px`;
-  menu.style.top = `${Math.max(0, Math.min(e.clientY - r.top, r.height - mh - 4))}px`;
+  const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+  menu.style.left = `${Math.max(0, Math.min(lx - r.left, r.width - mw - 4))}px`;
+  menu.style.top = `${Math.max(0, Math.min(ly - r.top, r.height - mh - 4))}px`;
   _menuEl = menu;
 }
 
@@ -963,7 +968,7 @@ function footerHtml() {
       ${_battleCanCancel ? '<button class="team-footer-btn" id="teamBattleBack">返回</button>' : ''}
     </div>`;
   }
-  if (_hint) {
+  if (_hint && editTeamEmpty()) {
     return `<div class="team-footer">
       <span class="team-footer-text">${_hint}</span>
     </div>`;
@@ -1110,7 +1115,8 @@ function bindDrag(host) {
       const dock = host.querySelector('#teamTrashDock');
       if (dock) {
         const r = dock.getBoundingClientRect();
-        const over = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+        const over = lx >= r.left && lx <= r.right && ly >= r.top && ly <= r.bottom;
         if (over !== _dragOnTrash) {
           _dragOnTrash = over;
           dock.classList.toggle('remove-over', over);
@@ -1140,6 +1146,7 @@ function bindDrag(host) {
 function moveGhost(e) {
   if (!_dragGhost) return;
   const r = $('teamContent').getBoundingClientRect();
-  _dragGhost.style.left = (e.clientX - r.left) + 'px';
-  _dragGhost.style.top = (e.clientY - r.top) + 'px';
+  const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+  _dragGhost.style.left = (lx - r.left) + 'px';
+  _dragGhost.style.top = (ly - r.top) + 'px';
 }
