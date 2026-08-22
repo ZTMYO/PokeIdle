@@ -1151,6 +1151,14 @@ export function updateIncubatorTimers() {
 }
 
 // ---------- 游戏内自制 tooltip（跟随鼠标，自动越界翻转）----------
+// 浏览器端 html 级 zoom 缩放下，事件坐标返回物理像素，而 style.left/top 赋值渲染时还会被
+// zoom 放大一次（与 main.js 的 getBoundingClientRect 还原逻辑一致）；浮层定位统一走这里
+// 还原成逻辑像素，保证跟随鼠标/右键菜单不错位。Tauri 端 zoom=1 时原样返回。
+export function logicViewport(x, y) {
+  const z = parseFloat(document.documentElement.style.zoom) || 1;
+  if (z === 1) return { x, y, w: window.innerWidth, h: window.innerHeight };
+  return { x: x / z, y: y / z, w: window.innerWidth / z, h: window.innerHeight / z };
+}
 let _foodTipEl = null;
 let _foodTipInit = false;
 
@@ -1174,19 +1182,22 @@ export function showFoodTip(text, x, y) {
   // 多行文案（含 \n）时按行折行，单行文案保持 nowrap（如树果 tooltip）
   tip.style.whiteSpace = text.includes('\n') ? 'pre-line' : '';
   tip.style.display = '';
+  // 浏览器端 html 级 zoom 下，style.left/top 赋值渲染时还会被 zoom 放大一次（与 main.js 的
+  // getBoundingClientRect 还原逻辑一致）；这里把事件坐标与视口尺寸统一还原成逻辑像素，保证跟随鼠标不错位
+  const { x: vx, y: vy, w: vw, h: vh } = logicViewport(x, y);
   // 定位：优先右下方，越界时翻转到左/上方；翻转后仍越界则夹紧在屏幕内，避免溢出屏幕外
   const pad = 10;
-  let left = x + 12;
-  let top = y + 14;
-  const tw = tip.offsetWidth;
-  const th = tip.offsetHeight;
-  if (left + tw > window.innerWidth - pad) {
-    left = x - tw - 12;
+  let left = vx + 12;
+  let top = vy + 14;
+  const tw = tip.getBoundingClientRect().width; // 已被 main.js 还原为逻辑像素
+  const th = tip.getBoundingClientRect().height;
+  if (left + tw > vw - pad) {
+    left = vx - tw - 12;
     if (left < pad) left = pad; // 左侧放不下：贴左边缘
-    if (left + tw > window.innerWidth - pad) left = window.innerWidth - pad - tw; // 兜底防右侧再溢出
+    if (left + tw > vw - pad) left = vw - pad - tw; // 兜底防右侧再溢出
   }
-  if (top + th > window.innerHeight - pad) {
-    top = y - th - 10;
+  if (top + th > vh - pad) {
+    top = vy - th - 10;
     if (top < pad) top = pad; // 上方放不下：贴顶
   }
   tip.style.left = left + 'px';

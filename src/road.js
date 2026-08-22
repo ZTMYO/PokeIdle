@@ -24,6 +24,15 @@ let _prevScrollX = 0;
 let _scrollFraction = 0;
 // 累计行走距离（像素）：每帧滚动多少就算走多远；遇敌/钓鱼时道路暂停，不累积
 let _distance = 0;
+// rAF 停摆（浏览器后台/最小化）补算：记录上一帧时间戳、停摆累计时长（毫秒）与
+// 正常滚动累计秒数（供掉落折算），恢复后由 main.js 折算里程/掉落直接入账，不播放动画
+let _lastFrameTs = 0;
+let _afkMs = 0;
+let _walkSeconds = 0;
+// 实际滚动速率（px/s）= speed × 实际帧率：用最近帧间隔滑动平均实时计算，自动适应
+// 任意屏幕刷新率（60/120/144/可变刷新率），速度切换立即生效、无滞后。供 gps 剩余时间
+// 与补发里程按真实推进速度计算，不固定假设 60fps
+let _avgGap = 16.67;
 // 过渡状态：新道路从右侧滑入
 let _transition = null; // { tiles, width, height, patternWidth, roadHeight, remaining }
 // 过渡中新道路滑到角色脚下时回调（切换骑行/行走）
@@ -123,6 +132,19 @@ function _draw() {
 
 function _frame() {
   if (!active) return;
+
+  // 帧间隔：正常滚动按实际秒数累计（供掉落折算）；超过 1 秒视为浏览器后台/最小化停摆，
+  // 累计待补算时长。有意暂停走 pause/resume，resume 时重置时间戳，不会误计
+  const now = Date.now();
+  const gap = _lastFrameTs ? now - _lastFrameTs : 16;
+  _lastFrameTs = now;
+  if (gap > 1000) {
+    _afkMs += gap;
+  } else {
+    _walkSeconds += gap / 1000;
+    // 帧间隔滑动平均：实时推算当前帧率，用于折算实际滚动速率（自动适配高刷屏）
+    _avgGap = _avgGap * 0.9 + gap * 0.1;
+  }
 
   _distance += speed; // 行走距离与滚动量同步（过渡滑入同样在前进）
 
@@ -303,12 +325,18 @@ export function start(spd) {
     img = new Image();
     img.onload = () => {
       _resize();
+      _lastFrameTs = Date.now(); // 全新开始：从当前帧起算，避免把空窗期当停摆
+      _afkMs = 0;
+      _walkSeconds = 0;
       active = true;
       rafId = requestAnimationFrame(_frame);
     };
     img.src = TILESET;
   } else {
     _resize();
+    _lastFrameTs = Date.now();
+    _afkMs = 0;
+    _walkSeconds = 0;
     active = true;
     rafId = requestAnimationFrame(_frame);
   }
@@ -330,6 +358,9 @@ export function stop() {
   scrollX = 0;
   _transition = null;
   _scrollFraction = 0;
+  _lastFrameTs = 0;
+  _afkMs = 0; // 离开场景：未补算的停摆时长作废
+  _walkSeconds = 0;
   window.removeEventListener('resize', _resize);
 }
 
@@ -345,6 +376,7 @@ export function pause() {
 export function resume() {
   if (active) return;
   if (!canvas || !pattern) return;
+  _lastFrameTs = Date.now(); // 有意暂停恢复：重置时间戳，暂停时长不计入停摆补算
   active = true;
   rafId = requestAnimationFrame(_frame);
 }
@@ -375,6 +407,25 @@ export function takeDistance() {
   const d = _distance;
   _distance = 0;
   return d;
+}
+
+// 实际滚动速率（px/s）= speed × 当前帧率（滑动平均推算），供 gps 剩余时间按真实推进速度折算
+export function getActualPxPerSec() {
+  return speed * (1000 / _avgGap);
+}
+
+// 取走并清零 rAF 停摆累计秒数（浏览器后台/最小化补算用）
+export function takeAfkSeconds() {
+  const s = _afkMs / 1000;
+  _afkMs = 0;
+  return s;
+}
+
+// 取走并清零正常滚动累计秒数（掉落在 idle 期间按真实走路时长折算）
+export function takeWalkSeconds() {
+  const s = _walkSeconds;
+  _walkSeconds = 0;
+  return s;
 }
 /** 视图切回时重新计算 canvas 尺寸 */
 export function refreshSize() { _resize(); }

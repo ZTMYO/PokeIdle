@@ -1,7 +1,7 @@
 // ===== 口袋挂机 - 入口模块 =====
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
-import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS } from './config.js';
+import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER } from './config.js';
 import {
   allPokemon, gameData, phase, currentEncounter, currentIsShiny,
   currentEncounterBalls, encounterBallsUsed,
@@ -41,10 +41,10 @@ import { spawnItemDrop, activateHoney, activateShinyCharm,
   doCandyExchange, grantItem, cancelItemDrop } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
-  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill, catchFilterResult } from './battle.js';
+  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground } from './battle.js';
 import { startIdleRotation, buildIdleMessages } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
-import { helperTick, refreshBerryView, showBerryView } from './berry.js';
+import { helperTick, refreshBerryView, showBerryView, catchUpHelper } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch } from './pokedex.js';
@@ -65,6 +65,7 @@ import { refreshNpcs } from './npcs.js';
 import { showCasinoView } from './casino.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
+import { initBackgroundCatchup, startBackgroundCatchup, bgCatchupEnabled, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs } from './background-catchup.js';
 
 let ROAD_PRESETS = null;
 let ROAD_LAND = [];   // 普通陆地路段池（无垂钓点、非自行车道）
@@ -393,7 +394,9 @@ function onBagClick(itemKey) {
 
 // ---------- 游戏 Tick ----------
 let _lastLogTs = -1; // 上次渲染时最新日志的时间戳（新日志或清空日志才会重渲染日志页）
-function onGameTick() {
+// 后台挂机停摆记账与补发入口统一收敛在 background-catchup.js（含开关、visibilitychange 记账、
+// 步态/buff 快照），onGameTick 只负责取秒数折算入账；安卓端可通过该模块的 BACKGROUND_CATCHUP 整体关闭
+async function onGameTick() {
   if (window.__introActive) return; // 开场剧情期间不推进挂机
   // 自动补球：勾选的球为 0 时每秒自动补 1 个（便宜优先），背包数量即时可见（手动/自动都生效）
   tryAutoRefill();
@@ -426,6 +429,35 @@ function onGameTick() {
   twistTick();
 
   if (phase !== 'idle') { updateStats(); return; }
+
+  // 浏览器后台挂机补算：后台/最小化期间按当前速度折算里程直接入账，不播放动画；掉落按
+  // "实际走路秒数 + 停摆秒数"折算。停摆秒数以 visibilitychange 记录的隐藏时长为主（农场等
+  // 非道路页面也有效），road 帧间隔检测作兜底（Tauri 端若 visibility 不触发仍可补）。
+  // 遇敌/钓鱼等 road 暂停时两者均为 0，不会误补。Tauri 端窗口可见时均不触发
+  const walkSec = road.takeWalkSeconds();
+  // 后台补发开关关闭时（如安卓沿用离线暂停哲学）停摆秒数不参与任何补算，主循环保持前台原行为
+  const afkSec = bgCatchupEnabled() ? Math.max(bgTakeAccum(), road.takeAfkSeconds()) : 0;
+  // 骑行停摆期间不产生掉落/遭遇（骑行不遇敌、不拾取），里程仍按骑行速度补算：
+  // 只把行走时段的停摆秒数计入掉落/遭遇补算，避免骑行结束瞬间的骑行秒数被误补
+  const idleAfkSec = bgTakeBike() ? 0 : afkSec;
+  let catchUpLog = null; // 补发汇总：后台挂机补算时打印控制台便于核对
+  if (afkSec > 0) {
+    catchUpLog = { afkSec: Math.round(afkSec), walk: 0, items: {} };
+    // 按实际滚动速率折算里程（takeDistance 实测值，高刷屏帧率>60 时速率更高，与前台推进一致）
+    const spd = road.getActualPxPerSec() || road.getSpeed() * 60;
+    const extraWalk = Math.floor(spd * afkSec);
+    if (extraWalk > 0) {
+      gameData.stats.walkDistance = (gameData.stats.walkDistance || 0) + extraWalk;
+      gpsAddDistance(extraWalk, spd);
+      catchUpLog.walk = extraWalk;
+    }
+    saveGame(); // 补算入账立即落盘，避免依赖 30 秒周期存档
+    // 树果帮手补算：后台 rAF 停摆期间帮手在线时长/劳作暂停，恢复时按前台节奏补齐
+    const helper = catchUpHelper(afkSec);
+    if (helper && helper.ok) {
+      catchUpLog.helper = { works: helper.works, ended: helper.ended, errored: helper.errored };
+    }
+  }
 
   // 遇敌调度心跳：空闲但调度计时器丢失时（如补播被 NPC 对战取消等异常路径）自动补排，
   // 避免"玩完 NPC 对战后再也不遇敌"这类卡死；事件区/钓鱼/自行车内不预排，交给各自流程延后调度
@@ -473,18 +505,47 @@ function onGameTick() {
       const key = `_f_${item}`;
       if (!gameData[key]) gameData[key] = 0;
       // 随从增益：itemdrop 类提升挂机道具掉落率
-      gameData[key] += window.__followerBoostMechanic?.('itemDrop', rate) ?? rate;
+      const effRate = window.__followerBoostMechanic?.('itemDrop', rate) ?? rate;
+      // 按实际走路秒数累积：正常滚动帧间隔累计 + 后台停摆秒数一次补齐，挂机不掉产出
+      gameData[key] += effRate * (walkSec + idleAfkSec);
       const gained = Math.floor(gameData[key]);
       if (gained > 0) {
-        // 只扣减真正生成成功的数量：遇敌/钓鱼/锁占用等 spawn 失败时保留累积值，下次 tick 重试，避免道具凭空丢失
-        let spawned = 0;
-        for (let i = 0; i < gained; i++) {
-          if (!spawnItemDrop(item)) break; // 失败即锁占用/非 idle，短时内重试结果相同，直接退出
-          spawned++;
+        if (afkSec > 0) {
+          // 后台补发：批量直接入账不播动画（日志在 grantItem 内记录），避免逐一出补发动画
+          grantItem(item, gained);
+          gameData[key] -= gained;
+          if (catchUpLog) {
+            const label = ITEM_NAMES[item] || item;
+            catchUpLog.items[label] = (catchUpLog.items[label] || 0) + gained;
+          }
+        } else {
+          // 只扣减真正生成成功的数量：遇敌/钓鱼/锁占用等 spawn 失败时保留累积值，下次 tick 重试，避免道具凭空丢失
+          let spawned = 0;
+          for (let i = 0; i < gained; i++) {
+            if (!spawnItemDrop(item)) break; // 失败即锁占用/非 idle，短时内重试结果相同，直接退出
+            spawned++;
+          }
+          gameData[key] -= spawned;
         }
-        gameData[key] -= spawned;
       }
     }
+  }
+
+  // 后台挂机补发汇总：遇敌补算为异步批量结算，完成后并入一并打印，便于核对每类补算了多少
+  if (catchUpLog) {
+    const enc = await catchUpEncounters(idleAfkSec, bgTakeBuffRemainingMs());
+    if (enc) catchUpLog.enc = enc;
+    const parts = [`挂机补发 ${catchUpLog.afkSec}s`];
+    if (catchUpLog.walk > 0) parts.push(`里程 +${Math.round(catchUpLog.walk / PX_PER_METER)}m`);
+    const itemNames = Object.keys(catchUpLog.items);
+    if (itemNames.length > 0) parts.push(`掉落 ${itemNames.map(k => `${k}×${catchUpLog.items[k]}`).join('、')}`);
+    if (catchUpLog.enc && catchUpLog.enc.done > 0) {
+      parts.push(`遭遇 ${catchUpLog.enc.done} 只 / 抓到 ${catchUpLog.enc.caught.length} 只`);
+      if (catchUpLog.enc.shinies > 0) parts.push(`闪光 ${catchUpLog.enc.shinies} 只`);
+    }
+    if (catchUpLog.helper) parts.push(`帮手劳作 ${catchUpLog.helper.works} 次${catchUpLog.helper.ended ? '（已到期）' : ''}`);
+    console.log('[挂机补发]', parts.join('，'));
+    if (catchUpLog.enc && catchUpLog.enc.caught.length > 0) console.log('[挂机补发] 捕获明细：', catchUpLog.enc.caught.join('、'));
   }
 
   if (gameTick % 5 === 0) { updateBackpack(); updateStats(); }
@@ -1238,6 +1299,22 @@ async function init() {
     }
     try { localStorage.setItem('pokemon_idle_road', JSON.stringify({ roadIdx: _roadIdx, fished: getFishingGuarantee().fished })); } catch (_) {}
   });
+
+  // 浏览器最小化/切后台：记账 + 立即结算进行中的遭遇——遭遇中的自动丢球由 showEncounter 的
+  // 1.5s 定时器触发，该定时器会被浏览器冻结导致画面卡住；切后台立即启动后台快速结算。
+  // 记账/开关统一收敛在 background-catchup.js，此处只注入运行依赖
+  initBackgroundCatchup({
+    isIdleRoadActive: () => phase === 'idle' && road.isActive(),
+    isBike: () => road.isBike(),
+    buffRemaining: () => {
+      let ms = 0;
+      if (honeyBuffActive && honeyCountdownEnd > Date.now()) ms = Math.max(ms, honeyCountdownEnd - Date.now());
+      if (charmBuffActive && charmCountdownEnd > Date.now()) ms = Math.max(ms, charmCountdownEnd - Date.now());
+      return ms;
+    },
+    onHidden: () => settleEncounterForBackground(),
+  });
+  startBackgroundCatchup();
 }
 
 // 启动画面落位：旋转结束后道具依次飞向各自对应的背包槽位/糖果计数

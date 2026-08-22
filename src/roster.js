@@ -1,7 +1,7 @@
 // ===== 宝可梦仓库 =====
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
-import { $, showView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack } from './ui.js';
+import { $, showView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
@@ -723,8 +723,9 @@ function meMoveGhost(e) {
   const g = meDragGhost();
   if (!g) return;
   const r = $('moveEditView').getBoundingClientRect();
-  g.style.left = (e.clientX - r.left) + 'px';
-  g.style.top = (e.clientY - r.top) + 'px';
+  const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+  g.style.left = (lx - r.left) + 'px';
+  g.style.top = (ly - r.top) + 'px';
 }
 
 function bindMoveEditDrag(box) {
@@ -875,8 +876,9 @@ function showMoveSortMenu(x, y) {
   ).join('');
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  menu.style.left = Math.max(0, Math.min(x - 24, window.innerWidth - mw - 4)) + 'px';
-  menu.style.top = Math.max(0, Math.min(y, window.innerHeight - mh - 4)) + 'px';
+  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  menu.style.left = Math.max(0, Math.min(lx - 24, vw - mw - 4)) + 'px';
+  menu.style.top = Math.max(0, Math.min(ly, vh - mh - 4)) + 'px';
   // 菜单内点击不触发外部关闭；点击外部任意位置关闭
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
   menu.onclick = (e) => {
@@ -1510,8 +1512,9 @@ function showContextMenu(x, y) {
     document.body.appendChild(menu);
   }
   menu.innerHTML = `<div class="shop-ctx-item" data-action="advFilter">高级筛选</div><div class="shop-ctx-item" data-action="batchRelease">批量放生</div>`;
-  menu.style.left = Math.min(x, window.innerWidth - 120) + 'px';
-  menu.style.top = Math.min(y, window.innerHeight - 70) + 'px';
+  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  menu.style.left = Math.min(lx, vw - 120) + 'px';
+  menu.style.top = Math.min(ly, vh - 70) + 'px';
   menu.style.display = 'block';
   menu.onclick = (e) => {
     const act = e.target.closest('[data-action]')?.dataset.action;

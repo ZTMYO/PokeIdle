@@ -1,4 +1,4 @@
-import { $, showView, tryLoadImage, showConfirmBar } from './ui.js';
+import { $, showView, tryLoadImage, showConfirmBar, logicViewport } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, isPokemon } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
@@ -853,8 +853,9 @@ function openTeamCtxMenu(e) {
   });
   box.appendChild(menu);
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  menu.style.left = `${Math.max(0, Math.min(e.clientX - r.left, r.width - mw - 4))}px`;
-  menu.style.top = `${Math.max(0, Math.min(e.clientY - r.top, r.height - mh - 4))}px`;
+  const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+  menu.style.left = `${Math.max(0, Math.min(lx - r.left, r.width - mw - 4))}px`;
+  menu.style.top = `${Math.max(0, Math.min(ly - r.top, r.height - mh - 4))}px`;
   _menuEl = menu;
 }
 
@@ -1110,7 +1111,8 @@ function bindDrag(host) {
       const dock = host.querySelector('#teamTrashDock');
       if (dock) {
         const r = dock.getBoundingClientRect();
-        const over = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+        const over = lx >= r.left && lx <= r.right && ly >= r.top && ly <= r.bottom;
         if (over !== _dragOnTrash) {
           _dragOnTrash = over;
           dock.classList.toggle('remove-over', over);
@@ -1140,6 +1142,7 @@ function bindDrag(host) {
 function moveGhost(e) {
   if (!_dragGhost) return;
   const r = $('teamContent').getBoundingClientRect();
-  _dragGhost.style.left = (e.clientX - r.left) + 'px';
-  _dragGhost.style.top = (e.clientY - r.top) + 'px';
+  const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+  _dragGhost.style.left = (lx - r.left) + 'px';
+  _dragGhost.style.top = (ly - r.top) + 'px';
 }

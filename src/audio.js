@@ -33,11 +33,16 @@ sfxAudio.preload = 'auto';
 // ---------- 响度统一 ----------
 // 各曲目响度参差，按 TRACK_GAINS 的 dB 差值实时补偿到未白镇 BGM 的响度，不改音频文件。
 let _actx = null;
+let _userGestured = false; // 是否已获得用户手势（浏览器 autoplay 解除后才创建 AudioContext）
 const _gainNodes = { region: null, overlay: null, sfx: null };
 
 function ensureCtx() {
+  // 无用户手势时浏览器禁止 AudioContext 启动，创建即输出 "not allowed to start" 且无法拦截：
+  // 因此手势前不创建，由 installResumeListener 在首次手势后统一创建并恢复播放
+  if (!_userGestured) return null;
   if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
-  if (_actx.state === 'suspended') _actx.resume();
+  // 自动播放策略下无用户手势时 resume 会被拒：吞掉该 rejection，待用户手势后由 installResumeListener 统一恢复
+  if (_actx.state === 'suspended') _actx.resume().catch(() => {});
   return _actx;
 }
 
@@ -46,6 +51,7 @@ function wireGain(el, key) {
   if (_gainNodes[key]) return;
   try {
     const ctx = ensureCtx();
+    if (!ctx) return; // 手势前不建增益节点，音量走元素 volume，恢复后自动补齐响度补偿
     const src = ctx.createMediaElementSource(el);
     const g = ctx.createGain();
     src.connect(g);
@@ -114,7 +120,9 @@ function applyVolume() {
 // 任何用户交互时补播被拦截的音频；音效/覆盖曲播放中不打断
 function installResumeListener() {
   const resume = () => {
-    if (_actx && _actx.state === 'suspended') _actx.resume();
+    _userGestured = true; // 首次手势后允许创建 AudioContext（autoplay 已解除）
+    if (!_actx) ensureCtx();
+    if (_actx && _actx.state === 'suspended') _actx.resume().catch(() => {});
     if (_pending) { const el = _pending; _pending = null; tryPlay(el); return; }
     if (!sfxAudio.paused) return;
     if (!_overlayActive && _regionActive && regionAudio.paused && regionAudio.src) { regionFadeIn(300); tryPlay(regionAudio); }

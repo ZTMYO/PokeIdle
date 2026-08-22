@@ -1028,6 +1028,49 @@ export function helperTick() {
   f.helper = null;
 }
 
+// 后台挂机帮手补算：浏览器后台期间 rAF tick 停止，帮手的在线时长与劳作随之暂停；
+// 恢复前台时把停摆时段按前台等效补齐（在线时长递减、按劳作节奏补收/浇水/种植）。
+// 劳作在无角色 DOM 时直接落账（helperTask 的 doWork 分支），返回汇总供日志打印
+export function catchUpHelper(secs) {
+  const f = gameData?.berryFarm;
+  if (!f || !f.helper) return { ok: false };
+  const h = f.helper;
+  migrateHelperShape(h);
+  let remainMs = secs * 1000;
+  let works = 0, errored = 0;
+  while (remainMs > 0 && h.remainingMs > 0 && works < 600) {
+    // 阶段休息中：先耗休息时长，结束后进入下一工作阶段
+    if (h.restingMs > 0) {
+      const step = Math.min(remainMs, h.restingMs);
+      h.restingMs -= step;
+      h.remainingMs = Math.max(0, h.remainingMs - step);
+      remainMs -= step;
+      if (h.restingMs <= 0 && remainMs > 0) {
+        h.stageRemainingMs = HELPER_WORK_STAGE_MS;
+      }
+      continue;
+    }
+    // 工作阶段：按单次劳作平均间隔推进并劳作
+    const stepMs = randInt(HELPER_WORK_MIN, HELPER_WORK_MAX) * 1000;
+    const step = Math.min(remainMs, stepMs);
+    h.remainingMs = Math.max(0, h.remainingMs - step);
+    h.stageRemainingMs = Math.max(0, (h.stageRemainingMs || 0) - step);
+    remainMs -= step;
+    if (h.stageRemainingMs <= 0) h.restingMs = HELPER_REST_MS; // 本阶段结束进入休息
+    try {
+      helperWork();
+      works++;
+    } catch (e) { errored++; }
+  }
+  const ended = h.remainingMs <= 0;
+  if (ended) {
+    f.helper = null;
+    addSystemLog('berry_helper_end', {});
+  }
+  saveGame();
+  return { ok: true, works, ended, errored };
+}
+
 // 帮手单次劳作，从随机起点扫描：
 // 收获成熟树果优先 → 其次浇水（避免干涸任务无限抢占收获）→ 开「自动种植」时空地补种（每颗扣 PLANT_COST）
 function helperWork() {

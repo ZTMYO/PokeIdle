@@ -1,6 +1,6 @@
 // ===== 卡册 =====
 // 翻页式缩略图网格，点击已拥有卡牌放大到屏幕中心，点击遮罩关闭。
-import { $, showView } from './ui.js';
+import { $, showView, logicViewport } from './ui.js';
 import { gameData, pushNav } from './state.js';
 
 const CARDS_PER_PAGE = 12;  // 4列 × 3行
@@ -87,8 +87,9 @@ function openPreview(filename) {
   const cardEl = overlay.querySelector('.album-overlay-card');
   overlay.addEventListener('mousemove', e => {
     const rect = cardEl.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;   // -0.5 ~ 0.5
-    const y = (e.clientY - rect.top) / rect.height - 0.5;    // -0.5 ~ 0.5
+    const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+    const x = (lx - rect.left) / rect.width - 0.5;   // -0.5 ~ 0.5
+    const y = (ly - rect.top) / rect.height - 0.5;    // -0.5 ~ 0.5
     cardEl.style.transform = `perspective(800px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg)`;
     cardEl.style.transition = 'none';
   });

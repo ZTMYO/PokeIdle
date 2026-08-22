@@ -115,7 +115,7 @@ function computeRouteRemain(g) {
       remainPxTotal += segPx;
     }
   }
-  const pxPerSec = road.getSpeed() * 60;
+  const pxPerSec = road.getActualPxPerSec() || road.getSpeed() * 60;
   const pxPerMin = pxPerSec * 60;
   const remainMin = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerMin)) : 0;
   const remainSec = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerSec)) : 0;
@@ -671,8 +671,19 @@ export function gpsAddDistance(px, pxPerSec) {
   // 有地区目的地或正在前往大量出没事件点时都会移动推进
   if ((g.destIdx == null && g.massTarget == null) || px <= 0) return;
   g.pxPerSec = pxPerSec || ROAD_SPEED_WALK * 60;
-  g.remainPx = Math.max(0, g.remainPx - px);
-  if (g.remainPx <= 0) { advanceSegment(); return; }
+  let remain = px;
+  // 挂机补算一次喂入整段停摆像素（可能跨越多段）：循环推进，避免走完当前段后剩余距离被丢弃。
+  // 前台逐 tick 推进每次只有几十像素，循环一次即退出，行为与原来一致
+  while (remain > 0 && hasActiveSegment(g) && (g.destIdx != null || g.massTarget != null)) {
+    if (remain < g.remainPx) {
+      g.remainPx -= remain;
+      remain = 0;
+      break;
+    }
+    remain -= g.remainPx;
+    g.remainPx = 0;
+    advanceSegment(); // 进入下一段 / 到达目的地（清路线）/ 到达事件点（停步）/ 漫游自动接续下一站
+  }
   // 推进中只增量更新定位点/里程，不重建整个地图（避免打断事件点扩散圆环等 CSS 动画）
   updateGpsViewport();
 }
