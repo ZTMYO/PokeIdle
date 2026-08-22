@@ -109,6 +109,8 @@ export function startIntro(onDone) {
   _onDone = onDone;
   _step = 0;
   _choiceOpen = false;
+  document.removeEventListener('click', onIntroGlobalClick);
+  document.addEventListener('click', onIntroGlobalClick);
   const iv = $('introView');
   // 角色直接贴在背景草地上，无容器框
   iv.innerHTML = `
@@ -315,6 +317,17 @@ export function advanceIntro() {
   showNextLine();
 }
 
+// 开场剧情中点击画面任意位置推进对话：
+// 按钮（角色选择/顶栏）、倒三角箭头、确认按钮区各走自身交互，不当作“任意位置”
+function onIntroGlobalClick(e) {
+  if (e.target.closest('button, #textBoxArrow, #catchConfirmBtns')) return;
+  if (_choiceOpen) { confirmIntro(); return; }      // 询问句：任意位置视为点「好！」
+  if (_typeTimer) { finishType(); return; }          // 打字中：先补全整句，不推进
+  // 主角/小田卷入场的过渡动画期间（倒三角箭头未亮）不推进
+  if (_step === 1 && $('textBoxArrow').style.display !== 'flex') return;
+  advanceIntro();
+}
+
 export async function confirmIntro() {
   if (_choiceOpen) {
     _choiceOpen = false;
@@ -323,6 +336,7 @@ export async function confirmIntro() {
     return;
   }
   hideIntroText();
+  document.removeEventListener('click', onIntroGlobalClick);
   // 恢复游戏内确认按钮的默认文本与布局（intro 期间被改成「准备好了」/「好！」）
   $('confirmYes').textContent = '确定';
   $('confirmNo').style.display = '';

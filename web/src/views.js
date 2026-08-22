@@ -174,7 +174,7 @@ function refreshDataStats() {
   $('dataTradesTotal').textContent = formatNum(stats.totalTrades || 0);
   $('dataRegion').textContent = region.name;
   $('dataWalkDist').textContent = walkText;
-  $('dataDexPct').textContent = `${formatNum(totalUnique)}/${formatNum(totalSpecies)} (${pct}%)`;
+  $('dataDexPct').textContent = `${totalUnique}/${totalSpecies} (${pct}%)`;
   $('dataBallsUsed').textContent = formatNum(stats.totalBallsUsed);
   $('dataBallsAvg').textContent = totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0';
   $('dataBlockMade').textContent = formatNum(stats.totalBlockMade || 0);

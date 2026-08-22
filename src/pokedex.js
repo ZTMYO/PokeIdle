@@ -601,7 +601,19 @@ export function showPokedex() {
     if (sortBy === null || sortBy === 'index') { va = a.index; vb = b.index; }
     else if (sortBy === 'name') { va = a.name; vb = b.name; }
     else { va = caughtMap[a.index]?.[sortBy] || 0; vb = caughtMap[b.index]?.[sortBy] || 0; }
-    if (typeof va === 'string') return va.localeCompare(vb) * _pokedexSortDir;
+    if (typeof va === 'string') {
+      // index 按「编号-变体号」分段数字比较，避免 0493-1 → 0493-10 → 0493-2
+      if (sortBy === null || sortBy === 'index') {
+        const pa = va.split('-').map(Number);
+        const pb = vb.split('-').map(Number);
+        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+          const diff = (pa[i] || 0) - (pb[i] || 0);
+          if (diff !== 0) return diff * _pokedexSortDir;
+        }
+        return 0;
+      }
+      return va.localeCompare(vb) * _pokedexSortDir;
+    }
     return (va - vb) * _pokedexSortDir;
   });
   let html = '';
