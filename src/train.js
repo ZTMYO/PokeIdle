@@ -981,6 +981,7 @@ function pickPickRows() {
       if (!poke) return true;
       const upper = q.toUpperCase();
       return poke.name.includes(q) ||
+        (poke.form || '').includes(q) ||
         (poke.pinyin || '').toUpperCase().includes(upper) ||
         (poke.pinyinInitials || '').toUpperCase().includes(upper) ||
         matchPinyinPartial(q, poke.pinyin) ||

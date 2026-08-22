@@ -97,9 +97,10 @@ export const ACHIEVEMENTS = [
   {
     id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
     metric: () => dexCount(), base: 10, reward: 30, maxTiers: 7,
-    // 满级阈值对齐当前全图鉴 1212 种（本体 1025 + 变体 187），最后一级 1212
-    tiers: [10, 20, 50, 100, 200, 500, 1212],
-    fmt: v => `${formatNum(v)} 种`,
+    // 满级阈值对齐当前全图鉴 1340 种（本体 1025 + 变体 315），最后一级 1340
+    tiers: [10, 20, 50, 100, 200, 500, 1340],
+    // 不改 formatNum：避免 1.3K 缩写，图鉴进度显示具体数字
+    fmt: v => `${Number(v)} 种`,
   },
   {
     id: 'shinyCaught', name: '闪光收藏家', desc: '累计捕获闪光宝可梦',

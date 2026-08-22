@@ -132,6 +132,7 @@ function matchesQuery(p, q) {
   if (!poke) return true;
   const upper = q.toUpperCase();
   return poke.name.includes(q) ||
+    (poke.form || '').includes(q) ||   // 形态全名（如「超级基格尔德」）也能直接搜到
     poke.pinyin.toUpperCase().includes(upper) ||
     poke.pinyinInitials.toUpperCase().includes(upper) ||
     matchPinyinPartial(q, poke.pinyin) ||
