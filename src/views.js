@@ -882,7 +882,7 @@ export function renderSettings(container, s) {
         </div>
         ${autoCatch ? `
         <div style="padding:4px 4px 2px;">
-          <div class="settings-sub-title">自动使用精灵球</div>
+          <div class="settings-sub-title">自动使用精灵球(按捕获率)</div>
           <div class="ball-check-row">
             ${['poke-ball', 'ultra-ball', 'master-ball'].map(b => `
               <span class="ball-check ${(balls[b] !== false) ? 'on' : ''}" data-ball="${b}">${(balls[b] !== false) ? '☑' : '☐'}${ballLabels[b]}</span>

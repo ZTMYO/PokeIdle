@@ -392,6 +392,7 @@ function onBagClick(itemKey) {
 }
 
 // ---------- 游戏 Tick ----------
+let _lastLogTs = -1; // 上次渲染时最新日志的时间戳（新日志或清空日志才会重渲染日志页）
 function onGameTick() {
   if (window.__introActive) return; // 开场剧情期间不推进挂机
   // 自动补球：勾选的球为 0 时每秒自动补 1 个（便宜优先），背包数量即时可见（手动/自动都生效）
@@ -475,10 +476,13 @@ function onGameTick() {
       gameData[key] += window.__followerBoostMechanic?.('itemDrop', rate) ?? rate;
       const gained = Math.floor(gameData[key]);
       if (gained > 0) {
-        gameData[key] -= gained;
+        // 只扣减真正生成成功的数量：遇敌/钓鱼/锁占用等 spawn 失败时保留累积值，下次 tick 重试，避免道具凭空丢失
+        let spawned = 0;
         for (let i = 0; i < gained; i++) {
-          spawnItemDrop(item);
+          if (!spawnItemDrop(item)) break; // 失败即锁占用/非 idle，短时内重试结果相同，直接退出
+          spawned++;
         }
+        gameData[key] -= spawned;
       }
     }
   }
@@ -518,6 +522,18 @@ function onGameTick() {
     updateAchievementBadge();
     updateBountyBadge();
     updatePhoneBadge();
+  }
+  // 系统日志页开着：新日志实时追加（按最新日志时间戳判断，条数满 50 后"加一删一"条数不变也能感知）
+  if ($('systemLogView')?.style.display === 'flex') {
+    const logs = gameData.systemLogs || [];
+    const ts = logs.length ? logs[logs.length - 1].time : -1;
+    if (ts !== _lastLogTs) {
+      _lastLogTs = ts;
+      const sv = $('systemLogView');
+      const st = sv ? sv.scrollTop : 0;
+      renderSystemLogs();
+      if (sv) sv.scrollTop = st;
+    }
   }
 }
 
@@ -582,8 +598,11 @@ function setupShortcuts() {
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
 
-  // 浏览器端（非 Tauri）：console 基准 274×342，按窗口比例设置 zoom 等比缩放，与 Tauri 端
-  //（Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）保持一致的画面
+  // 浏览器端（非 Tauri）：console 基准 274×342，按窗口比例设置整体缩放，与 Tauri 端
+  //（Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）保持一致的画面。
+  // 必须缩放 <html> 而非 .console：局部 CSS zoom 会让 getBoundingClientRect() 与渲染坐标
+  // 不一致（Chromium 已知 bug），导致道路道具/遭遇贴图/丢球动画错位；html 级 zoom 等价
+  // 浏览器页面缩放。
   const consoleEl = document.querySelector('.console');
   if (consoleEl && !window.__TAURI__?.core?.invoke) {
     document.body.classList.add('browser-mode');
@@ -591,10 +610,22 @@ async function init() {
     // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时保持 100%
     const fitConsole = () => {
       const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / 342));
-      consoleEl.style.zoom = scale;
+      document.documentElement.style.zoom = scale;
     };
     fitConsole();
     window.addEventListener('resize', fitConsole);
+
+    // CSS zoom 是布局缩放：getBoundingClientRect 返回的是缩放后坐标，而 style.left/top 赋值
+    // 在渲染时还会被 zoom 再放大一次，导致战斗贴图/道具/遭遇 icon 双重缩放错位。Tauri 端
+    // 用 WebView2 页面缩放（Browser Zoom），getBoundingClientRect 始终返回逻辑 CSS 像素。
+    // 这里把返回值统一除以 zoom，还原成与 Tauri 端一致的行为（动画/特效坐标全部对齐）。
+    const _origGetBRC = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      const r = _origGetBRC.call(this);
+      const z = parseFloat(document.documentElement.style.zoom) || 1;
+      if (z === 1) return r;
+      return new DOMRect(r.left / z, r.top / z, r.width / z, r.height / z);
+    };
   }
 
   // 系统托盘走路动画（异步加载，失败不影响主流程）

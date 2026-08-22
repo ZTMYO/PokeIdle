@@ -251,21 +251,25 @@ export function cancelItemDrop() {
   return true;
 }
 
+// 生成道路掉落实体并播放滚动/拾取动画。返回是否真正生成（false 表示本次未生成，
+// 由调用方把累积值保留，避免道具丢失）；后台（非主界面）直接入账也算成功。
 export function spawnItemDrop(itemKey) {
-  if (phase !== 'idle') return;
+  if (phase !== 'idle') return false;
   // 掉落糖果时先确定本次数量倍率（×1/×2/×5/×50/×100）
   const qty = itemKey === 'candy' ? rollCandyMult() : 1;
   const screen = $('screen');
   const charEl = $('walkGif');
-  if (!screen || !charEl) return;
+  if (!screen || !charEl) return false;
 
-  // 不在主界面（在其他页面挂机中）：后台直接模拟拾取入库，不播放滚动/拾取动画
-  if ($('idleView')?.style.display === 'none') {
+  // 不在主界面（在其他页面挂机中）或页面本身不可见（浏览器/WebView 切走或最小化）：
+  // 后台直接模拟拾取入库，不播放滚动/拾取动画，避免恢复前台后逐一出补发动画
+  if (document.hidden || $('idleView')?.style.display === 'none') {
     grantItem(itemKey, qty);
-    return;
+    saveGame(); // 后台入账立即存档，避免依赖 30 秒周期存档导致刷新丢日志/丢道具
+    return true;
   }
 
-  if (_itemDropActive) return;
+  if (_itemDropActive) return false;
 
   setItemDropActive(true);
 
@@ -284,6 +288,9 @@ export function spawnItemDrop(itemKey) {
     setItemDropActive(false);
     if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
   };
+
+  // 动画受理成功：后续由 frame/fly 驱动滚动与拾取入账，这里返回 true 让调用方扣减累积值
+  // （否则累积值永不扣减，糖果等高频道具会一直出动画）
 
   const sRect = screen.getBoundingClientRect();
   const cRect = charEl.getBoundingClientRect();
@@ -378,6 +385,7 @@ export function spawnItemDrop(itemKey) {
           setItemDropActive(false);
           if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
           grantItem(itemKey, qty);
+          saveGame(); // 拾取入账立即存档，避免刷新时丢失最新掉落日志/道具
           showIdlePickup(ITEM_NAMES[itemKey], road.getPlace());
         }
       })(performance.now());
@@ -389,6 +397,7 @@ export function spawnItemDrop(itemKey) {
 
   setIdleCharacter('walk');
   requestAnimationFrame(frame);
+  return true;
 }
 
 // ---------- 放入孵蛋器 ----------

@@ -91,20 +91,16 @@ export function setPrevView(v) { _prevView = v; }
 
 // 顶层页面导航栈：栈底为挂机页（不可弹出）。进入手机主页/各 App 页压栈，
 // apptitle 返回弹栈回上一级，实现逐级返回；
-// 悬赏/商店/设置同属一个平级组，互相跳转时替换栈顶而非叠加层级
+// 统一规则：同一页面在栈中只保留一层，再次进入时把它提升到栈顶（LRU 移动），
+// 其它层级的返回顺序保留——A→B→C→B 后返回仍回到 C，且不会重复经过同一页面
 export let _navStack = ['idleView'];
-const PEER_VIEWS = ['bountyView', 'shopView', 'settingsView'];
 export function pushNav(viewId) {
-  if (!viewId) return;
+  if (!viewId || viewId === 'idleView') return;
   const top = _navStack[_navStack.length - 1];
   if (top === viewId) return; // 已在栈顶：不重复压栈
-  if (PEER_VIEWS.includes(viewId) && PEER_VIEWS.includes(top)) {
-    _navStack[_navStack.length - 1] = viewId; // 平级组内互跳：替换栈顶，不叠加层级
-    return;
-  }
-  // 从平级组页面进入其它页面：先把平级组弹出，使其不残留返回路径（跳过悬赏/商店/设置）
-  if (!PEER_VIEWS.includes(viewId) && PEER_VIEWS.includes(top)) {
-    _navStack.pop();
+  const dupIdx = _navStack.indexOf(viewId);
+  if (dupIdx > -1) {
+    _navStack.splice(dupIdx, 1); // 栈内已有该页面：移除旧层，再压到栈顶
   }
   _navStack.push(viewId);
 }
