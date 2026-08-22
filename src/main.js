@@ -1270,7 +1270,9 @@ async function init() {
       import('./exp-candy.js').then(m => m.cancelExpCandyScene());
       return;
     }
-    if (isModalLocked()) return; // 全屏确认场景锁定：标题返回也不处理，只能通过场景内确定退出（派遣结算确定=返回）
+    if (isModalLocked() && !(isBatchReleasing() && $('rosterView')?.style.display === 'flex')) return; // 全屏确认场景锁定：标题返回也不处理，只能通过场景内确定退出（派遣结算确定=返回）；批量放生除外——其本身由 isModalLocked 锁定，但点标题应直接取消批量放生
+    // 批量放生模式：点击标题 = 取消批量放生（留在仓库列表）
+    if (isBatchReleasing() && $('rosterView')?.style.display === 'flex') { cancelBatchRelease(); return; }
     // 孵蛋记录页打开且正处孵蛋器视图：点击标题只关记录页回主列表，否则走正常返回
     if (isIncubatorLogOpen() && $('incubatorView')?.style.display === 'flex') { closeIncubatorLog(); return; }
     // 对战记录页打开且正处战斗视图：点击标题只关记录页，否则走正常返回

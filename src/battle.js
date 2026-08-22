@@ -551,6 +551,8 @@ export function showEncounter(poke, opts = {}) {
       } else if (fr === 'flee') {
         setTimeout(async () => {
           await loadPromise; // 等图片加载完再逃，避免画面残留
+          // 期间玩家关闭了自动模式：取消这次残留的自动逃跑，避免未开自动却出现 [自动] 记录
+          if (!gameData.settings?.autoCatch) return;
           fleeEncounter(true);
         }, 800);
       } else {
@@ -864,6 +866,11 @@ export async function throwBall(ballType) {
 // ===== 逃跑 =====
 export async function fleeEncounter(isAutoFlee) {
   if (_bgReplayActive) return;
+  // 兜底：触发时自动/佛系模式若已全关（定时器/延迟残留走到的自动逃跑路径），
+  // 降级为手动逃跑记录，避免日志出现误导性的 [自动] 标识
+  if (isAutoFlee && !gameData.settings?.autoFlee && !gameData.settings?.autoCatch) {
+    isAutoFlee = false;
+  }
   if ((phase !== 'encounter' && !_bgCatch) || !currentEncounter) return;
   if (_throwing) return;
   if (phase === 'fled') return; // 防重入
@@ -1038,9 +1045,14 @@ export function handoffEncounterToBackground(prevPhase) {
     if (prevPhase === 'caught' && !_throwing) cleanupEncounterState();
     return;
   }
-  if (!gameData.settings?.autoCatch || catchFilterResult() !== 'catch') {
-    // 非自动捕捉（或遇敌过滤命中）：后台直接记录逃跑
-    handoffFlee();
+  if (!gameData.settings?.autoCatch) {
+    // 未开自动模式：遭遇被打断后后台记逃跑。不标 [自动]，避免玩家误以为开过自动
+    handoffFlee(false);
+    return;
+  }
+  if (catchFilterResult() !== 'catch') {
+    // 自动捕捉的遇敌过滤命中：属于自动操作，标注 [自动]
+    handoffFlee(true);
     return;
   }
   // 已在捕捉中则由其循环通过 _bgCatch 自动转入后台模式
@@ -1048,9 +1060,9 @@ export function handoffEncounterToBackground(prevPhase) {
 }
 
 // 等待可能飞行中的手动丢球结束后再后台记录逃跑（避免与 throwBall 的 _throwing 冲突）
-async function handoffFlee() {
+async function handoffFlee(isAuto) {
   while (_throwing) await delay(100);
-  await fleeEncounter(true);
+  await fleeEncounter(isAuto);
 }
 
 // ===== 自动捕捉 =====
