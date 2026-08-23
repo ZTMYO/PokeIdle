@@ -1174,6 +1174,14 @@ body.browser-mode { overflow: auto; }
   color: #fff;
   font-weight: 700;
 }
+/* 夜间模式：wrap 底色 rgba(0,0,0,0.08) 在暗背景上不可见，改浅色底衬托填充段 */
+[data-theme="dark"] .incubator-progress-wrap {
+  background: var(--item-hover-bg);
+}
+/* 夜间模式：进度条文字用浅灰白，比纯白柔和且在绿色填充段上保持可读 */
+[data-theme="dark"] .incubator-progress-text {
+  color: var(--color-text);
+}
 .incubator-hatch-text {
   display: inline;
   font-size: 10px;
@@ -2182,6 +2190,11 @@ body.browser-mode { overflow: auto; }
 .berry-progress-state { text-align: left; }
 .berry-progress-time  { text-align: center; }
 .berry-progress-right { text-align: right; }
+/* 夜间模式：fill 沿用 screen-bg-dark 与 track 的 screen-bg-light 几乎同色，
+   改用主题亮绿填充，与底色拉开对比 */
+[data-theme="dark"] .berry-progress-fill {
+  background: var(--ui-color);
+}
 
 /* 浇水动画：喷壶在树头上方，向左倾斜一下后淡出 */
 .berry-spray {

@@ -680,18 +680,29 @@ async function init() {
     // 返回未缩放坐标，导致基于 rect 差值定位的战斗贴图/道路道具/遭遇图标双重补偿错位。
     const isMobile = /Android|iPhone|iPad|iPod|Mobile|mobile/i.test(navigator.userAgent);
     if (isMobile) {
-      // 移动端改用 transform: scale：getBoundingClientRect 全浏览器统一返回变换后坐标，
-      // 贴图定位（rect 差值 + 逻辑 style.left）天然一致，无需覆盖 hack；canvas 保持逻辑尺寸
-      // 绘制、由 GPU 合成缩放，不额外增加重绘开销（zoom 在移动端会强制整页按放大尺寸重绘，拖慢滚动）
+      // 移动端改用 transform: scale：canvas 保持逻辑尺寸绘制、由 GPU 合成缩放，不额外增加
+      // 重绘开销（zoom 在移动端会强制整页按放大尺寸重绘，拖慢滚动）
+      let _scale = 1;
       const fitConsole = () => {
         const vw = window.visualViewport?.width || window.innerWidth;
         const vh = window.visualViewport?.height || window.innerHeight;
-        const s = Math.max(1, Math.min(vw / 274, vh / 342));
-        consoleEl.style.transform = `scale(${s})`;
+        _scale = Math.max(1, Math.min(vw / 274, vh / 342));
+        consoleEl.style.transform = `scale(${_scale})`;
       };
       fitConsole();
       window.addEventListener('resize', fitConsole);
       window.visualViewport?.addEventListener('resize', fitConsole);
+
+      // transform: scale 是纯视觉变换：getBoundingClientRect 返回缩放后（物理）坐标，
+      // 而 style.left/top 赋值是逻辑值（渲染时再 ×scale）。与桌面 zoom 分支的 /zoom 补偿
+      // 同理，这里对 console 内元素统一除以 scale 还原逻辑坐标，避免遭遇贴图/道路道具/
+      // 事件 icon 双重缩放错位（真机 UA 走本分支，F12 缩小窗口走 zoom 分支故两者表现不同）
+      const _origGetBRC = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function () {
+        const r = _origGetBRC.call(this);
+        if (_scale === 1 || !consoleEl.contains(this)) return r;
+        return new DOMRect(r.left / _scale, r.top / _scale, r.width / _scale, r.height / _scale);
+      };
     } else {
       // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时保持 100%
       const fitConsole = () => {

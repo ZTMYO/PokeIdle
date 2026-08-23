@@ -62,6 +62,9 @@ let _bgReplayActive = false;
 let _bgReplayToken = 0;
 // 当前遭遇宝可梦性别（每次遇敌 roll 一次；currentEncounter 是共享图鉴对象，直接写 gender 会污染数据源）
 let _encounterGender = 'male';
+// 事件遭遇（大量出没/时空扭曲）已在后台结算的标记：防止 goIdle 与 cleanupEncounterState
+// 两条路径对同一遭遇重复扣减剩余数量（孵蛋挂起期间遭遇被后台结算后又走 goIdle 的场景）
+let _eventEncounterSettled = false;
 // 指定下一次遇敌的宝可梦（debug.js 的 window.__nextEncounter 写入，用后即焚）
 let _debugNextEncounter = null;
 export function setDebugNextEncounter(idx, shiny) {
@@ -379,6 +382,7 @@ function startRoadEncounter(poke) {
 
 // ===== 记录遭遇并展示战斗画面（普通遇敌 / 钓鱼上钩共用） =====
 function beginEncounter(poke, opts = {}) {
+  _eventEncounterSettled = false; // 新遭遇开始：事件结算标记复位
   _encounterSource = opts.source || 'normal';
   setEncounterSource(_encounterSource); // 同步会话变量：刷新页面恢复遭遇时重建来源
   setCurrentEncounterBalls({ 'poke-ball': 0, 'ultra-ball': 0, 'master-ball': 0 });
@@ -980,16 +984,23 @@ export function goIdle() {
   $('screen').style.borderColor = '';
   $('fleeBtn').style.display = 'none';
   setIdleCharacter('walk');
-  // 事件遭遇结束：剩余数量-1，未抓完则调度下一只事件宝可梦出现（事件区域内由滚动触发遇敌）
-  if (inMassZone()) {
-    import('./events.js').then(m => m.onMassEncounterEnded());
+  // 事件遭遇结束：剩余数量-1，未抓完则调度下一只事件宝可梦出现（事件区域内由滚动触发遇敌）；
+  // 若已被 cleanupEncounterState 后台结算过（孵蛋挂起等场景）则跳过，避免同一遭遇重复扣减
+  if (!_eventEncounterSettled) {
+    if (inMassZone()) {
+      import('./events.js').then(m => m.onMassEncounterEnded());
+    }
+    if (inTwistZone()) {
+      import('./events.js').then(m => m.onTwistEncounterEnded());
+    }
   }
-  if (inTwistZone()) {
-    import('./events.js').then(m => m.onTwistEncounterEnded());
-  }
+  _eventEncounterSettled = false;
   // 恢复暂停的 buff 倒计时并重新调度遇敌（遭遇正常结束 / NPC 对战打断后恢复共用）；
   // 后台补算期间不重新调度，避免与补算循环重复遇敌，补算结束时统一收尾
   if (!_bgCatchup) resumeEncounterFlow();
+  // 回到空闲即隐藏底部文本框：showView('idleView') 的隐藏受 isOnGameView 条件限制，
+  // 补算/打断等路径可能不触发，这里无条件兜底
+  hideTextBox();
 
   // 战斗结束后检查自动buff是否要续杯（自动操作或佛系模式均触发）
   if (!honeyBuffActive && !charmBuffActive && gameData.settings && (gameData.settings.autoCatch || gameData.settings.autoFlee)) {
@@ -1030,6 +1041,10 @@ function cleanupEncounterState() {
   if (inTwistZone()) {
     import('./events.js').then(m => m.onTwistEncounterEnded());
   }
+  // 事件结算已在后台执行，后续 goIdle 不再重复扣减
+  _eventEncounterSettled = true;
+  // 遭遇现场已清理：兜底隐藏底部文本框（后台结算/打断路径不切视图，showView 的隐藏不会触发）
+  hideTextBox();
 }
 
 // ===== 恢复暂停的 buff 倒计时并重新调度遇敌（goIdle / NPC 对战结束后共用） =====
