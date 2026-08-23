@@ -980,7 +980,8 @@ function pickPickRows() {
       const poke = getPokemonByIndex(String(p.species));
       if (!poke) return true;
       const upper = q.toUpperCase();
-      return poke.name.includes(q) ||
+      return String(p.species).includes(q) ||   // 图鉴编号直接匹配
+        poke.name.includes(q) ||
         (poke.form || '').includes(q) ||
         (poke.pinyin || '').toUpperCase().includes(upper) ||
         (poke.pinyinInitials || '').toUpperCase().includes(upper) ||

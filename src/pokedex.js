@@ -312,6 +312,28 @@ export function setupPokedexSearch() {
   syncClear();
 
   let hideTimer = null;
+  let activeIdx = -1; // 键盘高亮的下拉项索引
+
+  // 跳转到目标条目（鼠标点击 / 键盘回车共用）
+  const gotoIndex = (idx) => {
+    const target = document.querySelector(`.pokedex-entry[data-index="${idx}"]`);
+    if (target) {
+      target.scrollIntoView({ block: 'center', behavior: 'instant' });
+      target.classList.remove('flash');
+      void target.offsetHeight; // reflow 让动画重新触发
+      target.classList.add('flash');
+    }
+    input.value = '';
+    dropdown.style.display = 'none';
+    syncClear();
+  };
+
+  // 同步键盘高亮，并让选中项在下拉中可见
+  const syncActive = () => {
+    const items = dropdown.querySelectorAll('.pokedex-dropdown-item');
+    items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+    items[activeIdx]?.scrollIntoView({ block: 'nearest' });
+  };
 
   input.addEventListener('input', () => {
     syncClear();
@@ -321,6 +343,7 @@ export function setupPokedexSearch() {
     const upper = q.toUpperCase();
     const matched = allPokemon.filter(p =>
       (gameData.pokedex?.[p.index]?.seen || 0) > 0 && (
+        p.index.includes(q) ||
         p.name.includes(q) ||
         (p.form || '').includes(q) ||
         p.pinyin.toUpperCase().includes(upper) ||
@@ -343,22 +366,11 @@ export function setupPokedexSearch() {
     }
     dropdown.innerHTML = html;
     dropdown.style.display = '';
+    activeIdx = -1;
 
     // 点击下拉项跳转到目标
     dropdown.querySelectorAll('.pokedex-dropdown-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const idx = el.dataset.index;
-        const target = document.querySelector(`.pokedex-entry[data-index="${idx}"]`);
-        if (target) {
-          target.scrollIntoView({ block: 'center', behavior: 'instant' });
-          target.classList.remove('flash');
-          void target.offsetHeight; // reflow 让动画重新触发
-          target.classList.add('flash');
-        }
-        input.value = '';
-        dropdown.style.display = 'none';
-        syncClear();
-      });
+      el.addEventListener('click', () => gotoIndex(el.dataset.index));
     });
   });
 
@@ -369,6 +381,22 @@ export function setupPokedexSearch() {
     if (hideTimer) clearTimeout(hideTimer);
     if (input.value.trim() && dropdown.children.length > 0) {
       dropdown.style.display = '';
+    }
+  });
+
+  // 键盘导航：上下方向键选择，回车确定
+  input.addEventListener('keydown', (e) => {
+    const items = dropdown.querySelectorAll('.pokedex-dropdown-item');
+    if (dropdown.style.display === 'none' || items.length === 0) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); // 阻止输入框光标移动
+      const dir = e.key === 'ArrowDown' ? 1 : -1;
+      activeIdx = Math.min(Math.max(activeIdx + dir, 0), items.length - 1);
+      syncActive();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const idx = items[Math.max(activeIdx, 0)].dataset.index;
+      gotoIndex(idx);
     }
   });
 

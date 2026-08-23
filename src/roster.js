@@ -131,7 +131,8 @@ function matchesQuery(p, q) {
   const poke = getPokemonByIndex(String(p.species));
   if (!poke) return true;
   const upper = q.toUpperCase();
-  return poke.name.includes(q) ||
+  return String(p.species).includes(q) ||   // 图鉴编号（含变体后缀）直接匹配
+    poke.name.includes(q) ||
     (poke.form || '').includes(q) ||   // 形态全名（如「超级基格尔德」）也能直接搜到
     poke.pinyin.toUpperCase().includes(upper) ||
     poke.pinyinInitials.toUpperCase().includes(upper) ||
@@ -1212,10 +1213,11 @@ function advFilterQValue(F) {
   return F.q || '';
 }
 
-// 下拉匹配（对齐图鉴搜索：名称/形态/拼音/首字母/拼音部分匹配）
+// 下拉匹配（对齐图鉴搜索：编号/名称/形态/拼音/首字母/拼音部分匹配）
 function advPokemonMatches(p, q) {
   const upper = q.toUpperCase();
-  return p.name.includes(q)
+  return String(p.index).includes(q)
+    || p.name.includes(q)
     || (p.form || '').includes(q)
     || String(p.pinyin || '').toUpperCase().includes(upper)
     || String(p.pinyinInitials || '').toUpperCase().includes(upper)

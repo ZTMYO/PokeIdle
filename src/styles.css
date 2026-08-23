@@ -3822,6 +3822,10 @@ body.browser-mode { overflow: auto; }
 .pokedex-dropdown-item:hover {
   background: rgba(var(--ui-color-rgb),0.08);
 }
+/* 键盘上下键选中的高亮 */
+.pokedex-dropdown-item.active {
+  background: rgba(var(--ui-color-rgb),0.15);
+}
 .pokedex-dropdown-item .dd-idx {
   opacity: 0.4;
   min-width: 24px;
