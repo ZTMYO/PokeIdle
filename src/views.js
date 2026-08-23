@@ -948,7 +948,7 @@ export function renderSettings(container, s) {
         </div>
         ${autoRefill ? `
         <div style="padding:6px 4px 2px 8px;">
-          <div class="settings-sub-title">补球优先级</div>
+          <div class="settings-sub-title">补球优先级（左高右低）</div>
           <div class="refill-order-row" id="refillOrderList">
             ${order.map((b, i) => `
               <span class="refill-order-item${refillBalls[b] === false ? ' off' : ''}" data-ball="${b}">
