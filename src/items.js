@@ -203,7 +203,7 @@ export function findBerryTarget(recipe) {
 let _dropStatusTimer = null;
 
 // 掉落糖果的数量倍率：按 CANDY_DROP_MULT 权重抽一次（掉落发生时即确定）
-function rollCandyMult() {
+export function rollCandyMult() {
   const total = CANDY_DROP_MULT.reduce((s, c) => s + c.weight, 0);
   let r = Math.random() * total;
   for (const c of CANDY_DROP_MULT) {

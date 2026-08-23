@@ -72,6 +72,8 @@ body { margin: 0; padding: 0; cursor: default; display: flex; align-items: cente
 body.browser-mode .console {
   width: 274px; height: 342px;
   max-width: none; max-height: none;
+  /* 移动端 transform 缩放：禁止 flex 压缩基准尺寸 */
+  flex-shrink: 0;
   /* 浏览器端特有的边框 */
   border: 2px solid var(--console-border);
   border-radius: 10px;

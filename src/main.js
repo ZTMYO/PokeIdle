@@ -38,7 +38,7 @@ import {
 } from './ui.js';
 import { spawnItemDrop, activateHoney, activateShinyCharm,
   startHoneyCountdown, startCharmCountdown, clearHoneyCountdown, clearCharmCountdown,
-  doCandyExchange, grantItem, cancelItemDrop } from './items.js';
+  doCandyExchange, grantItem, cancelItemDrop, rollCandyMult } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
   tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground } from './battle.js';
@@ -511,12 +511,17 @@ async function onGameTick() {
       const gained = Math.floor(gameData[key]);
       if (gained > 0) {
         if (afkSec > 0) {
-          // 后台补发：批量直接入账不播动画（日志在 grantItem 内记录），避免逐一出补发动画
-          grantItem(item, gained);
+          // 后台补发：批量直接入账不播动画（日志在 grantItem 内记录），避免逐一出补发动画。
+          // 糖果按掉落次数逐次 roll 倍率（与前台 spawnItemDrop 同节奏），汇总后一次性入账
+          let gainedQty = 0;
+          for (let i = 0; i < gained; i++) {
+            gainedQty += item === 'candy' ? rollCandyMult() : 1;
+          }
+          grantItem(item, gainedQty);
           gameData[key] -= gained;
           if (catchUpLog) {
             const label = ITEM_NAMES[item] || item;
-            catchUpLog.items[label] = (catchUpLog.items[label] || 0) + gained;
+            catchUpLog.items[label] = (catchUpLog.items[label] || 0) + gainedQty;
           }
         } else {
           // 只扣减真正生成成功的数量：遇敌/钓鱼/锁占用等 spawn 失败时保留累积值，下次 tick 重试，避免道具凭空丢失
@@ -530,6 +535,9 @@ async function onGameTick() {
       }
     }
   }
+  // 补发掉落入账后立即落盘：遇敌补算（battle.js）结束时已存档，这里补掉落部分，
+  // 避免 30 秒周期存档前刷新/切走导致本次补发的道具丢失
+  if (catchUpLog && Object.keys(catchUpLog.items).length > 0) saveGame();
 
   // 后台挂机补发汇总：遇敌补算为异步批量结算，完成后并入一并打印，便于核对每类补算了多少
   if (catchUpLog) {
@@ -667,26 +675,44 @@ async function init() {
   const consoleEl = document.querySelector('.console');
   if (consoleEl && !window.__TAURI__?.core?.invoke) {
     document.body.classList.add('browser-mode');
+    // 移动端与桌面端浏览器对 CSS zoom 的 getBoundingClientRect 行为不一致：
+    // 桌面 Chromium 返回缩放后坐标（现有代码按此补偿），部分移动浏览器（尤其 iOS Safari）
+    // 返回未缩放坐标，导致基于 rect 差值定位的战斗贴图/道路道具/遭遇图标双重补偿错位。
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile|mobile/i.test(navigator.userAgent);
+    if (isMobile) {
+      // 移动端改用 transform: scale：getBoundingClientRect 全浏览器统一返回变换后坐标，
+      // 贴图定位（rect 差值 + 逻辑 style.left）天然一致，无需覆盖 hack；canvas 保持逻辑尺寸
+      // 绘制、由 GPU 合成缩放，不额外增加重绘开销（zoom 在移动端会强制整页按放大尺寸重绘，拖慢滚动）
+      const fitConsole = () => {
+        const vw = window.visualViewport?.width || window.innerWidth;
+        const vh = window.visualViewport?.height || window.innerHeight;
+        const s = Math.max(1, Math.min(vw / 274, vh / 342));
+        consoleEl.style.transform = `scale(${s})`;
+      };
+      fitConsole();
+      window.addEventListener('resize', fitConsole);
+      window.visualViewport?.addEventListener('resize', fitConsole);
+    } else {
+      // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时保持 100%
+      const fitConsole = () => {
+        const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / 342));
+        document.documentElement.style.zoom = scale;
+      };
+      fitConsole();
+      window.addEventListener('resize', fitConsole);
 
-    // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时保持 100%
-    const fitConsole = () => {
-      const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / 342));
-      document.documentElement.style.zoom = scale;
-    };
-    fitConsole();
-    window.addEventListener('resize', fitConsole);
-
-    // CSS zoom 是布局缩放：getBoundingClientRect 返回的是缩放后坐标，而 style.left/top 赋值
-    // 在渲染时还会被 zoom 再放大一次，导致战斗贴图/道具/遭遇 icon 双重缩放错位。Tauri 端
-    // 用 WebView2 页面缩放（Browser Zoom），getBoundingClientRect 始终返回逻辑 CSS 像素。
-    // 这里把返回值统一除以 zoom，还原成与 Tauri 端一致的行为（动画/特效坐标全部对齐）。
-    const _origGetBRC = Element.prototype.getBoundingClientRect;
-    Element.prototype.getBoundingClientRect = function () {
-      const r = _origGetBRC.call(this);
-      const z = parseFloat(document.documentElement.style.zoom) || 1;
-      if (z === 1) return r;
-      return new DOMRect(r.left / z, r.top / z, r.width / z, r.height / z);
-    };
+      // CSS zoom 是布局缩放：getBoundingClientRect 返回的是缩放后坐标，而 style.left/top 赋值
+      // 在渲染时还会被 zoom 再放大一次，导致战斗贴图/道具/遭遇 icon 双重缩放错位。Tauri 端
+      // 用 WebView2 页面缩放（Browser Zoom），getBoundingClientRect 始终返回逻辑 CSS 像素。
+      // 这里把返回值统一除以 zoom，还原成与 Tauri 端一致的行为（动画/特效坐标全部对齐）。
+      const _origGetBRC = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function () {
+        const r = _origGetBRC.call(this);
+        const z = parseFloat(document.documentElement.style.zoom) || 1;
+        if (z === 1) return r;
+        return new DOMRect(r.left / z, r.top / z, r.width / z, r.height / z);
+      };
+    }
   }
 
   // 系统托盘走路动画（异步加载，失败不影响主流程）
