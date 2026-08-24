@@ -279,7 +279,7 @@ export function stopShinySparkleLoop() {
 // twoStep：可选，启用两阶段展示——确认后先显示「再见！xxx」+ 缩小动画，动画结束后自动切换 confirmText 并结束
 // title：可选，场景打开时接管顶部 appTitle 显示该标题，点击标题等同于取消（关闭场景时自动恢复原标题）
 let _savedTitle = null; // 被接管前的 appTitle 状态
-export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false, nick = '', confirmText = null, poolText = null, twoStep = false, title = null, onOk = null }) {    
+export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = false, variant = null, nick = '', confirmText = null, poolText = null, twoStep = false, title = null, onOk = null }) {    
   const view = $('goodbyeView');
   if (!poke || !view) { onConfirm && onConfirm(); return; }
   if (view._busy) return;
@@ -298,6 +298,10 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
   const poolEl = view.querySelector('#goodbyeXpPool');
   if (poolEl) poolEl.style.display = 'none';
   img.src = '';
+  // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）
+  img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
+  if (variant === 'rgb') img.classList.add('fx-variant-rgb');
+  else if (variant === 'polluted') img.classList.add('fx-variant-polluted');
   // 先显示场景再加载图片：隐藏状态下中文路径直接加载会失败（WebView2）
   textEl.textContent = prompt; 
   okBtn.style.display = '';
@@ -414,7 +418,7 @@ export function showGoodbyeConfirm({ poke, prompt, onConfirm, onCancel, shiny = 
 
 // 交换第二阶段：收到的宝可梦从小放大显示，右上角精简信息（已捕获/新发现/稀有度），
 // 底部文案分两步询问是否查看仓库详情（与抓捕成功一致：展示 → 点继续 → 询问）
-export function showTradeReceive({ poke, shiny = false, isNew = false, wasOwned = false, onYes, onClose }) {
+export function showTradeReceive({ poke, shiny = false, variant = null, isNew = false, wasOwned = false, onYes, onClose }) {
   const view = $('goodbyeView');
   if (!view || view._busy || !poke) { onClose && onClose(); return; }
   view._busy = true;
@@ -428,6 +432,10 @@ export function showTradeReceive({ poke, shiny = false, isNew = false, wasOwned 
   img.classList.remove('leaving');
   img.classList.add('arrive');
   img.src = '';
+  // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）
+  img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
+  if (variant === 'rgb') img.classList.add('fx-variant-rgb');
+  else if (variant === 'polluted') img.classList.add('fx-variant-polluted');
   textEl.textContent = '';
   view.style.display = 'flex';
   // 右上角精简信息：已捕获图标（按交换前判定）/ 新发现 / 稀有度

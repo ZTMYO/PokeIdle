@@ -6,7 +6,7 @@ import { EXP_CANDY_XP, MAX_LEVEL } from './config.js';
 import { playLevelUp } from './audio.js';
 
 // 当前场景上下文：null = 场景未打开
-let _scene = null; // { rid, fromDetail, from, stock, maxUse, poke, shiny }
+let _scene = null; // { rid, fromDetail, from, stock, maxUse, poke, shiny, variant }
 function expToCap(lv, curExp) {
   let need = 0;
   for (let l = lv; l < MAX_LEVEL; l++) need += 25 + l * 20;
@@ -44,7 +44,7 @@ export function useExpCandyOn(rid, fromDetail, fromView) {
   }
   const poke = getPokemonByIndex(String(entry.species));
   const maxUse = Math.max(1, Math.min(stock, Math.ceil(expToCap(lv, entry.exp) / EXP_CANDY_XP)));
-  _scene = { rid, fromDetail, from: fromView, stock, maxUse, poke, shiny: !!entry.shiny };
+  _scene = { rid, fromDetail, from: fromView, stock, maxUse, poke, shiny: !!entry.shiny, variant: entry.variant || null };
   openScene();
 }
 
@@ -54,6 +54,10 @@ function openScene() {
   view._qty = 1;
   const img = $('expCandyImg');
   img.classList.remove('leaving'); // 清除上一次离场动画
+  // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）
+  img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
+  if (_scene.variant === 'rgb') img.classList.add('fx-variant-rgb');
+  else if (_scene.variant === 'polluted') img.classList.add('fx-variant-polluted');
   img.src = '';
   $('expCandyBox').style.display = 'none';
   const stage = view.querySelector('.expcandy-stepper');

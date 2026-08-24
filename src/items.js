@@ -1,11 +1,11 @@
 // ===== 道具相关逻辑 =====
 import { ITEM_NAMES, CANDY_EXCHANGE, ITEM_SELL_RATE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, isPokemon } from './state.js';
-import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge } from './ui.js';
+import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
-import { animate, delay } from './animation.js';
+import { animate, delay, burstShinySparkle } from './animation.js';
 import { computeObtainScore } from './scoring.js';
-import { playCongratulation, stopCongratulation } from './audio.js';
+import { playCongratulation, stopCongratulation, playShiny } from './audio.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -469,6 +469,68 @@ export function unlockIncubatorSlot(slotIndex) {
   renderIncubatorView();
 }
 
+// 孵化结果落库公共部分（单只/批量共用）：图鉴/仓库/遭遇日志/统计/孵蛋记录，并清空该槽位。
+// 只整理存档数据，不涉及任何 DOM 展示。
+function applyHatchEntry(slotIndex) {
+  const slot = gameData.incubators[slotIndex];
+  if (!slot) return;
+  const poke = getPokemonByIndex(slot.eggIndex);
+  if (!poke) return;
+  const idx = String(poke.index);
+  const eggIsShiny = slot.isShiny || false;
+
+  if (!gameData.pokedex[idx]) {
+    gameData.pokedex[idx] = { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0, };
+  }
+  gameData.pokedex[idx].seen++;
+  gameData.pokedex[idx].caught = (gameData.pokedex[idx].caught || 0) + 1;
+  gameData.pokedex[idx].lastTime = new Date().toISOString();
+  if (eggIsShiny) {
+    gameData.pokedex[idx].shinyCaught = (gameData.pokedex[idx].shinyCaught || 0) + 1;
+    // 孵化闪光单独计数，不算入"闪光捕获"（捕获仅统计道路遇敌）
+    gameData.stats.totalShinyEggsHatched = (gameData.stats.totalShinyEggsHatched || 0) + 1;
+  }
+  gameData.stats.totalCatches++;
+  gameData.stats.totalEggsHatched++;
+
+  // 宝可梦蛋（eggRef）：蛋条目原地转正为宝可梦（删 kind:'egg'、level 置 1），
+  // 个体值/性格/性别/闪光完全沿用蛋（这就是"挑蛋培养 6V"的基础）；
+  // 神秘蛋（无 eggRef）：无对应条目，随机建档加入仓库。
+  let entry = null;
+  let ivRandomKey = null;
+  if (slot.eggRef) {
+    const eggEntry = (gameData.roster || []).find(r => r.id === slot.eggRef);
+    if (eggEntry) {
+      delete eggEntry.kind;
+      eggEntry.level = 1;
+      eggEntry.inRoster = true;
+      eggEntry.obtainedAt = Date.now(); // 获得时间记录为点击孵化完成的时刻，而非放入孵蛋器
+      ivRandomKey = eggEntry.ivRandomKey || null; // 培育蛋：仅该纯随机项是个体值运气
+      entry = eggEntry;
+    }
+  }
+  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
+  setLastObtainedEntryId(entry.id);
+
+  if (!gameData.encounterLogs) gameData.encounterLogs = {};
+  if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
+  gameData.encounterLogs[idx].push({
+    time: Date.now(), shiny: eggIsShiny, result: 'caught', balls: {}, source: 'egg', // source 供统计页区分孵蛋/交换/遭遇
+    charmBuff: false, // 闪耀护符不提升孵蛋闪光率（蛋的闪光在放入孵蛋器时已按 1/1000 判定），恒为 false
+    score: computeObtainScore({
+      pokemon: poke, source: 'egg', shiny: eggIsShiny,
+      charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1,
+      ivs: entry.ivs, ivRandomKey,
+    }),
+  });
+
+  addSystemLog('egg_hatch', { pokemon: poke.index, shiny: eggIsShiny });
+  // 孵蛋记录：仅记录时间/名字/性别（性别沿用蛋条目，神秘蛋为建档时 roll 的结果）
+  addIncubatorLog({ species: poke.index, gender: entry.gender, shiny: eggIsShiny });
+
+  gameData.incubators[slotIndex] = { eggIndex: null, hatched: false, hatchStart: 0, hatchDuration: 0, isShiny: false };
+}
+
 // ---------- 从孵蛋器取出孵化 ----------
 export async function hatchFromIncubator(slotIndex) {
   if (_eggHatching) return;
@@ -587,7 +649,8 @@ export async function hatchFromIncubator(slotIndex) {
   if (watchedAnim) {
     img.style.opacity = '0';
     let imageLoaded = false;
-    await tryLoadPokemonImage(img, poke, '').then(ok => { imageLoaded = ok; });
+    // 闪光蛋加载 _shiny 贴图，与图鉴/批量孵化保持一致
+    await tryLoadPokemonImage(img, poke, eggIsShiny ? '_shiny' : '').then(ok => { imageLoaded = ok; });
 
     img.style.transform = 'translateX(-50%) scale(0)';
     if (imageLoaded) {
@@ -609,6 +672,21 @@ export async function hatchFromIncubator(slotIndex) {
     });
 
     img.style.transform = '';
+  }
+
+  // 闪光蛋：出场动画结束后播放闪光音效并爆发星星粒子（与批量/图鉴同款）；
+  // 等闪光音效播完再继续（后续庆祝音乐会紧接着播放，避免两音叠加）
+  if (eggIsShiny && isOnHatchView()) {
+    burstShinySparkle($('hatchView'), img, { cls: 'sm', scale: 0.9 });
+    const a = playShiny();
+    if (a) {
+      await new Promise(r => {
+        const done = () => r();
+        a.addEventListener('ended', done, { once: true });
+        a.addEventListener('error', done, { once: true });
+        setTimeout(done, 3000); // 兜底：音效加载/播放异常时不能卡死孵化流程
+      });
+    }
   }
 
   $('hatchName').style.display = 'none';
@@ -639,59 +717,11 @@ export async function hatchFromIncubator(slotIndex) {
   }
   $('hatchCatchRate').innerHTML = '稀有度 ' + rarityLabel(poke.rarity ?? 0.5);
 
-  if (!gameData.pokedex[idx]) {
-    gameData.pokedex[idx] = {
-      seen: 0, caught: 0,
-      lastTime: null, shinySeen: 0, shinyCaught: 0,
-    };
-  }
-  gameData.pokedex[idx].seen++;
-  gameData.pokedex[idx].caught = (gameData.pokedex[idx].caught || 0) + 1;
-  gameData.pokedex[idx].lastTime = new Date().toISOString();
-  if (eggIsShiny) {
-    gameData.pokedex[idx].shinyCaught = (gameData.pokedex[idx].shinyCaught || 0) + 1;
-    // 孵化闪光单独计数，不算入"闪光捕获"（捕获仅统计道路遇敌）
-    gameData.stats.totalShinyEggsHatched = (gameData.stats.totalShinyEggsHatched || 0) + 1;
-  }
-  gameData.stats.totalCatches++;
-  gameData.stats.totalEggsHatched++;
-  // 宝可梦蛋（eggRef）：蛋条目原地转正为宝可梦（删 kind:'egg'、level 置 1），
-  // 个体值/性格/性别/闪光完全沿用蛋（这就是"挑蛋培养 6V"的基础）；
-  // 神秘蛋（无 eggRef）：无对应条目，随机建档加入仓库。
-  let entry = null;
-  let ivRandomKey = null;
-  if (slot.eggRef) {
-    const eggEntry = (gameData.roster || []).find(r => r.id === slot.eggRef);
-    if (eggEntry) {
-      delete eggEntry.kind;
-      eggEntry.level = 1;
-      eggEntry.inRoster = true;
-      eggEntry.obtainedAt = Date.now(); // 获得时间记录为点击孵化完成的时刻，而非放入孵蛋器
-      ivRandomKey = eggEntry.ivRandomKey || null; // 培育蛋：仅该纯随机项是个体值运气
-      entry = eggEntry;
-    }
-  }
-  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
-  setLastObtainedEntryId(entry.id);
-  if (!gameData.encounterLogs) gameData.encounterLogs = {};
-  if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-  gameData.encounterLogs[idx].push({
-    time: Date.now(), shiny: eggIsShiny, result: 'caught', balls: {}, source: 'egg', // source 供统计页区分孵蛋/交换/遭遇
-    charmBuff: false, // 闪耀护符不提升孵蛋闪光率（蛋的闪光在放入孵蛋器时已按 1/1000 判定），恒为 false
-    score: computeObtainScore({
-      pokemon: poke, source: 'egg', shiny: eggIsShiny,
-      charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1,
-      ivs: entry.ivs, ivRandomKey,
-    }),
-  });
+  applyHatchEntry(slotIndex);
+
   // 玩家仍在本页才播放祝贺音效（已切走则后台静默结算，避免音效打断其他页面背景曲）
   if (isOnHatchView()) playCongratulation();
 
-  incubators[slotIndex] = { eggIndex: null, hatched: false, hatchStart: 0, hatchDuration: 0, isShiny: false };
-
-  addSystemLog('egg_hatch', { pokemon: poke.index, shiny: eggIsShiny });
-  // 孵蛋记录：仅记录时间/名字/性别（性别沿用蛋条目，神秘蛋为建档时 roll 的结果）
-  addIncubatorLog({ species: poke.index, gender: entry.gender, shiny: eggIsShiny });
   if (isOnHatchView()) updateTextBox(eggIsShiny ? '孵化出闪光的 ' + poke.name + ' 了！' : '孵化成功！获得了 ' + poke.name, true);
 
   await saveGame();
@@ -705,6 +735,185 @@ export async function hatchFromIncubator(slotIndex) {
   if (!isOnHatchView()) {
     await finalizeEggResultContext();
   }
+}
+
+// ---------- 孵化全部：一次孵化所有已就绪的蛋 ----------
+// 独立页面 hatchAllView：全部蛋同屏展示（≤6 只一行 3 个、7~8 只一行 4 个，两行居中），
+// 逐个播放破壳动画 → 宝可梦大图 + 名字（依次进行），全部完成后弹底部确认条
+// （同时播放与单只孵化同款的祝贺音效），确认后收起页面回孵蛋器。
+export async function hatchAllFromIncubator() {
+  if (_eggHatching) return;
+  if (phase === 'battle' || phase === 'eggResult') return; // NPC 对战 / 孵蛋结果确认期间仍禁止孵化
+  if (phase !== 'idle' && phase !== 'encounter' && phase !== 'caught' && phase !== 'fled') return;
+  const incubators = gameData.incubators;
+  if (!incubators || !incubators.length) return;
+  const slots = [];
+  for (let i = 0; i < Math.min(incubators.length, 8); i++) {
+    if (incubators[i] && incubators[i].hatched) slots.push(i);
+  }
+  if (!slots.length) return;
+  // 只有一个蛋时走单只孵化路径（复用 hatchView 页面），不进入批量专属页面
+  if (slots.length === 1) {
+    await hatchFromIncubator(slots[0]);
+    return;
+  }
+  suspendEncounterForEgg();
+
+  setEggHatching(true);
+
+  if (charmBuffActive && charmCountdownEnd > Date.now()) {
+    setCharmPausedRemaining(charmCountdownEnd - Date.now());
+    setCharmCountdownEnd(0);
+    if (charmCountdownInterval) { clearInterval(charmCountdownInterval); setCharmCountdownInterval(null); }
+    if (charmExpiryTimer) { clearTimeout(charmExpiryTimer); setCharmExpiryTimer(null); }
+    if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
+  } else if (charmCountdownEnd > 0 && charmCountdownEnd <= Date.now()) {
+    setCharmBuffActive(false);
+    setCharmCountdownEnd(0);
+    clearCharmCountdown();
+  }
+  if (honeyBuffActive && honeyCountdownEnd > Date.now()) {
+    setHoneyPausedRemaining(honeyCountdownEnd - Date.now());
+    setHoneyCountdownEnd(0);
+    if (honeyCountdownInterval) { clearInterval(honeyCountdownInterval); setHoneyCountdownInterval(null); }
+    if (honeyExpiryTimer) { clearTimeout(honeyExpiryTimer); setHoneyExpiryTimer(null); }
+    if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
+  } else if (honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now()) {
+    setHoneyBuffActive(false);
+    setHoneyCountdownEnd(0);
+    clearHoneyCountdown();
+  }
+
+  setPhase('eggResult');
+  showView('hatchAllView');
+
+  // 网格：统一一行 4 个，小格子两行放完（≤4 只一行，5~8 只两行）
+  const view = $('hatchAllView');
+  const grid = $('hatchAllGrid');
+  grid.innerHTML = '';
+
+  const cells = [];
+  for (const slotIdx of slots) {
+    const poke = getPokemonByIndex(incubators[slotIdx].eggIndex);
+    if (!poke) continue;
+    const cell = document.createElement('div');
+    cell.className = 'hatch-all-cell';
+    cell.innerHTML = '<div class="hatch-all-stage"></div><div class="hatch-all-name"></div>';
+    grid.appendChild(cell);
+    cells.push({ slot: slotIdx, poke, eggShiny: !!(incubators[slotIdx].isShiny), stage: cell.firstElementChild, nameEl: cell.lastElementChild });
+  }
+  if (!cells.length) {
+    setEggHatching(false);
+    // 无有效蛋时仍要恢复挂起遭遇 / 回空闲
+    if (restoreSuspendedEncounter()) {
+      renderIncubatorView();
+    } else {
+      const m = await import('./battle.js');
+      m.goIdle();
+    }
+    showView('incubatorView');
+    renderIncubatorView();
+    return;
+  }
+
+  // 依次孵化：每只播放破壳动画 → 大图出现 → 显示名字后立即落库
+  for (let k = 0; k < cells.length; k++) {
+    const { slot, poke, eggShiny, stage, nameEl } = cells[k];
+    await playHatchAllCell(stage, poke, eggShiny, nameEl);
+    applyHatchEntry(slot); // 名字/闪光星标/粒子已随图片在 playHatchAllCell 内同步出现
+    await saveGame(); // 每只完成后落盘，中途崩溃也不丢已孵化结果
+    if (k < cells.length - 1) await delay(180);
+  }
+  await saveGame();
+  updateStats();
+  updateIncubatorBadge();
+  setEggHatching(false);
+
+  // 立即恢复挂起遭遇 / 回空闲：确认离开时只剩纯同步收尾，避免点击后卡住
+  if (restoreSuspendedEncounter()) {
+    // 有挂起遭遇：恢复现场后停留在孵蛋器，玩家稍后回游戏页继续
+  } else {
+    const m = await import('./battle.js');
+    m.goIdle();
+  }
+
+  // 完成后弹确认条（与单只同款祝贺音效），点确定即可离开批量页回孵蛋器。
+  // singleButton 模式：只保留「确定」一个按钮，无需取消
+  playCongratulation();
+  showConfirmBar(`孵化全部完成！共获得 ${cells.length} 只宝可梦`, () => { leaveHatchAllPage(); }, null, { host: view, singleButton: true });
+}
+
+// 单个蛋的完整孵出流程：直接从蛋裂一帧开始快速播放破壳动画 → 宝可梦大图从蛋中心缩放出现
+// nameEl 传入后与图片同步显示名字（闪光时追加雪碧图星标）
+async function playHatchAllCell(stage, poke, eggShiny, nameEl) {
+  // 蛋精灵：与单只孵蛋动画同源（hatch.png 竖排 4 帧）
+  const tmp = new Image();
+  tmp.src = './items/hatch.png';
+  await new Promise(r => { tmp.onload = r; tmp.onerror = r; });
+  const frameW = tmp.naturalWidth;
+  const frameH = tmp.naturalHeight / 4;
+  const displayW = 48;
+  const displayH = displayW * (frameH / frameW);
+  const sprite = document.createElement('div');
+  sprite.className = 'hatch-all-egg';
+  sprite.style.cssText = `
+    background-image: url(./items/hatch.png);
+    background-size: ${displayW}px ${displayH * 4}px;
+    background-position: 0 0;
+    background-repeat: no-repeat;
+    width: ${displayW}px; height: ${displayH}px;
+    image-rendering: pixelated;
+  `;
+  stage.appendChild(sprite);
+
+  // 跳过摇晃帧，直接从蛋裂开始快速连播（帧率高、节奏紧凑）
+  await delay(120);
+  sprite.style.backgroundPosition = `0 -${displayH}px`; // 蛋裂
+  await delay(150);
+  sprite.style.backgroundPosition = `0 -${displayH * 2}px`; // 裂缝更大
+  await delay(160);
+  sprite.style.backgroundPosition = `0 -${displayH * 3}px`; // 破壳
+  await delay(100);
+
+  // 宝可梦大图出现（缩放 + 淡入）。尺寸不设固定值，交给 .hatch-all-stage img 的
+  // max-width/max-height 自适应各列宽高，避免大图溢出格子与邻近内容重叠
+  sprite.remove();
+  const img = document.createElement('img');
+  img.style.opacity = '0';
+  img.style.objectFit = 'contain';
+  stage.appendChild(img);
+  const loaded = await tryLoadPokemonImage(img, poke, eggShiny ? '_shiny' : '');
+  if (!loaded) {
+    img.style.width = '100%';
+    img.style.height = '100%';
+  }
+  img.style.transform = 'translate(-50%, -50%) scale(0)';
+  void img.offsetHeight;
+  // 图片开始放大出场的同时显示名字（闪光追加雪碧图星标）并爆发闪光粒子
+  if (nameEl) {
+    nameEl.textContent = poke.name;
+    if (eggShiny) {
+      nameEl.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;margin-left:2px;"><use xlink:href="#icon-star"/></svg>');
+      burstShinySparkle($('hatchAllView'), stage, { cls: 'sm', scale: 0.9 }); // 以蛋格为爆点同步爆发
+      playShiny(); // 闪光登场音效（批量无需等待，庆祝在全部播完后统一播放）
+    }
+  }
+  const dur = 250;
+  await animate(dur, t => {
+    img.style.transform = `translate(-50%, -50%) scale(${t < 0.15 ? t / 0.15 : 1})`;
+    img.style.opacity = t < 0.2 ? t / 0.2 : 1;
+  });
+  img.style.transform = '';
+}
+
+// 离开孵化全部页：批量动画播完后恢复遭遇/回空闲已在 hatchAllFromIncubator 内完成，
+// 此处仅收起确认条并回孵蛋器（纯同步收尾，确认后立即生效）
+export function leaveHatchAllPage() {
+  if (_eggHatching) return; // 动画进行中锁定（goBack 触达处已被导航锁拦截，双保险）
+  hideConfirmBar();
+  stopCongratulation();
+  showView('incubatorView');
+  renderIncubatorView();
 }
 
 export async function doCandyExchange(itemKey, qty = 1) {

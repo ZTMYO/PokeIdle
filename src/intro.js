@@ -104,6 +104,7 @@ function renderTileScene() {
 let _onDone = null;
 let _step = 0; // 0=选角色；1..SCRIPT.length=逐句剧情；之后为询问句
 let _choiceOpen = false; // 询问句按钮已显示（替代三角箭头）
+let _birchTimer = null;  // 小田卷走位后亮箭头的延时定时器，快速连点时需清理避免箭头残留
 
 export function startIntro(onDone) {
   _onDone = onDone;
@@ -261,6 +262,11 @@ function hideIntroText() {
 }
 
 function showNextLine() {
+  if (_birchTimer) {
+    clearTimeout(_birchTimer);
+    _birchTimer = null;
+    $('textBoxArrow').style.display = 'none';
+  }
   if (_step > SCRIPT.length + 1) return;
   if (_step <= SCRIPT.length) {
     if (_step === CHOICE_LINE) {
@@ -296,7 +302,8 @@ function birchStepForward() {
   void wrap.offsetHeight;
   wrap.style.transition = 'left 1.1s linear';
   wrap.style.left = '38%';
-  setTimeout(() => {
+  _birchTimer = setTimeout(() => {
+    _birchTimer = null;
     b.style.animation = 'none';
     b.style.backgroundPosition = '75% 0';
     $('textBoxArrow').style.display = 'flex';

@@ -1464,45 +1464,70 @@ function syncAdvFilterUi() {
     if (active) {
       bar.innerHTML = advFilterBadges(_advFilter)
         + '<a class="adv-bar-clear" id="advBarClear">清除筛选</a>';
-      const clearBtn = bar.querySelector('#advBarClear');
-      if (clearBtn) clearBtn.addEventListener('click', () => {
-        _advFilter = null;
+      // 点击单个条件 tag 即移除该筛选；点击「清除筛选」移除全部（onclick 覆盖式绑定，避免多次重建累积监听）
+      bar.onclick = (e) => {
+        const chipEl = e.target.closest('.adv-bar-chip');
+        const clearEl = e.target.closest('#advBarClear');
+        if (chipEl && _advFilter) removeAdvBadge(_advFilter, chipEl.dataset.key);
+        if (chipEl && _advFilter && advIsEmpty(_advFilter)) _advFilter = null;
+        if (!chipEl && !clearEl) return;
+        if (clearEl) _advFilter = null;
         syncAdvFilterUi();
         renderList();
-      });
+      };
+    } else {
+      bar.onclick = null;
     }
   }
 }
 
+// 移除单个筛选条件字段；等级/个体值是数值输入，重置为默认（不限）而非删除，
+// 否则 currentFilterPool 的 `!== ''` 判断会把 undefined 转成 NaN 过滤掉全部个体
+function removeAdvBadge(F, k) {
+  if (k === 'type') F.type = [];
+  else if (k === 'lv') { F.lvMin = 0; F.lvMax = 100; }
+  else if (k === 'iv') { F.ivMin = 0; F.ivMax = 186; }
+  else delete F[k];
+}
+
+// 所有条件均为默认/不限时视为空筛选：恢复到未启用状态
+function advIsEmpty(F) {
+  return !(F.poke || F.q || F.legend || F.shiny || F.variant || F.src || F.gender
+    || (F.type && F.type.length) || F.region
+    || (Number(F.lvMin) > 0) || (Number(F.lvMax) < 100)
+    || (Number(F.ivMin) > 0) || (Number(F.ivMax) < 186));
+}
+
+// 高级筛选条件预览条：每个 tag 可点击单独移除（data-key 标识来源字段）
 const ADV_SRC_NAMES = { normal: '野生', mass: '大量出没', twist: '时空扭曲', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
 function advFilterBadges(F) {
   const parts = [];
   if (F.poke) {
     const poke = getPokemonByIndex(String(F.poke));
-    parts.push(poke ? (poke.form || poke.name) : F.poke);
-  } else if (F.q) parts.push(F.q);
-  if (F.legend === 'normal') parts.push('普通');
-  if (F.legend === 'legend') parts.push('神兽');
-  if (F.shiny === 'normal') parts.push('非闪光');
-  if (F.shiny === 'shiny') parts.push('闪光');
-  if (F.variant === 'none') parts.push('无特效');
-  if (F.variant === 'rgb') parts.push('RGB');
-  if (F.variant === 'polluted') parts.push('污染');
-  if (F.src) parts.push(ADV_SRC_NAMES[F.src] || F.src);
-  if (F.type && F.type.length) parts.push(F.type.join('+'));
-  if (F.region) parts.push(F.region);
+    parts.push({ k: 'poke', t: poke ? (poke.form || poke.name) : F.poke });
+  } else if (F.q) parts.push({ k: 'q', t: F.q });
+  if (F.legend === 'normal') parts.push({ k: 'legend', t: '普通' });
+  if (F.legend === 'legend') parts.push({ k: 'legend', t: '神兽' });
+  if (F.shiny === 'normal') parts.push({ k: 'shiny', t: '非闪光' });
+  if (F.shiny === 'shiny') parts.push({ k: 'shiny', t: '闪光' });
+  if (F.variant === 'none') parts.push({ k: 'variant', t: '无特效' });
+  if (F.variant === 'rgb') parts.push({ k: 'variant', t: 'RGB' });
+  if (F.variant === 'polluted') parts.push({ k: 'variant', t: '污染' });
+  if (F.src) parts.push({ k: 'src', t: ADV_SRC_NAMES[F.src] || F.src });
+  if (F.type && F.type.length) parts.push({ k: 'type', t: F.type.join('+') });
+  if (F.region) parts.push({ k: 'region', t: F.region });
   const lvMin = Number(F.lvMin), lvMax = Number(F.lvMax);
   const lv = [];
   if (!isNaN(lvMin) && lvMin > 0) lv.push(`≥${lvMin}`);
   if (!isNaN(lvMax) && lvMax < 100) lv.push(`≤${lvMax}`);
-  if (lv.length) parts.push(`等级${lv.join(' ')}`);
+  if (lv.length) parts.push({ k: 'lv', t: `等级${lv.join(' ')}` });
   const ivMin = Number(F.ivMin), ivMax = Number(F.ivMax);
   const iv = [];
   if (!isNaN(ivMin) && ivMin > 0) iv.push(`≥${ivMin}`);
   if (!isNaN(ivMax) && ivMax < 186) iv.push(`≤${ivMax}`);
-  if (iv.length) parts.push(`个体值${iv.join(' ')}`);
-  if (F.gender) parts.push(F.gender === 'male' ? '雄性' : F.gender === 'female' ? '雌性' : '无性');
-  return parts.map(t => `<span class="adv-bar-chip">${t}</span>`).join('');
+  if (iv.length) parts.push({ k: 'iv', t: `个体值${iv.join(' ')}` });
+  if (F.gender) parts.push({ k: 'gender', t: F.gender === 'male' ? '雄性' : F.gender === 'female' ? '雌性' : '无性' });
+  return parts.map(b => `<span class="adv-bar-chip" data-key="${b.k}">${b.t}</span>`).join('');
 }
 
 // ===== 批量放生 =====
@@ -1650,6 +1675,7 @@ function releasePokemon(id) {
     nick: p.nickname || '',
     prompt: '确定要放生吗？',
     shiny: !!p.shiny,
+    variant: p.variant || null,
     twoStep: true, // 两阶段：确认后先「再见！」+ 图标缩小，动画结束后自动展示返还经验提示
     title: '放生', // 顶部标题显示「放生」，点击标题等同于取消
     // 点击「确定」的瞬间立即提交：移除个体 + 结算返还经验并产糖 + 存档。

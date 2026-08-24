@@ -96,9 +96,9 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
-    metric: () => dexCount(), base: 10, reward: 30, maxTiers: 7,
+    metric: () => dexCount(), base: 10, reward: 30, maxTiers: 8,
     // 满级阈值对齐当前全图鉴 1403 种，最后一级 1403
-    tiers: [10, 20, 50, 100, 200, 500, 1403],
+    tiers: [10, 20, 50, 100, 200, 500, 1000, 1403],
     // 不改 formatNum：避免 1.3K 缩写，图鉴进度显示具体数字
     fmt: v => `${Number(v)} 种`,
   },

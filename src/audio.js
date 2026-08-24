@@ -315,14 +315,17 @@ export function playLevelUp() { playSfx(SFX.levelUp); }
 // 闪光宝可梦登场音效：短促一声、单独 Audio 叠加不打断背景音乐；
 // 归类「音效」开关（_sfxEnabled）控制，独立于音乐/战斗音乐开关
 // splash 动画期间调用时不丢弃：记下待补播标记，等 splash 结束（背景曲同时恢复）再补播
+// 音量在总音量基础上提响一档（闪光登场是重要提示音，0.6 常见设置下会被背景曲盖住）
+// 返回创建的 Audio 实例（splash 锁定或音效关闭时返回 null），供调用方等待播完再衔接后续声音
 let _pendingShiny = false;
 export function playShiny() {
-  if (!_sfxEnabled) return;
-  if (_splashLocked) { _pendingShiny = true; return; } // splash 期间禁声，结束后补播
+  if (!_sfxEnabled) return null;
+  if (_splashLocked) { _pendingShiny = true; return null; } // splash 期间禁声，结束后补播
   _pendingShiny = false;
   const a = new Audio(urlFor(SFX.shiny));
-  a.volume = _volume;
+  a.volume = Math.min(1, _volume * 1.5);
   a.play().catch(() => {});
+  return a;
 }
 
 // 消费并播放待补播的闪光提示音（splash 结束时由 setSplashLocked(false) 调用）
@@ -331,7 +334,7 @@ function flushPendingShiny() {
   _pendingShiny = false;
   if (!_sfxEnabled) return;
   const a = new Audio(urlFor(SFX.shiny));
-  a.volume = _volume;
+  a.volume = Math.min(1, _volume * 1.5);
   a.play().catch(() => {});
 }
 

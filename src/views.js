@@ -335,12 +335,12 @@ export function showAchievementView() {
 export function renderSystemLogs() {
   const logs = gameData.systemLogs || [];
   const sorted = [...logs].reverse();
-  // 日志只存宝可梦编号，名字从图鉴数据查表
+  // 日志只存宝可梦编号，名字从图鉴数据查表；有形态显示全称（如 地鼠-阿罗拉），无形态显示本体名
   const logName = log => {
     const n = log.details?.pokemon;
     if (n == null) return log.details?.name || '';
     const p = getPokemonByIndex(n);
-    return p ? p.name : '#' + n;
+    return p ? (p.form || p.name) : '#' + n;
   };
 
   const content = $('systemLogContent');
@@ -812,13 +812,15 @@ export function showSettingsView() {
   showView('settingsView');
 }
 
-// 捕捉条件表格：遇敌类型 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏）
-// 优先级：神兽/神兽闪 > 普通/普通闪 >可悬赏；可悬赏行只作用于非神兽遭遇
+// 捕捉条件表格：遇敌类型 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 时空扭曲）
+// 优先级：时空扭曲 > 神兽/神兽闪 > 普通/普通闪 > 可悬赏；时空扭曲行接管该事件全部遭遇
+// 行顺序即优先级，与 battle.js catchFilterResult 的判断次序保持一致
 const CF_ROWS = [
-  { key: 'normal', label: '普通' },
-  { key: 'normalShiny', label: '普通闪' },
+  { key: 'twist', label: '时空扭曲' },
   { key: 'legend', label: '神兽' },
   { key: 'legendShiny', label: '神兽闪' },
+  { key: 'normal', label: '普通' },
+  { key: 'normalShiny', label: '普通闪' },
   { key: 'bounty', label: '可悬赏' },
 ];
 const CF_ACTIONS = [
@@ -863,12 +865,15 @@ export function renderSettings(container, s) {
           <input type="text" class="filter-lv-input cf-lv-input" data-row="${key}" data-lv="max" inputmode="numeric" autocomplete="off" maxlength="2" value="${r.levelMax || 20}" />
         </div>
       </td>` : `<td class="cf-cell lv${dim}">—</td>`;
+    // 未拥有仅在「捕捉」策略下生效：非捕捉行显示 —，避免误以为勾选对暂停/逃跑有影响
+    const uncaughtCell = (r.action === 'catch') ? `
+      <td class="cf-cell uncaught ${r.uncaughtOnly ? 'on' : ''}" data-row="${key}">${r.uncaughtOnly ? '☑' : '☐'}</td>` : `<td class="cf-cell uncaught${dim}">—</td>`;
     return `
       <tr data-row="${key}">
         <th class="cf-row-label">${label}</th>
         ${actCells}
         ${lvCell}
-        <td class="cf-cell uncaught ${r.uncaughtOnly ? 'on' : ''}${dim}" data-row="${key}">${r.uncaughtOnly ? '☑' : '☐'}</td>
+        ${uncaughtCell}
       </tr>`;
   }).join('');
   container.innerHTML = `
@@ -1129,7 +1134,6 @@ export function renderSettings(container, s) {
       a.download = 'pokemon-idle-save.json';
       a.click();
       URL.revokeObjectURL(url);
-      addSystemLog('export', { path: 'download' });
       updateTextBox('存档已导出');
       btn.textContent = '已导出 ✓';
       setTimeout(() => { btn.textContent = '导出'; }, 2500);
@@ -1138,7 +1142,6 @@ export function renderSettings(container, s) {
     btn.textContent = '导出中…';
     try {
       const path = await window.__TAURI__.core.invoke('export_save_data', { data: JSON.stringify(gameData) });
-      addSystemLog('export', { path });
       updateTextBox('存档已导出');
       btn.textContent = '已导出 ✓';
     } catch (e) {
@@ -1214,7 +1217,6 @@ export function renderSettings(container, s) {
     setGameData(imported);
     ensureGpsState();
     saveGame().then(() => {
-      addSystemLog('import');
       updateTextBox('存档导入成功，即将刷新');
       const b = container.querySelector('#importSaveBtn');
       if (b) b.textContent = '已导入 ✓';
@@ -1376,7 +1378,7 @@ function ensureSettings() {
     };
   }
   // 各行字段兜底 + 等级收敛
-  for (const k of ['normal', 'normalShiny', 'legend', 'legendShiny', 'bounty']) {
+  for (const k of ['twist', 'normal', 'normalShiny', 'legend', 'legendShiny', 'bounty']) {
     const r = gameData.settings.catchFilter.rows[k] = gameData.settings.catchFilter.rows[k] || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
     if (!['catch', 'stop', 'flee'].includes(r.action)) r.action = 'catch';
     r.levelMin = Math.max(0, Math.min(20, Number(r.levelMin) || 0));
@@ -1800,6 +1802,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>主页打开<b>农场</b>，点击空地种下树果种子（消耗 <b>${FARM_PLANT_COST}</b> 糖果）。</p>`
       + `<p>刚种下<b>湿度</b>为 <b>0</b>，点击<b>浇水</b>才会生长；湿度随时间下降（每 <b>${Math.round(1 / FARM_WATER_DROP)}</b> 秒降 <b>1</b> 点，满湿度可撑 <b>${Math.round(FARM_MAX_WATER / FARM_WATER_DROP / 60)}</b> 分钟），归 <b>0</b> 停止生长，需及时补浇。</p>`
       + `<p>历经刚种下→发芽→成长→开花结果后成熟（每棵 <b>${Math.round(FARM_MATURE_MIN / 60000)}~${Math.round(FARM_MATURE_MAX / 60000)}</b> 分钟随机），点击收获得 <b>${FARM_HARVEST_MIN}~${FARM_HARVEST_MAX}</b> 颗树果。</p>`
+      + `<p>右键生长的植物可<b>铲除</b>，回收地块重新种植。</p>`
       + `<p>收获的树果存入库存（点田地左上角库存箱查看）；库存的树果不能当种子，种地只能另买新种子。</p>`
       + `<p>点田地右上角告示牌查看树果委托（每天刷新 <b>${FARM_BOARD_DEMANDS}</b> 条，其中 <b>1</b> 条为大量需求 <b>${FARM_BOARD_BIG_QTY_MIN}~${FARM_BOARD_BIG_QTY_MAX}</b> 颗、<b>1</b> 条为巨量需求 <b>${FARM_BOARD_MEGA_QTY_MIN}~${FARM_BOARD_MEGA_QTY_MAX}</b> 颗，需专门种植较久；需求越多报酬越高）。也可以在此面板招募帮手（详见「<b>招募帮手</b>」章节）。</p>`,
   },  

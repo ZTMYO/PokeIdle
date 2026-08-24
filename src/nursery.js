@@ -79,6 +79,7 @@ let _pickRegionFilter = '';   // 放入列表地区筛选
 let _pickIvSel = [];        // 放入列表个体值多选：[{stat,min}]，全部条件需同时满足（AND）
 let _eggView = false;         // 蛋仓库视图
 let _confirmTakeSlot = -1;    // 双击取出：第一次点击进入待确认的槽位（-1=无）
+let _confirmDiscardEgg = null; // 两次点击丢弃：第一次点击进入待确认的蛋 id（null=无）
 let _eggQuery = '';           // 蛋搜索关键词
 let _eggSortBy = null;    // 蛋列表排序列：null=默认按时间降序 | name | iv
 let _eggSortDir = -1;     // 1 升序 / -1 降序
@@ -1605,6 +1606,7 @@ function startTimer() {
 // ---------- 蛋仓库 ----------
 function openEggView() {
   _eggView = true;
+  _confirmDiscardEgg = null; // 新打开蛋仓库不残留上次的待确认丢弃态
   _eggQuery = '';
   const content = $('nurseryContent');
   if (content) { content.style.display = 'flex'; content.style.flexDirection = 'column'; }
@@ -1617,21 +1619,21 @@ function openEggView() {
 }
 
 function discardEgg(id) {
-  showConfirmBar(
-    '确定丢弃这枚蛋吗？',
-    () => { // 确定
-      const arr = gameData.roster || [];
-      for (let i = arr.length - 1; i >= 0; i--) {
-        if (arr[i].id === id && !isPokemon(arr[i])) {
-          arr.splice(i, 1);
-          saveGame();
-          renderEggView();
-          return;
-        }
-      }
-    },
-    null // 取消
-  );
+  if (_confirmDiscardEgg !== id) {
+    _confirmDiscardEgg = id;
+    renderEggView();
+    return;
+  }
+  _confirmDiscardEgg = null; // 先清待确认态，再执行丢弃（蛋不存在/非蛋时也恢复按钮文案）
+  const arr = gameData.roster || [];
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (arr[i].id === id && !isPokemon(arr[i])) {
+      arr.splice(i, 1);
+      saveGame();
+      break;
+    }
+  }
+  renderEggView();
 }
 
 function removeEggConfirmBar() {
@@ -1642,6 +1644,12 @@ export function renderEggView() {
   const box = $('nurseryContent');
   if (!box) return;
   const eggs = (gameData.roster || []).filter(p => p.inRoster && !isPokemon(p));
+  // 待确认丢弃的蛋若已不存在（已丢弃/被取走）或已进入孵化中（不可丢弃），自动清除待确认态
+  if (_confirmDiscardEgg) {
+    const eg = (gameData.roster || []).find(p => p.id === _confirmDiscardEgg);
+    const incubating = (gameData.incubators || []).some(s => s && s.eggRef === _confirmDiscardEgg);
+    if (!eg || isPokemon(eg) || incubating) _confirmDiscardEgg = null;
+  }
   // 搜索过滤
   let filtered = eggs;
   if (_eggQuery) {
@@ -1674,11 +1682,11 @@ export function renderEggView() {
   function isIncubating(id) {
     return (gameData.incubators || []).some(s => s && s.eggRef === id);
   }
-  // 蛋行丢弃按钮：孵化中显示「孵化中」并禁用
+  // 蛋行丢弃按钮：孵化中显示「孵化中」并禁用；待确认丢弃显示「确认」
   function eggDiscardCell(eg) {
     return isIncubating(eg.id)
       ? '<span class="bounty-trade-btn-col"><button class="bounty-trade-btn" disabled>孵化中</button></span>'
-      : `<span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">丢弃</button></span>`;
+      : `<span class="bounty-trade-btn-col"><button class="bounty-trade-btn" data-discard="${eg.id}">${_confirmDiscardEgg === eg.id ? '确认' : '丢弃'}</button></span>`;
   }
 
   // 检查是否已有完整页面，有则只增量更新列表和表头（避免销毁搜索框导致失焦）
@@ -1804,6 +1812,7 @@ export function isNurseryEggView() {
 // 标题栏返回：退出蛋仓库，回饲育屋场地
 export function leaveNurseryEggView() {
   _eggView = false;
+  _confirmDiscardEgg = null; // 退出蛋仓库清除待确认丢弃态
   removeEggConfirmBar();
   const content = $('nurseryContent');
   if (content) { content.style.display = ''; content.style.flexDirection = ''; }

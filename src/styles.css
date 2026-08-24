@@ -397,6 +397,9 @@ body.browser-mode { overflow: auto; }
 /* === 时空扭曲外观变体（RGB 分离 / 污染宝可梦）===
    仅外观特效，宝可梦功能与普通个体完全相同 */
 .fx-variant-rgb {
+  /* 强制独立合成层：滤镜对整层一次性应用，避免 GIF 动画逐帧重采样导致边缘重影频闪 */
+  will-change: filter;
+  transform: translateZ(0);
   filter:
     drop-shadow(3px 0 0 rgba(255, 0, 80, .65))
     drop-shadow(-3px 0 0 rgba(0, 220, 255, .65));
@@ -1544,6 +1547,76 @@ body.browser-mode { overflow: auto; }
 /* 孵化出现动画：从蛋中心放大 */
 .hatch-appear {
   transition: transform 0.35s ease-out, opacity 0.25s ease-out;
+}
+
+/* === 孵化全部（批量孵蛋独立页） === */
+#hatchAllView {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+/* 孵化全部网格：固定 4 列小格子，8 个必然 2 行×4；数量不足时整体水平居中 */
+.hatch-all-grid {
+  display: grid;
+  grid-template-columns: repeat(4, clamp(56px, 16vw, 72px));
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+.hatch-all-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 92px;
+}
+.hatch-all-stage {
+  position: relative;
+  width: 100%;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hatch-all-stage .hatch-all-egg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  image-rendering: pixelated;
+}
+.hatch-all-stage img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - 2px);
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  image-rendering: pixelated;
+}
+.hatch-all-name {
+  height: 12px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .star-particle {
@@ -4823,6 +4896,8 @@ body.browser-mode { overflow: auto; }
 }
 /* 详情小图上 RGB 重影收窄：通用偏移（3px）按小图比例过大，会糊成一片 */
 .roster-detail-head .poke-img-grid img.fx-variant-rgb {
+  will-change: filter;
+  transform: translateZ(0);
   filter:
     drop-shadow(1.5px 0 0 rgba(255, 0, 80, .65))
     drop-shadow(-1.5px 0 0 rgba(0, 220, 255, .65));
@@ -9924,6 +9999,11 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
   max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer; /* 单个条件可点击移除 */
+}
+.adv-bar-chip:hover {
+  background: rgba(var(--ui-color-rgb), 0.12);
+  color: var(--ui-color-dark);
 }
 .adv-bar-clear {
   display: inline-block;

@@ -620,6 +620,7 @@ function doTrade(offerId, rid) {
     poke: getPokemonByIndex(String(p.species)),
     prompt: `和${npc.name}交换吗？`,
     shiny: !!p.shiny,
+    variant: p.variant || null,
     onConfirm: () => {
       const arr = gameData.roster || [];
       const ri = arr.findIndex(r => r.id === rid);
@@ -675,6 +676,7 @@ function doTrade(offerId, rid) {
       showTradeReceive({
         poke: givePoke,
         shiny: !!o.give.shiny,
+        variant: o.give.variant || null,
         isNew,
         wasOwned,
         onYes: () => {

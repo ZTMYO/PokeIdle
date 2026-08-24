@@ -1,6 +1,6 @@
 // ===== 农场 =====
 // 6 块田地按真实时间生长；生长/湿度由 Date.now() 折算并随存档持久化（gameData.berryFarm）
-import { $, showView, tryLoadImage, getCharPrefix, updateStats } from './ui.js';
+import { $, showView, tryLoadImage, getCharPrefix, updateStats, logicViewport } from './ui.js';
 import { gameData, pushNav, saveGame, randInt, addSystemLog } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { setupFoodTooltip } from './ui.js';
@@ -358,6 +358,58 @@ function bindPlot(plotEl) {
     const prog = $('berryProgress');
     if (prog) prog.style.display = 'none';
   });
+  // 右键已种植地块：在植物下方弹出「铲除」菜单；空地不弹
+  plotEl.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeUprootMenu();
+    closePicker();
+    closeBoard();
+    closeStock();
+    const i = Number(plotEl.dataset.plot);
+    if (!ensureBerryFarm().plots[i]) return;
+    showUprootMenu(plotEl);
+  });
+}
+
+// 铲除菜单：复用一个「铲除」项，定位到植物正下方（越界自动收进可视区）
+let _uprootMenu = null;
+function showUprootMenu(plotEl) {
+  const menu = document.createElement('div');
+  menu.className = 'shop-ctx-menu';
+  menu.style.transform = 'translateX(0)'; // 收掉默认横向偏移，垂直对齐植物
+  menu.innerHTML = `<div class="shop-ctx-item" data-uproot>铲除</div>`;
+  document.body.appendChild(menu);
+  _uprootMenu = menu;
+  const rect = plotEl.getBoundingClientRect();
+  menu.style.visibility = 'hidden'; // 先隐藏测量尺寸
+  menu.style.display = 'block';
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  const { x: cx, y: cy, w: vw, h: vh } = logicViewport(rect.left + rect.width / 2, rect.bottom);
+  menu.style.visibility = '';
+  menu.style.left = Math.max(0, Math.min(cx - mw / 2, vw - mw - 4)) + 'px';
+  menu.style.top = Math.max(0, Math.min(cy + 2, vh - mh - 4)) + 'px';
+  menu.onclick = (e) => {
+    if (!e.target.closest('[data-uproot]')) return;
+    const i = Number(plotEl.dataset.plot);
+    closeUprootMenu();
+    if (ensureBerryFarm().plots[i]) {
+      ensureBerryFarm().plots[i] = null;
+      saveGame();
+      updatePlotDom(i);
+      notifyBerryChanged();
+    }
+  };
+  // 点击其它位置或再次右键时关闭
+  setTimeout(() => document.addEventListener('click', closeUprootMenu, { once: true }), 0);
+  document.addEventListener('contextmenu', closeUprootMenu, { once: true });
+}
+
+function closeUprootMenu() {
+  if (_uprootMenu) {
+    _uprootMenu.remove();
+    _uprootMenu = null;
+  }
 }
 
 function bindEvents(el) {

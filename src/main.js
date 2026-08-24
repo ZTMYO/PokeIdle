@@ -227,6 +227,12 @@ function goBack() {
     showView('incubatorView');
     return;
   }
+  // 孵化全部独立页（appTitle 显示"孵化全部"）：动画进行中锁定不可退出；
+  // 全部播完（确认条已弹）时点返回 = 确认离开，回孵蛋器页面（未压栈）
+  if ($('hatchAllView')?.style.display === 'flex') {
+    import('./items.js').then(m => m.leaveHatchAllPage());
+    return;
+  }
   // 放入蛋独立页：点击标题栏返回孵蛋器
   if ($('incubatorEggView')?.style.display === 'flex') { closeIncubatorEggView(); return; }
   // 战斗替换选择页（teamView）：主动替换 → 取消选择回战斗操作界面；倒下换人 → 直接撤退回对战列表
@@ -332,6 +338,7 @@ const isModalLocked = () =>
   $('goodbyeView')?.style.display === 'flex' ||
   $('dispatchResultView')?.style.display === 'flex' ||
   $('hatchView')?.style.display === 'flex' ||
+  $('hatchAllView')?.style.display === 'flex' ||
   $('expCandyView')?.style.display === 'flex' ||
   (isBatchReleasing() && $('rosterView')?.style.display === 'flex');
 

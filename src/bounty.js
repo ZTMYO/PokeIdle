@@ -402,6 +402,7 @@ function submitTrade(rid) {
     poke,
     prompt: '确定要提交吗？',
     shiny: !!p.shiny,
+    variant: p.variant || null,
     onConfirm: () => {
       const arr = gameData.roster || [];
       const ri = arr.findIndex(r => r.id === rid);
