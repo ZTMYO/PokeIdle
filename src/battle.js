@@ -1122,7 +1122,8 @@ export function setAbortAutoCatch() { _abortAutoCatch = true; }
 function pickAutoBallType(availableBalls) {
   const cr = currentEncounter?.catchRate ?? 1;
   const shinyMaster = !!gameData.settings?.shinyMasterBall && !!currentIsShiny;
-  const preferred = (shinyMaster || currentEncounter?.legend)
+  const variantMaster = !!gameData.settings?.variantMasterBall && !!_encounterVariant;
+  const preferred = (shinyMaster || variantMaster || currentEncounter?.legend)
     ? ['master-ball', 'ultra-ball', 'poke-ball']
     : cr <= 0.2
     ? ['master-ball', 'ultra-ball', 'poke-ball']
@@ -1155,14 +1156,14 @@ function evalCatchRow(row, skipLevel = false) {
 }
 
 // 遇敌过滤（设置-捕捉条件表格）：返回 'catch'（照常捕捉）| 'stop'（暂停自动操作等手动）| 'flee'（直接逃跑）
-// 六类策略：普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 时空扭曲，各自独立选择 捕捉/暂停/逃跑，
+// 六类策略：普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 特效，各自独立选择 捕捉/暂停/逃跑，
 // 并各自带等级范围（0=不限制）与「仅捕捉未拥有过的」（普通看仓库非闪个体、闪光看仓库闪光个体）。
-// 优先级：时空扭曲 > 神兽/神兽闪 > 普通/普通闪 > 可悬赏。时空扭曲行接管该事件全部遭遇（含神兽/闪光）；
+// 优先级：特效 > 神兽/神兽闪 > 普通/普通闪 > 可悬赏。特效行接管该事件全部遭遇（含神兽/闪光）；
 // 神兽按类型行硬约束判定；普通遭遇命中今日悬赏时，先由普通/普通闪行裁决，放行捕捉后才轮到可悬赏行兜底。
 export function catchFilterResult() {
   const f = gameData.settings?.catchFilter || {};
   const rows = f.rows || {};
-  // 时空扭曲专属行（最高优先级）：事件内普通/神兽/闪光一律按此行裁决，不再受普通/神兽行与等级/未捕获约束
+  // 特效（时空扭曲事件）专属行（最高优先级）：事件内普通/神兽/闪光一律按此行裁决，不再受普通/神兽行与等级/未捕获约束
   if (_encounterSource === 'twist') {
     return evalCatchRow(rows.twist || { action: 'catch', levelMin: 0, levelMax: 0, uncaughtOnly: false });
   }

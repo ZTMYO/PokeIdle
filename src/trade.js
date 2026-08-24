@@ -45,6 +45,10 @@ const NPCS = [
   { id: 'imiti', name: '伊美蒂' }, // 彩蛋 NPC：与 ZTMYO 同概率出现在交易市场，只给百变怪（10% 概率 6V）
 ];
 const IV_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+// 个体值总和（六项之和，0~186），用于列表排序
+function ivTotal(ivs) {
+  return ivs ? IV_KEYS.reduce((a, k) => a + (ivs[k] || 0), 0) : 0;
+}
 const IV_LABELS = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: '特防', spe: '速度' };
 // 性格 tooltip 文案：与仓库详情页一致（NATURES 下标 1攻 2防 3特攻 4特防 5速）
 const _NATURE_STAT_CN = ['HP', '攻击', '防御', '特攻', '特防', '速度'];
@@ -318,7 +322,8 @@ export function renderTrade() {
   // 滚动位置由各入口（进入子页面滚顶 / 返回列表恢复）控制，这里不干预
   if (_tradeDetail) { renderGiveDetail(content, _tradeDetail); return; }
   if (_tradeMode) { renderSelect(content, _tradeMode); return; }
-  const offers = gameData.trades.offers.filter(o => !o.traded); // 已交换的条目直接隐藏
+  const offers = [...gameData.trades.offers.filter(o => !o.traded)] // 已交换的条目直接隐藏
+    .sort((a, b) => ivTotal(b.give.ivs) - ivTotal(a.give.ivs)); // 个体值高的排前面，一眼看到最强的
   content.innerHTML = `
     <div id="tradeRefreshTip">距离下一波刷新：${refreshText()}</div>
     <div class="trade-list">${offers.map(offerCard).join('')}</div>`;

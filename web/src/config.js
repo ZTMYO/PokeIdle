@@ -45,7 +45,7 @@ export const CATCH_BONUS_INC = 0.10;
 export const CANDY_EXCHANGE = {
   'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 500,
   'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 1000,
-  'bike': 200, // 自行车：赶路工具（骑行路段也能免费获得，商店是保底渠道）
+  'bike': 170, // 自行车：赶路工具（骑行路段也能免费获得，商店是保底渠道）
 };
 
 // 商店出售回收比例：出售价 = 兑换价 × 该比例（四舍五入），低于半价防止倒卖刷糖
@@ -403,9 +403,9 @@ export const DISPATCH_TYPE_BOOST = {
 // 道具单件价值（糖果价体系）：道具数量 = 价值预算 ÷ 单价，便宜的多、贵重的少
 export const DISPATCH_ITEM_VALUE = {
   'poke-ball': 10, 'ultra-ball': 25, 'sweet-honey': 40, 'exp-candy': 40,
-  'mystery-egg': 100, 'bike': 200, 'master-ball': 500, 'shiny-charm': 1000,
+  'mystery-egg': 100, 'bike': 170, 'master-ball': 500, 'shiny-charm': 1000,
 };
-// 单种道具单次派遣的掉落上限（贵重道具限 1，防止单种爆量）
+// 单种道具单次派遣的掉落上限（贵重道具限 1，防单种爆量；自行车 170 单价 2 辆 340 < 24h 预算 360 可承受）
 export const DISPATCH_ITEM_CAP = {
   'poke-ball': 10, 'ultra-ball': 5, 'sweet-honey': 4, 'exp-candy': 4,
   'mystery-egg': 2, 'bike': 2, 'master-ball': 1, 'shiny-charm': 1,
