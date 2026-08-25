@@ -132,7 +132,7 @@
         ],
         "pinyin": "MiaoWaHua",
         "pinyinInitials": "MWH",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "种子宝可梦",
         "description": "它背上开出的大花 能够吸收太阳光 并将其转换为能量。",
         "height": 20,
@@ -145,7 +145,7 @@
             120,
             80
         ],
-        "rarity": 0.7054,
+        "rarity": 0.7554,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -173,7 +173,7 @@
         ],
         "pinyin": "MiaoWaHua",
         "pinyinInitials": "MWH",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "种子宝可梦",
         "description": "它背上开出的大花 能够吸收太阳光 并将其转换为能量。",
         "height": 20,
@@ -186,7 +186,7 @@
             100,
             80
         ],
-        "rarity": 0.7054,
+        "rarity": 0.7554,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -335,7 +335,7 @@
         ],
         "pinyin": "PenHuoLong",
         "pinyinInitials": "PHL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "火焰宝可梦",
         "description": "从口中喷出灼热的火焰时，尾巴尖端的红色火焰 会燃烧得更加猛烈。",
         "height": 17,
@@ -348,7 +348,7 @@
             115,
             100
         ],
-        "rarity": 0.7142,
+        "rarity": 0.7642,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -375,7 +375,7 @@
         ],
         "pinyin": "PenHuoLong",
         "pinyinInitials": "PHL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "火焰宝可梦",
         "description": "从口中喷出灼热的火焰时，尾巴尖端的红色火焰 会燃烧得更加猛烈。",
         "height": 17,
@@ -388,7 +388,7 @@
             85,
             100
         ],
-        "rarity": 0.7142,
+        "rarity": 0.7642,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -416,7 +416,7 @@
         ],
         "pinyin": "PenHuoLong",
         "pinyinInitials": "PHL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "火焰宝可梦",
         "description": "从口中喷出灼热的火焰时，尾巴尖端的红色火焰 会燃烧得更加猛烈。",
         "height": 17,
@@ -429,7 +429,7 @@
             85,
             100
         ],
-        "rarity": 0.7142,
+        "rarity": 0.7642,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -573,7 +573,7 @@
         ],
         "pinyin": "ShuiJianGui",
         "pinyinInitials": "SJG",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "甲壳宝可梦",
         "description": "一旦锁定了目标，它会以超越了消防 水枪的力道来喷水。",
         "height": 16,
@@ -586,7 +586,7 @@
             115,
             78
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -613,7 +613,7 @@
         ],
         "pinyin": "ShuiJianGui",
         "pinyinInitials": "SJG",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "甲壳宝可梦",
         "description": "一旦锁定了目标，它会以超越了消防 水枪的力道来喷水。",
         "height": 16,
@@ -626,7 +626,7 @@
             105,
             78
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -772,7 +772,7 @@
         ],
         "pinyin": "BaDaDie",
         "pinyinInitials": "BDD",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "蝴蝶宝可梦",
         "description": "仔细观察那对大眼睛的话，会发现其实是许许多多小眼睛 聚集在一起形成的。",
         "height": 11,
@@ -785,7 +785,7 @@
             80,
             70
         ],
-        "rarity": 0.579,
+        "rarity": 0.629,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -931,7 +931,7 @@
         ],
         "pinyin": "DaZhenFeng",
         "pinyinInitials": "DZF",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "毒蜂宝可梦",
         "description": "它会用双手和 尾部的3根毒针 反复刺伤敌人。",
         "height": 10,
@@ -944,7 +944,7 @@
             80,
             145
         ],
-        "rarity": 0.579,
+        "rarity": 0.629,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -1090,7 +1090,7 @@
         ],
         "pinyin": "DaBiNiao",
         "pinyinInitials": "DBN",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "鸟宝可梦",
         "description": "以2马赫的飞行速度来 觅食。它巨大的爪子是 非常令人惧怕的武器。",
         "height": 15,
@@ -1103,7 +1103,7 @@
             80,
             121
         ],
-        "rarity": 0.6607,
+        "rarity": 0.7107,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -2003,7 +2003,7 @@
         ],
         "pinyin": "PiKaQiu",
         "pinyinInitials": "PKQ",
-        "catchRate": 0.78,
+        "catchRate": 0.624,
         "genus": "鼠宝可梦",
         "description": "最近发表了聚集大量皮卡丘，建造发电厂的计划。",
         "height": 4,
@@ -2016,7 +2016,7 @@
             50,
             90
         ],
-        "rarity": 0.3771,
+        "rarity": 0.4271,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -2123,7 +2123,7 @@
         ],
         "pinyin": "LeiQiu",
         "pinyinInitials": "LQ",
-        "catchRate": 0.48,
+        "catchRate": 0.384,
         "genus": "鼠宝可梦",
         "description": "电击有时候会达到十万伏特，不小心碰到的话，连印度象也会昏厥。",
         "height": 8,
@@ -2136,7 +2136,7 @@
             80,
             110
         ],
-        "rarity": 0.6275,
+        "rarity": 0.6775,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -2163,7 +2163,7 @@
         ],
         "pinyin": "LeiQiu",
         "pinyinInitials": "LQ",
-        "catchRate": 0.48,
+        "catchRate": 0.384,
         "genus": "鼠宝可梦",
         "description": "电击有时候会达到十万伏特，不小心碰到的话，连印度象也会昏厥。",
         "height": 8,
@@ -2176,7 +2176,7 @@
             80,
             110
         ],
-        "rarity": 0.6275,
+        "rarity": 0.6775,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -2669,7 +2669,7 @@
         ],
         "pinyin": "PiKeXi",
         "pinyinInitials": "PKX",
-        "catchRate": 0.2,
+        "catchRate": 0.16,
         "genus": "妖精宝可梦",
         "description": "不喜欢在人面前现身。 喜欢群居在深山里静静地生活。",
         "height": 13,
@@ -2682,7 +2682,7 @@
             110,
             70
         ],
-        "rarity": 0.7096,
+        "rarity": 0.7596,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -3568,7 +3568,7 @@
         ],
         "pinyin": "MiaoMiao",
         "pinyinInitials": "MM",
-        "catchRate": 0.9,
+        "catchRate": 0.72,
         "genus": "妖怪猫宝可梦",
         "description": "白天就一直睡啊睡地度过，太阳落山时才开始活动。 在夜晚的街道上搜寻硬币。",
         "height": 4,
@@ -3581,7 +3581,7 @@
             40,
             90
         ],
-        "rarity": 0.3119,
+        "rarity": 0.3619,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -4226,7 +4226,7 @@
         ],
         "pinyin": "HuDi",
         "pinyinInitials": "HD",
-        "catchRate": 0.37,
+        "catchRate": 0.296,
         "genus": "念力宝可梦",
         "description": "智商大约有5000。 强大的念力满溢出来，光是呆在旁边就会头痛不已。",
         "height": 15,
@@ -4239,7 +4239,7 @@
             95,
             150
         ],
-        "rarity": 0.6751,
+        "rarity": 0.7251,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -4382,7 +4382,7 @@
         ],
         "pinyin": "GuaiLi",
         "pinyinInitials": "GL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "怪力宝可梦",
         "description": "使出百万吨级的拳击，将阻挡的敌人击飞到 地平线的另一端。",
         "height": 16,
@@ -4395,7 +4395,7 @@
             85,
             55
         ],
-        "rarity": 0.686,
+        "rarity": 0.736,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -4539,7 +4539,7 @@
         ],
         "pinyin": "DaShiHua",
         "pinyinInitials": "DSH",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "捕蝇宝可梦",
         "description": "用花蜜的香味引诱猎物。 据说被它吞入嘴里的东西，只要1天就会溶解到连骨头都不剩。",
         "height": 17,
@@ -4552,7 +4552,7 @@
             95,
             70
         ],
-        "rarity": 0.6714,
+        "rarity": 0.7214,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -5208,7 +5208,7 @@
         ],
         "pinyin": "DaiKeShou",
         "pinyinInitials": "DKS",
-        "catchRate": 0.48,
+        "catchRate": 0.384,
         "genus": "寄居蟹宝可梦",
         "description": "呆呆地望着大海。 因大舌贝的毒在身体中循环 而变得越来越傻乎乎。",
         "height": 16,
@@ -5221,7 +5221,7 @@
             80,
             30
         ],
-        "rarity": 0.6324,
+        "rarity": 0.6824,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -5919,7 +5919,7 @@
         ],
         "pinyin": "GengGui",
         "pinyinInitials": "GG",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "影子宝可梦",
         "description": "如果突然被寒气侵袭，那就是被耿鬼袭击的证据。 没有可逃之法，所以死心吧。",
         "height": 15,
@@ -5932,7 +5932,7 @@
             95,
             130
         ],
-        "rarity": 0.6811,
+        "rarity": 0.7311,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -5959,7 +5959,7 @@
         ],
         "pinyin": "GengGui",
         "pinyinInitials": "GG",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "影子宝可梦",
         "description": "如果突然被寒气侵袭，那就是被耿鬼袭击的证据。 没有可逃之法，所以死心吧。",
         "height": 15,
@@ -5972,7 +5972,7 @@
             75,
             110
         ],
-        "rarity": 0.6811,
+        "rarity": 0.7311,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -6189,7 +6189,7 @@
         ],
         "pinyin": "JuQianXie",
         "pinyinInitials": "JQX",
-        "catchRate": 0.42,
+        "catchRate": 0.336,
         "genus": "钳子宝可梦",
         "description": "一边的钳子很是巨大，虽说硬如钢铁还拥有 1万马力，但还是太重了。",
         "height": 13,
@@ -6202,7 +6202,7 @@
             50,
             75
         ],
-        "rarity": 0.6358,
+        "rarity": 0.6858,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -7041,7 +7041,7 @@
         ],
         "pinyin": "DaiShou",
         "pinyinInitials": "DS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "亲子宝可梦",
         "description": "袋兽的母爱很深。 如果是为了守护自己的孩子，据说连死都毫不畏惧。",
         "height": 22,
@@ -7054,7 +7054,7 @@
             100,
             100
         ],
-        "rarity": 0.6714,
+        "rarity": 0.7214,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -7318,7 +7318,7 @@
         ],
         "pinyin": "BaoShiHaiXing",
         "pinyinInitials": "BSHX",
-        "catchRate": 0.42,
+        "catchRate": 0.336,
         "genus": "谜宝可梦",
         "description": "据说会从闪着光的内核 收发神秘的电波。 靠近的话可能会头痛。",
         "height": 11,
@@ -7331,7 +7331,7 @@
             105,
             120
         ],
-        "rarity": 0.6796,
+        "rarity": 0.7296,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -7632,7 +7632,7 @@
         ],
         "pinyin": "KaiLuoSi",
         "pinyinInitials": "KLS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "锹形虫宝可梦",
         "description": "用长长的角把对手夹住，就这么把对方夹成两半。 非常强大，但很害怕寒冷。",
         "height": 15,
@@ -7645,7 +7645,7 @@
             90,
             105
         ],
-        "rarity": 0.6811,
+        "rarity": 0.7311,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -7907,7 +7907,7 @@
         ],
         "pinyin": "BaoLiLong",
         "pinyinInitials": "BLL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "凶恶宝可梦",
         "description": "据说，让暴鲤龙怒火中烧的 某个街镇在一晚上就被燃烧殆尽，然后便消失无踪了。",
         "height": 65,
@@ -7920,7 +7920,7 @@
             130,
             81
         ],
-        "rarity": 0.72,
+        "rarity": 0.77,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -7989,7 +7989,7 @@
         ],
         "pinyin": "LaPuLaSi",
         "pinyinInitials": "LPLS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "乘载宝可梦",
         "description": "拥有很高的智商，理解人类的语言。 心情好的时候会用美妙的声音唱歌。",
         "height": 25,
@@ -8002,7 +8002,7 @@
             95,
             60
         ],
-        "rarity": 0.7151,
+        "rarity": 0.7651,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -8106,7 +8106,7 @@
         ],
         "pinyin": "YiBu",
         "pinyinInitials": "YB",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "进化宝可梦",
         "description": "拥有不平衡性外加不稳定的 遗传基因，因而蕴含着各种 各样的进化可能性。",
         "height": 3,
@@ -8119,7 +8119,7 @@
             65,
             55
         ],
-        "rarity": 0.511,
+        "rarity": 0.561,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -8499,7 +8499,7 @@
         ],
         "pinyin": "HuaShiYiLong",
         "pinyinInitials": "HSYL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "化石宝可梦",
         "description": "恐龙时代的宝可梦。 用锯子一样的牙齿 将猎物撕碎后吞食。",
         "height": 18,
@@ -8512,7 +8512,7 @@
             95,
             150
         ],
-        "rarity": 0.6957,
+        "rarity": 0.7457,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -8576,7 +8576,7 @@
         ],
         "pinyin": "KaBiShou",
         "pinyinInitials": "KBS",
-        "catchRate": 0.2,
+        "catchRate": 0.16,
         "genus": "瞌睡宝可梦",
         "description": "据说拥有最强的胃袋。 就连臭臭泥的毒对卡比兽的 舌头来说也只是调味料而已。",
         "height": 21,
@@ -8589,7 +8589,7 @@
             110,
             30
         ],
-        "rarity": 0.765,
+        "rarity": 0.815,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -8960,7 +8960,7 @@
         ],
         "pinyin": "KuaiLong",
         "pinyinInitials": "KL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "龙宝可梦",
         "description": "遇难得救的男人 被带去的那个孤岛，是曾属于快龙的乐园。",
         "height": 22,
@@ -8973,7 +8973,7 @@
             125,
             100
         ],
-        "rarity": 0.7783,
+        "rarity": 0.8283,
         "legend": false,
         "region": "关都",
         "foods": [
@@ -9038,7 +9038,7 @@
         ],
         "pinyin": "ChaoMeng",
         "pinyinInitials": "CM",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "基因宝可梦",
         "description": "超梦的基因几乎和梦幻 完全一样，但是大小和 性格却迥异得让人吃惊。",
         "height": 20,
@@ -9051,7 +9051,7 @@
             100,
             130
         ],
-        "rarity": 0.9521,
+        "rarity": 1,
         "legend": true,
         "region": "关都",
         "foods": [
@@ -9075,7 +9075,7 @@
         ],
         "pinyin": "ChaoMeng",
         "pinyinInitials": "CM",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "基因宝可梦",
         "description": "超梦的基因几乎和梦幻 完全一样，但是大小和 性格却迥异得让人吃惊。",
         "height": 20,
@@ -9088,7 +9088,7 @@
             120,
             140
         ],
-        "rarity": 0.9521,
+        "rarity": 1,
         "legend": true,
         "region": "关都",
         "foods": [
@@ -9267,7 +9267,7 @@
         ],
         "pinyin": "DaZhuKui",
         "pinyinInitials": "DZK",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "芳草宝可梦",
         "description": "从它花瓣散发出的香气中含有一种能平复攻击性情绪的物质。",
         "height": 18,
@@ -9280,7 +9280,7 @@
             115,
             80
         ],
-        "rarity": 0.7054,
+        "rarity": 0.7554,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -9581,7 +9581,7 @@
         ],
         "pinyin": "DaLiE",
         "pinyinInitials": "DLE",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "大颚宝可梦",
         "description": "当它用巨大而有力的下颚咬住猎物时，它会甩动头部，野蛮地将猎物撕碎。",
         "height": 23,
@@ -9594,7 +9594,7 @@
             93,
             78
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -10444,7 +10444,7 @@
         ],
         "pinyin": "DianLong",
         "pinyinInitials": "DL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "灯宝可梦",
         "description": "尾巴上的光能传至宇宙，所以身在何处一目了然。 因此它平时不会让尾巴发光。",
         "height": 14,
@@ -10457,7 +10457,7 @@
             110,
             45
         ],
-        "rarity": 0.6908,
+        "rarity": 0.7408,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -12595,7 +12595,7 @@
         ],
         "pinyin": "DaGangShe",
         "pinyinInitials": "DGS",
-        "catchRate": 0.2,
+        "catchRate": 0.16,
         "genus": "铁蛇宝可梦",
         "description": "据说当大岩蛇活到了 100年以上，身体的成分 就会变得如同钻石一般。",
         "height": 92,
@@ -12608,7 +12608,7 @@
             95,
             30
         ],
-        "rarity": 0.7358,
+        "rarity": 0.7858,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -12832,7 +12832,7 @@
         ],
         "pinyin": "JuQianTangLang",
         "pinyinInitials": "JQTL",
-        "catchRate": 0.2,
+        "catchRate": 0.16,
         "genus": "钳子宝可梦",
         "description": "为了防止战斗时变得过热，而令金属的身体熔化，会使用翅膀调节体温。",
         "height": 18,
@@ -12845,7 +12845,7 @@
             100,
             75
         ],
-        "rarity": 0.7261,
+        "rarity": 0.7761,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -12951,7 +12951,7 @@
         ],
         "pinyin": "HeLaKeLuoSi",
         "pinyinInitials": "HLKLS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "独角宝可梦",
         "description": "粗粗的角是其骄傲。 在阿罗拉，锹农炮虫是它最大的 竞争者，双方经常大打出手。",
         "height": 15,
@@ -12964,7 +12964,7 @@
             105,
             75
         ],
-        "rarity": 0.6811,
+        "rarity": 0.7311,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -13578,7 +13578,7 @@
         ],
         "pinyin": "KuiJiaNiao",
         "pinyinInitials": "KJN",
-        "catchRate": 0.2,
+        "catchRate": 0.16,
         "genus": "钢甲鸟宝可梦",
         "description": "由于它身上掉落下来的羽毛 可以用来制剑，因此作为纹章 的图案也很有人气。",
         "height": 17,
@@ -13591,7 +13591,7 @@
             100,
             110
         ],
-        "rarity": 0.6921,
+        "rarity": 0.7421,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -13697,7 +13697,7 @@
         ],
         "pinyin": "HeiLuJia",
         "pinyinInitials": "HLJ",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "阴暗宝可梦",
         "description": "能喷出混有毒素的火焰结果对手。 会和群体中的成员平分猎物。",
         "height": 14,
@@ -13710,7 +13710,7 @@
             90,
             115
         ],
-        "rarity": 0.6811,
+        "rarity": 0.7311,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -14460,7 +14460,7 @@
         ],
         "pinyin": "BanJiLaSi",
         "pinyinInitials": "BJLS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "铠甲宝可梦",
         "description": "会在山中徘徊以寻求战斗对手。 但如果遇到的是比自己弱小的对手，它就会视若无睹地离开。",
         "height": 20,
@@ -14473,7 +14473,7 @@
             120,
             71
         ],
-        "rarity": 0.7783,
+        "rarity": 0.8283,
         "legend": false,
         "region": "城都",
         "foods": [
@@ -14732,7 +14732,7 @@
         ],
         "pinyin": "XiYiWang",
         "pinyinInitials": "XYW",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "密林宝可梦",
         "description": "蜥蜴王身上长出的叶子边缘非常锋利。这只宝可梦极其敏捷——它能在树枝间跳跃，并从上方或背后扑向对手。",
         "height": 17,
@@ -14745,7 +14745,7 @@
             85,
             145
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -14892,7 +14892,7 @@
         ],
         "pinyin": "HuoYanJi",
         "pinyinInitials": "HYJ",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "猛火宝可梦",
         "description": "火焰从它的手腕喷出，包裹住指关节。它的拳头能将对手灼伤。",
         "height": 19,
@@ -14905,7 +14905,7 @@
             80,
             100
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -15054,7 +15054,7 @@
         ],
         "pinyin": "JuZhaoGuai",
         "pinyinInitials": "JZG",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "沼鱼宝可梦",
         "description": "巨沼怪非常强壮，拥有足以轻松拖动一吨以上巨岩的力量。这只宝可梦还具备强大的视力，即使在浑浊的水中也能看清事物。",
         "height": 15,
@@ -15067,7 +15067,7 @@
             110,
             70
         ],
-        "rarity": 0.7151,
+        "rarity": 0.7651,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -16042,7 +16042,7 @@
         ],
         "pinyin": "ShaNaiDuo",
         "pinyinInitials": "SND",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "包容宝可梦",
         "description": "有着预知未来的能力。 在保护训练家的时候，会发挥出最强的力量。",
         "height": 16,
@@ -16055,7 +16055,7 @@
             135,
             100
         ],
-        "rarity": 0.6986,
+        "rarity": 0.7486,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -16872,7 +16872,7 @@
         ],
         "pinyin": "GouHunYan",
         "pinyinInitials": "GHY",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "黑暗宝可梦",
         "description": "非常喜欢宝石，因此到处追着小碎钻。 但却被尖牙陆鲨半路夺走。",
         "height": 5,
@@ -16885,7 +16885,7 @@
             115,
             20
         ],
-        "rarity": 0.5644,
+        "rarity": 0.6144,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -16952,7 +16952,7 @@
         ],
         "pinyin": "DaZuiWa",
         "pinyinInitials": "DZW",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "欺骗宝可梦",
         "description": "狡黠而又恐怖的宝可梦。 用可爱的举止让人麻痹大意，然后出其不意地用大颚一口吞下。",
         "height": 6,
@@ -16965,7 +16965,7 @@
             95,
             50
         ],
-        "rarity": 0.5644,
+        "rarity": 0.6144,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -17109,7 +17109,7 @@
         ],
         "pinyin": "BoShiKeDuoLa",
         "pinyinInitials": "BSKDL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "铁铠宝可梦",
         "description": "会用能够刺穿铁板的 锐利尖角在撞击敌人的 同时攻击对方。",
         "height": 21,
@@ -17122,7 +17122,7 @@
             80,
             50
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -17229,7 +17229,7 @@
         ],
         "pinyin": "QiaLeiMu",
         "pinyinInitials": "QLM",
-        "catchRate": 0.53,
+        "catchRate": 0.424,
         "genus": "冥想宝可梦",
         "description": "据说恰雷姆通过冥想提升体内的能量，并磨炼第六感。这只宝可梦会将自己融入原野和山峦之中，隐藏气息。",
         "height": 13,
@@ -17242,7 +17242,7 @@
             85,
             100
         ],
-        "rarity": 0.5396,
+        "rarity": 0.5896,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -17346,7 +17346,7 @@
         ],
         "pinyin": "LeiDianShou",
         "pinyinInitials": "LDS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "放电宝可梦",
         "description": "在不自然的雷云之下有着雷电兽。 听说会用和雷同等的速度奔驰。",
         "height": 15,
@@ -17359,7 +17359,7 @@
             80,
             135
         ],
-        "rarity": 0.6568,
+        "rarity": 0.7068,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -17738,7 +17738,7 @@
         ],
         "pinyin": "JuYaSha",
         "pinyinInitials": "JYS",
-        "catchRate": 0.42,
+        "catchRate": 0.336,
         "genus": "凶暴宝可梦",
         "description": "以120公里的时速追击猎物，用连铁都能咬碎的牙齿捕杀。 通常称之为大海恶霸。",
         "height": 18,
@@ -17751,7 +17751,7 @@
             65,
             105
         ],
-        "rarity": 0.6212,
+        "rarity": 0.6712,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -17935,7 +17935,7 @@
         ],
         "pinyin": "PenHuoTuo",
         "pinyinInitials": "PHT",
-        "catchRate": 0.7,
+        "catchRate": 0.56,
         "genus": "喷火宝可梦",
         "description": "喷火驼体内有一座火山。华氏18000度的岩浆在其体内流动。有时它背上的驼峰会喷发，喷出炽热的岩浆。",
         "height": 19,
@@ -17948,7 +17948,7 @@
             105,
             20
         ],
-        "rarity": 0.5372,
+        "rarity": 0.5872,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -18412,7 +18412,7 @@
         ],
         "pinyin": "QiXiQingNiao",
         "pinyinInitials": "QXQN",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "哼唱宝可梦",
         "description": "一边舒适地在天空中飞翔，一边发出优美的哼唱，让听到之人都为之沉醉。",
         "height": 11,
@@ -18425,7 +18425,7 @@
             105,
             80
         ],
-        "rarity": 0.6714,
+        "rarity": 0.7214,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -19355,7 +19355,7 @@
         ],
         "pinyin": "ZuZhouWaWa",
         "pinyinInitials": "ZZWW",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "布偶宝可梦",
         "description": "怨念附在被丢弃的玩偶身上，打算寻找丢弃自己的人来报仇。",
         "height": 11,
@@ -19368,7 +19368,7 @@
             83,
             75
         ],
-        "rarity": 0.6374,
+        "rarity": 0.6874,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -19551,7 +19551,7 @@
         ],
         "pinyin": "FengLingLing",
         "pinyinInitials": "FLL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "风铃宝可梦",
         "description": "风铃铃让声音在它中空的身体里回响。当这种宝可梦愤怒时，它的叫声会变成超声波，能将对手击飞。",
         "height": 6,
@@ -19564,7 +19564,7 @@
             120,
             65
         ],
-        "rarity": 0.6374,
+        "rarity": 0.6874,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -19628,7 +19628,7 @@
         ],
         "pinyin": "ABoSuoLu",
         "pinyinInitials": "ABSL",
-        "catchRate": 0.24,
+        "catchRate": 0.192,
         "genus": "灾祸宝可梦",
         "description": "在迷信盛行的过去，因被认为会招来灾祸而遭到厌恶，并被赶到深山中去。",
         "height": 12,
@@ -19641,7 +19641,7 @@
             60,
             115
         ],
-        "rarity": 0.6801,
+        "rarity": 0.7301,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -19668,7 +19668,7 @@
         ],
         "pinyin": "ABoSuoLu",
         "pinyinInitials": "ABSL",
-        "catchRate": 0.24,
+        "catchRate": 0.192,
         "genus": "灾祸宝可梦",
         "description": "在迷信盛行的过去，因被认为会招来灾祸而遭到厌恶，并被赶到深山中去。",
         "height": 12,
@@ -19681,7 +19681,7 @@
             60,
             151
         ],
-        "rarity": 0.6801,
+        "rarity": 0.7301,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -19821,7 +19821,7 @@
         ],
         "pinyin": "BingGuiHu",
         "pinyinInitials": "BGH",
-        "catchRate": 0.48,
+        "catchRate": 0.384,
         "genus": "脸面宝可梦",
         "description": "据说是即将登顶雪山，却罹难的登山家的遗憾，附在岩石上诞生而成。",
         "height": 15,
@@ -19834,7 +19834,7 @@
             80,
             100
         ],
-        "rarity": 0.6227,
+        "rarity": 0.6727,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -20292,7 +20292,7 @@
         ],
         "pinyin": "BaoFeiLong",
         "pinyinInitials": "BFL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "龙宝可梦",
         "description": "一生气就会忘记自我，把周围 都破坏掉。破坏会持续不断，直到暴飞龙精疲力尽。",
         "height": 15,
@@ -20305,7 +20305,7 @@
             90,
             120
         ],
-        "rarity": 0.7783,
+        "rarity": 0.8283,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -20452,7 +20452,7 @@
         ],
         "pinyin": "JuJinGuai",
         "pinyinInitials": "JJG",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "铁足宝可梦",
         "description": "用4只爪子和庞大的身体 牢牢地按住猎物后，用腹部的牙齿嘎嘣嘎嘣地啃咬。",
         "height": 16,
@@ -20465,7 +20465,7 @@
             110,
             110
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": false,
         "region": "丰缘",
         "foods": [
@@ -20641,7 +20641,7 @@
         ],
         "pinyin": "LaDiYaSi",
         "pinyinInitials": "LDYS",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "无限宝可梦",
         "description": "拉帝亚斯对人类的情感非常敏感。如果察觉到敌意，这种宝可梦会竖起全身的羽毛，发出尖锐的叫声来威慑对手。",
         "height": 14,
@@ -20654,7 +20654,7 @@
             150,
             110
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "丰缘",
         "foods": [
@@ -20715,7 +20715,7 @@
         ],
         "pinyin": "LaDiOuSi",
         "pinyinInitials": "LDOS",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "无限宝可梦",
         "description": "拉帝欧斯能让对手看到它脑海中曾见过或想象出的影像。这种宝可梦很聪明，能理解人类的语言。",
         "height": 20,
@@ -20728,7 +20728,7 @@
             120,
             110
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "丰缘",
         "foods": [
@@ -20938,7 +20938,7 @@
         ],
         "pinyin": "LieKongZuo",
         "pinyinInitials": "LKZ",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "天空宝可梦",
         "description": "烈空坐在地球的臭氧层中生活了数亿年，从未降落到地面。这种宝可梦似乎以大气中的水分和粒子为食。",
         "height": 70,
@@ -20951,7 +20951,7 @@
             100,
             115
         ],
-        "rarity": 0.9521,
+        "rarity": 1,
         "legend": true,
         "region": "丰缘",
         "foods": [
@@ -21636,7 +21636,7 @@
         ],
         "pinyin": "MuKeYing",
         "pinyinInitials": "MKY",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "猛禽宝可梦",
         "description": "它性情凶暴。会勇敢地挑战体型远大于自己的对手。",
         "height": 12,
@@ -21649,7 +21649,7 @@
             90,
             110
         ],
-        "rarity": 0.6665,
+        "rarity": 0.7165,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -23132,7 +23132,7 @@
         ],
         "pinyin": "ChangErTu",
         "pinyinInitials": "CET",
-        "catchRate": 0.42,
+        "catchRate": 0.336,
         "genus": "兔子宝可梦",
         "description": "一年会换2次毛。 用这个毛制作的 围巾和帽子非常温暖。",
         "height": 12,
@@ -23145,7 +23145,7 @@
             96,
             135
         ],
-        "rarity": 0.6407,
+        "rarity": 0.6907,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -23836,7 +23836,7 @@
         ],
         "pinyin": "LieYaoLuSha",
         "pinyinInitials": "LYLS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "音速宝可梦",
         "description": "以媲美喷气式飞机的高速来飞行。 如果冲入鸟宝可梦的群体中，会就这么把整个群体都吞掉。",
         "height": 19,
@@ -23849,7 +23849,7 @@
             95,
             92
         ],
-        "rarity": 0.7783,
+        "rarity": 0.8283,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -23876,7 +23876,7 @@
         ],
         "pinyin": "LieYaoLuSha",
         "pinyinInitials": "LYLS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "音速宝可梦",
         "description": "以媲美喷气式飞机的高速来飞行。 如果冲入鸟宝可梦的群体中，会就这么把整个群体都吞掉。",
         "height": 19,
@@ -23889,7 +23889,7 @@
             85,
             151
         ],
-        "rarity": 0.7783,
+        "rarity": 0.8283,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -24030,7 +24030,7 @@
         ],
         "pinyin": "LuKaLiOu",
         "pinyinInitials": "LKLO",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "波导宝可梦",
         "description": "不仅仅是读取，还获得了操控波导的能力。 也会被用于战斗。",
         "height": 12,
@@ -24043,7 +24043,7 @@
             70,
             112
         ],
-        "rarity": 0.7054,
+        "rarity": 0.7554,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -24071,7 +24071,7 @@
         ],
         "pinyin": "LuKaLiOu",
         "pinyinInitials": "LKLO",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "波导宝可梦",
         "description": "不仅仅是读取，还获得了操控波导的能力。 也会被用于战斗。",
         "height": 12,
@@ -24084,7 +24084,7 @@
             70,
             151
         ],
-        "rarity": 0.7054,
+        "rarity": 0.7554,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -24582,7 +24582,7 @@
         ],
         "pinyin": "BaoXueWang",
         "pinyinInitials": "BXW",
-        "catchRate": 0.42,
+        "catchRate": 0.336,
         "genus": "树冰宝可梦",
         "description": "会像挥动锤子一样挥下自己 大大的手臂，赶走要袭击 雪笠怪的火红不倒翁群体。",
         "height": 22,
@@ -24595,7 +24595,7 @@
             105,
             30
         ],
-        "rarity": 0.6543,
+        "rarity": 0.7043,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -25215,7 +25215,7 @@
         ],
         "pinyin": "AiLuLeiDuo",
         "pinyinInitials": "ALLD",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "利刃宝可梦",
         "description": "被称为武神的宝可梦。 只有在为了保护什么的时候 才会去使用自己的肘刀。",
         "height": 16,
@@ -25228,7 +25228,7 @@
             115,
             110
         ],
-        "rarity": 0.6986,
+        "rarity": 0.7486,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -25373,7 +25373,7 @@
         ],
         "pinyin": "XueYaoNv",
         "pinyinInitials": "XYN",
-        "catchRate": 0.48,
+        "catchRate": 0.384,
         "genus": "雪国宝可梦",
         "description": "用冷气把中意的人类 或宝可梦都冻起来。 然后带回巢穴当装饰用。",
         "height": 13,
@@ -25386,7 +25386,7 @@
             100,
             120
         ],
-        "rarity": 0.6227,
+        "rarity": 0.6727,
         "legend": false,
         "region": "神奥",
         "foods": [
@@ -25943,7 +25943,7 @@
         ],
         "pinyin": "XiDuoLanEn",
         "pinyinInitials": "XDLE",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "火山口宝可梦",
         "description": "栖息在火山洞穴中。它会用十字形的脚挖进岩壁，在天花板和墙壁上爬行。",
         "height": 17,
@@ -25956,7 +25956,7 @@
             141,
             67
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "神奥",
         "foods": [
@@ -26239,7 +26239,7 @@
         ],
         "pinyin": "DaKeLaiYi",
         "pinyinInitials": "DKLY",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "暗黑宝可梦",
         "description": "能让人们入睡并制造梦境。它在没有月亮的夜晚活动。",
         "height": 15,
@@ -26252,7 +26252,7 @@
             130,
             85
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "神奥",
         "foods": [
@@ -27276,7 +27276,7 @@
         ],
         "pinyin": "YanWuWang",
         "pinyinInitials": "YWW",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "大火猪宝可梦",
         "description": "精通快速而强力的格斗招式。会蓄起火焰胡须。",
         "height": 16,
@@ -27289,7 +27289,7 @@
             110,
             75
         ],
-        "rarity": 0.7083,
+        "rarity": 0.7583,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -28560,7 +28560,7 @@
         ],
         "pinyin": "LongTouDiShu",
         "pinyinInitials": "LTDS",
-        "catchRate": 0.42,
+        "catchRate": 0.336,
         "genus": "地底宝可梦",
         "description": "有许多看似自然形成的 洞窟其实都是龙头地鼠 一阵乱钻之后留下来的。",
         "height": 7,
@@ -28573,7 +28573,7 @@
             65,
             103
         ],
-        "rarity": 0.6679,
+        "rarity": 0.7179,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -28637,7 +28637,7 @@
         ],
         "pinyin": "ChaBuDuoWaWa",
         "pinyinInitials": "CBDWW",
-        "catchRate": 0.9,
+        "catchRate": 0.72,
         "genus": "听力宝可梦",
         "description": "拥有敏锐的听觉。 连2公里以外小石头 滚动的声音都能听到。",
         "height": 11,
@@ -28650,7 +28650,7 @@
             126,
             50
         ],
-        "rarity": 0.4626,
+        "rarity": 0.5126,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -29226,7 +29226,7 @@
         ],
         "pinyin": "WuGongWang",
         "pinyinInitials": "WGW",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "巨蜈蚣宝可梦",
         "description": "用颈部的爪子抓住猎物后，会直接将对方摔向地面，然后将带毒的尖刺猛戳进去。",
         "height": 25,
@@ -29239,7 +29239,7 @@
             99,
             62
         ],
-        "rarity": 0.6665,
+        "rarity": 0.7165,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -30126,7 +30126,7 @@
         ],
         "pinyin": "TouJinHunHun",
         "pinyinInitials": "TJHH",
-        "catchRate": 0.53,
+        "catchRate": 0.424,
         "genus": "恶党宝可梦",
         "description": "性格粗鲁，但是对于自己的家族、 群体的伙伴和领地，非常重视。",
         "height": 11,
@@ -30139,7 +30139,7 @@
             135,
             68
         ],
-        "rarity": 0.6154,
+        "rarity": 0.6654,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -30565,7 +30565,7 @@
         ],
         "pinyin": "HuiChenShan",
         "pinyinInitials": "HCS",
-        "catchRate": 0.42,
+        "catchRate": 0.336,
         "genus": "垃圾场宝可梦",
         "description": "要注意从右臂喷出的毒液。 只要沾到一点点，就会被未知的毒素侵袭。",
         "height": 19,
@@ -30578,7 +30578,7 @@
             82,
             75
         ],
-        "rarity": 0.6348,
+        "rarity": 0.6848,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -32366,7 +32366,7 @@
         ],
         "pinyin": "MaMaManYuWang",
         "pinyinInitials": "MMMYW",
-        "catchRate": 0.24,
+        "catchRate": 0.192,
         "genus": "电鱼宝可梦",
         "description": "麻麻鳗鱼王：它们用前肢从海洋中爬出，会袭击岸上的猎物并立即将其拖入海中。",
         "height": 21,
@@ -32379,7 +32379,7 @@
             90,
             80
         ],
-        "rarity": 0.7287,
+        "rarity": 0.7787,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -32598,7 +32598,7 @@
         ],
         "pinyin": "ShuiJingDengHuoLing",
         "pinyinInitials": "SJDHL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "引诱宝可梦",
         "description": "住在古老的洋楼里。 诡异地摇晃手臂上的火焰，以此来催眠对手。",
         "height": 10,
@@ -32611,7 +32611,7 @@
             110,
             90
         ],
-        "rarity": 0.7006,
+        "rarity": 0.7506,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -33227,7 +33227,7 @@
         ],
         "pinyin": "NiOuJuRen",
         "pinyinInitials": "NOJR",
-        "catchRate": 0.53,
+        "catchRate": 0.424,
         "genus": "魔像宝可梦",
         "description": "据说，古代人发明了 泥偶巨人作为他们的劳动力。 它很忠实于主人的命令。",
         "height": 28,
@@ -33240,7 +33240,7 @@
             105,
             55
         ],
-        "rarity": 0.6106,
+        "rarity": 0.6606,
         "legend": false,
         "region": "合众",
         "foods": [
@@ -34839,7 +34839,7 @@
         ],
         "pinyin": "BuLiKaLong",
         "pinyinInitials": "BLKL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "刺铠宝可梦",
         "description": "它的撞击威力足以掀翻50吨重的坦克。它会用自己的身体保护同伴免受危险。",
         "height": 16,
@@ -34852,7 +34852,7 @@
             115,
             44
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
@@ -34996,7 +34996,7 @@
         ],
         "pinyin": "YaoHuoHongHu",
         "pinyinInitials": "YHHH",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "狐狸宝可梦",
         "description": "它凝视着树枝末端的火焰进入专注状态，从而能够预见未来。",
         "height": 15,
@@ -35009,7 +35009,7 @@
             125,
             134
         ],
-        "rarity": 0.7142,
+        "rarity": 0.7642,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
@@ -35193,7 +35193,7 @@
         ],
         "pinyin": "JiaHeRenWa",
         "pinyinInitials": "JHRW",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "忍者宝可梦",
         "description": "用压缩的水制造出飞镖。当它高速旋转并投掷这些飞镖时，能劈开金属。",
         "height": 15,
@@ -35206,7 +35206,7 @@
             81,
             142
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
@@ -36399,6 +36399,46 @@
         "form": "火炎狮-雌性"
     },
     {
+        "index": "0668-2",
+        "name": "火炎狮",
+        "name_en": "Pyroar",
+        "image": "pokemon-data/images/0668-2-超级火炎狮.png",
+        "icon": "pokemon-data/icon/0668-2-超级火炎狮.png",
+        "types": [
+            "火",
+            "一般"
+        ],
+        "pinyin": "HuoYanShi",
+        "pinyinInitials": "HYS",
+        "catchRate": 0.352,
+        "genus": "王者宝可梦",
+        "description": "雄性平时总是拖拖拉拉的，但如果有强敌来袭，就会不顾自身，保护伙伴。",
+        "height": 15,
+        "weight": 815,
+        "stats": [
+            86,
+            88,
+            92,
+            129,
+            86,
+            126
+        ],
+        "rarity": 0.7109,
+        "legend": false,
+        "region": "卡洛斯",
+        "foods": [
+            4,
+            5,
+            9
+        ],
+        "genderRate": 7,
+        "eggGroup": [
+            "陆上群"
+        ],
+        "noEggGroup": false,
+        "form": "超级火炎狮"
+    },
+    {
         "index": "0669",
         "name": "花蓓蓓",
         "name_en": "Flabébé",
@@ -36830,7 +36870,7 @@
         ],
         "pinyin": "HuaYeDi",
         "pinyinInitials": "HYD",
-        "catchRate": 0.62,
+        "catchRate": 0.496,
         "genus": "单朵宝可梦",
         "description": "会培育花朵当作自己的武器来用。 越是开得美丽的花，蕴藏着的力量就越强大。",
         "height": 2,
@@ -36843,7 +36883,7 @@
             148,
             102
         ],
-        "rarity": 0.4747,
+        "rarity": 0.5247,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
@@ -37705,6 +37745,45 @@
         "form": "超能妙喵-雌性"
     },
     {
+        "index": "0678-2",
+        "name": "超能妙喵",
+        "name_en": "Meowstic",
+        "image": "pokemon-data/images/0678-2-超级超能妙喵.png",
+        "icon": "pokemon-data/icon/0678-2-超级超能妙喵.png",
+        "types": [
+            "超能"
+        ],
+        "pinyin": "ChaoNengMiaoMiao",
+        "pinyinInitials": "CNMM",
+        "catchRate": 0.384,
+        "genus": "抑制宝可梦",
+        "description": "会从耳朵内侧眼珠花纹的地方 释放出精神力量，但平时 会将那种力量隐藏起来。",
+        "height": 6,
+        "weight": 85,
+        "stats": [
+            74,
+            48,
+            76,
+            143,
+            101,
+            124
+        ],
+        "rarity": 0.6591,
+        "legend": false,
+        "region": "卡洛斯",
+        "foods": [
+            0,
+            9,
+            10
+        ],
+        "genderRate": 4,
+        "eggGroup": [
+            "陆上群"
+        ],
+        "noEggGroup": false,
+        "form": "超级超能妙喵"
+    },
+    {
         "index": "0679",
         "name": "独剑鞘",
         "name_en": "Honedge",
@@ -38111,7 +38190,7 @@
         ],
         "pinyin": "WuZeiWang",
         "pinyinInitials": "WZW",
-        "catchRate": 0.5,
+        "catchRate": 0.4,
         "genus": "倒转宝可梦",
         "description": "会使用强力的催眠术。 用此来做坏事者源源不断。",
         "height": 15,
@@ -38124,7 +38203,7 @@
             120,
             88
         ],
-        "rarity": 0.6186,
+        "rarity": 0.6686,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
@@ -38231,7 +38310,7 @@
         ],
         "pinyin": "GuiZuJuKai",
         "pinyinInitials": "GZJK",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "集合宝可梦",
         "description": "7只龟脚脚组成了1只 龟足巨铠的身体。 由头部对手脚发号施令。",
         "height": 13,
@@ -38244,7 +38323,7 @@
             106,
             88
         ],
-        "rarity": 0.6811,
+        "rarity": 0.7311,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
@@ -38352,7 +38431,7 @@
         ],
         "pinyin": "DuZaoLong",
         "pinyinInitials": "DZL",
-        "catchRate": 0.39,
+        "catchRate": 0.312,
         "genus": "似草宝可梦",
         "description": "性格粗暴，会朝靠近的对手 喷出毒液。不知为何，只和破破舵轮关系非常好。",
         "height": 18,
@@ -38365,7 +38444,7 @@
             163,
             44
         ],
-        "rarity": 0.6633,
+        "rarity": 0.7133,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
@@ -38792,7 +38871,7 @@
         ],
         "pinyin": "ShuaiJiaoYingRen",
         "pinyinInitials": "SJYR",
-        "catchRate": 0.56,
+        "catchRate": 0.448,
         "genus": "摔角宝可梦",
         "description": "用速度快的招式压倒对手。 使出必杀技时的展示时间过长，有时候会陷入危机。",
         "height": 8,
@@ -38805,7 +38884,7 @@
             93,
             118
         ],
-        "rarity": 0.6181,
+        "rarity": 0.6681,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
@@ -39728,7 +39807,7 @@
         ],
         "pinyin": "JiGeErDe",
         "pinyinInitials": "JGED",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "秩序宝可梦",
         "description": "细胞聚集了50％的样子。 会毫不留情地把敌对者全部消灭。",
         "height": 50,
@@ -39741,7 +39820,7 @@
             85,
             100
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "卡洛斯",
         "foods": [
@@ -39804,7 +39883,7 @@
         ],
         "pinyin": "DiAnXi",
         "pinyinInitials": "DAX",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "宝石宝可梦",
         "description": "小碎钻的突然变异体。它那粉红闪耀的身体据说世上最美丽。",
         "height": 7,
@@ -39817,7 +39896,7 @@
             110,
             110
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "卡洛斯",
         "foods": [
@@ -40740,7 +40819,7 @@
         ],
         "pinyin": "HaoShengMaoXie",
         "pinyinInitials": "HSMX",
-        "catchRate": 0.42,
+        "catchRate": 0.336,
         "genus": "毛蟹宝可梦",
         "description": "应该是以登顶为目标的，却阴差阳错地 登上了雪山，在忍耐寒冷的过程中，由于毛发不断生长而进化成这样。",
         "height": 17,
@@ -40753,7 +40832,7 @@
             107,
             33
         ],
-        "rarity": 0.6387,
+        "rarity": 0.6887,
         "legend": false,
         "region": "阿罗拉",
         "foods": [
@@ -42123,7 +42202,7 @@
         ],
         "pinyin": "JuJiaWuZhe",
         "pinyinInitials": "JJWZ",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "装甲宝可梦",
         "description": "用锐利而巨大的爪子一挥而下。 连空气和海水都能一分为二的本事。",
         "height": 20,
@@ -42136,7 +42215,7 @@
             120,
             40
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "阿罗拉",
         "foods": [
@@ -42913,7 +42992,7 @@
         ],
         "pinyin": "LaoWengLong",
         "pinyinInitials": "LWL",
-        "catchRate": 0.46,
+        "catchRate": 0.368,
         "genus": "悠游宝可梦",
         "description": "心地非常善良。可一旦被激怒，就会用非常猛烈的气息 把周围破坏殆尽。",
         "height": 30,
@@ -42926,7 +43005,7 @@
             116,
             36
         ],
-        "rarity": 0.6335,
+        "rarity": 0.6835,
         "legend": false,
         "region": "阿罗拉",
         "foods": [
@@ -43895,7 +43974,7 @@
         ],
         "pinyin": "MaJiYaNa",
         "pinyinInitials": "MJYN",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "人造宝可梦",
         "description": "500多年前被制造出的人造宝可梦。 理解人类的语言但不会说。",
         "height": 10,
@@ -43908,7 +43987,7 @@
             115,
             95
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "阿罗拉",
         "foods": [
@@ -43933,7 +44012,7 @@
         ],
         "pinyin": "MaJiYaNa",
         "pinyinInitials": "MJYN",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "人造宝可梦",
         "description": "500多年前被制造出的人造宝可梦。 理解人类的语言但不会说。",
         "height": 10,
@@ -43946,7 +44025,7 @@
             115,
             95
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "阿罗拉",
         "foods": [
@@ -44192,7 +44271,7 @@
         ],
         "pinyin": "JieLaAoLa",
         "pinyinInitials": "JLAL",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "奔雷宝可梦",
         "description": "让双手双脚的爪子带电，将对手撕得稀碎。即使被躲开，也会用飞散的电击让其触电。",
         "height": 15,
@@ -44205,7 +44284,7 @@
             80,
             153
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "阿罗拉",
         "foods": [
@@ -44302,7 +44381,7 @@
         ],
         "pinyin": "MeiLuMeiTa",
         "pinyinInitials": "MLMT",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "螺帽宝可梦",
         "description": "因为拥有产出铁的力量而 受到崇拜。不知为何，经过 3000年后突然苏醒了过来。",
         "height": 25,
@@ -44315,7 +44394,7 @@
             65,
             34
         ],
-        "rarity": 0.8743,
+        "rarity": 0.9243,
         "legend": true,
         "region": "阿罗拉",
         "foods": [
@@ -44456,7 +44535,7 @@
         ],
         "pinyin": "HongLeiJinGangXing",
         "pinyinInitials": "HLJGX",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "鼓手宝可梦",
         "description": "能够通过打鼓来控制 特别的树桩中的力量，操纵树根进行战斗。",
         "height": 21,
@@ -44469,7 +44548,7 @@
             70,
             85
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -44614,7 +44693,7 @@
         ],
         "pinyin": "ShanYanWangPai",
         "pinyinInitials": "SYWP",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "前锋宝可梦",
         "description": "会将小石头像足球般用脚挑起，制造出缠绕着火焰的足球。 会用猛烈的踢射来燃烧对手。",
         "height": 14,
@@ -44627,7 +44706,7 @@
             75,
             119
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -44772,7 +44851,7 @@
         ],
         "pinyin": "QianMianBiYi",
         "pinyinInitials": "QMBY",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "特工宝可梦",
         "description": "身上隐藏着多种特殊能力，例如从手指喷射水流，以及用背部的翼膜滑翔等等。",
         "height": 19,
@@ -44785,7 +44864,7 @@
             65,
             120
         ],
-        "rarity": 0.7103,
+        "rarity": 0.7603,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -45007,7 +45086,7 @@
         ],
         "pinyin": "GangKaiYa",
         "pinyinInitials": "GKY",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "乌鸦宝可梦",
         "description": "在伽勒尔地区的空中所向披靡。 它那黑得发亮的钢铁之躯 有着让敌人畏惧的威慑力。",
         "height": 22,
@@ -45020,7 +45099,7 @@
             85,
             67
         ],
-        "rarity": 0.6762,
+        "rarity": 0.7262,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -45163,7 +45242,7 @@
         ],
         "pinyin": "YiOuLuPu",
         "pinyinInitials": "YOLP",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "七星宝可梦",
         "description": "以头脑聪慧而闻名。 大大的脑子是它拥有 出众精神力量的证明。",
         "height": 4,
@@ -45176,7 +45255,7 @@
             120,
             90
         ],
-        "rarity": 0.686,
+        "rarity": 0.736,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -45515,7 +45594,7 @@
         ],
         "pinyin": "BaoShiGui",
         "pinyinInitials": "BSG",
-        "catchRate": 0.48,
+        "catchRate": 0.384,
         "genus": "紧咬宝可梦",
         "description": "性格凶暴的宝可梦。 会用能咬断铁棍的颚部 大口咬住猎物。",
         "height": 10,
@@ -45528,7 +45607,7 @@
             68,
             74
         ],
-        "rarity": 0.6275,
+        "rarity": 0.6775,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -45752,7 +45831,7 @@
         ],
         "pinyin": "JuTanShan",
         "pinyinInitials": "JTS",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "煤炭宝可梦",
         "description": "平时性情温和，但在人类 破坏矿山时会大发雷霆，用1500度的大火将他们烧尽。",
         "height": 28,
@@ -45765,7 +45844,7 @@
             90,
             30
         ],
-        "rarity": 0.6908,
+        "rarity": 0.7408,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -45874,7 +45953,7 @@
         ],
         "pinyin": "PingGuoLong",
         "pinyinInitials": "PGL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "苹果翅宝可梦",
         "description": "啃果虫吃了酸苹果后进化 而成。颊囊里储存着足以 造成灼伤的强酸性液体。",
         "height": 3,
@@ -45887,7 +45966,7 @@
             60,
             70
         ],
-        "rarity": 0.6665,
+        "rarity": 0.7165,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -45955,7 +46034,7 @@
         ],
         "pinyin": "FengMiLong",
         "pinyinInitials": "FML",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "苹果汁宝可梦",
         "description": "啃果虫吃了甜苹果后进化而成。 以虫宝可梦为食，会从体内发出 甜甜的香味引诱它们上钩。",
         "height": 4,
@@ -45968,7 +46047,7 @@
             80,
             30
         ],
-        "rarity": 0.6665,
+        "rarity": 0.7165,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -46075,7 +46154,7 @@
         ],
         "pinyin": "ShaLuoMang",
         "pinyinInitials": "SLM",
-        "catchRate": 0.62,
+        "catchRate": 0.496,
         "genus": "沙蛇宝可梦",
         "description": "蜷缩身体后从鼻孔里喷射出 100公斤的沙子。没有了 沙子就会变得很懦弱。",
         "height": 38,
@@ -46088,7 +46167,7 @@
             70,
             71
         ],
-        "rarity": 0.6098,
+        "rarity": 0.6598,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -46434,7 +46513,7 @@
         ],
         "pinyin": "ChanXianRongYuan",
         "pinyinInitials": "CXRY",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "庞克宝可梦",
         "description": "当它用力抓挠胸部的突起物 来制造电力时，四周会响起 如同吉他演奏般的声音。",
         "height": 16,
@@ -46447,7 +46526,7 @@
             70,
             75
         ],
-        "rarity": 0.6831,
+        "rarity": 0.7331,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -46554,7 +46633,7 @@
         ],
         "pinyin": "FenYanGong",
         "pinyinInitials": "FYG",
-        "catchRate": 0.48,
+        "catchRate": 0.384,
         "genus": "发热宝可梦",
         "description": "发热时的体温大约有800度。 会像鞭子那样弯曲身体 朝着敌人弹跳过去。",
         "height": 30,
@@ -46567,7 +46646,7 @@
             90,
             65
         ],
-        "rarity": 0.6664,
+        "rarity": 0.7164,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -46868,7 +46947,7 @@
         ],
         "pinyin": "BuLiMuWen",
         "pinyinInitials": "BLMW",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "寂静宝可梦",
         "description": "由于会朝四周释放足以 引起头痛的精神力量，其他生物都躲得远远的。",
         "height": 21,
@@ -46881,7 +46960,7 @@
             103,
             29
         ],
-        "rarity": 0.6908,
+        "rarity": 0.7408,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -47030,7 +47109,7 @@
         ],
         "pinyin": "ChangMaoJuMo",
         "pinyinInitials": "CMJM",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "健美宝可梦",
         "description": "通过用头发裹住全身，让肌肉的力量向上提升。 能发挥出足以压倒怪力的力量。",
         "height": 15,
@@ -47043,7 +47122,7 @@
             75,
             60
         ],
-        "rarity": 0.6908,
+        "rarity": 0.7408,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -47385,7 +47464,7 @@
         ],
         "pinyin": "ShuangNaiXian",
         "pinyinInitials": "SNX",
-        "catchRate": 0.56,
+        "catchRate": 0.448,
         "genus": "鲜奶油宝可梦",
         "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
         "height": 3,
@@ -47398,7 +47477,7 @@
             121,
             64
         ],
-        "rarity": 0.6132,
+        "rarity": 0.6632,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -47465,7 +47544,7 @@
         ],
         "pinyin": "LieZhenBing",
         "pinyinInitials": "LZB",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "阵形宝可梦",
         "description": "列阵兵由1个头头 和5个跟班组成。 头头的命令不可违抗。",
         "height": 30,
@@ -47478,7 +47557,7 @@
             65,
             100
         ],
-        "rarity": 0.6519,
+        "rarity": 0.7019,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -47983,7 +48062,7 @@
         ],
         "pinyin": "DaWangTongXiang",
         "pinyinInitials": "DWTX",
-        "catchRate": 0.53,
+        "catchRate": 0.424,
         "genus": "像铜宝可梦",
         "description": "绿色的皮肤非常耐水。 在很久以前从其他地区过来，之后便一直与人类一起工作。",
         "height": 30,
@@ -47996,7 +48075,7 @@
             69,
             30
         ],
-        "rarity": 0.6271,
+        "rarity": 0.6771,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -48214,7 +48293,7 @@
         ],
         "pinyin": "LvGangLong",
         "pinyinInitials": "LGL",
-        "catchRate": 0.35,
+        "catchRate": 0.28,
         "genus": "合金宝可梦",
         "description": "身体犹如打磨过的金属，虽然轻而坚硬，却有着 容易生锈的弱点。",
         "height": 18,
@@ -48227,7 +48306,7 @@
             50,
             85
         ],
-        "rarity": 0.7151,
+        "rarity": 0.7651,
         "legend": false,
         "region": "伽勒尔",
         "foods": [
@@ -48676,7 +48755,7 @@
         ],
         "pinyin": "WuDaoXiongShi",
         "pinyinInitials": "WDXS",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "拳法宝可梦",
         "description": "一击必杀是它的信条。 飞冲到对方的怀中，用自己 经过千锤百炼的拳头一拳击入。",
         "height": 19,
@@ -48689,7 +48768,7 @@
             60,
             97
         ],
-        "rarity": 0.8257,
+        "rarity": 0.8757,
         "legend": true,
         "region": "伽勒尔",
         "foods": [
@@ -48714,7 +48793,7 @@
         ],
         "pinyin": "WuDaoXiongShi",
         "pinyinInitials": "WDXS",
-        "catchRate": 0.03,
+        "catchRate": 0.024,
         "genus": "拳法宝可梦",
         "description": "一击必杀是它的信条。 飞冲到对方的怀中，用自己 经过千锤百炼的拳头一拳击入。",
         "height": 19,
@@ -48727,7 +48806,7 @@
             60,
             97
         ],
-        "rarity": 0.8257,
+        "rarity": 0.8757,
         "legend": true,
         "region": "伽勒尔",
         "foods": [
@@ -51524,7 +51603,7 @@
         ],
         "pinyin": "HenLaJiao",
         "pinyinInitials": "HLJ",
-        "catchRate": 0.48,
+        "catchRate": 0.384,
         "genus": "热辣宝可梦",
         "description": "红色的头部将辛辣化学物质转化为火之能量，向周围喷射出超辣的火流。",
         "height": 9,
@@ -51537,7 +51616,7 @@
             85,
             75
         ],
-        "rarity": 0.6285,
+        "rarity": 0.6785,
         "legend": false,
         "region": "帕底亚",
         "foods": [
@@ -52311,7 +52390,7 @@
         ],
         "pinyin": "JingGuangHua",
         "pinyinInitials": "JGH",
-        "catchRate": 0.2,
+        "catchRate": 0.16,
         "genus": "矿石宝可梦",
         "description": "当这只宝可梦察觉到危险时，它会张开结晶花瓣，从锥形的身体发射光束。",
         "height": 15,
@@ -52324,7 +52403,7 @@
             96,
             101
         ],
-        "rarity": 0.7504,
+        "rarity": 0.8004,
         "legend": false,
         "region": "帕底亚",
         "foods": [
@@ -52745,7 +52824,7 @@
         ],
         "pinyin": "MiLiLong",
         "pinyinInitials": "MLL",
-        "catchRate": 0.56,
+        "catchRate": 0.448,
         "genus": "拟态宝可梦",
         "description": "这是一只小型的龙属性宝可梦。它生活在吃吼霸的口中，以保护自己免受外敌侵害。",
         "height": 3,
@@ -52758,7 +52837,7 @@
             125,
             92
         ],
-        "rarity": 0.5938,
+        "rarity": 0.6438,
         "legend": false,
         "region": "帕底亚",
         "foods": [
@@ -52785,7 +52864,7 @@
         ],
         "pinyin": "MiLiLong",
         "pinyinInitials": "MLL",
-        "catchRate": 0.56,
+        "catchRate": 0.448,
         "genus": "拟态宝可梦",
         "description": "这是一只小型的龙属性宝可梦。它生活在吃吼霸的口中，以保护自己免受外敌侵害。",
         "height": 3,
@@ -52798,7 +52877,7 @@
             125,
             92
         ],
-        "rarity": 0.5938,
+        "rarity": 0.6438,
         "legend": false,
         "region": "帕底亚",
         "foods": [
@@ -52825,7 +52904,7 @@
         ],
         "pinyin": "MiLiLong",
         "pinyinInitials": "MLL",
-        "catchRate": 0.56,
+        "catchRate": 0.448,
         "genus": "拟态宝可梦",
         "description": "这是一只小型的龙属性宝可梦。它生活在吃吼霸的口中，以保护自己免受外敌侵害。",
         "height": 3,
@@ -52838,7 +52917,7 @@
             125,
             92
         ],
-        "rarity": 0.5938,
+        "rarity": 0.6438,
         "legend": false,
         "region": "帕底亚",
         "foods": [
@@ -53632,7 +53711,7 @@
         ],
         "pinyin": "JiJiLong",
         "pinyinInitials": "JJL",
-        "catchRate": 0.1,
+        "catchRate": 0.08,
         "genus": "冰龙宝可梦",
         "description": "这只宝可梦从口中喷出极寒空气。这种空气甚至能瞬间冻结滚烫的熔岩。",
         "height": 21,
@@ -53645,7 +53724,7 @@
             101,
             87
         ],
-        "rarity": 0.8533,
+        "rarity": 0.9033,
         "legend": false,
         "region": "帕底亚",
         "foods": [
