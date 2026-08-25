@@ -805,6 +805,25 @@ async function init() {
     }
     if (upgraded > 0) console.log(`[迁移] 为 ${upgraded} 只旧存档精灵补充默认等级 Lv1`);
   }
+  // 旧档迁移：8 只性别差异宝可梦雌雄拆分（base=雄性 / -1=雌性）
+  // 旧版本雌雄共用 base 编号，将雌性个体分配到对应 -1 编号；
+  // 无 gender 字段的旧个体按旧性别比例补 roll（新版已全雄/全雌，不能再用新比例判定）
+  const SEXDIFF_OLD_RATE = { '0521': 4, '0592': 4, '0593': 4, '0668': 7 };
+  const SEXDIFF_BASE = new Set(['0521', '0592', '0593', '0668', '0678', '0876', '0902', '0916']);
+  if (Array.isArray(gameData.roster)) {
+    let splitN = 0;
+    for (const p of gameData.roster) {
+      if (!p) continue;
+      const key = String(p.species);
+      if (!SEXDIFF_BASE.has(key)) continue;
+      if (!p.gender) {
+        const oldRate = SEXDIFF_OLD_RATE[key];
+        p.gender = oldRate === undefined ? 'male' : (Math.random() * 8 < oldRate ? 'female' : 'male');
+      }
+      if (p.gender === 'female') { p.species = key + '-1'; splitN++; }
+    }
+    if (splitN > 0) console.log(`[迁移] 将 ${splitN} 只历史宝可梦拆分为雌性形态（-1 编号）`);
+  }
   setMusicEnabled(gameData.settings?.musicEnabled !== false); // 音乐开关：沿用上次状态
   setBattleMusic(gameData.settings?.battleMusic !== false); // 战斗音乐开关：沿用上次状态
   setSfxEnabled(gameData.settings?.sfxEnabled !== false); // 音效开关：沿用上次状态

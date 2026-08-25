@@ -28121,8 +28121,8 @@
         "index": "0521",
         "name": "高傲雉鸡",
         "name_en": "Unfezant",
-        "image": "pokemon-data/images/0521-高傲雉鸡.gif",
-        "icon": "pokemon-data/icon/0521-高傲雉鸡.png",
+        "image": "pokemon-data/images/0521-高傲雉鸡-雄性.gif",
+        "icon": "pokemon-data/icon/0521-高傲雉鸡-雄性.png",
         "types": [
             "一般",
             "飞行"
@@ -28150,11 +28150,52 @@
             9,
             11
         ],
-        "genderRate": 4,
+        "genderRate": 0,
         "eggGroup": [
             "飞行群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "高傲雉鸡-雄性"
+    },
+    {
+        "index": "0521-1",
+        "name": "高傲雉鸡",
+        "name_en": "Unfezant",
+        "image": "pokemon-data/images/0521-1-高傲雉鸡-雌性.gif",
+        "icon": "pokemon-data/icon/0521-1-高傲雉鸡-雌性.png",
+        "types": [
+            "一般",
+            "飞行"
+        ],
+        "pinyin": "GaoAoZhiJi",
+        "pinyinInitials": "GAZJ",
+        "catchRate": 0.35,
+        "genus": "自尊心宝可梦",
+        "description": "拥有高度的飞行能力。 雌性擅于持久，雄性擅长速度。",
+        "height": 12,
+        "weight": 290,
+        "stats": [
+            80,
+            115,
+            80,
+            65,
+            55,
+            93
+        ],
+        "rarity": 0.6694,
+        "legend": false,
+        "region": "合众",
+        "foods": [
+            4,
+            6,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "飞行群"
+        ],
+        "noEggGroup": false,
+        "form": "高傲雉鸡-雌性"
     },
     {
         "index": "0522",
@@ -31727,8 +31768,8 @@
         "index": "0592",
         "name": "轻飘飘",
         "name_en": "Frillish",
-        "image": "pokemon-data/images/0592-轻飘飘.gif",
-        "icon": "pokemon-data/icon/0592-轻飘飘.png",
+        "image": "pokemon-data/images/0592-轻飘飘-雄性.gif",
+        "icon": "pokemon-data/icon/0592-轻飘飘-雄性.png",
         "types": [
             "水",
             "幽灵"
@@ -31757,18 +31798,59 @@
             7,
             11
         ],
-        "genderRate": 4,
+        "genderRate": 0,
         "eggGroup": [
             "不定形群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "轻飘飘-雄性"
+    },
+    {
+        "index": "0592-1",
+        "name": "轻飘飘",
+        "name_en": "Frillish",
+        "image": "pokemon-data/images/0592-1-轻飘飘-雌性.gif",
+        "icon": "pokemon-data/icon/0592-1-轻飘飘-雌性.png",
+        "types": [
+            "水",
+            "幽灵"
+        ],
+        "pinyin": "QingPiaoPiao",
+        "pinyinInitials": "QPP",
+        "catchRate": 0.78,
+        "genus": "漂浮宝可梦",
+        "description": "会用薄纱般的手脚缠住 正在游泳的猎物，将其拖入深海之中。",
+        "height": 12,
+        "weight": 330,
+        "stats": [
+            55,
+            40,
+            50,
+            65,
+            85,
+            40
+        ],
+        "rarity": 0.3917,
+        "legend": false,
+        "region": "合众",
+        "foods": [
+            6,
+            8,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "轻飘飘-雌性"
     },
     {
         "index": "0593",
         "name": "胖嘟嘟",
         "name_en": "Jellicent",
-        "image": "pokemon-data/images/0593-胖嘟嘟.gif",
-        "icon": "pokemon-data/icon/0593-胖嘟嘟.png",
+        "image": "pokemon-data/images/0593-胖嘟嘟-雄性.gif",
+        "icon": "pokemon-data/icon/0593-胖嘟嘟-雄性.png",
         "types": [
             "水",
             "幽灵"
@@ -31797,11 +31879,52 @@
             4,
             6
         ],
-        "genderRate": 4,
+        "genderRate": 0,
         "eggGroup": [
             "不定形群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "胖嘟嘟-雄性"
+    },
+    {
+        "index": "0593-1",
+        "name": "胖嘟嘟",
+        "name_en": "Jellicent",
+        "image": "pokemon-data/images/0593-1-胖嘟嘟-雌性.gif",
+        "icon": "pokemon-data/icon/0593-1-胖嘟嘟-雌性.png",
+        "types": [
+            "水",
+            "幽灵"
+        ],
+        "pinyin": "PangDuDu",
+        "pinyinInitials": "PDD",
+        "catchRate": 0.42,
+        "genus": "漂浮宝可梦",
+        "description": "会缠着豪华客轮或是油轮周围，目的是将猎物拖进海里。",
+        "height": 22,
+        "weight": 1350,
+        "stats": [
+            100,
+            60,
+            70,
+            85,
+            105,
+            60
+        ],
+        "rarity": 0.6407,
+        "legend": false,
+        "region": "合众",
+        "foods": [
+            5,
+            9,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "胖嘟嘟-雌性"
     },
     {
         "index": "0594",
@@ -36198,8 +36321,8 @@
         "index": "0668",
         "name": "火炎狮",
         "name_en": "Pyroar",
-        "image": "pokemon-data/images/0668-火炎狮.gif",
-        "icon": "pokemon-data/icon/0668-火炎狮.png",
+        "image": "pokemon-data/images/0668-火炎狮-雄性.gif",
+        "icon": "pokemon-data/icon/0668-火炎狮-雄性.png",
         "types": [
             "火",
             "一般"
@@ -36228,18 +36351,19 @@
             5,
             6
         ],
-        "genderRate": 7,
+        "genderRate": 0,
         "eggGroup": [
             "陆上群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "火炎狮-雄性"
     },
     {
         "index": "0668-1",
         "name": "火炎狮",
         "name_en": "Pyroar",
-        "image": "pokemon-data/images/0668-1-超级火炎狮.png",
-        "icon": "pokemon-data/icon/0668-1-超级火炎狮.png",
+        "image": "pokemon-data/images/0668-1-火炎狮-雌性.gif",
+        "icon": "pokemon-data/icon/0668-1-火炎狮-雌性.png",
         "types": [
             "火",
             "一般"
@@ -36253,26 +36377,26 @@
         "weight": 815,
         "stats": [
             86,
-            88,
-            92,
-            129,
-            86,
-            126
+            68,
+            72,
+            109,
+            66,
+            106
         ],
         "rarity": 0.6609,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
-            4,
-            5,
-            9
+            1,
+            8,
+            11
         ],
-        "genderRate": 7,
+        "genderRate": 8,
         "eggGroup": [
             "陆上群"
         ],
         "noEggGroup": false,
-        "form": "超级火炎狮"
+        "form": "火炎狮-雌性"
     },
     {
         "index": "0669",
@@ -37505,8 +37629,8 @@
         "index": "0678",
         "name": "超能妙喵",
         "name_en": "Meowstic",
-        "image": "pokemon-data/images/0678-超能妙喵.gif",
-        "icon": "pokemon-data/icon/0678-超能妙喵.png",
+        "image": "pokemon-data/images/0678-超能妙喵-雄性.gif",
+        "icon": "pokemon-data/icon/0678-超能妙喵-雄性.png",
         "types": [
             "超能"
         ],
@@ -37538,14 +37662,15 @@
         "eggGroup": [
             "陆上群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "超能妙喵-雄性"
     },
     {
         "index": "0678-1",
         "name": "超能妙喵",
         "name_en": "Meowstic",
-        "image": "pokemon-data/images/0678-1-超级超能妙喵.png",
-        "icon": "pokemon-data/icon/0678-1-超级超能妙喵.png",
+        "image": "pokemon-data/images/0678-1-超能妙喵-雌性.gif",
+        "icon": "pokemon-data/icon/0678-1-超能妙喵-雌性.png",
         "types": [
             "超能"
         ],
@@ -37560,24 +37685,24 @@
             74,
             48,
             76,
-            143,
-            101,
-            124
+            83,
+            81,
+            104
         ],
         "rarity": 0.6091,
         "legend": false,
         "region": "卡洛斯",
         "foods": [
-            0,
-            9,
-            10
+            2,
+            6,
+            11
         ],
-        "genderRate": 0,
+        "genderRate": 8,
         "eggGroup": [
             "陆上群"
         ],
         "noEggGroup": false,
-        "form": "超级超能妙喵"
+        "form": "超能妙喵-雌性"
     },
     {
         "index": "0679",
@@ -47611,8 +47736,8 @@
         "index": "0876",
         "name": "爱管侍",
         "name_en": "Indeedee",
-        "image": "pokemon-data/images/0876-爱管侍.gif",
-        "icon": "pokemon-data/icon/0876-爱管侍.png",
+        "image": "pokemon-data/images/0876-爱管侍-雄性.gif",
+        "icon": "pokemon-data/icon/0876-爱管侍-雄性.png",
         "types": [
             "超能",
             "一般"
@@ -47644,7 +47769,48 @@
         "eggGroup": [
             "妖精群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "爱管侍-雄性"
+    },
+    {
+        "index": "0876-1",
+        "name": "爱管侍",
+        "name_en": "Indeedee",
+        "image": "pokemon-data/images/0876-1-爱管侍-雌性.gif",
+        "icon": "pokemon-data/icon/0876-1-爱管侍-雌性.png",
+        "types": [
+            "超能",
+            "一般"
+        ],
+        "pinyin": "AiGuanShi",
+        "pinyinInitials": "AGS",
+        "catchRate": 0.24,
+        "genus": "感情宝可梦",
+        "description": "会用头上的角读取对方的心情。 雄性就像管家一样，在主人的身边打理一切。",
+        "height": 9,
+        "weight": 280,
+        "stats": [
+            70,
+            55,
+            65,
+            95,
+            105,
+            85
+        ],
+        "rarity": 0.6898,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            6,
+            8,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群"
+        ],
+        "noEggGroup": false,
+        "form": "爱管侍-雌性"
     },
     {
         "index": "0877",
@@ -49072,8 +49238,8 @@
         "index": "0902",
         "name": "幽尾玄鱼",
         "name_en": "Basculegion",
-        "image": "pokemon-data/images/0902-幽尾玄鱼.gif",
-        "icon": "pokemon-data/icon/0902-幽尾玄鱼.png",
+        "image": "pokemon-data/images/0902-幽尾玄鱼-雄性.gif",
+        "icon": "pokemon-data/icon/0902-幽尾玄鱼-雄性.png",
         "types": [
             "水",
             "幽灵"
@@ -49106,7 +49272,48 @@
         "eggGroup": [
             "水中2群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "幽尾玄鱼-雄性"
+    },
+    {
+        "index": "0902-1",
+        "name": "幽尾玄鱼",
+        "name_en": "Basculegion",
+        "image": "pokemon-data/images/0902-1-幽尾玄鱼-雌性.gif",
+        "icon": "pokemon-data/icon/0902-1-幽尾玄鱼-雌性.png",
+        "types": [
+            "水",
+            "幽灵"
+        ],
+        "pinyin": "YouWeiXuanYu",
+        "pinyinInitials": "YWXY",
+        "catchRate": 0.35,
+        "genus": "大鱼宝可梦",
+        "description": "它披覆着未能完成逆流而上夙愿而死的同伴灵魂。在整个洗翠的河流中，没有其他物种能与幽尾玄鱼匹敌。",
+        "height": 30,
+        "weight": 1100,
+        "stats": [
+            120,
+            92,
+            65,
+            100,
+            75,
+            78
+        ],
+        "rarity": 0.7103,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            2,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "水中2群"
+        ],
+        "noEggGroup": false,
+        "form": "幽尾玄鱼-雌性"
     },
     {
         "index": "0903",
@@ -49664,8 +49871,8 @@
         "index": "0916",
         "name": "飘香豚",
         "name_en": "Oinkologne",
-        "image": "pokemon-data/images/0916-飘香豚.gif",
-        "icon": "pokemon-data/icon/0916-飘香豚.png",
+        "image": "pokemon-data/images/0916-飘香豚-雄性.gif",
+        "icon": "pokemon-data/icon/0916-飘香豚-雄性.png",
         "types": [
             "一般"
         ],
@@ -49697,7 +49904,47 @@
         "eggGroup": [
             "陆上群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "飘香豚-雄性"
+    },
+    {
+        "index": "0916-1",
+        "name": "飘香豚",
+        "name_en": "Oinkologne",
+        "image": "pokemon-data/images/0916-1-飘香豚-雌性.gif",
+        "icon": "pokemon-data/icon/0916-1-飘香豚-雌性.png",
+        "types": [
+            "一般"
+        ],
+        "pinyin": "PiaoXiangTun",
+        "pinyinInitials": "PXT",
+        "catchRate": 0.56,
+        "genus": "猪宝可梦",
+        "description": "飘香豚为自己细腻光滑的皮肤感到自豪。它会从尾巴尖端散发出浓缩的香气。",
+        "height": 10,
+        "weight": 1200,
+        "stats": [
+            115,
+            90,
+            70,
+            59,
+            90,
+            65
+        ],
+        "rarity": 0.6074,
+        "legend": false,
+        "region": "帕底亚",
+        "foods": [
+            2,
+            8,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "陆上群"
+        ],
+        "noEggGroup": false,
+        "form": "飘香豚-雌性"
     },
     {
         "index": "0917",

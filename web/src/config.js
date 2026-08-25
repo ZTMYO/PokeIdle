@@ -45,7 +45,7 @@ export const CATCH_BONUS_INC = 0.10;
 export const CANDY_EXCHANGE = {
   'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 500,
   'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 1000,
-  'bike': 170, // 自行车：赶路工具（骑行路段也能免费获得，商店是保底渠道）
+  'bike': 200, // 自行车：赶路工具（骑行路段也能免费获得，商店是保底渠道）
 };
 
 // 商店出售回收比例：出售价 = 兑换价 × 该比例（四舍五入），低于半价防止倒卖刷糖
@@ -403,14 +403,15 @@ export const DISPATCH_TYPE_BOOST = {
 // 道具单件价值（糖果价体系）：道具数量 = 价值预算 ÷ 单价，便宜的多、贵重的少
 export const DISPATCH_ITEM_VALUE = {
   'poke-ball': 10, 'ultra-ball': 25, 'sweet-honey': 40, 'exp-candy': 40,
-  'mystery-egg': 100, 'bike': 170, 'master-ball': 500, 'shiny-charm': 1000,
+  'mystery-egg': 100, 'bike': 200, 'master-ball': 500, 'shiny-charm': 1000,
 };
-// 单种道具单次派遣的掉落上限（贵重道具限 1，防单种爆量；自行车 170 单价 2 辆 340 < 24h 预算 360 可承受）
+// 单种道具单次派遣的掉落上限：大师球 / 闪耀护符预算撑不起，限 1 防异常；
+// 其他道具不限量，由价值预算天然封顶（自行车 200 单价 24h 预算 480 最多 2 辆，神秘蛋 100 最多 4 个）
 export const DISPATCH_ITEM_CAP = {
   'poke-ball': 10, 'ultra-ball': 5, 'sweet-honey': 4, 'exp-candy': 4,
-  'mystery-egg': 2, 'bike': 2, 'master-ball': 1, 'shiny-charm': 1,
+  'master-ball': 1, 'shiny-charm': 1,
 };
 export const DISPATCH_BOOST_DISCOUNT = 0.5; // 属性侧重时，非侧重道具权重统一打折，突出侧重道具
-export const DISPATCH_VALUE_PER_HOUR = 15; // 道具价值预算 / 实际小时（24h → 约 360 价值，6 格全满约 2100/天）
+export const DISPATCH_VALUE_PER_HOUR = 20; // 道具价值预算 / 实际小时（24h → 480 价值，够 2 辆自行车；6 格全满约 2880/天）
 export const DISPATCH_PICKS_MAX = 5;       // 单次派遣最多抽取道具种类数
 

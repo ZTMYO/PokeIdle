@@ -21,7 +21,7 @@ const NPC_FACES = [
 // - novice   BST ≤ 480（低 → 中低，约 620 只）
 // - veteran  320 ≤ BST ≤ 570（中低 → 中高，约 690 只）
 // - champion BST ≥ 440 且 rarity ≥ 0.5（中高 → 顶，约 530 只，偏高端）
-// 覆盖与重叠：三档并集 = 全部 1403 只（全覆盖），
+// 覆盖与重叠：三档并集 = 全部 1409 只（全覆盖），
 // 低档的宝可梦在高档池里同样可能出现。
 // allPokemon 由 setAllPokemon 运行时注入，这里惰性构建、首次调用缓存
 let _npcPools = null;

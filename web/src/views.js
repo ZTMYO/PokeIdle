@@ -812,11 +812,11 @@ export function showSettingsView() {
   showView('settingsView');
 }
 
-// 捕捉条件表格：遇敌类型 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 时空扭曲）
-// 优先级：时空扭曲 > 神兽/神兽闪 > 普通/普通闪 > 可悬赏；时空扭曲行接管该事件全部遭遇
+// 捕捉条件表格：遇敌类型 × 三态策略（普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 特效）
+// 优先级：特效 > 神兽/神兽闪 > 普通/普通闪 > 可悬赏；特效行接管该事件全部遭遇
 // 行顺序即优先级，与 battle.js catchFilterResult 的判断次序保持一致
 const CF_ROWS = [
-  { key: 'twist', label: '时空扭曲' },
+  { key: 'twist', label: '特效' },
   { key: 'legend', label: '神兽' },
   { key: 'legendShiny', label: '神兽闪' },
   { key: 'normal', label: '普通' },
@@ -840,6 +840,7 @@ export function renderSettings(container, s) {
   const autoBuffCharm = s.autoBuffCharm || false;
   const autoRefill = s.autoRefill || false;
   const shinyMasterBall = s.shinyMasterBall || false;
+  const variantMasterBall = s.variantMasterBall || false;
   const refillBalls = s.autoRefillBalls || { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
   const order = (Array.isArray(s.autoRefillOrder) && s.autoRefillOrder.length === 3)
     ? s.autoRefillOrder : ['poke-ball', 'ultra-ball', 'master-ball'];
@@ -901,6 +902,12 @@ export function renderSettings(container, s) {
           <div class="settings-sub-title">闪光使用大师球</div>
           <div class="ball-check-row">
             <span class="ball-check ${shinyMasterBall ? 'on' : ''}" id="toggleShinyMaster">${shinyMasterBall ? '☑' : '☐'}启用</span>
+          </div>
+        </div>
+        <div style="padding:4px 4px 2px;">
+          <div class="settings-sub-title">外观特效(RGB/污染)使用大师球</div>
+          <div class="ball-check-row">
+            <span class="ball-check ${variantMasterBall ? 'on' : ''}" id="toggleVariantMaster">${variantMasterBall ? '☑' : '☐'}启用</span>
           </div>
         </div>
         ` : ''}
@@ -1070,6 +1077,7 @@ export function renderSettings(container, s) {
   `;
   container.querySelector('#toggleAutoCatch')?.addEventListener('click', toggleAutoCatch);
   container.querySelector('#toggleShinyMaster')?.addEventListener('click', toggleShinyMasterBall);
+  container.querySelector('#toggleVariantMaster')?.addEventListener('click', toggleVariantMasterBall);
   container.querySelector('#toggleMusicEnabled')?.addEventListener('click', toggleMusicEnabled);
   container.querySelector('#toggleSfxEnabled')?.addEventListener('click', toggleSfxEnabled);
   container.querySelector('#genderBrendan')?.addEventListener('click', () => toggleGender('brendan'));
@@ -1334,7 +1342,7 @@ export function renderSettings(container, s) {
     let v = '';
     try { v = await window.__TAURI__?.app?.getVersion?.(); } catch (_) {}
     const el = container.querySelector('#settingsVersion');
-    if (el) el.textContent = v ? `v${v}` : 'v1.1.0';
+    if (el) el.textContent = v ? `v${v}` : 'v1.1.1';
   })();
   // 版权声明：跳转声明视图
   container.querySelector('#declarationBtn')?.addEventListener('click', () => showDeclarationView());
@@ -1358,6 +1366,7 @@ function ensureSettings() {
   if (!gameData.settings.autoCatchBalls) gameData.settings.autoCatchBalls = { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   if (gameData.settings.autoRefill == null) gameData.settings.autoRefill = false;
   if (gameData.settings.shinyMasterBall == null) gameData.settings.shinyMasterBall = false; // 闪光使用大师球（默认关）
+  if (gameData.settings.variantMasterBall == null) gameData.settings.variantMasterBall = false; // 特效使用大师球（默认关）
   if (!gameData.settings.autoRefillBalls) gameData.settings.autoRefillBalls = { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false };
   if (!Array.isArray(gameData.settings.autoRefillOrder) || gameData.settings.autoRefillOrder.length !== 3) {
     gameData.settings.autoRefillOrder = ['poke-ball', 'ultra-ball', 'master-ball']; // 默认便宜优先
@@ -1459,6 +1468,15 @@ export function toggleAutoBuffCharm() {
 function toggleShinyMasterBall() {
   ensureSettings();
   gameData.settings.shinyMasterBall = !gameData.settings.shinyMasterBall;
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
+
+// 外观特效(RGB/污染)使用大师球：勾选后时空扭曲的特效宝可梦优先用大师球（与闪光选项并存）
+function toggleVariantMasterBall() {
+  ensureSettings();
+  gameData.settings.variantMasterBall = !gameData.settings.variantMasterBall;
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
@@ -1940,7 +1958,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>放入后槽位上点<b>配置</b>选时长、点<b>出发</b>才开始计时；速度越快的宝可梦完成得越早（耗时系数 <b>${DISPATCH_SPEED_MIN} ~ ${DISPATCH_SPEED_MAX}</b>）。糖果按所选时长结算（已含档位加成，结算时再随机浮动 <b>±${Math.round(DISPATCH_CANDY_JITTER * 100)}%</b>）：</p>`
       + tutorialTable(DISPATCH_DURATIONS.map((h, i) => [`<b>${h}</b> 小时`, `<b>${Math.round(h * DISPATCH_CANDY_PER_HOUR * DISPATCH_DUR_MULT[i])}</b> 颗`, `×<b>${DISPATCH_DUR_MULT[i]}</b>`]), ['时长', '糖果', '档位加成'], [56, 'auto', 'auto'])
       + `<p>时空扭曲出没的 <b>RGB</b> / <b>污染</b> 宝可梦派遣时糖果收益额外 <b>+${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>事件</b>」章节）。</p>`
-      + `<p>道具方面，每 <b>1 小时</b> 攒 <b>${DISPATCH_VALUE_PER_HOUR}</b> 价值预算（满档 24 小时共 <b>${DISPATCH_VALUE_PER_HOUR * 24}</b>），按道具价值分配数量——便宜的堆数量、贵的限量（自行车 / 神秘蛋每趟 <b>2</b> 个封顶，大师球 / 闪耀护符各 <b>1</b> 个）。大师球 / 闪耀护符<b>不设侧重</b>，各属性都有机会掉。各道具单件价值如下（数量 = 预算 ÷ 单价）：</p>`
+      + `<p>道具方面，每 <b>1 小时</b> 攒 <b>${DISPATCH_VALUE_PER_HOUR}</b> 价值预算（满档 24 小时共 <b>${DISPATCH_VALUE_PER_HOUR * 24}</b>，够换 <b>${Math.floor(DISPATCH_VALUE_PER_HOUR * 24 / DISPATCH_ITEM_VALUE['bike'])}</b> 辆自行车），按道具价值分配数量——便宜的堆数量、贵重的按预算给（大师球 / 闪耀护符各 <b>1</b> 个受限，其余不限）。大师球 / 闪耀护符<b>不设侧重</b>，各属性都有机会掉。各道具单件价值如下（数量 = 预算 ÷ 单价）：</p>`
       + tutorialTable(Object.entries(DISPATCH_ITEM_VALUE).map(([k, v]) => [ITEM_NAMES[k] || k, `<b>${v}</b>`]), ['道具', '单件价值'], ['auto', 'auto'])
       + `<p>不同<b>属性</b>带回的道具侧重不同（按<b>主属性</b>计算，双属性只看第一个，仅提高抽中概率、不影响数量）：</p>`
       + tutorialTable(Object.entries(Object.entries(DISPATCH_TYPE_BOOST).reduce((acc, [type, boost]) => {
