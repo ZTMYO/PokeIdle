@@ -1561,10 +1561,11 @@ body.browser-mode { overflow: auto; }
   align-items: center;
   justify-content: center;
 }
-/* 孵化全部网格：固定 4 列小格子，8 个必然 2 行×4；数量不足时整体水平居中 */
+/* 孵化全部网格：固定 4 列小格子，8 个必然 2 行×4；数量不足时整体水平居中。
+   列宽用 1fr 按可用宽度平分（不用固定 vw，避免宽屏/缩放下列总宽超出 screen 溢出容器） */
 .hatch-all-grid {
   display: grid;
-  grid-template-columns: repeat(4, clamp(56px, 16vw, 72px));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   justify-content: center;
   gap: 6px;
   width: 100%;

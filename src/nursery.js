@@ -1182,7 +1182,11 @@ function previewIvCells(p) {
     } else {
       const va = p.ea.ivs && p.ea.ivs[k] != null ? p.ea.ivs[k] : 0;
       const vb = p.eb.ivs && p.eb.ivs[k] != null ? p.eb.ivs[k] : 0;
-      base = `${Math.min(va, vb)}~${Math.max(va, vb)}`; // 遗传位区间（含纯随机位的双亲范围）
+      // 遗传位只可能取父亲或母亲的数值（二选一），非区间：用斜杠表示"或"；
+      // 双亲同值或一方为 0 视为无差异时仅显单一值，避免 31/31 冗余
+      base = va === vb || va === 0 || vb === 0
+        ? String(Math.max(va, vb))
+        : `${va}/${vb}`;
       if (k === rotDim) cls = ' rot-on'; // 轮到的这项显示 0~31
     }
     const show = k === rotDim ? '0~31' : base;

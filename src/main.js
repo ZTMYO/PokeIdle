@@ -58,7 +58,7 @@ import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongra
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView, showNurseryView } from './nursery.js';
 import { isTrainPicking, leaveTrainPick, showTrainView } from './train.js';
-import { isDispatchPicking, leaveDispatchPick } from './dispatch.js';
+import { isDispatchPicking, leaveDispatchPick, processDispatch } from './dispatch.js';
 import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle, showBattleView } from './battle-view.js';
 import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit, isTeamPicking, leaveTeamPick, showTeamView } from './team.js';
 import { refreshNpcs } from './npcs.js';
@@ -434,6 +434,10 @@ async function onGameTick() {
   massTick();
   // 时空扭曲事件：生成 / 到期 / 异时空宝可梦滚动出现
   twistTick();
+
+  // 派遣后台推进：到点标记完成并触发 dispatch-changed，手机/标题栏红点即时点亮
+  // （派遣页内 startTimer 也会每秒推进，此处覆盖派遣页未打开时的离线完成检测）
+  processDispatch();
 
   if (phase !== 'idle') { updateStats(); return; }
 
