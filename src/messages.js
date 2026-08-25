@@ -387,7 +387,7 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
     if ((ach['candy'] || 0) > 0) msgs.push(`「糖果富翁」已达成 ${ach['candy']} 级，糖果越攒越丰厚！`);
     if ((ach['dex'] || 0) >= 5) msgs.push('「图鉴收藏家」几近满级，离全图鉴只差一步！');
     if ((ach['hatch'] || 0) > 0) msgs.push(`孵化成就已达成 ${ach['hatch']} 级，见证了许多新生命的诞生。`);
-    if ((ach['shinyCaught'] || 0) > 0) msgs.push(`「闪光收藏家」已达 ${ach['shinyCaught']} 级，运气非同一般！`);
+    if ((ach['shinyCaught'] || 0) > 0) msgs.push(`「闪光猎手」已达 ${ach['shinyCaught']} 级，运气非同一般！`);
     if ((ach['bounty'] || 0) > 0) msgs.push(`赏金猎人成就已领 ${ach['bounty']} 级，悬赏之路稳步前行。`);
   }
   const pendingAch = ACHIEVEMENTS.filter(a => earnedTiers(a) > claimedTiers(a.id)).length;

@@ -10116,7 +10116,7 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 .adv-chip {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 2px 7px;
   font-size: 10px;
   line-height: 1.3;
   color: var(--ui-color);

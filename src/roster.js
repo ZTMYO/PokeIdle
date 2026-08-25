@@ -98,11 +98,18 @@ let _detailReturnFn = null; // 从悬赏提交/交换选择列表进入详情时
 let _detailJumpedToPokedex = false; // 详情页跳转图鉴中（返回键应先回详情页，再按来源返回）
 let _picker = null; // 选取模式：配队/训练点击空位跳转仓库选择，{ mode:'team'|'train', slot, from, exclude[] }
 let _renderSeq = 0; // 列表分片渲染版本号：新一轮渲染作废旧一轮，避免快速切换筛选时乱序
+let _rosterIconObs = null; // 列表图标懒加载观察器：滚动进入视口（含预载带）才加载，避免大仓库并发请求打爆资源
 
 // 个体值总和
 function ivSum(p) {
   if (!p.ivs) return 0;
   return p.ivs.hp + p.ivs.atk + p.ivs.def + p.ivs.spa + p.ivs.spd + p.ivs.spe;
+}
+
+// V 数：个体值满项（31）个数
+function perfectIvCount(p) {
+  if (!p.ivs) return 0;
+  return IV_KEYS.filter(([k]) => (p.ivs[k] || 0) >= 31).length;
 }
 
 function srcName(s) { return SOURCE_NAMES[s] || s || '野生'; }
@@ -175,6 +182,7 @@ function currentFilterPool() {
     if (adv.lvMax !== '') pool = pool.filter(p => (p.level || 1) <= Number(adv.lvMax));
     if (adv.ivMin !== '') pool = pool.filter(p => ivSum(p) >= Number(adv.ivMin));
     if (adv.ivMax !== '') pool = pool.filter(p => ivSum(p) <= Number(adv.ivMax));
+    if (adv.ivCount !== '' && adv.ivCount != null) pool = pool.filter(p => perfectIvCount(p) === Number(adv.ivCount));
     if (adv.gender) pool = pool.filter(p => ensureGender(p) === adv.gender);
   } else {
     // 普通模式：来源 → 稀有度 → 闪光 →（时空扭曲）变体 → 属性 → 地区 → 搜索词
@@ -220,6 +228,17 @@ function currentFilterPool() {
 function renderList() {
   const list = $('rosterList');
   if (!list) return;
+  // 懒加载图标观察器：监听 #rosterList 视口（含预载带），回调加载后自动解除观察
+  if ('IntersectionObserver' in window && !_rosterIconObs) {
+    _rosterIconObs = new IntersectionObserver((entries) => {
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        _rosterIconObs.unobserve(en.target);
+        const poke = getPokemonByIndex(en.target.dataset.icon);
+        if (poke?.icon) tryLoadImage(en.target, poke.icon);
+      }
+    }, { root: list, rootMargin: '200px 0px' });
+  }
   const pool = currentFilterPool();
   // 全选按钮仅在批量放生模式下显示（右上角）
   const selAllBtn = $('rosterSelectAll');
@@ -266,7 +285,7 @@ function renderList() {
     if (typeof va === 'string') return va.localeCompare(vb) * _sortDir;
     return (va - vb) * _sortDir;
   });
-  // 渲染行（复用图鉴 .pokedex-entry 样式）：分片插入 + 分片加载图标，
+  // 渲染行（复用图鉴 .pokedex-entry 样式）：分片插入 + 分片懒加载图标，
   // 避免几百条一次性 innerHTML 与全量图片请求长时间阻塞主线程
   _renderSeq++;
   const seq = _renderSeq;
@@ -296,7 +315,10 @@ function renderList() {
       const imgs = list.querySelectorAll('.roster-icon-img');
       for (let k = before; k < imgs.length; k++) {
         const poke = getPokemonByIndex(imgs[k].dataset.icon);
-        if (poke?.icon) tryLoadImage(imgs[k], poke.icon);
+        if (poke?.icon) {
+          // 进入视口（含预载带）才请求；滚动经过时由观察器回调加载
+          observeRosterIcon(imgs[k]);
+        }
       }
       if (i < sorted.length) requestAnimationFrame(step);
     };
@@ -330,6 +352,16 @@ function renderList() {
     const cur = header.querySelector(`[data-sort="${_sortBy}"]`);
     if (cur) cur.classList.add(_sortDir === 1 ? 'sort-asc' : 'sort-desc');
   }
+}
+
+// 列表懒加载图标：将当前行图标挂到观察器，进入视口（含预载带）才请求加载
+function observeRosterIcon(img) {
+  if (!('IntersectionObserver' in window) || !_rosterIconObs) {
+    const poke = getPokemonByIndex(img.dataset.icon);
+    if (poke?.icon) tryLoadImage(img, poke.icon);
+    return;
+  }
+  _rosterIconObs.observe(img);
 }
 
 function rowHtml(p) {
@@ -1260,6 +1292,10 @@ function advFilterHtml() {
         </div></div>
       </div>
 
+      <div class="adv-group"><div class="adv-group-name">个体值</div><div class="adv-chips">
+        ${chip('ivcount', '0', '0v')}${[1, 2, 3, 4, 5, 6].map(n => chip('ivcount', String(n), n + 'v')).join('')}
+      </div></div>
+
       <div class="adv-grid">
         <div class="adv-group"><div class="adv-group-name">稀有度</div><div class="adv-chips">
           ${chip('legend', '', '不限')}${chip('legend', 'normal', '普通')}${chip('legend', 'legend', '神兽')}
@@ -1382,8 +1418,8 @@ function bindAdvFilter(panel) {
   panel.querySelector('#advFilterClearBtn').addEventListener('click', () => {
     // 重置：直接恢复各控件默认值，避免重建 DOM 造成闪烁；关闭交给右上角 ✕
     panel.querySelectorAll('.adv-chip').forEach(c => {
-      // 每组恢复「不限」（data-val 为空）为选中，其余取消；属性组无「不限」则全取消
-      const isNone = c.dataset.val === '';
+      // 恢复各组「不限」（data-val 为空）为选中；个体值组无「不限」项，默认回 0v
+      const isNone = c.dataset.val === '' || (c.dataset.group === 'ivcount' && c.dataset.val === '0');
       c.classList.toggle('sel', isNone);
     });
     const q2 = panel.querySelector('#advFilterQ');
@@ -1444,6 +1480,7 @@ function bindAdvFilter(panel) {
       ivMin: numClamp(panel.querySelector('#advFilterIvMin'), 0, 186),
       ivMax: numClamp(panel.querySelector('#advFilterIvMax'), 186, 186),
       gender: getChips('gender'),
+      ivCount: getChips('ivcount'),
     };
     syncAdvFilterUi();
     renderList();
@@ -1487,6 +1524,7 @@ function removeAdvBadge(F, k) {
   if (k === 'type') F.type = [];
   else if (k === 'lv') { F.lvMin = 0; F.lvMax = 100; }
   else if (k === 'iv') { F.ivMin = 0; F.ivMax = 186; }
+  else if (k === 'ivcount') F.ivCount = '';
   else delete F[k];
 }
 
@@ -1495,7 +1533,8 @@ function advIsEmpty(F) {
   return !(F.poke || F.q || F.legend || F.shiny || F.variant || F.src || F.gender
     || (F.type && F.type.length) || F.region
     || (Number(F.lvMin) > 0) || (Number(F.lvMax) < 100)
-    || (Number(F.ivMin) > 0) || (Number(F.ivMax) < 186));
+    || (Number(F.ivMin) > 0) || (Number(F.ivMax) < 186)
+    || (F.ivCount !== '' && F.ivCount != null));
 }
 
 // 高级筛选条件预览条：每个 tag 可点击单独移除（data-key 标识来源字段）
@@ -1526,6 +1565,7 @@ function advFilterBadges(F) {
   if (!isNaN(ivMin) && ivMin > 0) iv.push(`≥${ivMin}`);
   if (!isNaN(ivMax) && ivMax < 186) iv.push(`≤${ivMax}`);
   if (iv.length) parts.push({ k: 'iv', t: `个体值${iv.join(' ')}` });
+  if (F.ivCount !== '' && F.ivCount != null) parts.push({ k: 'ivcount', t: `恰好${F.ivCount}V` });
   if (F.gender) parts.push({ k: 'gender', t: F.gender === 'male' ? '雄性' : F.gender === 'female' ? '雌性' : '无性' });
   return parts.map(b => `<span class="adv-bar-chip" data-key="${b.k}">${b.t}</span>`).join('');
 }

@@ -33,7 +33,7 @@ NATURE_CN = dict([
     ("calm", "温和"), ("gentle", "温顺"), ("careful", "慎重"), ("quirky", "浮躁"), ("sassy", "自大"),
     ("timid", "胆小"), ("hasty", "急躁"), ("jolly", "爽朗"), ("naive", "天真"), ("serious", "认真"),
 ])
-SRC_CN = {"normal": "野生", "fishing": "钓鱼", "egg": "孵蛋", "honey": "甜甜蜜", "trade": "交换", "mass": "大量出没"}
+SRC_CN = {"normal": "野生", "fishing": "钓鱼", "egg": "孵蛋", "honey": "甜甜蜜", "trade": "交换", "mass": "大量出没", "twist": "时空扭曲"}
 GENDER_SYMBOL = {"male": "♂", "female": "♀", "genderless": "无"}
 BERRY_NAMES = ["利木果", "樱子果", "零余果", "苹野果", "木子果", "茄番果",
                "橙橙果", "桃桃果", "莓莓果", "文柚果", "勿花果", "异奇果"]
@@ -42,9 +42,11 @@ STAT_CN = {
     "totalFlees": ("总逃跑数", "累计逃跑/挣脱数"),
     "totalShinySeen": ("闪光遇见数", "遇到的闪光宝可梦数"),
     "totalShinyCaught": ("闪光捕获数", "捕获的闪光宝可梦数"),
+    "totalShinyTraded": ("闪光交换", "交换获得的闪光宝可梦数"),
     "totalEggsHatched": ("孵蛋总数", "累计孵化宝可梦数"),
     "totalShinyEggsHatched": ("闪光孵蛋", "累计孵化出闪光宝可梦数"),
     "totalEggsProduced": ("繁育产蛋", "饲育屋累计产蛋数"),
+    "releaseXpPool": ("放生经验池", "放生返还经验累积池，攒满自动产出经验糖果"),
     "totalPlaySeconds": ("在线时长(秒)", "累计挂机时长"),
     "playSecondsToday": ("今日时长(秒)", "今日挂机时长"),
     "lastPlayDate": ("最近游玩日期", "最近一次游玩日期（YYYY-MM-DD）"),
@@ -80,14 +82,17 @@ STAT_CN = {
 }
 TOP_KEY_CN = {
     "items": "物品", "stats": "统计", "roster": "宝可梦仓库", "team": "出战队伍",
+    "teams": "队伍分组", "activeTeam": "当前上场队伍",
     "pokedex": "图鉴", "encounterLogs": "遭遇记录", "incubators": "孵蛋器",
     "incubatorLogs": "孵蛋记录", "incubatorUnlockedSlots": "孵蛋器解锁槽位",
     "nursery": "饲育屋", "berryFarm": "树果农场", "gps": "导航", "massOutbreak": "大量出没",
-    "massNextGenAt": "大量出没刷新时间", "bounty": "悬赏", "trades": "交换广场",
-    "battleNpcs": "NPC对战", "training": "训练", "achievements": "成就",
+    "massNextGenAt": "大量出没刷新时间", "twist": "时空扭曲", "twistNextGenAt": "时空扭曲刷新时间",
+    "bounty": "悬赏", "trades": "交换广场",
+    "battleNpcs": "NPC对战", "training": "训练", "dispatch": "派遣", "achievements": "成就",
     "systemLogs": "系统日志", "settings": "设置", "lastSavedAt": "最后保存时间",
     "version": "版本", "introDone": "开场剧情完成", "currentRegion": "当前地区",
     "manualBike": "手动骑行", "collectedCards": "卡牌收集",
+    "tutorialRewards": "教程奖励", "mahjongRecords": "麻将战绩",
     "_mahjongState": "麻将状态", "_mahjongLastResult": "麻将结果",
     "follower": "随从", "followerPending": "随从待处理",
     "gachaLogs": "抽卡记录", "casinoRecords": "赌场记录",
@@ -108,7 +113,8 @@ ACHIEVEMENT_CN = {
     "trade": ("交换达人", "累计完成交换"), "npcCandy": ("对战丰收", "累计 NPC 对战获得糖果"),
     "npcWin": ("百战百胜", "累计战胜 NPC"), "bounty": ("赏金猎人", "累计完成地区悬赏"),
     "npcElite": ("精英猎人", "累计战胜精英 NPC"), "npcChampion": ("冠军挑战者", "累计战胜冠军 NPC"),
-    "dex": ("图鉴收藏家", "累计捕获不同种类"), "shinyCaught": ("闪光收藏家", "累计捕获闪光宝可梦"),
+    "dex": ("图鉴收藏家", "累计捕获不同种类"), "shinyDex": ("闪光收藏家", "图鉴中累计拥有闪光的不同种类"),
+    "shinyCaught": ("闪光猎手", "累计捕获闪光宝可梦"), "cardCollect": ("卡牌收藏家", "累计收集卡牌种类"),
 }
 
 # 系统日志类型 → 中文名
@@ -121,12 +127,16 @@ LOG_TYPE_CN = {
     "berry_trade": "树果委托", "trade": "交换", "mixer": "混合器",
     "incubator_place": "孵蛋器放入", "incubator_unlock": "孵蛋器解锁",
     "mass_outbreak_start": "大量出没开始", "mass_outbreak_end": "大量出没结束",
+    "twist_start": "时空扭曲开始", "twist_end": "时空扭曲结束",
     "train_start": "开始训练", "train_end": "结束训练", "train_levelup": "训练升级",
     "train_lazy": "开始偷懒", "train_wake": "叫醒偷懒", "train_feed": "进食树果",
     "nursery_breed_start": "开始繁殖", "nursery_egg": "产蛋",
+    "dispatch_start": "派遣开始", "dispatch_done": "派遣完成",
+    "exp_candy_use": "经验糖果使用",
     "pokemon_release": "放生", "buff_expired": "增益结束", "战斗": "NPC对战",
     "casino": "赌场", "gacha": "抽卡", "mahjong": "麻将",
     "export": "导出存档", "auto_refill": "自动补球",
+    "shop_sell": "商店出售",
     "bike_ride": "上车骑行", "bike_stop": "下车步行",
 }
 
@@ -160,10 +170,12 @@ CF_ROW_LABELS = {"normal": "普通", "normalShiny": "普通闪", "legend": "神�
 TAB_OF_PATH = (
     ("roster.", 1), ("team.", 2), ("items.", 0), ("pokedex.", 3), ("incubators.", 4),
     ("incubatorLogs.", 5), ("nursery.", 6), ("berryFarm.", 7), ("training.", 8),
+    ("dispatch.", 9), ("teams", 9), ("activeTeam", 9),
     ("stats.", 10), ("achievements.", 11), ("systemLogs.", 12), ("settings.", 13),
     ("collectedCards.", 14), ("encounterLogs.", 15),
     ("gps.", 9), ("massOutbreak.", 9), ("massNextGenAt", 9), ("bounty", 9),
     ("trades", 9), ("battleNpcs", 9), ("lastSavedAt", 9), ("incubatorUnlockedSlots", 9),
+    ("twist", 9), ("twistNextGenAt", 9), ("tutorialRewards", 9), ("mahjongRecords.", 9),
     ("follower", 9), ("followerPending", 9), ("gachaLogs.", 9), ("casinoRecords.", 9),
 )
 ISSUE_TAB = 17  # 「数据问题」页索引
@@ -568,8 +580,8 @@ class SaveViewer:
         self._tabs = {}
         specs = [
             ("物品", [("name", "物品", 110), ("val", "数量", 80)]),
-            ("宝可梦", [("name", "名称", 100), ("num", "编号", 55), ("lv", "等级", 50), ("gender", "性别", 45),
-                        ("shiny", "闪光", 45), ("nature", "性格", 60), ("src", "来源", 55),
+            ("宝可梦", [("name", "名称", 100), ("num", "编号", 55), ("lv", "等级", 50), ("exp", "经验", 70),
+                        ("gender", "性别", 45), ("shiny", "闪光", 45), ("nature", "性格", 60), ("src", "来源", 55),
                         ("inroster", "在仓库", 55), ("ivs", "个体值(HP/攻/防/特攻/特防/速)", 260),
                         ("evs", "努力值", 190), ("id", "ID", 120)]),
             ("队伍", [("idx", "序号", 45), ("name", "名称", 110), ("lv", "等级", 55), ("shiny", "闪光", 45), ("note", "状态", 300)]),
@@ -670,7 +682,7 @@ class SaveViewer:
         t.delete(*t.get_children())
         for i, m in enumerate(self.data.get("roster") or []):
             if not isinstance(m, dict):
-                t.insert("", "end", values=("?", "", "", "", "", "", "", "", "", "", ""),
+                t.insert("", "end", values=("?", "", "", "", "", "", "", "", "", "", "", ""),
                          tags=("issue",))
                 continue
             sid = str(m.get("species", ""))
@@ -684,7 +696,7 @@ class SaveViewer:
             ev_str = " ".join(str(evs.get(k, 0)) for k in STAT_KEYS)
             gender = GENDER_SYMBOL.get(m.get("gender"), m.get("gender", "?"))
             t.insert("", "end", values=(
-                name, sid, m.get("level", "?"), gender, fmt_bool(m.get("shiny", False)),
+                name, sid, m.get("level", "?"), round(m.get("exp") or 0), gender, fmt_bool(m.get("shiny", False)),
                 NATURE_CN.get(m.get("nature"), m.get("nature", "?")),
                 SRC_CN.get(m.get("source"), m.get("source", "?")),
                 fmt_bool(m.get("inRoster", True)), iv_str, ev_str, m.get("id", "")), tags=tags)
@@ -873,14 +885,33 @@ class SaveViewer:
             rows.append(("NPC对战", f"{len(bn.get('list') or [])} 个 · 刷新时间 {fmt_time(bn.get('refreshedAt'))}",
                          "刷新时间到点后重新生成一波"))
         rows.append(("大量出没", self._brief(d.get("massOutbreak")), "当前大量出没的宝可梦"))
+        rows.append(("时空扭曲", self._brief(d.get("twist")), "当前时空扭曲事件"))
         rows.append(("导航位置", self._brief(d.get("gps")), "当前坐标/目标点"))
         rows.append(("悬赏", self._brief(d.get("bounty")), "今日树果/宝可梦悬赏"))
         rows.append(("交换广场", self._brief(d.get("trades")), "待处理的交换请求"))
         rows.append(("孵蛋器槽位", f"{d.get('incubatorUnlockedSlots', 0)}/8", "已解锁的孵蛋器数量"))
         rows.append(("下次大量出没", fmt_time(d.get("massNextGenAt")), "下一次生成大量出没的时间"))
+        rows.append(("下次时空扭曲", fmt_time(d.get("twistNextGenAt")), "下一次生成时空扭曲的时间"))
         rows.append(("最后保存时间", fmt_time(d.get("lastSavedAt")), "存档最近写入时间"))
         rows.append(("手动骑行", fmt_bool(d.get("manualBike", False)), "是否处于手动骑行状态"))
         rows.append(("卡牌收集", f"{len(d.get('collectedCards') or {})} 张", "抽卡系统收集的卡牌数量"))
+        # 队伍分组：6 组配队 + 当前上场
+        ts = d.get("teams")
+        if isinstance(ts, list):
+            cnts = "/".join(str(len(g.get("ids") or [])) for g in ts) if all(isinstance(g, dict) for g in ts) else "?"
+            rows.append(("队伍分组", f"{len(ts)} 组 · 各队人数 {cnts}",
+                         f"当前上场：队伍{int(d.get('activeTeam', 0)) + 1}"))
+        # 派遣：唯一离线收益来源
+        dp = d.get("dispatch")
+        if isinstance(dp, dict):
+            slots = dp.get("slots") or []
+            active = sum(1 for s in slots if isinstance(s, dict))
+            rows.append(("派遣", f"{active}/{len(slots)} 个派遣中 · 解锁 {dp.get('unlockedSlots', 0)} 格",
+                         "离线照常计时的派遣收益"))
+        # 麻将战绩
+        mr = d.get("mahjongRecords")
+        if isinstance(mr, list):
+            rows.append(("麻将战绩", f"{len(mr)} 局", "麻将战绩滑动窗口（整场一条）"))
         # 随从（M4）
         fol = d.get("follower")
         if isinstance(fol, dict):

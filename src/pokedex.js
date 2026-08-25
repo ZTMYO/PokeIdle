@@ -117,14 +117,14 @@ export function showEncounterLogs(pokemonIndex) {
           <img id="logPokeImg" class="poke-img-in-grid" />
         </div>
         ${(caughtCount > 0 && poke && poke.genus) ? `<div style="font-size:9px;">${poke.genus}</div>` : ''}
+        ${(caughtCount > 0 && poke && poke.eggGroup && poke.eggGroup.length) ? `<div style="font-size:9px;white-space:nowrap;">${poke.eggGroup.join(' ')}</div>` : ''}
       </div>
       <div style="min-width:0;">
         <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:2px;">
           ${(poke && poke.types || []).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t]||'#888'}">${t}</span>`).join('')}
         </div>
-        <div style="font-size:10px;line-height:1.5;">${poke && poke.region ? `<div>地区：${poke.region}</div>` : ''}
+        <div style="font-size:9px;line-height:1.5;">${poke && poke.region ? `<div>地区：${poke.region}</div>` : ''}
         ${genderRatioText(poke) ? `<div>${genderRatioText(poke)}</div>` : ''}
-        ${(poke && poke.eggGroup && poke.eggGroup.length) ? `<div>蛋组：${poke.eggGroup.join('、')}</div>` : ''}
         ${(() => {
           const r = (poke && poke.catchRate !== undefined) ? poke.catchRate : 0.5;
           const rarity = (poke && poke.rarity !== undefined) ? poke.rarity : 0.5;
@@ -151,7 +151,7 @@ export function showEncounterLogs(pokemonIndex) {
         ${(poke && poke.weight != null) ? `<div>体重：${(poke.weight/10).toFixed(1)}kg</div>` : ''}
       </div>
       </div>
-      ${(caughtCount > 0 && poke && poke.stats && poke.stats.length) ? `<div style="font-size:10px;flex:1;min-width:0;overflow:hidden;">${(() => {
+      ${(caughtCount > 0 && poke && poke.stats && poke.stats.length) ? `<div style="font-size:9px;flex:1;min-width:0;overflow:hidden;">${(() => {
         // stats 为固定顺序数字数组：0=HP, 1=物攻, 2=物防, 3=特攻, 4=特防, 5=速度
         const statNames = ['HP', '攻击', '防御', '特攻', '特防', '速度'];
         const maxStat = 255;

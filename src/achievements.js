@@ -15,6 +15,12 @@ function dexCount() {
   return Object.values(gameData.pokedex).filter(e => e && (e.caught || 0) > 0).length;
 }
 
+// 图鉴已拥有闪光的种类数（去重，对应图鉴实心五角星）
+function shinyDexCount() {
+  if (!gameData?.pokedex) return 0;
+  return Object.values(gameData.pokedex).filter(e => e && (e.shinyCaught || 0) > 0).length;
+}
+
 // 规整等级系数：1, 2, 5, 10, 20, 50, 100, ...（每 3 级一个数量级，等级多且数字好记）
 function niceValue(n) {
   return [1, 2, 5][n % 3] * Math.pow(10, Math.floor(n / 3));
@@ -104,7 +110,14 @@ export const ACHIEVEMENTS = [
     fmt: v => `${Number(v)} 种`,
   },
   {
-    id: 'shinyCaught', name: '闪光收藏家', desc: '累计捕获闪光宝可梦',
+    id: 'shinyDex', name: '闪光收藏家', desc: '图鉴中累计拥有闪光的不同种类',
+    metric: () => shinyDexCount(), base: 10, reward: 100, maxTiers: 8,
+    // 满级阈值对齐全图鉴 1411 种，达成即图鉴全实心五角星
+    tiers: [10, 20, 50, 100, 200, 500, 1000, 1411],
+    fmt: v => `${Number(v)} 种`,
+  },
+  {
+    id: 'shinyCaught', name: '闪光猎手', desc: '累计捕获闪光宝可梦',
     metric: d => d.stats.totalShinyCaught || 0, base: 1, reward: 100,
     fmt: v => `${formatNum(v)} 只`,
   },
