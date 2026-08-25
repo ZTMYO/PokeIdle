@@ -98,6 +98,7 @@ export const ACHIEVEMENTS = [
     id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
     metric: () => dexCount(), base: 10, reward: 30, maxTiers: 8,
     // 满级阈值对齐当前全图鉴 1411 种，最后一级 1411
+    // 后续新增宝可梦时：把末级数字改为最新图鉴总数，同时同步 maxTiers（= tiers 数组长度）
     tiers: [10, 20, 50, 100, 200, 500, 1000, 1411],
     // 不改 formatNum：避免 1.3K 缩写，图鉴进度显示具体数字
     fmt: v => `${Number(v)} 种`,
@@ -155,7 +156,8 @@ export function hasClaimableAchievements() {
 export function earnedTiers(a) {
   const v = a.metric(gameData) || 0;
   let n = 0;
-  while (tierAt(a, n).threshold <= v) {
+  while (a.maxTiers == null || n < a.maxTiers) {
+    if (tierAt(a, n).threshold > v) break;
     n++;
     if (n > 100000) break; // 安全阀，正常到不了
   }
