@@ -964,6 +964,7 @@ export function goIdle() {
   setCatchConfirmStep(false);
   setCurrentEncounter(null);
   setEncounterBallsUsed(0);
+  setCurrentEncounterBalls({ 'poke-ball': 0, 'ultra-ball': 0, 'master-ball': 0 }); // 丢球计数清零，防后台补算跨遭遇累积
   setEncounterMsg(null);
   _encounterSource = 'normal';
   _encounterVariant = null;

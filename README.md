@@ -20,7 +20,7 @@
   </a>
 </p>
 <p align="center">
-  <a href="https://github.com/ZTMYO/PokeIdle">https://pokeidle.shiliu.space/</a>
+  <a href="https://pokeidle.shiliu.space/">https://pokeidle.shiliu.space/</a>
 </p>
 
 
