@@ -1,6 +1,6 @@
 // ===== 道具相关逻辑 =====
 import { ITEM_NAMES, CANDY_EXCHANGE, ITEM_SELL_RATE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, isPokemon } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay, burstShinySparkle } from './animation.js';
@@ -470,8 +470,8 @@ export function unlockIncubatorSlot(slotIndex) {
 }
 
 // 孵化结果落库公共部分（单只/批量共用）：图鉴/仓库/遭遇日志/统计/孵蛋记录，并清空该槽位。
-// 只整理存档数据，不涉及任何 DOM 展示。
-function applyHatchEntry(slotIndex) {
+// 只整理存档数据，不涉及任何 DOM 展示。presetGender：批量孵化动画已预判的性别，神秘蛋建档时沿用保证显示一致。
+function applyHatchEntry(slotIndex, presetGender) {
   const slot = gameData.incubators[slotIndex];
   if (!slot) return;
   const poke = getPokemonByIndex(slot.eggIndex);
@@ -509,7 +509,7 @@ function applyHatchEntry(slotIndex) {
       entry = eggEntry;
     }
   }
-  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg' });
+  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg', gender: presetGender || undefined });
   setLastObtainedEntryId(entry.id);
 
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
@@ -689,7 +689,6 @@ export async function hatchFromIncubator(slotIndex) {
     }
   }
 
-  $('hatchName').style.display = 'none';
   $('hatchTypes').style.display = 'none';
   // 新发现标记（普通/闪光分开）
   const existingEntry = gameData.pokedex[idx];
@@ -718,6 +717,12 @@ export async function hatchFromIncubator(slotIndex) {
   $('hatchCatchRate').innerHTML = '稀有度 ' + rarityLabel(poke.rarity ?? 0.5);
 
   applyHatchEntry(slotIndex);
+
+  // 左上角显示孵化出的宝可梦全名 + 性别图标（建档后读取，性别与实际存档一致；右上角保留已拥有/稀有度/新发现）
+  const hatchEntry = (gameData.roster || []).find(r => r.id === getLastObtainedEntryId());
+  const hatchGender = hatchEntry ? ensureGender(hatchEntry) : 'genderless';
+  $('hatchName').innerHTML = poke.name + genderBadge(hatchGender);
+  $('hatchName').style.display = '';
 
   // 玩家仍在本页才播放祝贺音效（已切走则后台静默结算，避免音效打断其他页面背景曲）
   if (isOnHatchView()) playCongratulation();
@@ -819,8 +824,9 @@ export async function hatchAllFromIncubator() {
   // 依次孵化：每只播放破壳动画 → 大图出现 → 显示名字后立即落库
   for (let k = 0; k < cells.length; k++) {
     const { slot, poke, eggShiny, stage, nameEl } = cells[k];
-    await playHatchAllCell(stage, poke, eggShiny, nameEl);
-    applyHatchEntry(slot); // 名字/闪光星标/粒子已随图片在 playHatchAllCell 内同步出现
+    const cellGender = hatchCellGender(incubators[slot], poke); // 预判性别：动画与建档共用，保证显示一致
+    await playHatchAllCell(stage, poke, eggShiny, nameEl, cellGender);
+    applyHatchEntry(slot, cellGender); // 名字/闪光星标/性别/粒子已随图片在 playHatchAllCell 内同步出现
     await saveGame(); // 每只完成后落盘，中途崩溃也不丢已孵化结果
     if (k < cells.length - 1) await delay(180);
   }
@@ -843,9 +849,19 @@ export async function hatchAllFromIncubator() {
   showConfirmBar(`孵化全部完成！共获得 ${cells.length} 只宝可梦`, () => { leaveHatchAllPage(); }, null, { host: view, singleButton: true });
 }
 
+// 批孵性别预判：蛋条目（eggRef）用其孵化时已定的性别；神秘蛋先 roll 一次性别，
+// 由 applyHatchEntry 建档时沿用（传给 addRosterEntry），保证动画里显示的性别与存档一致
+function hatchCellGender(slot, poke) {
+  if (slot.eggRef) {
+    const e = (gameData.roster || []).find(r => r.id === slot.eggRef);
+    if (e) return ensureGender(e);
+  }
+  return rollGender(poke.index);
+}
+
 // 单个蛋的完整孵出流程：直接从蛋裂一帧开始快速播放破壳动画 → 宝可梦大图从蛋中心缩放出现
-// nameEl 传入后与图片同步显示名字（闪光时追加雪碧图星标）
-async function playHatchAllCell(stage, poke, eggShiny, nameEl) {
+// nameEl 传入后与图片同步显示名字（名字后跟性别图标，闪光时性别左侧追加雪碧图星标）
+async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender) {
   // 蛋精灵：与单只孵蛋动画同源（hatch.png 竖排 4 帧）
   const tmp = new Image();
   tmp.src = './items/hatch.png';
@@ -889,14 +905,16 @@ async function playHatchAllCell(stage, poke, eggShiny, nameEl) {
   }
   img.style.transform = 'translate(-50%, -50%) scale(0)';
   void img.offsetHeight;
-  // 图片开始放大出场的同时显示名字（闪光追加雪碧图星标）并爆发闪光粒子
+  // 图片开始放大出场的同时显示名字（名字 → 闪光星标 → 性别图标）并爆发闪光粒子
   if (nameEl) {
-    nameEl.textContent = poke.name;
+    let nameHtml = `<span>${poke.name}</span>`;
     if (eggShiny) {
-      nameEl.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;margin-left:2px;"><use xlink:href="#icon-star"/></svg>');
+      nameHtml += '<svg viewBox="0 0 1024 1024" width="8" height="8" style="flex-shrink:0;color:var(--ui-color);vertical-align:0px;"><use xlink:href="#icon-star"/></svg>';
       burstShinySparkle($('hatchAllView'), stage, { cls: 'sm', scale: 0.9 }); // 以蛋格为爆点同步爆发
       playShiny(); // 闪光登场音效（批量无需等待，庆祝在全部播完后统一播放）
     }
+    nameHtml += genderBadge(gender, 8);
+    nameEl.innerHTML = nameHtml;
   }
   const dur = 250;
   await animate(dur, t => {

@@ -94,7 +94,7 @@ export function showView(id) {
   if (id === 'incubatorView') {
     _incLogOpen = false;
     _eggPickSlot = null;
-    _eggPickQuery = '';
+    // 保留 _eggPickQuery：放入蛋后仍保留上次搜索词，方便继续放同种蛋（点清空按钮才重置）
     _incLogPrevTitle = null;
   }
   // 孵蛋结果确认页离开游戏页时：若期间挂起过野生遭遇则恢复该遭遇，
@@ -793,6 +793,45 @@ function renderEggPickList() {
     return (va - vb) * _eggPickSortDir;
   });
 
+  // 已渲染过选蛋页：只增量更新进度/排序标记/列表，避免重建销毁搜索框导致失焦
+  const existingPage = box.querySelector('.nursery-egg-page');
+  if (existingPage) {
+    const progress = existingPage.querySelector('.pokedex-progress');
+    if (progress) progress.textContent = allEggs.length ? `共 ${allEggs.length} 个蛋可选${q ? '（匹配 ' + sorted.length + ' 个）' : ''}` : '暂无宝可梦蛋';
+    const inp = existingPage.querySelector('#incubatorEggSearch');
+    if (inp && inp.value.trim() !== q) inp.value = _eggPickQuery;
+    const clearBtn = existingPage.querySelector('#incubatorEggSearchClear');
+    if (clearBtn) clearBtn.style.display = q ? '' : 'none';
+    existingPage.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+    const cur = existingPage.querySelector(`[data-sort="${_eggPickSortBy}"]`);
+    if (cur && _eggPickSortBy) cur.classList.add(_eggPickSortDir === 1 ? 'sort-asc' : 'sort-desc');
+    const listScroll = existingPage.querySelector('.list-scroll');
+    if (listScroll) {
+      listScroll.innerHTML = sorted.length === 0
+        ? (q ? '<div class="roster-empty">无匹配的蛋</div>' : '<div class="roster-empty">没有可放入的蛋<br>饲育屋收取的蛋会出现在这里</div>')
+        : sorted.map(eg => {
+            const poke = getPokemonByIndex(String(eg.species));
+            const name = poke ? poke.name : `#${eg.species}`;
+            return `
+              <div class="pokedex-entry roster-row nursery-egg-row" data-egg-pick="${eg.id}">
+                <span class="pokedex-name"><img class="roster-icon-img" src="./items/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                <span class="roster-iv">${eggIvSlash(eg)}</span>
+              </div>`;
+          }).join('');
+      // 重新绑定行点击
+      listScroll.querySelectorAll('[data-egg-pick]').forEach(item => {
+        item.addEventListener('click', () => {
+          const sid = _eggPickSlot;
+          const eid = item.dataset.eggPick;
+          _eggPickSlot = null;
+          import('./items.js').then(m => m.placePokemonEggInIncubator(sid, eid));
+          setTimeout(() => closeIncubatorEggView(), 0);
+        });
+      });
+    }
+    return;
+  }
+
   box.innerHTML = `
     <div class="nursery-egg-page view-list">
       <div class="pokedex-progress">${allEggs.length ? `共 ${allEggs.length} 个蛋可选${q ? '（匹配 ' + sorted.length + ' 个）' : ''}` : '暂无宝可梦蛋'}</div>
@@ -855,23 +894,21 @@ function renderEggPickList() {
     const cur = eggHeader.querySelector(`[data-sort="${_eggPickSortBy}"]`);
     if (cur) cur.classList.add(_eggPickSortDir === 1 ? 'sort-asc' : 'sort-desc');
   }
-  // 点击列表行即放入该蛋并返回孵蛋器
+  // 点击列表行即放入该蛋并返回孵蛋器（保留搜索词）
   box.querySelectorAll('[data-egg-pick]').forEach(item => {
     item.addEventListener('click', () => {
       const sid = _eggPickSlot;
       const eid = item.dataset.eggPick;
       _eggPickSlot = null;
-      _eggPickQuery = '';
       import('./items.js').then(m => m.placePokemonEggInIncubator(sid, eid));
       setTimeout(() => closeIncubatorEggView(), 0);
     });
   });
 }
 
-// 退出选蛋页：清空状态，返回孵蛋器
+// 退出选蛋页：返回孵蛋器（保留 _eggPickQuery 供下次继续搜索）
 export function closeIncubatorEggView() {
   _eggPickSlot = null;
-  _eggPickQuery = '';
   import('../state.js').then(m => m.popNav());
   renderIncubatorView();
   showView('incubatorView');
@@ -881,7 +918,6 @@ export function closeIncubatorEggView() {
 export function showIncubatorEggView() {
   import('../state.js').then(m => m.pushNav('incubatorEggView'));
   showView('incubatorEggView');
-  _eggPickQuery = '';
   renderEggPickList();
 }
 
@@ -899,7 +935,7 @@ function renderIncubatorLogList(list) {
         ? '<div class="rec-empty">暂无孵蛋记录<br>孵化宝可梦后会记录在这里</div>'
         : logs.map(l => {
             const poke = getPokemonByIndex(String(l.species));
-            const name = poke ? poke.name : `#${l.species}`;
+            const name = poke ? (poke.form || poke.name) : `#${l.species}`;
             return `
             <div class="rec-row">
               <span class="rec-time">${formatLogTime(l.time)}</span>

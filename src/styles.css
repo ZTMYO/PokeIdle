@@ -1609,15 +1609,22 @@ body.browser-mode { overflow: auto; }
   image-rendering: pixelated;
 }
 .hatch-all-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
   height: 12px;
   font-size: 9px;
   font-weight: 700;
   color: var(--ui-color);
-  text-align: center;
   max-width: 100%;
+}
+/* 名字文本单独包 span：长名省略号只在文字上生效，右侧图标保持居中不半截 */
+.hatch-all-name > span {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .star-particle {
