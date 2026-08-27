@@ -1226,6 +1226,23 @@ function aiCanRon(id) {
   }
   return 0;
 }
+// 其他 AI 荣和判定（弃牌者为 AI 时）：除弃牌者外顺时针找最近可胡的 AI，荣和必胡（立直/非立直一致）
+function aiRonSeat(from, id) {
+  for (let k = NEXT[from]; k !== from; k = NEXT[k]) {
+    if (k === 0) continue; // 玩家已优先判定，跳过
+    if (canWin(st.ai[k - 1].concat([id]), st.aiMeld[k - 1].length)) return k;
+  }
+  return 0;
+}
+// 其他 AI 碰判定（弃牌者为 AI 时）：除弃牌者外顺时针取最近可碰的 AI；立直中不可碰
+function aiPonSeat(from, id) {
+  for (let k = NEXT[from]; k !== from; k = NEXT[k]) {
+    if (k === 0) continue;
+    if (st.aiRiichi[k - 1]) continue;
+    if ((countsOf(st.ai[k - 1]).get(id) || 0) >= 2 && shouldAiPon(k, id)) return k;
+  }
+  return 0;
+}
 async function onPlayerPon() {
   if (!st.pendingPon) return;
   const { id, from } = st.pendingPon;
@@ -1564,10 +1581,30 @@ async function runAi(i) {
     render();
     return;
   }
+  // 其他 AI 荣和判定（玩家不可胡时）：顺时针最近可胡的 AI 直接荣和，弃牌从弃牌河移除并入其手牌
+  const ronSeat = aiRonSeat(i, out);
+  if (ronSeat) {
+    st.ai[ronSeat - 1].push(out);
+    sortHand(st.ai[ronSeat - 1]);
+    const rIdx = st.aDiscard[i - 1].indexOf(out);
+    if (rIdx >= 0) st.aDiscard[i - 1].splice(rIdx, 1);
+    st.phase = 'ai';
+    st.busy = true;
+    st.discarder = i; // 点炮方为弃牌的 AI
+    render();
+    setTimeout(() => settle(ronSeat, 'ron'), 650);
+    return;
+  }
   // 玩家碰判定：打完稳态 8 张且有 2 张相同；立直中不可碰
   if (!st.riichi && playerTileTotal() === 8 && (countsOf(st.player).get(out) || 0) >= 2) {
     st.pendingPon = { id: out, from: i };
     render();
+    return;
+  }
+  // 其他 AI 碰判定（玩家无可碰弃牌时）：顺时针最近可碰的 AI 碰牌，可能因此直接成胡
+  const ponSeat = aiPonSeat(i, out);
+  if (ponSeat) {
+    aiPon(ponSeat, out, i);
     return;
   }
   st.turn = NEXT[i]; // 顺时针轮到下家（NEXT[i] 为 0 时回到玩家）
