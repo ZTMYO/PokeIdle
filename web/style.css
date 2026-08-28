@@ -22,6 +22,22 @@
 
 html { scroll-behavior: smooth; }
 
+/* 全局滚动条（Firefox） */
+html { scrollbar-width: thin; scrollbar-color: rgba(55, 109, 86, .4) transparent; }
+/* Chrome/Safari/Edge：细条无箭头、透明轨道 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(55, 109, 86, .4);
+  border-radius: 3px;
+  transition: background .2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(55, 109, 86, .65);
+  cursor: pointer;
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
 body {
   user-select: none;
   background: var(--console-body);
@@ -211,6 +227,7 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 .screen-wrapper { padding: 6px 10px; }
 .screen {
   position: relative;
+  z-index: 0;
   height: 280px;
   background: var(--screen-bg);
   border-radius: 10px;
@@ -300,6 +317,11 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   font-weight: 600;
   color: #fff;
   line-height: 1;
+}
+.dex-table .type-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  margin-right: 3px;
 }
 @keyframes encFlyTL {
   from { transform: translate(-48px, -28px); }
@@ -1080,17 +1102,22 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 .tut-menu-btn:hover { background: rgba(255, 255, 255, .15); }
 .tut-head-title {
   color: #eafff4;
+  text-decoration: none;
   font-weight: 800;
   font-size: 15px;
   letter-spacing: 3px;
 }
 .tut-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 30px;
   height: 30px;
   border: none;
   border-radius: 6px;
   background: transparent;
   color: #eafff4;
+  text-decoration: none;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
@@ -1125,7 +1152,7 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   flex-shrink: 0;
   color: rgba(234, 255, 244, .55); /* icon-search 为 currentColor 描边图形，用 color 控制颜色 */
 }
-#tutSearchInput {
+.tut-search input {
   flex: 1;
   min-width: 0;
   border: none;
@@ -1135,7 +1162,7 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   font-size: 13px;
   padding: 7px 6px 7px 10px;
 }
-#tutSearchInput::placeholder { color: rgba(234, 255, 244, .42); }
+.tut-search input::placeholder { color: rgba(234, 255, 244, .42); }
 .tut-search-clear {
   flex-shrink: 0;
   width: 22px;
@@ -1413,6 +1440,9 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   .tutorial-page.sidebar-open .tut-list { transform: translateX(0); }
   .tutorial-page.sidebar-open .tut-mask { opacity: 1; pointer-events: auto; }
   .tut-content { padding: 12px 14px 28px; }
+  #dexPage .dex-toolbar { position: relative; }
+  #dexPage .dex-count { position: absolute; top: 2px; right: 18px; }
+  #dexPage .dex-filters { padding-right: 64px; }
 }
 
 /* ============================================================
@@ -1444,17 +1474,22 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 }
 .cl-head-title {
   color: #eafff4;
+  text-decoration: none;
   font-weight: 800;
   font-size: 15px;
   letter-spacing: 3px;
 }
 .cl-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 30px;
   height: 30px;
   border: none;
   border-radius: 6px;
   background: transparent;
   color: #eafff4;
+  text-decoration: none;
   font-size: 15px;
   line-height: 1;
   cursor: pointer;
@@ -1513,3 +1548,171 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 }
 .cl-content strong { color: var(--ui-color-darker); }
 .cl-error { color: #a33; }
+
+/* ============ 宝可梦图鉴独立页（pokedex.html） ============ */
+/* 表格区域整页贴满布局（header 保留与其他页面一致的默认边距） */
+.dex-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+.dex-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 2px 18px;
+}
+.dex-filters {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+/* 自定义下拉：沿用游戏内图鉴 `.pokedex-region-select` 风格 */
+.pokedex-region-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border: 1.5px solid rgba(55, 109, 86, .3);
+  border-radius: 8px;
+  background: rgba(55, 109, 86, .05);
+  color: var(--ui-color-darker);
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  user-select: none;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s;
+}
+.pokedex-region-select:hover { background: rgba(55, 109, 86, .1); }
+.pokedex-region-select:focus,
+.pokedex-region-select.open {
+  border-color: rgba(55, 109, 86, .5);
+  background: rgba(255, 255, 255, .4);
+}
+.region-arrow {
+  flex-shrink: 0;
+  color: var(--ui-color);
+  opacity: .6;
+  transition: transform .15s;
+}
+.pokedex-region-select.open .region-arrow { transform: rotate(180deg); }
+.region-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden; /* 避免垂直滚动条占宽诱发水平滚动条 */
+  background: var(--console-body);
+  border: 1.5px solid rgba(55, 109, 86, .3);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .16);
+  z-index: 100;
+  /* 隐藏原生滚动条（保留限高与滚轮滚动），杜绝浏览器自带箭头 */
+  scrollbar-width: none;
+}
+.region-dropdown::-webkit-scrollbar { display: none; }
+.region-dropdown-item {
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--ui-color-darker);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(55, 109, 86, .08);
+}
+.region-dropdown-item:last-child { border-bottom: none; }
+.region-dropdown-item:hover { background: rgba(55, 109, 86, .1); }
+.region-dropdown-item.active {
+  background: rgba(55, 109, 86, .14);
+  font-weight: 700;
+}
+/* 属性色圆点（下拉选项与触发器共用，与游戏内 roster-type-dot 一致） */
+.roster-type-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+.dex-count {
+  font-size: 12px;
+  color: var(--ui-color-dark);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* 树果图标：12 格雪碧图，尺寸定位由内联 background 完成 */
+.berry-ico {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin: 0 2px 0 0;
+  vertical-align: middle;
+  image-rendering: pixelated;
+}
+.dex-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.dex-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed; /* 列宽由 colgroup 固定，滚动/排序内容变化不会引发列宽震荡 */
+  font-size: 12px;
+}
+.dex-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 7px 8px;
+  text-align: left;
+  background: var(--ui-color-darker);
+  color: #eafff4;
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 2px solid #12301f;
+}
+.dex-table thead th.c-num { text-align: center; }
+/* 可排序表头：指针 + hover 提亮 + 排序指示 */
+.dex-table thead th.sortable { cursor: pointer; user-select: none; }
+.dex-table thead th.sortable:hover { background: #2a5c47; }
+.dex-table thead th .sort-ind { font-size: 10px; margin-left: 3px; color: #b8e6cd; }
+.dex-table tbody td {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(36, 86, 63, .12);
+  color: var(--color-text);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* 固定行高：虚拟滚动按 ROW_H 定位（与 pokedex.js 的 ROW_H 一致，占位行除外，以免撑出空白行） */
+.dex-table tbody tr:not(.dex-spacer) { height: 30px; }
+/* 虚拟滚动占位行：无边框无背景，仅撑起滚动高度 */
+.dex-table tr.dex-spacer td { padding: 0; border-bottom: none; }
+.dex-table tr.dex-spacer:hover { background: transparent; }
+.dex-table tbody tr:hover { background: rgba(55, 109, 86, .12); }
+.dex-table tbody tr.legend:hover { background: rgba(55, 109, 86, .16); }
+.dex-table td.c-num { text-align: center; }
+.dex-table td.c-index { color: var(--ui-color-dark); font-variant-numeric: tabular-nums; }
+/* 神兽：编号加粗换金色，不做整行红底 */
+.dex-table tr.legend td.c-index {
+  color: #b8860b;
+  font-weight: 800;
+}
+.dex-table td.c-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.dex-table td.c-type { min-width: 84px; }
+.dex-table td.c-food { overflow: hidden; }
+.dex-error { padding: 30px 0; text-align: center; color: #a33; }

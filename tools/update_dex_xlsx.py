@@ -18,6 +18,16 @@ BERRY_NAMES = {'aspear.png': '利木果', 'cheri.png': '樱子果', 'chesto.png'
                'lum.png': '木子果', 'tamato.png': '茄番果', 'oran.png': '橙橙果', 'pecha.png': '桃桃果',
                'rawst.png': '莓莓果', 'sitrus.png': '文柚果', 'figy.png': '勿花果', 'wiki.png': '异奇果'}
 
+# 孵蛋里程参考区间：与游戏 calcHatchDistance 同规则（峰值±σ，按体重/稀有度），舍入到公里
+HATCH_MIN, HATCH_MAX = 2000, 30000
+def hatch_range(p):
+    w = min((p.get('weight') or 100) / 5000, 1)
+    r = p.get('rarity') or 0.5
+    factor = min(w * 0.6 + r * 0.4, 1)
+    mid = HATCH_MIN * (HATCH_MAX / HATCH_MIN) ** factor
+    sigma = max(20, mid * 0.2)
+    return '%d~%d 公里' % (round((mid - sigma) / 1000), round((mid + sigma) / 1000))
+
 def gender_text(rate):
     if rate == -1:
         return '无性别'
@@ -39,6 +49,7 @@ def rows_for(p):
         p['catchRate'],
         gender_text(p.get('genderRate', 4)),
         '、'.join(p.get('eggGroup') or []),
+        hatch_range(p),
     ] + list(p['stats']) + [
         '、'.join(BERRY_NAMES[BERRY_ICONS[i]] for i in (p.get('foods') or []))
     ]
@@ -68,6 +79,19 @@ def make_type_fill(types):
     if len(cols) == 1:
         return PatternFill('solid', fgColor=cols[0])
     return GradientFill(degree=0, stop=[Color(rgb=cols[0], tint=0), Color(rgb=cols[1], tint=0)])
+
+# 表头第 1 行在蛋组后插入「孵蛋里程」——原 I~O（HP~爱吃树果）整体右移一列
+for c in range(15, 8, -1):
+    src = ws.cell(1, c)
+    dst = ws.cell(1, c + 1)
+    dst.value = src.value
+    dst.font = copy(src.font)
+    dst.fill = copy(src.fill)
+    dst.border = copy(src.border)
+    dst.alignment = copy(src.alignment)
+    dst.number_format = src.number_format
+h9 = ws.cell(1, 9)
+h9.value = '孵蛋里程'
 
 # 通用对齐/边框（取原表第 2 行为模板）
 tpl_font = copy(ws.cell(2, 1).font)
@@ -99,7 +123,7 @@ print('总条目:', len(out), '| 变体:', sum(1 for p in out if '-' in p['index
 
 # 重建数据区（清空样式，逐行写入）
 for r in range(2, 2 + len(out)):
-    for c in range(1, 16):
+    for c in range(1, 17):
         cell = ws.cell(r, c)
         cell.value = None
         cell.font = copy(tpl_font)
@@ -114,13 +138,17 @@ for i, p in enumerate(out):
     for c, v in enumerate(data, start=1):
         ws.cell(r, c, v)
     type_fill = make_type_fill(p['types'])
-    for c in range(1, 16):
+    for c in range(1, 17):
         cell = ws.cell(r, c)
         if p.get('legend'):
             cell.font = copy(LEGEND_FONT)
             cell.fill = LEGEND_FILL if c != 3 else type_fill
         elif c == 3:
             cell.fill = type_fill
+
+# 列宽：里程列定宽，末尾多出的食物列沿用原 O 列宽
+ws.column_dimensions['I'].width = 12
+ws.column_dimensions['P'].width = ws.column_dimensions['O'].width
 
 # 颜色说明表补充说明
 lw.cell(32, 1).value = '5. 数据来源：src/pokemon-data/pokedex.json，共 %d 只（本体 %d + 变体 %d）。' % (

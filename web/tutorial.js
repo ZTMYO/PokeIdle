@@ -113,19 +113,18 @@ let searchEl = null;  // 顶部搜索输入框
 let dropEl = null;    // 搜索下拉结果容器
 let _searchKw = '';   // 当前关键词（跳转后用于正文高亮）
 
-export function initTutorial() {
+function initTutorial() {
   pageEl = document.getElementById('tutorialPage');
   listEl = document.getElementById('tutList');
   contentEl = document.getElementById('tutContent');
   footEl = document.getElementById('tutFoot');
 
-  document.getElementById('openTutorialBtn')?.addEventListener('click', openTutorial);
-  document.getElementById('tutClose')?.addEventListener('click', closeTutorial);
+  // 独立页面：顶部关闭按钮是返回首页链接，无需 JS 处理
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && pageEl && !pageEl.hidden) {
-      if (pageEl.classList.contains('sidebar-open')) pageEl.classList.remove('sidebar-open');
-      else closeTutorial();
-    }
+    if (e.key !== 'Escape') return;
+    if (e.target instanceof HTMLInputElement) return; // 搜索框内 Escape 只清空搜索
+    if (pageEl?.classList.contains('sidebar-open')) pageEl.classList.remove('sidebar-open');
+    else location.href = './index.html';
   });
 
   // 移动端：menu 按钮展开侧边栏，点遮罩收起
@@ -204,6 +203,13 @@ export function initTutorial() {
       if (dropEl.hidden) return;
       if (!searchEl.contains(e.target) && !dropEl.contains(e.target)) closeSearchDrop();
     });
+  }
+
+  // 独立页面加载即渲染第一章
+  if (!TUTORIAL_DATA.length) {
+    if (contentEl) contentEl.innerHTML = '<p class="tut-title">教程</p><p>教程内容解析失败，请检查构建环境（src/views.js 是否可读）。</p>';
+  } else {
+    renderTutorial(0);
   }
 }
 
@@ -317,29 +323,5 @@ function renderFoot() {
   footEl.innerHTML = `<button class="tut-next-btn" type="button" data-next><span class="tut-next-label">下一节</span><span class="tut-next-title">${next.title}</span></button>`;
 }
 
-export function openTutorial() {
-  if (!pageEl) return;
-  pageEl.hidden = false;
-  pageEl.classList.remove('sidebar-open');
-  document.body.style.overflow = 'hidden';
-  // 重开教程：清空搜索状态，避免上次关键词继续高亮正文
-  _searchKw = '';
-  if (searchEl) searchEl.value = '';
-  closeSearchDrop();
-  if (!TUTORIAL_DATA.length) {
-    if (contentEl) contentEl.innerHTML = '<p class="tut-title">教程</p><p>教程内容解析失败，请检查构建环境（src/views.js 是否可读）。</p>';
-    return;
-  }
-  renderTutorial(0);
-  if (listEl) listEl.scrollTop = 0;
-}
-
-export function closeTutorial() {
-  if (!pageEl) return;
-  pageEl.hidden = true;
-  pageEl.classList.remove('sidebar-open');
-  document.body.style.overflow = '';
-  _searchKw = '';
-  if (searchEl) searchEl.value = '';
-  closeSearchDrop();
-}
+// 独立页面自启动
+initTutorial();

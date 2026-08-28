@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>宝可梦图鉴 · 口袋挂机</title>
+  <meta name="description" content="口袋挂机宝可梦全图鉴：编号、属性、地区、稀有度、捕捉率、性别比例、蛋组、孵蛋里程、种族值与爱吃树果。" />
+  <link rel="icon" type="image/png" href="./favicon.png" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+  <!-- ============ 宝可梦图鉴独立页 ============ -->
+  <div class="tutorial-page" id="dexPage">
+    <div class="tut-head">
+      <div class="tut-head-left">
+        <a class="tut-head-title" href="./index.html" title="返回首页">宝可梦图鉴</a>
+      </div>
+      <div class="tut-head-center">
+        <div class="tut-search">
+          <svg class="tut-search-icon" aria-hidden="true"><use href="./sprites.svg#icon-search"/></svg>
+          <input id="dexSearchInput" type="text" placeholder="搜索编号 / 名称 / 拼音…" autocomplete="off" spellcheck="false">
+          <button class="tut-search-clear" id="dexSearchClear" type="button" aria-label="清空搜索" hidden>✕</button>
+        </div>
+      </div>
+      <a class="tut-close" href="./index.html" title="返回首页" aria-label="返回首页">✕</a>
+    </div>
+
+    <div class="dex-body">
+      <!-- 筛选工具条 -->
+      <div class="dex-toolbar">
+        <div class="dex-filters">
+          <div id="dexRegionSelect" class="pokedex-region-select" tabindex="0" title="按地区筛选">
+            <span id="dexRegionLabel">全部地区</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+            <div id="dexRegionDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="dexLegendSelect" class="pokedex-region-select" tabindex="0" title="按类别筛选">
+            <span id="dexLegendLabel">全部</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+            <div id="dexLegendDropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="dexType1Select" class="pokedex-region-select" tabindex="0" title="按第一属性筛选">
+            <span id="dexType1Label">属性1</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+            <div id="dexType1Dropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="dexType2Select" class="pokedex-region-select" tabindex="0" title="按第二属性筛选">
+            <span id="dexType2Label">属性2</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+            <div id="dexType2Dropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="dexEgg1Select" class="pokedex-region-select" tabindex="0" title="按第一蛋组筛选">
+            <span id="dexEgg1Label">蛋组1</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+            <div id="dexEgg1Dropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+          <div id="dexEgg2Select" class="pokedex-region-select" tabindex="0" title="按第二蛋组筛选">
+            <span id="dexEgg2Label">蛋组2</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6"><path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+            <div id="dexEgg2Dropdown" class="region-dropdown" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="dex-count" id="dexCount"></div>
+      </div>
+
+      <!-- 数据表格 -->
+      <div class="dex-table-wrap" id="dexWrap">
+        <table class="dex-table">
+          <colgroup>
+            <col style="width:56px" /><col style="width:150px" /><col style="width:76px" /><col style="width:64px" />
+            <col style="width:64px" /><col style="width:60px" /><col style="width:110px" /><col style="width:110px" />
+            <col style="width:92px" /><col style="width:46px" /><col style="width:46px" /><col style="width:46px" />
+            <col style="width:46px" /><col style="width:46px" /><col style="width:46px" /><col style="width:52px" />
+            <col style="width:110px" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="c-num sortable" data-sort="index">编号<span class="sort-ind"></span></th>
+              <th class="c-name">名称</th>
+              <th class="c-type">属性</th>
+              <th class="c-region">地区</th>
+              <th class="c-num sortable" data-sort="rarity">稀有度<span class="sort-ind"></span></th>
+              <th class="c-num sortable" data-sort="catchRate">捕捉率<span class="sort-ind"></span></th>
+              <th class="c-gender">性别</th>
+              <th class="c-egg">蛋组</th>
+              <th class="c-hatch sortable" data-sort="hatch">孵蛋里程<span class="sort-ind"></span></th>
+              <th class="c-num sortable" data-sort="stat0">HP<span class="sort-ind"></span></th>
+              <th class="c-num sortable" data-sort="stat1">攻击<span class="sort-ind"></span></th>
+              <th class="c-num sortable" data-sort="stat2">防御<span class="sort-ind"></span></th>
+              <th class="c-num sortable" data-sort="stat3">特攻<span class="sort-ind"></span></th>
+              <th class="c-num sortable" data-sort="stat4">特防<span class="sort-ind"></span></th>
+              <th class="c-num sortable" data-sort="stat5">速度<span class="sort-ind"></span></th>
+              <th class="c-num sortable" data-sort="total">总和<span class="sort-ind"></span></th>
+              <th class="c-food">爱吃树果</th>
+            </tr>
+          </thead>
+          <tbody id="dexBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/pokedex.js"></script>
+</body>
+</html>
