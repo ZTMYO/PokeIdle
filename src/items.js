@@ -486,6 +486,7 @@ function applyHatchEntry(slotIndex, presetGender) {
   gameData.pokedex[idx].caught = (gameData.pokedex[idx].caught || 0) + 1;
   gameData.pokedex[idx].lastTime = new Date().toISOString();
   if (eggIsShiny) {
+    gameData.pokedex[idx].shinySeen = (gameData.pokedex[idx].shinySeen || 0) + 1; // 孵出闪光也算见过，野外再遇不再提示新发现
     gameData.pokedex[idx].shinyCaught = (gameData.pokedex[idx].shinyCaught || 0) + 1;
     // 孵化闪光单独计数，不算入"闪光捕获"（捕获仅统计道路遇敌）
     gameData.stats.totalShinyEggsHatched = (gameData.stats.totalShinyEggsHatched || 0) + 1;

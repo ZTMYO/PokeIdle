@@ -42424,6 +42424,652 @@
         "noEggGroup": true
     },
     {
+        "index": "0773-1",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-1-银伴战兽-冰.gif",
+        "icon": "pokemon-data/icon/0773-1-银伴战兽-冰.png",
+        "types": [
+            "冰"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            2,
+            5
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-冰"
+    },
+    {
+        "index": "0773-2",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-2-银伴战兽-地面.gif",
+        "icon": "pokemon-data/icon/0773-2-银伴战兽-地面.png",
+        "types": [
+            "地面"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            2,
+            6
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-地面"
+    },
+    {
+        "index": "0773-3",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-3-银伴战兽-妖精.gif",
+        "icon": "pokemon-data/icon/0773-3-银伴战兽-妖精.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            2,
+            7
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-妖精"
+    },
+    {
+        "index": "0773-4",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-4-银伴战兽-岩石.gif",
+        "icon": "pokemon-data/icon/0773-4-银伴战兽-岩石.png",
+        "types": [
+            "岩石"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            2,
+            8
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-岩石"
+    },
+    {
+        "index": "0773-5",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-5-银伴战兽-幽灵.gif",
+        "icon": "pokemon-data/icon/0773-5-银伴战兽-幽灵.png",
+        "types": [
+            "幽灵"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            2,
+            9
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-幽灵"
+    },
+    {
+        "index": "0773-6",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-6-银伴战兽-恶.gif",
+        "icon": "pokemon-data/icon/0773-6-银伴战兽-恶.png",
+        "types": [
+            "恶"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            2,
+            11
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-恶"
+    },
+    {
+        "index": "0773-7",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-7-银伴战兽-格斗.gif",
+        "icon": "pokemon-data/icon/0773-7-银伴战兽-格斗.png",
+        "types": [
+            "格斗"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            3,
+            4
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-格斗"
+    },
+    {
+        "index": "0773-8",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-8-银伴战兽-毒.gif",
+        "icon": "pokemon-data/icon/0773-8-银伴战兽-毒.png",
+        "types": [
+            "毒"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            3,
+            5
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-毒"
+    },
+    {
+        "index": "0773-9",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-9-银伴战兽-水.gif",
+        "icon": "pokemon-data/icon/0773-9-银伴战兽-水.png",
+        "types": [
+            "水"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            3,
+            6
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-水"
+    },
+    {
+        "index": "0773-10",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-10-银伴战兽-火.gif",
+        "icon": "pokemon-data/icon/0773-10-银伴战兽-火.png",
+        "types": [
+            "火"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            3,
+            7
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-火"
+    },
+    {
+        "index": "0773-11",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-11-银伴战兽-电.gif",
+        "icon": "pokemon-data/icon/0773-11-银伴战兽-电.png",
+        "types": [
+            "电"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            3,
+            8
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-电"
+    },
+    {
+        "index": "0773-12",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-12-银伴战兽-草.gif",
+        "icon": "pokemon-data/icon/0773-12-银伴战兽-草.png",
+        "types": [
+            "草"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            3,
+            9
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-草"
+    },
+    {
+        "index": "0773-13",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-13-银伴战兽-虫.gif",
+        "icon": "pokemon-data/icon/0773-13-银伴战兽-虫.png",
+        "types": [
+            "虫"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            3,
+            10
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-虫"
+    },
+    {
+        "index": "0773-14",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-14-银伴战兽-超能.gif",
+        "icon": "pokemon-data/icon/0773-14-银伴战兽-超能.png",
+        "types": [
+            "超能"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            3,
+            11
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-超能"
+    },
+    {
+        "index": "0773-15",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-15-银伴战兽-钢.gif",
+        "icon": "pokemon-data/icon/0773-15-银伴战兽-钢.png",
+        "types": [
+            "钢"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            4,
+            6
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-钢"
+    },
+    {
+        "index": "0773-16",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-16-银伴战兽-飞行.gif",
+        "icon": "pokemon-data/icon/0773-16-银伴战兽-飞行.png",
+        "types": [
+            "飞行"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            4,
+            7
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-飞行"
+    },
+    {
+        "index": "0773-17",
+        "name": "银伴战兽",
+        "name_en": "Silvally",
+        "image": "pokemon-data/images/0773-17-银伴战兽-龙.gif",
+        "icon": "pokemon-data/icon/0773-17-银伴战兽-龙.png",
+        "types": [
+            "龙"
+        ],
+        "pinyin": "YinBanZhanShou",
+        "pinyinInitials": "YBZS",
+        "catchRate": 0.03,
+        "genus": "人工宝可梦",
+        "description": "因为与同伴之间的信赖而觉醒。 发挥自由变换属性的能力进行战斗。",
+        "height": 23,
+        "weight": 1005,
+        "stats": [
+            95,
+            95,
+            95,
+            95,
+            95,
+            95
+        ],
+        "rarity": 0.8452,
+        "legend": true,
+        "region": "阿罗拉",
+        "foods": [
+            0,
+            1,
+            4,
+            8
+        ],
+        "genderRate": -1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "银伴战兽-龙"
+    },
+    {
         "index": "0774",
         "name": "小陨星",
         "name_en": "Minior",

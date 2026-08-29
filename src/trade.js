@@ -644,6 +644,7 @@ function doTrade(offerId, rid) {
       gameData.pokedex[idx].caught = (gameData.pokedex[idx].caught || 0) + 1;
       gameData.pokedex[idx].lastTime = new Date().toISOString();
       if (o.give.shiny) {
+        gameData.pokedex[idx].shinySeen = (gameData.pokedex[idx].shinySeen || 0) + 1; // 交换闪光也算见过，野外再遇不再提示新发现
         gameData.pokedex[idx].shinyCaught = (gameData.pokedex[idx].shinyCaught || 0) + 1;
         gameData.stats.totalShinyTraded = (gameData.stats.totalShinyTraded || 0) + 1; // 交换闪光：单独计数，不算闪光捕获
       }
