@@ -52,7 +52,7 @@ import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, i
 import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade, showTradeView } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs, showAchievementView,
   showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
-import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge, showIncubatorView } from './phone.js';
+import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge, updateNurseryBadge, showIncubatorView } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, teleportToTwist } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
@@ -601,6 +601,7 @@ async function onGameTick() {
     updateBerryBadge();
     updateAchievementBadge();
     updateBountyBadge();
+    updateNurseryBadge();
     updatePhoneBadge();
   }
   // 系统日志页开着：新日志实时追加（按最新日志时间戳判断，条数满 50 后"加一删一"条数不变也能感知）

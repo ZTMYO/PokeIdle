@@ -69,21 +69,27 @@ function updateDispatchBadge() {
   if (!badge) return;
   import('./dispatch.js').then(m => { badge.style.display = m.hasDispatchRewards() ? '' : 'none'; });
 }
+// 饲育屋应用红点：本批繁殖全部完成且亲本未取出（下次来访前提醒，来访一次即已读）
+function updateNurseryBadge() {
+  const badge = $('phone-badge-nursery');
+  if (!badge) return;
+  import('./nursery.js').then(m => { badge.style.display = m.hasNurseryDot() ? '' : 'none'; });
+}
 
-// 标题栏手机图标聚合红点：任意 app 有红点（孵蛋完成/可交换/干涸树果/成就可领/教程奖励可领/派遣完成可领）即点亮
+// 标题栏手机图标聚合红点：任意 app 有红点（孵蛋完成/可交换/干涸树果/成就可领/教程奖励可领/派遣完成可领/饲育屋繁殖完成）即点亮
 function updatePhoneBadge() {
   const badge = $('title-badge-phone');
   if (!badge) return;
   ensureTrades(); // 波次过期先刷新，保证与交换红点口径一致
-  import('./dispatch.js').then(m => {
-    badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries() || hasClaimableAchievements() || hasUnclaimedTutorialRewards() || m.hasDispatchRewards()) ? '' : 'none';
+  Promise.all([import('./dispatch.js'), import('./nursery.js')]).then(([d, ny]) => {
+    badge.style.display = (anyIncubatorReady() || hasTradableOffers() || hasDryBerries() || hasClaimableAchievements() || hasUnclaimedTutorialRewards() || d.hasDispatchRewards() || ny.hasNurseryDot()) ? '' : 'none';
   });
 }
-export { updateTradeBadge, updateBerryBadge, updateAchievementBadge, updateTutorialBadge, updateDispatchBadge, updatePhoneBadge };
+export { updateTradeBadge, updateBerryBadge, updateAchievementBadge, updateTutorialBadge, updateDispatchBadge, updateNurseryBadge, updatePhoneBadge };
 
 // 状态变化时即时刷新红点：树果浇水/收获/种植、仓库宝可梦变化（捕获/孵化/交换）、交换波次刷新、成就领取，无需等 5 秒轮询
 window.addEventListener('berry-farm-changed', () => { updateBerryBadge(); updatePhoneBadge(); });
-window.addEventListener('roster-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
+window.addEventListener('roster-changed', () => { updateTradeBadge(); updateNurseryBadge(); updatePhoneBadge(); });
 window.addEventListener('trade-wave-changed', () => { updateTradeBadge(); updatePhoneBadge(); });
 window.addEventListener('achievements-changed', () => { updateAchievementBadge(); updatePhoneBadge(); });
 window.addEventListener('tutorial-rewards-changed', () => { updateTutorialBadge(); updatePhoneBadge(); });
@@ -148,7 +154,7 @@ export function showPhoneView() {
           ${page.map(a => `
             <div class="phone-app" data-app="${a.id}">
               <div class="phone-app-icon"><svg><use xlink:href="#${a.icon}"/></svg>
-                ${['incubator', 'trade', 'berry', 'achievement', 'tutorial', 'dispatch'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
+                ${['incubator', 'trade', 'berry', 'achievement', 'tutorial', 'dispatch', 'nursery'].includes(a.id) ? `<span class="phone-app-badge" id="phone-badge-${a.id}" style="display:none;"></span>` : ''}
               </div>
               <div class="phone-app-name">${a.name}</div>
             </div>`).join('')}
@@ -162,6 +168,7 @@ export function showPhoneView() {
   updateAchievementBadge();
   updateTutorialBadge();
   updateDispatchBadge();
+  updateNurseryBadge();
   updatePhoneBadge();
   // 翻页：页码指示点点击 + 原生 scroll-snap 横向滑动
   let _page = 0;

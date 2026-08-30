@@ -102,7 +102,7 @@ export function ensureNursery() {
   // 兼容旧版单轮 breeding（无 rounds 字段）：按 1 轮连续批次处理，蛋在下次结算时自动入库
   const b = gameData.nursery.breeding;
   if (b && (typeof b.roundsTotal !== 'number' || typeof b.roundsDone !== 'number')) {
-    gameData.nursery.breeding = { startedAt: b.startedAt, durMs: b.durMs, roundsTotal: 1, roundsDone: 0, reportedRounds: 0 };
+    gameData.nursery.breeding = { startedAt: b.startedAt, durMs: b.durMs, roundsTotal: 1, roundsDone: 0, reportedRounds: 0, ackDone: false };
   }
   return gameData.nursery;
 }
@@ -170,6 +170,8 @@ export function showNurseryView() {
   showView('nurseryView');
   startTimer();
   if (produced > 0) notifyNewEggs(produced);
+  // 完成后来访一次即已读红点（本次进入也视为造访）
+  markNurseryBreedVisited();
 }
 
 // 从所有亲本槽移除该个体（训练/配队放入时调用）
@@ -1324,7 +1326,7 @@ function startBreeding() {
     stock[type] = (stock[type] || 0) - qty * rounds;
     if (stock[type] <= 0) delete stock[type];
   }
-  n.breeding = { startedAt: Date.now(), durMs: randInt(BREED_MIN_MIN, BREED_MAX_MIN) * 60 * 1000, roundsTotal: rounds, roundsDone: 0, reportedRounds: 0 };
+  n.breeding = { startedAt: Date.now(), durMs: randInt(BREED_MIN_MIN, BREED_MAX_MIN) * 60 * 1000, roundsTotal: rounds, roundsDone: 0, reportedRounds: 0, ackDone: false };
   addSystemLog('nursery_breed_start', { a: ea.species, b: eb.species, rounds });
   saveGame();
   refreshBoard();
@@ -1375,6 +1377,26 @@ function notifyNewEggs(produced) {
   };
   const msg = `${nameOf(n.parents[0])}和${nameOf(n.parents[1])}孵了 ${produced} 个蛋！已自动放入仓库`;
   showConfirmBar(msg, null, null, { singleButton: true });
+}
+
+// 饲育屋红点：本批繁殖全部完成且双亲未取出，且完成后来访过（已读）才熄灭。
+// 灵感与进入页面时的产蛋弹窗一致：产蛋自动入库无需手动收取，红点只提醒"该取出亲本或开始下一批"
+export function hasNurseryDot() {
+  const n = ensureNursery();
+  const b = n.breeding;
+  if (!b || breedingState(n).key !== 'done') return false;
+  if (!n.parents[0] || !n.parents[1]) return false; // 亲本已取出则无需提醒
+  return !b.ackDone;
+}
+
+// 完成后来访一次即视为已读：即使不取出、不开始下一批也不再亮红点（持久化，重启不清零）
+export function markNurseryBreedVisited() {
+  const n = ensureNursery();
+  const b = n.breeding;
+  if (b && breedingState(n).key === 'done' && !b.ackDone) {
+    b.ackDone = true;
+    saveGame();
+  }
 }
 
 // 生成蛋条目：个体值 6 项中 5 项继承双亲、1 项随机。锁定位固定继承所选亲本（source）的
@@ -1430,6 +1452,8 @@ function tickBreeding() {
   // 状态切换（running→done / 异常终止）或完成新一轮 → 刷新配对面板（更新"第 X/N 轮"）
   if (key !== _lastBreedKey || before !== (n.breeding?.roundsDone ?? 0)) {
     _lastBreedKey = key;
+    // 页面内繁殖完成：玩家在场已看到完成态，与进入页面同一口径标记已读
+    if (key === 'done') markNurseryBreedVisited();
     refreshBoard();
     return;
   }
