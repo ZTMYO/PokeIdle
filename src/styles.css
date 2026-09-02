@@ -4046,6 +4046,7 @@ body.browser-mode { overflow: auto; }
   align-items: center;
   justify-content: space-between;
   gap: 2px;
+  white-space: nowrap; /* 菜单文案单行显示，避免宽度不足时意外换行 */
   padding: 4px 8px;
   border-radius: 3px;
   font-size: 10px;
@@ -5287,6 +5288,8 @@ body.browser-mode { overflow: auto; }
 .trade-row.traded { opacity: 0.5; }
 /* 交换忽略后的行淡化：右键该行可忽略/恢复（忽略后不再红点提醒） */
 .trade-row.ignored { opacity: 0.45; }
+/* 孵蛋器忽略后的行淡化：右键已孵化的蛋可忽略/恢复（忽略后不再红点与托盘蛋动画提醒） */
+.incubator-row.ignored { opacity: 0.45; }
 /* 主行：NPC 图 + 给出图标 + 需求文字 + 交换按钮 */
 .trade-main {
   display: flex;

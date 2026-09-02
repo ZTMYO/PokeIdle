@@ -138,7 +138,7 @@ function sliceWalkFrames(img, seq) {
 }
 
 function hasIncubatingEgg() {
-  return _eggHatching || (gameData?.incubators || []).some(s => s && s.hatched);
+  return _eggHatching || (gameData?.incubators || []).some(s => s && s.hatched && !s.ignored);
 }
 
 // 把当前状态对应的动画帧推送给 Rust：
@@ -240,8 +240,8 @@ function buildStatusText() {
   const mode = settings.autoCatch ? '自动' : settings.autoFlee ? '佛系' : '手动';
 
   const slots = (g && g.incubators) || [];
-  const hatching = slots.filter(s => s && s.eggIndex != null && !s.hatched).length;
-  const ready = slots.filter(s => s && s.hatched).length;
+  const hatching = slots.filter(s => s && s.eggIndex != null && !s.hatched && !s.ignored).length;
+  const ready = slots.filter(s => s && s.hatched && !s.ignored).length;
   let egg = '可孵化: 0';
   if (g) {
     if (_eggHatching) egg = '孵化中';

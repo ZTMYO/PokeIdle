@@ -755,6 +755,7 @@ export async function hatchAllFromIncubator() {
   if (!incubators || !incubators.length) return;
   const slots = [];
   for (let i = 0; i < Math.min(incubators.length, 8); i++) {
+    // 忽略只影响提醒，不影响孵化：批量孵化仍包含全部已就绪的蛋
     if (incubators[i] && incubators[i].hatched) slots.push(i);
   }
   if (!slots.length) return;

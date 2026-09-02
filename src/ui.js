@@ -958,8 +958,9 @@ export function renderIncubatorView() {
   if (incHead) incHead.style.display = _incLogOpen ? 'none' : '';
   const logBtn = $('incubatorLogBtn');
   // 有已孵化的蛋时按钮变为「孵化全部」，点击进入批量孵化独立页
+  // （忽略只影响提醒，不影响孵化：按钮判定与批量逻辑均按全部已孵蛋）
   if (logBtn) {
-    const ready = anyIncubatorReady();
+    const ready = (gameData.incubators || []).some(s => s && s.hatched);
     logBtn.textContent = ready ? '孵化全部' : '孵蛋记录';
     logBtn.onclick = () => {
       if (ready) import('./items.js').then(m => m.hatchAllFromIncubator());
@@ -1008,8 +1009,9 @@ export function renderIncubatorView() {
       continue;
     }
     const eggName = slotEggName(s);
+    const rowCls = 'incubator-row' + (s?.ignored ? ' ignored' : '');
     if (s && s.hatched) {
-      html += `<div class="incubator-row">
+      html += `<div class="${rowCls}">
         <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
         <div class="incubator-info"><div class="incubator-name" data-tip="${eggName}">蛋</div></div>
         ${hatchBtnHtml(i, hatchLocked)}
@@ -1026,7 +1028,7 @@ export function renderIncubatorView() {
         updateIncubatorBadge();
       }
       if (s.hatched) {
-        html += `<div class="incubator-row">
+        html += `<div class="${rowCls}">
           <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
           <div class="incubator-info"><div class="incubator-name" data-tip="${eggName}">蛋</div></div>
           ${hatchBtnHtml(i, hatchLocked)}
@@ -1066,6 +1068,18 @@ export function renderIncubatorView() {
       import('./items.js').then(m => m.hatchFromIncubator(slot));
     });
   });
+  // 右键已孵化的蛋：忽略/恢复提醒（可去掉手机红点与托盘蛋动画提醒）
+  list.querySelectorAll('.incubator-row').forEach(row => {
+    row.addEventListener('contextmenu', (e) => {
+      const btn = row.querySelector('.incubator-hatch-text.hatched');
+      if (!btn) return;
+      const slot = parseInt(btn.dataset.slot);
+      const s = (gameData.incubators || [])[slot];
+      if (!s || !s.hatched) return;
+      e.preventDefault();
+      showIncubatorCtxMenu(slot, e.clientX, e.clientY);
+    });
+  });
   list.querySelectorAll('.incubator-egg-slot[data-empty]').forEach(el => {
     el.addEventListener('click', () => {
       const slot = parseInt(el.dataset.empty);
@@ -1078,6 +1092,50 @@ export function renderIncubatorView() {
       import('./items.js').then(m => m.unlockIncubatorSlot(slot));
     });
   });
+}
+
+// 孵化槽右键菜单：忽略/恢复提醒（复用交换右键菜单样式，可去掉手机红点与托盘蛋动画提醒）
+function showIncubatorCtxMenu(slotIndex, x, y) {
+  hideIncubatorCtxMenu();
+  let menu = $('incubatorCtxMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'incubatorCtxMenu';
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+  }
+  const s = (gameData.incubators || [])[slotIndex];
+  const ignored = !!s?.ignored;
+  menu.innerHTML = `<div class="shop-ctx-item">${ignored ? '恢复红点提醒' : '忽略此蛋'}</div>`;
+  menu.style.display = '';
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  menu.style.left = Math.max(0, Math.min(lx - 24, vw - mw - 4)) + 'px';
+  menu.style.top = Math.max(0, Math.min(ly, vh - mh - 4)) + 'px';
+  menu.addEventListener('pointerdown', (e) => e.stopPropagation());
+  menu.onclick = () => {
+    hideIncubatorCtxMenu();
+    toggleIncubatorIgnore(slotIndex);
+  };
+  document.addEventListener('pointerdown', hideIncubatorCtxMenu);
+}
+
+function hideIncubatorCtxMenu() {
+  const menu = $('incubatorCtxMenu');
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('pointerdown', hideIncubatorCtxMenu);
+}
+
+// 切换蛋的忽略状态：忽略后手机/托盘不再提醒，但可随时恢复、仍可正常孵化
+function toggleIncubatorIgnore(slotIndex) {
+  const s = (gameData.incubators || [])[slotIndex];
+  if (!s || !s.hatched) return;
+  s.ignored = !s.ignored;
+  saveGame();
+  updateIncubatorBadge();
+  renderIncubatorView();
+  // 刷新手机主页聚合红点（孵蛋完成不再计入）
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('roster-changed'));
 }
 
 // 空槽加号选择菜单：两个选项（神秘蛋 / 宝可梦蛋），样式复用商店批量菜单；

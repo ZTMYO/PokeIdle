@@ -4,9 +4,10 @@
 // 得到的宝可梦来源记为「交换」。
 import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX, EXP_CANDY_XP, MAX_LEVEL } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
-import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage, logicViewport } from './ui.js';
+import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage, logicViewport, showConfirmBar } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { TYPE_COLORS, pickFamily, pokemonSourceBadge } from './items.js';
+import { isInAnyTeam } from './team.js';
 import { NATURES } from './battle-core.js';
 import { playCongratulation } from './audio.js';
 
@@ -338,9 +339,12 @@ export function renderTrade() {
     const row = e.target.closest('.trade-row');
     if (!row) return;
     const offerBtn = row.querySelector('[data-offer]');
-    if (!offerBtn || offerBtn.disabled) return; // 已交换/未拥有无需提醒
+    if (!offerBtn) return;
     const o = offers.find(x => x.id === offerBtn.dataset.offer);
-    if (!o) return;
+    if (!o || o.traded) return; // 已交换无需提醒
+    const cultCount = cultivable(o).length;
+    // 未拥有（无直接交换个体、也无培养可能）才无需提醒；「可培养」同样支持右键忽略
+    if (offerBtn.disabled && cultCount === 0) return;
     e.preventDefault();
     showTradeContextMenu(!!o.ignored, offerBtn.dataset.offer, e.clientX, e.clientY);
   };
@@ -612,7 +616,38 @@ function renderSelect(content, offerId) {
 }
 
 // ---------- 交换执行 ----------
+// 占用确认：若该个体正在训练/饲育屋/队伍/派遣中，先弹同款确认条（与放入页一致），确定后交换并自动撤下
 function doTrade(offerId, rid) {
+  const o = (gameData.trades?.offers || []).find(x => x.id === offerId);
+  if (!o || o.traded || _goodbyeAnim) return;
+  const p = (gameData.roster || []).find(r => r.id === rid && r.inRoster);
+  if (!p || !eligible(o).some(x => x.id === rid)) return;
+  getOccupiedNames(rid).then(occ => {
+    if (occ.length) {
+      showConfirmBar(`这只宝可梦正在${occ.join('、')}中。交换将自动将其撤下，确定交换？`, () => doTradeConfirmed(offerId, rid), null, { overlay: true });
+      return;
+    }
+    doTradeConfirmed(offerId, rid);
+  });
+}
+
+// 收集个体当前的占用方（训练/饲育屋/队伍/派遣），与放入页判断保持一致
+function getOccupiedNames(id) {
+  return Promise.all([
+    import('./train.js').then(m => m.isTrainingPokemon(id)),
+    import('./nursery.js').then(m => m.isNurseryPokemon(id)),
+    import('./dispatch.js').then(m => m.isDispatchPokemon(id)),
+  ]).then(([inTrain, inNursery, inDispatch]) => {
+    const occ = [];
+    if (inTrain) occ.push('训练');
+    if (inNursery) occ.push('饲育屋');
+    if (inDispatch) occ.push('派遣');
+    if (isInAnyTeam(id)) occ.push('队伍');
+    return occ;
+  });
+}
+
+function doTradeConfirmed(offerId, rid) {
   const o = (gameData.trades?.offers || []).find(x => x.id === offerId);
   if (!o || o.traded || _goodbyeAnim) return;
   const p = (gameData.roster || []).find(r => r.id === rid && r.inRoster);
@@ -630,6 +665,11 @@ function doTrade(offerId, rid) {
       const arr = gameData.roster || [];
       const ri = arr.findIndex(r => r.id === rid);
       if (ri >= 0) arr.splice(ri, 1);
+      // 若该个体正被其他系统占用：同步撤下（与放生一致），避免空槽残留
+      import('./nursery.js').then(m => m.removeNurseryByPokemon(rid));
+      import('./dispatch.js').then(m => m.removeDispatchByPokemon(rid));
+      import('./train.js').then(m => m.removeTrainingByPokemon(rid));
+      import('./team.js').then(m => m.removePokemonFromAllTeams(rid));
       const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade', level: o.give.level || 1, gender: ensureGender(o.give) });
       if (entry) { entry.ivs = o.give.ivs; entry.nature = o.give.nature; setLastObtainedEntryId(entry.id); }
       playCongratulation(); // 交换获得宝可梦 → 祝贺音效

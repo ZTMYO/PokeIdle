@@ -179,10 +179,10 @@ export function getIncubatorUnlockCost(slotIndex) {
   return costs[slotIndex] ?? 0;
 }
 
-// 是否有任一孵蛋器已孵化
+// 是否有任一孵蛋器已孵化（被右键忽略的蛋不提醒）
 export function anyIncubatorReady() {
   if (!gameData) return false;
-  return (gameData.incubators || []).some(s => s && s.hatched);
+  return (gameData.incubators || []).some(s => s && s.hatched && !s.ignored);
 }
 
 // ---------- GPS 导航状态 ----------
