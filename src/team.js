@@ -865,7 +865,7 @@ function openTeamCtxMenu(e) {
 }
 
 // 随机配队：
-// - 队伍为空或已满：从非训练状态的宝可梦中取一组合计等级差最小的 6 只整队入队。
+// - 队伍为空或已满：从非占用状态（训练 / 饲育屋 / 派遣）的宝可梦中取一组合计等级差最小的 6 只整队入队。
 //   按等级升序排序后滑窗取连续 6 只，使（最高级 - 最低级）最小；多个窗口并列最小时随机挑一个，
 //   组内顺序再随机打散（打头阵的宝可梦不固定）。
 // - 队伍未满且已有成员：默认保留现有成员原位，以队内最低等级为基准，从可选池挑等级最接近的补满空位，
@@ -873,8 +873,13 @@ function openTeamCtxMenu(e) {
 // - 特例：现有成员明显偏弱（可选池够满编且整池等级都高于现有成员最高级）时直接整队重配，
 //   避免保留几只低等级旧成员、放着整池高等级宝可梦不用。
 function autoBuildTeam() {
-  const trainingIds = new Set((gameData.training?.slots || []).map((s) => s && s.id).filter(Boolean));
-  const roster = (gameData.roster || []).filter((p) => p.inRoster !== false && !trainingIds.has(p.id));
+  // 训练 / 饲育屋 / 派遣中的个体不参与随机配队
+  const busyIds = new Set([
+    ...(gameData.training?.slots || []),
+    ...(gameData.nursery?.parents || []),
+    ...(gameData.dispatch?.slots || []),
+  ].map((s) => s && s.id).filter(Boolean));
+  const roster = (gameData.roster || []).filter((p) => p.inRoster !== false && !busyIds.has(p.id));
   if (!roster.length) return;
   const byId = new Map(roster.map((p) => [p.id, p]));
   const arr = editIds();
