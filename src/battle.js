@@ -126,7 +126,7 @@ export function finalizePendingCatch() {
 
 // ===== 遇敌调度 =====
 export function scheduleNextEncounter(delay) {
-  if (nextEncounterTimer) clearTimeout(nextEncounterTimer);
+  if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
   if (phase !== 'idle') return;
   // 树果方块：始终按普通间隔遇敌，仅提高目标宝可梦的出现概率
   let d = delay || rand(ENCOUNTER_MIN, ENCOUNTER_MAX) * 1000;
@@ -135,6 +135,9 @@ export function scheduleNextEncounter(delay) {
 
 // ===== 遇敌 =====
 export async function tryEncounter() {
+  // 计时器已触发（或由外部直接调用）：句柄作废，避免后续提前返回时残留旧 id，
+  // 使主循环的"调度丢失即补排"兜底误判为已有调度而不再遇敌
+  setNextEncounterTimer(null);
   if (_bgCatchup) return; // 后台补算期间由补算循环统一处理遭遇，续杯等定时器触发的遇敌一律忽略
   if (phase !== 'idle') return;
   if (_fishing) return; // 钓鱼中不遇敌

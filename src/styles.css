@@ -4773,12 +4773,12 @@ body.browser-mode { overflow: auto; }
 .roster-header .pokedex-star, .roster-row .pokedex-star { width: 8px; padding-right: 0; }
 /* 仓库行闪光星与变体圆环共用一个类（pokedex-star-svg），统一 8px 尺寸 */
 .roster-row .pokedex-star svg { width: 8px; height: 8px; display: block; fill: currentColor; }
-/* 仓库编号列加宽以容纳变体扩展编号（#0058-1/#0201-10），图标列同步收窄 */
-.roster-header .pokedex-idx, .roster-row .pokedex-idx { width: 46px; }
+/* 仓库编号列加宽至与图鉴页一致并禁止换行，容纳 8 字符扩展编号（#0025-10/#0773-17） */
+.roster-header .pokedex-idx, .roster-row .pokedex-idx { width: 58px; white-space: nowrap; }
 .roster-header .roster-icon, .roster-row .roster-icon { width: 20px; }
-/* 名称列弹性填充中间空隙，把等级/个体值列推到行尾，编号列留足空间 */
+/* 名称列固定容 5 字，多余宽度让给编号列；margin-right:auto 把等级/个体值列推到行尾 */
 .roster-header .pokedex-name,
-.roster-row:not(.nursery-egg-row) .pokedex-name { flex: 1; max-width: none; }
+.roster-row:not(.nursery-egg-row) .pokedex-name { flex: 0 0 55px; margin-right: auto; max-width: none; }
 .roster-icon {
   width: 24px;
   flex-shrink: 0;
