@@ -32,7 +32,7 @@ import { computeObtainScore } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak, twistTick, ensureTwistInit, forceRefreshTwist } from './events.js';
 import {
   $, showView, updateTextBox, hideTextBox, showConfirmBar,
-  isOnGameView, isIdleStageVisible, applyUiMode, getUiMode, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
+  isOnGameView, isIdleStageVisible, applyUiMode, getUiMode, isUiMobile, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
   renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip,
   isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView,
 } from './ui.js';
@@ -679,64 +679,69 @@ function setupShortcuts() {
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
 
-  // 浏览器端（非 Tauri）：console 基准 274×342，按窗口比例设置整体缩放，与 Tauri 端
-  //（Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）保持一致的画面。
-  // 必须缩放 <html> 而非 .console：局部 CSS zoom 会让 getBoundingClientRect() 与渲染坐标
-  // 不一致（Chromium 已知 bug），导致道路道具/遭遇贴图/丢球动画错位；html 级 zoom 等价
-  // 浏览器页面缩放。
+  // 布局缩放：经典模式按 console 基准 274×342 整体等比缩放，与 Tauri 端画面一致
+  //（Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）；
+  // 手游模式改为宽度固定 274、高度按屏幕比例拉长（详见 fitLayout）。
+  // 经典桌面模式必须缩放 <html> 而非 .console：局部 CSS zoom 会让 getBoundingClientRect()
+  // 与渲染坐标不一致（Chromium 已知 bug），导致道路道具/遭遇贴图/丢球动画错位
   const consoleEl = document.querySelector('.console');
-  if (consoleEl && !window.__TAURI__?.core?.invoke) {
-    document.body.classList.add('browser-mode');
-    // 移动端与桌面端浏览器对 CSS zoom 的 getBoundingClientRect 行为不一致：
-    // 桌面 Chromium 返回缩放后坐标（现有代码按此补偿），部分移动浏览器（尤其 iOS Safari）
-    // 返回未缩放坐标，导致基于 rect 差值定位的战斗贴图/道路道具/遭遇图标双重补偿错位。
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile|mobile/i.test(navigator.userAgent);
-    if (isMobile) {
-      // 移动端改用 transform: scale：canvas 保持逻辑尺寸绘制、由 GPU 合成缩放，不额外增加
-      // 重绘开销（zoom 在移动端会强制整页按放大尺寸重绘，拖慢滚动）
-      let _scale = 1;
-      const fitConsole = () => {
-        const vw = window.visualViewport?.width || window.innerWidth;
-        const vh = window.visualViewport?.height || window.innerHeight;
-        _scale = Math.max(1, Math.min(vw / 274, vh / 342));
-        consoleEl.style.transform = `scale(${_scale})`;
-      };
-      fitConsole();
-      window.addEventListener('resize', fitConsole);
-      window.visualViewport?.addEventListener('resize', fitConsole);
+  const _isBrowser = !!consoleEl && !window.__TAURI__?.core?.invoke;
+  const _isMobileUA = /Android|iPhone|iPad|iPod|Mobile|mobile/i.test(navigator.userAgent);
+  let _layoutScale = 1; // 当前缩放倍率：布局重算与 rect 补偿共用
+  if (_isBrowser) document.body.classList.add('browser-mode');
 
-      // transform: scale 是纯视觉变换：getBoundingClientRect 返回缩放后（物理）坐标，
-      // 而 style.left/top 赋值是逻辑值（渲染时再 ×scale）。与桌面 zoom 分支的 /zoom 补偿
-      // 同理，这里对 console 内元素统一除以 scale 还原逻辑坐标，避免遭遇贴图/道路道具/
-      // 事件 icon 双重缩放错位（真机 UA 走本分支，F12 缩小窗口走 zoom 分支故两者表现不同）
-      const _origGetBRC = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = function () {
-        const r = _origGetBRC.call(this);
-        if (_scale === 1 || !consoleEl.contains(this)) return r;
-        return new DOMRect(r.left / _scale, r.top / _scale, r.width / _scale, r.height / _scale);
-      };
+  // 缩放是纯视觉变换（zoom / transform）：getBoundingClientRect 返回缩放后坐标，而 style.left/top
+  // 赋值是逻辑值，这里把 console 内的 rect 统一除以缩放倍率还原逻辑坐标，
+  // 避免战斗贴图、道路道具、遭遇图标、随从等基于 rect 差值的定位双重缩放错位
+  const _origGetBRC = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function () {
+    const r = _origGetBRC.call(this);
+    if (_layoutScale === 1 || !consoleEl || !consoleEl.contains(this)) return r;
+    return new DOMRect(r.left / _layoutScale, r.top / _layoutScale, r.width / _layoutScale, r.height / _layoutScale);
+  };
+
+  // 布局缩放：经典模式整体等比缩放 .console（桌面 html 级 zoom / 移动端 transform）；
+  // 手游模式（html.ui-mobile）宽度固定 274、高度按屏幕比例拉长，只缩放到铺满屏幕。
+  // 切换界面风格后由 'ui-mode-changed' 事件重新调用
+  function fitLayout() {
+    if (!consoleEl) return;
+    if (isUiMobile()) {
+      // 手游模式：以布局视口为准（缩放与逻辑高度同源，保证等比缩放后正好铺满屏幕）
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scale = Math.min(vw / 274, vh / 342) || 1;
+      consoleEl.style.transform = `scale(${scale})`;
+      consoleEl.style.height = Math.round(vh / scale) + 'px';
+      document.documentElement.style.zoom = '';
+      _layoutScale = scale;
+      return;
+    }
+    const vw = window.visualViewport?.width || window.innerWidth;
+    const vh = window.visualViewport?.height || window.innerHeight;
+    consoleEl.style.transform = '';
+    consoleEl.style.height = '';
+    if (!_isBrowser) { _layoutScale = 1; return; } // Tauri：窗口缩放由 Rust 负责，rect 保持逻辑值
+    if (_isMobileUA) {
+      // 移动端浏览器用 transform：canvas 保持逻辑尺寸绘制、由 GPU 合成缩放，不额外增加重绘开销
+      const scale = Math.max(1, Math.min(vw / 274, vh / 342));
+      consoleEl.style.transform = `scale(${scale})`;
+      document.documentElement.style.zoom = '';
+      _layoutScale = scale;
     } else {
       // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时保持 100%
-      const fitConsole = () => {
-        const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / 342));
-        document.documentElement.style.zoom = scale;
-      };
-      fitConsole();
-      window.addEventListener('resize', fitConsole);
-
-      // CSS zoom 是布局缩放：getBoundingClientRect 返回的是缩放后坐标，而 style.left/top 赋值
-      // 在渲染时还会被 zoom 再放大一次，导致战斗贴图/道具/遭遇 icon 双重缩放错位。Tauri 端
-      // 用 WebView2 页面缩放（Browser Zoom），getBoundingClientRect 始终返回逻辑 CSS 像素。
-      // 这里把返回值统一除以 zoom，还原成与 Tauri 端一致的行为（动画/特效坐标全部对齐）。
-      const _origGetBRC = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = function () {
-        const r = _origGetBRC.call(this);
-        const z = parseFloat(document.documentElement.style.zoom) || 1;
-        if (z === 1) return r;
-        return new DOMRect(r.left / z, r.top / z, r.width / z, r.height / z);
-      };
+      const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / 342));
+      document.documentElement.style.zoom = scale;
+      _layoutScale = scale;
     }
   }
+  fitLayout();
+  window.addEventListener('resize', fitLayout);
+  window.visualViewport?.addEventListener('resize', fitLayout);
+  // 设置页切换「手游模式」后：重新布局 + 道路重算画布尺寸（canvas 宽度随容器变化）
+  window.addEventListener('ui-mode-changed', () => {
+    fitLayout();
+    import('./road.js').then(m => m.refreshSize());
+  });
 
   // 系统托盘走路动画（异步加载，失败不影响主流程）
   import('./tray.js').then(m => m.startTrayAnimation()).catch(() => {});
@@ -1262,6 +1267,8 @@ async function init() {
     goBack();
   };
   $('appTitle')?.addEventListener('click', handleAppTitleBack);
+  // 手游模式底部「返回」按钮：等价标题栏返回（含配队子页等分支）
+  $('btnBack')?.addEventListener('click', handleAppTitleBack);
   // 鼠标后侧键（后退键，button 3）返回：mousedown 先阻止浏览器历史导航的默认行为，
   // mouseup 时模拟点击 appTitle
   document.addEventListener('mousedown', e => { if (e.button === 3) e.preventDefault(); });

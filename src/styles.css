@@ -10258,3 +10258,59 @@ body.boot-no-ui .control-btn.window-icon { display: none; }
 }
 
 
+
+/* ==================== 手游模式（移动端竖屏布局） ====================
+   与经典布局共用同一份 DOM，只靠 html.ui-mobile 重排并隐藏 PC 专用控件：
+   上：信息条（原统计条）｜中：舞台 / 应用｜下：背包栏 + 入口行（原标题栏图标）
+   逻辑尺寸：宽度固定 274，高度按屏幕比例拉长（JS 设置），整体等比缩放到铺满屏幕 */
+html.ui-mobile body {
+  padding: 0; /* 安全区由顶部信息条与底部入口行各自处理，游戏画面可铺到刘海下 */
+  overflow: hidden;
+}
+html.ui-mobile .console {
+  width: 274px;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  transform-origin: center; /* 手机竖屏正好铺满；桌面宽窗口下居中显示，便于调试 */
+  flex-shrink: 0;
+}
+/* 顶部信息条 */
+html.ui-mobile .stats-bar {
+  order: 1;
+  padding: calc(4px + env(safe-area-inset-top, 0px)) 10px 6px;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.18);
+}
+/* 舞台 / 应用区 */
+html.ui-mobile .screen-wrapper { order: 2; flex: 1; padding: 0; min-height: 0; }
+/* 背包栏 */
+html.ui-mobile .backpack-bar { display: contents; }
+html.ui-mobile .bag-page-indicator { order: 3; margin: 0 10px 3px; }
+html.ui-mobile .backpack-items { order: 4; padding: 0 10px; }
+/* 底部入口行：原标题栏，只留图标按钮 */
+html.ui-mobile .title-bar {
+  order: 5;
+  height: auto;
+  padding: 4px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  cursor: default;
+}
+html.ui-mobile .app-title { display: none; }
+html.ui-mobile .control-btn.minimize,
+html.ui-mobile .control-btn.close,
+html.ui-mobile .mute-toggle,
+html.ui-mobile .intro-mute-hint { display: none !important; }
+html.ui-mobile .window-controls { flex: 1; gap: 6px; align-items: stretch; justify-content: space-between; }
+html.ui-mobile .control-btn {
+  flex: 1;
+  width: auto;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(var(--ui-color-rgb), 0.08);
+}
+html.ui-mobile .control-btn svg { width: 20px; height: 20px; }
+html.ui-mobile .control-btn.window-icon { opacity: 0.85; }
+html.ui-mobile .title-bar-badge { top: 6px; right: 6px; width: 5px; height: 5px; }
+/* 返回按钮：仅手游模式显示（经典布局用标题栏返回） */
+.back-btn { display: none; }
+html.ui-mobile .back-btn { display: flex; }

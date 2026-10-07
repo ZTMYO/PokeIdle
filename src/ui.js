@@ -328,11 +328,17 @@ export function getUiMode() {
   return saved === 'mobile' || saved === 'classic' ? saved : defaultUiMode();
 }
 
-// 应用界面风格：只切 html 上的类，具体布局由 CSS 决定
+// 当前是否手游模式：以 html 上的类为准（CSS 布局与 JS 缩放共用同一来源）
+export function isUiMobile() {
+  return document.documentElement.classList.contains('ui-mobile');
+}
+
+// 应用界面风格：切 html 上的类（布局由 CSS 决定），并通知布局层重算缩放
 export function applyUiMode(mode) {
   const m = mode === 'mobile' ? 'mobile' : 'classic';
   document.documentElement.classList.toggle('ui-mobile', m === 'mobile');
   document.documentElement.classList.toggle('ui-classic', m === 'classic');
+  window.dispatchEvent(new CustomEvent('ui-mode-changed', { detail: m }));
   return m;
 }
 

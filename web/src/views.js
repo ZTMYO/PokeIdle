@@ -14,7 +14,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE,
   DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_VALUE_PER_HOUR, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_ITEM_VALUE } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
-import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar, logicViewport } from './ui.js';
+import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar, logicViewport, getUiMode, applyUiMode } from './ui.js';
 import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
@@ -851,6 +851,7 @@ export function renderSettings(container, s) {
   const sfxEnabled = s.sfxEnabled !== false;
   const battleMusic = s.battleMusic !== false;
   const darkMode = s.darkMode || false;
+  const uiMobile = getUiMode() === 'mobile'; // 手游模式（存档未设置时按平台取默认）
   // 捕捉条件表格：各遇敌类型行，策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
   const cfTbody = CF_ROWS.map(({ key, label }) => {
@@ -1006,6 +1007,13 @@ export function renderSettings(container, s) {
             <div class="toggle-knob"></div>
           </div>
         </div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">手游模式</div>
+          <div class="toggle-switch" id="toggleUiMode">
+            <div class="toggle-track ${uiMobile ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
       </div>
 
       <div class="settings-group">
@@ -1085,6 +1093,7 @@ export function renderSettings(container, s) {
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
   container.querySelector('#toggleDarkMode')?.addEventListener('click', toggleDarkMode);
+  container.querySelector('#toggleUiMode')?.addEventListener('click', toggleUiMode);
   // 窗口倍率下拉：展开/收起（同一时刻只开一个）
   const scaleSel = container.querySelector('#windowScaleSelect');
   scaleSel?.addEventListener('click', (e) => {
@@ -1420,6 +1429,17 @@ export function toggleDarkMode() {
   ensureSettings();
   gameData.settings.darkMode = !gameData.settings.darkMode;
   document.documentElement.dataset.theme = gameData.settings.darkMode ? 'dark' : 'light';
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
+
+// 手游模式开关：切换竖屏布局（顶部信息条 + 底部入口行 + 背包栏），两端都能用，即时生效
+export function toggleUiMode() {
+  ensureSettings();
+  const next = getUiMode() === 'mobile' ? 'classic' : 'mobile';
+  gameData.settings.uiMode = next;
+  applyUiMode(next); // 触发 'ui-mode-changed'：重算缩放与道路画布尺寸
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
