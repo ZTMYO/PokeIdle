@@ -107,8 +107,10 @@ export const HATCH_DIST_SIGMA = 0.2;  // 分布宽度系数（标准差 = 峰值
 // 地区列表
 export const REGION_CYCLE = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
 
-// 像素 ↔ 米换算（统计行走距离用）
-export const PX_PER_METER = 26;
+// 像素 ↔ 米换算（统计里程 / 孵蛋里程 / 导航距离共用）。
+// 与 ROAD_SPEED_* 同步放大：滚动变快后每米对应更多像素，
+// 使"走完 1 公里耗时""孵蛋时长""导航 ETA"等真实时间口径保持不变
+export const PX_PER_METER = 39;
 
 // ===== 地区悬赏 =====
 export const BOUNTY_PER_REGION = 5;   // 每地区每日悬赏条数
@@ -302,10 +304,10 @@ export const ROAD_WIDTH_MIN = 50;          // 随机路段最短格数
 export const ROAD_WIDTH_MAX = 200;         // 随机路段最长格数
 export const ROAD_SWITCH_CYCLES = 2;       // 滚动满几个循环后切换场景
 
-// ===== 路面滚动速度 =====
-export const ROAD_SPEED_WALK = 0.5;   // 走路
-export const ROAD_SPEED_RUN  = 1.0;   // 跑步（增益生效时）
-export const ROAD_SPEED_BIKE = 2.0;    // 自行车道骑行
+// ===== 路面滚动速度（px/步，1 步 = 1/60 秒；px/秒 = 该值 × 60）=====
+export const ROAD_SPEED_WALK = 0.75;  // 走路 → 45 px/秒
+export const ROAD_SPEED_RUN  = 1.5;   // 跑步（增益生效时）→ 90 px/秒
+export const ROAD_SPEED_BIKE = 3.0;   // 自行车道骑行 → 180 px/秒
 export const BIKE_RESTORE_MAX_GAP_MS = 120000; // 手动骑行状态恢复的最大离档间隔（>此值视为长时间离线，不恢复骑行）
 
 // 道具作用简述（商店 hover 提示等统一 tooltip 文案）

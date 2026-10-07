@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, ROAD_SPEED_WALK, START_CANDY, BIKE_RESTORE_MAX_GAP_MS, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, BIKE_RESTORE_MAX_GAP_MS, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -197,7 +197,6 @@ export function defaultGpsState() {
     units: 0,                       // 当前路段距离（单位）
     totalPx: 0,                     // 当前路段总像素
     remainPx: 0,                    // 当前路段剩余像素
-    pxPerSec: ROAD_SPEED_WALK * 60, // 最近一次移动速度（px/秒）
     position: null,                 // 显式位置快照：存档里清楚写明当前在地区还是在道路上
     massTarget: null,               // 导航目标为大量出没事件点：{ edge:[a,b], t }；null=无
     massArrived: false,             // 是否已到达大量出没事件点（导航在该点停止后才触发大量出没）

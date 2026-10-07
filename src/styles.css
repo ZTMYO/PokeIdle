@@ -13,6 +13,7 @@
   --console-body: #e8dcc0;
   --console-border: #c4b692;
   --console-shadow: #b8a88a;
+  --splash-text: #e8dcc0;
   --item-bg: rgba(255,255,255,0.15);
   --item-hover-bg: rgba(255,255,255,0.32);
   --item-border: rgba(0,0,0,0.08);
@@ -34,6 +35,7 @@
   --console-body: #0a0a0a;
   --console-border: #1f1f1f;
   --console-shadow: #000000;
+  --splash-text: #a79e89;
   --item-bg: rgba(255,255,255,0.06);
   --item-hover-bg: rgba(255,255,255,0.14);
   --item-border: rgba(255,255,255,0.12);
@@ -4263,7 +4265,6 @@ html.mobile-app #quitHide { display: none !important; }
   user-select: none;
   padding: 2px 4px 3px;
 }
-/* 设置页底部 GitHub 链接：颜色与「版权声明」一致（默认文字色 + 半透明），hover 变主题绿 */
 .settings-footer-link {
   display: flex;
   align-items: center;
@@ -4271,7 +4272,7 @@ html.mobile-app #quitHide { display: none !important; }
   gap: 6px;
   margin-top: 12px;
   padding: 6px 0;
-  color: var(--color-text);
+  color: var(--ui-color);
   opacity: 0.55;
   text-decoration: none;
   font-size: 12px;
@@ -4660,7 +4661,7 @@ html.mobile-app #quitHide { display: none !important; }
   font-size: clamp(20px, 5vmin, 28px);
   letter-spacing: 8px;
   text-indent: 8px;
-  color: var(--console-body);
+  color: var(--splash-text);
   text-shadow: 2px 2px 0 rgba(0,0,0,0.25);
   user-select: none;
 }
@@ -4669,7 +4670,7 @@ html.mobile-app #quitHide { display: none !important; }
   letter-spacing: 6px;
   text-indent: 6px;
   margin-top: 3px;
-  color: var(--console-body);
+  color: var(--splash-text);
   opacity: 0.7;
   user-select: none;
 }

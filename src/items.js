@@ -284,73 +284,80 @@ export function spawnItemDrop(itemKey) {
     _dropCancelCb = null;
     _dropEl = null;
     active = false;
+    road.removeStepper(step);
+    road.removeRender(render);
     el.remove();
     setItemDropActive(false);
     if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
   };
 
-  // 动画受理成功：后续由 frame/fly 驱动滚动与拾取入账，这里返回 true 让调用方扣减累积值
+  // 动画受理成功：后续由 step/fly 驱动滚动与拾取入账，这里返回 true 让调用方扣减累积值
   // （否则累积值永不扣减，糖果等高频道具会一直出动画）
 
-  const sRect = screen.getBoundingClientRect();
-  const cRect = charEl.getBoundingClientRect();
-  const charLeft = cRect.left - sRect.left;
+  // 几何快照：生成时算一次；窗口尺寸变化（旋转/缩放）后由 refreshGeometry 重算，
+  // 避免拾取阈值/高度参照一直用旧尺寸
+  let sRect = screen.getBoundingClientRect();
+  let cRect = charEl.getBoundingClientRect();
+  let charLeft = cRect.left - sRect.left;
 
   // 物品放在路面上
   const roadEl = document.querySelector('.road-layer');
-  const rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
-  const itemY = (rRect.top - sRect.top) + 24;
+  let rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
+  let itemY = (rRect.top - sRect.top) + 24;
 
   let itemX = sRect.width + 10;
   el.style.left = itemX + 'px';
   el.style.top = itemY + 'px';
   el.style.opacity = '1';
 
-  const pickupX = charLeft + 10;
-  const cTop = cRect.top - sRect.top;
+  let pickupX = charLeft + 10;
+  let cTop = cRect.top - sRect.top;
+  let _geomW = window.innerWidth;
+  let _geomH = window.innerHeight;
   let active = true;
+
+  function refreshGeometry() {
+    if (window.innerWidth === _geomW && window.innerHeight === _geomH) return;
+    _geomW = window.innerWidth;
+    _geomH = window.innerHeight;
+    sRect = screen.getBoundingClientRect();
+    cRect = charEl.getBoundingClientRect();
+    charLeft = cRect.left - sRect.left;
+    rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
+    itemY = (rRect.top - sRect.top) + 24;
+    pickupX = charLeft + 10;
+    cTop = cRect.top - sRect.top;
+  }
 
   function cleanup() {
     active = false;
     _dropCancelCb = null;
     _dropEl = null;
+    road.removeStepper(step);
+    road.removeRender(render);
     el.remove();
     setItemDropActive(false);
     if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
   }
 
-  function frame() {
+  // 世界步（每步一次，与路面同速）：位置推进 + 拾取判定
+  function step(spd) {
     if (!active) return;
+    if ($('idleView')?.style.display === 'none') return; // 离开主界面：冻结等待
+    itemX -= spd;
 
-    const isIdleView = $('idleView')?.style.display !== 'none';
-    if (!isIdleView) {
-      el.style.display = 'none';
-      requestAnimationFrame(frame);
-      return;
-    }
-    if (!road.isActive()) {
-      el.style.display = 'none';
-      requestAnimationFrame(frame);
-      return;
-    }
-    el.style.display = '';
-
-    const roadSpeed = road.getSpeed();
-    itemX -= roadSpeed;
-
-    if (itemX > sRect.width + 100) { cleanup(); return; }
+    if (itemX > sRect.width + 100) { cleanup(); return; } // 兜底：异常位置直接回收
 
     if (road.isBike()) {
-      el.style.left = itemX + 'px';
-      if (itemX < -40) { cleanup(); return; }
-      requestAnimationFrame(frame);
+      // 骑行：道具继续随路面左移但不拾取，滑出屏幕即回收
+      if (itemX < -40) cleanup();
       return;
     }
-
-    el.style.left = itemX + 'px';
 
     if (itemX <= pickupX) {
       active = false;
+      road.removeStepper(step);
+      road.removeRender(render);
       road.pause();
       setIdleCharacter('get-item', itemKey);
 
@@ -391,12 +398,23 @@ export function spawnItemDrop(itemKey) {
       })(performance.now());
       return;
     }
+  }
 
-    requestAnimationFrame(frame);
+  // 每帧渲染（不推进世界）：写位置与显隐
+  function render() {
+    if (!active) return;
+    refreshGeometry();
+    if ($('idleView')?.style.display === 'none' || !road.isActive()) {
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = '';
+    el.style.left = road.snapPx(itemX) + 'px'; // 对齐设备像素：像素材质不因小数偏移反复重采样
   }
 
   setIdleCharacter('walk');
-  requestAnimationFrame(frame);
+  road.addStepper(step);
+  road.addRender(render);
   return true;
 }
 

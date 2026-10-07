@@ -46,8 +46,8 @@ release 产物：`dist/android/pokeidle-android-v<version>.apk`。
 
 | 版本 | versionCode |
 |---|---|
-| 1.1.0（fork 作者发布，实际写入的是 10008） | 10008 |
 | 1.1.1 | 10101 |
+| 1.1.2 | 10102 |
 
 ## 签名
 

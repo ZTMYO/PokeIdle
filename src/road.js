@@ -1,6 +1,7 @@
 // ===== 无限滚动路面 (Canvas 渲染) =====
 import { $ } from './ui.js';
 import { ROAD_SPEED_WALK } from './config.js';
+import * as clock from './clock.js';
 
 const TILE = 24;
 const SRC_TILE = 16;
@@ -18,21 +19,24 @@ let active = false;
 let containerWidth = 0;
 let roadHeight = 0;
 let patternWidth = 0;
+let _dpr = 1; // 设备像素比（_resize 时刷新），用于把绘制坐标对齐设备像素网格
+
+// 坐标对齐到设备像素网格：缩放/像素比非整数时，带小数的偏移会让花纹的采样相位逐帧变化，
+// 滚动时表现为"波纹"；对齐后每帧都是整数设备像素平移，画面相位稳定
+export function snapPx(px) {
+  return Math.round(px * _dpr) / _dpr;
+}
 
 let _cycles = 0;
-let _prevScrollX = 0;
 let _scrollFraction = 0;
-// 累计行走距离（像素）：每帧滚动多少就算走多远；遇敌/钓鱼时道路暂停，不累积
+// 累计行走距离（像素）：世界每走一步加 speed；暂停（遇敌/钓鱼/拾取）期间不累积
 let _distance = 0;
-// rAF 停摆（浏览器后台/最小化）补算：记录上一帧时间戳、停摆累计时长（毫秒）与
-// 正常滚动累计秒数（供掉落折算），恢复后由 main.js 折算里程/掉落直接入账，不播放动画
-let _lastFrameTs = 0;
-let _afkMs = 0;
-let _walkSeconds = 0;
-// 实际滚动速率（px/s）= speed × 实际帧率：用最近帧间隔滑动平均实时计算，自动适应
-// 任意屏幕刷新率（60/120/144/可变刷新率），速度切换立即生效、无滞后。供 gps 剩余时间
-// 与补发里程按真实推进速度计算，不固定假设 60fps
-let _avgGap = 16.67;
+// 世界步进（见 clock.js）：每帧把真实经过时间兑换成整数个 1/60 秒的步，逐步推进路面与
+// 注册的步进器；渲染每帧一次。speed 单位是 px/步（走路 0.5 / 跑步 1.0 / 骑行 2.0）
+const _steppers = new Set(); // 每步推进一次：道具 / 遇敌图标 / 大量出没 / 时空扭曲
+const _renders = new Set();  // 每帧渲染一次：写 DOM 位置与显隐，不推进世界
+// 掉落折算用的走动秒数游标：clock 的世界秒只增不减，取差值即本段走动时长
+let _walkSecCursor = 0;
 // 过渡状态：新道路从右侧滑入
 let _transition = null; // { tiles, width, height, patternWidth, roadHeight, remaining }
 // 过渡中新道路滑到角色脚下时回调（切换骑行/行走）
@@ -45,6 +49,7 @@ function _resize() {
   const w = parent.clientWidth;
   const h = _transition ? _transition.roadHeight : pattern.height * TILE;
   const dpr = window.devicePixelRatio || 1;
+  _dpr = dpr;
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   canvas.style.width = w + 'px';
@@ -67,13 +72,14 @@ function _drawPatternData(offsetX, pd) {
   if (!tiles || tiles.length === 0) return;
   const rows = tiles.length;
   const cols = tiles[0].length;
-  // 使用 float offsetX 直接绘制，imageSmoothingEnabled=false 下浏览器会 floor 坐标
+  // 偏移对齐设备像素网格后直接用 float offsetX 绘制（imageSmoothingEnabled=false 下浏览器会 floor 坐标）
+  const ox = snapPx(offsetX);
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const tile = tiles[r][c];
       if (!tile) continue;
       ctx.drawImage(img, tile.col * SRC_TILE, tile.row * SRC_TILE, SRC_TILE, SRC_TILE,
-                    offsetX + c * TILE, r * TILE, TILE, TILE);
+                    ox + c * TILE, r * TILE, TILE, TILE);
     }
   }
 }
@@ -87,7 +93,7 @@ function _draw() {
     // 旧道路从当前位置向左滑出一个屏幕宽度，新道路从右缘滑入
     const oldPw = patternWidth;
     const newPw = _transition.patternWidth;
-    const cut = Math.max(0, _transition.remaining);
+    const cut = snapPx(Math.max(0, _transition.remaining));
 
     // 调整 oldOffset 使旧道路的瓦片边界落在 cut 上，消除分界处的半个瓦片
     // rawOldOffset - cut = -(savedScrollX + savedFraction + containerWidth) 为恒定值
@@ -123,31 +129,18 @@ function _draw() {
     ctx.restore();
   } else {
     if (patternWidth <= 0) return;
+    // 用精确位置（整数部分 + 小数累积）绘制：每步 0.75px 也能在设备像素网格上平滑推进
+    const exact = scrollX + _scrollFraction;
     const copies = Math.ceil(containerWidth / patternWidth) + 1;
     for (let i = 0; i < copies; i++) {
-      _drawPatternData(-scrollX + i * patternWidth, pattern);
+      _drawPatternData(-exact + i * patternWidth, pattern);
     }
   }
 }
 
-function _frame() {
-  if (!active) return;
-
-  // 帧间隔：正常滚动按实际秒数累计（供掉落折算）；超过 1 秒视为浏览器后台/最小化停摆，
-  // 累计待补算时长。有意暂停走 pause/resume，resume 时重置时间戳，不会误计
-  const now = Date.now();
-  const gap = _lastFrameTs ? now - _lastFrameTs : 16;
-  _lastFrameTs = now;
-  if (gap > 1000) {
-    _afkMs += gap;
-  } else {
-    _walkSeconds += gap / 1000;
-    // 帧间隔滑动平均：实时推算当前帧率，用于折算实际滚动速率（自动适配高刷屏）
-    _avgGap = _avgGap * 0.9 + gap * 0.1;
-  }
-
+// 世界走一步：推进 speed 像素（px/步）
+function _stepWorld() {
   _distance += speed; // 行走距离与滚动量同步（过渡滑入同样在前进）
-
   if (_transition) {
     // 过渡中：先递减 remaining，再绘制，确保连续性
     _transition.remaining -= speed;
@@ -169,6 +162,19 @@ function _frame() {
       _cycles++;
     }
   }
+}
+
+function _frame() {
+  if (!active) return;
+
+  // 本帧要推进的世界步数：60 步/秒。高刷屏多数帧是 0 步（只重绘），低刷屏一帧补多步；
+  // 页面隐藏/长停摆不在这里补（走挂机补算）
+  const steps = clock.stepsThisFrame();
+  for (let i = 0; i < steps; i++) {
+    _stepWorld();
+    for (const fn of _steppers) fn(speed); // 步进器：道具/遇敌/事件图标，与路面同速
+    if (!active) break; // 某一步触发了暂停（拾取道具/进入战斗）：本帧剩余步数作废
+  }
 
   _draw();
 
@@ -184,8 +190,19 @@ function _frame() {
     _cycles = 0;
   }
 
+  // 渲染钩子：每帧一次，把当前状态画出来（刷新率只影响采样密度）
+  for (const fn of _renders) fn();
+
   rafId = requestAnimationFrame(_frame);
 }
+
+// ---------- 步进器 / 渲染钩子 ----------
+// 跟着路面走的对象（道具、遇敌图标、大量出没、时空扭曲）注册到这里，
+// 由世界步统一推进、统一渲染，保证与路面像素同步且与刷新率无关
+export function addStepper(fn) { _steppers.add(fn); }
+export function removeStepper(fn) { _steppers.delete(fn); }
+export function addRender(fn) { _renders.add(fn); }
+export function removeRender(fn) { _renders.delete(fn); }
 
 // ---------- 加载/切换 API ----------
 
@@ -325,18 +342,16 @@ export function start(spd) {
     img = new Image();
     img.onload = () => {
       _resize();
-      _lastFrameTs = Date.now(); // 全新开始：从当前帧起算，避免把空窗期当停摆
-      _afkMs = 0;
-      _walkSeconds = 0;
+      _walkSecCursor = 0;
+      clock.start(); // 世界时钟起算：从当前帧开始兑换世界步
       active = true;
       rafId = requestAnimationFrame(_frame);
     };
     img.src = TILESET;
   } else {
     _resize();
-    _lastFrameTs = Date.now();
-    _afkMs = 0;
-    _walkSeconds = 0;
+    _walkSecCursor = 0;
+    clock.start();
     active = true;
     rafId = requestAnimationFrame(_frame);
   }
@@ -358,15 +373,17 @@ export function stop() {
   scrollX = 0;
   _transition = null;
   _scrollFraction = 0;
-  _lastFrameTs = 0;
-  _afkMs = 0; // 离开场景：未补算的停摆时长作废
-  _walkSeconds = 0;
+  _walkSecCursor = 0;
+  _steppers.clear();
+  _renders.clear();
+  clock.stop(); // 未补算的停摆时长作废
   window.removeEventListener('resize', _resize);
 }
 
 export function pause() {
   if (!active) return;
   active = false;
+  clock.pause(); // 暂停期间不兑换世界步（遇敌/钓鱼/拾取道具的有意停顿）
   if (rafId) {
     cancelAnimationFrame(rafId);
     rafId = null;
@@ -376,7 +393,7 @@ export function pause() {
 export function resume() {
   if (active) return;
   if (!canvas || !pattern) return;
-  _lastFrameTs = Date.now(); // 有意暂停恢复：重置时间戳，暂停时长不计入停摆补算
+  clock.resume(); // 重置时间戳与余数：暂停时长不计入推进，也不会一次性补一大段
   active = true;
   rafId = requestAnimationFrame(_frame);
 }
@@ -385,6 +402,7 @@ export function setSpeed(spd) {
   speed = spd;
 }
 
+/** 当前步速：px/步（1 步 = 1/60 秒，见 clock.js）。走路 0.5 / 跑步 1.0 / 骑行 2.0 */
 export function getSpeed() {
   return speed;
 }
@@ -409,22 +427,21 @@ export function takeDistance() {
   return d;
 }
 
-// 实际滚动速率（px/s）= speed × 当前帧率（滑动平均推算），供 gps 剩余时间按真实推进速度折算
-export function getActualPxPerSec() {
-  return speed * (1000 / _avgGap);
+// 实际推进速率（px/秒）= speed × 60（世界固定 60 步/秒），供 GPS 剩余时间与挂机补算共用
+export function getPxPerSec() {
+  return speed * 60;
 }
 
-// 取走并清零 rAF 停摆累计秒数（浏览器后台/最小化补算用）
+// 取走并清零停摆累计秒数（浏览器后台/最小化补算用）
 export function takeAfkSeconds() {
-  const s = _afkMs / 1000;
-  _afkMs = 0;
-  return s;
+  return clock.takeAfkSeconds();
 }
 
-// 取走并清零正常滚动累计秒数（掉落在 idle 期间按真实走路时长折算）
+// 取走并清零正常走动累计秒数（掉落在 idle 期间按真实走路时长折算）
 export function takeWalkSeconds() {
-  const s = _walkSeconds;
-  _walkSeconds = 0;
+  const now = clock.simSeconds();
+  const s = now - _walkSecCursor;
+  _walkSecCursor = now;
   return s;
 }
 /** 视图切回时重新计算 canvas 尺寸 */

@@ -155,7 +155,7 @@ let _massPokeEl = null;    // 滚动的宝可梦容器 <div>
 let _massPokeX = 0;        // 宝可梦当前 X
 let _massCharX = 0;        // 主角碰撞点 X
 let _massPokeShiny = false; // 本只是否闪光（生成时判定，碰到时复用）
-let _massRafActive = false;
+let _massHooked = false; // 已注册到世界步进器（step/render）
 
 function spawnMassPoke() {
   const mo = getMassOutbreak();
@@ -237,8 +237,17 @@ function backgroundHitMass() {
   startMassEncounter(poke, shiny);
 }
 
-function _massFrame() {
-  if (!_massRafActive) return;
+function _massStep(spd) {
+  // 世界步：事件宝可梦随路面推进（每步一次，与刷新率无关）
+  if (!_massPokeEl) return;
+  if (!road.isActive() || road.isBike()) return; // 道路暂停/骑行：原地等待
+  _massPokeX -= spd;
+  if (_massPokeX <= _massCharX) { hitMassPoke(); return; }
+  if (_massPokeX < -120) despawnMassPoke();
+}
+
+// 每帧渲染：区域/视图守卫、到点生成、写位置
+function _massRender() {
   const mo = gameData?.massOutbreak;
   const runOk = !!mo && phase === 'idle' && inMassZone()
     && $('idleView')?.style.display !== 'none';
@@ -247,30 +256,27 @@ function _massFrame() {
     despawnMassPoke();
     return;
   }
-  // 道路暂停（拾取道具等）：宝可梦原地等待，捡完恢复滚动，避免"捡完球 icon 消失"
-  if (!road.isActive()) { requestAnimationFrame(_massFrame); return; }
-  if (road.isBike()) { requestAnimationFrame(_massFrame); return; }
+  // 道路暂停（拾取道具等）或骑行：宝可梦原地等待，捡完恢复滚动，避免"捡完球 icon 消失"
+  if (!road.isActive() || road.isBike()) return;
 
   // 无精灵且到点 → 生成下一只（nextSpawnAt 初始 0，进区域立即出现）
   if (!_massPokeEl && Date.now() >= mo.nextSpawnAt) spawnMassPoke();
 
-  if (_massPokeEl) {
-    _massPokeX -= road.getSpeed();
-    _massPokeEl.style.left = _massPokeX + 'px';
-    if (_massPokeX <= _massCharX) { hitMassPoke(); return; }
-    if (_massPokeX < -120) despawnMassPoke();
-  }
-  requestAnimationFrame(_massFrame);
+  if (_massPokeEl) _massPokeEl.style.left = road.snapPx(_massPokeX) + 'px'; // 对齐设备像素
 }
 
 function startMassRaf() {
-  if (_massRafActive) return;
-  _massRafActive = true;
-  requestAnimationFrame(_massFrame);
+  if (_massHooked) return;
+  _massHooked = true;
+  road.addStepper(_massStep);
+  road.addRender(_massRender);
 }
 
 function stopMassRaf() {
-  _massRafActive = false;
+  if (!_massHooked) return;
+  _massHooked = false;
+  road.removeStepper(_massStep);
+  road.removeRender(_massRender);
 }
 
 function updateMassSpawner(now) {
@@ -280,14 +286,14 @@ function updateMassSpawner(now) {
   if (!mo || phase !== 'idle' || !inMassZone()) { stopMassRaf(); despawnMassPoke(); return; }
   if (idleHidden) {
     // 后台挂机：不做滚动动画但保留持久化的当前精灵（cur），到点直接触发战斗；
-    // 元素随 RAF 停止后仍在屏幕位置，此处手动移除，避免离页时残留
+    // 元素留在屏幕位置，此处手动移除，避免离页时残留
     stopMassRaf();
     if (_massPokeEl) { _massPokeEl.remove(); _massPokeEl = null; }
     _massPokeShiny = false;
     if (Date.now() >= mo.nextSpawnAt) backgroundHitMass();
     return;
   }
-  // 注意不含 road.isActive()：拾取道具等道路暂停时保持 RAF，由 _massFrame 原地等待，避免捡完球 icon 消失
+  // 注意不含 road.isActive()：拾取道具等道路暂停时保持注册，由 _massStep 原地等待，避免捡完球 icon 消失
   // 大量出没事件点可能落在自行车路段上：骑行中事件宝可梦不滚动、普通遭遇也不触发，
   // 玩家到了点位却在骑车会错过事件。进入事件区域立即强制下车，恢复正常遭遇等非骑行功能。
   forceStopBikeInMassZone();
@@ -446,7 +452,7 @@ let _twistCharX = 0;         // 主角碰撞点 X
 let _twistPokeShiny = false; // 本只是否闪光（生成时判定，碰到时复用）
 let _twistVariant = null;    // 本只外观变体：'rgb' / 'polluted' / null
 let _twistPoke = null;       // 本只宝可梦（生成时选定，碰到时复用，滚动与战斗一致）
-let _twistRafActive = false;
+let _twistHooked = false; // 已注册到世界步进器（step/render）
 
 function spawnTwistPoke() {
   const tw = getTwist();
@@ -546,8 +552,17 @@ function backgroundHitTwist() {
   startTwistEncounter(poke, shiny, variant);
 }
 
-function _twistFrame() {
-  if (!_twistRafActive) return;
+function _twistStep(spd) {
+  // 世界步：事件宝可梦随路面推进（每步一次，与刷新率无关）
+  if (!_twistPokeEl) return;
+  if (!road.isActive() || road.isBike()) return; // 道路暂停/骑行：原地等待
+  _twistPokeX -= spd;
+  if (_twistPokeX <= _twistCharX) { hitTwistPoke(); return; }
+  if (_twistPokeX < -120) despawnTwistPoke();
+}
+
+// 每帧渲染：区域/视图守卫、到点生成、写位置
+function _twistRender() {
   const tw = gameData?.twist;
   const runOk = !!tw && phase === 'idle' && inTwistZone()
     && $('idleView')?.style.display !== 'none';
@@ -556,28 +571,25 @@ function _twistFrame() {
     despawnTwistPoke();
     return;
   }
-  if (!road.isActive()) { requestAnimationFrame(_twistFrame); return; }
-  if (road.isBike()) { requestAnimationFrame(_twistFrame); return; }
+  if (!road.isActive() || road.isBike()) return; // 原地等待
 
   if (!_twistPokeEl && Date.now() >= tw.nextSpawnAt) spawnTwistPoke();
 
-  if (_twistPokeEl) {
-    _twistPokeX -= road.getSpeed();
-    _twistPokeEl.style.left = _twistPokeX + 'px';
-    if (_twistPokeX <= _twistCharX) { hitTwistPoke(); return; }
-    if (_twistPokeX < -120) despawnTwistPoke();
-  }
-  requestAnimationFrame(_twistFrame);
+  if (_twistPokeEl) _twistPokeEl.style.left = road.snapPx(_twistPokeX) + 'px'; // 对齐设备像素
 }
 
 function startTwistRaf() {
-  if (_twistRafActive) return;
-  _twistRafActive = true;
-  requestAnimationFrame(_twistFrame);
+  if (_twistHooked) return;
+  _twistHooked = true;
+  road.addStepper(_twistStep);
+  road.addRender(_twistRender);
 }
 
 function stopTwistRaf() {
-  _twistRafActive = false;
+  if (!_twistHooked) return;
+  _twistHooked = false;
+  road.removeStepper(_twistStep);
+  road.removeRender(_twistRender);
 }
 
 function updateTwistSpawner(now) {
@@ -586,7 +598,7 @@ function updateTwistSpawner(now) {
   if (!tw || phase !== 'idle' || !inTwistZone()) { stopTwistRaf(); despawnTwistPoke(); return; }
   if (idleHidden) {
     // 后台挂机：不做滚动动画但保留持久化的当前精灵（cur），到点直接触发战斗；
-    // 元素随 RAF 停止后仍在屏幕位置，此处手动移除，避免离页时残留
+    // 元素留在屏幕位置，此处手动移除，避免离页时残留
     stopTwistRaf();
     if (_twistPokeEl) { _twistPokeEl.remove(); _twistPokeEl = null; }
     _twistPokeShiny = false;

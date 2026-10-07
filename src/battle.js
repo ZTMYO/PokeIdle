@@ -248,7 +248,7 @@ let _encPokeEl = null;      // 滚动的宝可梦 <img>
 let _encPokeX = 0;          // 宝可梦当前 X
 let _encPokeCharX = 0;      // 主角碰撞点 X
 let _encPokeCb = null;      // 碰到主角后的回调（真正开始战斗）
-let _encPokeRafActive = false;
+let _encPokeHooked = false; // 已注册到世界步进器（step/render）
 
 function spawnEncounterPoke(poke, shiny, cb) {
   const screen = $('screen');
@@ -299,18 +299,40 @@ function despawnEncounterPoke() {
   stopEncPokeRaf();
 }
 
+// 注册到世界步进器：位置由世界步推进（px/步，与路面同速、与刷新率无关）
 function startEncPokeRaf() {
-  if (_encPokeRafActive) return;
-  _encPokeRafActive = true;
-  requestAnimationFrame(_encPokeFrame);
+  if (_encPokeHooked) return;
+  _encPokeHooked = true;
+  road.addStepper(_encPokeStep);
+  road.addRender(_encPokeRender);
 }
 
 function stopEncPokeRaf() {
-  _encPokeRafActive = false;
+  if (!_encPokeHooked) return;
+  _encPokeHooked = false;
+  road.removeStepper(_encPokeStep);
+  road.removeRender(_encPokeRender);
 }
 
-function _encPokeFrame() {
-  if (!_encPokeRafActive) return;
+// 世界步：图标随路面推进（被占用/离开主界面/骑行时冻结，由 render 负责显隐与收尾）
+function _encPokeStep(spd) {
+  if (!_encPokeEl) return;
+  if (phase !== 'idle' || _fishing || inMassZone() || inTwistZone()) return;
+  if ($('idleView')?.style.display === 'none') return;
+  if (road.isBike()) return;
+
+  _encPokeX -= spd;
+  if (_encPokeX <= _encPokeCharX) {
+    const cb = _encPokeCb;
+    despawnEncounterPoke();
+    if (cb) cb();
+    return;
+  }
+  if (_encPokeX < -120) { despawnEncounterPoke(); scheduleNextEncounter(); } // 走过头（异常兜底）重调度
+}
+
+// 每帧渲染：显隐与位置；游戏被占用 / 图标丢失的收尾也在这里
+function _encPokeRender() {
   // 游戏被占用（已开战/钓鱼中/大量出没/时空扭曲事件点）：移除图标，之后重新调度遇敌
   if (phase !== 'idle' || _fishing || inMassZone() || inTwistZone()) {
     despawnEncounterPoke();
@@ -319,24 +341,12 @@ function _encPokeFrame() {
   }
   // 图标丢失（图片加载失败被移除）：结束本次滚动，稍后重新调度遇敌
   if (!_encPokeEl) { despawnEncounterPoke(); scheduleNextEncounter(); return; }
-  const isIdleView = $('idleView')?.style.display !== 'none';
-  if (!isIdleView) { _encPokeEl.style.display = 'none'; requestAnimationFrame(_encPokeFrame); return; }
-  // 道路暂停（拾取道具等）：原地等待
-  if (!road.isActive()) { requestAnimationFrame(_encPokeFrame); return; }
+  // 离开主界面：隐藏图标、位置冻结（回来继续滚）
+  if ($('idleView')?.style.display === 'none') { _encPokeEl.style.display = 'none'; return; }
+  // 骑车时隐藏图标：骑行中不遇敌，图标不该显示在路边
+  if (road.isBike()) { _encPokeEl.style.display = 'none'; return; }
   _encPokeEl.style.display = '';
-  // 骑车时宝可梦原地等待（与大量出没一致）且隐藏图标：骑行中不遇敌，图标不该显示在路边
-  if (road.isBike()) { _encPokeEl.style.display = 'none'; requestAnimationFrame(_encPokeFrame); return; }
-
-  _encPokeX -= road.getSpeed();
-  _encPokeEl.style.left = _encPokeX + 'px';
-  if (_encPokeX <= _encPokeCharX) {
-    const cb = _encPokeCb;
-    despawnEncounterPoke();
-    if (cb) cb();
-    return;
-  }
-  if (_encPokeX < -120) { despawnEncounterPoke(); scheduleNextEncounter(); return; } // 走过头（异常兜底）重调度
-  requestAnimationFrame(_encPokeFrame);
+  _encPokeEl.style.left = road.snapPx(_encPokeX) + 'px'; // 对齐设备像素：像素材质不因小数偏移反复重采样
 }
 
 // 道路遇敌宝可梦碰到主角：暂停 buff 倒计时并真正进入战斗

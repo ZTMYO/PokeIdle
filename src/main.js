@@ -417,7 +417,7 @@ async function onGameTick() {
   if (walked > 0) {
     gameData.stats.walkDistance = (gameData.stats.walkDistance || 0) + walked;
     // 导航由主角实际移动推进（跑步更快）
-    gpsAddDistance(walked, road.getSpeed() * 60);
+    gpsAddDistance(walked);
   }
 
   const region = getCurrentRegion();
@@ -454,12 +454,12 @@ async function onGameTick() {
   let catchUpLog = null; // 补发汇总：后台挂机补算时打印控制台便于核对
   if (afkSec > 0) {
     catchUpLog = { afkSec: Math.round(afkSec), walk: 0, items: {} };
-    // 按实际滚动速率折算里程（takeDistance 实测值，高刷屏帧率>60 时速率更高，与前台推进一致）
-    const spd = road.getActualPxPerSec() || road.getSpeed() * 60;
+    // 按当前步速（px/秒）折算里程，与前台推进速率一致
+    const spd = road.getPxPerSec();
     const extraWalk = Math.floor(spd * afkSec);
     if (extraWalk > 0) {
       gameData.stats.walkDistance = (gameData.stats.walkDistance || 0) + extraWalk;
-      gpsAddDistance(extraWalk, spd);
+      gpsAddDistance(extraWalk);
       catchUpLog.walk = extraWalk;
     }
     saveGame(); // 补算入账立即落盘，避免依赖 30 秒周期存档

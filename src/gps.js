@@ -115,7 +115,7 @@ function computeRouteRemain(g) {
       remainPxTotal += segPx;
     }
   }
-  const pxPerSec = road.getActualPxPerSec() || road.getSpeed() * 60;
+  const pxPerSec = road.getPxPerSec();
   const pxPerMin = pxPerSec * 60;
   const remainMin = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerMin)) : 0;
   const remainSec = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerSec)) : 0;
@@ -665,12 +665,11 @@ export function teleportToTwist() {
 }
 
 // 主角移动推进：main.js 每秒把道路滚动距离喂进来（px 为真实行走/跑步像素）
-export function gpsAddDistance(px, pxPerSec) {
+export function gpsAddDistance(px) {
   const g = gameData?.gps;
   if (!g) return;
   // 有地区目的地或正在前往大量出没事件点时都会移动推进
   if ((g.destIdx == null && g.massTarget == null) || px <= 0) return;
-  g.pxPerSec = pxPerSec || ROAD_SPEED_WALK * 60;
   let remain = px;
   // 挂机补算一次喂入整段停摆像素（可能跨越多段）：循环推进，避免走完当前段后剩余距离被丢弃。
   // 前台逐 tick 推进每次只有几十像素，循环一次即退出，行为与原来一致
