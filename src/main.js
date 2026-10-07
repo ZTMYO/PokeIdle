@@ -32,7 +32,7 @@ import { computeObtainScore } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak, twistTick, ensureTwistInit, forceRefreshTwist } from './events.js';
 import {
   $, showView, updateTextBox, hideTextBox, showConfirmBar,
-  isOnGameView, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
+  isOnGameView, isIdleStageVisible, applyUiMode, getUiMode, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
   renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip,
   isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView,
 } from './ui.js';
@@ -797,6 +797,8 @@ async function init() {
   applyWindowScale(gameData?.settings?.windowScale);
   // 应用夜间模式
   if (gameData.settings?.darkMode) document.documentElement.dataset.theme = 'dark';
+  // 应用界面风格（经典竖向小窗 / 移动端双屏）：存档未设置时按平台取默认
+  applyUiMode(getUiMode());
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
   if (gameData.gps.roamEnabled && gameData.gps.destIdx == null) setRoamEnabled(true);
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
@@ -956,7 +958,7 @@ async function init() {
       if (!willEncounter && sessionState.honeyRemaining > 0) {
         setHoneyBuffActive(true);
         setHoneyCountdownEnd(Date.now() + sessionState.honeyRemaining);
-        if ($('idleView').style.display !== 'none') {
+        if (isIdleStageVisible()) {
           $('idleText').textContent = '✦ 甜蜜蜜生效中 ✦';
           setIdleMsgIdx(-1);
           particles.stop();
@@ -986,7 +988,7 @@ async function init() {
       if (!willEncounter && sessionState.charmRemaining > 0) {
         setCharmBuffActive(true);
         setCharmCountdownEnd(Date.now() + sessionState.charmRemaining);
-        if ($('idleView').style.display !== 'none') {
+        if (isIdleStageVisible()) {
           $('idleText').textContent = '✦ 闪耀护符生效中 ✦';
           setIdleMsgIdx(-1);
           particles.stop();
@@ -1022,7 +1024,7 @@ async function init() {
         setBlockQuality(sessionState.blockQuality);
         syncBlockVisual();
         startBlockCountdown();
-        if ($('idleView').style.display !== 'none') {
+        if (isIdleStageVisible()) {
           $('idleText').textContent = '✦ 树果方块已摆放在路旁 ✦';
           setIdleMsgIdx(-1);
         }

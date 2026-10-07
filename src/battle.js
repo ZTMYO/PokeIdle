@@ -1,6 +1,6 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, WILD_LEVEL_MAX } from './config.js';
 import { phase, gameData, allPokemon, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _catchConfirmStep, _lastRegionId, _idleMsgIdx, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, formatNum, saveSessionState, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, setEncounterSource, setEncounterVariant } from './state.js';
-import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage } from './ui.js';
+import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, isIdleStageVisible, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, fitPokemonImage } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
@@ -256,7 +256,7 @@ function spawnEncounterPoke(poke, shiny, cb) {
   if (!screen || !charEl) return;
   // 后台挂机（不在主界面 / 页面不可见）：不做滚动动画，直接进入遇敌（同拾取道具的后台直收逻辑，
   // 且后台 RAF 不推进，动画会永远停在原地）
-  if (document.hidden || $('idleView')?.style.display === 'none') {
+  if (isPageHidden() || !isIdleStageVisible()) {
     if (cb) cb();
     return;
   }
@@ -318,7 +318,7 @@ function stopEncPokeRaf() {
 function _encPokeStep(spd) {
   if (!_encPokeEl) return;
   if (phase !== 'idle' || _fishing || inMassZone() || inTwistZone()) return;
-  if ($('idleView')?.style.display === 'none') return;
+  if (!isIdleStageVisible()) return;
   if (road.isBike()) return;
 
   _encPokeX -= spd;
@@ -342,7 +342,7 @@ function _encPokeRender() {
   // 图标丢失（图片加载失败被移除）：结束本次滚动，稍后重新调度遇敌
   if (!_encPokeEl) { despawnEncounterPoke(); scheduleNextEncounter(); return; }
   // 离开主界面：隐藏图标、位置冻结（回来继续滚）
-  if ($('idleView')?.style.display === 'none') { _encPokeEl.style.display = 'none'; return; }
+  if (!isIdleStageVisible()) { _encPokeEl.style.display = 'none'; return; }
   // 骑车时隐藏图标：骑行中不遇敌，图标不该显示在路边
   if (road.isBike()) { _encPokeEl.style.display = 'none'; return; }
   _encPokeEl.style.display = '';
@@ -556,7 +556,7 @@ export function showEncounter(poke, opts = {}) {
   const skipAuto = opts === true || !!opts.skipAuto;
   const msg = opts && typeof opts === 'object' ? (opts.message || null) : null;
   // 如果在非首页页面（图鉴/商店等），将遇敌挂起不切换视图
-  const _onHome = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
+  const _onHome = isOnGameView();
   // 进入战斗道路必须暂停（后台遇敌同样暂停），结束由 goIdle 统一恢复
   road.pause();
   // 显示视觉画面（仅在首页时切换视图；入场"文案顶起主角"动画由 showView 统一处理）
@@ -613,7 +613,7 @@ export function renderEncounterScene(poke) {
   // 这里统一收口，保证私有变量与 state 一致（正常遭遇路径两者本已一致）
   _encounterSource = encounterSource;
   _encounterVariant = encounterVariant;
-  const _onHome = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
+  const _onHome = isOnGameView();
   const gSpan = genderBadge(_encounterGender); // 性别图标（♂ 蓝 / ♀ 粉），放在 Lv 前（跟等级绑定，不跟名字）
   // 遭遇页标题显示全名（变体如"风速狗-洗翠"），让玩家看清遇到的形态
   $('encounterName').innerHTML = (currentIsShiny

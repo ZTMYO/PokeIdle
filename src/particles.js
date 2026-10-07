@@ -1,5 +1,5 @@
 // ===== Buff 粒子特效 (Canvas) =====
-import { $ } from './ui.js';
+import { $, isIdleStageVisible } from './ui.js';
 
 const PARTICLE_COUNT = 12;
 const BASE_SPEED = 0.2;
@@ -67,7 +67,7 @@ function _createParticles(w, h, color, shape, sizeMult, alphaMult) {
 
 function _draw() {
   if (!ctx || !canvas) return;
-  const isIdleView = $('idleView')?.style.display !== 'none';
+  const isIdleView = isIdleStageVisible();
   if (!isIdleView) {
     if (canvas) ctx?.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
     rafId = requestAnimationFrame(_draw);

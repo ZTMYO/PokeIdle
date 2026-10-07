@@ -17,7 +17,7 @@ import {
   gameData, allPokemon, getPokemonByIndex, getMassOutbreak, getTwist, honeyBuffActive, phase,
   randInt, rand, saveGame, addSystemLog, inMassZone, inTwistZone, normalizeMassRemainToEnd, _fishing,
 } from './state.js';
-import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView } from './ui.js';
+import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView, isIdleStageVisible } from './ui.js';
 import { endCycling } from './audio.js';
 import { MAP_EDGES, showGpsView } from './gps.js';
 import { startMassEncounter, startTwistEncounter, scheduleNextEncounter } from './battle.js';
@@ -250,7 +250,7 @@ function _massStep(spd) {
 function _massRender() {
   const mo = gameData?.massOutbreak;
   const runOk = !!mo && phase === 'idle' && inMassZone()
-    && $('idleView')?.style.display !== 'none';
+    && isIdleStageVisible();
   if (!runOk) {
     stopMassRaf();
     despawnMassPoke();
@@ -281,7 +281,7 @@ function stopMassRaf() {
 
 function updateMassSpawner(now) {
   const mo = getMassOutbreak();
-  const idleHidden = $('idleView')?.style.display === 'none';
+  const idleHidden = !isIdleStageVisible();
   // 事件宝可梦只在事件区域内遭遇；离页时同样判断区域（位置不变，玩家停留处仍在事件路段内）
   if (!mo || phase !== 'idle' || !inMassZone()) { stopMassRaf(); despawnMassPoke(); return; }
   if (idleHidden) {
@@ -565,7 +565,7 @@ function _twistStep(spd) {
 function _twistRender() {
   const tw = gameData?.twist;
   const runOk = !!tw && phase === 'idle' && inTwistZone()
-    && $('idleView')?.style.display !== 'none';
+    && isIdleStageVisible();
   if (!runOk) {
     stopTwistRaf();
     despawnTwistPoke();
@@ -594,7 +594,7 @@ function stopTwistRaf() {
 
 function updateTwistSpawner(now) {
   const tw = getTwist();
-  const idleHidden = $('idleView')?.style.display === 'none';
+  const idleHidden = !isIdleStageVisible();
   if (!tw || phase !== 'idle' || !inTwistZone()) { stopTwistRaf(); despawnTwistPoke(); return; }
   if (idleHidden) {
     // 后台挂机：不做滚动动画但保留持久化的当前精灵（cur），到点直接触发战斗；

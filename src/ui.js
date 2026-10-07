@@ -55,7 +55,12 @@ export function showNowPlaying(title, artist) {
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
 const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','hatchAllView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','followerView','dispatchView'];
 const CASINO_VIEWS = new Set(['casinoView', 'casinoGameView', 'mahjongView', 'gachaView', 'gachaHistoryView', 'casinoHistoryView']);
+// 舞台类视图 = 真正的"游戏画面"（挂机 / 遇敌 / 孵蛋动画），其余视图都是"应用类"（手机里的 app）。
+// 与 index.html 上的 view-stage 类保持一致；双屏布局下舞台常驻、应用显示在下方容器
+const STAGE_VIEWS = new Set(['idleView', 'encounterView', 'hatchView', 'hatchAllView']);
 let _currentView = 'idleView';
+
+export function isStageView(id) { return STAGE_VIEWS.has(id); }
 
 // 当前可见视图 id（背包经验糖果等浮层来源导航用：从哪个页面进入，返回就回哪个页面）
 export function getCurrentView() { return _currentView; }
@@ -84,8 +89,12 @@ export function showView(id) {
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none' || $('hatchView')?.style.display !== 'none';
   VIEW_IDS.forEach(v => {
     const el = $(v);
-    if (el) el.style.display = v === id ? 'flex' : 'none';
+    if (!el) return;
+    const on = v === id;
+    el.style.display = on ? 'flex' : 'none';
+    el.classList.toggle('is-active', on); // 供 CSS 定位/调试：当前视图
   });
+  document.documentElement.dataset.view = id;
   _currentView = id;
   // 视图切换立即同步时空扭曲配色（紫色主题仅在挂机/遭遇页生效，离开即恢复）
   import('./events.js').then(m => m.syncTwistTheme());
@@ -288,9 +297,43 @@ export function hideConfirmBar() {
   if (ov) ov.remove();
 }
 
+// 挂机舞台（idleView）是否正在显示。
+// 道具滚动、遇敌图标、事件宝可梦、文案提醒等都以此判断"在前台演出"还是"后台直收"。
+// 注意与 isPageHidden 分开：页面被切走（最小化/切标签）才算真后台，两者取或
+export function isIdleStageVisible() {
+  return $('idleView')?.style.display !== 'none';
+}
+
+// 页面是否真的不可见（切标签/最小化）：用于"不播动画直接入账"这类真后台逻辑
+export function isPageHidden() {
+  return typeof document !== 'undefined' && document.hidden;
+}
+
 export function isOnGameView() {
   // 仅主界面 / 遇敌页属于"游戏页"：孵蛋页是独立页面，遭遇/丢球文案、动画与视图切换都不得作用其上
-  return $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none';
+  return isIdleStageVisible() || $('encounterView')?.style.display !== 'none';
+}
+
+// ---------- 界面风格（经典竖向小窗 / 移动端双屏）----------
+// 两套 UI 共用同一份 DOM 与样式，只靠 <html> 上的 ui-classic / ui-mobile 类切换布局。
+// 设置项 uiMode 未写入时按平台取默认：移动端默认双屏，桌面默认经典（两端都能在设置里切）
+export function defaultUiMode() {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isMobile = !!window.__POKEIDLE_MOBILE__ || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  return isMobile ? 'mobile' : 'classic';
+}
+
+export function getUiMode() {
+  const saved = gameData?.settings?.uiMode;
+  return saved === 'mobile' || saved === 'classic' ? saved : defaultUiMode();
+}
+
+// 应用界面风格：只切 html 上的类，具体布局由 CSS 决定
+export function applyUiMode(mode) {
+  const m = mode === 'mobile' ? 'mobile' : 'classic';
+  document.documentElement.classList.toggle('ui-mobile', m === 'mobile');
+  document.documentElement.classList.toggle('ui-classic', m === 'classic');
+  return m;
 }
 
 // 是否在孵蛋独立页（hatchView）：孵蛋动画/结果文案的可见性判断专用，与游戏页完全隔离

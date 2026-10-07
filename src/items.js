@@ -1,7 +1,7 @@
 // ===== 道具相关逻辑 =====
 import { ITEM_NAMES, CANDY_EXCHANGE, ITEM_SELL_RATE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge } from './state.js';
-import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar } from './ui.js';
+import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, isIdleStageVisible, isPageHidden, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay, burstShinySparkle } from './animation.js';
 import { computeObtainScore } from './scoring.js';
@@ -263,7 +263,7 @@ export function spawnItemDrop(itemKey) {
 
   // 不在主界面（在其他页面挂机中）或页面本身不可见（浏览器/WebView 切走或最小化）：
   // 后台直接模拟拾取入库，不播放滚动/拾取动画，避免恢复前台后逐一出补发动画
-  if (document.hidden || $('idleView')?.style.display === 'none') {
+  if (isPageHidden() || !isIdleStageVisible()) {
     grantItem(itemKey, qty);
     saveGame(); // 后台入账立即存档，避免依赖 30 秒周期存档导致刷新丢日志/丢道具
     return true;
@@ -343,7 +343,7 @@ export function spawnItemDrop(itemKey) {
   // 世界步（每步一次，与路面同速）：位置推进 + 拾取判定
   function step(spd) {
     if (!active) return;
-    if ($('idleView')?.style.display === 'none') return; // 离开主界面：冻结等待
+    if (!isIdleStageVisible()) return; // 离开主界面：冻结等待
     itemX -= spd;
 
     if (itemX > sRect.width + 100) { cleanup(); return; } // 兜底：异常位置直接回收
@@ -372,7 +372,7 @@ export function spawnItemDrop(itemKey) {
         const t = Math.min((now - startT) / flyDuration, 1);
         const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
-        const isIdleView = $('idleView')?.style.display !== 'none';
+        const isIdleView = isIdleStageVisible();
         if (!isIdleView) {
           el.style.display = 'none';
         } else {
@@ -404,7 +404,7 @@ export function spawnItemDrop(itemKey) {
   function render() {
     if (!active) return;
     refreshGeometry();
-    if ($('idleView')?.style.display === 'none' || !road.isActive()) {
+    if (!isIdleStageVisible() || !road.isActive()) {
       el.style.display = 'none';
       return;
     }

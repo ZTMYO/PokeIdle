@@ -331,7 +331,7 @@
         <div class="screen-inner" id="screenInner">
 
           <!-- 空闲状态 -->
-          <div id="idleView" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div id="idleView" class="view-stage" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
             <div id="nowPlaying" class="now-playing" style="display:none;">
               <svg class="now-playing-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="16" height="16">
                 <path d="M575.4 64h-74.5v633.5C385.1 644.7 249.3 715.3 226.8 820c-7.4 34.1 7.8 70.9 21.9 87.8 79.3 94.7 252.2 50.6 331.6-51.2 35.3-45.2 32.3-84.5 32.3-181.3V287.6c48.9 36.3 104 70.1 123.7 134.9 12.2 40.3-4.1 107.3-17.1 141.5-3.9 10.3-14.7 18.9-9.7 29.2 34.3 25.4 51.1-28.6 60.9-51.2 10.6-24.5 20.8-54.7 24.4-75.6C833.2 242.8 595.5 234.3 575.4 64" fill="currentColor" />
@@ -528,7 +528,7 @@
           </div>
 
           <!-- 遇敌状态 -->
-          <div id="encounterView" style="display:none;">
+          <div id="encounterView" class="view-stage" style="display:none;">
             <div class="encounter-name" id="encounterName"></div>
             <div class="encounter-types" id="encounterTypes"></div>
             <div class="encounter-right">
@@ -557,7 +557,7 @@
           </div>
 
           <!-- 孵蛋动画（独立页面：与遇敌页解耦，返回回孵蛋器） -->
-          <div id="hatchView" style="display:none;">
+          <div id="hatchView" class="view-stage" style="display:none;">
             <div class="encounter-name" id="hatchName"></div>
             <div class="encounter-types" id="hatchTypes"></div>
             <div class="encounter-right">
@@ -574,7 +574,7 @@
           </div>
 
           <!-- 孵化全部（独立页面：批量播放破壳动画 → 宝可梦大图 + 名字，全部完成后确认离开） -->
-          <div id="hatchAllView" style="display:none;">
+          <div id="hatchAllView" class="view-stage" style="display:none;">
             <div id="hatchAllGrid" class="hatch-all-grid"></div>
           </div>
 

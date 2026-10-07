@@ -1,5 +1,5 @@
 // ===== 闲置轮播消息 + 地区文案 =====
-import { $, showView } from './ui.js';
+import { $, showView, isIdleStageVisible } from './ui.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer, _fishing, getMassOutbreak, inMassZone, getTwist, inTwistZone, getRoadNumForEdge } from './state.js';
 import { REGION_CYCLE } from './config.js';
 import { ACHIEVEMENTS, earnedTiers, claimedTiers } from './achievements.js';
@@ -664,7 +664,7 @@ export function notifyMassEnd(mo) {
 export function massMsgTick(now) {
   const mo = getMassOutbreak();
   if (!mo || phase !== 'idle' || _fishing) return;
-  if ($('idleView')?.style.display === 'none') return; // 非主界面不打扰
+  if (!isIdleStageVisible()) return; // 非主界面不打扰
   const zone = inMassZone();
   if (zone && !_wasInMassZone) {
     // 刚进入事件路段：立即提示，让玩家意识到已经在事件区域内
@@ -740,7 +740,7 @@ export function notifyTwistEnd() {
 export function twistMsgTick(now) {
   const tw = getTwist();
   if (!tw || phase !== 'idle' || _fishing) return;
-  if ($('idleView')?.style.display === 'none') return; // 非主界面不打扰
+  if (!isIdleStageVisible()) return; // 非主界面不打扰
   const zone = inTwistZone();
   if (zone && !_wasInTwistZone) {
     // 刚进入事件路段：立即提示，让玩家意识到已经在扭曲区域内
