@@ -81,6 +81,14 @@ body.browser-mode .console {
 /* 浏览器端窗口小于 274×342 时可滚动查看完整界面（flex 居中会溢出裁剪） */
 body.browser-mode { overflow: auto; }
 
+html.mobile-app body {
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+html.mobile-app .control-btn.minimize,
+html.mobile-app #quitHide { display: none !important; }
+
 /* === 标题栏 === */
 .title-bar {
   height: 32px;

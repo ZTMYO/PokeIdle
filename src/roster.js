@@ -1,7 +1,7 @@
 // ===== 宝可梦仓库 =====
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
-import { $, showView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport } from './ui.js';
+import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
@@ -1798,7 +1798,8 @@ export function restoreRosterList() {
   }
   const prog = $('rosterProgress');
   if (prog) prog.style.display = '';
-  showRosterView();
+  // keepSearch：详情返回列表要还原进入详情前的搜索/筛选上下文，而不是当作一次新的进入
+  showRosterView(false, { keepSearch: true });
   // 恢复进入详情前的列表滚动位置
   const list = $('rosterList');
   if (list) requestAnimationFrame(() => { list.scrollTop = Number(list.dataset.savedScroll || 0); });
@@ -1893,7 +1894,10 @@ function pickRow(rid) {
   else if (p.mode === 'expcandy') import('./exp-candy.js').then(m => m.useExpCandyOn(rid, false, p.from));
 }
 
-export function showRosterView(noNav) {
+export function showRosterView(noNav, opts) {
+  const o = opts || {};
+  // 进入前不在仓库视图 = 从其它页面重新进入列表（手机菜单、背包经验糖果等）
+  const fromOtherView = getCurrentView() !== 'rosterView';
   // 正常入口压栈（返回回来源页）；选取/子流程模式传 true 跳过，避免污染导航栈
   if (!noNav) pushNav('rosterView');
   if (!_uiBound) {
@@ -1915,6 +1919,18 @@ export function showRosterView(noNav) {
     if (s) s.style.display = '';
     const h = rootEl.querySelector('.roster-header');
     if (h) h.style.display = '';
+  }
+  // 搜索框只属于当前这次浏览：从其它页面重新进入时清空，否则「仓库情况」等入口预填的搜索词会一直留在框里，
+  // 之后从首页点经验糖果，选取页便会沿用旧搜索词，只显示命中的宝可梦而不是完整列表。
+  // opts.keepSearch 保留（详情返回列表要还原进入详情前的搜索上下文）；仍在仓库视图内时同样保留
+  //（选取模式中重绘、糖果结算后回到选取列表）；opts.search 直接预填（「仓库情况」按宝可梦名搜索）。
+  const searchInput = $('rosterSearchInput');
+  if (searchInput) {
+    if (o.search != null) searchInput.value = o.search;
+    else if (!o.keepSearch && fromOtherView) searchInput.value = '';
+    // 同步清空按钮显隐（有搜索词时显示清空按钮）
+    const clearBtn = $('rosterSearchClear');
+    if (clearBtn) clearBtn.style.display = searchInput.value.trim() ? '' : 'none';
   }
   const prog = $('rosterProgress');
   if (prog) prog.style.display = '';
@@ -1964,12 +1980,8 @@ export function showRosterDetailFromList(id, returnFn) {
 export function showRosterSearch(q, returnFn) {
   _detailFromView = null;
   _detailReturnFn = typeof returnFn === 'function' ? returnFn : null;
-  const input = $('rosterSearchInput');
-  if (input) input.value = q || '';
-  showRosterView(true); // 不压栈：返回靠 returnFn 恢复来源视图
-  // 同步清空按钮显隐（有搜索词时显示清空按钮）
-  const clearBtn = $('rosterSearchClear');
-  if (clearBtn) clearBtn.style.display = (q || '').trim() ? '' : 'none';
+  // 不压栈：返回靠 returnFn 恢复来源视图。搜索词交给 showRosterView 预填（含清空按钮显隐同步）
+  showRosterView(true, { search: q || '' });
 }
 
 // 是否从悬赏提交/交换选择列表进入的详情页（返回时应直接恢复来源列表）

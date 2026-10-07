@@ -35,6 +35,12 @@ src-tauri/release/
 web/dist.zip
 web/public/download/
 
+# Android（Capacitor）：构建中间产物与签名不入库
+mobile/web/
+mobile/.gradle-home/
+mobile/keystore/
+mobile/keystore.properties
+
 # OS generated files
 Thumbs.db
 ehthumbs.db

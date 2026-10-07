@@ -775,6 +775,13 @@ async function init() {
         if (parsed && parsed.items) candidates.push(parsed);
       }
     }
+    try {
+      const mobileRaw = await window.__POKEIDLE_MOBILE__?.readSave();
+      if (mobileRaw) {
+        const parsed = JSON.parse(mobileRaw);
+        if (parsed && parsed.items) candidates.push(parsed);
+      }
+    } catch (_) {}
     const local = localStorage.getItem('pokemon_idle_save');
     if (local) {
       const parsed = JSON.parse(local);
@@ -1293,6 +1300,10 @@ async function init() {
     document.addEventListener('mouseup', onUp);
   });
 
+  // 关闭二次确认（右上角叉 / 任务栏关闭共用，由 Rust 拦截后触发）
+  const openQuitDialog = () => $('quitDialog')?.classList.add('open');
+  const closeQuitDialog = () => $('quitDialog')?.classList.remove('open');
+
   // 窗口控制
   document.querySelector('.control-btn.minimize')?.addEventListener('click', async () => {
     try {
@@ -1303,28 +1314,42 @@ async function init() {
   });
   document.querySelector('.control-btn.close')?.addEventListener('click', async () => {
     // 触发窗口关闭流程：Rust 拦截 close-requested 后弹出二次确认，存档在确认框出现前统一保存
+    if (window.__POKEIDLE_MOBILE__) {
+      try { await saveGame(); } catch (_) {}
+      openQuitDialog();
+      return;
+    }
     try {
       const tw = window.__TAURI__?.window;
       if (tw?.getCurrentWindow) await tw.getCurrentWindow().close();
       else if (tw?.appWindow?.close) await tw.appWindow.close();
     } catch (_) {}
   });
-
-  // 关闭二次确认（右上角叉 / 任务栏关闭共用，由 Rust 拦截后触发）
-  const openQuitDialog = () => $('quitDialog')?.classList.add('open');
-  const closeQuitDialog = () => $('quitDialog')?.classList.remove('open');
   $('quitHide')?.addEventListener('click', async () => {
     closeQuitDialog();
     try { await window.__TAURI__.core.invoke('hide_to_tray'); } catch (_) {}
   });
   $('quitExit')?.addEventListener('click', async () => {
     closeQuitDialog();
+    if (window.__POKEIDLE_MOBILE__) {
+      try { await saveGame(); } catch (_) {}
+      window.__POKEIDLE_MOBILE__.exitApp();
+      return;
+    }
     try { await window.__TAURI__.core.invoke('force_close_window'); } catch (_) {}
   });
   $('quitClose')?.addEventListener('click', closeQuitDialog);
   // 点击空白遮罩处关闭确认框
   $('quitDialog')?.addEventListener('click', (e) => {
     if (e.target === $('quitDialog')) closeQuitDialog();
+  });
+
+  window.__POKEIDLE_MOBILE__?.attach({
+    saveNow: () => saveGame(),
+    back: () => {
+      if ($('appTitle')?.dataset.action === 'back') handleAppTitleBack();
+      else openQuitDialog();
+    },
   });
   if (window.__TAURI__?.event?.listen) {
     window.__TAURI__.event.listen('close-requested', async () => {

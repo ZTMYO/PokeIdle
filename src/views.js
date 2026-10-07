@@ -1133,6 +1133,19 @@ export function renderSettings(container, s) {
   container.querySelector('#exportSaveBtn')?.addEventListener('click', async () => {
     const btn = container.querySelector('#exportSaveBtn');
     gameData.stats.lastSaveTime = Date.now() + 10 * 365 * 24 * 3600 * 1000;
+    if (window.__POKEIDLE_MOBILE__?.exportSave) {
+      btn.textContent = '导出中…';
+      try {
+        await window.__POKEIDLE_MOBILE__.exportSave(JSON.stringify(gameData));
+        updateTextBox('存档已导出');
+        btn.textContent = '已导出 ✓';
+      } catch (e) {
+        updateTextBox('存档导出失败');
+        btn.textContent = '导出失败';
+      }
+      setTimeout(() => { btn.textContent = '导出'; }, 2500);
+      return;
+    }
     if (!window.__TAURI__?.core?.invoke) {
       // 网页版：生成 JSON 触发浏览器下载
       const blob = new Blob([JSON.stringify(gameData)], { type: 'application/json' });
@@ -1335,7 +1348,8 @@ export function renderSettings(container, s) {
   container.querySelector('#githubLink')?.addEventListener('click', (e) => {
     e.preventDefault();
     const url = 'https://github.com/ZTMYO/PokeIdle';
-    if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
+    if (window.__POKEIDLE_MOBILE__?.openExternal) window.__POKEIDLE_MOBILE__.openExternal(url);
+    else if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
     else window.open(url, '_blank');
   });
   (async () => {
@@ -2136,7 +2150,8 @@ export function showDeclarationView() {
   `;
   content.querySelector('#declarationLink')?.addEventListener('click', () => {
     const url = 'https://github.com/ZTMYO/PokeIdle';
-    if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
+    if (window.__POKEIDLE_MOBILE__?.openExternal) window.__POKEIDLE_MOBILE__.openExternal(url);
+    else if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
     else window.open(url, '_blank');
   });
   showView('declarationView');
