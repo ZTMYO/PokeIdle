@@ -19621,8 +19621,8 @@
         "index": "0359-1",
         "name": "阿勃梭鲁",
         "name_en": "Absol",
-        "image": "pokemon-data/images/0359-1-超级阿勃梭.gif",
-        "icon": "pokemon-data/icon/0359-1-超级阿勃梭.png",
+        "image": "pokemon-data/images/0359-1-超级阿勃梭鲁.gif",
+        "icon": "pokemon-data/icon/0359-1-超级阿勃梭鲁.png",
         "types": [
             "恶"
         ],
@@ -19654,7 +19654,7 @@
             "陆上群"
         ],
         "noEggGroup": false,
-        "form": "超级阿勃梭"
+        "form": "超级阿勃梭鲁"
     },
     {
         "index": "0359-2",
