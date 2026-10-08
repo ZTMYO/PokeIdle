@@ -1,6 +1,6 @@
 // ===== 手机主页（主菜单） =====
 // 标题栏"手机"按钮进入，内含多个应用。
-import { $, showView, showAppView, syncViewChrome, isUiMobile, renderIncubatorView, updateIncubatorBadge } from './ui.js';
+import { $, showView, showAppView, syncViewChrome, isDualLayout, renderIncubatorView, updateIncubatorBadge } from './ui.js';
 import { pushNav, anyIncubatorReady } from './state.js';
 import { hasTradableOffers, ensureTrades } from './trade.js';
 import { hasDryBerries } from './berry.js';
@@ -143,7 +143,7 @@ function updatePhoneMusic() {
 export function showPhoneView() {
   showPhoneHome();
   // 手游：showPhoneHome 只切下半屏，这里补记当前页；经典下它已经整屏切过去了
-  if (isUiMobile()) showView('phoneView');
+  if (isDualLayout()) showView('phoneView');
 }
 
 // 渲染并显示手机首页，并把 phoneView 压栈供返回
@@ -235,5 +235,5 @@ export function showPhoneHome() {
   // 手游双屏：显示到下半屏应用容器（不改当前页）；经典布局等同整屏切换
   showAppView('phoneView');
   // 下半屏停在首页就是把当前页记成首页：入口高亮跟着走，返回按钮随之置灰
-  if (isUiMobile()) syncViewChrome('phoneView');
+  if (isDualLayout()) syncViewChrome('phoneView');
 }

@@ -1,7 +1,7 @@
 // ===== 宝可梦仓库 =====
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
-import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport, viewportToLogic, popupBounds, isUiMobile, isStageView, closeAppArea } from './ui.js';
+import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
@@ -113,6 +113,12 @@ function perfectIvCount(p) {
 }
 
 function srcName(s) { return SOURCE_NAMES[s] || s || '野生'; }
+
+// 详情大图放大：给 #rosterList 加类，隐掉本页其余内容、让图在所在屏内居中（再点收起）
+function setDetailZoom(on) {
+  const list = $('rosterList');
+  if (list) list.classList.toggle('roster-zoom', !!on);
+}
 
 function fmtTime(ts) {
   const d = new Date(ts);
@@ -228,6 +234,7 @@ function currentFilterPool() {
 function renderList() {
   const list = $('rosterList');
   if (!list) return;
+  setDetailZoom(false);
   // 懒加载图标观察器：监听 #rosterList 视口（含预载带），回调加载后自动解除观察
   if ('IntersectionObserver' in window && !_rosterIconObs) {
     _rosterIconObs = new IntersectionObserver((entries) => {
@@ -1059,6 +1066,7 @@ function showRosterDetail(id) {
   if (!rootEl) return;
   const listEl = $('rosterList');
   if (listEl) { listEl.dataset.savedScroll = listEl.scrollTop; listEl.scrollTop = 0; } // 记住列表位置，详情从顶部开始
+  setDetailZoom(false);
   // 隐藏搜索框、表头、进度和高级筛选预览条（与图鉴详情一致）
   rootEl.querySelector('.pokedex-search').style.display = 'none';
   rootEl.querySelector('.roster-header').style.display = 'none';
@@ -1123,6 +1131,12 @@ function showRosterDetail(id) {
       if (p.shiny && _detailId === id) startShinySparkleOn($('rosterView'), img, { cls: 'sm', scale: 0.6 });
     });
   }
+  // 点详情大图放大查看（再点收起；点放大后的空白处也收起）
+  const zoomBox = img?.closest('.poke-img-grid');
+  const detailHead = list.querySelector('.roster-detail-head');
+  zoomBox?.addEventListener('click', e => { e.stopPropagation(); setDetailZoom(!$('rosterList')?.classList.contains('roster-zoom')); });
+  detailHead?.addEventListener('click', () => setDetailZoom(false));
+
   // 改名按钮
   const nickBtn = $('rosterNickBtn');
   if (nickBtn) {
@@ -1835,7 +1849,7 @@ export function leaveRosterDetailToSource() {
   showView(target);
   resetNav(); // 直接回来源页/挂机页，清空导航栈（等价于原先"返回回挂机页"）
   // 手游双屏：下半屏跟着收尾，否则会停在仓库页
-  if (isUiMobile()) {
+  if (isDualLayout()) {
     if (isStageView(target)) closeAppArea();
     else pushNav('phoneView');
   }

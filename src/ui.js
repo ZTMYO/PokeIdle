@@ -63,7 +63,7 @@ export function isStageView(id) { return STAGE_VIEWS.has(id); }
 
 // 把 app 显示到下半屏：不改当前页、不入导航栈
 export function showAppView(id) {
-  if (!isUiMobile()) { showView(id); return; }
+  if (!isDualLayout()) { showView(id); return; }
   VIEW_IDS.forEach(v => {
     if (STAGE_VIEWS.has(v)) return;
     const el = $(v);
@@ -76,7 +76,7 @@ export function showAppView(id) {
 
 // 下半屏回到手机首页（玩家「回挂机」：再点一次已高亮的入口图标、手机主页按返回）
 export function closeAppArea() {
-  if (!isUiMobile()) return;
+  if (!isDualLayout()) return;
   import('./phone.js').then(m => m.showPhoneHome()); // showPhoneHome 内会把当前页记成手机首页
 }
 
@@ -131,7 +131,7 @@ export function showView(id) {
   if (id !== 'gpsView' && $('gpsView')?.style.display === 'flex' && gameData?.gps?.pendingBike) {
     import('./gps.js').then(m => m.abandonBikeTarget());
   }
-  const mobileDual = isUiMobile();
+  const mobileDual = isDualLayout();
   const targetStage = STAGE_VIEWS.has(id);
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none' || $('hatchView')?.style.display !== 'none';
   VIEW_IDS.forEach(v => {
@@ -262,7 +262,7 @@ export function showView(id) {
 // ---------- 底部文字框 ----------
 // 文案宿主：手游舞台文案走上屏、app 文案走下屏；经典只有一个屏，都走 #textBox
 function textBoxHost(owner) {
-  const useAppBox = owner === 'app' && isUiMobile();
+  const useAppBox = owner === 'app' && isDualLayout();
   return useAppBox
     ? { box: $('appTextBox'), content: $('appTextBoxContent'), arrow: $('appTextBoxArrow') }
     : { box: $('textBox'), content: $('textBoxContent'), arrow: $('textBoxArrow') };
@@ -381,29 +381,47 @@ export function isOnGameView() {
 }
 
 // ---------- 界面风格（经典竖向小窗 / 移动端双屏）----------
-// 两套 UI 共用同一份 DOM 与样式，只靠 <html> 上的 ui-classic / ui-mobile 类切换布局。
-// 设置项 uiMode 未写入时按平台取默认：移动端默认双屏，桌面默认经典（两端都能在设置里切）
+// 三套界面风格共用同一份 DOM 与样式，只靠 <html> 上的类切换布局：
+// classic 单屏 / mobile 手游（手机端竖屏重排，上下两块屏）/ dual 双屏（桌面端，外壳保持经典，只多一块下屏）。
+// 设置项 uiMode 未写入时按平台取默认：移动端默认手游，桌面默认单屏（两端都能在设置里切）
 export function defaultUiMode() {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   const isMobile = !!window.__POKEIDLE_MOBILE__ || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
   return isMobile ? 'mobile' : 'classic';
 }
 
-export function getUiMode() {
-  const saved = gameData?.settings?.uiMode;
-  return saved === 'mobile' || saved === 'classic' ? saved : defaultUiMode();
+export function isMobilePlatform() {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  return !!window.__POKEIDLE_MOBILE__ || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
 }
 
-// 当前是否手游模式：以 html 上的类为准（CSS 布局与 JS 缩放共用同一来源）
+export function getUiMode() {
+  const saved = gameData?.settings?.uiMode;
+  const mobile = isMobilePlatform();
+  if (saved === 'mobile') return mobile ? 'mobile' : 'dual'; // 桌面端的手游模式与双屏模式同义
+  if (saved === 'dual') return mobile ? 'mobile' : 'dual';
+  return saved === 'classic' ? 'classic' : defaultUiMode();
+}
+
+// 当前是否手游模式（手机端竖屏重排）：以 html 上的类为准，CSS 布局与 JS 缩放共用同一来源
 export function isUiMobile() {
   return document.documentElement.classList.contains('ui-mobile');
 }
 
+// 是否双屏布局：手机「手游模式」与桌面「双屏模式」共用同一套双屏行为（上下屏分工、chrome 跟下屏），
+// 只是外壳布局不同——桌面的标题栏/背包/状态栏都留在经典位置
+export function isDualLayout() {
+  const cl = document.documentElement.classList;
+  return cl.contains('ui-mobile') || cl.contains('ui-dual');
+}
+
 // 应用界面风格：切 html 上的类（布局由 CSS 决定），并通知布局层重算缩放
 export function applyUiMode(mode) {
-  const m = mode === 'mobile' ? 'mobile' : 'classic';
-  document.documentElement.classList.toggle('ui-mobile', m === 'mobile');
-  document.documentElement.classList.toggle('ui-classic', m === 'classic');
+  const m = mode === 'mobile' || mode === 'dual' ? mode : 'classic';
+  const cl = document.documentElement.classList;
+  cl.toggle('ui-mobile', m === 'mobile');
+  cl.toggle('ui-dual', m === 'dual');
+  cl.toggle('ui-classic', m === 'classic');
   window.dispatchEvent(new CustomEvent('ui-mode-changed', { detail: m }));
   return m;
 }
@@ -1168,7 +1186,7 @@ export function renderIncubatorView() {
         </div>
       </div>`;
     } else {
-      const plus = '<span style="font-size:14px;color:var(--ui-color);transform:translateY(-2px);">+</span>';
+      const plus = '<svg class="slot-plus"><use xlink:href="#icon-plus"></use></svg>';
       // 空槽：点 + 弹出「神秘蛋 / 宝可梦蛋」选择菜单
       html += `<div class="incubator-row">
         <div class="incubator-egg-slot" data-empty="${i}" style="cursor:pointer;">${plus}</div>

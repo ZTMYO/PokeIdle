@@ -547,7 +547,6 @@ export function isMusicEnabled() { return _musicEnabled; }
 
 // 音效开关（设置页声音分组）：只控制短促效果音（闪光登场等），独立于音乐开关
 export function setSfxEnabled(on) { _sfxEnabled = on !== false; }
-export function isSfxEnabled() { return _sfxEnabled; }
 
 // 战斗音乐开关（设置页切换）：关闭后 playBattle 直接忽略，战斗期间地区曲不受影响
 export function setBattleMusic(on) { _battleMusic = on !== false; }

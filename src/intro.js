@@ -126,6 +126,7 @@ export function startIntro(onDone) {
   iv.querySelectorAll('.intro-pick-btn').forEach(btn => {
     btn.addEventListener('click', () => chooseGender(btn.dataset.gender));
   });
+  document.body.classList.remove('booting'); // 界面风格已切好，剧情页可以露出来了
   showView('introView');
   showIntroText('欢迎来到宝可梦的世界！选择你的角色。', false, true);
 }

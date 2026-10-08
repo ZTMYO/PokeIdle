@@ -52,17 +52,30 @@ pub fn show_main_window(window: tauri::WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
-// 窗口倍率：按 274×342 基础尺寸等比缩放，且与系统 DPI 完全解耦。
+// 窗口倍率：按 274×342（经典）/ 274×540（手游）基础尺寸等比缩放，且与系统 DPI 完全解耦。
 // 设计基准为 274×342（开发时所有页面均按此视口调校），任意设备画面一致。
 // 1) 窗口尺寸用「物理像素」直接设定（274×render_scale 物理 px）。
 // 2) webview ZoomFactor 设为 render_scale / js_dpr：CSS 视口 = 物理窗口 / (zoom × js_dpr)
-//    = (274×render_scale) / (render_scale/js_dpr × js_dpr) = 274×342，恒为设计基准。
+//    = (274×render_scale) / (render_scale/js_dpr × js_dpr) = 274×base_h，恒为设计基准。
 // 3) render_scale 取 max(用户倍率, js_dpr)：set_zoom 在部分 WebView2 版本不可靠，
-//    不生效时 CSS 视口 = 物理窗口 / js_dpr，需物理窗口 >= 274×js_dpr 才能保证视口 >= 274。
+//    不生效时 CSS 视口 = 物理窗口 / js_dpr，需物理窗口 >= 基准×js_dpr 才能保证视口 >= 基准。
+// 机身比单屏高的两种模式：手游（下屏 213 + 舞台 ≥200）与桌面双屏（经典 342 + 下屏 213）。
+// 窗口基准高度按模式给：否则前端只能缩到 63% 左右才塞得下，窗口左右会留边。
 #[tauri::command]
-pub fn set_window_scale(window: tauri::WebviewWindow, scale: f64) -> Result<f64, String> {
+pub fn set_window_scale(
+    window: tauri::WebviewWindow,
+    scale: f64,
+    mode: Option<String>,
+) -> Result<f64, String> {
     const BASE_W: f64 = 274.0;
     const BASE_H: f64 = 342.0;
+    const MOBILE_BASE_H: f64 = 540.0;
+    const DUAL_BASE_H: f64 = 561.0;
+    let base_h = match mode.as_deref() {
+        Some("mobile") => MOBILE_BASE_H,
+        Some("dual") => DUAL_BASE_H,
+        _ => BASE_H,
+    };
     let s = if scale > 0.0 { scale } else { 1.0 };
 
     // 以 JS 上报的真实系统 dpr 为准（Rust scale_factor 与 WebView2 实际渲染可能不一致）
@@ -76,17 +89,17 @@ pub fn set_window_scale(window: tauri::WebviewWindow, scale: f64) -> Result<f64,
     let max_s = if let Ok(Some(monitor)) = window.current_monitor() {
         let mon = monitor.size();
         ((mon.width as f64 * 0.95) / BASE_W)
-            .min((mon.height as f64 * 0.95) / BASE_H)
+            .min((mon.height as f64 * 0.95) / base_h)
     } else {
         f64::INFINITY
     };
     // 用户倍率经显示器钳制
     let effective = s.min(max_s).max(0.5);
-    // 确保 CSS 视口 >= 基准尺寸：set_zoom 不可靠时物理窗口需 >= BASE×dpr
+    // 确保 CSS 视口 >= 基准尺寸：set_zoom 不可靠时物理窗口需 >= 基准×dpr
     let render_scale = effective.max(dpr).min(max_s);
 
     let w = (BASE_W * render_scale).floor() as u32;
-    let h = (BASE_H * render_scale).floor() as u32;
+    let h = (base_h * render_scale).floor() as u32;
     window
         .set_size(tauri::Size::Physical(tauri::PhysicalSize {
             width: w,

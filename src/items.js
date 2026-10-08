@@ -106,10 +106,6 @@ function restoreSuspendedEncounter() {
   return true;
 }
 
-export function hasSuspendedEncounterForEgg() {
-  return !!_suspendedEncounter;
-}
-
 export async function finalizeEggResultContext() {
   stopCongratulation(); // 离开孵蛋结果场景：立即停止祝贺音效，避免残留到其他页面
   if (restoreSuspendedEncounter()) {

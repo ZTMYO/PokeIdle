@@ -1191,10 +1191,6 @@ async function handoffFlee(isAuto) {
 }
 
 // ===== 自动捕捉 =====
-let _abortAutoCatch = false;
-
-export function setAbortAutoCatch() { _abortAutoCatch = true; }
-
 // 智能选球：根据精灵捕获率与当前可用球，选出本次丢球用哪种球。
 // 闪光使用大师球（设置-自动捕捉）勾选后，闪光优先大师球，捕获率极高不逃跑
 function pickAutoBallType(availableBalls) {
@@ -1311,7 +1307,7 @@ export async function autoCatch() {
   $('fleeBtn')?.classList.add('disabled');
   try {
 
-  while (currentEncounter && gameData.settings?.autoCatch && !_abortAutoCatch && (phase === 'encounter' || _bgCatch)) {
+  while (currentEncounter && gameData.settings?.autoCatch && (phase === 'encounter' || _bgCatch)) {
     // 智能选球：根据精灵捕获率决定使用哪种球
     const enabledBalls = gameData.settings?.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
     let availableBalls = ['poke-ball', 'ultra-ball', 'master-ball'].filter(b => enabledBalls[b] !== false && (gameData.items[b]||0) > 0);
@@ -1376,14 +1372,7 @@ export async function autoCatch() {
   } catch (e) {
     console.error('autoCatch error:', e);
   } finally {
-    _bgCatch = false; // 后台结算结束（无论是否被中止）
-    if (_abortAutoCatch) {
-      _abortAutoCatch = false;
-      // 中止自动捕捉：只恢复逃跑按钮，不跳转页面（用户可能在设置页操作）
-      if (currentIsShiny && phase === 'encounter') {
-        $('fleeBtn').style.display = '';
-      }
-    }
+    _bgCatch = false; // 后台结算结束
     if (currentIsShiny && phase === 'encounter') startShinySparkleLoop();
     $('fleeBtn')?.classList.remove('disabled');
     setAutoCatching(false);

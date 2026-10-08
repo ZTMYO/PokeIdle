@@ -177,39 +177,52 @@ export function earnedTiers(a) {
   return n;
 }
 
-// 一键领取全部
-// 点任意一个「领取」按钮都会走这里。循环领取直到不再有新达标：
-// 领取会发放糖果，可能联动解锁「糖果富翁」，因此发糖后需重新评估再领一轮。
+// 领取某成就的下一级（糖果即时入账），返回发放的糖果；无可领则返回 0
+function grantTier(a) {
+  const claimed = gameData.achievements[a.id] || 0;
+  if (a.maxTiers != null && claimed >= a.maxTiers) return 0; // 图鉴类已达上限
+  if (earnedTiers(a) <= claimed) return 0;
+  const reward = tierAt(a, claimed).reward;
+  gameData.achievements[a.id] = claimed + 1;
+  gameData.items['candy'] = (gameData.items['candy'] || 0) + reward;
+  // 计入「道具累计获得」，与商店/悬赏等来源口径一致
+  gameData.stats.totalItemsEarned = gameData.stats.totalItemsEarned || {};
+  gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + reward;
+  return reward;
+}
+
+// 领取收尾：落盘 + 刷新背包/状态栏 + 通知手机"成就"app 红点
+function afterClaim(total) {
+  if (!(total > 0)) return;
+  saveGame();
+  updateBackpack('candy');
+  updateStats();
+  window.dispatchEvent(new Event('achievements-changed'));
+}
+
+// 单个成就领一级（进度条旁那颗「领取」）
+export function claimAchievementTier(id) {
+  ensureAchievements();
+  const a = ACHIEVEMENTS.find(x => x.id === id);
+  const got = a ? grantTier(a) : 0;
+  afterClaim(got);
+  return got;
+}
+
+// 一键领取：循环领到不再有新达标——领糖可能联动解锁「糖果富翁」，故发糖后重新评估
 export function claimAllAchievements() {
   ensureAchievements();
   let total = 0;
   while (true) {
     let round = 0; // 本轮领取的糖果
     for (const a of ACHIEVEMENTS) {
-      const earned = earnedTiers(a);
-      let claimed = gameData.achievements[a.id] || 0;
-      while (earned > claimed) {
-        if (a.maxTiers != null && claimed >= a.maxTiers) break; // 图鉴类已达上限，不再继续
-        round += tierAt(a, claimed).reward;
-        gameData.achievements[a.id] = claimed + 1;
-        claimed++;
-      }
+      let got;
+      while ((got = grantTier(a)) > 0) round += got;
     }
     if (round === 0) break; // 本轮没有任何可领 → 结束
     total += round;
-    gameData.items['candy'] = (gameData.items['candy'] || 0) + round;
-    // 计入「道具累计获得」，与商店/悬赏等来源口径一致
-    gameData.stats.totalItemsEarned = gameData.stats.totalItemsEarned || {};
-    gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + round;
-    // 糖果入账后「糖果富翁」可能新达标，进入下一轮继续领
   }
-  if (total > 0) {
-    saveGame();
-    updateBackpack('candy');
-    updateStats();
-    // 通知手机"成就"app 红点刷新（领取后可能仍有剩余可领或全部领完）
-    window.dispatchEvent(new Event('achievements-changed'));
-  }
+  afterClaim(total);
   return total;
 }
 
@@ -242,34 +255,52 @@ function buildItem(a) {
     </div>`;
 }
 
+// 顶部右侧：有可领取的奖励就给「一键领取」（样式同派遣页那颗），领完换回已领取等级数
+function syncAchHead(wrap = document.getElementById('achievementList')) {
+  const head = wrap?.querySelector('.ach-head');
+  if (!head) return;
+  const mode = hasClaimableAchievements() ? 'claim' : 'sum';
+  if (head.dataset.mode !== mode) {
+    head.dataset.mode = mode;
+    head.innerHTML = mode === 'claim'
+      ? '<span>成就奖励</span><button class="incubator-log-btn ach-claim-all" type="button">一键领取</button>'
+      : '<span>成就奖励</span><span class="ach-summary"></span>';
+    head.querySelector('.ach-claim-all')?.addEventListener('click', () => {
+      claimAllAchievements();
+      renderAchievements();
+    });
+  }
+  const sum = head.querySelector('.ach-summary');
+  if (sum) {
+    const claimedAll = ACHIEVEMENTS.reduce((s, a) => s + (gameData.achievements[a.id] || 0), 0);
+    sum.textContent = `已领取 ${claimedAll} 级奖励`;
+  }
+}
+
 // 整页渲染成就区（打开成就页 / 领取后重建）
 export function renderAchievements() {
   const wrap = document.getElementById('achievementList');
   if (!wrap) return;
   ensureAchievements();
-  const claimedAll = ACHIEVEMENTS.reduce((s, a) => s + (gameData.achievements[a.id] || 0), 0);
   wrap.innerHTML = `
-    <div class="ach-head">
-      <span>成就奖励</span>
-      <span class="ach-summary">已领取 ${claimedAll} 级奖励</span>
-    </div>
+    <div class="ach-head"><span>成就奖励</span></div>
     ${ACHIEVEMENTS.map(buildItem).join('')}
   `;
+  syncAchHead(wrap);
+  // 每项只领自己的一级；想一次领完走顶部「一键领取」
   wrap.querySelectorAll('.ach-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      claimAllAchievements();
+      claimAchievementTier(btn.dataset.ach);
       renderAchievements();
     });
   });
 }
 
-// 轻量刷新（统计页每秒定时器调用）：只更新数值/进度条/按钮状态，不重建 DOM
+// 轻量刷新（成就页每秒定时器调用）：只更新数值/进度条/按钮状态，不重建 DOM
 export function refreshAchievements() {
   const wrap = document.getElementById('achievementList');
   if (!wrap) return;
-  const claimedAll = ACHIEVEMENTS.reduce((s, a) => s + (gameData.achievements[a.id] || 0), 0);
-  const sum = wrap.querySelector('.ach-summary');
-  if (sum) sum.textContent = `已领取 ${claimedAll} 级奖励`;
+  syncAchHead(wrap);
   for (const a of ACHIEVEMENTS) {
     const item = wrap.querySelector(`.ach-item[data-ach="${a.id}"]`);
     if (!item) continue;

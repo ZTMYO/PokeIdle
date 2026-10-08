@@ -105,6 +105,24 @@ export function setupSourceFilter({ trigger, label, dd, state, onPick }) {
     e.stopPropagation();
     const el = e.target.closest('[data-src][data-legend]');
     if (el) { pickItem(el); return; }
+    // 触摸端没有 hover：点这一行（箭头 / 行内空白）就地展开收起子菜单，同一层只留一个展开；
+    // 展开的样式只在 @media (hover: none) 下生效，桌面端仍是 hover 飞出
+    const row = e.target.closest('.roster-filter-item');
+    if (row && !e.target.closest('.roster-filter-src') && !e.target.closest('.roster-filter-leaf')) {
+      const open = row.classList.contains('open');
+      row.parentElement?.querySelectorAll(':scope > .roster-filter-item.open').forEach(r => { r.classList.remove('open', 'flip-left'); });
+      row.classList.toggle('open', !open);
+      if (!open) {
+        // 子菜单向右飞出：放不下就翻到左边（观感不变，只是方向相反）
+        const sub = row.querySelector(':scope > .roster-sub-menu');
+        const panel = row.closest('.screen')?.getBoundingClientRect();
+        const r = row.getBoundingClientRect(), sw = sub?.getBoundingClientRect().width || 0;
+        row.classList.toggle('flip-left', !!panel && r.right + sw > panel.right - 4);
+      } else {
+        row.classList.remove('flip-left');
+      }
+      return;
+    }
     // 点击来源标题（如「扭曲」）：直接筛出该来源全部，不限普/神/闪/变体；
     // 神兽独立入口，点击 = 筛选全部神兽
     const srcEl = e.target.closest('.roster-filter-src');

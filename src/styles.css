@@ -977,10 +977,10 @@ html.mobile-app #quitHide { display: none !important; }
   margin: -6px -10px 3px;
   flex-shrink: 0;
 }
-/* splash 落位动画期间：指示条隐藏，改回原 border-top 上边框线 */
-.backpack-bar.splash-border-top {
-  border-top: 2px solid var(--console-border);
-}
+/* splash 落位动画期间：指示条只留一条连续的线（两段长的接上），盒子尺寸不变——
+   以前是隐藏指示条 + 给背包栏加 border-top，两者高度差会在动画结束时挤一下布局 */
+.bag-page-indicator.splash-line { gap: 0; }
+.bag-page-indicator.splash-line .seg-page { display: none; }
 .bag-page-indicator .seg-long {
   flex: 1;
   background: var(--console-border);
@@ -1119,6 +1119,12 @@ html.mobile-app #quitHide { display: none !important; }
   border-width: 1px;
   border-style: solid;
   cursor: default;
+}
+/* 空槽加号：走 SVG 图标（#icon-plus），不受「+」字符字体基线影响 */
+.slot-plus {
+  width: 14px;
+  height: 14px;
+  color: var(--ui-color);
 }
 .incubator-egg-slot img {
   width: 22px;
@@ -1788,6 +1794,8 @@ html.mobile-app #quitHide { display: none !important; }
   font-weight: 400;
   opacity: 0.7;
 }
+/* 有可领取奖励时顶替「已领取 N 级奖励」：外观与派遣页「一键领取」同为 .incubator-log-btn */
+.ach-claim-all { margin: 2px 0; }
 .ach-item {
   border: 1px solid rgba(var(--ui-color-rgb), 0.25);
   padding: 4px 6px;
@@ -3990,6 +3998,14 @@ html.mobile-app #quitHide { display: none !important; }
   .roster-filter-item:hover > .roster-sub-menu { display: block; }
 }
 .roster-sub-menu .region-dropdown-item { white-space: nowrap; }
+/* 触摸端没有 hover：点行展开子菜单（同时只开一个），飞出位置与观感跟桌面一致；
+   右侧放不下时翻到左边，避免越出所在屏 */
+@media (hover: none) {
+  .roster-filter-arrow { display: inline-block; transition: transform 0.15s; }
+  .roster-filter-item.open > .roster-filter-arrow { transform: rotate(90deg); }
+  .roster-filter-item.open > .roster-sub-menu { display: block; }
+  .roster-filter-item.flip-left > .roster-sub-menu { left: auto; right: 100%; }
+}
 /* 设置页窗口倍率下拉（复用 pokedex 下拉视觉） */
 .window-scale-select { position: relative; flex-shrink: 0; }
 .window-scale-dd { min-width: 110px; left: auto; right: 0; }
@@ -5061,6 +5077,33 @@ html.mobile-app #quitHide { display: none !important; }
   max-width: 48px;
   max-height: 48px;
 }
+/* 点详情大图放大：本页其余内容全隐掉，图在所在屏（双屏即下屏）内居中，底色同屏 */
+#rosterList.roster-zoom { overflow: hidden; }
+#rosterList.roster-zoom > :not(.roster-detail-head) { display: none; }
+#rosterList.roster-zoom .roster-detail-head {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--screen-bg);
+  cursor: zoom-out;
+}
+#rosterList.roster-zoom .roster-detail-head > :not(.poke-img-grid) { display: none; }
+#rosterList.roster-zoom .poke-img-grid {
+  width: 100%;
+  height: 100%;
+  background-image: none;
+}
+#rosterList.roster-zoom .poke-img-grid img {
+  width: 94%;
+  height: 94%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+}
 /* 详情小图上 RGB 重影收窄：通用偏移（3px）按小图比例过大，会糊成一片 */
 .roster-detail-head .poke-img-grid img.fx-variant-rgb {
   will-change: filter;
@@ -5986,6 +6029,9 @@ html.mobile-app #quitHide { display: none !important; }
 /* 开场剧情期间隐藏全部 UI：底部背包/统计栏与顶部 4 个应用入口按钮（保留最小化/关闭），结束后随开机动画浮现 */
 body.boot-no-ui .backpack-bar { display: none; }
 body.boot-no-ui .control-btn.window-icon { display: none; }
+/* 开机首帧先把整页藏住：类由 index.html 预置，等界面风格切好、开场剧情或 splash 铺上来了再摘掉。
+   否则第一帧会先按默认（经典）布局闪一下状态栏、按钮和背包栏 */
+body.booting { visibility: hidden; }
 
 /* === 对战 App（NPC 挑战） === */
 #battleContent { position: relative; display: flex; flex-direction: column; }
@@ -10554,20 +10600,20 @@ html.ui-mobile .console {
   transform-origin: center; /* 缩放原点取中心：配合 body 布局居中，机身视觉位置永远居中 */
   flex-shrink: 0;
   /* 安全区上下各留一半，内容不贴边 */
-  padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  padding-top: calc(2px + env(safe-area-inset-top, 0px));
   padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
 }
 /* 顶部信息条 */
 html.ui-mobile .stats-bar {
   order: 1;
-  padding: 2px 10px 6px;
+  padding: 0 10px 4px;
   /* 不加下边框：会和舞台屏边框叠成多余的分割线 */
 }
 /* 舞台 / 应用区 */
 html.ui-mobile .screen-wrapper { order: 2; flex: 1; min-height: 0; }
 /* 背包栏 */
 html.ui-mobile .backpack-bar { display: contents; }
-html.ui-mobile .bag-page-indicator { order: 3; margin: 0 10px 3px; }
+html.ui-mobile .bag-page-indicator { order: 3; margin: 6px 10px 3px; }
 html.ui-mobile .backpack-items { order: 4; padding: 0 10px; }
 /* 底部入口行：原标题栏，只留图标按钮 */
 html.ui-mobile .title-bar {
@@ -10681,3 +10727,29 @@ html.ui-mobile .nav-label { display: inline; }
 #appTextBox { display: none; }
 html.ui-mobile .app-screen { position: relative; } /* 承载 #appTextBox 与 #splash 的绝对定位 */
 html.ui-mobile #appTextBox { z-index: 60; }
+
+/* ==================== 桌面双屏模式（html.ui-dual） ====================
+   与手游模式共用双屏行为（上屏常驻舞台、下屏承载 app），但外壳保持经典布局：
+   标题栏/背包栏/状态栏都在原位，只是屏幕区里多出一块下屏 */
+html.ui-dual .console {
+  height: 561px; /* 经典 342 + 下屏 213 + 间隙；与 fitLayout 的 DUAL_CONSOLE_H、Rust 基准一致 */
+  max-height: none;
+}
+html.ui-dual .screen-wrapper { /* 内边距沿用经典，舞台高度与单屏一致 */
+  flex-direction: column;
+  gap: 6px;
+}
+html.ui-dual .screen { flex: 1 1 auto; min-height: 0; } /* 舞台：占经典那份高度 */
+html.ui-dual .app-screen { /* 下屏：与单屏模式里 app 页面的可用高度一致 */
+  position: relative;
+  inset: auto;
+  margin: 0;
+  background: var(--screen-bg); /* 基础规则里是 transparent（经典两屏重合用），双屏下得自己铺底色 */
+  flex: 0 0 213px;
+}
+html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、滚得动 */
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}

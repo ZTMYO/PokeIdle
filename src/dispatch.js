@@ -562,7 +562,7 @@ function cellHtml(slot, i, d) {
   }
   const entry = slot && (gameData.roster || []).find(x => x.id === slot.id);
   if (!slot || !entry || entry.inRoster === false) {
-    const plus = '<span style="font-size:14px;color:var(--ui-color);transform:translateY(-2px);">+</span>';
+    const plus = '<svg class="slot-plus"><use xlink:href="#icon-plus"></use></svg>';
     // 空槽：保留放入入口（+），旁边提供「配置」（设槽位预设时长）与禁用的「出发」
     const presetMin = (d.slotDurs || [])[i] || DISPATCH_DURATIONS[0] * 60;
     const hours = presetMin / 60;

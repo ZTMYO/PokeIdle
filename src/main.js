@@ -26,7 +26,7 @@ import { computeObtainScore } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak, twistTick, ensureTwistInit, forceRefreshTwist } from './events.js';
 import {
   $, showView, updateTextBox, hideTextBox, showConfirmBar,
-  isIdleStageVisible, applyUiMode, getUiMode, isUiMobile, isStageView, getAppChannelView, closeAppArea, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
+  isIdleStageVisible, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
   renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip,
   isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView,
 } from './ui.js';
@@ -274,7 +274,7 @@ function goBack() {
   }
   const target = popNav();
   // 手游双屏：弹回舞台页时下半屏若还停在 app 页面，退回手机首页
-  if (isUiMobile() && isStageView(target) && getAppChannelView() !== 'phoneView') {
+  if (isDualLayout() && isStageView(target) && getAppChannelView() !== 'phoneView') {
     closeAppArea(); // 下半屏回手机首页：重建图标/红点，并把当前页记为手机首页（入口高亮）
     return;
   }
@@ -684,6 +684,8 @@ function setupShortcuts() {
 
 async function init() {
   try { await window.__TAURI__?.core?.invoke('mark_show'); } catch (_) {}
+  // 兜底：启动中任何一步抛错都不会让整页一直藏着（正常由 splash/开场剧情提前摘掉）
+  setTimeout(() => document.body.classList.remove('booting'), 6000);
 
   // 布局缩放：经典模式按 console 基准 274×342 整体等比缩放，与 Tauri 端画面一致
   //（Rust set_window_scale 用 JS 真实 dpr 计算 zoom，CSS 视口恒为 274×342）；
@@ -697,6 +699,8 @@ async function init() {
   let _transformLayout = false; // 走 transform 缩放（手游模式/移动浏览器）时，逻辑坐标要再减去布局原点
   // 机身逻辑高度下限：保证下屏 213 + 舞台 ≥200 放得下
   const MIN_MOBILE_CONSOLE_H = 540;
+  // 桌面双屏模式的机身逻辑高度：经典 342 + 下屏 213 + 屏幕区间隙
+  const DUAL_CONSOLE_H = 561;
   if (_isBrowser) document.body.classList.add('browser-mode');
 
   // 缩放是纯视觉变换（zoom / transform）：getBoundingClientRect 返回缩放后坐标，而 style.left/top
@@ -715,8 +719,9 @@ async function init() {
     return new DOMRect((r.left - cx) / _layoutScale + W / 2, (r.top - cy) / _layoutScale + H / 2, w, h);
   };
 
-  // 布局缩放：经典模式整体等比缩放 .console（桌面 html 级 zoom / 移动端 transform）；
+  // 布局缩放：经典与桌面双屏都整体等比缩放 .console（桌面 html 级 zoom / 移动端 transform），双屏基准更高；
   // 手游模式（html.ui-mobile）宽度固定 274、高度按屏幕比例拉长，只缩放到铺满屏幕。
+  // 桌面端窗口尺寸由 Rust set_window_scale 按模式基准（经典 274×342 / 手游 274×540）设置。
   // 切换界面风格后由 'ui-mode-changed' 事件重新调用
   function fitLayout() {
     if (!consoleEl) return;
@@ -736,12 +741,13 @@ async function init() {
     }
     const vw = window.visualViewport?.width || window.innerWidth;
     const vh = window.visualViewport?.height || window.innerHeight;
+    const baseH = document.documentElement.classList.contains('ui-dual') ? DUAL_CONSOLE_H : 342;
     consoleEl.style.transform = '';
     consoleEl.style.height = '';
     if (!_isBrowser) { _layoutScale = 1; _transformLayout = false; return; } // Tauri：窗口缩放由 Rust 负责，rect 保持逻辑值
     if (_isMobileUA) {
       // 移动端浏览器用 transform：canvas 保持逻辑尺寸绘制、由 GPU 合成缩放，不额外增加重绘开销
-      const scale = Math.max(1, Math.min(vw / 274, vh / 342));
+      const scale = Math.max(1, Math.min(vw / 274, vh / baseH));
       consoleEl.style.transform = `scale(${scale})`;
       document.documentElement.style.zoom = '';
       _layoutScale = scale;
@@ -749,7 +755,7 @@ async function init() {
     } else {
       _transformLayout = false;
       // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时保持 100%
-      const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / 342));
+      const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / baseH));
       document.documentElement.style.zoom = scale;
       _layoutScale = scale;
     }
@@ -783,6 +789,7 @@ async function init() {
     setAllPokemon(await resp.json());
   } catch (e) {
     console.error('加载数据失败');
+    document.body.classList.remove('booting');
     return;
   }
 
@@ -833,9 +840,9 @@ async function init() {
   // 界面风格：未设置时按平台取默认；手游的开场剧情仍按单屏演，剧情结束再切双屏
   const targetUiMode = getUiMode();
   const introWillPlay = gameData.introDone === false;
-  applyUiMode(introWillPlay && targetUiMode === 'mobile' ? 'classic' : targetUiMode);
+  applyUiMode(introWillPlay && targetUiMode !== 'classic' ? 'classic' : targetUiMode);
   // 手游双屏：下半屏默认显示手机首页
-  if (isUiMobile()) import('./phone.js').then(m => m.showPhoneHome());
+  if (isDualLayout()) import('./phone.js').then(m => m.showPhoneHome());
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
   if (gameData.gps.roamEnabled && gameData.gps.destIdx == null) setRoamEnabled(true);
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
@@ -963,7 +970,7 @@ async function init() {
         sw.style.transition = '';
       }
       applyUiMode(targetUiMode);
-      if (isUiMobile()) closeAppArea();
+      if (isDualLayout()) closeAppArea();
       // 底部背包/统计栏与顶部按钮的恢复由 startSplashDrop 统一处理（splash 显示后淡入，避免闪现）
       // 首次 splash（开场剧情结束后的首个开机动画）不静音：未白镇开场曲顺势延续
       saveGame().then(() => { beginGameplay(); startSplashDrop(null, false); });
@@ -1143,28 +1150,29 @@ async function init() {
     }
   }
 
-  // 文字框箭头
-  const textBoxArrow = $('textBoxArrow');
-  if (textBoxArrow) {
-    textBoxArrow.addEventListener('click', () => {
-      // 开场剧情中：箭头推进台词
-      if (window.__introActive) { advanceIntro(); return; }
-      // 手动捕获（自动捕捉未实际接管，如闪光暂停转手动）→ 询问是否查看仓库详情
-      if (phase === 'caught' && !_autoCatching) {
-        $('textBoxArrow').style.display = 'none';
-        $('textBoxContent').textContent = '是否查看该宝可梦的详情？';
-        $('catchConfirmBtns').style.display = 'flex';
-      } else if (phase === 'eggResult') {
-        // 孵蛋成功（精简显示）→ 询问是否查看仓库详情
-        $('textBoxArrow').style.display = 'none';
-        $('textBoxContent').textContent = '是否查看该宝可梦的详情？';
-        $('catchConfirmBtns').style.display = 'flex';
-      } else {
-        setCatchConfirmStep(false);
-        goIdle();
+  // 文字框箭头推进：舞台框与下屏（app）框共用一套。孵蛋/孵蛋结果等 app 页面的文案发在下屏，
+  // 箭头也要能点，并且「查看/放弃」按钮得跟着提问的那个框走，不能留在上屏
+  const advanceTextBox = (host) => {
+    const box = $(host === 'app' ? 'appTextBox' : 'textBox');
+    const arrow = $(host === 'app' ? 'appTextBoxArrow' : 'textBoxArrow');
+    // 开场剧情中：箭头推进台词
+    if (window.__introActive) { advanceIntro(); return; }
+    // 手动捕获（自动捕捉未实际接管，如闪光暂停转手动）/ 孵蛋成功 → 询问是否查看仓库详情
+    if ((phase === 'caught' && !_autoCatching) || phase === 'eggResult') {
+      if (arrow) arrow.style.display = 'none';
+      updateTextBox('是否查看该宝可梦的详情？', false, host);
+      const btns = $('catchConfirmBtns');
+      if (btns) {
+        box?.appendChild(btns);
+        btns.style.display = 'flex';
       }
-    });
-  }
+      return;
+    }
+    setCatchConfirmStep(false);
+    goIdle();
+  };
+  $('textBoxArrow')?.addEventListener('click', () => advanceTextBox('stage'));
+  $('appTextBoxArrow')?.addEventListener('click', () => advanceTextBox('app'));
 
   // 捕捉/孵蛋确认（查看仓库个体详情，非图鉴）
   $('confirmYes')?.addEventListener('click', () => {
@@ -1439,14 +1447,13 @@ function startSplashDrop(onDone, silent = true) {
   const candy = document.getElementById('statProgress');
   const autoStatus = document.getElementById('statAutoStatus');
   const timeEl = document.getElementById('statTime');
+  document.body.classList.remove('booting'); // 首帧藏起来的整页在这里放开（提前于早退分支，避免一直黑屏）
   if (!splash || !ring || items.length === 0) { onDone?.(); return; }
   if (silent) setSplashLocked(true);
   splash.style.display = 'flex';
-  // splash 期间背包顶部改回 border-top 上边框线：指示条隐藏，等落位动画结束再恢复
-  const bagBar = document.querySelector('.backpack-bar');
+  // splash 期间背包顶部只留一条线：指示条自己变形，盒子尺寸不变（藏起来会在动画结束时挤布局）
   const bagInd = $('bagPageIndicator');
-  if (bagBar) bagBar.classList.add('splash-border-top');
-  if (bagInd) bagInd.style.display = 'none';
+  if (bagInd) bagInd.classList.add('splash-line');
   // 启动画面期间禁用标题栏右侧按钮（图鉴/商店/统计/设置/最小化/关闭），动画结束后恢复
   const controls = document.querySelector('.window-controls');
   if (controls) controls.classList.add('controls-disabled');
@@ -1456,7 +1463,7 @@ function startSplashDrop(onDone, silent = true) {
   if (autoStatus) autoStatus.classList.add('splash-hidden');
   if (timeEl) timeEl.classList.add('splash-hidden');
   // 手游模式底部入口行：与统计栏同拍依次淡入
-  const navBtns = isUiMobile() ? [...document.querySelectorAll('.window-controls .control-btn')] : [];
+  const navBtns = isDualLayout() ? [...document.querySelectorAll('.window-controls .control-btn')] : [];
   navBtns.forEach(b => b.classList.add('splash-hidden'));
   // 开场剧情结束后恢复布局：splash 已显示，此时释放 screen-wrapper 的收缩高度（避免屏幕在 splash 出现前跳回原高度闪现）
   const sw = document.querySelector('.screen-wrapper');
@@ -1537,9 +1544,8 @@ function startSplashDrop(onDone, silent = true) {
             splash.remove();
             // 开场期间保持禁用；先解除禁用再清渐显类，避免按钮组闪一次压暗
             if (controls && !window.__introActive) controls.classList.remove('controls-disabled');
-            // splash 结束：恢复背包页码指示条，移除 border-top 兜底线
-            if (bagBar) bagBar.classList.remove('splash-border-top');
-            if (bagInd) bagInd.style.display = '';
+            // splash 结束：恢复背包页码指示条（两段短的重新出现）
+            if (bagInd) bagInd.classList.remove('splash-line');
             // 清理第一页槽位的落位弹出类：类还在时第一页从隐藏恢复显示（翻回第一页）会重放缩放动画
             slots.forEach(s => s.classList.remove('bag-slot--pop'));
             // 移除开机渐显动画类：否则 statAutoStatus/statTime 与入口按钮每次从隐藏恢复都会重播淡入

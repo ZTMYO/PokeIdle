@@ -14,7 +14,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE,
   DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_VALUE_PER_HOUR, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_ITEM_VALUE } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
-import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode } from './ui.js';
+import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform } from './ui.js';
 import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
@@ -753,23 +753,27 @@ const WINDOW_SCALES = [1, 1.5, ...Array.from({ length: 9 }, (_, i) => i + 2)];
 // 不排除会导致调整倍率后上报的 dpr 偏大，Rust 算出的 zoom 趋近 1 → 表现为「调高倍不生效」。
 let currentZoom = 1;
 
-// 按倍率等比缩放：窗口放大 + webview 内容缩放均在 Rust set_window_scale 内完成
+// 按倍率等比缩放：窗口放大 + webview 内容缩放均在 Rust set_window_scale 内完成。
+// 双屏布局机身更高（手游 540 / 桌面双屏 561），窗口基准随之变高、窗口尺寸自适应（否则窗口按 274×342 开、
+// 机身缩到约 63% 才塞得下，左右会留边）
 export async function applyWindowScale(scale) {
   if (!window.__TAURI__?.core?.invoke) return;
   const s = WINDOW_SCALES.includes(scale) ? scale : 2; // 未设置/非法值兜底默认 2 倍（1 倍物理窗口偏小）
+  const mode = getUiMode();
+  const baseH = mode === 'mobile' ? 540 : mode === 'dual' ? 561 : 342;
   const invoke = window.__TAURI__.core.invoke;
   const applyOnce = async () => {
     // 上报「系统 dpr」= devicePixelRatio / 当前 zoom（排除已生效的缩放）
     const sysDpr = (window.devicePixelRatio || 1) / (currentZoom || 1);
     await invoke('set_device_pixel_ratio', { dpr: sysDpr });
-    const zoom = await invoke('set_window_scale', { scale: s });
+    const zoom = await invoke('set_window_scale', { scale: s, mode });
     if (typeof zoom === 'number' && zoom > 0) currentZoom = zoom;
   };
   try {
     await applyOnce();
-    // 二次校准：窗口 resize 后若 CSS 视口仍偏离 274×342（设计基准），用稳定后的 dpr 重设
+    // 二次校准：窗口 resize 后若 CSS 视口仍偏离基准（274×baseH），用稳定后的 dpr 重设
     await new Promise(r => setTimeout(r, 250));
-    if (Math.abs(window.innerWidth - 274) > 1 || Math.abs(window.innerHeight - 342) > 1) {
+    if (Math.abs(window.innerWidth - 274) > 1 || Math.abs(window.innerHeight - baseH) > 1) {
       await applyOnce();
     }
   } catch (_) {
@@ -845,7 +849,7 @@ export function renderSettings(container, s) {
   const autoFlee = s.autoFlee || false;
   const windowPinned = s.windowPinned || false;
   const windowScale = WINDOW_SCALES.includes(s.windowScale) ? s.windowScale : 2;
-  // 窗口设置只对桌面端有意义：浏览器版与手游模式都不显示
+  // 窗口设置只对桌面端有意义：浏览器版与手机端都不显示
   const windowGroupHtml = (document.body.classList.contains('browser-mode') || isUiMobile()) ? '' : `
       <div class="settings-group">
         <div class="settings-group-title">窗口</div>
@@ -886,7 +890,7 @@ export function renderSettings(container, s) {
   const sfxEnabled = s.sfxEnabled !== false;
   const battleMusic = s.battleMusic !== false;
   const darkMode = s.darkMode || false;
-  const uiMobile = getUiMode() === 'mobile'; // 手游模式（存档未设置时按平台取默认）
+  const uiMobile = getUiMode() !== 'classic'; // 双屏布局（手游模式/桌面双屏），存档未设置时按平台取默认
   // 捕捉条件表格：各遇敌类型行，策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
   const cfTbody = CF_ROWS.map(({ key, label }) => {
@@ -1021,7 +1025,7 @@ export function renderSettings(container, s) {
           </div>
         </div>
         <div class="auto-catch-row">
-          <div class="auto-catch-label">手游模式</div>
+          <div class="auto-catch-label">${isMobilePlatform() ? '手游模式' : '双屏模式'}</div>
           <div class="toggle-switch" id="toggleUiMode">
             <div class="toggle-track ${uiMobile ? 'on' : ''}"></div>
             <div class="toggle-knob"></div>
@@ -1447,10 +1451,10 @@ export function toggleDarkMode() {
   saveGame();
 }
 
-// 手游模式开关：两套布局的视图归属/导航栈完全不同，写档后直接重启界面
+// 双屏开关（桌面「双屏模式」/ 手机「手游模式」）：两套布局的视图归属/导航栈完全不同，写档后直接重启界面
 export async function toggleUiMode() {
   ensureSettings();
-  const next = getUiMode() === 'mobile' ? 'classic' : 'mobile';
+  const next = getUiMode() === 'classic' ? (isMobilePlatform() ? 'mobile' : 'dual') : 'classic';
   gameData.settings.uiMode = next;
   applyUiMode(next);
   await saveGame();
