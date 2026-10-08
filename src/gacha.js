@@ -223,8 +223,8 @@ function buildIdleActions() {
   const canSingle = balance >= DRAW_COST;
   const canMulti = balance >= DRAW_COST * 10;
   return `<div class="gacha-actions">
-    <button class="gacha-btn" id="gachaSingle" ${canSingle ? '' : 'disabled'}>单抽 ${DRAW_COST}<img class="gacha-coin-icon" src="./items/coin.png"></button>
-    <button class="gacha-btn gacha-btn-sec" id="gachaMulti" ${canMulti ? '' : 'disabled'}>十连 ${DRAW_COST * 10}<img class="gacha-coin-icon" src="./items/coin.png"></button>
+    <button class="gacha-btn" id="gachaSingle" ${canSingle ? '' : 'disabled'}>单抽 ${DRAW_COST}<img class="gacha-coin-icon" src="./items/goods/coin.png"></button>
+    <button class="gacha-btn gacha-btn-sec" id="gachaMulti" ${canMulti ? '' : 'disabled'}>十连 ${DRAW_COST * 10}<img class="gacha-coin-icon" src="./items/goods/coin.png"></button>
   </div>`;
 }
 

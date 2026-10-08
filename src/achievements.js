@@ -2,12 +2,12 @@
 // 每个成就按「等级」递进：达标一级即可领取一次糖果，领取后自动进入下一级。
 // 等级无限：阈值/糖果都按 1-2-5 规整序列递进（10,20,50,100,200,500…），数字好记、等级多。
 // 领取一级一级来；未领取的等级会一直累计。图鉴类（maxTiers）达到上限即完结。
-import { gameData, saveGame, formatNum } from './state.js';
+import { gameData, saveGame, formatNum, addSystemLog } from './state.js';
 import { updateBackpack, updateStats } from './ui.js';
 import { PX_PER_METER } from './config.js';
 
 // 糖果图标（显示在按钮左侧）
-const CANDY_ICON = '<img src="./items/candy.png" style="width:12px;height:12px;vertical-align:-2px;image-rendering:pixelated;" />';
+const CANDY_ICON = '<img src="./items/goods/candy.png" style="width:12px;height:12px;vertical-align:-2px;image-rendering:pixelated;" />';
 
 // 图鉴已捕获种类数（去重）
 function dexCount() {
@@ -93,6 +93,11 @@ export const ACHIEVEMENTS = [
   {
     id: 'npcElite', name: '精英猎人', desc: '累计战胜精英 NPC 训练家',
     metric: d => d.stats.totalNpcEliteWins || 0, base: 1, reward: 60,
+    fmt: v => `${formatNum(v)} 次`,
+  },
+  {
+    id: 'npcLeader', name: '道馆挑战者', desc: '累计战胜馆主 NPC 训练家',
+    metric: d => d.stats.totalNpcLeaderWins || 0, base: 1, reward: 90,
     fmt: v => `${formatNum(v)} 次`,
   },
   {
@@ -191,9 +196,11 @@ function grantTier(a) {
   return reward;
 }
 
-// 领取收尾：落盘 + 刷新背包/状态栏 + 通知手机"成就"app 红点
-function afterClaim(total) {
+// 领取收尾：落盘 + 刷新背包/状态栏 + 通知手机"成就"app 红点 + 记一条来源明确的日志
+// （发放走的是内部累加，不经过 grantItem，所以这里补日志；tiers 是本次领取的等级数）
+function afterClaim(total, tiers = 0) {
   if (!(total > 0)) return;
+  addSystemLog('achievement_claim', { tiers, candy: total });
   saveGame();
   updateBackpack('candy');
   updateStats();
@@ -205,24 +212,24 @@ export function claimAchievementTier(id) {
   ensureAchievements();
   const a = ACHIEVEMENTS.find(x => x.id === id);
   const got = a ? grantTier(a) : 0;
-  afterClaim(got);
+  afterClaim(got, got > 0 ? 1 : 0);
   return got;
 }
 
 // 一键领取：循环领到不再有新达标——领糖可能联动解锁「糖果富翁」，故发糖后重新评估
 export function claimAllAchievements() {
   ensureAchievements();
-  let total = 0;
+  let total = 0, tiers = 0;
   while (true) {
     let round = 0; // 本轮领取的糖果
     for (const a of ACHIEVEMENTS) {
       let got;
-      while ((got = grantTier(a)) > 0) round += got;
+      while ((got = grantTier(a)) > 0) { round += got; tiers++; }
     }
     if (round === 0) break; // 本轮没有任何可领 → 结束
     total += round;
   }
-  afterClaim(total);
+  afterClaim(total, tiers);
   return total;
 }
 

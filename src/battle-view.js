@@ -4,9 +4,10 @@ import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, upda
 import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon } from './state.js';
 import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon } from './battle-core.js';
 import { typeMult } from './type-chart.js';
+import { grantItem, ITEM_ICONS, typeIconColor } from './items.js';
 import { chooseMoves } from './moves.js';
-import { ensureNpcs, refreshNpcs, buildNpcTeam } from './npcs.js';
-import { BATTLE_REFRESH_MS, MAX_LEVEL, SPECIAL_SPRITE_SCALE } from './config.js';
+import { ensureNpcs, refreshNpcs, buildNpcTeam, npcBaseLevel } from './npcs.js';
+import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, MAX_LEVEL, SPECIAL_SPRITE_SCALE, ITEM_NAMES } from './config.js';
 import { playBattle, endBattle, playVictory, stopVictory, playShiny } from './audio.js';
 import { burstShinySparkle } from './animation.js';
 import * as road from './road.js';
@@ -232,7 +233,7 @@ export function renderBattleList() {
           ${hasCandy ? `
           <button class="battle-btn main battle-refresh-btn" id="bForceRefresh">
             强制刷新
-            <span class="battle-refresh-cost"><img class="candy-icon" src="./items/candy.png" alt="">×50</span>
+            <span class="battle-refresh-cost"><img class="candy-icon" src="./items/goods/candy.png" alt="">×50</span>
           </button>` : ''}
         </div>
       </div>`;
@@ -299,7 +300,7 @@ function startRefreshCountdown() {
 }
 
 function npcCardHtml(npc) {
-  const base = Math.max(3, Math.min(MAX_LEVEL, battleMaxLv() + npc.lvBonus));
+  const base = npcBaseLevel(npc); // 档位固定区间：列表上直接能看出该打哪一档
   // NPC 首帧拼图（npcs.png：13列×2行，每格 16×21，2x 显示），按下标定位（与交换页同款）
   const npcIdx = npc.sprite ?? 0;
   const npcPos = `background-position:${-(npcIdx % 13) * 32}px ${-Math.floor(npcIdx / 13) * 42}px`;
@@ -313,7 +314,7 @@ function npcCardHtml(npc) {
             <span class="npc-name">${npc.name}</span>
           </div>
           <div class="npc-meta">队伍 ${npc.mons.length} 只 · 约 Lv${base} 上下</div>
-          <div class="npc-reward">胜 <img class="candy-icon" src="./items/candy.png" alt="">×${npc.candy}</div>
+          <div class="npc-reward">胜 <img class="candy-icon" src="./items/goods/candy.png" alt="">×${npc.candy}</div>
         </div>
       </div>
     </div>`;
@@ -362,7 +363,7 @@ function buildPlayerTeam() {
           const m = entry.moves[i];
           return m && _data.moves[m] && _data.moves[m].effect.kind !== 'unimplemented' ? m : null;
         })
-      : chooseMoves(_learnset[entry.species] || {}, entry.level, _data, { types: pd ? pd.types : [], includeTm: true });
+      : chooseMoves(_learnset[entry.species] || {}, entry.level, _data, { types: pd ? pd.types : [], includeTm: true, allowEgg: true }); // 对战对手不受玩家解锁限制
     return (() => {
       const mon = createMon(pd, entry.level || 1, entry.ivs, entry.nature, moveIds);
       mon.shiny = !!entry.shiny; // 战斗大图按闪光贴图（_shiny 后缀）加载
@@ -590,9 +591,9 @@ function battleScreenEl() {
 
 export function clearBattleTier() {
   const sc = battleScreenEl();
-  if (!sc.classList.contains('t-novice') && !sc.classList.contains('t-veteran') && !sc.classList.contains('t-champion')) return;
+  if (!sc.classList.contains('t-novice') && !sc.classList.contains('t-veteran') && !sc.classList.contains('t-leader') && !sc.classList.contains('t-champion')) return;
   sc.classList.add('no-theme-trans'); // 切页时的主题色变化禁用过渡，直接跳变
-  sc.classList.remove('t-novice', 't-veteran', 't-champion');
+  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion');
   void sc.offsetWidth; // 强制重排，让"无过渡"立即生效
   sc.classList.remove('no-theme-trans');
 }
@@ -601,7 +602,7 @@ export function clearBattleTier() {
 // 返回战斗页属于切换页面，不做渐变过渡
 export function restoreBattleTier() {
   const sc = battleScreenEl();
-  sc.classList.remove('t-novice', 't-veteran', 't-champion');
+  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion');
   if (_activeBattle?.preset?.tier) {
     sc.classList.add('no-theme-trans');
     sc.classList.add('t-' + _activeBattle.preset.tier);
@@ -616,7 +617,7 @@ async function renderBattlePage(battle) {
   // 进入战斗算场景切换，边框色直接跳变，不做渐变过渡
   const sc = battleScreenEl();
   sc.classList.add('no-theme-trans');
-  sc.classList.remove('t-novice', 't-veteran', 't-champion');
+  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion');
   if (battle.preset.tier) sc.classList.add('t-' + battle.preset.tier);
   void sc.offsetWidth; // 强制重排，让"无过渡"立即生效
   sc.classList.remove('no-theme-trans');
@@ -801,10 +802,10 @@ function ballEntry(side, img) {
     wrap.innerHTML = '';
     const closed = document.createElement('img');
     closed.className = 'b-ball-closed';
-    closed.src = './items/ball-00.png';
+    closed.src = './items/balls/ball-00.png';
     const open = document.createElement('img');
     open.className = 'b-ball-open';
-    open.src = './items/ball-00-open.png';
+    open.src = './items/balls/ball-00-open.png';
     wrap.append(closed, open);
     // 落点：精灵图片底部居中。不同宝可梦宽度不同，锚点随图片实际渲染尺寸自适应；
     // 图片加载失败（无尺寸）时退回面板固定锚点
@@ -900,7 +901,7 @@ function renderLogLine(t) {
     html = esc.replace(re, (m) => {
       const mv = moveByName.get(m);
       const icon = mv
-        ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};transform:scale(0.8)"><svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg></span>`
+        ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};color:${typeIconColor(mv.type)};transform:scale(0.8)"><svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg></span>`
         : '';
       return icon + '<b>' + m + '</b>';
     });
@@ -1972,7 +1973,7 @@ function askPlayerMove(battle) {
         else if (curPp === 0) { dis = ' disabled'; tip = 'PP 不足'; }
         return `<button class="b-move${dis}" data-move="${m}" title="${tip}"${dis ? ' disabled' : ''}>
           <span class="b-move-name">${mv ? mv.name : '—'}</span>
-          ${mv ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type]}">
+          ${mv ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type]};color:${typeIconColor(mv.type)}">
             <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
           </span>` : ''}
         </button>`;
@@ -2763,6 +2764,7 @@ function finishBattle(battle) {
   const avgLv = battle.eTeam.reduce((s, x) => s + x.mon.level, 0) / battle.eTeam.length;
   const results = [];
   let dropCandy = false; // 经验糖果掉落（仅胜利按档位概率判定）
+  const tierDrops = []; // 本场拿到的档位道具，结算页展示用
   if (win) {
     // 经验：参战（上过场）且存活才分；等级差倍率——低级打高级最多 3 倍，高级打低级骤减
     for (const { entry, mon } of battle.pTeam) {
@@ -2785,6 +2787,12 @@ function finishBattle(battle) {
     gd.items.candy = (gd.items.candy || 0) + battle.preset.candy;
     // 经验糖果掉落：按 NPC 档位概率判定，胜利才有、失败没有
     dropCandy = Math.random() < (battle.preset.expChance || 0);
+    // 档位追加道具：练度够才打得到高档，这是"力量换得到东西"的出口
+    for (const r of BATTLE_TIER_ITEMS[battle.preset.tier] || []) {
+      if (r.chance != null && Math.random() >= r.chance) continue;
+      grantItem(r.key, r.qty); // grantItem 自带日志与背包刷新
+      tierDrops.push({ key: r.key, qty: r.qty });
+    }
     if (dropCandy) {
       gd.items['exp-candy'] = (gd.items['exp-candy'] || 0) + 1;
       updateBackpack('exp-candy'); // 掉落瞬间立即刷新背包栏数量，不等 5 秒 tick
@@ -2794,6 +2802,7 @@ function finishBattle(battle) {
     gd.stats.totalNpcCandy = (gd.stats.totalNpcCandy || 0) + battle.preset.candy;
     if (battle.preset.tier === 'novice') gd.stats.totalNpcNoviceWins = (gd.stats.totalNpcNoviceWins || 0) + 1;
     else if (battle.preset.tier === 'veteran') gd.stats.totalNpcEliteWins = (gd.stats.totalNpcEliteWins || 0) + 1;
+    else if (battle.preset.tier === 'leader') gd.stats.totalNpcLeaderWins = (gd.stats.totalNpcLeaderWins || 0) + 1;
     else if (battle.preset.tier === 'champion') gd.stats.totalNpcChampionWins = (gd.stats.totalNpcChampionWins || 0) + 1;
     if (gd.battleNpcs?.list) {
       // 战胜领奖后从当前一波中移除该 NPC
@@ -2801,7 +2810,7 @@ function finishBattle(battle) {
     }
   }
   saveGame();
-  addSystemLog('战斗', `${win ? '战胜' : '输给'}了「${battle.preset.name}」${win ? `，获得 ${battle.preset.candy} 糖果${dropCandy ? '，经验糖果 ×1' : ''}` : ''}`);
+  addSystemLog('战斗', `${win ? '战胜' : '输给'}了「${battle.preset.name}」${win ? `，获得 ${battle.preset.candy} 糖果${dropCandy ? '，经验糖果 ×1' : ''}${tierDrops.map(d => `，${ITEM_NAMES[d.key] || d.key} ×${d.qty}`).join('')}` : ''}`);
   endBattle(); // 战斗结束 → 停止战斗曲，恢复地区曲
   if (win) playVictory(); // 胜利音效（播完自动恢复地区曲）
   if (win) window.dispatchEvent(new Event('achievements-changed')); // 胜利可能解锁对战成就，即时刷新手机红点
@@ -2812,7 +2821,7 @@ function finishBattle(battle) {
       <div class="battle-result-title">${win ? '挑战成功！' : '挑战失败…'}</div>
       <div class="battle-result-detail">
         ${win ? results.map((r) => `<div>${r.name} 升级到 Lv${r.lv}${r.up ? `（+${r.up}级）` : ''}${r.bonusGain > 0 ? ` <span class="exp-bonus">+${r.bonusGain}经验</span>` : ''}</div>`).join('') : '<div>失败无经验，调整队伍或招式再来试试吧！</div>'}
-        ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/candy.png" alt=""> × ${battle.preset.candy}${dropCandy ? ` <img class="candy-icon" src="./items/xp-candy.png" alt=""> × 1` : ''}</div>` : ''}
+        ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/goods/candy.png" alt=""> × ${battle.preset.candy}${dropCandy ? ` <img class="candy-icon" src="./items/goods/xp-candy.png" alt=""> × 1` : ''}${tierDrops.map(d => ` <img class="candy-icon" src="./items/${ITEM_ICONS[d.key] || d.key + '.png'}" alt=""> × ${d.qty}`).join('')}</div>` : ''}
       </div>
       ${win
         ? `<div class="battle-result-btns"><button class="battle-btn" id="b-review">回顾</button><button class="battle-btn main" id="b-confirm">确定</button></div>`

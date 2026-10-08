@@ -864,12 +864,9 @@ function openTeamCtxMenu(e) {
   _menuEl = menu;
 }
 
-// 随机配队：
-// - 队伍为空或已满：从非占用状态（训练 / 饲育屋 / 派遣）的宝可梦中取一组合计等级差最小的 6 只整队入队。
-//   按等级升序排序后滑窗取连续 6 只，使（最高级 - 最低级）最小；多个窗口并列最小时随机挑一个，
-//   组内顺序再随机打散（打头阵的宝可梦不固定）。
-// - 队伍未满且已有成员：默认保留现有成员原位，以队内最低等级为基准，从可选池挑等级最接近的补满空位，
-//   等级差相同的候选随机选取。
+// 随机配队：取等级最高的一批（并列的随机入选），组内顺序随机打散。
+// - 队伍为空 / 已满：直接整队换成等级最高的 6 只。
+// - 队伍未满且已有成员：保留现有成员原位，空位用池里等级最高的补齐（新补的位置随机分配）。
 // - 特例：现有成员明显偏弱（可选池够满编且整池等级都高于现有成员最高级）时直接整队重配，
 //   避免保留几只低等级旧成员、放着整池高等级宝可梦不用。
 function autoBuildTeam() {
@@ -886,45 +883,41 @@ function autoBuildTeam() {
   const used = new Set(arr.filter((id) => byId.has(id)));
   const pool = roster.filter((p) => !used.has(p.id)); // 可用候选池（不含当前队内成员）
   const members = arr.map((id) => byId.get(id)).filter(Boolean); // 队内有效成员（放生失效 id 视作空位）
+  const lv = (p) => p.level || 1;
+  // 取等级最高的 n 只：每一轮在最高等级那一批里随机挑一只，所以"一批都很强"时入选者是随机的
+  const strongest = (n) => {
+    const rest = pool.slice();
+    const out = [];
+    while (out.length < n && rest.length) {
+      rest.sort((a, b) => lv(b) - lv(a));
+      const top = lv(rest[0]);
+      const tie = rest.filter((p) => lv(p) === top);
+      const pick = tie[Math.floor(Math.random() * tie.length)];
+      rest.splice(rest.indexOf(pick), 1);
+      out.push(pick);
+    }
+    return out;
+  };
   // 未满员且有至少一只确定宝可梦：补满队伍（除非整池都更强 → 走下方整队重配）
   if (members.length > 0 && members.length < TEAM_MAX) {
-    const maxMemberLv = Math.max(...members.map((p) => p.level || 1));
-    const forceReplace = pool.length >= TEAM_MAX && pool.every((p) => (p.level || 1) > maxMemberLv);
+    const maxMemberLv = Math.max(...members.map(lv));
+    const forceReplace = pool.length >= TEAM_MAX && pool.every((p) => lv(p) > maxMemberLv);
     if (!forceReplace) {
-      const base = Math.min(...members.map((p) => p.level || 1)); // 以队内最低等级为基准
-      const cands = pool
-        .sort((a, b) => (Math.abs((a.level || 1) - base) - Math.abs((b.level || 1) - base)) || Math.random() - 0.5);
-      const picks = cands.slice(0, TEAM_MAX - members.length);
+      const picks = strongest(TEAM_MAX - members.length);
       const next = arr.map((id) => (byId.has(id) ? id : null)); // 有效成员保持原位
-      let k = 0;
-      for (let i = 0; i < TEAM_MAX && k < picks.length; i++) {
-        if (!next[i]) next[i] = picks[k++].id;
-      }
-      while (next.length < TEAM_MAX && k < picks.length) next.push(picks[k++].id);
-      arr.splice(0, arr.length, ...next);
+      while (next.length < TEAM_MAX) next.push(null);
+      const freeSlots = next.map((v, i) => (v ? -1 : i)).filter((i) => i >= 0);
+      // 候选与空位的对应关系也随机，避免每次都是"最强的排最前"
+      const shuffled = picks.slice().sort(() => Math.random() - 0.5);
+      freeSlots.forEach((slot, k) => { const p = shuffled[k]; if (p) next[slot] = p.id; });
+      arr.splice(0, arr.length, ...next.slice(0, TEAM_MAX));
       saveGame();
       render();
       return;
     }
   }
-  // 空队 / 满员 / 整队替换：从候选池滑窗取等级跨度最小的 6 只
-  const sorted = [...pool].sort((a, b) => (a.level || 1) - (b.level || 1));
-  let pick;
-  if (sorted.length <= TEAM_MAX) {
-    pick = sorted;
-  } else {
-    let best = Infinity;
-    const bestStarts = [];
-    for (let i = 0; i + TEAM_MAX <= sorted.length; i++) {
-      const spread = (sorted[i + TEAM_MAX - 1].level || 1) - (sorted[i].level || 1);
-      if (spread < best) { best = spread; bestStarts.length = 0; bestStarts.push(i); }
-      else if (spread === best) bestStarts.push(i);
-    }
-    const start = bestStarts[Math.floor(Math.random() * bestStarts.length)];
-    pick = sorted.slice(start, start + TEAM_MAX);
-  }
-  // 组内顺序随机打散
-  const team = pick.slice().sort(() => Math.random() - 0.5);
+  // 空队 / 满员 / 整队替换：直接取等级最高的 6 只
+  const team = strongest(TEAM_MAX).slice().sort(() => Math.random() - 0.5);
   arr.splice(0, arr.length, ...team.map((p) => p.id));
   saveGame();
   render();

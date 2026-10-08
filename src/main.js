@@ -1,61 +1,32 @@
 // ===== 口袋挂机 - 入口模块 =====
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
-import { CATCH_RATES, SAVE_INTERVAL, ENCOUNTER_MIN, ENCOUNTER_MAX, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER } from './config.js';
-import {
-  allPokemon, gameData, phase, currentEncounter, currentIsShiny,
-  currentEncounterBalls, encounterBallsUsed,
-  honeyBuffActive, charmBuffActive,
-  honeyCountdownEnd, charmCountdownEnd,
-  _autoFleeTimer, _autoFleeBarInterval,
-  _autoCatching,
-  _catchConfirmStep, _pokedexInLogView, _idleMsgIdx,
-  _lastRegionId, gameTick, _fishing,
-  setAllPokemon, setGameData, setPhase, setCurrentEncounter,
-  setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls,
-  setGameTick, pushNav, popNav, resetNav, setLastRegionId,
-  setIdleMsgIdx, setCatchConfirmStep,
-  setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState,
-  getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, defaultGpsState,
-  restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, addRosterEntry, getLastObtainedEntryId,
-  hasAnyBall, saveSessionState, rand, randInt, formatNum,
-  setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant,
-  nextEncounterTimer,
-} from './state.js';
-import { computeObtainScore } from './scoring.js';
-import { massTick, ensureMassInit as ensureMassInitEvents, forceRefreshMassOutbreak, twistTick, ensureTwistInit, forceRefreshTwist } from './events.js';
-import {
-  $, showView, updateTextBox, hideTextBox, showConfirmBar,
-  isIdleStageVisible, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyCharSprites, updateBackpack, updateStats, setIdleCharacter,
-  renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip,
-  isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView,
-} from './ui.js';
-import { spawnItemDrop, activateHoney, activateShinyCharm,
-  restoreHoneyRecord, restoreCharmRecord,
-  doCandyExchange, grantItem, cancelItemDrop, rollCandyMult } from './items.js';
+import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER } from './config.js';
+import { allPokemon, gameData, phase, currentEncounter, currentEncounterBalls, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, rand, setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer } from './state.js';
+import { migrateEncounterScores } from './scoring.js';
+import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
+import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView } from './ui.js';
+import { spawnItemDrop, hasActiveDrop, activateHoney, activateShinyCharm, restoreHoneyRecord, restoreCharmRecord, grantItem, cancelItemDrop, rollCandyMult } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
-import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle,
-  tryEncounter, pauseAutoFleeTimer, autoCatch, showEncounter, isLegendEncounter, setDebugNextEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, syncBattleMusic } from './battle.js';
-import { startIdleRotation, buildIdleMessages } from './messages.js';
+import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, autoCatch, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, syncBattleMusic } from './battle.js';
+import { startIdleRotation } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
-import { helperTick, refreshBerryView, showBerryView, catchUpHelper } from './berry.js';
+import { helperTick, showBerryView, catchUpHelper } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch } from './pokedex.js';
 import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease } from './roster.js';
-import { isTradeInDetail, restoreTradeList, refreshTrades, renderTrade, showTradeView } from './trade.js';
-import { showShopView, showSettingsView, showSystemLogs, showAchievementView,
-  showTutorialView, renderSystemLogs, applyWindowScale } from './views.js';
+import { isTradeInDetail, restoreTradeList, showTradeView } from './trade.js';
+import { showShopView, showSettingsView, showSystemLogs, showAchievementView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, updateTradeBadge, updateBerryBadge, updateAchievementBadge, updatePhoneBadge, updateNurseryBadge, showIncubatorView } from './phone.js';
-import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, teleportToTwist } from './gps.js';
+import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget } from './gps.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { ensureBounty, updateBountyBadge, isBountyInTrade, restoreBountyList } from './bounty.js';
 import { isNurseryPicking, leaveNurseryPick, isNurseryEggView, leaveNurseryEggView, showNurseryView } from './nursery.js';
 import { isTrainPicking, leaveTrainPick, showTrainView } from './train.js';
 import { isDispatchPicking, leaveDispatchPick, processDispatch } from './dispatch.js';
-import { retreatBattle, isBattleActive, isBattleSettled, renderBattleList, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle, showBattleView } from './battle-view.js';
+import { retreatBattle, isBattleActive, isBattleSettled, restoreBattleTier, clearBattleTier, isLogOpen, closeLogPage, syncLogTitle, showBattleView } from './battle-view.js';
 import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit, isTeamPicking, leaveTeamPick, showTeamView } from './team.js';
-import { refreshNpcs } from './npcs.js';
 import { showCasinoView } from './casino.js';
 import * as road from './road.js';
 import { initBackgroundCatchup, startBackgroundCatchup, bgCatchupEnabled, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds } from './background-catchup.js';
@@ -413,6 +384,9 @@ async function onGameTick() {
   helperTick();
   // 同步真实行走距离：仅 idle 挂机时道路在滚动，遇敌/战斗/钓鱼不计
   const walked = road.takeDistance();
+  // 行走秒数同样每 tick 就地取走：它是"时钟游标差值"，只在这里消费。放在挂机分支里取的话，
+  // 骑行这种"道路在走但不产生掉落"的时段会攒到下车的那个 tick 一次性结算，变成道具爆发
+  const walkSec = road.takeWalkSeconds();
   if (walked > 0) {
     gameData.stats.walkDistance = (gameData.stats.walkDistance || 0) + walked;
     // 导航由主角实际移动推进（跑步更快）
@@ -457,7 +431,6 @@ async function onGameTick() {
   // "实际走路秒数 + 停摆秒数"折算。停摆秒数以 visibilitychange 记录的隐藏时长为主（农场等
   // 非道路页面也有效），road 帧间隔检测作兜底（Tauri 端若 visibility 不触发仍可补）。
   // 遇敌/钓鱼等 road 暂停时两者均为 0，不会误补。Tauri 端窗口可见时均不触发
-  const walkSec = road.takeWalkSeconds();
   // 后台补发开关关闭时（如安卓沿用离线暂停哲学）停摆秒数不参与任何补算，主循环保持前台原行为
   const afkSec = bgCatchupEnabled() ? Math.max(bgTakeAccum(), road.takeAfkSeconds()) : 0;
   // 骑行停摆期间不产生掉落/遭遇（骑行不遇敌、不拾取），里程仍按骑行速度补算：
@@ -525,7 +498,8 @@ async function onGameTick() {
   // 过渡到自行车道期间也停止生成，避免遗留道具在骑行开始后滑过；大量出没/时空扭曲事件路段内不钓鱼）
   if (!road.isBike() && !inMassZone() && !inTwistZone()) tryStartFishing();
   // 恢复退出时冻结在路面上的那件道具，否则累积值已扣而道具消失
-  if (gameData.roadItem) {
+  // （已经有一件在路面上时不能再生成：切页面会让原道具冻结等待，按记录重生成就是重复发放）
+  if (gameData.roadItem && !hasActiveDrop()) {
     const it = gameData.roadItem;
     spawnItemDrop(it.key, { qty: it.qty, remaining: it.left });
   }
@@ -539,7 +513,8 @@ async function onGameTick() {
       gameData[key] += effRate * (walkSec + idleAfkSec);
       const gained = Math.floor(gameData[key]);
       if (gained > 0) {
-        if (afkSec > 0) {
+        // 后台/离线/不在主界面（经典布局下开着 app 页）：批量入账，不逐件出日志与存档
+        if (afkSec > 0 || isPageHidden() || !isIdleStageVisible()) {
           // 后台补发：批量直接入账不播动画（日志在 grantItem 内记录），避免逐一出补发动画。
           // 糖果按掉落次数逐次 roll 倍率（与前台 spawnItemDrop 同节奏），汇总后一次性入账
           let gainedQty = 0;
@@ -548,7 +523,7 @@ async function onGameTick() {
           }
           grantItem(item, gainedQty);
           gameData[key] -= gained;
-          if (catchUpLog) {
+          if (catchUpLog) { // 仅后台补发时汇总打印
             const label = ITEM_NAMES[item] || item;
             catchUpLog.items[label] = (catchUpLog.items[label] || 0) + gainedQty;
           }
@@ -787,6 +762,8 @@ async function init() {
   try {
     const resp = await fetch('./pokemon-data/pokedex.json');
     setAllPokemon(await resp.json());
+    // 评分模型迁移：旧日志按新概率模型重算一次（一次性，带版本标记），否则旧的高分会永久抬高欧气评定
+    if (migrateEncounterScores(gameData)) await saveGame();
   } catch (e) {
     console.error('加载数据失败');
     document.body.classList.remove('booting');

@@ -34,7 +34,7 @@ import {
   FARM_HELPER_PATROL_PAUSE_MAX as PATROL_PAUSE_MAX,
 } from './config.js';
 
-const CANDY_ICON = '<img src="./items/candy.png" style="width:12px;height:12px;vertical-align:-2px;image-rendering:pixelated;" />';
+const CANDY_ICON = '<img src="./items/goods/candy.png" style="width:12px;height:12px;vertical-align:-2px;image-rendering:pixelated;" />';
 
 const FRAME_W = 32;
 const BERRY_COLS = 6;

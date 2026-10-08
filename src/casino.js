@@ -198,8 +198,8 @@ function exchangeCoin() {
       const ok = b >= n;
       const coins = Math.floor(n / COIN_RATE);
       return `<div class="shop-ctx-item${ok ? '' : ' disabled'}" data-n="${n}">
-        <span class="shop-ctx-qty"><img src="./items/coin.png" style="width:10px;height:10px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(coins)}</span>
-        <span class="shop-ctx-cost"><img src="./items/candy.png" style="width:10px;height:10px;vertical-align:middle;image-rendering:pixelated;" /> ×${formatNum(n)}</span>
+        <span class="shop-ctx-qty"><img src="./items/goods/coin.png" style="width:10px;height:10px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(coins)}</span>
+        <span class="shop-ctx-cost"><img src="./items/goods/candy.png" style="width:10px;height:10px;vertical-align:middle;image-rendering:pixelated;" /> ×${formatNum(n)}</span>
       </div>`;
     }).join('');
   };
@@ -300,7 +300,7 @@ function renderBetAreaCommon(balance, holder, startId, startText) {
   const ticks = BETS.map((b, i) => `
     <div class="casino-bet-tick${b > balance ? ' off' : ''}${b === holder.bet ? ' sel' : ''}"
       data-i="${i}" style="left:${(i / (BETS.length - 1)) * 100}%">
-      <img class="casino-bet-coin" src="./items/coin.png" alt="">
+      <img class="casino-bet-coin" src="./items/goods/coin.png" alt="">
       <span class="casino-bet-dot"></span>
       <span class="casino-bet-value">${formatNum(b)}</span>
     </div>`).join('');
@@ -370,7 +370,7 @@ function renderTable() {
     const cls = `casino-coin-pile ${side}${doubled ? ' doubled' : ''}`;
     const id = `pile-${side}`;
     const coins = Array.from({ length: count }, (_, i) =>
-      `<img src="./items/coin.png" class="casino-coin-pile-stack" style="z-index:${i + 1};transform:translateY(${-i * 2}px)" />`
+      `<img src="./items/goods/coin.png" class="casino-coin-pile-stack" style="z-index:${i + 1};transform:translateY(${-i * 2}px)" />`
     ).join('');
     return `<div class="${cls}" id="${id}">${coins}</div>`;
   };

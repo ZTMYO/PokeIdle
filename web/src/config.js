@@ -3,13 +3,13 @@
 export const START_CANDY = 450; // 新存档启动资金
 // 道具概率权重
 export const ITEM_RATES = {
-  'poke-ball':   1 / 90,   // 精灵球
-  'ultra-ball':  1 / 220,  // 高级球
-  'master-ball': 1 / 900,  // 大师球
-  'candy':       1 / 20,   // 糖果
-  'sweet-honey': 1 / 400,  // 甜甜蜜
-  'mystery-egg': 1 / 800,  // 神秘蛋
-  'shiny-charm': 1 / 1000, // 闪耀护符
+  'poke-ball':   1 / 90,    // 精灵球   ≈40/小时（基本弹药）
+  'ultra-ball':  1 / 220,   // 高级球   ≈16/小时
+  'master-ball': 1 / 40000, // 大师球   ≈0.09/小时（约每天 2 个）
+  'candy':       1 / 20,    // 糖果     ≈180 次/小时
+  'sweet-honey': 1 / 3600,  // 甜甜蜜   ≈1/小时（便宜且可购）
+  'mystery-egg': 1 / 2400,  // 神秘蛋   ≈1.5/小时
+  'shiny-charm': 1 / 120000, // 闪耀护符 ≈0.03/小时（约两三天一个）
 };
 
 // 糖果掉落数量倍率：掉落糖果时按权重抽取一次（×1 最常见，×100 极小概率大奖）
@@ -43,13 +43,15 @@ export const CATCH_BONUS_INC = 0.10;
 
 // 糖果商店兑换价格
 export const CANDY_EXCHANGE = {
-  'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 500,
-  'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 1000,
+  'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 2000, // 大师球：唯一的保底捕获，定价到稀缺资源档
+  'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 20000, // 护符：一天挂机产出，换一只保底闪光（与刷事件 8.7 小时注意力同量级）
   'bike': 200, // 自行车：赶路工具（骑行路段也能免费获得，商店是保底渠道）
 };
 
 // 商店出售回收比例：出售价 = 兑换价 × 该比例（四舍五入），低于半价防止倒卖刷糖
 export const ITEM_SELL_RATE = 0.4;
+// 贵重道具固定回收价：按 40% 回收会在高价道具上变成刷糖通道（护符掉落 3.6/小时 × 4000 糖果）
+export const ITEM_SELL_OVERRIDE = { 'master-ball': 150, 'shiny-charm': 1000 }; // 固定为售价 5~7%，不随涨价放大
 
 // 丢球挣脱后宝可梦逃跑的概率（随丢球次数递增，上限 FLEE_CHANCE_MAX）
 export const FLEE_CHANCE = 0.04;     // 第 1 球挣脱后的逃跑概率
@@ -67,12 +69,13 @@ export const WILD_LEVEL_MAX = 20;
 export const BUFF_DURATION = 60;      // 持续时间（秒）
 export const BUFF_ENCOUNTER_MIN = 15; // 增益期间遇敌间隔下限（秒）
 export const BUFF_ENCOUNTER_MAX = 30; // 增益期间遇敌间隔上限（秒）
-export const HONEY_RARITY_BOOST = 0.5; // 甜甜蜜稀有度加成权重
-export const CHARM_RARITY_BOOST = 0.7; // 闪耀护符稀有度加成权重
+export const HONEY_RARITY_BOOST = 0.3; // 甜甜蜜稀有度加成权重
+export const CHARM_RARITY_BOOST = 0.5; // 闪耀护符稀有度加成权重
 
 // 闪光概率
 export const SHINY_CHANCE = 1 / 1000;  // 野生/钓鱼/孵蛋基础闪光概率
-export const CHARM_SHINY_CHANCE = 0.8; // 闪耀护符生效时的遇敌/钓鱼闪光概率
+export const CHARM_SHINY_CHANCE = 0.05;    // 闪耀护符生效时的遇敌/钓鱼闪光概率（基础的 50 倍）
+export const CHARM_UNCAUGHT_CHANCE = 0.2;  // 护符期间额外提高「未捕获过」宝可梦的出现概率
 
 // ===== 大量出没（随机道路事件）=====
 export const MASS_GEN_MIN = 20;      // 事件点生成间隔下限（分钟）
@@ -129,18 +132,53 @@ export const TRADE_LEVEL_CHANCE = 0.35; // NPC 指定「想要宝可梦」等级
 export const TRADE_WANT_LEVEL_MIN = 10; // 需求等级下限随机范围（10~40）
 export const TRADE_WANT_LEVEL_MAX = 40;
 export const TRADE_GIVE_LEVEL_MAX = 60; // 给出宝可梦等级随机上限（1~60）
-export const TRADE_SHINY_CHANCE = 1 / 10; // NPC 给出闪光宝可梦的概率
+export const TRADE_SHINY_CHANCE = 1 / 500; // NPC 给出闪光宝可梦的概率（事件才是刷闪主场，交换只做补充）
 export const TRADE_IV_SUM_MIN = 100;    // 个体值总和过低时补强 1~2 项到 31
+// 交换对价：物种价值 = 稀有度 × rarity + 种族值占比 × bst（0~1 量级：神兽≈1.0，常见弱宠≈0.35）；
+// 需求附加条件（等级 / 个体值下限 / 性别）按 level/iv/gender 权重折算成价值。
+// 给出的宝可梦按「目标价值 = 需求价值 × 随机系数」挑选，所以"给一只绿毛虫换他的快龙"不会出现；
+// 系数上限那一侧就是偶尔的捡漏机会，下限那一侧是略微吃亏但可跳过的 offer。
+export const TRADE_VALUE_W = { rarity: 0.6, bst: 0.4, level: 0.45, iv: 0.4, gender: 0.15 };
+export const TRADE_VALUE_JITTER = [0.85, 1.35];
+export const TRADE_GIVE_LEVEL_NONE = 15; // 需求没指定等级时，给出等级的随机上限（好条件才配好报酬）
+export const TRADE_BASE_FORM_CHANCE = 0.85; // 家族内抽基础形态的概率，其余给变体（mega/超极巨/地区形态）
+
+// ---- 招式机（商店在售）----
+// 按威力分档定价；每日上架数量（只从还没解锁的招式里抽，货架会随收集进度变短）
+export const TM_PRICE_TIERS = [
+  { max: 0, price: 600 },        // 变化招
+  { max: 40, price: 1200 },
+  { max: 60, price: 2500 },
+  { max: 80, price: 4500 },
+  { max: Infinity, price: 7000 },
+];
+export const TM_SHOP_DAILY = 4;
 
 // ---- 对战（NPC 挑战）----
+// 各档等级区间固定，不再跟随玩家队伍：练度决定能打哪一档，力量因此换得到东西。
+// 队伍实力由该档基础等级推出（基础 + 成员数 - 1 为队内最高级），整队落在区间内。
+export const BATTLE_TIER_BAND = {
+  novice:   [15, 30],
+  veteran:  [32, 48],
+  leader:   [50, 68],
+  champion: [70, 90], // 封顶档：最高 90 级，留 10 级给满级收尾
+};
+// 战胜各档的追加道具（chance 缺省为必定）：只给可消耗品，
+// 不碰糖果/护符/大师球的价格体系，避免又开一个白送口
+export const BATTLE_TIER_ITEMS = {
+  novice:   [{ key: 'poke-ball', qty: 2 }],
+  veteran:  [{ key: 'poke-ball', qty: 3 }, { key: 'ultra-ball', qty: 2 }, { key: 'sweet-honey', qty: 1, chance: 0.2 }],
+  leader:   [{ key: 'ultra-ball', qty: 2 }, { key: 'sweet-honey', qty: 1, chance: 0.3 }, { key: 'mystery-egg', qty: 1, chance: 0.2 }],
+  champion: [{ key: 'ultra-ball', qty: 3 }, { key: 'sweet-honey', qty: 1, chance: 0.4 }, { key: 'mystery-egg', qty: 1, chance: 0.35 }],
+};
 export const BATTLE_REFRESH_MS = 20 * 60 * 1000; // NPC 挑战刷新间隔（20 分钟）
-export const BATTLE_NPC_COUNTS = { novice: 3, veteran: 2, champion: 1 }; // 每波各档 NPC 数量
-export const BATTLE_MONS_COUNT = { novice: 3, veteran: 5, champion: 6 };  // 各档队伍宝可梦数量
+export const BATTLE_NPC_COUNTS = { novice: 1, veteran: 2, leader: 1, champion: 1 }; // 每波各档 NPC 数量
+export const BATTLE_MONS_COUNT = { novice: 3, veteran: 5, leader: 5, champion: 6 };  // 各档队伍宝可梦数量
 
 // ---- 经验糖果 ----
 // 不可用糖果购买，唯一来源：NPC 训练家对战胜利概率掉落（见 EXP_CANDY_DROP）
 export const EXP_CANDY_XP = 3000; // 单颗经验值（1→17 级左右）
-export const EXP_CANDY_DROP = { novice: 0.05, veteran: 0.25, champion: 0.50 }; // 各档 NPC 战胜掉落概率（普通/精英/冠军）
+export const EXP_CANDY_DROP = { novice: 0.05, veteran: 0.25, leader: 0.35, champion: 0.50 }; // 各档 NPC 战胜掉落概率（普通/精英/馆主/冠军）
 export const RELEASE_XP_RATE = 0.12; // 放生返还经验比例
 
 // 特殊宝可梦战斗精灵缩放：图鉴身高是全身拉直总长，这类宝可梦立绘却蜷缩/盘绕成团，
@@ -320,7 +358,8 @@ export const ITEM_DESC = {
   'candy': '通用货币\n遇敌捕获、钓鱼、孵蛋等均可获得',
   'sweet-honey': `使用后 ${BUFF_DURATION} 秒内\n遇敌间隔大幅缩短`,
   'mystery-egg': `放入孵蛋器\n行走${Math.round(HATCH_DIST_MIN / 1000)}~${Math.round(HATCH_DIST_MAX / 1000)} 公里后孵化出宝可梦`,
-  'shiny-charm': `使用后 ${BUFF_DURATION} 秒内\n遇敌/钓鱼闪光概率提升至 ${pct(CHARM_SHINY_CHANCE)}`,
+  'shiny-charm': `使用后下一只遭遇必定闪光
+其余 ${BUFF_DURATION} 秒内闪光概率提升至 ${pct(CHARM_SHINY_CHANCE)}`,
   'bike': `骑行赶路工具\n速度 ${Math.round(ROAD_SPEED_BIKE / ROAD_SPEED_WALK)} 倍且不遇敌、不拾取`,
 };
 

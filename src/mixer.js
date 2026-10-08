@@ -334,7 +334,7 @@ function loadCubeBaseImage() {
     const img = new Image();
     img.onload = () => { _cubeBase = img; resolve(img); };
     img.onerror = reject;
-    fetch('./items/cube.png')
+    fetch('./items/goods/cube.png')
       .then(r => r.blob())
       .then(b => { img.src = URL.createObjectURL(b); })
       .catch(reject);
@@ -453,10 +453,10 @@ function tintCubeImage(color, onLoad) {
   };
   img.onerror = () => onLoad(null);
   // blob 同源数据源，canvas 不会被标记为跨源
-  fetch('./items/cube.png')
+  fetch('./items/goods/cube.png')
     .then(r => r.blob())
     .then(blob => { img.src = URL.createObjectURL(blob); })
-    .catch(() => { img.src = './items/cube.png'; }); // fetch 不可用时降级直接加载
+    .catch(() => { img.src = './items/goods/cube.png'; }); // fetch 不可用时降级直接加载
 }
 
 // 冷却页方块预览：按配方颜色染色
@@ -484,7 +484,7 @@ function cooldownHtml() {
     <div class="mixer-wrap mixer-cool">
       <div class="mixer-page-title">树果方块生效中</div>
       <div class="mixer-result-stage">
-        <img class="mixer-block-visual" id="mixerBlockVisual" src="./items/cube.png" alt="树果方块" />
+        <img class="mixer-block-visual" id="mixerBlockVisual" src="./items/goods/cube.png" alt="树果方块" />
         <div class="mixer-cool-quality ${blockQuality}">${quality.label}</div>
         <div class="mixer-cool-timer">剩余 <span id="mixerCoolMeters">${blockMetersRemaining()}</span> 米</div>
         <div class="mixer-result-target show">
@@ -762,7 +762,7 @@ function showResult() {
     <div class="mixer-wrap mixer-result">
       <div class="mixer-page-title mixer-result-title">混合结果：<span class="${_qteQuality}">${quality.label}</span></div>
       <div class="mixer-result-stage" id="mixerResultStage">
-        <img class="mixer-block-visual" id="mixerResultCube" src="./items/cube.png" alt="树果方块" />
+        <img class="mixer-block-visual" id="mixerResultCube" src="./items/goods/cube.png" alt="树果方块" />
         <div class="mixer-result-berries">${berryImgsHtml(recipe)}</div>
         <div class="mixer-result-target" id="mixerResultTarget">
           ${blockTargetText(target, targetCaught, quality)}

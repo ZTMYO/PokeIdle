@@ -2,11 +2,11 @@
 // 每半小时刷新一波：若干 NPC 在交换广场挂出「想要的宝可梦（可指定性别/某项个体值下限）」和
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
-import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX, EXP_CANDY_XP, MAX_LEVEL } from './config.js';
+import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX, TRADE_VALUE_W, TRADE_VALUE_JITTER, TRADE_GIVE_LEVEL_NONE, TRADE_BASE_FORM_CHANCE, EXP_CANDY_XP, MAX_LEVEL } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage, logicViewport, popupBounds, showConfirmBar } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
-import { TYPE_COLORS, pickFamily, pokemonSourceBadge } from './items.js';
+import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
 import { isInAnyTeam } from './team.js';
 import { NATURES } from './battle-core.js';
 import { playCongratulation } from './audio.js';
@@ -79,42 +79,104 @@ function pauseTradeRefresh() {}
 function resumeTradeRefresh() {}
 
 // ---------- 波次生成 ----------
-// 交易物种：按演化家族聚类后等概率抽取（家族内成员再等概率随机）
+// 交易物种：按演化家族聚类后等概率抽家族，家族内**偏向基础形态**——
+// mega / 超极巨 / 地区形态这些变体只占小概率，否则一个家族变体多的时候交易里到处是 mega
+function isFormEntry(p) { return String(p?.index || '').includes('-'); }
+
 function pickTradePokemon() {
-  return pickFamily(allPokemon, () => 1);
+  // 神兽不进交易：需求侧会变成玩家永远给不出的条目，供给侧等于白送
+  const pool = allPokemon.filter(p => !p.legend);
+  const groups = new Map();
+  for (const p of pool) {
+    const k = String(p.index).split('-')[0];
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(p);
+  }
+  const fams = [...groups.values()];
+  const fam = fams[randInt(0, fams.length - 1)];
+  const bases = fam.filter(p => !isFormEntry(p));
+  if (bases.length > 0 && Math.random() < TRADE_BASE_FORM_CHANCE) return bases[randInt(0, bases.length - 1)];
+  return fam[randInt(0, fam.length - 1)];
+}
+
+// ---------- 交换对价 ----------
+// 物种价值：稀有度 + 种族值占比（0~1 量级）。缓存一份，免得每波反复算遍全图鉴。
+let _speciesValueCache = null;
+function speciesValue(p) {
+  if (!_speciesValueCache) _speciesValueCache = new Map();
+  const key = String(p.index);
+  if (_speciesValueCache.has(key)) return _speciesValueCache.get(key);
+  const bst = (p.stats || []).reduce((a, b) => a + (+b || 0), 0) || 300;
+  const v = (p.rarity ?? 0.5) * TRADE_VALUE_W.rarity + Math.min(1, bst / 600) * TRADE_VALUE_W.bst;
+  _speciesValueCache.set(key, v);
+  return v;
+}
+
+// 对价比较一律用**基础形态**的价值：变体（mega/超极巨/地区形态）稀有度与种族值都更高，
+// 直接比价值会一路偏向它们，等于变相抬高变体产出
+function baseValueOf(p) {
+  const base = getPokemonByIndex(String(p?.index || '').split('-')[0]);
+  return speciesValue(base || p);
+}
+
+// 需求难度：物种价值 + 等级 / 个体值下限 / 性别这些附加条件的价值
+function requirementValue(wantPoke, want) {
+  let v = baseValueOf(wantPoke);
+  if (want.level) v += (want.level / TRADE_WANT_LEVEL_MAX) * TRADE_VALUE_W.level;
+  if (want.iv) v += (want.iv.min / 31) * TRADE_VALUE_W.iv;
+  if (want.gender) v += TRADE_VALUE_W.gender;
+  return v;
+}
+
+// 按目标价值挑给出物种：取价值最接近的一批里随机，避免每次都是同一只
+function pickGiveSpecies(targetValue) {
+  const pool = allPokemon.filter(p => !p.legend);
+  const scored = pool.map(p => ({ p, d: Math.abs(baseValueOf(p) - targetValue) }));
+  scored.sort((a, b) => a.d - b.d);
+  const near = scored.slice(0, Math.max(4, Math.ceil(scored.length * 0.02)));
+  return near[randInt(0, near.length - 1)].p;
 }
 
 // 给出的宝可梦个体值：神兽保底 3 项 31（与玩家捕获到的一致），
-// 普通宝可梦随机生成，总个体值太低时补强 1~2 项到 31，保证交换物有价值
-function rollTradeIvs(isLegend) {
-  if (isLegend) return rollLegendIvs();
-  const ivs = rollIvs();
-  const sum = IV_KEYS.reduce((a, k) => a + ivs[k], 0);
-  if (sum < TRADE_IV_SUM_MIN) {
-    for (let i = 0, n = randInt(1, 2); i < n; i++) ivs[IV_KEYS[randInt(0, IV_KEYS.length - 1)]] = 31;
+// 普通宝可梦随机生成，总个体值太低时补强 1~2 项到 31，保证交换物有价值。
+// wantIv：需求指定了个体值下限时，给出的同项个体也对齐这条下限（对价）
+function rollTradeIvs(isLegend, wantIv) {
+  const ivs = isLegend ? rollLegendIvs() : rollIvs();
+  if (!isLegend) {
+    const sum = IV_KEYS.reduce((a, k) => a + ivs[k], 0);
+    if (sum < TRADE_IV_SUM_MIN) {
+      for (let i = 0, n = randInt(1, 2); i < n; i++) ivs[IV_KEYS[randInt(0, IV_KEYS.length - 1)]] = 31;
+    }
   }
+  if (wantIv && ivs[wantIv.stat] < wantIv.min) ivs[wantIv.stat] = wantIv.min;
   return ivs;
 }
 
 function makeOffer(npc) {
   const wantPoke = pickTradePokemon();
-  const givePoke = pickTradePokemon();
+  const want = {
+    species: String(wantPoke.index),
+    gender: wantPoke.genderRate !== -1 && Math.random() < TRADE_GENDER_CHANCE ? rollGender(String(wantPoke.index)) : null,
+    iv: Math.random() < TRADE_IV_CHANCE ? { stat: IV_KEYS[randInt(0, IV_KEYS.length - 1)], min: randInt(TRADE_IV_MIN, 31) } : null,
+    level: Math.random() < TRADE_LEVEL_CHANCE ? randInt(TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX) : null,
+  };
+  // 对价：按需求难度挑给出的宝可梦与等级——要的越难，给的越好；没提要求的 offer 只配低等级
+  const jitter = TRADE_VALUE_JITTER[0] + Math.random() * (TRADE_VALUE_JITTER[1] - TRADE_VALUE_JITTER[0]);
+  const givePoke = pickGiveSpecies(requirementValue(wantPoke, want) * jitter);
+  const giveLevel = want.level
+    ? Math.max(1, Math.min(TRADE_GIVE_LEVEL_MAX, Math.round(want.level * (0.8 + Math.random() * 0.8))))
+    : randInt(1, TRADE_GIVE_LEVEL_NONE);
   return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     npc: npc.id,
-    want: {
-      species: String(wantPoke.index),
-      gender: wantPoke.genderRate !== -1 && Math.random() < TRADE_GENDER_CHANCE ? rollGender(String(wantPoke.index)) : null,
-      iv: Math.random() < TRADE_IV_CHANCE ? { stat: IV_KEYS[randInt(0, IV_KEYS.length - 1)], min: randInt(TRADE_IV_MIN, 31) } : null,
-      level: Math.random() < TRADE_LEVEL_CHANCE ? randInt(TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX) : null,
-    },
+    want,
     give: {
       species: String(givePoke.index),
       // 随从增益：trade 类提升交换 NPC 给出闪光的概率
       shiny: Math.random() < (window.__followerBoostMechanic?.('tradeShiny', TRADE_SHINY_CHANCE) ?? TRADE_SHINY_CHANCE),
       nature: rollNature(),
-      ivs: rollTradeIvs(givePoke.legend === true), // 神兽保底 3 项 31
-      level: randInt(1, TRADE_GIVE_LEVEL_MAX),
+      ivs: rollTradeIvs(givePoke.legend === true, want.iv),
+      level: giveLevel,
       // 生成时即固定性别：预览与交换实得共用同一字段，避免两次 roll 导致不一致
       gender: givePoke.genderRate === -1 ? 'genderless' : rollGender(String(givePoke.index)),
     },

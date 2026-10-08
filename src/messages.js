@@ -1,6 +1,6 @@
 // ===== 闲置轮播消息 + 地区文案 =====
-import { $, showView, isIdleStageVisible } from './ui.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, _idlePickupTimer, setGameData, honeyCountdownEnd, charmCountdownEnd, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, setIdlePickupTimer, _fishing, getMassOutbreak, inMassZone, getTwist, inTwistZone, getRoadNumForEdge } from './state.js';
+import { $, isIdleStageVisible } from './ui.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, charmBuffActive, honeyBuffActive, blockBuffActive, getCurrentRegion, randInt, formatNum, _idleMsgs, _idleMsgIdx, _regionMsgInterval, _idleMsgTimer, setIdleMsgs, setIdleMsgIdx, setRegionMsgInterval, setIdleMsgTimer, _fishing, getMassOutbreak, inMassZone, getTwist, inTwistZone, getRoadNumForEdge } from './state.js';
 import { REGION_CYCLE } from './config.js';
 import { ACHIEVEMENTS, earnedTiers, claimedTiers } from './achievements.js';
 import * as road from './road.js';

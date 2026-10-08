@@ -449,8 +449,8 @@ function renderFollowerView() {
           <div class="follower-marquee"><div class="follower-marquee-track">${followerMarqueeItems()}</div></div>
         </div>
         <div class="follower-actions">
-          <button class="gacha-btn" id="followerDrawBtn" ${canDraw ? '' : 'disabled'}>抽取随从 ${FOLLOWER_DRAW_COST}<img class="gacha-coin-icon" src="./items/candy.png" alt="糖"></button>
-          <button class="gacha-btn" id="followerDrawMultiBtn" ${canDrawMulti ? '' : 'disabled'}>5连抽 ${FOLLOWER_DRAW_COST * 5}<img class="gacha-coin-icon" src="./items/candy.png" alt="糖"></button>
+          <button class="gacha-btn" id="followerDrawBtn" ${canDraw ? '' : 'disabled'}>抽取随从 ${FOLLOWER_DRAW_COST}<img class="gacha-coin-icon" src="./items/goods/candy.png" alt="糖"></button>
+          <button class="gacha-btn" id="followerDrawMultiBtn" ${canDrawMulti ? '' : 'disabled'}>5连抽 ${FOLLOWER_DRAW_COST * 5}<img class="gacha-coin-icon" src="./items/goods/candy.png" alt="糖"></button>
         </div>`;
       // 走马灯图片走标准加载通道（Tauri 下相对路径 src 会失败），加载完播帧动画
       content.querySelectorAll('.follower-marquee-item img').forEach(img => {

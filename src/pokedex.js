@@ -1,7 +1,7 @@
 // ===== 图鉴模块 =====
 import { ITEM_NAMES } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, currentEncounter, _pokedexInLogView, _pokedexSortBy, _pokedexSortDir, pad, randInt, pushNav, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
-import { $, showView, tryLoadPokemonImage, tryLoadImage, fitPokemonImage, setupFoodTooltip } from './ui.js';
+import { gameData, allPokemon, getPokemonByIndex, _pokedexSortBy, _pokedexSortDir, pad, pushNav, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
+import { $, showView, tryLoadPokemonImage, tryLoadImage, setupFoodTooltip } from './ui.js';
 import { TYPE_COLORS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 

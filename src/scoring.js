@@ -5,7 +5,7 @@
 // P_obtain = P_pick × P_shiny × P_catch
 //   P_pick  选中这只宝可梦的概率：普通遭遇=加权随机（含甜甜蜜/护符稀有度加成）、
 //           钓鱼=钓到宝可梦概率 × 稀有/水系池占比、孵蛋=全图鉴均匀
-//   P_shiny 本次闪光与否的概率：无护符 1/1000，护符 0.8；孵蛋恒为 1/1000（护符不影响蛋）
+//   P_shiny 本次闪光与否的概率：基础 1/1000，护符期间 5%（孵化恒为基础率，护符不影响蛋）
 //   P_catch 捕获运气 = 1 - (1 - r)^N
 //           r = 捕获成功那一下的实时捕获率（含捕获加成，越低越欧）
 //           N = 总丢球数
@@ -25,9 +25,9 @@ import {
   FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CATCH_BONUS_INC,
   SHINY_CHANCE, CHARM_SHINY_CHANCE, MASS_SHINY_CHANCE, TWIST_SHINY_CHANCE,
   FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE,
-  HONEY_RARITY_BOOST, CHARM_RARITY_BOOST,
+  HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, CATCH_RATES, ULTRA_BALL_ADD,
 } from './config.js';
-import { allPokemon, getCurrentRegion } from './state.js';
+import { allPokemon, getCurrentRegion, getPokemonByIndex, isPowerForm } from './state.js';
 
 // 捕获加成生效阈值（与 battle.js 原逻辑一致）：逃跑率拉满（50%）后每多丢一球 +10%
 const FLEE_MAXED_AT = Math.ceil((FLEE_CHANCE_MAX - FLEE_CHANCE) / FLEE_CHANCE_INC) + 1;
@@ -40,7 +40,9 @@ export function catchBonusFor(ballsUsed) {
 // ---- P_pick：选中这只宝可梦的概率 ----
 function pickProbability(pokemon, source, honeyBuff, charmBuff) {
   if (source === 'egg') {
-    return allPokemon.length > 0 ? 1 / allPokemon.length : 1;
+    // 孵蛋池排除神兽与强化形态（items.js pickAnyPokemon 同款）
+    const pool = allPokemon.filter(p => !p.legend && !isPowerForm(p));
+    return pool.length > 0 ? 1 / pool.length : 1;
   }
 
   if (source === 'mass') {
@@ -49,17 +51,19 @@ function pickProbability(pokemon, source, honeyBuff, charmBuff) {
   }
 
   if (source === 'twist') {
-    // 时空扭曲：排除当前地区后的全地区均等随机池（事件生成时定池），无稀有度加权
+    // 时空扭曲：排除当前地区后的全地区池，按稀有度三次方加权（events.js pickTwistPoke 同款）
     const regionName = getCurrentRegion().name;
-    const pool = allPokemon.filter(p => p.region !== regionName);
+    const pool = allPokemon.filter(p => p.region !== regionName && !isPowerForm(p));
     if (!pool.includes(pokemon)) return allPokemon.length > 0 ? 1 / allPokemon.length : 1; // 池异常时兜底
-    return pool.length > 0 ? 1 / pool.length : 1;
+    let total = 0;
+    for (const p of pool) total += Math.pow(Math.max(0.01, 1 - (p.rarity ?? 0.5) * 0.8), 3);
+    return Math.pow(Math.max(0.01, 1 - (pokemon.rarity ?? 0.5) * 0.8), 3) / total;
   }
 
   if (source === 'fishing') {
     const pool = allPokemon.filter(p => p.region === getCurrentRegion().name);
-    const rarePool = pool.filter(p => (p.rarity || 0.5) > 0.8);
-    const waterPool = pool.filter(p => (p.types || []).includes('水'));
+    const rarePool = pool.filter(p => (p.rarity || 0.5) > 0.8 && !p.legend && !isPowerForm(p));
+    const waterPool = pool.filter(p => (p.types || []).includes('水') && !p.legend && !isPowerForm(p));
     // 与 fishing.js pickFishingPokemon 一致：60% 稀有池 / 40% 水系池；所选池为空时退回另一池
     const pickRare = rarePool.includes(pokemon)
       ? 1 / rarePool.length
@@ -72,16 +76,16 @@ function pickProbability(pokemon, source, honeyBuff, charmBuff) {
     return p > 0 ? p : 1;
   }
 
-  // 普通遭遇：与 items.js pickRandomPokemon / pickWeightedPokemon 同款权重
-  const pool = allPokemon.filter(p => p.region === getCurrentRegion().name);
+  // 普通遭遇：与 items.js pickRandomPokemon 同款（排除神兽/强化形态 + 权重三次方），评分必须跟着游戏的实际概率走
+  const pool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p));
   if (!pool.includes(pokemon)) return allPokemon.length > 0 ? 1 / allPokemon.length : 1; // 地区异常时兜底
   let rarityBoost = 0;
   if (honeyBuff) rarityBoost = Math.max(rarityBoost, HONEY_RARITY_BOOST);
   if (charmBuff) rarityBoost = Math.max(rarityBoost, CHARM_RARITY_BOOST);
   const penalty = Math.max(0.2, 0.8 - rarityBoost * 0.5);
   let total = 0;
-  for (const p of pool) total += Math.max(0.01, 1 - (p.rarity ?? 0.5) * penalty);
-  const w = Math.max(0.01, 1 - (pokemon.rarity ?? 0.5) * penalty);
+  for (const p of pool) total += Math.pow(Math.max(0.01, 1 - (p.rarity ?? 0.5) * penalty), 3);
+  const w = Math.pow(Math.max(0.01, 1 - (pokemon.rarity ?? 0.5) * penalty), 3);
   return w / total;
 }
 
@@ -178,6 +182,40 @@ function ivBonus(ivs, ivRandomKey, guaranteedIvs = 0) {
 //   finalRate  捕获成功那一下的实际捕获率（含捕获加成；无丢球场景传 1）
 //   ivs        个体值（越高欧气加成越多；交换不算、无 ivs 时加成为 0）
 //   ivRandomKey 培育蛋的纯随机位（捕获/神秘蛋传 null）
+// ---- 旧日志评分迁移 ----
+// 稀有度复位后评分模型变了（权重三次方、神兽出池、护符闪光 80%→5%），旧 score 是按老模型算的，
+// 护符期间那些闪光场次分数虚高，留着会永久抬高欧气评定。
+// 日志里存了个体/闪光/来源/球数/是否护符，足以按新模型重算；缺 finalRate 与甜甜蜜标记，
+// 用球种 × 物种捕获率近似、按无甜蜜处理——误差远小于"沿用旧分"。
+const SCORE_MODEL_V = 2;
+
+export function migrateEncounterScores(gd) {
+  const logs = gd?.encounterLogs;
+  if (!logs) return false;
+  let changed = false;
+  for (const [idxKey, arr] of Object.entries(logs)) {
+    if (!Array.isArray(arr)) continue;
+    const poke = getPokemonByIndex(idxKey);
+    if (!poke) continue;
+    for (const l of arr) {
+      if (!l || l.v === SCORE_MODEL_V) continue;
+      const shiny = !!l.shiny;
+      const source = l.source || 'normal';
+      const charmBuff = !!l.charmBuff;
+      if (l.result === 'fled') {
+        l.score = computeMeetScore({ pokemon: poke, source, shiny, charmBuff });
+      } else {
+        // 用最后一颗用过的球近似当时捕获率（缺 finalRate 与丢球加成，误差在几分之内）
+        const ball = ['master-ball', 'ultra-ball', 'poke-ball'].find(b => (l.balls || {})[b] > 0) || 'poke-ball';
+        const rate = Math.min(1, (CATCH_RATES[ball] ?? 0.35) * (poke.catchRate ?? 0.5) + (ball === 'ultra-ball' ? ULTRA_BALL_ADD : 0));
+        l.score = computeObtainScore({ pokemon: poke, source, shiny, charmBuff, balls: l.balls || {}, finalRate: rate });
+      }
+      l.v = SCORE_MODEL_V;
+      changed = true;
+    }
+  }
+  return changed;
+}
 export function computeObtainScore({ pokemon, source = 'normal', shiny = false, charmBuff = false, honeyBuff = false, balls = {}, finalRate = 1, ivs = null, ivRandomKey = null, guaranteedIvs = 0 }) {
   const pPick = pickProbability(pokemon, source, honeyBuff, charmBuff);
   const pShiny = shinyProbability(shiny, charmBuff, source);

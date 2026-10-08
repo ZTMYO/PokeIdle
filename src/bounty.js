@@ -4,7 +4,7 @@
 // 仓库中拥有该宝可梦（在仓个体）即可提交（交出一只个体）。
 // 只有今日到访过的地区才显示悬赏内容（离开后仍可查看）；提交必须到达该地区。
 import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
 import { pickFamily, pokemonSourceBadge } from './items.js';
@@ -18,9 +18,11 @@ function dateStr(d = new Date()) {
 // 权重 = 0.3 + 稀有度 × BOUNTY_RARE_WEIGHT（越稀有越可能成为悬赏目标）；
 // 家族归一：多变体家族（未知图腾、彩粉蝶等）按单个形态权重计，不因形态数叠加
 function sampleBountyPokemon(count) {
+  // 神兽与强化形态不进悬赏：神兽按稀有度加权时最容易被点名（每天 45 条里会出 7 条左右）
+  const pool = allPokemon.filter(p => !p.legend && !isPowerForm(p));
   const picked = [];
   for (let i = 0; i < count; i++) {
-    picked.push(pickFamily(allPokemon, p => 0.3 + (p.rarity ?? 0.5) * BOUNTY_RARE_WEIGHT));
+    picked.push(pickFamily(pool, p => 0.3 + (p.rarity ?? 0.5) * BOUNTY_RARE_WEIGHT));
   }
   return picked;
 }
@@ -66,6 +68,19 @@ export function ensureBounty() {
   } else if (!Array.isArray(b.visited)) {
     // 兼容缺少 visited 字段的存档：视为今日尚未到访任何地区
     b.visited = REGION_CYCLE.map(() => false);
+  }
+  // 强化形态已从抽取池移除：当日表里遗留的这类目标就地换新（沿用原领取状态，避免重领）
+  for (const arr of gameData.bounty.rewards) {
+    if (!Array.isArray(arr)) continue;
+    let dirty = false;
+    arr.forEach((e, i) => {
+      if (!e || !isPowerForm(getPokemonByIndex(e.pokemon))) return;
+      const fresh = sampleBountyPokemon(1)[0];
+      if (!fresh) return;
+      arr[i] = { pokemon: String(fresh.index), candy: calcBountyCandy(fresh), claimed: e.claimed };
+      dirty = true;
+    });
+    if (dirty) arr.sort((a, b) => (a && b ? a.candy - b.candy : a ? -1 : 1));
   }
   // 标记当前所在地区今日已到访（离开该地区后仍可查看其悬赏）
   // 以 gps.curIdx（到达的节点）为准：在途中不标记，只有真正抵达节点才算今日到访
@@ -117,7 +132,7 @@ export function updateBountyBadge() {
 }
 
 // ---------- 渲染 ----------
-const CANDY_IMG = '<img src="./items/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" />';
+const CANDY_IMG = '<img src="./items/goods/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" />';
 const BACK_ICON = '<svg viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="#icon-back"/></svg>';
 // 标题右侧导航图标（纸飞机样式），fill 跟随主题色
 const GO_ICON = '<svg viewBox="0 0 1024 1024" width="13" height="13" aria-hidden="true"><path d="M123.92 555.9a32 32 0 0 1-14.82-60.38l719.19-374.9a32 32 0 0 1 29.59 56.76l-719.2 374.89a31.87 31.87 0 0 1-14.76 3.63z"/><path d="M608.6 957.7a32 32 0 0 1-30.6-41.27l234.64-776.34a32 32 0 0 1 61.26 18.52L639.22 935a32 32 0 0 1-30.62 22.7zM505.92 580.44c-0.68 0-1.36 0-2.05-0.07l-381.46-24.12a32 32 0 1 1 4-63.88l381.5 24.13a32 32 0 0 1-2 63.94z"/><path d="M608.14 957.32a32 32 0 0 1-30.87-23.63L475 556.82a32 32 0 1 1 61.77-16.76L639 916.93a32 32 0 0 1-22.51 39.26 31.61 31.61 0 0 1-8.35 1.13z"/></svg>';

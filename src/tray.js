@@ -30,7 +30,7 @@ function inEncounter() {
 }
 const SPRITES = {
   sprout: () => ['./icons/sprout-1.png', './icons/sprout-2.png'],
-  egg: () => ['./items/mystery-egg.png'],
+  egg: () => ['./items/goods/mystery-egg.png'],
 };
 const TRAY_SIZE = 64;
 let started = false;

@@ -1,8 +1,8 @@
-// NPC 挑战：每 20 分钟刷新一波训练家（3 普通 + 2 精英 + 1 冠军）
-// 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级随玩家出战队伍最高等级递进
+// NPC 挑战：每 20 分钟刷新一波训练家（1 普通 + 2 精英 + 1 馆主 + 1 冠军）
+// 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级按档位固定区间（不跟随玩家）
 import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollLegendIvs, rollNature, rollGender, randInt } from './state.js';
 import { chooseMoves } from './moves.js';
-import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, MAX_LEVEL, EXP_CANDY_DROP, SHINY_CHANCE } from './config.js';
+import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, BATTLE_TIER_BAND, MAX_LEVEL, EXP_CANDY_DROP, SHINY_CHANCE } from './config.js';
 
 // 通用训练家形象（sprite 为 npcs.png 拼图下标，13 列 × 2 行）
 const NPC_FACES = [
@@ -32,9 +32,10 @@ function buildNpcPools() {
     return { idx: String(p.index), bst, rarity: p.rarity ?? 0.5 };
   });
   return {
-    novice: rows.filter((r) => r.bst <= 480).map((r) => r.idx),
-    veteran: rows.filter((r) => r.bst >= 320 && r.bst <= 570).map((r) => r.idx),
-    champion: rows.filter((r) => r.bst >= 440 && r.rarity >= 0.5).map((r) => r.idx),
+    novice: rows.filter((r) => r.bst <= 420).map((r) => r.idx),
+    veteran: rows.filter((r) => r.bst >= 360 && r.bst <= 500).map((r) => r.idx),
+    leader: rows.filter((r) => r.bst >= 440 && r.bst <= 570).map((r) => r.idx),
+    champion: rows.filter((r) => r.bst >= 500 && r.rarity >= 0.5).map((r) => r.idx),
   };
 }
 function getNpcPools() {
@@ -45,6 +46,7 @@ function getNpcPools() {
 const TIER_CFG = {
   novice:   { title: '普通', lvBonus: 0, candy: 5,  expChance: EXP_CANDY_DROP.novice },
   veteran:  { title: '精英', lvBonus: 0, candy: 10, expChance: EXP_CANDY_DROP.veteran },
+  leader:   { title: '馆主', lvBonus: 0, candy: 15, expChance: EXP_CANDY_DROP.leader },
   champion: { title: '冠军', lvBonus: 2, candy: 20, expChance: EXP_CANDY_DROP.champion },
 };
 
@@ -74,7 +76,7 @@ function drawFamilyN(ids, n) {
 function generateWave() {
   const faces = shuffle([...NPC_FACES]);
   const list = [];
-  for (const tier of ['novice', 'veteran', 'champion']) {
+  for (const tier of ['novice', 'veteran', 'leader', 'champion']) {
     const cfg = TIER_CFG[tier];
     for (let i = 0; i < BATTLE_NPC_COUNTS[tier]; i++) {
       const f = faces.pop();
@@ -111,14 +113,23 @@ export function refreshNpcs() {
 // 按玩家出战队伍最高等级生成 NPC 队伍（首只=基准等级，往后逐只低一级）；带谁打 NPC 就跟随谁，上限 MAX_LEVEL。
 // 队伍物种取自生成波次时抽好的 npc.mons；个体/性格/招式在首次构建时 roll 定并缓存到 npc.team，
 // 之后每次挑战只按玩家等级重算等级——同一波次内 NPC 的速度/强度不再每局变化
+// 该训练家的队伍最高等级：档位下限 + 队内成员数 - 1 + 档内序号，整队落在档位区间内，
+// 不再跟着玩家队伍涨——玩家练度决定能打哪一档，而不是把对手一起练强
+export function npcBaseLevel(npc) {
+  const band = BATTLE_TIER_BAND[npc?.tier] || [3, MAX_LEVEL];
+  const idx = Number(String(npc?.id || '').split('_')[1]) || 0;
+  const span = Math.max(0, (npc?.mons?.length || 1) - 1);
+  return Math.max(band[0], Math.min(band[1], band[0] + span + (npc?.lvBonus || 0) + idx));
+}
+
 export function buildNpcTeam(npc, data, learnset, maxLv) {
-  const base = Math.max(3, Math.min(MAX_LEVEL, maxLv + npc.lvBonus));
+  const base = npcBaseLevel(npc);
   // 首次构建：roll 定个体/性格/性别/闪光/招式并缓存（仅存可序列化字段，pd 每次从图鉴取）
   if (!Array.isArray(npc.team) || npc.team.length !== npc.mons.length) {
     npc.team = npc.mons.map((idx, i) => {
       const pd = getPokemonByIndex(idx);
       const level = Math.min(MAX_LEVEL, base - i);
-      const moveIds = chooseMoves(learnset[idx] || {}, level, data, { types: pd.types, shuffle: true });
+      const moveIds = chooseMoves(learnset[idx] || {}, level, data, { types: pd.types, shuffle: true, allowEgg: true }); // NPC 队伍不受玩家招式机解锁限制
       // 神兽个体值同样强化：3 项强制 31，与玩家捕获到的一致
       const ivs = pd.legend === true ? rollLegendIvs() : rollIvs();
       // NPC 也有几率拿出闪光宝可梦（与野生同基础概率，不吃护符加成；同波次内固定不重 roll）
@@ -126,7 +137,7 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
       return { species: idx, level, ivs, nature: rollNature(), gender: rollGender(idx), moveIds, shiny };
     });
   }
-  // 复用固定队伍数据，仅重算等级（跟随玩家出战队伍最高等级）
+  // 复用固定队伍数据，仅重算等级（档位固定，队内按序号递减）
   return npc.team.map((m, i) => ({
     pd: getPokemonByIndex(m.species),
     level: Math.min(MAX_LEVEL, base - i),

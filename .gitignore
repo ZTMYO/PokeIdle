@@ -45,3 +45,6 @@ mobile/keystore.properties
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# doc
+docs/devdoc/

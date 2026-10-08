@@ -1,5 +1,5 @@
 // ===== UI 管理 =====
-import { phase, currentEncounter, currentIsShiny, gameData, saveGame, _fishing, _eggHatching, _navStack, allPokemon } from './state.js';
+import { phase, currentEncounter, gameData, saveGame, _fishing, _eggHatching, _navStack } from './state.js';
 import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getTwist, getRoadNumForEdge, getPokemonByIndex, isPokemon, genderBadge } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
 import { formatLogTime } from './pokedex.js';
@@ -143,6 +143,7 @@ export function showView(id) {
     el.style.display = on ? 'flex' : 'none';
     el.classList.toggle('is-active', on); // 供 CSS 定位/调试：当前视图
   });
+  if (!VIEW_IDS.includes(id)) console.warn('[view] 页面未注册到 VIEW_IDS：', id); // 漏注册会得到一片空屏
   // 双屏下两块屏都不留空：上屏无画面顶挂机页，下屏无 app 回手机首页
   if (mobileDual) {
     if (!targetStage && ![...STAGE_VIEWS].some(v => $(v)?.style.display !== 'none')) {
@@ -799,8 +800,8 @@ let _prevBagCounts = {};
 export function updateStats() {
   const candy = gameData.items['candy'] || 0;
   const coin = gameData.items['casinoCoin'] || 0;
-  const coinHtml = /casino|mahjong|gacha/i.test(_currentView) ? ` <img src="./items/coin.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;margin-left:4px;" /> ${formatNum(coin)}` : '';
-  $('statProgress').innerHTML = `<img src="./items/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(candy)}${coinHtml}`;
+  const coinHtml = /casino|mahjong|gacha/i.test(_currentView) ? ` <img src="./items/goods/coin.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;margin-left:4px;" /> ${formatNum(coin)}` : '';
+  $('statProgress').innerHTML = `<img src="./items/goods/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(candy)}${coinHtml}`;
   const g = gameData?.gps;
   const region = getCurrentRegion();
   const onRoad = !!(g && g.path && g.path.length >= 2 && g.seg < g.path.length - 1 && g.totalPx > 0);
@@ -947,7 +948,7 @@ function renderEggPickList() {
             const name = poke ? poke.name : `#${eg.species}`;
             return `
               <div class="pokedex-entry roster-row nursery-egg-row" data-egg-pick="${eg.id}">
-                <span class="pokedex-name"><img class="roster-icon-img" src="./items/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                <span class="pokedex-name"><img class="roster-icon-img" src="./items/goods/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
                 <span class="roster-iv">${eggIvSlash(eg)}</span>
               </div>`;
           }).join('');
@@ -992,7 +993,7 @@ function renderEggPickList() {
               const name = poke ? poke.name : `#${eg.species}`;
               return `
                 <div class="pokedex-entry roster-row nursery-egg-row" data-egg-pick="${eg.id}">
-                  <span class="pokedex-name"><img class="roster-icon-img" src="./items/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                  <span class="pokedex-name"><img class="roster-icon-img" src="./items/goods/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
                   <span class="roster-iv">${eggIvSlash(eg)}</span>
                 </div>`;
             }).join('')}
@@ -1136,7 +1137,7 @@ export function renderIncubatorView() {
       const canAfford = (gameData.items['candy'] || 0) >= cost;
       const disabled = !isNext || !canAfford;
       html += `<div class="incubator-row locked">
-        <div class="incubator-lock-icon"><img src="./items/candy.png" style="width:18px;height:18px;image-rendering:pixelated;opacity:0.5;" /><span class="incubator-lock-cost">×${cost}</span></div>
+        <div class="incubator-lock-icon"><img src="./items/goods/candy.png" style="width:18px;height:18px;image-rendering:pixelated;opacity:0.5;" /><span class="incubator-lock-cost">×${cost}</span></div>
         <span class="incubator-hatch-text${disabled ? ' disabled' : ''}" data-unlock="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>解锁</span>
       </div>`;
       continue;
@@ -1145,7 +1146,7 @@ export function renderIncubatorView() {
     const rowCls = 'incubator-row' + (s?.ignored ? ' ignored' : '');
     if (s && s.hatched) {
       html += `<div class="${rowCls}">
-        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
+        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" class="shake" /></div>
         <div class="incubator-info"><div class="incubator-name" data-tip="${eggName}">蛋</div></div>
         ${hatchBtnHtml(i, hatchLocked)}
       </div>`;
@@ -1162,7 +1163,7 @@ export function renderIncubatorView() {
       }
       if (s.hatched) {
         html += `<div class="${rowCls}">
-          <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/mystery-egg.png" alt="蛋" class="shake" /></div>
+          <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" class="shake" /></div>
           <div class="incubator-info"><div class="incubator-name" data-tip="${eggName}">蛋</div></div>
           ${hatchBtnHtml(i, hatchLocked)}
         </div>`;
@@ -1175,7 +1176,7 @@ export function renderIncubatorView() {
       const remain = Math.max(0, Math.ceil((need - used) / PX_PER_METER));
       const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
       html += `<div class="incubator-row">
-        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/mystery-egg.png" alt="蛋" /></div>
+        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" /></div>
         <div class="incubator-info">
           <div class="incubator-name" data-tip="${eggName}">蛋</div>
           <div class="incubator-progress-wrap" data-slot="${i}">

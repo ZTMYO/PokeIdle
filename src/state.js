@@ -15,6 +15,17 @@ export function getPokemonByIndex(idx) {
 }
 export function setAllPokemon(a) { allPokemon = a; _pokemonMap = null; }
 
+// 强化形态（超级/超极巨）：战斗中的临时形态而非独立物种，不进任何抽取池
+export function isPowerForm(p) {
+  const f = p?.form || '';
+  return f.includes('超级') || f.includes('超极巨');
+}
+
+// 招式机是否已解锁
+export function isTmUnlocked(moveId) {
+  return !!(gameData && gameData.tmUnlocked && gameData.tmUnlocked[moveId]);
+}
+
 export let gameData = null;
 export let phase = 'idle'; // idle | encounter | caught | fled | eggResult
 export let currentEncounter = null;
@@ -32,6 +43,7 @@ export let honeyCountdownInterval = null;
 export let honeyPausedRemaining = 0;
 export let honeyExpiryTimer = null;
 export let charmBuffActive = false;
+export let charmGuaranteed = false;   // 护符保底：下一只遭遇必定闪光
 export let charmCountdownEnd = 0;
 export let charmCountdownInterval = null;
 export let charmPausedRemaining = 0;
@@ -63,7 +75,6 @@ export let _idleMsgs = [];
 export let _idleMsgIdx = 0;
 export let _regionMsgInterval = 0;
 export let _idleMsgTimer = null;
-export let _idlePickupTimer = null;
 
 // 佛系倒计时
 export let _autoFleeTimer = null;
@@ -113,6 +124,7 @@ export function setLastRegionId(id) { _lastRegionId = id; }
 export function setHoneyBuffActive(v) { honeyBuffActive = v; window.__honeyBuffActive__ = v; }
 export function setHoneyCountdownEnd(t) { honeyCountdownEnd = t; }
 export function setCharmBuffActive(v) { charmBuffActive = v; window.__charmBuffActive__ = v; }
+export function setCharmGuaranteed(v) { charmGuaranteed = !!v; }
 export function setCharmCountdownEnd(t) { charmCountdownEnd = t; }
 export function setHoneyPausedRemaining(v) { honeyPausedRemaining = v; }
 export function setCharmPausedRemaining(v) { charmPausedRemaining = v; }
@@ -121,7 +133,6 @@ export function setIdleMsgIdx(n) { _idleMsgIdx = n; }
 export function setIdleMsgs(a) { _idleMsgs = a; }
 export function setRegionMsgInterval(n) { _regionMsgInterval = n; }
 export function setIdleMsgTimer(t) { _idleMsgTimer = t; }
-export function setIdlePickupTimer(t) { _idlePickupTimer = t; }
 export function setAutoFleeTimer(t) { _autoFleeTimer = t; }
 export function setAutoFleeStartTime(t) { _autoFleeStartTime = t; }
 export function setAutoFleeBarInterval(i) { _autoFleeBarInterval = i; }
@@ -230,7 +241,7 @@ export function getDefaultSave() {
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
       totalTrades:0, tradesToday:0, lastTradeDate:'',
       releaseXpPool: 0, // 放生返还的经验累积池：攒满 EXP_CANDY_XP 自动产出一颗经验糖果并清零
-      totalNpcWins:0, totalNpcNoviceWins:0, totalNpcEliteWins:0, totalNpcChampionWins:0, totalNpcCandy:0,
+      totalNpcWins:0, totalNpcNoviceWins:0, totalNpcEliteWins:0, totalNpcLeaderWins:0, totalNpcChampionWins:0, totalNpcCandy:0,
       luckyGachaScore:0, luckyGachaCount:0, // 抽卡欧气累计（独立累计，不受抽卡日志 50 条窗口影响）
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
     },
@@ -254,6 +265,8 @@ export function getDefaultSave() {
     casinoRecords: [],   // 21点战绩（滑动窗口 50 条）：{ time, bet, action, result, net }
     mahjongRecords: [],  // 麻将战绩（滑动窗口 50 条，整场一条）：{ time, net, rank, stake }
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
+    tmUnlocked: {}, // 招式机解锁：{ 招式id: 解锁时间 }，由 tm.js 管理
+    tmShop: null,   // 商店今日招式机货架：{ date, ids }，由 tm.js 管理
     trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
     battleNpcs: null, // NPC 挑战：{ refreshedAt: Date.now(), list: [{ id, tier, title, name, sprite, lvBonus, candy, mons }] }，由 npcs.js 管理
     pokedex: {},
@@ -418,8 +431,8 @@ function syncBuffRecord() {
   }
   if (charmBuffActive) {
     const count = _charmEncounterCount || 0;
-    if (charmCountdownEnd > 0) rec.charm = { left: Math.max(0, charmCountdownEnd - Date.now()), count };
-    else if (charmPausedRemaining > 0) rec.charm = { paused: charmPausedRemaining, count };
+    if (charmCountdownEnd > 0) rec.charm = { left: Math.max(0, charmCountdownEnd - Date.now()), count, guaranteed: charmGuaranteed };
+    else if (charmPausedRemaining > 0) rec.charm = { paused: charmPausedRemaining, count, guaranteed: charmGuaranteed };
   }
   gameData.buffs = (rec.honey || rec.charm) ? rec : null;
 }
@@ -459,6 +472,7 @@ export function saveSessionState(extra) {
       honeyBuffActive,
       honeyPausedRemaining,
       charmBuffActive,
+      charmGuaranteed,
       charmPausedRemaining,
       _charmEncounterCount,
       blockBuffActive,

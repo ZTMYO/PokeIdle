@@ -2,14 +2,9 @@
 // 离线期间派遣照常计时：calcOffline 对派遣槽不做 startAt += ms 后移
 import { $, showView, tryLoadImage, showConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog, ensureGender, genderBadge, getIncubatorUnlockCost } from './state.js';
-import {
-  DISPATCH_SLOTS, DISPATCH_FREE_SLOTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT,
-  DISPATCH_CANDY_PER_HOUR, DISPATCH_EXTRA_CHANCE, DISPATCH_SPEED_REF, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_SPEED_DECAY, DISPATCH_SPEED_FLAT,
-  DISPATCH_BASE_WEIGHTS, DISPATCH_TYPE_BOOST, DISPATCH_ITEM_VALUE, DISPATCH_ITEM_CAP,
-  DISPATCH_VALUE_PER_HOUR, DISPATCH_PICKS_MAX, REGION_CYCLE, ITEM_NAMES, DISPATCH_BOOST_DISCOUNT, DISPATCH_CANDY_JITTER, DISPATCH_VARIANT_CANDY_BONUS,
-} from './config.js';
+import { DISPATCH_SLOTS, DISPATCH_FREE_SLOTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_EXTRA_CHANCE, DISPATCH_SPEED_REF, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_SPEED_DECAY, DISPATCH_SPEED_FLAT, DISPATCH_BASE_WEIGHTS, DISPATCH_TYPE_BOOST, DISPATCH_ITEM_VALUE, DISPATCH_ITEM_CAP, DISPATCH_VALUE_PER_HOUR, DISPATCH_PICKS_MAX, REGION_CYCLE, DISPATCH_BOOST_DISCOUNT, DISPATCH_CANDY_JITTER, DISPATCH_VARIANT_CANDY_BONUS } from './config.js';
 import { removePokemonFromAllTeams, isInAnyTeam } from './team.js';
-import { grantItem, TYPE_COLORS, ITEM_ICONS, pokemonSourceBadge } from './items.js';
+import { grantItem, TYPE_COLORS, itemIconSrc, pokemonSourceBadge } from './items.js';
 import { NATURES } from './battle-core.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
@@ -199,7 +194,7 @@ export function hasDispatchRewards() {
 // 领取结果页单行：宝可梦图标 + 各道具图标与数量
 function resultRowHtml(entry, slot) {
   const items = (slot.rewards || []).map(r =>
-    `<span class="dispatch-result-item"><img src="./items/${ITEM_ICONS[r.key] || r.key + '.png'}" alt="" /><b>×${r.qty}</b></span>`
+    `<span class="dispatch-result-item"><img src="${itemIconSrc(r.key)}" alt="" /><b>×${r.qty}</b></span>`
   ).join('');
   return `<div class="dispatch-result-row"><img class="dispatch-result-poke" data-icon="${entry.species}" alt="" /><span class="dispatch-result-items">${items}</span></div>`;
 }
@@ -229,7 +224,7 @@ function openResultPage(rows) {
   const keys = Object.keys(merged);
   if (keys.length) {
     const totalItems = keys.map(k =>
-      `<span class="dispatch-result-item"><img src="./items/${ITEM_ICONS[k] || k + '.png'}" alt="" /><b>×${merged[k]}</b></span>`
+      `<span class="dispatch-result-item"><img src="${itemIconSrc(k)}" alt="" /><b>×${merged[k]}</b></span>`
     ).join('');
     list.insertAdjacentHTML('beforeend',
       `<div class="dispatch-result-row dispatch-result-total"><span class="dispatch-result-total-label">总</span><span class="dispatch-result-items">${totalItems}</span></div>`);
@@ -240,8 +235,13 @@ function openResultPage(rows) {
   const okFn = () => {
     if (!_claimAnim) return;
     _claimAnim = false;
+    // 同类先合并再入包：一次结算多个槽位时，逐条 grant 会刷出一串「获得 ×1」日志（展示层早就合并了）
+    const mergedRewards = {};
+    for (const { slot } of rows) {
+      for (const r of slot.rewards || []) mergedRewards[r.key] = (mergedRewards[r.key] || 0) + r.qty;
+    }
+    for (const [key, qty] of Object.entries(mergedRewards)) grantItem(key, qty, '派遣');
     for (const { i, slot } of rows) {
-      for (const r of slot.rewards || []) grantItem(r.key, r.qty);
       // 领取后宝可梦留在槽位待出发，可直接下一轮派遣（保留所选时长）
       ensureDispatch().slots[i] = { id: slot.id, durationMin: slot.durationMin, startAt: null, done: false };
     }
@@ -556,7 +556,7 @@ function cellHtml(slot, i, d) {
     const disabled = !isNext || !canAfford;
     return `
     <div class="incubator-row locked">
-      <div class="incubator-lock-icon"><img src="./items/candy.png" alt="" style="width:18px;height:18px;image-rendering:pixelated;opacity:0.5;" /><span class="incubator-lock-cost">×${cost}</span></div>
+      <div class="incubator-lock-icon"><img src="./items/goods/candy.png" alt="" style="width:18px;height:18px;image-rendering:pixelated;opacity:0.5;" /><span class="incubator-lock-cost">×${cost}</span></div>
       <span class="incubator-hatch-text${disabled ? ' disabled' : ''}" data-unlock="${i}" ${disabled ? 'style="pointer-events:none;"' : ''}>解锁</span>
     </div>`;
   }

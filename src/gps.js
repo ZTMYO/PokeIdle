@@ -638,31 +638,6 @@ export function planTwistRoute() {
   planEventRoute(getTwist, inTwistZone);
 }
 
-// 调试用：直接传送玩家到时空扭曲事件点（站在事件边上，等效于导航到点后自动停下）。
-// 用于 __resetTwist 联调，省去手动导航。
-export function teleportToTwist() {
-  const ev = getTwist();
-  if (!ev) return false;
-  const g = gameData.gps;
-  const [ea, eb] = ev.edge;
-  // 关闭漫游/导航，直接落位事件点：状态与 planEventRoute 到达分支保持一致
-  g.roamEnabled = false;
-  g.destIdx = null;
-  g.massTarget = null;
-  g.massArrived = true;
-  g.curIdx = ea;
-  g.path = [ea, eb];
-  g.seg = 0;
-  g.units = DIST_MATRIX[ea][eb];
-  g.totalPx = g.units * PX_PER_UNIT;
-  g.remainPx = g.totalPx * (1 - ev.t); // 事件点到 eb 的剩余距离（事件点停在边中间）
-  // 事件点强制非骑行（骑行中不遇敌），下车可立即遭遇
-  road.setManualBike(false);
-  road.setBike(false);
-  render();
-  saveGame();
-  return true;
-}
 
 // 主角移动推进：main.js 每秒把道路滚动距离喂进来（px 为真实行走/跑步像素）
 export function gpsAddDistance(px) {

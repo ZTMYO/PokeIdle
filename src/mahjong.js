@@ -1,4 +1,4 @@
-import { $, showView, updateStats, tryLoadImage, hideTextBox, showConfirmBar } from './ui.js';
+import { $, showView, updateStats, tryLoadImage, showConfirmBar } from './ui.js';
 import { gameData, saveGame, pushNav, formatNum, addSystemLog } from './state.js';
 import { playMahjongSfx } from './audio.js';
 import { HAND_SIZE, RIICHI_COST } from './config.js';
@@ -468,7 +468,7 @@ function betHtml() {
   const ticks = BETS.map((b, i) => `
     <div class="casino-bet-tick${b * 40 > balance ? ' off' : ''}${b === st.bet ? ' sel' : ''}"
       data-i="${i}" style="left:${(i / (BETS.length - 1)) * 100}%">
-      <img class="casino-bet-coin" src="./items/coin.png" alt="">
+      <img class="casino-bet-coin" src="./items/goods/coin.png" alt="">
       <span class="casino-bet-dot"></span>
       <span class="casino-bet-value">${formatNum(b)}</span>
     </div>`).join('');
@@ -762,7 +762,7 @@ function fillTable(box) {
         return `<div class="mj-end-cell${t.seat === 0 ? ' self' : ''}" data-rank="${rank}">
           <span class="mj-rank${rankCls}">${rank}</span>
           <span class="mj-seat-name">${SEAT_NAMES[t.seat]}</span>
-          <span class="mj-end-net ${netCls}">${netSign}${t.net} <img src="./items/coin.png" class="mj-coin-icon" /></span>
+          <span class="mj-end-net ${netCls}">${netSign}${t.net} <img src="./items/goods/coin.png" class="mj-coin-icon" /></span>
         </div>`;
       };
       banner.innerHTML = `

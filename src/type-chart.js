@@ -1,5 +1,5 @@
 // 18 属性克制表（前端静态数据，中文属性名）
-export const TYPES = ['一般', '火', '水', '草', '电', '冰', '格斗', '毒', '地面', '飞行', '超能', '虫', '岩石', '幽灵', '龙', '恶', '钢', '妖精'];
+
 
 // 克制倍率：攻击属性 → { 防御属性: 倍率 }；未列出 = 1
 export const chart = {
@@ -31,9 +31,3 @@ export function typeMult(atkType, defTypes) {
   return m;
 }
 
-export function describeMult(m) {
-  if (m === 0) return '无效';
-  if (m >= 2) return '效果绝佳';
-  if (m < 1) return '收效甚微';
-  return '效果普通';
-}

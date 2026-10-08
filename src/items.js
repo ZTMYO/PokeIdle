@@ -1,6 +1,6 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, CANDY_EXCHANGE, ITEM_SELL_RATE, CATCH_RATES, ITEM_RATES, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, _idleMsgIdx, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge } from './state.js';
+import { ITEM_NAMES, CANDY_EXCHANGE, ITEM_SELL_RATE, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmGuaranteed, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, isIdleStageVisible, isPageHidden, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay, burstShinySparkle } from './animation.js';
@@ -18,6 +18,14 @@ export const TYPE_COLORS = {
   '恶': '#553F42', '妖精': '#C74ECB',
 };
 
+// 属性徽章上的图标色：图标是 currentColor，底色偏亮时换深色，避免白图标看不清
+export function typeIconColor(type) {
+  const hex = String(TYPE_COLORS[type] || '888888').replace('#', '');
+  const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return lum > 0.5 ? '#262626' : '#fff';
+}
+
 // 列表行来源徽章（仓库 / 放入 / 交换等列表共用，与 roster 一致）：
 // 普通闪光 → ★；时空扭曲 RGB/污染 → ○；扭曲闪光 → ★○
 export const POKE_BADGE_STAR = '<svg class="pokedex-star-svg" viewBox="2 2 20.2 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.77272 14.5899L5.24822 20.9745C5.1866 21.2304 5.28549 21.498 5.49671 21.6536C5.70873 21.8087 5.99207 21.8238 6.21922 21.6891L11.9527 18.2844L17.6835 21.6891C17.787 21.7505 17.9027 21.7812 18.0178 21.7812C18.1547 21.7812 18.2907 21.7387 18.406 21.6543C18.6173 21.4985 18.7162 21.231 18.6545 20.9752L17.13 14.5905L22.1907 10.3017C22.3931 10.131 22.4721 9.85483 22.3911 9.60288C22.3106 9.35093 22.0855 9.17223 21.8217 9.15074L15.1466 8.59969L12.5534 2.54696C12.4506 2.30605 12.2138 2.15039 11.952 2.15039C11.6902 2.15039 11.4534 2.30605 11.3507 2.54696L8.7555 8.59969L2.08241 9.14997C1.81862 9.17165 1.59348 9.35026 1.51299 9.60226C1.43185 9.85421 1.51107 10.1304 1.7133 10.301L6.77272 14.5899Z" fill="currentColor"></path></svg>';
@@ -32,10 +40,35 @@ export function pokemonSourceBadge(p) {
 
 // 道具图标文件名（位于 src/items/ 目录）
 export const ITEM_ICONS = {
-  'poke-ball': 'poke-ball.png', 'ultra-ball': 'ultra-ball.png',
-  'master-ball': 'master-ball.png', 'candy': 'candy.png',
-  'sweet-honey': 'honey.png', 'mystery-egg': 'mystery-egg.png', 'shiny-charm': 'shiny-charm.png',
-  'bike': 'bike.png', 'exp-candy': 'xp-candy.png',
+  'poke-ball': 'balls/poke-ball.png', 'ultra-ball': 'balls/ultra-ball.png',
+  'master-ball': 'balls/master-ball.png', 'candy': 'goods/candy.png',
+  'sweet-honey': 'goods/honey.png', 'mystery-egg': 'goods/mystery-egg.png', 'shiny-charm': 'goods/shiny-charm.png',
+  'bike': 'goods/bike.png', 'exp-candy': 'goods/xp-candy.png',
+};
+
+// 道具图标路径（映射表里没有的组合按 goods/ 兜底）
+export const itemIconSrc = (key) => `./items/${ITEM_ICONS[key] || `goods/${key}.png`}`;
+
+// 清掉商店的每日限量货（约定形状 { date, ids }）：清 null 后下次进店重抽，__refreshAll() 用它做调试刷新
+export function clearDailyStock() {
+  let n = 0;
+  for (const k of Object.keys(gameData)) {
+    const v = gameData[k];
+    if (v && typeof v === 'object' && typeof v.date === 'string' && Array.isArray(v.ids)) {
+      gameData[k] = null;
+      n++;
+    }
+  }
+  return n;
+}
+
+// 招式机图标（属性 → src/items/tm/ 下的文件）；妖精官方那版没有，先用超能图标占位
+export const TM_ICONS = {
+  '一般': 'tm/tm-normal.png', '格斗': 'tm/tm-fighting.png', '飞行': 'tm/tm-flying.png', '毒': 'tm/tm-poison.png',
+  '地面': 'tm/tm-ground.png', '岩石': 'tm/tm-rock.png', '虫': 'tm/tm-bug.png', '幽灵': 'tm/tm-ghost.png',
+  '钢': 'tm/tm-steel.png', '火': 'tm/tm-fire.png', '水': 'tm/tm-water.png', '草': 'tm/tm-grass.png',
+  '电': 'tm/tm-electric.png', '超能': 'tm/tm-psychic.png', '冰': 'tm/tm-ice.png', '龙': 'tm/tm-dragon.png',
+  '恶': 'tm/tm-dark.png', '妖精': 'tm/tm-fairy.png',
 };
 
 // 树果图标文件名（宝可梦喜欢的食物，位于 src/items/berries/ 与 src/items/berry-trees/ 目录）
@@ -161,14 +194,15 @@ export function pickFamily(pool, weightOf) {
 export function pickWeightedPokemon(rarityBoost, pool) {
   const source = pool || allPokemon;
   if (source.length === 0) return null;
-  const penalty = Math.max(0.2, 0.8 - rarityBoost * 0.5); // 正常 0.8，蜜 0.55，护符 0.45
-  return pickFamily(source, p => Math.max(0.01, 1 - (p.rarity ?? 0.5) * penalty));
+  const penalty = Math.max(0.2, 0.8 - rarityBoost * 0.5); // 正常 0.8，蜜 0.65，护符 0.55
+  // 三次方：线性权重下神兽只比常见稀有 3 倍（护符 1.6 倍），压平了稀有度梯度
+  return pickFamily(source, p => Math.pow(Math.max(0.01, 1 - (p.rarity ?? 0.5) * penalty), 3));
 }
 
 export function pickRandomPokemon() {
   if (allPokemon.length === 0) return null;
   const region = getCurrentRegion();
-  const pool = allPokemon.filter(p => p.region === region.name);
+  const pool = allPokemon.filter(p => p.region === region.name && !p.legend && !isPowerForm(p)); // 神兽与强化形态不进普通遇敌池
   if (pool.length === 0) return null;
   let rarityBoost = 0;
   if (honeyBuffActive) rarityBoost = Math.max(rarityBoost, HONEY_RARITY_BOOST);
@@ -176,10 +210,11 @@ export function pickRandomPokemon() {
   return pickWeightedPokemon(rarityBoost, pool);
 }
 
-// 孵蛋：全图鉴纯随机，不受地区限制、无稀有度加权
+// 孵蛋：全图鉴纯随机，不受地区限制、无稀有度加权（神兽与强化形态除外）
 export function pickAnyPokemon() {
-  if (allPokemon.length === 0) return null;
-  return pickFamily(allPokemon, () => 1);
+  const pool = allPokemon.filter(p => !p.legend && !isPowerForm(p));
+  if (pool.length === 0) return null;
+  return pickFamily(pool, () => 1);
 }
 
 // 树果方块：当前地区中 foods 与配方完全一致的宝可梦
@@ -189,6 +224,7 @@ export function findBerryTarget(recipe) {
   const sorted = [...recipe].sort((a, b) => a - b);
   return allPokemon.find(p =>
     p.region === region.name &&
+    !isPowerForm(p) &&
     Array.isArray(p.foods) &&
     p.foods.length === sorted.length &&
     sorted.every(s => p.foods.includes(s))
@@ -210,10 +246,11 @@ export function rollCandyMult() {
 }
 
 // 道具入库：背包/统计/日志统一处理（qty 支持糖果翻倍掉落）
-export function grantItem(itemKey, qty = 1) {
+// from 是来源标签（如 '派遣' / '悬赏'），日志渲染成「【派遣】获得 糖果 ×120」，方便看清来源
+export function grantItem(itemKey, qty = 1, from = null) {
   gameData.items[itemKey] = (gameData.items[itemKey] || 0) + qty;
   gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + qty;
-  addSystemLog('item_gain', { item: itemKey, qty });
+  addSystemLog('item_gain', { item: itemKey, qty, from: from || null });
   updateBackpack(itemKey);
   // 独立掉落提示：获得道具时显示「精灵球 + 1」/「糖果 ×5」，短暂停留后自动隐藏
   const hint = $('statDropHint');
@@ -243,6 +280,9 @@ let _dropCancelCb = null;
 // 立即取消并隐藏正在滑入/拾取的道具（返回是否真的有道具被取消）
 // 取消面前这件道具的演出。opts.collect=true 表示照常收下：
 // 道具在生成时已从累积值扣掉，白白取消等于没收玩家的东西）
+// 路面上是否已有一件正在滚入/等待拾取的道具（主循环按记录恢复前先问一句）
+export function hasActiveDrop() { return !!_dropCancelCb; }
+
 export function cancelItemDrop(opts = {}) {
   if (!_dropCancelCb) return false;
   _dropCancelCb(opts);
@@ -260,10 +300,12 @@ export function spawnItemDrop(itemKey, opts = {}) {
   const charEl = $('walkGif');
   if (!screen || !charEl) return false;
 
-  // 不在主界面（在其他页面挂机中）或页面本身不可见（浏览器/WebView 切走或最小化）：
-  // 后台直接模拟拾取入库，不播放滚动/拾取动画，避免恢复前台后逐一出补发动画
-  if (isPageHidden() || !isIdleStageVisible()) {
+  // 页面真的不可见（切后台/最小化/WebView 切走）：后台直接入账，不播滚动/拾取动画。
+  // 注意这里不再判断"舞台屏是否可见"——单屏下开着 app 页只是看不到舞台，掉落照常滚动拾取
+  if (isPageHidden()) {
     grantItem(itemKey, qty);
+    // 已即时入账：清掉恢复记录。否则主循环每 tick 都会按这条记录再发一次，变成每秒白送一件
+    if (gameData.roadItem && gameData.roadItem.key === itemKey) gameData.roadItem = null;
     saveGame(); // 后台入账立即存档，避免依赖 30 秒周期存档导致刷新丢日志/丢道具
     return true;
   }
@@ -274,7 +316,7 @@ export function spawnItemDrop(itemKey, opts = {}) {
 
   const el = document.createElement('img');
   el.className = 'item-fly';
-  el.src = `./items/${ITEM_ICONS[itemKey] || itemKey + '.png'}`;
+  el.src = itemIconSrc(itemKey);
   el.alt = ITEM_NAMES[itemKey] || itemKey;
   screen.appendChild(el);
   _dropEl = el;
@@ -356,7 +398,7 @@ export function spawnItemDrop(itemKey, opts = {}) {
   // 世界步（每步一次，与路面同速）：位置推进 + 拾取判定
   function step(spd) {
     if (!active) return;
-    if (!isIdleStageVisible()) return; // 离开主界面：冻结等待
+    // 舞台不可见（单屏下开着 app 页）不冻结：与双屏一致，照常滚动与拾取，看不见只是看不见
     itemX -= spd;
     // 剩余距离只写内存：随周期存档 / 切后台落盘，恢复时就能停在退出时的位置附近
     if (gameData.roadItem) gameData.roadItem.left = Math.max(0, Math.round(itemX - pickupX));
@@ -626,7 +668,7 @@ export async function hatchFromIncubator(slotIndex) {
   const parent = oldImg.parentNode;
 
   const tmp = new Image();
-  tmp.src = './items/hatch.png';
+  tmp.src = './items/goods/hatch.png';
   await new Promise(r => { tmp.onload = r; tmp.onerror = r; });
   const frameW = tmp.naturalWidth;
   const frameH = tmp.naturalHeight / 4;
@@ -638,7 +680,7 @@ export async function hatchFromIncubator(slotIndex) {
   sprite.id = 'hatchGif';
   sprite.className = 'encounter-gif';
   sprite.style.cssText = `
-    background-image: url(./items/hatch.png);
+    background-image: url(./items/goods/hatch.png);
     background-size: ${displayW}px ${displayH * 4}px;
     background-position: 0 0;
     background-repeat: no-repeat;
@@ -901,7 +943,7 @@ function hatchCellGender(slot, poke) {
 async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender) {
   // 蛋精灵：与单只孵蛋动画同源（hatch.png 竖排 4 帧）
   const tmp = new Image();
-  tmp.src = './items/hatch.png';
+  tmp.src = './items/goods/hatch.png';
   await new Promise(r => { tmp.onload = r; tmp.onerror = r; });
   const frameW = tmp.naturalWidth;
   const frameH = tmp.naturalHeight / 4;
@@ -910,7 +952,7 @@ async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender) {
   const sprite = document.createElement('div');
   sprite.className = 'hatch-all-egg';
   sprite.style.cssText = `
-    background-image: url(./items/hatch.png);
+    background-image: url(./items/goods/hatch.png);
     background-size: ${displayW}px ${displayH * 4}px;
     background-position: 0 0;
     background-repeat: no-repeat;
@@ -984,7 +1026,7 @@ export async function doCandyExchange(itemKey, qty = 1) {
   updateStats();
   if ($('shopView')?.style.display === 'flex') {
     const { showShopView } = await import('./views.js');
-    showShopView();
+    showShopView({ keepScroll: true });
   }
 }
 
@@ -1000,7 +1042,7 @@ export async function doSellBall(itemKey, qty = 1) {
   updateStats();
   if ($('shopView')?.style.display === 'flex') {
     const { showShopView } = await import('./views.js');
-    showShopView();
+    showShopView({ keepScroll: true });
   }
 }
 
@@ -1065,6 +1107,7 @@ export function activateShinyCharm() {
   setCharmEncounterCount(0);
   addSystemLog('item_use', { item: 'shiny-charm' });
   setCharmBuffActive(true);
+  setCharmGuaranteed(true); // 保底：下一只遭遇必定闪光（不然 60 秒里遇不到闪会像白花钱）
   setIdleCharacter('walk');
   particles.stop();
   particles.start('rgba(180,230,255,1)', 'star');
@@ -1114,6 +1157,7 @@ export function handleHoneyExpired() {
 
 export function handleCharmExpired() {
   setCharmBuffActive(false);
+  setCharmGuaranteed(false);
   setCharmCountdownEnd(0);
   clearCharmCountdown();
   showBuffExpired('charm');
@@ -1205,6 +1249,7 @@ export function restoreHoneyRecord(rec, keepPaused) {
 
 export function restoreCharmRecord(rec, keepPaused) {
   if (rec?.count) setCharmEncounterCount(rec.count);
+  if (rec) setCharmGuaranteed(!!rec.guaranteed);
   const { left, total } = buffLeft(rec);
   if (!rec || !total) {
     if (rec) { setCharmBuffActive(false); clearCharmCountdown(); }

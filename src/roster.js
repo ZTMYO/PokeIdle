@@ -2,8 +2,8 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea } from './ui.js';
-import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
-import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
+import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
+import { TYPE_COLORS, typeIconColor, pokemonSourceBadge } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL } from './config.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
@@ -559,30 +559,36 @@ function currentMoveIds(p) {
     });
   }
   const pd = getPokemonByIndex(String(p.species));
-  return chooseMoves(_learnset[p.species] || {}, p.level || 1, _moveData, { types: pd ? pd.types : [], includeTm: true });
+  return chooseMoves(_learnset[p.species] || {}, p.level || 1, _moveData, { types: pd ? pd.types : [], tmIds: unlockedTmIds(), allowEgg: p.source === 'egg' });
 }
 
 // 可学习候选：升级习得（≤当前等级）+ 蛋招式 + 招式机，过滤未实现招式，按学习等级升序（TM 排最后）
+// 门禁：招式机要先在商店解锁，蛋招式只对孵蛋个体（source==='egg'）开放；同一招式有多条渠道时取可用的那条
 function candidateMoves(p) {
   const ls = _learnset[p.species] || { lv: [], tm: [], egg: [] };
+  const hatched = p.source === 'egg';
   const out = [];
   for (const [lv, m] of ls.lv || []) {
     if (lv <= (p.level || 1)) out.push({ id: m, lv, egg: false });
   }
-  for (const m of ls.egg || []) out.push({ id: m, lv: null, egg: true });
-  for (const m of ls.tm || []) out.push({ id: m, lv: null, tm: true });
-  const seen = new Set();
-  const res = [];
+  for (const m of ls.egg || []) out.push({ id: m, lv: null, egg: true, locked: !hatched });
+  for (const m of ls.tm || []) out.push({ id: m, lv: null, tm: true, locked: !isTmUnlocked(m) });
+  const byId = new Map();
   for (const c of out) {
-    if (seen.has(c.id)) continue;
+    const prev = byId.get(c.id);
+    if (!prev) { byId.set(c.id, c); continue; }
+    if (prev.locked && !c.locked) byId.set(c.id, c); // 优先保留可用的渠道
+  }
+  const res = [];
+  for (const c of byId.values()) {
     const mv = _moveData.moves[c.id];
     if (!mv || mv.effect.kind === 'unimplemented') continue;
-    seen.add(c.id);
     res.push(c);
   }
   // 学不到任何已实现招式（如百变怪只有变身、图图犬只有写生且均未实装）：
   // 候选列表补通用兜底攻击招，保证配招页有招可选、移除后可恢复
   if (res.length === 0) {
+    const seen = new Set();
     for (const id of fallbackMoves(_moveData)) {
       if (seen.has(id)) continue;
       seen.add(id);
@@ -599,7 +605,7 @@ function movesBlockHtml(p) {
     const mv = ids[i] ? _moveData.moves[ids[i]] : null;
     return `<div class="roster-move-slot${mv ? '' : ' empty'}" data-move="${mv ? ids[i] : ''}">
       ${mv
-        ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
+        ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};color:${typeIconColor(mv.type)}">
              <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
            </span>
            <span class="roster-move-slot-name">${mv.name}</span>`
@@ -634,7 +640,7 @@ function bindMovesBlock(id) {
   if (!p) return;
   box.querySelector('#rosterAutoSet')?.addEventListener('click', () => {
     const pd = getPokemonByIndex(String(p.species));
-    p.moves = chooseMoves(_learnset[p.species] || {}, p.level || 1, _moveData, { types: pd ? pd.types : [], includeTm: true });
+    p.moves = chooseMoves(_learnset[p.species] || {}, p.level || 1, _moveData, { types: pd ? pd.types : [], tmIds: unlockedTmIds(), allowEgg: p.source === 'egg' });
     saveGame();
     renderMovesBlock(id);
   });
@@ -653,8 +659,8 @@ function bindMovesBlock(id) {
 // ---------- 手动配招独立页 ----------
 const MOVE_STATUS_CN = { sleep: '睡眠', poison: '中毒', paralysis: '麻痹', burn: '灼伤', confusion: '混乱', flinch: '畏缩', freeze: '冰冻' };
 
-// 招式类别 → 图标文件与中文名（物理/特殊/变化；伤害类招式按 effect.cat 归类）
-const MOVE_CAT_ICON = { phys: 'physical.png', spec: 'special.png', status: 'status.png' };
+// 招式类别 → 中文名与 CSS 类（物理/特殊/变化；伤害类招式按 effect.cat 归类）
+// 图形由 CSS mask 上色（源图是白色位图），颜色跟随 --ui-color-dark
 const MOVE_CAT_CN = { phys: '物理', spec: '特殊', status: '变化' };
 function moveCat(mv) {
   const ef = mv.effect || {};
@@ -663,13 +669,14 @@ function moveCat(mv) {
   }
   return 'status';
 }
-function catIconHtml(mv) {
+// 招式类别图标 / 招式描述：配招页与商店的招式机详情共用
+export function catIconHtml(mv) {
   const c = moveCat(mv);
-  return `<span class="move-cat-icon"><img src="./icons/${MOVE_CAT_ICON[c]}" alt="${MOVE_CAT_CN[c]}" data-tip="${MOVE_CAT_CN[c]}"></span>`;
+  return `<span class="move-cat-icon cat-${c}" data-tip="${MOVE_CAT_CN[c]}" aria-label="${MOVE_CAT_CN[c]}"></span>`;
 }
 
 // 按 effect.kind 生成招式描述
-function moveDesc(mv) {
+export function moveDesc(mv) {
   const ef = mv.effect || {};
   switch (ef.kind) {
     case 'damage': {
@@ -712,8 +719,13 @@ function moveDesc(mv) {
   }
 }
 
-// 把选中的招式装入指定槽位（已在其它槽则顺移，保留空位）
+// 把选中的招式装入指定槽位（已在其它槽则顺移，保留空位）；未解锁的招式机/蛋招式在这里统一拦截
 function assignMove(p, moveId, slot) {
+  const cand = candidateMoves(p).find((c) => c.id === moveId);
+  if (cand && cand.locked) {
+    showConfirmBar(cand.tm ? '该招式机还没解锁，去商店解锁' : '蛋招式只能由孵蛋获得的宝可梦学习', null, { singleButton: true });
+    return;
+  }
   const cur = currentMoveIds(p); // 手动配过则基于 p.moves，否则基于自动配招（避免首次操作清空自动配招）
   const arr = [0, 1, 2, 3].map((i) => cur[i] ?? null);
   if (arr[slot] === moveId) return;
@@ -721,6 +733,38 @@ function assignMove(p, moveId, slot) {
   if (oldIdx >= 0) arr[oldIdx] = null;
   arr[slot] = moveId;
   p.moves = arr;
+}
+
+// 已解锁招式机的 id 集合（传进 chooseMoves 控制自动配招能用的招）
+function unlockedTmIds() {
+  return new Set(Object.keys(gameData.tmUnlocked || {}).map(Number));
+}
+
+// 招式数据（moves.json + learnset.json）：商店的招式机区块读表用
+export async function moveDataset() {
+  await ensureMoveData();
+  return { moves: _moveData, learnset: _learnset };
+}
+
+// 解锁招式机后调用：能给这招的个体全部学会。
+// 已手动配过招的个体只在空槽里装（满 4 招的是玩家自己的配置，不覆盖）；没配过的走自动配招池，天然会带上这招。
+export function learnTmForAll(moveId) {
+  let n = 0;
+  for (const p of gameData.roster || []) {
+    if (!p.inRoster || (p.kind && p.kind === 'egg')) continue;
+    const ls = _learnset && _learnset[String(p.species)];
+    if (!ls || !(ls.tm || []).includes(moveId)) continue;
+    const cur = currentMoveIds(p);
+    if (cur.includes(moveId)) { n++; continue; }
+    if (!Array.isArray(p.moves) || !p.moves.length) continue; // 未手动配招：自动配招没选上就不强塞
+    const free = [0, 1, 2, 3].find((i) => cur[i] == null);
+    if (free == null) continue;
+    const arr = [0, 1, 2, 3].map((i) => cur[i] ?? null);
+    arr[free] = moveId;
+    p.moves = arr;
+    n++;
+  }
+  return n;
 }
 
 export function isRosterInMoveEdit() {
@@ -784,6 +828,7 @@ function bindMoveEditDrag(box) {
       const t = document.createElement('span');
       t.className = 'b-move-type';
       t.style.background = TYPE_COLORS[info.type] || '#888';
+      t.style.color = typeIconColor(info.type);
       t.innerHTML = `<svg class="b-move-type-icon"><use xlink:href="#icon-type-${info.type}"></use></svg>`;
       g.appendChild(t);
     }
@@ -951,7 +996,7 @@ export function renderMoveEditor() {
         const mv = ids[i] ? _moveData.moves[ids[i]] : null;
         return `<div class="move-edit-slot${mv ? '' : ' empty'}" data-slot="${i}"${mv ? '' : ' title="点击装入选中的招式"'}>
           ${mv
-            ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
+            ? `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};color:${typeIconColor(mv.type)}">
                  <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
                </span>
                <span class="move-edit-slot-name">${mv.name}</span>
@@ -968,8 +1013,8 @@ export function renderMoveEditor() {
           const mv = _moveData.moves[c.id];
           const active = ids.includes(c.id);
           const sel = c.id === _moveSel;
-          return `<button class="move-edit-row${active ? ' active' : ''}${sel ? ' sel' : ''}" data-move="${c.id}">
-            <span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'}">
+          return `<button class="move-edit-row${active ? ' active' : ''}${sel ? ' sel' : ''}${c.locked ? ' locked' : ''}" data-move="${c.id}">
+            <span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};color:${typeIconColor(mv.type)}">
               <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
             </span>
             <span class="move-edit-row-name">${mv.name}</span>
@@ -1034,7 +1079,7 @@ function renderMoveDetail(p, ids) {
   }
   return `
     <div class="move-edit-detail-head">
-      <span class="b-move-type big" style="background:${TYPE_COLORS[mv.type] || '#888'}">
+      <span class="b-move-type big" style="background:${TYPE_COLORS[mv.type] || '#888'};color:${typeIconColor(mv.type)}">
         <svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg>
       </span>
       <div class="move-edit-detail-name">${mv.name}</div>

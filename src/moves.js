@@ -3,7 +3,8 @@
 //   learnsetEntry: { lv:[[等级,招式id]...], tm:[], egg:[] }
 //   level: 当前等级
 //   data: moves.json（{ id2name, moves }）
-//   opts: { includeTm: false, types: [] }
+//   opts: { types: [], includeTm: false, tmIds: Set, allowEgg: false }
+//         tmIds 传了集合就只收已解锁的招式机招；allowEgg 为真才收蛋招式（孵蛋个体专属）
 // 输出：[招式id, ...] 最多 4 个
 
 export function chooseMoves(learnsetEntry, level, data, opts = {}) {
@@ -16,8 +17,9 @@ export function chooseMoves(learnsetEntry, level, data, opts = {}) {
     if (!lvMap.has(m) || l < lvMap.get(m)) lvMap.set(m, l);
   }
   for (const [m, l] of lvMap) if (l <= level) cands.push(m);
-  for (const m of learnsetEntry.egg || []) cands.push(m);
-  if (includeTm) for (const m of learnsetEntry.tm || []) cands.push(m);
+  if (opts.allowEgg) for (const m of learnsetEntry.egg || []) cands.push(m);
+  if (opts.tmIds) { for (const m of learnsetEntry.tm || []) if (opts.tmIds.has(m)) cands.push(m); }
+  else if (includeTm) for (const m of learnsetEntry.tm || []) cands.push(m);
 
   const ok = new Set();
   for (const m of cands) {

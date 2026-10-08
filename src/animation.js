@@ -4,9 +4,9 @@ import { gameData, rarityLabel } from './state.js';
 
 // 精灵球捕捉动画用的图片（位于 src/items/）
 const BATTLE_BALLS = {
-  'poke-ball': { closed: 'ball-00.png', open: 'ball-00-open.png' },
-  'ultra-ball': { closed: 'ball-03.png', open: 'ball-03-open.png' },
-  'master-ball': { closed: 'ball-04.png', open: 'ball-04-open.png' },
+  'poke-ball': { closed: 'balls/ball-00.png', open: 'balls/ball-00-open.png' },
+  'ultra-ball': { closed: 'balls/ball-03.png', open: 'balls/ball-03-open.png' },
+  'master-ball': { closed: 'balls/ball-04.png', open: 'balls/ball-04-open.png' },
 };
 
 export function delay(ms) { return new Promise(r => setTimeout(r, ms)); }

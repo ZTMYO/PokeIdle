@@ -4129,7 +4129,6 @@ html.mobile-app #quitHide { display: none !important; }
   border-radius: 4px;
   background: var(--item-bg);
 }
-.shop-item.disabled { opacity: 0.35; pointer-events: none; }
 .shop-item-left {
   display: flex;
   align-items: center;
@@ -5303,25 +5302,30 @@ html.mobile-app #quitHide { display: none !important; }
   .move-edit-row:hover { background: rgba(255,255,255,0.25); }
 }
 /* 招式类别图标（物理/特殊/变化）：详情面板「类别」行展示，hover 用自制 tooltip */
+/* 招式类别（物理/特殊/变化）：源图是白色位图，用 mask 直接染成和数值同色（--ui-color-dark） */
 .move-cat-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-block;
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  cursor: pointer;
+  background-color: var(--ui-color-dark);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
-.move-cat-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
+.move-cat-icon.cat-phys { -webkit-mask-image: url('./icons/physical.png'); mask-image: url('./icons/physical.png'); }
+.move-cat-icon.cat-spec { -webkit-mask-image: url('./icons/special.png'); mask-image: url('./icons/special.png'); }
+.move-cat-icon.cat-status { -webkit-mask-image: url('./icons/status.png'); mask-image: url('./icons/status.png'); }
 .move-edit-detail-stats b { display: inline-flex; align-items: center; }
 .move-edit-row.active { background: rgba(var(--ui-color-rgb),0.18); box-shadow: inset 2px 0 0 var(--ui-color); }
 .move-edit-row.sel { border: 1px solid var(--ui-color); background: rgba(var(--ui-color-rgb),0.22); }
 .move-edit-row-lv { flex-shrink: 0; margin-left: auto; font-size: 9px; color: var(--ui-color); }
+/* 未解锁的招式机 / 蛋招式：灰化但仍可查看详情 */
+.move-edit-row.locked { opacity: 0.45; }
+.move-edit-row.locked .move-edit-row-lv { color: var(--color-muted); }
 .move-edit-detail {
   flex: 1;
   min-width: 0;
@@ -6086,6 +6090,7 @@ body.booting { visibility: hidden; }
 }
 .t-novice   { background: #57a86a; }
 .t-veteran  { background: #4a78c9; }
+.t-leader   { background: #9a6bc9; }
 .t-champion { background: #c9a13c; }
 .npc-name {
   font-size: 12px;
@@ -6629,11 +6634,13 @@ body.booting { visibility: hidden; }
 /* 战斗背景按 NPC 难度着色：普通绿 / 精英蓝 / 冠军金 */
 .battle-fight.t-novice, .battle-result.t-novice { background: #a9dcc0; }
 .battle-fight.t-veteran, .battle-result.t-veteran { background: #8fb6e0; }
+.battle-fight.t-leader, .battle-result.t-leader { background: #c0a5e0; }
 .battle-fight.t-champion, .battle-result.t-champion { background: #dcc06a; }
-/* 夜间模式三档 NPC 战斗背景统一为遭遇页暗色（不改 .battle-fight 上 filter，避免连内部内容一起降亮；
-   难度差异仅保留在 screen 边框三色） */
+/* 夜间模式各档 NPC 战斗背景统一为遭遇页暗色（不改 .battle-fight 上 filter，避免连内部内容一起降亮；
+   难度差异仅保留在 screen 边框四色） */
 [data-theme="dark"] .battle-fight.t-novice, [data-theme="dark"] .battle-result.t-novice,
 [data-theme="dark"] .battle-fight.t-veteran, [data-theme="dark"] .battle-result.t-veteran,
+[data-theme="dark"] .battle-fight.t-leader, [data-theme="dark"] .battle-result.t-leader,
 [data-theme="dark"] .battle-fight.t-champion, [data-theme="dark"] .battle-result.t-champion {
   background: var(--screen-bg);
 }
@@ -10753,3 +10760,70 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   width: 100%;
   height: 100%;
 }
+
+/* ===== 商店的招式机区块（行样式与道具行一致，只把左侧图标换成属性徽章）===== */
+.shop-tm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(var(--ui-color-rgb), 0.15);
+  color: var(--ui-color);
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+/* ===== 商店详情卡片：贴在商店页容器内，点空白关闭（外观对齐关闭确认框） ===== */
+#shopView { position: relative; }
+.shop-detail-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+}
+.shop-detail-card {
+  position: relative;
+  width: 72%;
+  max-width: 200px;
+  max-height: 70%;
+  overflow-y: auto;
+  padding: 9px 11px;
+  border: 2px solid var(--ui-color);
+  border-radius: 6px;
+  background: var(--console-body);
+  color: var(--ui-color);
+  text-align: center;
+}
+.shop-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+.shop-detail-name { font-size: 12px; font-weight: 700; color: var(--ui-color); }
+.shop-detail-card .shop-icon { width: 20px; height: 20px; }
+.shop-detail-card .move-edit-detail-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.shop-detail-card .move-edit-detail-stats > div { padding: 3px 6px; }
+.shop-detail-card .move-edit-detail-stats span { font-size: 10px; }
+.shop-detail-card .move-edit-detail-stats b { font-size: 11px; }
+/* 卡片里的属性徽章：列表用的 12px 在这里太小，看不清属性 */
+.shop-detail-card .b-move-type { width: 14px; height: 14px; border-radius: 4px; }
+.shop-detail-card .b-move-type-icon { width: 9px; height: 9px; }
+.shop-detail-card .move-cat-icon { width: 14px; height: 14px; }
+.shop-detail-desc {
+  margin-top: 6px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  background: rgba(var(--ui-color-rgb), 0.08);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--ui-color);
+  text-align: left;
+  white-space: pre-line;
+}
+.shop-btn.inert { opacity: 0.35; pointer-events: none; }

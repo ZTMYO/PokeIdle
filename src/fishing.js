@@ -2,7 +2,7 @@
 // 进入有垂钓点的路段后停下钓鱼一次：甩竿 → 等待上钩（随机6~30s）→ 上钩抖动 → 收获随机道具×1~10
 import { ITEM_NAMES, ITEM_RATES, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX } from './config.js';
 import { ITEM_ICONS, clearHoneyCountdown, clearCharmCountdown, startHoneyCountdown, startCharmCountdown, pickFamily } from './items.js';
-import { phase, gameData, nextEncounterTimer, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, _itemDropActive, _fishing, gameTick, allPokemon, getCurrentRegion, setFishing, setNextEncounterTimer, saveGame, addSystemLog, randInt, rand, setHoneyBuffActive, setCharmBuffActive, setHoneyCountdownEnd, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval } from './state.js';
+import { phase, gameData, nextEncounterTimer, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, _itemDropActive, _fishing, gameTick, allPokemon, getCurrentRegion, isPowerForm, setFishing, setNextEncounterTimer, saveGame, addSystemLog, randInt, rand, setHoneyBuffActive, setCharmBuffActive, setHoneyCountdownEnd, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval } from './state.js';
 import { $, setIdleCharacter, updateBackpack, updateStats, getCharPrefix } from './ui.js';
 import { showFishingWait, showFishingResult, showBuffExpired } from './messages.js';
 import { delay } from './animation.js';
@@ -306,8 +306,8 @@ function pickFishingReward() {
 function pickFishingPokemon() {
   const regionName = getCurrentRegion().name;
   const pool = allPokemon.filter(p => p.region === regionName);
-  const rarePool = pool.filter(p => (p.rarity || 0.5) > 0.8);      // 极稀有
-  const waterPool = pool.filter(p => (p.types || []).includes('水')); // 水系（含双属性）
+  const rarePool = pool.filter(p => (p.rarity || 0.5) > 0.8 && !p.legend && !isPowerForm(p)); // 极稀有（神兽只从时空扭曲来）
+  const waterPool = pool.filter(p => (p.types || []).includes('水') && !p.legend && !isPowerForm(p)); // 水系（含双属性）
   // FISH_RARE_RATE 比例钓到极稀有 / 其余为当地水系；选定池子为空则退回另一池
   const wantRare = Math.random() < FISH_RARE_RATE;
   let candidates = wantRare ? rarePool : waterPool;

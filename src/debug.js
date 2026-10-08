@@ -9,13 +9,14 @@
 //   __addPokeLv(25, 50)               写入指定等级
 //   __unlockAllPokedex(true)          解锁全图鉴（含闪光）
 //   __nextEncounter(25, true)         指定下次遇敌（用后即焚）
-//   __refreshAll()                    一键刷新：对战/交换/大量出没/时空扭曲
+//   __refreshAll()                    一键刷新：对战/交换/大量出没/时空扭曲/商店每日限量货
 //   __npcTeam(25, 6, 149)             对战 NPC 全部使用指定精灵
 import {
   gameData, allPokemon, getPokemonByIndex, addRosterEntry, saveGame,
   ensureGpsState, setLastRegionId, syncGpsPosition, rollGender, rollNature,
 } from './state.js';
 import { REGION_CYCLE } from './config.js';
+import { clearDailyStock } from './items.js';
 import { $, updateBackpack, updateStats, renderIncubatorView, updateIncubatorBadge } from './ui.js';
 import { refreshBerryView } from './berry.js';
 import { showGpsView } from './gps.js';
@@ -169,8 +170,9 @@ window.__nextEncounter = (idx, shiny = false) => {
   console.log(`__nextEncounter: 下次遇敌已指定为 ${poke ? poke.name : '#' + idx}${shiny ? '（闪光）' : ''}，用后即焚`);
 };
 
-// 一键刷新：对战/交换/大量出没/时空扭曲（只重置生成与倒计时，不改变当前位置）
+// 一键刷新：对战/交换/大量出没/时空扭曲/商店每日限量货（只重置生成与倒计时，不改变当前位置）
 window.__refreshAll = () => {
+  const stock = clearDailyStock();
   refreshNpcs();
   refreshTrades();
   forceRefreshMassOutbreak();
@@ -178,9 +180,11 @@ window.__refreshAll = () => {
   if ($('gpsView')?.style.display === 'flex') showGpsView();
   const mo = gameData.massOutbreak;
   const tw = gameData.twist;
-  console.log(`对战、交换已刷新；大量出没剩余 ${mo ? mo.remain : 0} 只，时空扭曲剩余 ${tw ? tw.remain : 0} 只（位置不变）`);
+  console.log(`对战、交换已刷新；大量出没剩余 ${mo ? mo.remain : 0} 只，时空扭曲剩余 ${tw ? tw.remain : 0} 只（位置不变）`
+    + (stock ? `；商店每日限量货已重抽（${stock} 类）` : ''));
   if ($('battleView')?.style.display !== 'none' && !isBattleActive()) renderBattleList();
   if ($('tradeView')?.style.display !== 'none') renderTrade();
+  if (stock && $('shopView')?.style.display === 'flex') import('./views.js').then((m) => m.showShopView());
 };
 
 // 刷新一波对战 NPC，并让全部 NPC 的队伍都使用指定的宝可梦

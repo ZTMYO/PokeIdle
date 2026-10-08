@@ -375,7 +375,7 @@
               </div>
               <!-- 捕捉动画舞台 -->
               <div class="catch-stage" id="catchStage">
-                <img id="animBall" class="anim-ball" src="./items/poke-ball.png" alt="精灵球" />
+                <img id="animBall" class="anim-ball" src="./items/balls/poke-ball.png" alt="精灵球" />
                 <div id="animStars"
                   style="position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:4;"></div>
                 <div id="animMsg" class="catch-msg"></div>
@@ -730,13 +730,13 @@
               <div class="splash-stage">
                 <img class="splash-hero" src="./character/brendan-front.png" alt="" />
                 <div class="splash-ring" id="splashRing">
-                  <img class="splash-item" style="--i:0" src="./items/poke-ball.png" alt="" />
-                  <img class="splash-item" style="--i:1" src="./items/ultra-ball.png" alt="" />
-                  <img class="splash-item" style="--i:2" src="./items/master-ball.png" alt="" />
-                  <img class="splash-item" style="--i:3" src="./items/mystery-egg.png" alt="" />
-                  <img class="splash-item" style="--i:4" src="./items/honey.png" alt="" />
-                  <img class="splash-item" style="--i:5" src="./items/shiny-charm.png" alt="" />
-                  <img class="splash-item splash-item--sm" style="--i:6" src="./items/candy.png" alt="" />
+                  <img class="splash-item" style="--i:0" src="./items/balls/poke-ball.png" alt="" />
+                  <img class="splash-item" style="--i:1" src="./items/balls/ultra-ball.png" alt="" />
+                  <img class="splash-item" style="--i:2" src="./items/balls/master-ball.png" alt="" />
+                  <img class="splash-item" style="--i:3" src="./items/goods/mystery-egg.png" alt="" />
+                  <img class="splash-item" style="--i:4" src="./items/goods/honey.png" alt="" />
+                  <img class="splash-item" style="--i:5" src="./items/goods/shiny-charm.png" alt="" />
+                  <img class="splash-item splash-item--sm" style="--i:6" src="./items/goods/candy.png" alt="" />
                 </div>
               </div>
             </div>
@@ -747,7 +747,7 @@
             <div class="goodbye-xp-pool" id="goodbyeXpPool" style="display:none;">
               <div class="expcandy-expbar"><div class="expcandy-expfill" id="goodbyeXpFill"></div></div>
               <div class="goodbye-xp-pool-text" id="goodbyeXpText"></div>
-              <img class="goodbye-xp-candy" id="goodbyeXpCandy" src="./items/xp-candy.png" alt="经验糖果" style="display:none;" />
+              <img class="goodbye-xp-candy" id="goodbyeXpCandy" src="./items/goods/xp-candy.png" alt="经验糖果" style="display:none;" />
             </div>
             <div class="encounter-right" id="goodbyeRight" style="display:none;">
               <span class="encounter-owned-wrap" style="display:none;">
@@ -820,44 +820,44 @@
       <div class="backpack-items" id="backpack">
         <div id="bagPage1" class="bag-page">
           <div class="bag-slot" data-item="poke-ball">
-            <img src="./items/poke-ball.png" class="bag-icon" alt="精灵球" />
+            <img src="./items/balls/poke-ball.png" class="bag-icon" alt="精灵球" />
             <span class="bag-name">精灵球</span>
             <span class="bag-qty" id="bag-poke-ball">0</span>
           </div>
           <div class="bag-slot" data-item="ultra-ball">
-            <img src="./items/ultra-ball.png" class="bag-icon" alt="高级球" />
+            <img src="./items/balls/ultra-ball.png" class="bag-icon" alt="高级球" />
             <span class="bag-name">高级球</span>
             <span class="bag-qty" id="bag-ultra-ball">0</span>
           </div>
           <div class="bag-slot" data-item="master-ball">
-            <img src="./items/master-ball.png" class="bag-icon" alt="大师球" />
+            <img src="./items/balls/master-ball.png" class="bag-icon" alt="大师球" />
             <span class="bag-name">大师球</span>
             <span class="bag-qty" id="bag-master-ball">0</span>
           </div>
           <div class="bag-slot" data-item="mystery-egg">
-            <img src="./items/mystery-egg.png" class="bag-icon" alt="神秘蛋" />
+            <img src="./items/goods/mystery-egg.png" class="bag-icon" alt="神秘蛋" />
             <span class="bag-name">神秘蛋</span>
             <span class="bag-qty" id="bag-mystery-egg">0</span>
           </div>
           <div class="bag-slot" data-item="sweet-honey">
-            <img src="./items/honey.png" class="bag-icon" alt="甜甜蜜" />
+            <img src="./items/goods/honey.png" class="bag-icon" alt="甜甜蜜" />
             <span class="bag-name">甜甜蜜</span>
             <span class="bag-qty" id="bag-sweet-honey">0</span>
           </div>
           <div class="bag-slot" data-item="shiny-charm">
-            <img src="./items/shiny-charm.png" class="bag-icon" alt="闪耀护符" />
+            <img src="./items/goods/shiny-charm.png" class="bag-icon" alt="闪耀护符" />
             <span class="bag-name">闪耀护符</span>
             <span class="bag-qty" id="bag-shiny-charm">0</span>
           </div>
         </div>
         <div id="bagPage2" class="bag-page" style="display:none;">
           <div class="bag-slot" data-item="bike">
-            <img src="./items/bike.png" class="bag-icon" alt="自行车" />
+            <img src="./items/goods/bike.png" class="bag-icon" alt="自行车" />
             <span class="bag-name">自行车</span>
             <span class="bag-qty" id="bag-bike">0</span>
           </div>
           <div class="bag-slot" data-item="exp-candy">
-            <img src="./items/xp-candy.png" class="bag-icon" alt="经验糖果" />
+            <img src="./items/goods/xp-candy.png" class="bag-icon" alt="经验糖果" />
             <span class="bag-name">经验糖果</span>
             <span class="bag-qty" id="bag-exp-candy">0</span>
           </div>
@@ -869,7 +869,7 @@
         </div>
       </div>
       <div class="stats-bar">
-        <span id="statProgress"><img src="./items/candy.png"
+        <span id="statProgress"><img src="./items/goods/candy.png"
             style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> 0</span>
         <span id="statDropHint" class="stat-drop-hint" style="display:none;"></span>
         <span id="statAutoStatus" class="stat-auto-status"><span id="statAutoText"></span><span

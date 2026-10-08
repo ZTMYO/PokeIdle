@@ -14,7 +14,7 @@ import {
   TWIST_SHINY_CHANCE, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE,
 } from './config.js';
 import {
-  gameData, allPokemon, getPokemonByIndex, getMassOutbreak, getTwist, honeyBuffActive, phase,
+  gameData, allPokemon, getPokemonByIndex, isPowerForm, getMassOutbreak, getTwist, honeyBuffActive, phase,
   randInt, rand, saveGame, addSystemLog, inMassZone, inTwistZone, normalizeMassRemainToEnd, _fishing,
 } from './state.js';
 import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView, isIdleStageVisible } from './ui.js';
@@ -22,7 +22,14 @@ import { endCycling } from './audio.js';
 import { MAP_EDGES, showGpsView } from './gps.js';
 import { startMassEncounter, startTwistEncounter, scheduleNextEncounter } from './battle.js';
 import { notifyMassStart, notifyMassEnd, massMsgTick, notifyTwistStart, notifyTwistEnd, twistMsgTick } from './messages.js';
-import { pickFamily } from './items.js';
+import { pickFamily, pickWeightedPokemon } from './items.js';
+
+// 扭曲池跨地区、条目多：均匀随机会让神兽过密（约占 7.5%），按稀有度加权后降到 2% 左右
+function pickTwistPoke(tw) {
+  const list = (tw?.pool || []).map(i => getPokemonByIndex(i)).filter(p => p && !isPowerForm(p));
+  if (!list.length) return null;
+  return pickWeightedPokemon(0, list) || list[0];
+}
 import * as road from './road.js';
 
 // ===== 生成 / 结束 =====
@@ -56,7 +63,7 @@ function spawnMassOutbreak() {
   // 事件宝可梦：从事件点归属地区随机选（t<0.5 归小号端地区，否则归大号端）
   const regionIdx = t < 0.5 ? Math.min(edge[0], edge[1]) : Math.max(edge[0], edge[1]);
   const regionName = REGION_CYCLE[regionIdx];
-  const pool = allPokemon.filter(p => p.region === regionName);
+  const pool = allPokemon.filter(p => p.region === regionName && !p.legend && !isPowerForm(p)); // 神兽与强化形态不进大量出没（一次事件十几只，会变成批发）
   if (pool.length === 0) {
     gameData.massNextGenAt = Date.now() + randInt(10, 30) * 60000; // 该地区无精灵则稍后重试
     return;
@@ -327,7 +334,7 @@ function spawnTwist() {
   // 事件点归属地区（t<0.5 归小号端地区，否则归大号端）；池 = 该地区以外的全部宝可梦
   const regionIdx = t < 0.5 ? Math.min(edge[0], edge[1]) : Math.max(edge[0], edge[1]);
   const regionName = REGION_CYCLE[regionIdx];
-  const pool = allPokemon.filter(p => p.region !== regionName);
+  const pool = allPokemon.filter(p => p.region !== regionName && !isPowerForm(p));
   if (pool.length === 0) {
     gameData.twistNextGenAt = Date.now() + randInt(10, 30) * 60000; // 无可用池则稍后重试
     return;
@@ -462,7 +469,7 @@ function spawnTwistPoke() {
   const saved = tw.cur && tw.pool.includes(tw.cur.species) ? tw.cur : null;
   const poke = saved
     ? getPokemonByIndex(saved.species)
-    : getPokemonByIndex(tw.pool[randInt(0, tw.pool.length - 1)]);
+    : pickTwistPoke(tw);
   const screen = $('screen');
   const charEl = $('walkGif');
   if (!poke || !screen || !charEl) return;
@@ -523,7 +530,7 @@ function despawnTwistPoke() {
 function hitTwistPoke() {
   const tw = gameData?.twist;
   if (!tw) { despawnTwistPoke(); return; }
-  const poke = _twistPoke || getPokemonByIndex(tw.pool[randInt(0, tw.pool.length - 1)]);
+  const poke = _twistPoke || pickTwistPoke(tw);
   const shiny = _twistPokeShiny;
   const variant = _twistVariant;
   despawnTwistPoke();
