@@ -5,7 +5,7 @@
 // 只有今日到访过的地区才显示悬赏内容（离开后仍可查看）；提交必须到达该地区。
 import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon } from './state.js';
-import { $, showView, updateStats, tryLoadImage, logicViewport } from './ui.js';
+import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
 import { pickFamily, pokemonSourceBadge } from './items.js';
 
@@ -533,9 +533,10 @@ function showBountyContextMenu(ignored, regionIdx, bi, x, y) {
   menu.innerHTML = `<div class="shop-ctx-item" data-region="${regionIdx}" data-bi="${bi}">${ignored ? '恢复红点提醒' : '忽略此悬赏'}</div>`;
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
-  menu.style.left = Math.max(0, Math.min(lx - 24, vw - mw - 4)) + 'px';
-  menu.style.top = Math.max(0, Math.min(ly, vh - mh - 4)) + 'px';
+  const { x: lx, y: ly } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  const b = popupBounds(); // 夹紧在机身内：手游双屏下机身只占屏幕中间一块
+  menu.style.left = Math.max(b.left, Math.min(lx - 24, b.right - mw - 4)) + 'px';
+  menu.style.top = Math.max(b.top, Math.min(ly, b.bottom - mh - 4)) + 'px';
   // 菜单内点击不触发外部关闭；点击外部任意位置关闭
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
   menu.onclick = (e) => {

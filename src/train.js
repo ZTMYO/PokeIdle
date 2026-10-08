@@ -1,7 +1,7 @@
 // 训练 App：训练场 —— 把宝可梦放进训练槽，按真实时间挂机自动获得经验（不消耗糖果）
 // 页面为 tile 地图铺满 + 告示牌入口：点击告示牌弹出配置/数据面板
 // 训练中的宝可梦会以像素图标在场地上随机走动
-import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar } from './ui.js';
+import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar, logicToViewport, popupBounds } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog, ensureGender, genderBadge } from './state.js';
 import {
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, MAX_LEVEL,
@@ -577,10 +577,13 @@ function showWalkerTip(el, slot) {
   tip.innerHTML = `${entry.nickname || (poke ? poke.name : '#' + entry.species)}${shiny} · ${genderBadge(ensureGender(entry))}Lv${entry.level || 1} · 饱食${sat}
     <span class="train-walker-tip-status${lazy ? ' lazy' : ''}">${lazy ? '偷懒中' : '训练中'}</span>`;
   tip.style.display = '';
-  const er = el.getBoundingClientRect();
-  const left = er.left + er.width / 2 - tip.offsetWidth / 2;
-  tip.style.left = Math.max(4, Math.min(left, window.innerWidth - tip.offsetWidth - 4)) + 'px';
-  tip.style.top = Math.max(4, er.top - tip.offsetHeight - 4) + 'px';
+  const er = el.getBoundingClientRect(); // 机身内 rect（逻辑像素）
+  // 提示框在机身外：坐标换算到同一空间并夹紧在机身内
+  const c = logicToViewport(er.left + er.width / 2, er.top);
+  const b = popupBounds();
+  const left = c.x - tip.offsetWidth / 2;
+  tip.style.left = Math.max(b.left + 4, Math.min(left, b.right - tip.offsetWidth - 4)) + 'px';
+  tip.style.top = Math.max(b.top + 4, c.y - tip.offsetHeight - 4) + 'px';
 }
 
 function hideWalkerTip() {

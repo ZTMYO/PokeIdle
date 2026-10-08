@@ -1,7 +1,7 @@
 // ===== 宝可梦仓库 =====
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
-import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport } from './ui.js';
+import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport, viewportToLogic, popupBounds, isUiMobile, isStageView, closeAppArea } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
@@ -755,8 +755,8 @@ function meClearTarget() {
 function meMoveGhost(e) {
   const g = meDragGhost();
   if (!g) return;
-  const r = $('moveEditView').getBoundingClientRect();
-  const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+  const r = $('moveEditView').getBoundingClientRect(); // 与幽灵同一坐标系（机身内逻辑像素）
+  const { x: lx, y: ly } = viewportToLogic(e.clientX, e.clientY); // 指针坐标换算到同一坐标系
   g.style.left = (lx - r.left) + 'px';
   g.style.top = (ly - r.top) + 'px';
 }
@@ -909,9 +909,10 @@ function showMoveSortMenu(x, y) {
   ).join('');
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
-  menu.style.left = Math.max(0, Math.min(lx - 24, vw - mw - 4)) + 'px';
-  menu.style.top = Math.max(0, Math.min(ly, vh - mh - 4)) + 'px';
+  const { x: lx, y: ly } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  const b = popupBounds(); // 夹紧在机身内：手游双屏下机身只占屏幕中间一块
+  menu.style.left = Math.max(b.left, Math.min(lx - 24, b.right - mw - 4)) + 'px';
+  menu.style.top = Math.max(b.top, Math.min(ly, b.bottom - mh - 4)) + 'px';
   // 菜单内点击不触发外部关闭；点击外部任意位置关闭
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
   menu.onclick = (e) => {
@@ -1581,9 +1582,10 @@ function showContextMenu(x, y) {
     document.body.appendChild(menu);
   }
   menu.innerHTML = `<div class="shop-ctx-item" data-action="advFilter">高级筛选</div><div class="shop-ctx-item" data-action="batchRelease">批量放生</div>`;
-  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
-  menu.style.left = Math.min(lx, vw - 120) + 'px';
-  menu.style.top = Math.min(ly, vh - 70) + 'px';
+  const { x: lx, y: ly } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  const b = popupBounds(); // 夹紧在机身内：手游双屏下机身只占屏幕中间一块
+  menu.style.left = Math.min(lx, b.right - 120) + 'px';
+  menu.style.top = Math.min(ly, b.bottom - 70) + 'px';
   menu.style.display = 'block';
   menu.onclick = (e) => {
     const act = e.target.closest('[data-action]')?.dataset.action;
@@ -1654,7 +1656,7 @@ function toggleBatchRow(row) {
   updateBatchBar();
 }
 
-// 确认框固定挂到整个游戏窗口（screen）底部，不遮挡列表；
+// 确认框固定挂到当前屏底部（手游模式下即下屏），不遮挡列表；
 // 已弹出时只更新数字不重建，避免每选一只都滑入滑出
 function updateBatchBar() {
   const n = _batchSelected.size;
@@ -1668,7 +1670,7 @@ function updateBatchBar() {
     `已选中 ${n} 只，确定放生？`,
     () => { doBatchRelease(); return true; }, // 保持显示结果
     () => cancelBatchRelease(),
-    { host: $('screen'), height: '40px' } // 批量放生专用矮框，不占用列表空间
+    { height: '40px' } // 批量放生专用矮框，不占用列表空间
   );
   if (bar) bar.dataset.role = 'batchRelease';
 }
@@ -1695,7 +1697,7 @@ function doBatchRelease() {
   setBatchWheel(false);
   restoreRosterTitle();
   // 显示结果 1.5 秒后关闭并刷新（含放生返还经验/糖果产出提示）
-  showConfirmBar(`已放生 ${n} 只宝可梦${releaseXpText(gained, candies)}`, null, null, { noButtons: true, host: $('screen'), height: '40px' });
+  showConfirmBar(`已放生 ${n} 只宝可梦${releaseXpText(gained, candies)}`, null, null, { noButtons: true, height: '40px' });
   setTimeout(() => {
     hideConfirmBar();
     renderList();
@@ -1832,6 +1834,11 @@ export function leaveRosterDetailToSource() {
   _detailFromView = null;
   showView(target);
   resetNav(); // 直接回来源页/挂机页，清空导航栈（等价于原先"返回回挂机页"）
+  // 手游双屏：下半屏跟着收尾，否则会停在仓库页
+  if (isUiMobile()) {
+    if (isStageView(target)) closeAppArea();
+    else pushNav('phoneView');
+  }
 }
 
 // ---------- 页面入口 ----------

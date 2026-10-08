@@ -406,9 +406,31 @@ export function addIncubatorLog({ species, gender, shiny = false }) {
 }
 
 // ---------- 存档保存 ----------
+// 批量结算期间挂起落盘：每场都写会拖慢补算，结束统一保存
+let _saveSuspended = false;
+export function setSaveSuspended(v) { _saveSuspended = !!v; }
+
+// 生效中的增益随主存档存一份：会话存档只在 beforeunload 写，安卓强杀不落盘，光靠它会白丢一瓶甜甜蜜。
+// left = 生效中剩余毫秒，paused = 遭遇中挂起的余量
+function syncBuffRecord() {
+  const rec = {};
+  if (honeyBuffActive) {
+    if (honeyCountdownEnd > 0) rec.honey = { left: Math.max(0, honeyCountdownEnd - Date.now()) };
+    else if (honeyPausedRemaining > 0) rec.honey = { paused: honeyPausedRemaining };
+  }
+  if (charmBuffActive) {
+    const count = _charmEncounterCount || 0;
+    if (charmCountdownEnd > 0) rec.charm = { left: Math.max(0, charmCountdownEnd - Date.now()), count };
+    else if (charmPausedRemaining > 0) rec.charm = { paused: charmPausedRemaining, count };
+  }
+  gameData.buffs = (rec.honey || rec.charm) ? rec : null;
+}
+
 export async function saveGame() {
   if (!gameData) return;
+  if (_saveSuspended) return;
   gameData.stats.lastSaveTime = Date.now();
+  syncBuffRecord();
   syncGpsPosition();
   const s = JSON.stringify(gameData);
   if (window.__TAURI__?.core?.invoke) {
@@ -504,7 +526,7 @@ export function addPlaySeconds(save, sec) {
 export function calcOffline(save) {
   const now = Date.now();
   const elapsed = Math.min((now - save.stats.lastSaveTime) / 1000, 86400);
-  if (elapsed <= 0) return 0;
+  if (!(elapsed > 0)) return 0; // 注意 NaN（旧档缺 lastSaveTime）：不能写成 elapsed <= 0，否则会把 NaN 统计进在线时长
   // 长时间离线（非刷新）不保留手动骑行状态：清除标记，重开后按走路结算
   if (elapsed * 1000 > BIKE_RESTORE_MAX_GAP_MS) {
     save.manualBike = false;

@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildWeb } from './build-web.mjs';
@@ -111,6 +112,9 @@ if (mode === 'release') {
   const outPath = join(outDir, `pokeidle-android-v${version}.apk`);
   await mkdir(outDir, { recursive: true });
   await copyFile(apk, outPath);
+  // 附带 SHA-256 校验文件，发布页与校验用
+  const sha = createHash('sha256').update(await readFile(outPath)).digest('hex');
+  await writeFile(`${outPath}.sha256`, `${sha}  ${basename(outPath)}\n`);
   console.log(`[android] ${outPath}`);
 } else if (mode === 'install') {
   run(join(env.ANDROID_HOME, 'platform-tools', process.platform === 'win32' ? 'adb.exe' : 'adb'), ['install', '-r', apk], { env });

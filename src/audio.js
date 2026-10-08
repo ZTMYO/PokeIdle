@@ -7,6 +7,7 @@ let _volume = 0.6;
 let _musicEnabled = true;  // 背景音乐开关
 let _sfxEnabled = true;    // 音效开关（独立于音乐，闪光登场等短促效果音）
 let _splashLocked = false; // splash 动画期间禁声
+let _bulkQuiet = false;    // 批量结算（后台补算逐场结算）期间禁声，结束后统一恢复
 let _battleMusic = true;   // 战斗音乐开关（关闭时战斗保持地区曲）
 let _regionTracks = [];    // 当前地区歌单
 let _lastIdx = -1;         // 当前播放下标
@@ -15,6 +16,8 @@ let _regionActive = false; // 地区曲「应该」在播放
 let _overlayActive = false;
 let _overlayType = null;   // null | 'battle' | 'cycling' | 'casino'
 let _casinoActive = false; // 游戏厅模式：阻断战斗/骑行音乐
+let _casinoPrevOverlay = null; // 进游戏厅前的覆盖曲：退出时恢复（否则逛一趟游戏厅就把遇敌曲弄丢）
+let _casinoWantBattle = false; // 游戏厅期间仍有未结束的遭遇：退出时直接接回战斗曲
 let _currentTitle = '';    // 当前地区曲标题（手机页展示用）
 let _currentArtist = '';
 
@@ -97,7 +100,9 @@ let _pending = null; // 自动播放被拦截时挂起，等用户交互后补�
 let _sfxInterrupted = false; // 瞬发音效（胜利等）被音乐开关/splash 暂停时置位，恢复时优先补播它
 
 function tryPlay(el) {
-  if (_splashLocked) return; // splash 期间不实际发声（状态保留，放行后恢复）
+  // 页面不可见不起播：隐藏期间新起的曲会一直响到回前台
+  if (document.hidden) return;
+  if (_splashLocked || _bulkQuiet) return; // splash/批量结算期间不实际发声（状态保留，放行后恢复）
   // 音乐关闭时全局阻断：地区曲/覆盖曲/瞬发音效（victory、孵蛋、交换等）一律不发声
   if (!_musicEnabled) return;
   // 互斥兜底：背景曲/覆盖曲起播前，未播完的瞬发音效（victory 等）一律停掉，保证同时只响一路
@@ -117,20 +122,45 @@ function applyVolume() {
   sfxAudio.volume = _volume;
 }
 
+// 把该继续播放的曲目接回去：被系统挂起、或被自动播放策略拦下后调用
+function resumeAudio() {
+  if (!_actx) ensureCtx();
+  if (_actx && _actx.state === 'suspended') _actx.resume().catch(() => {});
+  if (!sfxAudio.paused) return;
+  if (!_overlayActive && _regionActive && regionAudio.paused && regionAudio.src) { regionFadeIn(300); tryPlay(regionAudio); }
+  if (_overlayActive && overlayAudio.paused && overlayAudio.src) tryPlay(overlayAudio);
+  // 兜底：两条通道不该同时出声，按当前覆盖曲状态留一条
+  if (!regionAudio.paused && !overlayAudio.paused) {
+    if (_overlayActive) regionAudio.pause();
+    else { overlayAudio.pause(); overlayAudio.currentTime = 0; }
+  }
+}
+
+// 页面不可见时停掉音乐与音效，回前台由 resumeAudio 接回；
+// 手机端壳层的 appStateChange 也调这对钩子，重复调用无副作用
+function pauseAudioForBackground() {
+  if (!regionAudio.paused) regionAudio.pause();
+  if (!overlayAudio.paused) overlayAudio.pause();
+  if (!sfxAudio.paused) sfxAudio.pause();
+}
+
 // 任何用户交互时补播被拦截的音频；音效/覆盖曲播放中不打断
 function installResumeListener() {
   const resume = () => {
     _userGestured = true; // 首次手势后允许创建 AudioContext（autoplay 已解除）
-    if (!_actx) ensureCtx();
-    if (_actx && _actx.state === 'suspended') _actx.resume().catch(() => {});
     if (_pending) { const el = _pending; _pending = null; tryPlay(el); return; }
-    if (!sfxAudio.paused) return;
-    if (!_overlayActive && _regionActive && regionAudio.paused && regionAudio.src) { regionFadeIn(300); tryPlay(regionAudio); }
-    if (_overlayActive && overlayAudio.paused && overlayAudio.src) tryPlay(overlayAudio);
+    resumeAudio();
   };
   document.addEventListener('pointerdown', resume, true);
   document.addEventListener('click', resume, true);
   document.addEventListener('keydown', resume, true);
+  // 切后台即停乐，回前台接回
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) pauseAudioForBackground();
+    else resumeAudio();
+  });
+  window.__POKEIDLE_AUDIO_PAUSE__ = pauseAudioForBackground;
+  window.__POKEIDLE_AUDIO_RESUME__ = resumeAudio;
 }
 
 // ---------- 地区曲 ----------
@@ -232,23 +262,34 @@ function endOverlay() {
 }
 
 export function playBattle() {
-  if (_casinoActive) return; // 游戏厅模式：阻断战斗音乐
+  if (_casinoActive) { _casinoWantBattle = true; return; } // 游戏厅内不打断，出场时补回战斗曲
   if (!_battleMusic) return; // 关闭战斗音乐：战斗期间保持地区曲
   playOverlay('battle', urlFor(SFX.battle));
 }
-export function endBattle() { if (_overlayType === 'battle') endOverlay(); }
+export function endBattle() {
+  if (_overlayType === 'battle') endOverlay();
+  else if (_casinoActive) { // 游戏厅期间遭遇已结束：出场时不必再补战斗曲
+    _casinoWantBattle = false;
+    if (_casinoPrevOverlay === 'battle') _casinoPrevOverlay = null;
+  }
+}
 export function playCycling() {
   if (_casinoActive) return; // 游戏厅模式：阻断骑行音乐
   if (_overlayType === 'cycling') return; // 已在播放骑行曲：直接复用，避免路段轮播反复重置重播
   playOverlay('cycling', urlFor(SFX.cycling));
 }
-export function endCycling() { if (_overlayType === 'cycling') endOverlay(); }
+export function endCycling() {
+  if (_overlayType === 'cycling') endOverlay();
+  else if (_casinoActive && _casinoPrevOverlay === 'cycling') _casinoPrevOverlay = null;
+}
 
 // ---------- 游戏厅 ----------
 // 进入游戏厅：停掉当前所有音乐（地区曲/覆盖曲/瞬发音），播放 GameCorner.mp3
 // 游戏厅内子页面切换不会重复调用此函数，音乐持续播放不中断
 export function playCasino() {
   if (_casinoActive && _overlayType === 'casino') return; // 已在播放，不重置
+  // 记住进场前的覆盖曲：退出时要还原，否则遇敌/骑行曲会被游戏厅音乐顶掉后回不来
+  _casinoPrevOverlay = _overlayActive && _overlayType !== 'casino' ? _overlayType : null;
   _casinoActive = true;
   // 静默停止所有通道
   if (!sfxAudio.paused) sfxAudio.pause();
@@ -260,11 +301,24 @@ export function playCasino() {
   // 使用覆盖曲通道播放游戏厅音乐（与战斗/骑行同组，保证互斥层级）
   playOverlay('casino', urlFor(SFX.casino));
 }
-// 退出游戏厅：停止游戏厅音乐，恢复地区曲
+// 退出游戏厅：停止游戏厅音乐，按当前上下文恢复覆盖曲或地区曲
 export function endCasino() {
   if (!_casinoActive) return;
   _casinoActive = false;
   if (_overlayType === 'casino') endOverlay();
+  const prev = _casinoPrevOverlay;
+  const wantBattle = _casinoWantBattle;
+  _casinoPrevOverlay = null;
+  _casinoWantBattle = false;
+  // 遭遇未结束：直接接回战斗曲
+  if ((wantBattle || prev === 'battle') && _battleMusic) {
+    playOverlay('battle', urlFor(SFX.battle));
+    return;
+  }
+  if (prev === 'cycling') {
+    playOverlay('cycling', urlFor(SFX.cycling));
+    return;
+  }
   // 恢复地区曲：endOverlay 因为 _regionActive=false 不会自动恢复，手动补播
   if (_regionTracks.length > 0 && regionAudio.getAttribute('src')) {
     _regionActive = true;
@@ -277,6 +331,8 @@ export function endCasino() {
 // 播放前暂停背景曲，播完恢复，保证同一时刻只响一首
 function playSfx(path) {
   if (!path) return;
+  if (document.hidden) return; // 页面不可见：一次性的胜利/升级等音效直接丢弃，别在后台响
+  if (_splashLocked || _bulkQuiet) return; // splash / 批量结算（后台补算）期间禁声
   const url = urlFor(path);
   _sfxInterrupted = false; // 新瞬发音效接管，清掉被中断的旧音效标记
   // 以"该响什么"为准决定播完恢复谁，而不是此刻的 paused 状态——
@@ -320,7 +376,8 @@ export function playLevelUp() { playSfx(SFX.levelUp); }
 let _pendingShiny = false;
 export function playShiny() {
   if (!_sfxEnabled) return null;
-  if (_splashLocked) { _pendingShiny = true; return null; } // splash 期间禁声，结束后补播
+  if (document.hidden) return null; // 页面不可见：直接丢弃，不在后台响
+  if (_splashLocked || _bulkQuiet) { _pendingShiny = true; return null; } // 禁声期间记下，放行后补播
   _pendingShiny = false;
   const a = new Audio(urlFor(SFX.shiny));
   a.volume = Math.min(1, _volume * 1.5);
@@ -332,7 +389,7 @@ export function playShiny() {
 function flushPendingShiny() {
   if (!_pendingShiny) return;
   _pendingShiny = false;
-  if (!_sfxEnabled) return;
+  if (!_sfxEnabled || document.hidden) return;
   const a = new Audio(urlFor(SFX.shiny));
   a.volume = Math.min(1, _volume * 1.5);
   a.play().catch(() => {});
@@ -342,7 +399,8 @@ function flushPendingShiny() {
 // 短促音效不打断背景音乐，单独 Audio 叠加；受音乐总开关控制
 export function playMahjongSfx(name) {
   if (!_musicEnabled) return;
-  if (_splashLocked) return; // splash 动画期间禁声
+  if (document.hidden) return; // 页面不可见：不在后台响
+  if (_splashLocked || _bulkQuiet) return; // splash/批量结算期间禁声
   const url = `./audio/mahjong/${encodeURIComponent(name)}.mp3`;
   const a = new Audio(url);
   a.volume = _volume;
@@ -396,7 +454,7 @@ function showNowPlayingFromMeta(path) {
     const artist = meta?.artist || '';
     _currentTitle = title;
     _currentArtist = artist;
-    if (_volume <= 0 || _splashLocked || !_musicEnabled) return;
+    if (_volume <= 0 || _splashLocked || _bulkQuiet || !_musicEnabled) return;
     showNowPlaying(title, artist);
   });
 }
@@ -499,7 +557,7 @@ export function getNowPlaying() {
   return {
     title: _currentTitle,
     artist: _currentArtist,
-    playing: _regionActive && _currentRegionPath && !_splashLocked && _musicEnabled && _volume > 0 && !regionAudio.paused,
+    playing: _regionActive && _currentRegionPath && !_splashLocked && !_bulkQuiet && _musicEnabled && _volume > 0 && !regionAudio.paused,
   };
 }
 
@@ -510,6 +568,17 @@ export function setSplashLocked(locked) {
   else {
     resumeBackground();
     flushPendingShiny(); // splash 结束：补播被禁声的闪光提示音，与背景曲同时出来
+  }
+}
+
+// 批量结算期间禁声：逐场结算不播胜利/闪光等音效，
+// 结算结束按当前状态恢复背景曲
+export function setBulkQuiet(quiet) {
+  _bulkQuiet = !!quiet;
+  if (_bulkQuiet) pauseAll();
+  else {
+    resumeBackground();
+    flushPendingShiny();
   }
 }
 

@@ -1,6 +1,6 @@
 // ===== 农场 =====
 // 6 块田地按真实时间生长；生长/湿度由 Date.now() 折算并随存档持久化（gameData.berryFarm）
-import { $, showView, tryLoadImage, getCharPrefix, updateStats, logicViewport } from './ui.js';
+import { $, showView, tryLoadImage, getCharPrefix, updateStats, logicToViewport, popupBounds } from './ui.js';
 import { gameData, pushNav, saveGame, randInt, addSystemLog } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { setupFoodTooltip } from './ui.js';
@@ -385,10 +385,12 @@ function showUprootMenu(plotEl) {
   menu.style.visibility = 'hidden'; // 先隐藏测量尺寸
   menu.style.display = 'block';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  const { x: cx, y: cy, w: vw, h: vh } = logicViewport(rect.left + rect.width / 2, rect.bottom);
+  // 菜单挂在机身外：地块 rect 是机身内的逻辑像素，先换算成浮层坐标，再夹紧到机身边界
+  const { x: cx, y: cy } = logicToViewport(rect.left + rect.width / 2, rect.bottom);
+  const b = popupBounds();
   menu.style.visibility = '';
-  menu.style.left = Math.max(0, Math.min(cx - mw / 2, vw - mw - 4)) + 'px';
-  menu.style.top = Math.max(0, Math.min(cy + 2, vh - mh - 4)) + 'px';
+  menu.style.left = Math.max(b.left, Math.min(cx - mw / 2, b.right - mw - 4)) + 'px';
+  menu.style.top = Math.max(b.top, Math.min(cy + 2, b.bottom - mh - 4)) + 'px';
   menu.onclick = (e) => {
     if (!e.target.closest('[data-uproot]')) return;
     const i = Number(plotEl.dataset.plot);

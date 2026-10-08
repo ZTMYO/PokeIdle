@@ -245,18 +245,21 @@ let _dropEl = null;
 let _dropCancelCb = null;
 
 // 立即取消并隐藏正在滑入/拾取的道具（返回是否真的有道具被取消）
-export function cancelItemDrop() {
+// 取消面前这件道具的演出。opts.collect=true 表示照常收下：
+// 道具在生成时已从累积值扣掉，白白取消等于没收玩家的东西）
+export function cancelItemDrop(opts = {}) {
   if (!_dropCancelCb) return false;
-  _dropCancelCb();
+  _dropCancelCb(opts);
   return true;
 }
 
 // 生成道路掉落实体并播放滚动/拾取动画。返回是否真正生成（false 表示本次未生成，
 // 由调用方把累积值保留，避免道具丢失）；后台（非主界面）直接入账也算成功。
-export function spawnItemDrop(itemKey) {
+// opts.qty / opts.remaining：恢复存档里那一件时沿用原数量倍率与剩余距离
+export function spawnItemDrop(itemKey, opts = {}) {
   if (phase !== 'idle') return false;
   // 掉落糖果时先确定本次数量倍率（×1/×2/×5/×50/×100）
-  const qty = itemKey === 'candy' ? rollCandyMult() : 1;
+  const qty = opts.qty != null ? opts.qty : (itemKey === 'candy' ? rollCandyMult() : 1);
   const screen = $('screen');
   const charEl = $('walkGif');
   if (!screen || !charEl) return false;
@@ -279,7 +282,7 @@ export function spawnItemDrop(itemKey) {
   el.alt = ITEM_NAMES[itemKey] || itemKey;
   screen.appendChild(el);
   _dropEl = el;
-  _dropCancelCb = () => {
+  _dropCancelCb = (opts = {}) => {
     if (!_dropCancelCb) return;
     _dropCancelCb = null;
     _dropEl = null;
@@ -288,6 +291,10 @@ export function spawnItemDrop(itemKey) {
     road.removeRender(render);
     el.remove();
     setItemDropActive(false);
+    gameData.roadItem = null; // 演出已结束：不再恢复这一件
+    // 清场但照常收下：直接入账并记掉落日志
+    if (opts.collect) grantItem(itemKey, qty);
+    saveGame();
     if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
   };
 
@@ -306,11 +313,19 @@ export function spawnItemDrop(itemKey) {
   let itemY = (rRect.top - sRect.top) + 24;
 
   let itemX = sRect.width + 10;
+  let pickupX = charLeft + 10;
+  // 恢复存档里的这一件：按剩余距离摆在主角前方，超屏宽则退回右缘
+  if (opts.remaining != null) {
+    itemX = Math.min(pickupX + Math.max(0, opts.remaining), sRect.width + 10);
+  }
+  // 路面上的这一件落档：退出/被杀进程后按同一件同剩余距离继续，
+  // 否则累积值已扣、道具却随进程消失
+  gameData.roadItem = { key: itemKey, qty, left: Math.max(0, Math.round(itemX - pickupX)) };
+  saveGame();
   el.style.left = itemX + 'px';
   el.style.top = itemY + 'px';
   el.style.opacity = '1';
 
-  let pickupX = charLeft + 10;
   let cTop = cRect.top - sRect.top;
   let _geomW = window.innerWidth;
   let _geomH = window.innerHeight;
@@ -337,6 +352,8 @@ export function spawnItemDrop(itemKey) {
     road.removeRender(render);
     el.remove();
     setItemDropActive(false);
+    gameData.roadItem = null; // 滑出屏/异常回收：这一件不再恢复
+    saveGame();
     if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
   }
 
@@ -345,6 +362,8 @@ export function spawnItemDrop(itemKey) {
     if (!active) return;
     if (!isIdleStageVisible()) return; // 离开主界面：冻结等待
     itemX -= spd;
+    // 剩余距离只写内存：随周期存档 / 切后台落盘，恢复时就能停在退出时的位置附近
+    if (gameData.roadItem) gameData.roadItem.left = Math.max(0, Math.round(itemX - pickupX));
 
     if (itemX > sRect.width + 100) { cleanup(); return; } // 兜底：异常位置直接回收
 
@@ -356,6 +375,7 @@ export function spawnItemDrop(itemKey) {
 
     if (itemX <= pickupX) {
       active = false;
+      _dropCancelCb = null; // 已判定为拾取：后续不能再被"取消"打断（避免重复入账）
       road.removeStepper(step);
       road.removeRender(render);
       road.pause();
@@ -391,6 +411,7 @@ export function spawnItemDrop(itemKey) {
           el.remove();
           setItemDropActive(false);
           if (phase === 'idle') { setIdleCharacter('walk'); road.resume(); }
+          gameData.roadItem = null; // 已拾取：清档
           grantItem(itemKey, qty);
           saveGame(); // 拾取入账立即存档，避免刷新时丢失最新掉落日志/道具
           showIdlePickup(ITEM_NAMES[itemKey], road.getPlace());
@@ -642,7 +663,7 @@ export async function hatchFromIncubator(slotIndex) {
   // 第一帧 — 摇晃
   await hatchFrame(1200, () => {
     sprite.className = 'encounter-gif egg-shake';
-    updateTextBox('蛋在微微晃动...', false);
+    updateTextBox('蛋在微微晃动...', false, 'app');
   });
 
   // 第二帧 — 蛋裂
@@ -652,7 +673,7 @@ export async function hatchFromIncubator(slotIndex) {
   // 第三帧 — 裂缝更大
   if (watchedAnim) await hatchFrame(350, () => {
     sprite.style.backgroundPosition = `0 -${displayH * 2}px`;
-    updateTextBox('蛋裂开了！', false);
+    updateTextBox('蛋裂开了！', false, 'app');
   });
 
   // 第四帧 — 破壳
@@ -746,7 +767,7 @@ export async function hatchFromIncubator(slotIndex) {
   // 玩家仍在本页才播放祝贺音效（已切走则后台静默结算，避免音效打断其他页面背景曲）
   if (isOnHatchView()) playCongratulation();
 
-  if (isOnHatchView()) updateTextBox(eggIsShiny ? '孵化出闪光的 ' + poke.name + ' 了！' : '孵化成功！获得了 ' + poke.name, true);
+  if (isOnHatchView()) updateTextBox(eggIsShiny ? '孵化出闪光的 ' + poke.name + ' 了！' : '孵化成功！获得了 ' + poke.name, true, 'app');
 
   await saveGame();
   updateStats();
@@ -1013,6 +1034,7 @@ export function activateHoney() {
   setHoneyExpiryTimer(setTimeout(() => handleHoneyExpired(), d));
   updateBackpack();
   startHoneyCountdown();
+  saveGame(); // 立即落盘：强杀进程也能靠主存档的 buff 记录续上
 }
 
 export function startHoneyCountdown() {
@@ -1068,6 +1090,7 @@ export function activateShinyCharm() {
 
   updateBackpack();
   startCharmCountdown();
+  saveGame(); // 立即落盘：强杀进程也能靠主存档的 buff 记录续上
 }
 
 // ===== Buff 到期公共回调 =====
@@ -1090,6 +1113,7 @@ export function handleHoneyExpired() {
   particles.stop();
   setHoneyExpiryTimer(null);
   addSystemLog('buff_expired', { item: 'sweet-honey' });
+  saveGame(); // 清掉主存档里的 buff 记录，避免下次启动复活已到期的增益
 }
 
 export function handleCharmExpired() {
@@ -1115,6 +1139,7 @@ export function handleCharmExpired() {
   particles.stop();
   setCharmExpiryTimer(null);
   addSystemLog('buff_expired', { item: 'shiny-charm' });
+  saveGame(); // 清掉主存档里的 buff 记录，避免下次启动复活已到期的增益
 }
 
 export function startCharmCountdown() {
@@ -1138,4 +1163,79 @@ export function clearCharmCountdown() {
   if (slot) slot.classList.remove('disabled');
   const qtyEl = document.getElementById('bag-shiny-charm');
   if (qtyEl && gameData) qtyEl.textContent = gameData.items['shiny-charm'] || 0;
+}
+
+// ===== 重进游戏恢复生效中的增益 =====
+// rec 来自会话存档或主存档的耐久记录；
+// keepPaused：启动时正有遭遇要恢复，倒计时先挂起，等这场收尾由 resumeEncounterFlow 续上
+function buffLeft(rec) {
+  const left = Math.max(0, rec?.left || 0);
+  const paused = Math.max(0, rec?.paused || 0);
+  return { left, paused, total: left || paused };
+}
+
+export function restoreHoneyRecord(rec, keepPaused) {
+  const { left, total } = buffLeft(rec);
+  if (!rec || !total) {
+    if (rec) { setHoneyBuffActive(false); clearHoneyCountdown(); }
+    return;
+  }
+  setHoneyBuffActive(true);
+  setHoneyPausedRemaining(0);
+  setHoneyCountdownEnd(0);
+  if (isIdleStageVisible() || !left) {
+    $('idleText').textContent = '✦ 甜蜜蜜生效中 ✦';
+    setIdleMsgIdx(-1);
+    particles.stop();
+    particles.start('rgba(255,215,0,1)', 'circle', { sizeMult: 0.7, alphaMult: 0.6 });
+  }
+  if (keepPaused) {
+    setHoneyPausedRemaining(total);
+    const slot = document.querySelector('.bag-slot[data-item="sweet-honey"]');
+    if (slot) slot.classList.add('disabled');
+    const qtyEl = document.getElementById('bag-sweet-honey');
+    if (qtyEl) qtyEl.textContent = Math.ceil(total / 1000) + 's';
+    return;
+  }
+  // 没有遭遇要等：余量接着跑，并补排遇敌与到期计时器
+  setHoneyCountdownEnd(Date.now() + total);
+  setNextEncounterTimer(setTimeout(async () => {
+    const { tryEncounter } = await import('./battle.js');
+    tryEncounter();
+  }, rand(BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX) * 1000));
+  setHoneyExpiryTimer(setTimeout(() => handleHoneyExpired(), total));
+  if (isIdleStageVisible()) startHoneyCountdown();
+}
+
+export function restoreCharmRecord(rec, keepPaused) {
+  if (rec?.count) setCharmEncounterCount(rec.count);
+  const { left, total } = buffLeft(rec);
+  if (!rec || !total) {
+    if (rec) { setCharmBuffActive(false); clearCharmCountdown(); }
+    return;
+  }
+  setCharmBuffActive(true);
+  setCharmPausedRemaining(0);
+  setCharmCountdownEnd(0);
+  if (isIdleStageVisible() || !left) {
+    $('idleText').textContent = '✦ 闪耀护符生效中 ✦';
+    setIdleMsgIdx(-1);
+    particles.stop();
+    particles.start('rgba(180,230,255,1)', 'star');
+  }
+  if (keepPaused) {
+    setCharmPausedRemaining(total);
+    const slot = document.querySelector('.bag-slot[data-item="shiny-charm"]');
+    if (slot) slot.classList.add('disabled');
+    const qtyEl = document.getElementById('bag-shiny-charm');
+    if (qtyEl) qtyEl.textContent = Math.ceil(total / 1000) + 's';
+    return;
+  }
+  setCharmCountdownEnd(Date.now() + total);
+  setNextEncounterTimer(setTimeout(async () => {
+    const { tryEncounter } = await import('./battle.js');
+    tryEncounter();
+  }, rand(BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX) * 1000));
+  setCharmExpiryTimer(setTimeout(() => handleCharmExpired(), total));
+  if (isIdleStageVisible()) startCharmCountdown();
 }

@@ -4,7 +4,7 @@
 // 属性归类到 9 大增益类，同类去重；多属性每类增益同时生效、不减半
 import { FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, FOLLOWER_TYPE_GROUP, FOLLOWER_GROUP_BOOST } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, phase, saveGame, pushNav } from './state.js';
-import { $, showView, isOnGameView, updateBackpack, updateStats, tryLoadImage } from './ui.js';
+import { $, showView, isOnGameView, updateBackpack, updateStats, tryLoadImage, consoleLayerStyle } from './ui.js';
 import { TYPE_COLORS } from './items.js';
 import * as road from './road.js';
 
@@ -320,6 +320,12 @@ function renderFollowerView() {
       const overlay = document.createElement('div');
       overlay.id = 'followerLockOverlay';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:visible;';
+      // 手游双屏：铺在机身上的缩放画布，层内沿用机身逻辑坐标
+      const layer = consoleLayerStyle();
+      if (layer) {
+        overlay.style.inset = 'auto';
+        Object.assign(overlay.style, layer);
+      }
       overlay.innerHTML = `
         <div class="follower-lock-ghosts" id="followerLockGhosts"></div>
         <div id="followerLockWrap" style="position:absolute;width:80px;height:80px;display:flex;align-items:center;justify-content:center;opacity:0">
@@ -346,10 +352,9 @@ function renderFollowerView() {
         // wrap 就位到结果页卡片区位置（overlay 与 viewport 同原点）
         lockWrap.style.left = cRect.left + 'px';
         lockWrap.style.top = cRect.top + 'px';
-        // 残影：中央两侧各一排滚动格，锁定宝可梦出现时分别向左/右移出屏幕。
-        // 容器对齐到 .screen（游戏屏幕）范围，移出即被屏幕边界裁掉，不溢出到屏幕外
+        // 残影容器对齐到随从页所在的那块屏，移出即被裁掉
         if (ghosts) {
-          const screenEl = document.querySelector('.screen');
+          const screenEl = $('followerView')?.closest('.screen') || document.querySelector('.screen');
           let sLeft = 0, sTop = 0;
           if (screenEl) {
             const sRect = screenEl.getBoundingClientRect();

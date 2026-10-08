@@ -1,4 +1,4 @@
-import { $, showView, tryLoadImage, showConfirmBar, logicViewport } from './ui.js';
+import { $, showView, tryLoadImage, showConfirmBar, viewportToLogic } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, isPokemon } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
@@ -858,7 +858,7 @@ function openTeamCtxMenu(e) {
   });
   box.appendChild(menu);
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+  const { x: lx, y: ly } = viewportToLogic(e.clientX, e.clientY); // 指针坐标换算到机身逻辑像素
   menu.style.left = `${Math.max(0, Math.min(lx - r.left, r.width - mw - 4))}px`;
   menu.style.top = `${Math.max(0, Math.min(ly - r.top, r.height - mh - 4))}px`;
   _menuEl = menu;
@@ -1120,8 +1120,8 @@ function bindDrag(host) {
       // 移除停靠区命中检测：指针进入底部横条范围 → 高亮，松开即移除
       const dock = host.querySelector('#teamTrashDock');
       if (dock) {
-        const r = dock.getBoundingClientRect();
-        const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+        const r = dock.getBoundingClientRect(); // 指针坐标换算到与 rect 同一坐标系
+        const { x: lx, y: ly } = viewportToLogic(e.clientX, e.clientY);
         const over = lx >= r.left && lx <= r.right && ly >= r.top && ly <= r.bottom;
         if (over !== _dragOnTrash) {
           _dragOnTrash = over;
@@ -1151,8 +1151,8 @@ function bindDrag(host) {
 // 幽灵卡片跟随指针（居中对齐指针，避免遮住目标槽位）
 function moveGhost(e) {
   if (!_dragGhost) return;
-  const r = $('teamContent').getBoundingClientRect();
-  const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
+  const r = $('teamContent').getBoundingClientRect(); // 与幽灵同一坐标系（机身内逻辑像素）
+  const { x: lx, y: ly } = viewportToLogic(e.clientX, e.clientY); // 指针坐标换算到同一坐标系
   _dragGhost.style.left = (lx - r.left) + 'px';
   _dragGhost.style.top = (ly - r.top) + 'px';
 }

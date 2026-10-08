@@ -1,6 +1,6 @@
 // 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
-import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, updateBackpack, logicViewport } from './ui.js';
+import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, updateBackpack, logicViewport, popupBounds } from './ui.js';
 import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon } from './state.js';
 import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon } from './battle-core.js';
 import { typeMult } from './type-chart.js';
@@ -583,8 +583,13 @@ function promptSwitchAfterFaint(battle) {
 
 // 离开战斗页（进入设置等）时清除难度边框色：跳变恢复默认，避免其它页面沿用战斗配色
 // 也避免切页瞬间边框色渐变过渡（战斗配色→默认绿）的拉扯感
+// 难度边框色画在「战斗页所在的那块屏」上：手游双屏下战斗在下屏，不能染到上面挂机屏
+function battleScreenEl() {
+  return document.getElementById('battleView')?.closest('.screen') || $('screen');
+}
+
 export function clearBattleTier() {
-  const sc = $('screen');
+  const sc = battleScreenEl();
   if (!sc.classList.contains('t-novice') && !sc.classList.contains('t-veteran') && !sc.classList.contains('t-champion')) return;
   sc.classList.add('no-theme-trans'); // 切页时的主题色变化禁用过渡，直接跳变
   sc.classList.remove('t-novice', 't-veteran', 't-champion');
@@ -595,7 +600,7 @@ export function clearBattleTier() {
 // 战斗页重新显示（从设置返回等）时恢复当前战斗的难度边框色：同样跳变，
 // 返回战斗页属于切换页面，不做渐变过渡
 export function restoreBattleTier() {
-  const sc = $('screen');
+  const sc = battleScreenEl();
   sc.classList.remove('t-novice', 't-veteran', 't-champion');
   if (_activeBattle?.preset?.tier) {
     sc.classList.add('no-theme-trans');
@@ -609,7 +614,7 @@ async function renderBattlePage(battle) {
   const box = $('battleContent');
   // 战斗期间屏幕边框按 NPC 难度着色（返回对战列表时清除）：
   // 进入战斗算场景切换，边框色直接跳变，不做渐变过渡
-  const sc = $('screen');
+  const sc = battleScreenEl();
   sc.classList.add('no-theme-trans');
   sc.classList.remove('t-novice', 't-veteran', 't-champion');
   if (battle.preset.tier) sc.classList.add('t-' + battle.preset.tier);
@@ -919,9 +924,10 @@ function showLogMenu(x, y) {
   menu.innerHTML = '<div class="shop-ctx-item"><span class="shop-ctx-qty">查看对战记录</span></div>';
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
-  menu.style.left = Math.max(0, Math.min(lx - 24, vw - mw - 4)) + 'px';
-  menu.style.top = Math.max(0, Math.min(ly, vh - mh - 4)) + 'px';
+  const { x: lx, y: ly } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  const b = popupBounds(); // 夹紧在机身内：手游双屏下机身只占屏幕中间一块
+  menu.style.left = Math.max(b.left, Math.min(lx - 24, b.right - mw - 4)) + 'px';
+  menu.style.top = Math.max(b.top, Math.min(ly, b.bottom - mh - 4)) + 'px';
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
   menu.onclick = (e) => {
     if (!e.target.closest('.shop-ctx-item')) return;

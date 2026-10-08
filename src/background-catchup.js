@@ -43,6 +43,15 @@ export function bgTakeBuffRemainingMs() {
   return m;
 }
 
+// 启动时把"关掉 App / 被杀进程"期间的离线秒数并进停摆累计，与切后台共用同一套补发管线；
+// 否则这段时间只加在线时长，一点挂机收益都不给
+export function seedBgOfflineSeconds(sec, isBike) {
+  if (!bgCatchupEnabled() || !(sec > 0)) return;
+  _bgSecAccum += sec;
+  _hiddenIsBike = !!isBike; // 离线期间在骑行：不掉落不遇敌，里程按骑行速度补
+  _hiddenBuffRemainingMs = 0; // 离线期间增益暂停（会话恢复按余量续上），补算按无 buff 段估
+}
+
 // 注册 visibilitychange：隐藏记账，恢复累计停摆秒数；遭遇中切后台立即结算
 export function startBackgroundCatchup() {
   if (!bgCatchupEnabled() || !deps) return;

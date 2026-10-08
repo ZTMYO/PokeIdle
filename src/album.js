@@ -1,6 +1,6 @@
 // ===== 卡册 =====
-// 翻页式缩略图网格，点击已拥有卡牌放大到屏幕中心，点击遮罩关闭。
-import { $, showView, logicViewport } from './ui.js';
+// 卡册：缩略图网格，点已拥有的卡放大预览，可拖拽看 3D 角度，点遮罩关闭。
+import { $, showView, viewportToLogic } from './ui.js';
 import { gameData, pushNav } from './state.js';
 
 const CARDS_PER_PAGE = 12;  // 4列 × 3行
@@ -8,6 +8,8 @@ const CARDS_PER_PAGE = 12;  // 4列 × 3行
 let _allCards = [];      // 所有卡片（含 poolId）
 let _currentPage = 0;
 let _loaded = false;
+let _refitTimer = null;  // 预览遮罩的尺寸重算定时器
+let _previewCleanup = null;
 
 async function loadPools() {
   if (_loaded) return;
@@ -49,6 +51,7 @@ export async function getCardCollectionStats() {
 export async function showAlbumView() {
   pushNav('albumView');
   showView('albumView');
+  closePreview();
   ensureCards();
   await loadPools();
   _currentPage = 0;
@@ -81,27 +84,64 @@ function openPreview(filename) {
       <div class="album-overlay-name">${info.cnName || card.cnName}</div>
       ${info.obtainedAt ? `<div class="album-overlay-time">获得于 ${fmtObtained(info.obtainedAt)}</div>` : ''}
     </div>`;
-  overlay.addEventListener('click', closePreview);
+  // 挂在机身上：遮罩边界就是 console
+  (document.querySelector('.console') || $('albumContent'))?.appendChild(overlay);
 
-  // 3D 倾斜效果
+  // 卡片尺寸按机身实测尺寸算，底部给名称/时间留一行
   const cardEl = overlay.querySelector('.album-overlay-card');
-  overlay.addEventListener('mousemove', e => {
-    const rect = cardEl.getBoundingClientRect();
-    const { x: lx, y: ly } = logicViewport(e.clientX, e.clientY); // zoom 下还原逻辑坐标，与 rect 对齐
-    const x = (lx - rect.left) / rect.width - 0.5;   // -0.5 ~ 0.5
-    const y = (ly - rect.top) / rect.height - 0.5;    // -0.5 ~ 0.5
-    cardEl.style.transform = `perspective(800px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg)`;
-    cardEl.style.transition = 'none';
+  const fitCard = () => {
+    const w = overlay.clientWidth, h = overlay.clientHeight;
+    if (!w || !h) return;
+    const metaH = overlay.querySelector('.album-overlay-meta')?.offsetHeight || 0;
+    cardEl.style.maxWidth = Math.round(w * 0.88) + 'px';
+    cardEl.style.maxHeight = Math.round(Math.max(h * 0.5, h - 2 * (metaH + 8))) + 'px';
+  };
+  fitCard();
+  if (!cardEl.complete) cardEl.addEventListener('load', fitCard, { once: true }); // 图未就绪时量不准
+
+  // 3D 倾斜：鼠标悬停与手指拖动共用 pointer 事件，角度 = 指针相对卡面的偏移 × TILT，松手回正
+  const TILT = 30, LIMIT = 0.6;
+  const tiltTransform = (x, y) => `perspective(560px) rotateY(${x * TILT}deg) rotateX(${-y * TILT}deg)`;
+  let downX = 0, downY = 0, moved = 0, lastType = '';
+  overlay.addEventListener('pointerdown', e => {
+    downX = e.clientX; downY = e.clientY; moved = 0; lastType = e.pointerType;
   });
-  overlay.addEventListener('mouseleave', () => {
-    cardEl.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg)';
+  overlay.addEventListener('pointermove', e => {
+    lastType = e.pointerType;
+    if (lastType === 'touch') moved = Math.max(moved, Math.hypot(e.clientX - downX, e.clientY - downY));
+    const rect = cardEl.getBoundingClientRect(); // 卡面在机身内：逻辑像素
+    if (!rect.width || !rect.height) return;
+    const { x: lx, y: ly } = viewportToLogic(e.clientX, e.clientY); // 指针坐标换算到同一坐标系
+    const clamp = v => Math.max(-LIMIT, Math.min(LIMIT, v));
+    const x = clamp((lx - rect.left) / rect.width - 0.5);   // 卡面中心 0，边缘 ±0.5
+    const y = clamp((ly - rect.top) / rect.height - 0.5);
+    cardEl.style.transition = 'none';
+    cardEl.style.transform = tiltTransform(x, y);
+  });
+  const resetTilt = () => {
     cardEl.style.transition = 'transform 0.35s ease-out';
+    cardEl.style.transform = tiltTransform(0, 0);
+  };
+  overlay.addEventListener('pointerleave', resetTilt);
+  overlay.addEventListener('pointerup', resetTilt);    // 触屏抬手就把卡面回正，不依赖 leave 的时序
+  overlay.addEventListener('pointercancel', resetTilt);
+  overlay.addEventListener('click', () => {
+    // 触屏拖动看过角度后抬手也会补一次 click：这次不算点击，别顺手把预览关了
+    if (lastType === 'touch' && moved > 8) { moved = 0; return; }
+    closePreview();
   });
 
-  $('albumContent')?.appendChild(overlay);
+  // 转屏/窗口变化后按新尺寸重算
+  const onResize = () => { clearTimeout(_refitTimer); _refitTimer = setTimeout(fitCard, 150); };
+  window.addEventListener('resize', onResize);
+  _previewCleanup = () => window.removeEventListener('resize', onResize);
 }
 
 function closePreview() {
+  clearTimeout(_refitTimer);
+  _refitTimer = null;
+  _previewCleanup?.();
+  _previewCleanup = null;
   document.querySelector('.album-overlay')?.remove();
 }
 

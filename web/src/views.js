@@ -14,7 +14,7 @@ import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, U
   FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE,
   DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_VALUE_PER_HOUR, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_ITEM_VALUE } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, currentIsShiny, honeyBuffActive, charmBuffActive, saveGame, addSystemLog, formatNum, pad, randInt, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
-import { $, showView, updateTextBox, updateBackpack, updateStats, isOnGameView, applyCharSprites, showConfirmBar, logicViewport, getUiMode, applyUiMode } from './ui.js';
+import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode } from './ui.js';
 import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { formatLogTime, showEncounterLogs, restorePokedex } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, fleeEncounter, autoCatch } from './battle.js';
@@ -720,9 +720,10 @@ function showShopContextMenu(itemKey, x, y, mode = 'buy') {
   renderMenu();
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
-  menu.style.left = Math.max(0, Math.min(lx - 24, vw - mw - 4)) + 'px';
-  menu.style.top = Math.max(0, Math.min(ly, vh - mh - 4)) + 'px';
+  const { x: lx, y: ly } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  const b = popupBounds(); // 夹紧在机身内：手游双屏下机身只占屏幕中间一块
+  menu.style.left = Math.max(b.left, Math.min(lx - 24, b.right - mw - 4)) + 'px';
+  menu.style.top = Math.max(b.top, Math.min(ly, b.bottom - mh - 4)) + 'px';
   // 菜单内点击不触发外部关闭；点击外部任意位置关闭
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
   menu.onclick = async (e) => {
@@ -829,12 +830,46 @@ const CF_ACTIONS = [
   { v: 'flee', t: '逃跑' },
 ];
 
+// 存档导出/导入提示：显示 2.5 秒后收起，文案被替换则不动
+function flashSaveHint(text) {
+  updateTextBox(text, false, 'app');
+  setTimeout(() => {
+    if ($('textBoxContent')?.textContent === text) hideTextBox('stage');
+    if ($('appTextBoxContent')?.textContent === text) hideTextBox('app');
+  }, 2500);
+}
+
 export function renderSettings(container, s) {
   const ballLabels = { 'poke-ball': '精灵球', 'ultra-ball': '高级球', 'master-ball': '大师球' };
   const autoCatch = s.autoCatch || false;
   const autoFlee = s.autoFlee || false;
   const windowPinned = s.windowPinned || false;
   const windowScale = WINDOW_SCALES.includes(s.windowScale) ? s.windowScale : 2;
+  // 窗口设置只对桌面端有意义：浏览器版与手游模式都不显示
+  const windowGroupHtml = (document.body.classList.contains('browser-mode') || isUiMobile()) ? '' : `
+      <div class="settings-group">
+        <div class="settings-group-title">窗口</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">固定窗口</div>
+          <div class="toggle-switch" id="toggleWindowPinned">
+            <div class="toggle-track ${windowPinned ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">窗口倍率</div>
+          <div class="pokedex-region-select window-scale-select" id="windowScaleSelect">
+            <span class="scale-value">${windowScale} 倍</span>
+            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
+              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
+            </svg>
+            <div class="region-dropdown window-scale-dd" style="display:none;">
+              ${WINDOW_SCALES.map(x => `<div class="region-dropdown-item${x === windowScale ? ' active' : ''}" data-scale="${x}">${x} 倍</div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+`;
   const balls = s.autoCatchBalls || { 'poke-ball': true, 'ultra-ball': true, 'master-ball': true };
   const autoBuffHoney = s.autoBuffHoney || false;
   const autoBuffCharm = s.autoBuffCharm || false;
@@ -975,29 +1010,7 @@ export function renderSettings(container, s) {
         ` : ''}
       </div>
 
-      <div class="settings-group">
-        <div class="settings-group-title">窗口</div>
-        <div class="auto-catch-row">
-          <div class="auto-catch-label">固定窗口</div>
-          <div class="toggle-switch" id="toggleWindowPinned">
-            <div class="toggle-track ${windowPinned ? 'on' : ''}"></div>
-            <div class="toggle-knob"></div>
-          </div>
-        </div>
-        <div class="auto-catch-row">
-          <div class="auto-catch-label">窗口倍率</div>
-          <div class="pokedex-region-select window-scale-select" id="windowScaleSelect">
-            <span class="scale-value">${windowScale} 倍</span>
-            <svg class="region-arrow" viewBox="0 0 8 6" width="8" height="6">
-              <path d="M0,1 L4,5 L8,1" stroke="currentColor" fill="none" stroke-width="1.2" />
-            </svg>
-            <div class="region-dropdown window-scale-dd" style="display:none;">
-              ${WINDOW_SCALES.map(s => `<div class="region-dropdown-item${s === windowScale ? ' active' : ''}" data-scale="${s}">${s} 倍</div>`).join('')}
-            </div>
-          </div>
-        </div>
-      </div>
-
+      ${windowGroupHtml}
       <div class="settings-group">
         <div class="settings-group-title">外观</div>
         <div class="auto-catch-row">
@@ -1146,10 +1159,10 @@ export function renderSettings(container, s) {
       btn.textContent = '导出中…';
       try {
         await window.__POKEIDLE_MOBILE__.exportSave(JSON.stringify(gameData));
-        updateTextBox('存档已导出');
+        flashSaveHint('存档已导出');
         btn.textContent = '已导出 ✓';
       } catch (e) {
-        updateTextBox('存档导出失败');
+        flashSaveHint('存档导出失败');
         btn.textContent = '导出失败';
       }
       setTimeout(() => { btn.textContent = '导出'; }, 2500);
@@ -1164,7 +1177,7 @@ export function renderSettings(container, s) {
       a.download = 'pokemon-idle-save.json';
       a.click();
       URL.revokeObjectURL(url);
-      updateTextBox('存档已导出');
+      flashSaveHint('存档已导出');
       btn.textContent = '已导出 ✓';
       setTimeout(() => { btn.textContent = '导出'; }, 2500);
       return;
@@ -1172,14 +1185,14 @@ export function renderSettings(container, s) {
     btn.textContent = '导出中…';
     try {
       const path = await window.__TAURI__.core.invoke('export_save_data', { data: JSON.stringify(gameData) });
-      updateTextBox('存档已导出');
+      flashSaveHint('存档已导出');
       btn.textContent = '已导出 ✓';
     } catch (e) {
       if (typeof e === 'string' && e.includes('取消')) {
         btn.textContent = '导出';
         return;
       }
-      updateTextBox('存档导出失败');
+      flashSaveHint('存档导出失败');
       btn.textContent = '导出失败';
     }
     setTimeout(() => { btn.textContent = '导出'; }, 2500);
@@ -1201,14 +1214,14 @@ export function renderSettings(container, s) {
           const jsonStr = await file.text();
           const imported = JSON.parse(jsonStr);
           if (!imported || typeof imported !== 'object' || !imported.stats) {
-            updateTextBox('存档格式无效');
+            flashSaveHint('存档格式无效');
             btn.textContent = '导入失败';
             setTimeout(() => { btn.textContent = '导入'; }, 2500);
             return;
           }
           applyImportedSave(imported);
         } catch (e) {
-          updateTextBox('存档导入失败');
+          flashSaveHint('存档导入失败');
           btn.textContent = '导入失败';
           setTimeout(() => { btn.textContent = '导入'; }, 2500);
         }
@@ -1221,7 +1234,7 @@ export function renderSettings(container, s) {
       const jsonStr = await window.__TAURI__.core.invoke('import_save_data');
       const imported = JSON.parse(jsonStr);
       if (!imported || typeof imported !== 'object' || !imported.stats) {
-        updateTextBox('存档格式无效');
+        flashSaveHint('存档格式无效');
         btn.textContent = '导入失败';
         setTimeout(() => { btn.textContent = '导入'; }, 2500);
         return;
@@ -1232,7 +1245,7 @@ export function renderSettings(container, s) {
         btn.textContent = '导入';
         return;
       }
-      updateTextBox('存档导入失败');
+      flashSaveHint('存档导入失败');
       btn.textContent = '导入失败';
       setTimeout(() => { btn.textContent = '导入'; }, 2500);
     }
@@ -1247,7 +1260,7 @@ export function renderSettings(container, s) {
     setGameData(imported);
     ensureGpsState();
     saveGame().then(() => {
-      updateTextBox('存档导入成功，即将刷新');
+      flashSaveHint('存档导入成功，即将刷新');
       const b = container.querySelector('#importSaveBtn');
       if (b) b.textContent = '已导入 ✓';
       setTimeout(() => { location.reload(); }, 800);
@@ -1434,15 +1447,14 @@ export function toggleDarkMode() {
   saveGame();
 }
 
-// 手游模式开关：切换竖屏布局（顶部信息条 + 底部入口行 + 背包栏），两端都能用，即时生效
-export function toggleUiMode() {
+// 手游模式开关：两套布局的视图归属/导航栈完全不同，写档后直接重启界面
+export async function toggleUiMode() {
   ensureSettings();
   const next = getUiMode() === 'mobile' ? 'classic' : 'mobile';
   gameData.settings.uiMode = next;
-  applyUiMode(next); // 触发 'ui-mode-changed'：重算缩放与道路画布尺寸
-  const container = $('settingsContent');
-  renderSettings(container, gameData.settings);
-  saveGame();
+  applyUiMode(next);
+  await saveGame();
+  location.reload();
 }
 
 // 音乐总开关：关闭时暂停所有背景音乐（地区曲/覆盖曲），音效不受影响；重开恢复播放
@@ -2024,6 +2036,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '状态栏图标',
+    desktopOnly: true, // Windows 任务栏托盘：浏览器版与手机端没有对应功能
     html: `<p>把窗口<b>最小化</b>后主角依然在挂机冒险。Windows 任务栏右下角（系统托盘）会出现<b>口袋挂机</b>图标。</p>`
       + `<p>点击图标：窗口<b>打开时</b>点一下收起，<b>最小化或收起后</b>再点一下即可弹回前台。</p>`
       + `<p>Windows 默认会把不常用的图标收进「<b>显示隐藏的图标</b>」弹层里：点开它找到口袋挂机图标，<b>按住拖到外面的任务栏</b>即可固定显示，游戏状态一眼可见。</p>`
@@ -2088,10 +2101,30 @@ function tutorialRewards() {
   return (gameData.tutorialRewards ||= { claimed: [] });
 }
 // 是否还有未领取的教程章节（手机"教程"app 图标与标题栏聚合红点共用）
+// 教程章节的平台适配：桌面专属章节整章不展示；
+// 触屏设备没有右键/滚轮/悬停，正文与总结按设备替换措辞——只维护这一套内容
+function tutorialSectionVisible(i) {
+  const sec = TUTORIAL_SECTIONS[i];
+  if (!sec || !sec.desktopOnly) return true;
+  return !document.body.classList.contains('browser-mode');
+}
+const TUTORIAL_TOUCH_TEXT = [
+  [/右键/g, '长按'],
+  [/滚动滚轮或点击底部圆点/g, '左右滑动或点击底部圆点'],
+  [/背包滚轮翻到第二页/g, '背包滑动翻到第二页'],
+  [/鼠标悬停到商品上可以看简介，/g, ''],
+  [/鼠标移上去点一下即可叫醒/g, '点一下即可叫醒'],
+];
+function tutorialText(html) {
+  if (!matchMedia('(hover: none)').matches) return html; // 有鼠标的设备保持原措辞
+  return TUTORIAL_TOUCH_TEXT.reduce((t, [re, to]) => t.replace(re, to), html);
+}
+
 export function hasUnclaimedTutorialRewards() {
   const r = gameData?.tutorialRewards;
   if (!r) return true; // 老存档尚未有该字段：福利待领取
-  return TUTORIAL_SECTIONS.some((_, i) => !r.claimed.includes(i));
+  // 不参与展示的章节不计入未领取，避免红点永远亮着
+  return TUTORIAL_SECTIONS.some((_, i) => tutorialSectionVisible(i) && !r.claimed.includes(i));
 }
 function claimTutorialReward(idx) {
   const r = tutorialRewards();
@@ -2112,24 +2145,26 @@ export function showTutorialView() {
   const content = $('tutorialContent');
   const r = tutorialRewards();
   // 渲染左侧导航列表（带图标的章节在标题前显示对应 svg 图标；未领取奖励的章节带红点）
-  list.innerHTML = TUTORIAL_SECTIONS.map((s, i) =>
-    `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="#${s.icon}"/></svg>` : ''}${s.title}${r.claimed.includes(i) ? '' : '<span class="tutorial-nav-badge"></span>'}</div>`
-  ).join('');
+  // 平台不适用的章节整章跳过，data-i 仍用原始章节下标：奖励记录按原下标存档，不受过滤影响
+  list.innerHTML = TUTORIAL_SECTIONS.map((s, i) => {
+    if (!tutorialSectionVisible(i)) return '';
+    return `<div class="tutorial-nav-item" data-i="${i}">${s.icon ? `<svg class="tutorial-nav-icon"><use xlink:href="#${s.icon}"/></svg>` : ''}${s.title}${r.claimed.includes(i) ? '' : '<span class="tutorial-nav-badge"></span>'}</div>`;
+  }).join('');
   function render(idx) {
     const sec = TUTORIAL_SECTIONS[idx];
     content.innerHTML = `<div class="tutorial-title-row"><p class="tutorial-title">${sec.title}</p>${
       r.claimed.includes(idx)
         ? ''
         : `<button class="ach-btn ach-btn-ready tutorial-claim-btn" data-claim="${idx}"><img class="candy-icon" src="./items/candy.png" alt="">×${TUTORIAL_REWARD} 领取</button>`
-    }</div>` + sec.html;
-    list.querySelectorAll('.tutorial-nav-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+    }</div>` + tutorialText(sec.html);
+    list.querySelectorAll('.tutorial-nav-item').forEach((el) => el.classList.toggle('active', Number(el.dataset.i) === idx));
     // 点击领取：直接发糖果，弹章节总结，重绘当前章节（按钮消失），并移除左侧导航红点
     const btn = content.querySelector('.tutorial-claim-btn');
     if (btn) btn.onclick = (e) => {
       e.stopPropagation();
       if (claimTutorialReward(idx)) {
         list.querySelector(`.tutorial-nav-item[data-i="${idx}"] .tutorial-nav-badge`)?.remove();
-        showConfirmBar(`${TUTORIAL_SUMMARIES[sec.title] || ''}`, null, null, { singleButton: true, host: $('screen') });
+        showConfirmBar(tutorialText(TUTORIAL_SUMMARIES[sec.title] || ''), null, null, { singleButton: true });
         render(idx);
       }
     };

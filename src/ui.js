@@ -55,15 +55,60 @@ export function showNowPlaying(title, artist) {
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
 const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','hatchAllView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','followerView','dispatchView'];
 const CASINO_VIEWS = new Set(['casinoView', 'casinoGameView', 'mahjongView', 'gachaView', 'gachaHistoryView', 'casinoHistoryView']);
-// 舞台类视图 = 真正的"游戏画面"（挂机 / 遇敌 / 孵蛋动画），其余视图都是"应用类"（手机里的 app）。
-// 与 index.html 上的 view-stage 类保持一致；双屏布局下舞台常驻、应用显示在下方容器
-const STAGE_VIEWS = new Set(['idleView', 'encounterView', 'hatchView', 'hatchAllView']);
+// 舞台类视图 = 游戏画面（挂机/遇敌），其余都是下屏的应用类
+const STAGE_VIEWS = new Set(['idleView', 'encounterView']);
 let _currentView = 'idleView';
 
 export function isStageView(id) { return STAGE_VIEWS.has(id); }
 
+// 把 app 显示到下半屏：不改当前页、不入导航栈
+export function showAppView(id) {
+  if (!isUiMobile()) { showView(id); return; }
+  VIEW_IDS.forEach(v => {
+    if (STAGE_VIEWS.has(v)) return;
+    const el = $(v);
+    if (!el) return;
+    const on = v === id;
+    el.style.display = on ? 'flex' : 'none';
+    el.classList.toggle('is-active', on);
+  });
+}
+
+// 下半屏回到手机首页（玩家「回挂机」：再点一次已高亮的入口图标、手机主页按返回）
+export function closeAppArea() {
+  if (!isUiMobile()) return;
+  import('./phone.js').then(m => m.showPhoneHome()); // showPhoneHome 内会把当前页记成手机首页
+}
+
+// 当前页标记与入口按钮高亮：showView 与「下半屏回手机首页」共用同一套记账
+const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','hatchAllView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','albumView']);
+export function syncViewChrome(id) {
+  document.documentElement.dataset.view = id;
+  _currentView = id;
+  // 视图切换立即同步时空扭曲配色
+  import('./events.js').then(m => m.syncTwistTheme());
+  updateStats(); // 视图切换立即刷新状态栏：进入游戏厅立刻显示 coin，离开立刻隐藏
+  document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
+    const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
+    btn.classList.toggle('active', on);
+  });
+  // 手机首页没有上一级：返回按钮置灰
+  $('btnBack')?.classList.toggle('inert', id === 'phoneView');
+}
+
 // 当前可见视图 id（背包经验糖果等浮层来源导航用：从哪个页面进入，返回就回哪个页面）
 export function getCurrentView() { return _currentView; }
+
+// 下半屏当前显示的视图 id：记录页的隐藏来自 CSS，内联 display 为空串，需再看计算值
+export function getAppChannelView() {
+  for (const v of VIEW_IDS) {
+    if (STAGE_VIEWS.has(v)) continue;
+    const el = $(v);
+    if (!el || el.style.display === 'none') continue;
+    if (getComputedStyle(el).display !== 'none') return v;
+  }
+  return null;
+}
 
 export function showView(id) {
   // 切换视图即关闭残留确认框（如游戏币不足提示），避免离开页面后再次进入仍显示
@@ -86,19 +131,30 @@ export function showView(id) {
   if (id !== 'gpsView' && $('gpsView')?.style.display === 'flex' && gameData?.gps?.pendingBike) {
     import('./gps.js').then(m => m.abandonBikeTarget());
   }
+  const mobileDual = isUiMobile();
+  const targetStage = STAGE_VIEWS.has(id);
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none' || $('hatchView')?.style.display !== 'none';
   VIEW_IDS.forEach(v => {
     const el = $(v);
     if (!el) return;
+    // 双屏下只切当前通道：打开 app 时舞台照常走路/掉道具/遇敌
+    if (mobileDual && STAGE_VIEWS.has(v) !== targetStage) return;
     const on = v === id;
     el.style.display = on ? 'flex' : 'none';
     el.classList.toggle('is-active', on); // 供 CSS 定位/调试：当前视图
   });
-  document.documentElement.dataset.view = id;
-  _currentView = id;
-  // 视图切换立即同步时空扭曲配色（紫色主题仅在挂机/遭遇页生效，离开即恢复）
-  import('./events.js').then(m => m.syncTwistTheme());
-  updateStats(); // 视图切换立即刷新状态栏：进入游戏厅立刻显示 coin，离开立刻隐藏
+  // 双屏下两块屏都不留空：上屏无画面顶挂机页，下屏无 app 回手机首页
+  if (mobileDual) {
+    if (!targetStage && ![...STAGE_VIEWS].some(v => $(v)?.style.display !== 'none')) {
+      const idleEl = $('idleView');
+      if (idleEl) { idleEl.style.display = 'flex'; idleEl.classList.add('is-active'); }
+    }
+    const appShown = [...VIEW_IDS].some(v => !STAGE_VIEWS.has(v) && $(v)?.style.display !== 'none');
+    if (targetStage && !appShown) import('./phone.js').then(m => m.showPhoneHome());
+  }
+  // 手游双屏：下半屏的 app 页面才是当前页，标题/返回态与入口高亮跟它走
+  const chromeId = mobileDual ? (getAppChannelView() || 'phoneView') : id;
+  syncViewChrome(chromeId);
   // 重新进入孵蛋器：重置记录页/选蛋页状态，总是回到主列表
   if (id === 'incubatorView') {
     _incLogOpen = false;
@@ -111,7 +167,9 @@ export function showView(id) {
   if (wasOnGameView && phase === 'eggResult' && !_eggHatching && id !== 'encounterView') {
     import('./items.js').then(m => m.finalizeEggResultContext());
   }
-  if (wasOnGameView && id !== 'idleView' && id !== 'encounterView') {
+  // 离开游戏页收尾只在单屏布局下按"当前页"判断：双屏下切下屏 app 时上屏还在遭遇里，
+  // 跑了这段会取消待补播的结算、把"是否查看详情"直接结算掉
+  if (!mobileDual && wasOnGameView && id !== 'idleView' && id !== 'encounterView') {
     import('./battle.js').then(m => {
       m.cancelBgResultReplay();
       // 离开游戏页时若正停在手动捕获的"是否查看详情"确认框（phase='caught'）：
@@ -147,11 +205,6 @@ export function showView(id) {
       });
     }, 0);
   }
-  const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','hatchAllView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','albumView']);
-  document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
-    const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
-    btn.classList.toggle('active', on);
-  });
   if (id === 'idleView') {
     if (_fishing) {
       import('./fishing.js').then(m => m.applyFishingVisual());
@@ -161,9 +214,15 @@ export function showView(id) {
     road.refreshSize();
   }
 
-  if (id !== 'encounterView' && id !== 'hatchView') {
+  // 文字框按屏归属：切舞台视图收舞台文案、切 app 视图收下屏文案
+  const hideStageBox = id !== 'encounterView' && id !== 'hatchView';
+  if (mobileDual) {
+    if (targetStage) { if (hideStageBox) hideTextBox('stage'); }
+    else hideTextBox('app');
+  } else if (hideStageBox) {
     hideTextBox();
-  } else if (id === 'encounterView' && phase === 'encounter' && currentEncounter) {
+  }
+  if (id === 'encounterView' && phase === 'encounter' && currentEncounter) {
     const box = $('textBox');
     const tc = $('animThrowChar');
     if (box && !box.classList.contains('show')) {
@@ -190,24 +249,29 @@ export function showView(id) {
     if (tc) tc.classList.remove('throwing');
   }
   const title = $('appTitle');
-  if (id === 'idleView' || id === 'encounterView' || id === 'introView') {
+  if (chromeId === 'idleView' || chromeId === 'encounterView' || chromeId === 'introView') {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
     const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', hatchView:'孵化', hatchAllView:'孵化全部', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', dispatchView:'派遣', casinoView:'游戏厅', casinoGameView:'21 点', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', followerView:'随从' };
-    title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${names[id]||''}`;
+    title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${names[chromeId]||''}`;
     title.dataset.action = 'back';
   }
 }
 
 // ---------- 底部文字框 ----------
-export function updateTextBox(text, showArrow) {
-  // 底部文字框只在游戏页（挂机/遇敌）或孵蛋页显示；孵蛋页文案由孵蛋流程显式调用，
-  // 其他页面一律隐藏。遭遇页的文案调用方都用 isOnGameView() 先做判断，不会漏到孵蛋页。
-  if (!isOnGameView() && !isOnHatchView()) return;
-  const box = $('textBox');
-  const content = $('textBoxContent');
-  const arrow = $('textBoxArrow');
+// 文案宿主：手游舞台文案走上屏、app 文案走下屏；经典只有一个屏，都走 #textBox
+function textBoxHost(owner) {
+  const useAppBox = owner === 'app' && isUiMobile();
+  return useAppBox
+    ? { box: $('appTextBox'), content: $('appTextBoxContent'), arrow: $('appTextBoxArrow') }
+    : { box: $('textBox'), content: $('textBoxContent'), arrow: $('textBoxArrow') };
+}
+
+export function updateTextBox(text, showArrow, owner = 'stage') {
+  // 舞台文案只在游戏页（挂机/遇敌）或孵蛋页显示；app 文案归下屏自己的文字框，不受游戏页限制
+  if (owner !== 'app' && !isOnGameView() && !isOnHatchView()) return;
+  const { box, content, arrow } = textBoxHost(owner);
   if (!box || !content) return;
   content.textContent = text;
   if (arrow) arrow.style.display = showArrow ? 'flex' : 'none';
@@ -221,13 +285,13 @@ export function updateTextBox(text, showArrow) {
   });
 }
 
-export function hideTextBox() {
-  const box = $('textBox');
+export function hideTextBox(owner = 'stage') {
+  const { box, arrow } = textBoxHost(owner);
   if (!box) return;
   box.classList.remove('show');
   box.style.transform = 'translateY(100%)';
   box.style.display = 'none';
-  $('textBoxArrow').style.display = 'none';
+  if (arrow) arrow.style.display = 'none';
 }
 
 // ---------- 通用底部确认文案框 ----------
@@ -245,9 +309,11 @@ export function showConfirmBar(text, onYes, onNo, opts = {}) {
       ${opts.singleButton ? '' : `<span class="catch-confirm-btn" data-cb-no>取消</span>`}
     </div>`;
   bar.innerHTML = `<div class="text-box-content">${text}</div>${btnsHtml}`;
+  // 宿主：默认挂到当前视图所在的那块屏，可被 opts.host 覆盖
+  const curEl = $(getCurrentView());
   const host = opts.host
+    || curEl?.closest('.screen')
     || document.querySelector('.view-fixed[style*="display: flex"], .view-fixed[style*="display:flex"]')
-    || document.querySelector('.view-scroll[style*="display: flex"], .view-scroll[style*="display:flex"]')
     || document.body;
   host.appendChild(bar);
   // opts.overlay：加全屏透明遮罩，点击遮罩（textbox 以外）视为取消；同时挡住下层按钮防止重复触发
@@ -1158,9 +1224,10 @@ function showIncubatorCtxMenu(slotIndex, x, y) {
   menu.innerHTML = `<div class="shop-ctx-item">${ignored ? '恢复红点提醒' : '忽略此蛋'}</div>`;
   menu.style.display = '';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  const { x: lx, y: ly, w: vw, h: vh } = logicViewport(x, y); // zoom 下还原逻辑坐标
-  menu.style.left = Math.max(0, Math.min(lx - 24, vw - mw - 4)) + 'px';
-  menu.style.top = Math.max(0, Math.min(ly, vh - mh - 4)) + 'px';
+  const { x: lx, y: ly } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  const b = popupBounds(); // 夹紧在机身内：手游双屏下机身只占屏幕中间一块
+  menu.style.left = Math.max(b.left, Math.min(lx - 24, b.right - mw - 4)) + 'px';
+  menu.style.top = Math.max(b.top, Math.min(ly, b.bottom - mh - 4)) + 'px';
   menu.addEventListener('pointerdown', (e) => e.stopPropagation());
   menu.onclick = () => {
     hideIncubatorCtxMenu();
@@ -1327,29 +1394,72 @@ export function hideFoodTip() {
   if (_foodTipEl) _foodTipEl.style.display = 'none';
 }
 
+// 机身盒子：getClientRects 未被 rect 补偿改写，返回含 transform 缩放的真实盒子
+function consoleBox() {
+  const el = document.querySelector('.console');
+  const r = el?.getClientRects?.()[0];
+  const w = el?.offsetWidth, h = el?.offsetHeight;
+  return r && w && h ? { r, w, h } : null;
+}
+
+// 浮层边界：手游夹在机身内，经典布局即整页视口
+export function popupBounds() {
+  const b = isUiMobile() ? consoleBox() : null;
+  if (b) return { left: b.r.left, top: b.r.top, right: b.r.right, bottom: b.r.bottom };
+  const z = parseFloat(document.documentElement.style.zoom) || 1;
+  return { left: 0, top: 0, right: window.innerWidth / z, bottom: window.innerHeight / z };
+}
+
+// 机身内逻辑坐标 ⇄ 浮层/指针坐标：手游模式只差一个机身缩放比，经典布局为恒等 / 除以 zoom
+export function logicToViewport(lx, ly) {
+  const b = isUiMobile() ? consoleBox() : null;
+  if (!b) return { x: lx, y: ly };
+  return { x: b.r.left + lx * (b.r.width / b.w), y: b.r.top + ly * (b.r.height / b.h) };
+}
+
+export function viewportToLogic(px, py) {
+  const b = isUiMobile() ? consoleBox() : null;
+  if (b) return { x: (px - b.r.left) / (b.r.width / b.w), y: (py - b.r.top) / (b.r.height / b.h) };
+  const z = parseFloat(document.documentElement.style.zoom) || 1;
+  return { x: px / z, y: py / z };
+}
+
+// 机身外的整屏演出层：手游模式铺在机身上并按机身缩放，层内沿用机身逻辑坐标
+export function consoleLayerStyle() {
+  const b = isUiMobile() ? consoleBox() : null;
+  if (!b) return null;
+  return {
+    left: b.r.left + 'px',
+    top: b.r.top + 'px',
+    width: b.w + 'px',
+    height: b.h + 'px',
+    transform: `scale(${b.r.width / b.w})`,
+    transformOrigin: '0 0',
+  };
+}
+
 export function showFoodTip(text, x, y) {
   const tip = getFoodTipEl();
   tip.textContent = text;
   // 多行文案（含 \n）时按行折行，单行文案保持 nowrap（如树果 tooltip）
   tip.style.whiteSpace = text.includes('\n') ? 'pre-line' : '';
   tip.style.display = '';
-  // 浏览器端 html 级 zoom 下，style.left/top 赋值渲染时还会被 zoom 放大一次（与 main.js 的
-  // getBoundingClientRect 还原逻辑一致）；这里把事件坐标与视口尺寸统一还原成逻辑像素，保证跟随鼠标不错位
-  const { x: vx, y: vy, w: vw, h: vh } = logicViewport(x, y);
-  // 定位：优先右下方，越界时翻转到左/上方；翻转后仍越界则夹紧在屏幕内，避免溢出屏幕外
+  const { x: vx, y: vy } = logicViewport(x, y); // 事件坐标 → 与边界同一套坐标
+  const b = popupBounds();
+  // 优先右下方，越界翻转到左/上方，仍越界则夹紧在机身内
   const pad = 10;
   let left = vx + 12;
   let top = vy + 14;
-  const tw = tip.getBoundingClientRect().width; // 已被 main.js 还原为逻辑像素
+  const tw = tip.getBoundingClientRect().width;
   const th = tip.getBoundingClientRect().height;
-  if (left + tw > vw - pad) {
+  if (left + tw > b.right - pad) {
     left = vx - tw - 12;
-    if (left < pad) left = pad; // 左侧放不下：贴左边缘
-    if (left + tw > vw - pad) left = vw - pad - tw; // 兜底防右侧再溢出
+    if (left < b.left + pad) left = b.left + pad; // 左侧放不下：贴机身左边缘
+    if (left + tw > b.right - pad) left = b.right - pad - tw; // 兜底防右侧再溢出
   }
-  if (top + th > vh - pad) {
+  if (top + th > b.bottom - pad) {
     top = vy - th - 10;
-    if (top < pad) top = pad; // 上方放不下：贴顶
+    if (top < b.top + pad) top = b.top + pad; // 上方放不下：贴机身顶部
   }
   tip.style.left = left + 'px';
   tip.style.top = top + 'px';

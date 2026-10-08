@@ -1,5 +1,5 @@
 // ===== 经验糖果 =====
-import { $, showConfirmBar, updateBackpack, tryLoadPokemonImage, getCurrentView } from './ui.js';
+import { $, showConfirmBar, updateBackpack, tryLoadPokemonImage, getCurrentView, getAppChannelView } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, addSystemLog } from './state.js';
 import { applyXp } from './train.js';
 import { EXP_CANDY_XP, MAX_LEVEL } from './config.js';
@@ -26,7 +26,8 @@ function simulateXp(lv, curExp, amount) {
 }
 
 export function openExpCandyPicker() {
-  const from = getCurrentView();
+  // 来源页：手游双屏下背包入口在下半屏，返回应回下半屏当前页面（经典布局两块屏同源，结果一致）
+  const from = getAppChannelView() || getCurrentView();
   // 库存为 0 时不响应，不跳转宝可梦列表
   if ((gameData.items['exp-candy'] || 0) <= 0) return;
   import('./roster.js').then(m => m.showRosterPicker({ mode: 'expcandy', from }));
