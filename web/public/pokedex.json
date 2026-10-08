@@ -30276,10 +30276,10 @@
     },
     {
         "index": "0563",
-        "name": "死神棺",
+        "name": "迭失棺",
         "name_en": "Cofagrigus",
-        "image": "pokemon-data/images/0563-死神棺.gif",
-        "icon": "pokemon-data/icon/0563-死神棺.png",
+        "image": "pokemon-data/images/0563-迭失棺.gif",
+        "icon": "pokemon-data/icon/0563-迭失棺.png",
         "types": [
             "幽灵"
         ],
@@ -47980,10 +47980,10 @@
     },
     {
         "index": "0867",
-        "name": "死神板",
+        "name": "迭失板",
         "name_en": "Runerigus",
-        "image": "pokemon-data/images/0867-死神板.gif",
-        "icon": "pokemon-data/icon/0867-死神板.png",
+        "image": "pokemon-data/images/0867-迭失板.gif",
+        "icon": "pokemon-data/icon/0867-迭失板.png",
         "types": [
             "地面",
             "幽灵"
