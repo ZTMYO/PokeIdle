@@ -2832,7 +2832,11 @@ function finishBattle(battle) {
       <div class="battle-result-title">${win ? '挑战成功！' : '挑战失败…'}</div>
       <div class="battle-result-detail">
         ${win ? results.map((r) => `<div>${r.name} 升级到 Lv${r.lv}${r.up ? `（+${r.up}级）` : ''}${r.bonusGain > 0 ? ` <span class="exp-bonus">+${r.bonusGain}经验</span>` : ''}</div>`).join('') : '<div>失败无经验，调整队伍或招式再来试试吧！</div>'}
-        ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/goods/candy.png" alt=""> × ${battle.preset.candy}${dropCandy ? ` <img class="candy-icon" src="./items/goods/xp-candy.png" alt=""> × 1` : ''}${tierDrops.map(d => ` <img class="candy-icon" src="${itemIconSrc(d.key)}" alt=""> × ${d.qty}`).join('')}</div>` : ''}
+        ${win ? `<div class="candy-gain"><span class="gain-label">获得</span><div class="gain-list">`
+          + `<span class="gain-chip"><img class="candy-icon" src="./items/goods/candy.png" alt="">×${battle.preset.candy}</span>`
+          + (dropCandy ? `<span class="gain-chip"><img class="candy-icon" src="./items/goods/xp-candy.png" alt="">×1</span>` : '')
+          + tierDrops.map((d) => `<span class="gain-chip"><img class="candy-icon" src="${itemIconSrc(d.key)}" alt="">×${d.qty}</span>`).join('')
+          + `</div></div>` : ''}
       </div>
       ${win
         ? `<div class="battle-result-btns"><button class="battle-btn" id="b-review">回顾</button><button class="battle-btn main" id="b-confirm">确定</button></div>`

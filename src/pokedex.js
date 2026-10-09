@@ -606,8 +606,8 @@ export function showPokedex() {
   // 多级筛选：解锁/未解锁 → 完整组合（全部/普通/神兽/闪光/普通闪光/神兽闪光）
   // legend/shiny 用 all=不限，normal=非，legend/shiny=是
   const st = _pokedexStatus, lg = _pokedexLegend, sh = _pokedexShiny;
-  if (st === 'unlock') filtered = filtered.filter(p => (caughtMap[p.index]?.caught || 0) > 0);
-  else if (st === 'lock') filtered = filtered.filter(p => (caughtMap[p.index]?.caught || 0) === 0);
+  if (st === 'unlock') filtered = filtered.filter(p => ((caughtMap[p.index]?.caught || 0) > 0 || (caughtMap[p.index]?.evolved || 0) > 0));
+  else if (st === 'lock') filtered = filtered.filter(p => ((caughtMap[p.index]?.caught || 0) === 0 && (caughtMap[p.index]?.evolved || 0) === 0));
   if (lg === 'legend') filtered = filtered.filter(p => p.legend === true);
   else if (lg === 'normal') filtered = filtered.filter(p => p.legend !== true);
   if (sh === 'shiny') filtered = filtered.filter(p => (caughtMap[p.index]?.shinyCaught || 0) > 0);

@@ -831,7 +831,7 @@ function applyHatchEntry(slotIndex, presetGender) {
 // ---------- 从孵蛋器取出孵化 ----------
 export async function hatchFromIncubator(slotIndex) {
   if (_eggHatching) return;
-  if (phase === 'battle' || phase === 'eggResult') return; // NPC 对战 / 孵蛋结果确认期间仍禁止孵化
+  if (phase === 'battle' || phase === 'eggResult' || phase === 'evo') return; // NPC 对战 / 孵蛋结果 / 进化演出期间仍禁止孵化
   if (phase !== 'idle' && phase !== 'encounter' && phase !== 'caught' && phase !== 'fled') return;
   const incubators = gameData.incubators;
   if (!incubators || !incubators[slotIndex]) return;
@@ -1045,7 +1045,7 @@ export async function hatchFromIncubator(slotIndex) {
 // （同时播放与单只孵化同款的祝贺音效），确认后收起页面回孵蛋器。
 export async function hatchAllFromIncubator() {
   if (_eggHatching) return;
-  if (phase === 'battle' || phase === 'eggResult') return; // NPC 对战 / 孵蛋结果确认期间仍禁止孵化
+  if (phase === 'battle' || phase === 'eggResult' || phase === 'evo') return; // NPC 对战 / 孵蛋结果 / 进化演出期间仍禁止孵化
   if (phase !== 'idle' && phase !== 'encounter' && phase !== 'caught' && phase !== 'fled') return;
   const incubators = gameData.incubators;
   if (!incubators || !incubators.length) return;

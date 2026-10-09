@@ -61,6 +61,11 @@ export const ACHIEVEMENTS = [
     fmt: v => `${formatNum(v)} 只`,
   },
   {
+    id: 'evolve', name: '进化论', desc: '累计进化宝可梦',
+    metric: d => d.stats.totalEvolutions || 0, base: 1, reward: 30,
+    fmt: v => `${formatNum(v)} 次`,
+  },
+  {
     id: 'breed', name: '育种大师', desc: '累计繁殖产蛋',
     metric: d => d.stats.totalEggsProduced || 0, base: 1, reward: 30,
     fmt: v => `${formatNum(v)} 枚`,
@@ -108,17 +113,17 @@ export const ACHIEVEMENTS = [
   {
     id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
     metric: () => dexCount(), base: 10, reward: 30, maxTiers: 8,
-    // 满级阈值对齐当前全图鉴 1428 种，最后一级 1428
+    // 满级阈值对齐当前全图鉴 1429 种，最后一级 1429
     // 后续新增宝可梦时：把末级数字改为最新图鉴总数，同时同步 maxTiers（= tiers 数组长度）
-    tiers: [10, 20, 50, 100, 200, 500, 1000, 1428],
+    tiers: [10, 20, 50, 100, 200, 500, 1000, 1429],
     // 不改 formatNum：避免 1.3K 缩写，图鉴进度显示具体数字
     fmt: v => `${Number(v)} 种`,
   },
   {
     id: 'shinyDex', name: '闪光收藏家', desc: '图鉴中累计拥有闪光的不同种类',
     metric: () => shinyDexCount(), base: 10, reward: 100, maxTiers: 8,
-    // 满级阈值对齐全图鉴 1428 种，达成即图鉴全实心五角星
-    tiers: [10, 20, 50, 100, 200, 500, 1000, 1428],
+    // 满级阈值对齐全图鉴 1429 种，达成即图鉴全实心五角星
+    tiers: [10, 20, 50, 100, 200, 500, 1000, 1429],
     fmt: v => `${Number(v)} 种`,
   },
   {

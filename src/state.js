@@ -27,7 +27,7 @@ export function isTmUnlocked(moveId) {
 }
 
 export let gameData = null;
-export let phase = 'idle'; // idle | encounter | caught | fled | eggResult
+export let phase = 'idle'; // idle | encounter | caught | fled | eggResult | evo
 export let currentEncounter = null;
 export let currentIsShiny = false;
 export let encounterLevel = 1; // 当前野生遇敌的等级（1~20，遇敌时随机生成）
@@ -239,7 +239,7 @@ export function getDefaultSave() {
       totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0, totalEggsProduced:0, totalShinyTraded:0,
       totalBlockMade:0, totalPlantings:0, totalHarvests:0, totalBerriesHarvested:0, totalBoardTrades:0,
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
-      totalTrades:0, tradesToday:0, lastTradeDate:'',
+      totalTrades:0, tradesToday:0, lastTradeDate:'', totalEvolutions:0,
       releaseXpPool: 0, // 放生返还的经验累积池：攒满 EXP_CANDY_XP 自动产出一颗经验糖果并清零
       totalNpcWins:0, totalNpcNoviceWins:0, totalNpcEliteWins:0, totalNpcLeaderWins:0, totalNpcChampionWins:0, totalNpcCandy:0,
       luckyGachaScore:0, luckyGachaCount:0, // 抽卡欧气累计（独立累计，不受抽卡日志 50 条窗口影响）

@@ -877,6 +877,8 @@ export async function throwBall(ballType) {
       });
       addSystemLog('pokemon_escaped', { pokemon: idx, shiny: currentIsShiny, auto: _autoCatching });
     }
+    // 判定已落库就把待开战记录一起作废：否则存档里既有捕获结果、又留着"未结算的这只"，重启会重复入账。
+    gameData.wildEncounter = null;
     await saveGame(); // 立即存档：扣球 + 判定结果
 
     // 浏览器后台（页面不可见，rAF 停摆 / 后台补算）：判定已落库，跳过动画直接收尾，
@@ -927,7 +929,7 @@ export async function throwBall(ballType) {
         await delay(300);
         stopVictory(); // 与自动捕捉流程一致，关闭胜利音效并恢复背景曲（离开游戏页时确认框不可见，无人点按钮触发）
         // 孵蛋动画进行中：判定已落库，只清理现场不切视图，等孵蛋结束后统一回空闲
-        if (_eggHatching || phase === 'eggResult') { cleanupEncounterState(); return; }
+        if (_eggHatching || phase === 'eggResult' || phase === 'evo') { cleanupEncounterState(); return; }
         goIdle();
       }
       return;
@@ -950,7 +952,7 @@ export async function throwBall(ballType) {
       if (isOnGameView()) await playFleeAnim();
       await delay(300);
       // 孵蛋动画进行中：判定已落库，只清理现场不切视图，等孵蛋结束后统一回空闲
-      if (_eggHatching || phase === 'eggResult') { cleanupEncounterState(); return; }
+      if (_eggHatching || phase === 'eggResult' || phase === 'evo') { cleanupEncounterState(); return; }
       goIdle();
       return;
     }
@@ -1009,7 +1011,7 @@ export async function fleeEncounter(isAutoFlee) {
   if (_bgCatchup) { goIdle(); return; } // 后台补算：跳过延迟直接收尾
   setTimeout(() => {
     // 孵蛋动画进行中：判定已落库，只清理现场不切视图，等孵蛋结束后统一回空闲
-    if (_eggHatching || phase === 'eggResult') { cleanupEncounterState(); return; }
+    if (_eggHatching || phase === 'eggResult' || phase === 'evo') { cleanupEncounterState(); return; }
     goIdle();
   }, isAutoFlee ? 300 : 1200);
 }
@@ -1300,7 +1302,7 @@ export async function autoCatch() {
   const fr = catchFilterResult();
   if (fr === 'flee') { stopAutoFleeTimer(); await fleeEncounter(true); return; }
   if (fr === 'stop') return;
-  if (phase === 'eggResult' || _eggHatching) return; // 孵蛋动画进行中不自动捕捉
+  if (phase === 'eggResult' || phase === 'evo' || _eggHatching) return; // 孵蛋/进化演出进行中不自动捕捉
   if (phase === 'caught' || phase === 'fled') return; // 判定已落库（捕获/逃跑）的遭遇不再重复捕捉
   const bg = phase !== 'encounter'; // 遭遇被 NPC 对战等打断时进入后台结算模式
   if (bg) _bgCatch = true;
@@ -1341,6 +1343,7 @@ export async function autoCatch() {
           charmBuff: charmBuffActive, honeyBuff: honeyBuffActive,
         }),
       });
+      gameData.wildEncounter = null;   // 同上：判定落库即作废待开战记录
       await saveGame();
       updateStats();
       if (_bgCatch && !isOnGameView()) {

@@ -63,7 +63,7 @@ function calcLuckyRating() {
 // 每次调用重新取当天零点，跨天自动归零
 function calcTodayStats() {
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
-  const t = { seen: 0, caught: 0, fled: 0, shinySeen: 0, shinyCaught: 0, hatched: 0, shinyHatched: 0, trades: 0, shinyTraded: 0, catchRate: '0.0' };
+  const t = { seen: 0, caught: 0, fled: 0, shinySeen: 0, shinyCaught: 0, hatched: 0, shinyHatched: 0, trades: 0, shinyTraded: 0, evolutions: 0, catchRate: '0.0' };
   for (const arr of Object.values(gameData.encounterLogs || {})) {
     for (const l of arr) {
       if (!l || !l.time || l.time < todayStart) continue;
@@ -77,6 +77,7 @@ function calcTodayStats() {
         if (l.shiny) t.shinyTraded++;
         continue;
       }
+      if (l.source === 'evo') { t.evolutions++; continue; } // 进化来的不算道路遭遇
       t.seen++;
       if (l.result === 'caught') { t.caught++; if (l.shiny) t.shinyCaught++; }
       else if (l.result === 'fled' && !l.selfFlee) t.fled++;
@@ -152,6 +153,8 @@ function refreshDataStats() {
   $('dataTodayHatched').textContent = formatNum(t.hatched);
   $('dataTodayShinyHatched').textContent = formatNum(t.shinyHatched);
   $('dataTodayShinyTraded').textContent = formatNum(t.shinyTraded);
+  $('dataTodayEvolved').textContent = formatNum(t.evolutions);
+  $('dataTotalEvolved').textContent = formatNum(stats.totalEvolutions || 0);
   $('dataTradesToday').textContent = formatNum(stats.tradesToday || 0);
   $('dataRating').textContent = rating ? rating.name : '暂无评定，先去冒险吧';
   $('dataTotalSeen').textContent = formatNum(totalSeen);
@@ -238,6 +241,7 @@ export function showDataView() {
           <tr><td>孵化闪光</td><td id="dataTodayShinyHatched"></td><td id="dataTotalShinyHatched"></td></tr>
           <tr><td>交换次数</td><td id="dataTradesToday"></td><td id="dataTradesTotal"></td></tr>
           <tr><td>交换闪光</td><td id="dataTodayShinyTraded"></td><td id="dataTotalShinyTraded"></td></tr>
+          <tr><td>进化次数</td><td id="dataTodayEvolved"></td><td id="dataTotalEvolved"></td></tr>
         </tbody>
       </table>
 
@@ -1833,7 +1837,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '自行车',
     html: `<p><b>自行车</b>是赶路道具：骑行速度 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 走路，期间<b>不遇敌、不钓鱼、不拾取道具</b>，适合快速跨地区赶路。</p>`
-      + `<p><b>获取</b>：随机<b>自行车道</b>骑行结束后背包 <b>+1</b>；（详见「<b>场景</b>」章节）也可在<b>商店</b>用糖果兑换（<b>${CANDY_EXCHANGE['bike']}</b> 颗）。</p>`
+      + `<p><b>获取</b>：随机<b>自行车道</b>骑行结束后背包 <b>+1</b>（详见「<b>场景</b>」章节），也可在<b>商店</b>用糖果兑换（<b>${CANDY_EXCHANGE['bike']}</b> 颗）。</p>`
       + `<p><b>使用</b>：背包<b>滚轮翻到第二页</b>，点击<b>自行车</b>停止当前导航并进入<b>导航页</b>；<b>选好骑行目的地才消耗 1 个</b>上车骑行。骑行中背包再点可<b>手动下车</b>（不结束导航）。</p>`
       + `<p><b>放弃骑行</b>：未选目的地时再点背包「自行车」，或在导航页点「<b>退出</b>」结束导航。</p>`
       + `<p><b>自动下车</b>：骑行到<b>导航目的地</b>自动下车（中途经过的地区节点<b>不停车</b>，连续骑行）；<b>手动结束导航</b>也会直接下车；抵达<b>大量出没 / 时空扭曲</b>事件点自动下车（骑行中不遇敌，下车后才能进战斗）。</p>`
@@ -2005,11 +2009,23 @@ const TUTORIAL_SECTIONS = [
       + `<p><b>今日道具</b>、<b>悬赏</b>、<b>派遣</b>、<b>钓鱼</b>、<b>NPC 对战</b>都有机会出薄荷。</p>`,
   },
   {
+    title: '进化',
+    html: `<p>在<b>宝可梦详情页</b>（从宝可梦仓库点进去）能看到这只的<b>进化链</b>：符合条件的点击按钮即可进化；图鉴里还没见过的形态显示 <b>？？？</b>（遇到过就显示名字，不用先抓到）。</p>`
+      + `<p>条件有等级、道具、招式、地区、性别几种（<b>招式看当前携带的 4 招</b>），<b>双道具要两件都够</b>；<b>超级进化 / 超极巨化</b>也在这里，消耗对应的专属道具。</p>`
+      + `<p>有的分支形态由<b>性格</b>或<b>性别</b>决定（比如毒电婴、妙喵）：这种不让你挑，进化链里只显示这只对应的那一条——性格不合可以改（见「<b>薄荷</b>」章节），性别改不了。</p>`
+      + `<p>进化来的宝可梦计进图鉴（不算捕获数）；进化道具在<b>道具盒</b>里能查看，来源详见「<b>商店</b>」「<b>悬赏</b>」「<b>派遣</b>」「<b>钓鱼</b>」「<b>对战</b>」章节。</p>`,
+  },
+  {
+    title: '招式',
+    html: `<p>每只宝可梦最多携带 <b>4</b> 招；招式有<b>属性</b>、<b>类别</b>（物理 / 特殊 / 变化）、<b>威力</b>、<b>命中</b>和 <b>PP</b>，伤害按属性克制与本系加成结算（详见「<b>对战</b>」章节）。</p>`
+      + `<p>招式有四种来源：<b>等级招式</b>（等级到了就能配）、<b>招式机</b>、<b>蛋招式</b>（只有孵蛋得到的宝可梦能学）、<b>继承</b>（进化时从前形态带过来的，详见「<b>进化</b>」章节）。</p>`
+      + `<p>来源只决定能不能配：<b>招式机</b>要先在商店解锁，未解锁的在列表里灰显、点空槽也装不进去（详见「<b>商店</b>」章节）。少数原作招式暂未实装，不会出现在候选里。</p>`,
+  },
+  {
     title: '配招',
     html: `<p>在<b>宝可梦</b>仓库的个体详情页配置招式（最多 <b>4</b> 个）：<b>自动</b>按等级搭配；<b>手动</b>进入独立的配招页自由调整。</p>`
       + `<p>配招页左侧是可学习的招式，点一下在右侧查看详细解释；点顶部空槽位就可以把这招放进去。</p>`
       + `<p><b>拖拽</b>操作可以快速配招，<b>右键点击</b>招式列表可以进行排序。</p>`
-      + `<p>招式有三种来源：<b>等级招式</b>、<b>招式机</b>（在商店解锁）、<b>蛋招式</b>（只有孵蛋得到的宝可梦能学）；未解锁的在列表里灰显、点空槽也装不进去，详见「<b>商店</b>」章节。</p>`
   },
   {
     title: '混合器',
@@ -2168,7 +2184,9 @@ const TUTORIAL_SUMMARIES = {
   '对战': 'NPC的等级受到队伍等级的影响。',
   '经验糖果': '经验糖果无法直接购买。',
   '薄荷': '详情页点的性格就能吃薄荷改性格。',
+  '招式': '招式机买一次永久解锁，能学的宝可梦直接学会。',
   '配招': '出门前配好 4 招，自动配招不一定是最合适的。',
+  '进化': '条件齐了在详情页点一下就能进化。',
   '混合器': '混合好后确认到了对应地区再使用。',
   '树果方块': '方块引诱的宝可梦闪光率为默认值不受增益加成。',
   '招募帮手': '帮手也是会休息的。',

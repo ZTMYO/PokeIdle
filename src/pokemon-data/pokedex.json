@@ -21006,8 +21006,8 @@
         "index": "0386",
         "name": "代欧奇希斯",
         "name_en": "Deoxys",
-        "image": "pokemon-data/images/0386-代欧奇希斯.gif",
-        "icon": "pokemon-data/icon/0386-代欧奇希斯.png",
+        "image": "pokemon-data/images/0386-代欧奇希斯-普通.gif",
+        "icon": "pokemon-data/icon/0386-代欧奇希斯-普通.png",
         "types": [
             "超能"
         ],
@@ -21037,7 +21037,8 @@
         ],
         "genderRate": -1,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "代欧奇希斯-普通"
     },
     {
         "index": "0386-1",
@@ -29760,8 +29761,8 @@
         "index": "0555",
         "name": "达摩狒狒",
         "name_en": "Darmanitan",
-        "image": "pokemon-data/images/0555-达摩狒狒.gif",
-        "icon": "pokemon-data/icon/0555-达摩狒狒.png",
+        "image": "pokemon-data/images/0555-达摩狒狒-普通模式.gif",
+        "icon": "pokemon-data/icon/0555-达摩狒狒-普通模式.png",
         "types": [
             "火"
         ],
@@ -29793,7 +29794,8 @@
         "eggGroup": [
             "陆上群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "达摩狒狒-普通模式"
     },
     {
         "index": "0555-1",
@@ -33961,8 +33963,8 @@
         "index": "0641",
         "name": "龙卷云",
         "name_en": "Tornadus",
-        "image": "pokemon-data/images/0641-龙卷云.gif",
-        "icon": "pokemon-data/icon/0641-龙卷云.png",
+        "image": "pokemon-data/images/0641-龙卷云-化身.gif",
+        "icon": "pokemon-data/icon/0641-龙卷云-化身.png",
         "types": [
             "飞行"
         ],
@@ -33992,7 +33994,8 @@
         ],
         "genderRate": 0,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "龙卷云-化身"
     },
     {
         "index": "0641-1",
@@ -34034,8 +34037,8 @@
         "index": "0642",
         "name": "雷电云",
         "name_en": "Thundurus",
-        "image": "pokemon-data/images/0642-雷电云.gif",
-        "icon": "pokemon-data/icon/0642-雷电云.png",
+        "image": "pokemon-data/images/0642-雷电云-化身.gif",
+        "icon": "pokemon-data/icon/0642-雷电云-化身.png",
         "types": [
             "电",
             "飞行"
@@ -34066,7 +34069,8 @@
         ],
         "genderRate": 0,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "雷电云-化身"
     },
     {
         "index": "0642-1",
@@ -34185,8 +34189,8 @@
         "index": "0645",
         "name": "土地云",
         "name_en": "Landorus",
-        "image": "pokemon-data/images/0645-土地云.gif",
-        "icon": "pokemon-data/icon/0645-土地云.png",
+        "image": "pokemon-data/images/0645-土地云-化身.gif",
+        "icon": "pokemon-data/icon/0645-土地云-化身.png",
         "types": [
             "地面",
             "飞行"
@@ -34217,7 +34221,8 @@
         ],
         "genderRate": 0,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "土地云-化身"
     },
     {
         "index": "0645-1",
@@ -36266,9 +36271,9 @@
         "legend": false,
         "region": "卡洛斯",
         "foods": [
-            3,
-            5,
-            7
+            0,
+            2,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -39913,8 +39918,8 @@
         "index": "0720",
         "name": "胡帕",
         "name_en": "Hoopa",
-        "image": "pokemon-data/images/0720-胡帕.gif",
-        "icon": "pokemon-data/icon/0720-胡帕.png",
+        "image": "pokemon-data/images/0720-胡帕-惩戒.gif",
+        "icon": "pokemon-data/icon/0720-胡帕-惩戒.png",
         "types": [
             "超能",
             "幽灵"
@@ -39943,7 +39948,8 @@
         ],
         "genderRate": -1,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "胡帕-惩戒"
     },
     {
         "index": "0720-1",
@@ -40170,8 +40176,8 @@
         "region": "神奥",
         "foods": [
             0,
-            1,
-            2
+            2,
+            5
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -41249,8 +41255,8 @@
         "index": "0746",
         "name": "弱丁鱼",
         "name_en": "Wishiwashi",
-        "image": "pokemon-data/images/0746-弱丁鱼.gif",
-        "icon": "pokemon-data/icon/0746-弱丁鱼.png",
+        "image": "pokemon-data/images/0746-弱丁鱼-单独.gif",
+        "icon": "pokemon-data/icon/0746-弱丁鱼-单独.png",
         "types": [
             "水"
         ],
@@ -41282,7 +41288,8 @@
         "eggGroup": [
             "水中2群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "弱丁鱼-单独"
     },
     {
         "index": "0746-1",
@@ -42390,8 +42397,8 @@
         "index": "0773",
         "name": "银伴战兽",
         "name_en": "Silvally",
-        "image": "pokemon-data/images/0773-银伴战兽.gif",
-        "icon": "pokemon-data/icon/0773-银伴战兽.png",
+        "image": "pokemon-data/images/0773-银伴战兽-一般.gif",
+        "icon": "pokemon-data/icon/0773-银伴战兽-一般.png",
         "types": [
             "一般"
         ],
@@ -42421,7 +42428,8 @@
         ],
         "genderRate": -1,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "银伴战兽-一般"
     },
     {
         "index": "0773-1",
@@ -43073,8 +43081,8 @@
         "index": "0774",
         "name": "小陨星",
         "name_en": "Minior",
-        "image": "pokemon-data/images/0774-小陨星.gif",
-        "icon": "pokemon-data/icon/0774-小陨星.png",
+        "image": "pokemon-data/images/0774-小陨星-流星的样子.gif",
+        "icon": "pokemon-data/icon/0774-小陨星-流星的样子.png",
         "types": [
             "岩石",
             "飞行"
@@ -43106,7 +43114,8 @@
         "eggGroup": [
             "矿物群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "小陨星-流星的样子"
     },
     {
         "index": "0774-1",
@@ -44385,8 +44394,8 @@
         "index": "0800",
         "name": "奈克洛兹玛",
         "name_en": "Necrozma",
-        "image": "pokemon-data/images/0800-奈克洛兹玛.gif",
-        "icon": "pokemon-data/icon/0800-奈克洛兹玛.png",
+        "image": "pokemon-data/images/0800-奈克洛兹玛-通常形态.gif",
+        "icon": "pokemon-data/icon/0800-奈克洛兹玛-通常形态.png",
         "types": [
             "超能"
         ],
@@ -44416,7 +44425,8 @@
         ],
         "genderRate": -1,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "奈克洛兹玛-通常形态"
     },
     {
         "index": "0800-1",
@@ -44536,8 +44546,8 @@
         "index": "0801",
         "name": "玛机雅娜",
         "name_en": "Magearna",
-        "image": "pokemon-data/images/0801-玛机雅娜.gif",
-        "icon": "pokemon-data/icon/0801-玛机雅娜.png",
+        "image": "pokemon-data/images/0801-玛机雅娜-现在的颜色.gif",
+        "icon": "pokemon-data/icon/0801-玛机雅娜-现在的颜色.png",
         "types": [
             "钢",
             "妖精"
@@ -44568,7 +44578,8 @@
         ],
         "genderRate": -1,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "玛机雅娜-现在的颜色"
     },
     {
         "index": "0801-1",
@@ -47072,8 +47083,8 @@
         "index": "0849",
         "name": "颤弦蝾螈",
         "name_en": "Toxtricity",
-        "image": "pokemon-data/images/0849-颤弦蝾螈.gif",
-        "icon": "pokemon-data/icon/0849-颤弦蝾螈.png",
+        "image": "pokemon-data/images/0849-颤弦蝾螈-高调.gif",
+        "icon": "pokemon-data/icon/0849-颤弦蝾螈-高调.png",
         "types": [
             "电",
             "毒"
@@ -47105,7 +47116,8 @@
         "eggGroup": [
             "人型群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "颤弦蝾螈-高调"
     },
     {
         "index": "0849-1",
@@ -48541,8 +48553,8 @@
         "index": "0877",
         "name": "莫鲁贝可",
         "name_en": "Morpeko",
-        "image": "pokemon-data/images/0877-莫鲁贝可.gif",
-        "icon": "pokemon-data/icon/0877-莫鲁贝可.png",
+        "image": "pokemon-data/images/0877-莫鲁贝可-满腹.gif",
+        "icon": "pokemon-data/icon/0877-莫鲁贝可-满腹.png",
         "types": [
             "电",
             "恶"
@@ -48576,7 +48588,8 @@
             "陆上群",
             "妖精群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "莫鲁贝可-满腹"
     },
     {
         "index": "0877-1",
@@ -49357,8 +49370,8 @@
         "index": "0892",
         "name": "武道熊师",
         "name_en": "Urshifu",
-        "image": "pokemon-data/images/0892-武道熊师.gif",
-        "icon": "pokemon-data/icon/0892-武道熊师.png",
+        "image": "pokemon-data/images/0892-武道熊师-一击流.gif",
+        "icon": "pokemon-data/icon/0892-武道熊师-一击流.png",
         "types": [
             "格斗",
             "恶"
@@ -49387,14 +49400,53 @@
         ],
         "genderRate": 1,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "武道熊师-一击流"
     },
     {
         "index": "0892-1",
         "name": "武道熊师",
         "name_en": "Urshifu",
-        "image": "pokemon-data/images/0892-1-超极巨化武道熊师-一击流.png",
-        "icon": "pokemon-data/icon/0892-1-超极巨化武道熊师-一击流.png",
+        "image": "pokemon-data/images/0892-1-武道熊师-连击流.gif",
+        "icon": "pokemon-data/icon/0892-1-武道熊师-连击流.png",
+        "types": [
+            "格斗",
+            "水"
+        ],
+        "pinyin": "WuDaoXiongShi",
+        "pinyinInitials": "WDXS",
+        "catchRate": 0.03,
+        "genus": "拳法宝可梦",
+        "description": "据说，它是以时而湍急时而平稳的河水为灵感，创造出了格斗招式的形式。",
+        "height": 19,
+        "weight": 1050,
+        "stats": [
+            100,
+            130,
+            100,
+            63,
+            60,
+            97
+        ],
+        "rarity": 0.8257,
+        "legend": true,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            10,
+            11
+        ],
+        "genderRate": 1,
+        "eggGroup": [],
+        "noEggGroup": true,
+        "form": "武道熊师-连击流"
+    },
+    {
+        "index": "0892-2",
+        "name": "武道熊师",
+        "name_en": "Urshifu",
+        "image": "pokemon-data/images/0892-2-超极巨化武道熊师-一击流.png",
+        "icon": "pokemon-data/icon/0892-2-超极巨化武道熊师-一击流.png",
         "types": [
             "格斗",
             "恶"
@@ -49428,14 +49480,14 @@
         "form": "超极巨化武道熊师-一击流"
     },
     {
-        "index": "0892-2",
+        "index": "0892-3",
         "name": "武道熊师",
         "name_en": "Urshifu",
-        "image": "pokemon-data/images/0892-2-超极巨化武道熊师-连击流.png",
-        "icon": "pokemon-data/icon/0892-2-超极巨化武道熊师-连击流.png",
+        "image": "pokemon-data/images/0892-3-超极巨化武道熊师-连击流.png",
+        "icon": "pokemon-data/icon/0892-3-超极巨化武道熊师-连击流.png",
         "types": [
             "格斗",
-            "恶"
+            "水"
         ],
         "pinyin": "WuDaoXiongShi",
         "pinyinInitials": "WDXS",
@@ -50122,8 +50174,8 @@
         "index": "0905",
         "name": "眷恋云",
         "name_en": "Enamorus",
-        "image": "pokemon-data/images/0905-眷恋云.gif",
-        "icon": "pokemon-data/icon/0905-眷恋云.png",
+        "image": "pokemon-data/images/0905-眷恋云-化身.gif",
+        "icon": "pokemon-data/icon/0905-眷恋云-化身.png",
         "types": [
             "妖精",
             "飞行"
@@ -50154,7 +50206,8 @@
         ],
         "genderRate": 8,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "眷恋云-化身"
     },
     {
         "index": "0905-1",
@@ -50985,8 +51038,8 @@
         "index": "0925",
         "name": "一家鼠",
         "name_en": "Maushold",
-        "image": "pokemon-data/images/0925-一家鼠.gif",
-        "icon": "pokemon-data/icon/0925-一家鼠.png",
+        "image": "pokemon-data/images/0925-一家鼠-三只家庭.gif",
+        "icon": "pokemon-data/icon/0925-一家鼠-三只家庭.png",
         "types": [
             "一般"
         ],
@@ -51019,7 +51072,8 @@
             "陆上群",
             "妖精群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "一家鼠-三只家庭"
     },
     {
         "index": "0925-1",
@@ -52714,8 +52768,8 @@
         "index": "0964",
         "name": "海豚侠",
         "name_en": "Palafin",
-        "image": "pokemon-data/images/0964-海豚侠.gif",
-        "icon": "pokemon-data/icon/0964-海豚侠.png",
+        "image": "pokemon-data/images/0964-海豚侠-平凡形态.gif",
+        "icon": "pokemon-data/icon/0964-海豚侠-平凡形态.png",
         "types": [
             "水"
         ],
@@ -52748,7 +52802,8 @@
             "陆上群",
             "水中2群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "海豚侠-平凡形态"
     },
     {
         "index": "0964-1",
@@ -53343,8 +53398,8 @@
         "index": "0978",
         "name": "米立龙",
         "name_en": "Tatsugiri",
-        "image": "pokemon-data/images/0978-米立龙.gif",
-        "icon": "pokemon-data/icon/0978-米立龙.png",
+        "image": "pokemon-data/images/0978-米立龙-上弓姿势.gif",
+        "icon": "pokemon-data/icon/0978-米立龙-上弓姿势.png",
         "types": [
             "龙",
             "水"
@@ -53376,7 +53431,8 @@
         "eggGroup": [
             "水中2群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "米立龙-上弓姿势"
     },
     {
         "index": "0978-1",
@@ -54390,8 +54446,8 @@
         "index": "0999",
         "name": "索财灵",
         "name_en": "Gimmighoul",
-        "image": "pokemon-data/images/0999-索财灵.gif",
-        "icon": "pokemon-data/icon/0999-索财灵.png",
+        "image": "pokemon-data/images/0999-索财灵-宝箱形态.gif",
+        "icon": "pokemon-data/icon/0999-索财灵-宝箱形态.png",
         "types": [
             "幽灵"
         ],
@@ -54420,7 +54476,8 @@
         ],
         "genderRate": -1,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "索财灵-宝箱形态"
     },
     {
         "index": "0999-1",
@@ -55034,7 +55091,7 @@
         "index": "1015",
         "name": "愿增猿",
         "name_en": "Munkidori",
-        "image": "pokemon-data/images/1015-愿增猿.png",
+        "image": "pokemon-data/images/1015-愿增猿.gif",
         "icon": "pokemon-data/icon/1015-愿增猿.png",
         "types": [
             "毒",
@@ -55072,7 +55129,7 @@
         "index": "1016",
         "name": "吉雉鸡",
         "name_en": "Fezandipiti",
-        "image": "pokemon-data/images/1016-吉雉鸡.png",
+        "image": "pokemon-data/images/1016-吉雉鸡.gif",
         "icon": "pokemon-data/icon/1016-吉雉鸡.png",
         "types": [
             "毒",
@@ -55490,8 +55547,8 @@
         "index": "1024",
         "name": "太乐巴戈斯",
         "name_en": "Terapagos",
-        "image": "pokemon-data/images/1024-太乐巴戈斯.gif",
-        "icon": "pokemon-data/icon/1024-太乐巴戈斯.png",
+        "image": "pokemon-data/images/1024-太乐巴戈斯-普通形态.gif",
+        "icon": "pokemon-data/icon/1024-太乐巴戈斯-普通形态.png",
         "types": [
             "一般"
         ],
@@ -55521,7 +55578,8 @@
         ],
         "genderRate": 4,
         "eggGroup": [],
-        "noEggGroup": true
+        "noEggGroup": true,
+        "form": "太乐巴戈斯-普通形态"
     },
     {
         "index": "1024-1",

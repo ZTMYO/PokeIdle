@@ -5201,6 +5201,58 @@ html.mobile-app #quitHide { display: none !important; }
 }
 .roster-move-title-row .roster-detail-title { margin-bottom: 0; }
 .roster-move-tools { display: flex; gap: 4px; }
+/* ===== 详情页进化链 ===== */
+.evo-empty { font-size: 10px; opacity: 0.5; padding: 2px 0; }
+.evo-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px dashed rgba(var(--ui-color-rgb), 0.14);
+}
+.evo-row:last-child { border-bottom: none; }
+.evo-main { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.evo-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  flex: 0 0 auto;
+}
+.evo-info { min-width: 0; }
+.evo-name { font-size: 11px; font-weight: 700; color: var(--ui-color); }
+.evo-name em { font-style: normal; font-size: 9px; font-weight: 400; opacity: 0.6; margin-left: 3px; }
+.evo-conds { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+.evo-cond {
+  font-size: 9px;
+  line-height: 1;
+  padding: 1px 4px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.4);
+  border-radius: 3px;
+  color: var(--ui-color);
+  white-space: nowrap;
+}
+.evo-cond.inert { opacity: 0.4; border-style: dashed; }
+.evo-btn {
+  flex: 0 0 auto;
+  min-width: 40px;
+  text-align: center;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  padding: 2px 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+@media (hover: hover) {
+  .evo-btn:not(.inert):hover { background: rgba(var(--ui-color-rgb), 0.12); }
+}
+.evo-btn:not(.inert):active { transform: scale(0.92); }
+.evo-btn.inert { opacity: 0.35; border-color: rgba(var(--ui-color-rgb), 0.4); cursor: default; }
 /* 招式槽 2 行 × 2 列 */
 .roster-moves-grid {
   display: grid;
@@ -7173,21 +7225,44 @@ body.booting { visibility: hidden; }
   color: #e0b32e;
   font-weight: 700;
 }
+/* 胜利结算的奖励：一行「获得」，小药丸排开，数量随档位变化 */
 .candy-gain {
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-top: 5px;
+}
+.candy-gain .gain-label {
+  font-size: 10px;
   font-weight: 800;
   color: var(--ui-color-dark);
-  margin-top: 4px;
+  opacity: 0.75;
+}
+.candy-gain .gain-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px 4px;
+  max-width: 168px; /* 一行放 3 个左右，多于 6 个奖励时 3+3 / 3+2 排布比 4+1 好看 */
+}
+.gain-chip {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  gap: 2px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(var(--ui-color-rgb), 0.1);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+  white-space: nowrap;
 }
 .candy-gain .candy-icon {
   width: 16px;
   height: 16px;
   image-rendering: pixelated;
-  vertical-align: -2px;
+  flex: 0 0 auto;
 }
 .battle-result-btns {
   display: flex;
@@ -10899,3 +10974,74 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 .ib-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ib-qty { flex: 0 0 auto; opacity: 0.6; font-size: 10px; font-variant-numeric: tabular-nums; }
 .ib-empty { padding: 18px 0; text-align: center; opacity: 0.5; font-size: 11px; }
+
+/* === 进化演出 ===
+   图层都在 #evoView 里；底色由 JS 每帧算，这里只管形状与模糊。 */
+#evoView {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--screen-bg);
+}
+#evoFx { position: absolute; inset: 0; width: 100%; height: 100%; }
+.evo-glow {
+  position: absolute; top: 50%; width: 86%; height: 130%;
+  transform: translateY(-50%); opacity: 0;
+  filter: blur(18px); mix-blend-mode: screen; pointer-events: none;
+}
+#evoGlowL { left: -30%; background: radial-gradient(circle closest-side, var(--c1, #4aa8ff) 0%, transparent 72%); }
+#evoGlowR { right: -30%; background: radial-gradient(circle closest-side, var(--c2, #4aa8ff) 0%, transparent 72%); }
+#evoVig {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(circle closest-side at 50% 47%, var(--vig-c, #0b1711) 0%, color-mix(in srgb, var(--vig-c, #0b1711) 55%, transparent) 36%, transparent 68%),
+    radial-gradient(circle farthest-corner at 50% 47%, transparent 42%, var(--vig-c, #0b1711) 100%);
+}
+/* ③ 剪影交替：主属性色的八角星逐层向外扩散，边长由 JS 给 */
+#evoStarBox {
+  position: absolute; left: 50%; top: 47%;
+  transform: translate(-50%, -50%);
+  pointer-events: none; opacity: 0; mix-blend-mode: screen;
+}
+#evoStarBox i {
+  position: absolute; inset: 0; border-radius: 50%; display: block;
+  background: repeating-conic-gradient(from 0deg, var(--star, #4aa8ff) 0 6.5deg, transparent 6.5deg 45deg);
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent 5%, #000 32%, rgba(0,0,0,.55) 62%, transparent 82%);
+  mask-image: radial-gradient(circle closest-side, transparent 5%, #000 32%, rgba(0,0,0,.55) 62%, transparent 82%);
+  filter: blur(1.4px);
+  will-change: transform, opacity;
+}
+#evoFloor {
+  position: absolute; left: 50%; top: 47%; width: 120%; height: 18%;
+  transform: translate(-50%, -50%); margin-top: 15%;
+  border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(closest-side, var(--c1, #4aa8ff) 0%, transparent 75%);
+  filter: blur(8px);
+}
+#evoMonBox {
+  position: absolute; left: 50%; top: 47%;
+  transform: translate(-50%, -50%); pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+#evoHalo {
+  position: absolute; border-radius: 50%; opacity: 0; mix-blend-mode: screen;
+  background: radial-gradient(circle closest-side, var(--c1, #4aa8ff) 0%, transparent 70%);
+  filter: blur(9px);
+}
+#evoCore {
+  position: absolute; border-radius: 50%; opacity: 0; mix-blend-mode: screen;
+  background: radial-gradient(circle closest-side, #fff 0%, rgba(255,255,255,.4) 42%, transparent 70%);
+  filter: blur(7px);
+}
+#evoMon {
+  position: relative; image-rendering: pixelated;
+  transform-origin: 50% 50%; will-change: transform, filter, opacity;
+}
+#evoItem {
+  position: absolute; left: 50%; top: 47%; width: 28px; height: 28px;
+  margin: -14px 0 0 -14px; opacity: 0;
+  image-rendering: pixelated; pointer-events: none;
+  will-change: transform, opacity;
+}
+#evoFlash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }

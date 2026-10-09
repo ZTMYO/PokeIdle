@@ -149,6 +149,8 @@ for i, p in enumerate(out):
 # 列宽：里程列定宽，末尾多出的食物列沿用原 O 列宽
 ws.column_dimensions['I'].width = 12
 ws.column_dimensions['P'].width = ws.column_dimensions['O'].width
+# 筛选范围跟行数走：模板里固定写着 A1:O1404，宝可梦加多了以后尾部会漏在筛选外
+ws.auto_filter.ref = 'A1:P%d' % (len(out) + 1)
 
 # 颜色说明表补充说明
 lw.cell(32, 1).value = '5. 数据来源：src/pokemon-data/pokedex.json，共 %d 只（本体 %d + 变体 %d）。' % (

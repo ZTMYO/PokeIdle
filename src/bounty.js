@@ -31,7 +31,6 @@ function edgeCost(cond) {
   if (cond.move) c += 0.15;
   if (cond.region) c += 0.15;
   if (cond.gender) c += 0.05;
-  if (cond.pick) c += 0.1;
   if (cond.candy || cond.coin) c += 0.2;
   return c;
 }

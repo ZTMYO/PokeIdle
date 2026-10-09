@@ -722,6 +722,30 @@
             <div id="hatchAllView" style="display:none;">
               <div id="hatchAllGrid" class="hatch-all-grid"></div>
             </div>
+            <!-- 进化演出：图层都在这，尺寸/配色由 evo-view.js 每帧算 -->
+            <div id="evoView" style="display:none;">
+              <canvas id="evoFx"></canvas>
+              <div class="evo-glow" id="evoGlowL"></div>
+              <div class="evo-glow" id="evoGlowR"></div>
+              <div id="evoVig"></div>
+              <div id="evoStarBox"><i></i><i></i><i></i></div>
+              <div id="evoFloor"></div>
+              <div id="evoMonBox">
+                <div id="evoHalo"></div>
+                <div id="evoCore"></div>
+                <img id="evoMon" alt="" />
+              </div>
+              <img id="evoItem" alt="" />
+              <div id="evoFlash"></div>
+              <!-- 完成提示：这块文字框归演出自己所有，不共用游戏文本框（
+                   挂机遭遇的 逃跑/确定 按钮都挂在那边的框里，会被带出来） -->
+              <div id="evoDone" class="text-box" style="display:none;">
+                <div class="text-box-content" id="evoDoneText"></div>
+                <div class="catch-confirm-btns">
+                  <span id="evoDoneOk" class="catch-confirm-btn">确定</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div id="appTextBox" class="text-box" style="transform:translateY(100%);">
             <div id="appTextBoxContent" class="text-box-content"></div>

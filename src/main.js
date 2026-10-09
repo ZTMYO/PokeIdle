@@ -309,6 +309,7 @@ const isModalLocked = () =>
   $('dispatchResultView')?.style.display === 'flex' ||
   $('hatchView')?.style.display === 'flex' ||
   $('hatchAllView')?.style.display === 'flex' ||
+  $('evoView')?.style.display === 'flex' ||
   $('expCandyView')?.style.display === 'flex' ||
   (isBatchReleasing() && $('rosterView')?.style.display === 'flex');
 
