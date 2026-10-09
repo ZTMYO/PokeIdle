@@ -2,7 +2,7 @@
 // 数据表 src/pokemon-data/evolution.json：{ wildKeep, stones: { 形态编号: 道具名 }, stoneIcons, edges: { 来源: { 目标: 条件 } } }
 // 条件字段 lv / item / move / region / candy / coin / gender 列出的都要满足。
 // incense 只给繁育用、不参与判定；nature 与 gender 是形态选择而不是门槛：由不得玩家挑，只列对得上的那条边。
-import { gameData, getPokemonByIndex, getCurrentRegion, getNature, ensureGender, saveGame, addSystemLog } from './state.js';
+import { gameData, getPokemonByIndex, getCurrentRegion, getNature, ensureGender, saveGame, addSystemLog, setWildExcluded } from './state.js';
 import { updateBackpack, updateStats } from './ui.js';
 
 let _data = null;
@@ -15,7 +15,20 @@ export function loadEvolution() {
   if (!_loading) {
     _loading = fetch('./pokemon-data/evolution.json')
       .then((r) => r.json())
-      .then((d) => { _data = d; return d; })
+      .then((d) => {
+        _data = d;
+        // 路边池的排除名单：在 edges 里当目标、自己又没有出边，且不在 wildKeep 里的那些
+        const keep = new Set(d.wildKeep || []);
+        const excluded = [];
+        for (const row of Object.values(d.edges || {})) {
+          for (const to of Object.keys(row)) {
+            if (keep.has(to) || (d.edges || {})[to]) continue;
+            excluded.push(to);
+          }
+        }
+        setWildExcluded(excluded);
+        return d;
+      })
       .catch((e) => { _loading = null; throw e; });
   }
   return _loading;
@@ -27,13 +40,31 @@ export function evoTargets(idx) {
   return Object.entries(row).map(([to, cond]) => ({ to, cond }));
 }
 
-// 野池可遇（路边口径）：进化链终点（有前代又不再进化）不进野池，幼体与中间态留在池里；
-// wildKeep 里的形态例外照旧可遇。强化形态不归这里管（各处池子用 isPowerForm 挡）
-export function isWildCatchable(idx) {
-  if (!_data) return true;
+// 族根：沿反向边一路往回走到没有前身的那个形态；带形态后缀的优先找同后缀的根（阿罗拉九尾 ← 阿罗拉六尾）。
+// 强化形态只在 stones 里挂着、没有进化边，先从 stoneSource 回到它挂靠的形态再往回走
+// useIncense 为真才允许跨过「幼体边」（incense: true）：默认停在幼体边的这一阶，开了才回到真正的幼体
+export function familyRoot(idx, useIncense) {
+  if (!_data) return String(idx);
   const key = String(idx);
-  if ((_data.wildKeep || []).includes(key)) return true;
-  return !(evoPreEvos(key).length > 0 && evoTargets(key).length === 0);
+  const start = _data.stones && _data.stones[key]
+    ? String((_data.stoneSource && _data.stoneSource[key]) || key.split('-')[0])
+    : key;
+  const suffix = start.includes('-') ? start.slice(start.indexOf('-')) : '';
+  let cur = start;
+  const seen = new Set();
+  for (let guard = 0; guard < 20; guard++) {
+    if (seen.has(cur)) break;
+    seen.add(cur);
+    const pres = evoPreEvos(cur);
+    if (!pres.length) break;
+    const pick = (suffix && pres.find((e) => e.from.endsWith(suffix)))
+      || (suffix && pres.find((e) => !e.from.includes('-')))
+      || pres[0];
+    if (!pick) break;
+    if (pick.cond && pick.cond.incense && !useIncense) break;
+    cur = pick.from;
+  }
+  return cur;
 }
 
 // 谁可以进化成它（含条件）：悬赏按获取成本定价要沿链往回找底子
@@ -164,14 +195,13 @@ export function applyEvolution(entry, to, cond) {
   if (!gd.pokedex[to]) gd.pokedex[to] = { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0 };
   gd.pokedex[to].seen++;
   gd.pokedex[to].evolved = (gd.pokedex[to].evolved || 0) + 1;
-  if (!gd.encounterLogs) gd.encounterLogs = {};
-  if (!gd.encounterLogs[to]) gd.encounterLogs[to] = [];
-  gd.encounterLogs[to].push({
-    time: Date.now(), shiny: !!entry.shiny, result: 'caught', balls: {},
-    source: 'evo', charmBuff: false, score: 0,
-  });
-  addSystemLog('evolve', { from, to });
+  // 相遇记录绑个体、一生只写一次：进化不算"新遇见一只"，只留一条进化记录
+  addSystemLog('evolve', { from, to, id: entry.id });
   gd.stats.totalEvolutions = (gd.stats.totalEvolutions || 0) + 1;
+  const day = new Date();
+  const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+  if (gd.stats.lastEvoDate !== dayKey) { gd.stats.lastEvoDate = dayKey; gd.stats.evolutionsToday = 0; }
+  gd.stats.evolutionsToday = (gd.stats.evolutionsToday || 0) + 1;
   saveGame();
   for (const it of items) updateBackpack(it);
   updateStats();

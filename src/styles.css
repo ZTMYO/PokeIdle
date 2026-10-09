@@ -1097,7 +1097,7 @@ html.mobile-app #quitHide { display: none !important; }
   gap: 6px;
   background: rgba(0,0,0,0.04);
   border-radius: 6px;
-  padding: 5px 4px;
+  padding: 3.5px 4px;
   min-height: 34px;
   border: 1px solid var(--item-border);
 }
@@ -1167,13 +1167,27 @@ html.mobile-app #quitHide { display: none !important; }
 .incubator-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 32px;   /* 名字行 12 + 操作行 20：高度定死，孵化按钮出现时整行不变高 */
 }
 .incubator-name {
-  display: inline-flex;
-  align-items: center;
-  font-size: 10px;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 12px;
+  font-size: 9px;
   color: var(--ui-color);
   font-weight: 600;
+}
+/* 名字下面一行的操作区：孵化按钮贴右，和名字之间留出间距 */
+.incubator-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 4px;
+  line-height: 1;
 }
 /* 名字/标题内嵌的来源徽章（闪光/污染/RGB），跟随文字并排显示；尺寸按各自字号适配 */
 .incubator-name svg {
@@ -1190,6 +1204,7 @@ html.mobile-app #quitHide { display: none !important; }
 }
 .incubator-progress-wrap {
   height: 10px;
+  margin-top: 4px;   /* 和名字拉开距离，与孵化按钮那一行同一水平线 */
   background: rgba(0,0,0,0.08);
   border-radius: 5px;
   overflow: hidden;
@@ -1264,7 +1279,13 @@ html.mobile-app #quitHide { display: none !important; }
 /* 锁定槽位 */
 .incubator-row.locked { cursor: default; position: relative; }
 .incubator-row.locked .incubator-hatch-text { margin-left: auto; margin-right: 4px; }
-.incubator-hatch-text.hatched { margin-left: auto; margin-right: 4px; }
+/* 孵化按钮：与派遣页「领取」同一套尺寸（9px + 1px 4px），贴名字下一行的右端 */
+.incubator-hatch-text.hatched {
+  margin-left: auto;
+  margin-right: 4px;
+  font-size: 9px;
+  padding: 1px 4px;
+}
 /* 派遣待出发槽位：上方配置/出发按钮，下方显示当前时长档位 */
 .dispatch-launch-actions {
   display: flex;
@@ -3806,6 +3827,7 @@ html.mobile-app #quitHide { display: none !important; }
   width: 60px;
   height: 60px;
   flex-shrink: 0;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3824,6 +3846,31 @@ html.mobile-app #quitHide { display: none !important; }
   max-height: 54px;
   object-fit: contain;
   image-rendering: pixelated;
+}
+/* 图鉴贴图右上角的闪光开关：可点的星标图标 */
+.poke-img-shiny {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-color);
+  opacity: 0.5;
+  line-height: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  z-index: 2;
+}
+.poke-img-shiny.on { opacity: 1; }
+/* 放大态里星标挪到屏内，别被边缘切掉 */
+#pokedexList.pokedex-zoom .poke-img-shiny {
+  top: 4px;
+  right: 4px;
 }
 
 /* ---- 图鉴拼音搜索 ---- */
@@ -5119,6 +5166,37 @@ html.mobile-app #quitHide { display: none !important; }
   filter:
     drop-shadow(1.5px 0 0 rgba(255, 0, 80, .65))
     drop-shadow(-1.5px 0 0 rgba(0, 220, 255, .65));
+}
+/* 点图鉴详情大图放大：本页其余内容全隐掉，图在所在屏内居中放大，再点收起（同个体详情页） */
+#pokedexList.pokedex-zoom { overflow: hidden; }
+#pokedexList.pokedex-zoom > :not(.pokedex-detail-head) { display: none; }
+#pokedexList.pokedex-zoom .pokedex-detail-head {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  padding: 0;
+  background: var(--screen-bg);
+  cursor: zoom-out;
+}
+/* 只留贴图那一列：右侧信息列、图注/蛋群都隐掉 */
+#pokedexList.pokedex-zoom .pokedex-detail-head > :not(:first-child),
+#pokedexList.pokedex-zoom .pokedex-detail-head > div:first-child > :not(.poke-img-grid) { display: none; }
+#pokedexList.pokedex-zoom .pokedex-detail-head > div:first-child {
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+#pokedexList.pokedex-zoom .poke-img-grid {
+  width: 100%;
+  height: 100%;
+  background-image: none;
+}
+#pokedexList.pokedex-zoom .poke-img-grid img {
+  width: 94%;
+  height: 94%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
 }
 .roster-detail-block {
   border-top: 1px solid rgba(var(--ui-color-rgb),0.1);

@@ -21,6 +21,12 @@ export function isPowerForm(p) {
   return f.includes('超级') || f.includes('超极巨');
 }
 
+// 进化链终点（有前代、自己不再进化）不进路边池，wildKeep 名单里的例外照旧可遇。
+// 名单由 evolution.js 读到表之后灌进来；表没到之前不拦人
+let _wildExcluded = null;
+export function setWildExcluded(ids) { _wildExcluded = new Set((ids || []).map(String)); }
+export function isWildExcluded(p) { return !!_wildExcluded && _wildExcluded.has(String(p?.index)); }
+
 // 招式机是否已解锁
 export function isTmUnlocked(moveId) {
   return !!(gameData && gameData.tmUnlocked && gameData.tmUnlocked[moveId]);
@@ -239,7 +245,7 @@ export function getDefaultSave() {
       totalBallsUsed:0, totalEggsHatched:0, totalShinyEggsHatched:0, totalEggsProduced:0, totalShinyTraded:0,
       totalBlockMade:0, totalPlantings:0, totalHarvests:0, totalBerriesHarvested:0, totalBoardTrades:0,
       totalBountyClaims:0, totalBountyCandy:0, bountyClaimsToday:0, lastBountyDate:'',
-      totalTrades:0, tradesToday:0, lastTradeDate:'', totalEvolutions:0,
+      totalTrades:0, tradesToday:0, lastTradeDate:'', totalEvolutions:0, evolutionsToday:0, lastEvoDate:'',
       releaseXpPool: 0, // 放生返还的经验累积池：攒满 EXP_CANDY_XP 自动产出一颗经验糖果并清零
       totalNpcWins:0, totalNpcNoviceWins:0, totalNpcEliteWins:0, totalNpcLeaderWins:0, totalNpcChampionWins:0, totalNpcCandy:0,
       luckyGachaScore:0, luckyGachaCount:0, // 抽卡欧气累计（独立累计，不受抽卡日志 50 条窗口影响）
@@ -267,6 +273,8 @@ export function getDefaultSave() {
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     tmUnlocked: {}, // 招式机解锁：{ 招式id: 解锁时间 }，由 tm.js 管理
     tmShop: null,   // 商店今日招式机货架：{ date, ids }，由 tm.js 管理
+    legendPool: null, // 每日神兽池：{ date, byRegion: { 地区: [编号…] } }，由 items.js 管理
+    legendPity: 0,    // 神兽池软保底计数：连着多少场遇敌没出神兽
     trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
     battleNpcs: null, // NPC 挑战：{ refreshedAt: Date.now(), list: [{ id, tier, title, name, sprite, lvBonus, candy, mons }] }，由 npcs.js 管理
     pokedex: {},

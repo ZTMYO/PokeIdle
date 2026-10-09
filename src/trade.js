@@ -2,8 +2,8 @@
 // 每半小时刷新一波：若干 NPC 在交换广场挂出「想要的宝可梦（可指定性别/某项个体值下限）」和
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
-import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX, TRADE_VALUE_W, TRADE_VALUE_JITTER, TRADE_GIVE_LEVEL_NONE, TRADE_BASE_FORM_CHANCE, EXP_CANDY_XP, MAX_LEVEL } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
+import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX, TRADE_VALUE_W, TRADE_VALUE_JITTER, TRADE_GIVE_LEVEL_NONE, TRADE_BASE_FORM_CHANCE, EXP_CANDY_XP, MAX_LEVEL, BREED_ONLY_IDS } from './config.js';
+import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage, logicViewport, popupBounds, showConfirmBar } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
@@ -208,7 +208,7 @@ function pickAuthorNature(poke) {
 }
 function makeAuthorOffer() {
   const base = makeOffer({ id: 'author' }); // 复用需求生成，npc 先用作者占位
-  const legends = allPokemon.filter(p => p.legend === true && p.noEggGroup);
+  const legends = allPokemon.filter(p => p.legend === true && !isPowerForm(p) && !BREED_ONLY_IDS.includes(String(p.index)));
   const givePoke = legends.length ? legends[randInt(0, legends.length - 1)] : allPokemon[0];
   base.npc = 'author';
   base.give = {
@@ -911,14 +911,14 @@ document.addEventListener('click', e => {
     }));
     return;
   }
-  // 详情页右上角「仓库情况」：跳转仓库列表并预填该宝可梦名称搜索，返回恢复交换详情
+  // 详情页右上角「仓库情况」：跳转仓库列表并预填该宝可梦编号搜索，返回恢复交换详情
   const rosterBtn = e.target.closest('[data-trade-roster]');
   if (rosterBtn) {
     const o = (gameData.trades?.offers || []).find(x => x.id === _tradeDetail);
     const givePoke = o && getPokemonByIndex(o.give.species);
     if (!givePoke) return;
     pauseTradeRefresh(); // 查看仓库期间冻结刷新倒计时
-    import('./roster.js').then(m => m.showRosterSearch(givePoke.name, () => {
+    import('./roster.js').then(m => m.showRosterSearch(givePoke.index, () => {
       resumeTradeRefresh(); // 返回交换详情：恢复刷新倒计时
       showView('tradeView');
       renderTrade();

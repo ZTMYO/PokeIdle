@@ -14,7 +14,7 @@ import {
   TWIST_SHINY_CHANCE, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE,
 } from './config.js';
 import {
-  gameData, allPokemon, getPokemonByIndex, isPowerForm, getMassOutbreak, getTwist, honeyBuffActive, phase,
+  gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, getMassOutbreak, getTwist, honeyBuffActive, phase,
   randInt, rand, saveGame, addSystemLog, inMassZone, inTwistZone, normalizeMassRemainToEnd, _fishing,
 } from './state.js';
 import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView, isIdleStageVisible } from './ui.js';
@@ -63,7 +63,7 @@ function spawnMassOutbreak() {
   // 事件宝可梦：从事件点归属地区随机选（t<0.5 归小号端地区，否则归大号端）
   const regionIdx = t < 0.5 ? Math.min(edge[0], edge[1]) : Math.max(edge[0], edge[1]);
   const regionName = REGION_CYCLE[regionIdx];
-  const pool = allPokemon.filter(p => p.region === regionName && !p.legend && !isPowerForm(p)); // 神兽与强化形态不进大量出没（一次事件十几只，会变成批发）
+  const pool = allPokemon.filter(p => p.region === regionName && !p.legend && !isPowerForm(p) && !isWildExcluded(p)); // 神兽与强化形态不进大量出没（一次事件十几只，会变成批发）
   if (pool.length === 0) {
     gameData.massNextGenAt = Date.now() + randInt(10, 30) * 60000; // 该地区无精灵则稍后重试
     return;

@@ -1851,7 +1851,7 @@ function advIsEmpty(F) {
 }
 
 // 高级筛选条件预览条：每个 tag 可点击单独移除（data-key 标识来源字段）
-const ADV_SRC_NAMES = { normal: '野生', mass: '大量出没', twist: '时空扭曲', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
+const ADV_SRC_NAMES = { normal: '野生', mass: '大量出没', twist: '时空扭曲', legend: '每日神兽', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
 function advFilterBadges(F) {
   const parts = [];
   if (F.poke) {
@@ -2244,7 +2244,7 @@ export function showRosterView(noNav, opts) {
   // 搜索框只属于当前这次浏览：从其它页面重新进入时清空，否则「仓库情况」等入口预填的搜索词会一直留在框里，
   // 之后从首页点经验糖果，选取页便会沿用旧搜索词，只显示命中的宝可梦而不是完整列表。
   // opts.keepSearch 保留（详情返回列表要还原进入详情前的搜索上下文）；仍在仓库视图内时同样保留
-  //（选取模式中重绘、糖果结算后回到选取列表）；opts.search 直接预填（「仓库情况」按宝可梦名搜索）。
+  //（选取模式中重绘、糖果结算后回到选取列表）；opts.search 直接预填（「仓库情况」按图鉴编号搜索）。
   const searchInput = $('rosterSearchInput');
   if (searchInput) {
     if (o.search != null) searchInput.value = o.search;

@@ -27,7 +27,7 @@ import {
   FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE,
   HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, CATCH_RATES, ULTRA_BALL_ADD,
 } from './config.js';
-import { allPokemon, getCurrentRegion, getPokemonByIndex, isPowerForm } from './state.js';
+import { allPokemon, getCurrentRegion, getPokemonByIndex, isPowerForm, isWildExcluded } from './state.js';
 
 // 捕获加成生效阈值（与 battle.js 原逻辑一致）：逃跑率拉满（50%）后每多丢一球 +10%
 const FLEE_MAXED_AT = Math.ceil((FLEE_CHANCE_MAX - FLEE_CHANCE) / FLEE_CHANCE_INC) + 1;
@@ -61,9 +61,11 @@ function pickProbability(pokemon, source, honeyBuff, charmBuff) {
   }
 
   if (source === 'fishing') {
-    const pool = allPokemon.filter(p => p.region === getCurrentRegion().name);
-    const rarePool = pool.filter(p => (p.rarity || 0.5) > 0.8 && !p.legend && !isPowerForm(p));
-    const waterPool = pool.filter(p => (p.types || []).includes('水') && !p.legend && !isPowerForm(p));
+    // 与 fishing.js pickFishingPokemon 同款：野池口径，稀有池 = 本地野池按稀有度排序的前 FISH_RARE_TOP
+    const wildPool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p) && !isWildExcluded(p));
+    const sorted = [...wildPool].sort((a, b) => (b.rarity || 0.5) - (a.rarity || 0.5));
+    const rarePool = sorted.slice(0, Math.max(1, Math.round(sorted.length * FISH_RARE_TOP)));
+    const waterPool = wildPool.filter(p => (p.types || []).includes('水'));
     // 与 fishing.js pickFishingPokemon 一致：60% 稀有池 / 40% 水系池；所选池为空时退回另一池
     const pickRare = rarePool.includes(pokemon)
       ? 1 / rarePool.length
@@ -77,7 +79,7 @@ function pickProbability(pokemon, source, honeyBuff, charmBuff) {
   }
 
   // 普通遭遇：与 items.js pickRandomPokemon 同款（排除神兽/强化形态 + 权重三次方），评分必须跟着游戏的实际概率走
-  const pool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p));
+  const pool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p) && !isWildExcluded(p));
   if (!pool.includes(pokemon)) return allPokemon.length > 0 ? 1 / allPokemon.length : 1; // 地区异常时兜底
   let rarityBoost = 0;
   if (honeyBuff) rarityBoost = Math.max(rarityBoost, HONEY_RARITY_BOOST);

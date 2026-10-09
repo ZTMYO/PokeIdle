@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_SELL_OVERRIDE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, ITEM_SELL_RATE, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, formatNum, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform } from './ui.js';
 import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf } from './items.js';
@@ -17,14 +17,14 @@ import { clearBattleTier } from './battle-view.js';
 // 玩家主动逃跑（手动 / 佛系 / 无球自动）属于策略选择，不参与评定。
 // 参考分布（8000 名玩家 × 200 场模拟）：前 10% 平均 均值 38.6、P25 38.0、P75 39.3、P90 39.9、P97 40.6、P99.5 41.4
 const LUCKY_TIERS = [
-  { min: 41.2, name: '天运所归' },   // 前 ~1%
-  { min: 40.2, name: '大欧皇' },     // 前 ~6%
-  { min: 39.4, name: '小欧皇' },     // 前 ~16%
-  { min: 38.8, name: '小有运气' },   // 前 ~40%
-  { min: 38.0, name: '平凡训练家' }, // 中位附近
-  { min: 37.4, name: '小非酋' },
-  { min: 36.9, name: '大非酋' },
-  { min: 36.2, name: '终极非酋' },
+  { min: 39.3, name: '天运所归' },   // 前 ~1%
+  { min: 38.1, name: '大欧皇' },     // 前 ~6%
+  { min: 37.1, name: '小欧皇' },     // 前 ~16%
+  { min: 36.3, name: '小有运气' },   // 前 ~40%
+  { min: 35.3, name: '平凡训练家' }, // 中位附近
+  { min: 34.5, name: '小非酋' },
+  { min: 33.9, name: '大非酋' },
+  { min: 33.0, name: '终极非酋' },
   { min: -Infinity, name: '终极无敌至尊非酋' },
 ];
 
@@ -60,6 +60,12 @@ function calcLuckyRating() {
 // ===== 数据统计视图 =====
 
 // 今日统计：从遭遇日志按"今天 0 点后"筛选（孵蛋/交换单独计数，不算道路遭遇；逃跑只算挣脱，不含主动逃跑）
+// 当天日期键（YYYY-MM-DD，本地时区）
+function dayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // 每次调用重新取当天零点，跨天自动归零
 function calcTodayStats() {
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
@@ -77,13 +83,13 @@ function calcTodayStats() {
         if (l.shiny) t.shinyTraded++;
         continue;
       }
-      if (l.source === 'evo') { t.evolutions++; continue; } // 进化来的不算道路遭遇
       t.seen++;
       if (l.result === 'caught') { t.caught++; if (l.shiny) t.shinyCaught++; }
       else if (l.result === 'fled' && !l.selfFlee) t.fled++;
       if (l.shiny) t.shinySeen++;
     }
   }
+  t.evolutions = (gameData.stats && gameData.stats.lastEvoDate === dayKey()) ? (gameData.stats.evolutionsToday || 0) : 0;
   t.catchRate = (t.caught + t.fled) > 0 ? (t.caught / (t.caught + t.fled) * 100).toFixed(1) : '0.0';
   return t;
 }
@@ -1764,6 +1770,9 @@ const TUTORIAL_SECTIONS = [
     title: '遭遇',
     html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只当前地区的野生宝可梦。</p>`
       + `<p>野生宝可梦的<b>等级在 ${1}~${WILD_LEVEL_MAX} 级</b>之间随机生成。</p>`
+      + `<p>每个地区每天还有几只<b>神兽 / 幻兽</b>混在野池里（数量随该地区神兽多少浮动，少的至少 1 只）：遇敌时约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE)}</b> 的概率直接遇到，甜甜蜜 / 闪耀护符生效期间约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE_BUFF)}</b>，现身等级固定 <b>${LEGEND_LEVEL}</b>。</p>`
+      + `<p>连着 <b>${LEGEND_PITY}</b> 次遇敌都没出过神兽的话，下一只必定是。</p>`
+      + `<p><b>进化链的最终形态不会在路边出现</b>，只能靠进化得到；<b>时空扭曲</b>、<b>神秘蛋</b>、<b>交换</b>不受这个限制。</p>`
   },
   {
     title: '手机',
@@ -1911,12 +1920,13 @@ const TUTORIAL_SECTIONS = [
   {
     title: '培育',
     html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦配对。普通配对要求<b>一雄一雌</b>且<b>至少共有一个蛋组</b>——只有<b>同蛋组</b>的宝可梦才能一起孵蛋。</p>`
-      + `<p><b>百变怪</b>可无视性别，与<b>任意非「未发现蛋组」</b>的宝可梦繁殖（后代为另一方的物种）；但神兽幻兽等<b>「未发现蛋组」</b>的宝可梦<b>不能</b>与百变怪配对。</p>`
+      + `<p><b>百变怪</b>可无视性别，与<b>任意非「未发现蛋组」</b>的宝可梦繁殖（后代按那一族的最低阶算）；但神兽幻兽等<b>「未发现蛋组」</b>的宝可梦<b>不能</b>与百变怪配对。</p>`
       + `<p>投喂它们爱吃的<b>树果</b>开始繁殖：先选择<b>连续繁殖轮数</b>（<b>1~10 轮</b>），树果按轮数 <b>×N</b> 一次性扣除；每轮 <b>5~10 分钟</b>产一枚蛋并<b>自动入库</b>、自动续下一轮，无需手动收蛋；一批完成后直接恢复轮数选择界面，可立即开始下一批。</p>`
       + `<p>繁殖期间取出亲本会<b>终止剩余轮次</b>（树果不退，已产蛋不丢）；产出的<b>宝可梦蛋</b>放入<b>孵蛋器</b>里孵化（详见「<b>孵蛋</b>」章节）。</p>`
       + `<p><b>个体值遗传</b>：<b>1 项</b>完全随机，<b>5 项</b>继承自双亲（默认 50% 随机取父或母）。可从这 5 项中<b>锁定一项</b>，指定该维固定继承父方或母方的数值。</p>`
       + `<p><b>如何培育 6V</b>：优先找两只高个体亲本繁殖，用后代中更优秀的替换亲本，反复迭代拉高双亲基础。遗传的 5 项中，双亲都到 31 的项必然还是 31（从双亲二选一，任意一方都是 31）；但唯一纯随机项完全随机（0~31），有 1/6 概率正好落在某一维——所以最终要赌的还是这 <b>1 个随机项</b>（出 31 的概率 1/32）。锁定功能可在关键维缺一只亲本时帮补短板。</p>`
-      + `<p>点左上角的<b>纸箱</b>可查看仓库中所有宝可梦蛋，支持搜索、按名称/个体值排序与丢弃。</p>`
+      + `<p>点左上角的<b>纸箱</b>可查看仓库中所有宝可梦蛋。</p>`
+      + `<p>有的族要在后代那一行右侧开「<b>熏香</b>」才产得出最低阶的幼体，不开就产中间阶。</p>`
   },
   {
     title: '钓鱼',
@@ -1953,7 +1963,7 @@ const TUTORIAL_SECTIONS = [
   },  
   {
     title: '宝可梦',
-    html: `<p>在<b>手机</b>页面打开<b>宝可梦</b>应用查看宝可梦仓库：每只捕获/孵化的宝可梦都是独立个体，支持搜索、来源筛选与表头排序。</p>`
+    html: `<p>在<b>手机</b>页面打开<b>宝可梦</b>应用查看宝可梦仓库：每只捕获/孵化的宝可梦都是独立个体。</p>`
       + `<p>每只个体带有随机<b>个体值</b>（HP/攻击/防御/特攻/特防/速度，各 <b>0~31</b>）与随机<b>性格</b>（共 <b>25</b> 种）。</p>`
       + `<p>点击个体列表项即可查看详情：名字右侧的<b>编辑图标</b>可以重命名（最多 <b>5</b> 个字），改名后搜索中文可匹配昵称。</p>`
       + `<p>详情页右上角的<b>放生</b>按钮可移除该个体（确定后不可恢复）同时返还（<b>${RELEASE_XP_RATE * 100}%</b>）经验（详见「<b>经验糖果</b>」章节）。</p>`
@@ -2037,8 +2047,8 @@ const TUTORIAL_SECTIONS = [
     html: `<p><b>树果方块</b>是<b>混合器</b>的产物：用配方树果制成，用于吸引特定的宝可梦。</p>`
       + `<p><b>品质</b>决定效果：品质越高，遇敌时直接遇到目标宝可梦的概率越高（${Object.values(BLOCK_QUALITY).map(q => `${q.label} <b>${Math.round(q.chance * 100)}</b>%`).join(' / ')}）。</p>`
       + `<p>按行走里程计时：主角再走 <b>${BLOCK_DISTANCE}</b> 米没被吃掉则风干失效（停下不走不消耗），期间不改变正常遇敌节奏。</p>`
-      + `<p>配方在当前地区没有宝可梦爱吃则无效；对于已收服的宝可梦，可以在图鉴查看它爱吃的食物（配方）。</p>`
-      + `<p>注意：方块命中目标的那次遇敌，闪光按默认 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 判定，不享受闪耀护符加成；</p>`,
+      + `<p>配方在当前地区野外没有宝可梦爱吃则无效；方块只对<b>抓到过</b>的宝可梦有效，已收服的可以在图鉴查看它爱吃的配方。</p>`
+      + `<p>注意：方块命中目标的那次遇敌，闪光按默认 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 判定，不享受闪耀护符加成，也不计入闪耀护符的遭遇计数。</p>`,
   },
   {
     title: '招募帮手',

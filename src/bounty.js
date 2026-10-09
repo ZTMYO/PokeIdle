@@ -2,11 +2,11 @@
 // 每天 0 点刷新：每地区指定若干只宝可梦（图鉴加权抽样），奖励糖果或道具。
 // 仓库里有该物种的在仓个体即可提交；只有今日到访过的地区能看到内容，提交必须到当地。
 import { REGION_CYCLE, ITEM_NAMES, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT, BOUNTY_COST_REF, BOUNTY_CANDY_CN, BOUNTY_BIG_CN, BOUNTY_BIG_RARE_CHANCE, BOUNTY_EXCLUSIVE_CHANCE, BOUNTY_MINT_CHANCE, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BOUNTY_EXP_CANDY_QTY, EVO_PRICES } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon, randInt } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon, randInt } from './state.js';
 import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
 import { pickFamily, pokemonSourceBadge, grantItem, itemIconSrc, evoExclusivePool, MINT_KEYS } from './items.js';
-import { evolutionData, isWildCatchable, evoPreEvos } from './evolution.js';
+import { evolutionData, evoPreEvos } from './evolution.js';
 
 function dateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -14,10 +14,11 @@ function dateStr(d = new Date()) {
 
 // 抽样权重 = 0.3 + 稀有度 × BOUNTY_RARE_WEIGHT；家族归一（多变体家族按一个形态计，不因形态数叠加）
 function sampleBountyPokemon(count) {
-  const pool = allPokemon.filter(p => !p.legend && !isPowerForm(p)); // 神兽与强化形态不进悬赏
+  const pool = allPokemon.filter(p => !p.legend && !isPowerForm(p) && !isWildExcluded(p)); // 神兽与强化形态不进悬赏
   const picked = [];
   for (let i = 0; i < count; i++) {
-    picked.push(pickFamily(pool, p => 0.3 + (p.rarity ?? 0.5) * BOUNTY_RARE_WEIGHT));
+    // 进化终点路边刷不到，降到 0.7 只压频率、不排除
+    picked.push(pickFamily(pool, p => (0.3 + (p.rarity ?? 0.5) * BOUNTY_RARE_WEIGHT) * (isWildExcluded(p) ? 0.7 : 1)));
   }
   return picked;
 }
@@ -45,7 +46,7 @@ function wildDifficulty(poke) {
 // 沿反向边找最便宜的底子路线：底子难度 + 进化代价
 export function bountyCost(poke) {
   const idx = String(poke.index);
-  if (!evolutionData() || isWildCatchable(idx)) return wildDifficulty(poke);
+  if (!evolutionData() || !isWildExcluded(poke)) return wildDifficulty(poke);
   const seen = new Set([idx]);
   let frontier = [{ idx, acc: 0 }];
   let best = Infinity;
@@ -57,7 +58,7 @@ export function bountyCost(poke) {
         seen.add(e.from);
         const cost = acc + edgeCost(e.cond);
         const p = getPokemonByIndex(e.from);
-        if (p && isWildCatchable(e.from)) best = Math.min(best, wildDifficulty(p) + cost);
+        if (p && !isWildExcluded(p)) best = Math.min(best, wildDifficulty(p) + cost);
         next.push({ idx: e.from, acc: cost });
       }
     }
@@ -75,9 +76,9 @@ function calcBountyCandy(c) {
 
 // 奖励按成本分三档（列表按成本升序排，所以上面是糖果、中间单件、下面高阶）：
 //   成本归一值 < BOUNTY_CANDY_CN → 糖果
-//   到 BOUNTY_BIG_CN 之前 → 1 件道具（常见档：10 种通用石 + 熏香 + 经验糖果）
+//   到 BOUNTY_BIG_CN 之前 → 1 件道具（常见档：10 种通用石 + 经验糖果）
 //   ≥ BOUNTY_BIG_CN → 1 件稀有道具（薄荷 / 形态专属道具 / 4 种高价通用道具）或 2~5 件常见道具
-const BOUNTY_COMMON_ITEMS = ['火之石', '水之石', '雷之石', '叶之石', '冰之石', '月之石', '日之石', '光之石', '暗之石', '觉醒之石', '熏香', 'exp-candy'];
+const BOUNTY_COMMON_ITEMS = ['火之石', '水之石', '雷之石', '叶之石', '冰之石', '月之石', '日之石', '光之石', '暗之石', '觉醒之石', 'exp-candy'];
 const BOUNTY_RARE_ITEMS = ['心之石', '联系绳', '极巨汤', '奇异石'];
 function rollItemReward(big) {
   if (big && Math.random() < BOUNTY_BIG_RARE_CHANCE) {

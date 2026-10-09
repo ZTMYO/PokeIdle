@@ -468,11 +468,11 @@ function tintBlockVisual() {
   });
 }
 
-// 目标宝可梦文案：已解锁图鉴 → 概率提示；配方正确但未见到过（图鉴未解锁）→ 调侃引导；无目标 → 当地没人吃
+// 目标宝可梦文案：抓到过 → 概率提示；配方对但没抓到过 → 说明原因；野外没有这只 → 换配方
 function blockTargetText(target, targetCaught, quality) {
   if (target && targetCaught) return `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`;
-  if (target) return '图鉴没有解锁此宝可梦，配方无法生效';
-  return '当地没有宝可梦喜欢吃这个配方！';
+  if (target) return '还没抓到过这只宝可梦，配方无法生效';
+  return '野外没有爱吃这个配方的宝可梦！';
 }
 
 function cooldownHtml() {
@@ -797,7 +797,7 @@ function showResult() {
 }
 
 // 结果页（领取页）地区监听：冷却页已有里程轮询刷新，结果页同样需要跨地区即时切换
-// 三种文案（已解锁概率 / 未解锁调侃 / 当地无人吃）随地区变化即时更新。只更新文案元素，
+// 三种文案（概率提示 / 没抓到过 / 野外没有）随地区变化即时更新。只更新文案元素，
 // 不整页重渲染（避免重播飞入动画与获得音效）。
 function startResultRegionWatch() {
   clearResultRegionWatch();
@@ -937,7 +937,7 @@ export function startBlockCountdown() {
     if (remain <= 0) { handleBlockExpired(); return; } // 走满里程自动结束
     updateBlockTimers(remain);
     // 冷却页打开期间跨地区：findBerryTarget 按当前地区动态查目标，
-    // 到达配方可生效地区后即时刷新「没有宝可梦喜欢吃」→「遇敌时 X% 概率…」文案
+    // 到达配方可生效地区后即时刷新「野外没有」→「遇敌时 X% 概率…」文案
     const cur = getCurrentRegion().name;
     if (cur !== _coolRegion) {
       const mv = $('mixerView');

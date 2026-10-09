@@ -1,8 +1,8 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, WILD_LEVEL_MAX } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, setEncounterSource, setEncounterVariant } from './state.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, WILD_LEVEL_MAX, LEGEND_LEVEL } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, setEncounterSource, setEncounterVariant } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, isIdleStageVisible, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
-import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
+import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { catchBonusFor, computeObtainScore, computeMeetScore } from './scoring.js';
@@ -195,7 +195,7 @@ export async function tryEncounter() {
 function resolveEncounterPoke() {
   // 确保 poke 和 currentEncounter 始终指向同一对象
   // 神兽与强化形态不进普通遇敌池：神兽只从时空扭曲（加权后）与后续的日程型来源出现
-  const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p));
+  const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p) && !isWildExcluded(p));
   // 树果方块：按 BLOCK_TARGET_CHANCE 提高目标宝可梦的出现概率（命中则方块被吃掉 → buff 结束）
   // 只有图鉴中成功捕获过的目标才具备吸引力；未捕获时等同没有宝可梦吃，方块仅走里程
   const blockTarget = (blockBuffActive && blockRecipe.length > 0) ? findBerryTarget(blockRecipe) : null;
@@ -203,10 +203,17 @@ function resolveEncounterPoke() {
   // 命中概率随方块品质浮动（无品质记录按兜底概率）
   const blockChance = BLOCK_QUALITY[blockQuality]?.chance ?? BLOCK_TARGET_CHANCE;
   let poke;
+  let legendTarget = null;
   if (blockTargetCaught && Math.random() < blockChance) {
     // 高概率直接遇到目标宝可梦
     poke = blockTarget;
     setCurrentEncounter(poke);
+    setCurrentIsShiny(Math.random() < SHINY_CHANCE);
+  } else if ((legendTarget = rollLegendEncounter())) {
+    // 每日神兽池：当天在这个地区现身的某只，现身等级固定 20
+    poke = legendTarget;
+    setCurrentEncounter(poke);
+    setEncounterLevel(LEGEND_LEVEL);
     setCurrentIsShiny(Math.random() < SHINY_CHANCE);
   } else if (charmBuffActive && regionPool.length > 0) {
     const roll = Math.random();
@@ -239,8 +246,10 @@ function resolveEncounterPoke() {
   }
   // 无论哪条路径，只要选中目标宝可梦（未触发直接命中的情况下恰好抽中），方块即被吃掉
   // 未捕获的目标不算：抽中仅普通遇敌，方块继续走里程
-  if (blockTargetCaught && poke === blockTarget) eatBlock('encounter');
-  if (charmBuffActive) setCharmEncounterCount(_charmEncounterCount + 1);
+  const blockHit = blockTargetCaught && poke === blockTarget;
+  if (blockHit) eatBlock('encounter');
+  // 方块期间不吃增益（闪光也走基础概率），被方块吃掉的这只就不算护符的一次遭遇计数
+  if (charmBuffActive && !blockHit) setCharmEncounterCount(_charmEncounterCount + 1);
   return poke;
 }
 

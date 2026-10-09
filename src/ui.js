@@ -300,7 +300,6 @@ export function hideTextBox(owner = 'stage') {
 // ---------- 通用底部确认文案框 ----------
 // 复用 .text-box.shop-text-box 样式，动态创建、用完即删。
 // 传入文案和确定/取消回调；onYes 返回 true 则保持显示（用于结算结果停留），返回 falsy 则关闭。
-let _confirmBarId = 0;
 export function showConfirmBar(text, onYes, onNo, opts = {}) {
   hideConfirmBar();
   const bar = document.createElement('div');
@@ -853,8 +852,8 @@ export function updateIncubatorBadge() {
 // ---------- 孵蛋器视图渲染 ----------
 // 空槽点加号弹出选择菜单（神秘蛋 / 宝可梦蛋），无需顶部页签
 let _eggPickSlot = null; // 菜单选「宝可梦蛋」后正在选蛋的槽位下标；null = 未在选蛋
-let _eggPickSortBy = null;  // 选蛋列表排序列：null=默认按获得时间 | name | iv
-let _eggPickSortDir = 1;    // 1 升序 / -1 降序
+let _eggPickSortBy = null;  // 选蛋列表排序列：null=默认按获得时间降序（最新在前）| name | iv
+let _eggPickSortDir = -1;   // 1 升序 / -1 降序
 let _eggPickQuery = '';     // 选蛋列表搜索文本
 let _incLogOpen = false; // 孵蛋记录页是否打开（点顶部"孵蛋记录"进入，返回后关闭）
 let _incLogPrevTitle = null; // 打开记录页前的标题栏内容（关闭时还原）
@@ -925,7 +924,7 @@ function renderEggPickList() {
       vb = (b.ivs ? (b.ivs.hp + b.ivs.atk + b.ivs.def + b.ivs.spa + b.ivs.spd + b.ivs.spe) : 0);
       return (va - vb) * _eggPickSortDir;
     }
-    // time: newest first by default (_eggPickSortDir 控制）
+    // time：默认最新获得在前（与饲育屋纸箱一致，_eggPickSortDir 控制）
     va = a.obtainedAt || 0; vb = b.obtainedAt || 0;
     return (va - vb) * _eggPickSortDir;
   });
@@ -1014,13 +1013,13 @@ function renderEggPickList() {
     });
   }
   if (clearBtn) clearBtn.addEventListener('click', () => { _eggPickQuery = ''; input.value = ''; clearBtn.style.display = 'none'; renderEggPickList(); });
-  // 排序（3 段 toggle：升序 → 降序 → 回到默认时间排序）
+  // 排序（3 段 toggle：升序 → 降序 → 回到默认时间排序，默认最新在前）
   box.querySelectorAll('.nursery-egg-header [data-sort]').forEach(el => {
     el.addEventListener('click', () => {
       const k = el.dataset.sort;
       if (_eggPickSortBy === k) {
         if (_eggPickSortDir === 1) _eggPickSortDir = -1;
-        else { _eggPickSortBy = null; _eggPickSortDir = 1; }
+        else { _eggPickSortBy = null; _eggPickSortDir = -1; }
       } else { _eggPickSortBy = k; _eggPickSortDir = 1; }
       renderEggPickList();
     });
@@ -1150,8 +1149,10 @@ export function renderIncubatorView() {
     if (s && s.hatched) {
       html += `<div class="${rowCls}">
         <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" class="shake" /></div>
-        <div class="incubator-info"><div class="incubator-name" data-tip="${eggName}">蛋</div></div>
-        ${hatchBtnHtml(i, hatchLocked)}
+        <div class="incubator-info">
+          <div class="incubator-name" data-tip="${eggName}">${eggName}</div>
+          <div class="incubator-actions">${hatchBtnHtml(i, hatchLocked)}</div>
+        </div>
       </div>`;
     } else if (hasEgg) {
       const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
@@ -1167,8 +1168,10 @@ export function renderIncubatorView() {
       if (s.hatched) {
         html += `<div class="${rowCls}">
           <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" class="shake" /></div>
-          <div class="incubator-info"><div class="incubator-name" data-tip="${eggName}">蛋</div></div>
-          ${hatchBtnHtml(i, hatchLocked)}
+          <div class="incubator-info">
+            <div class="incubator-name" data-tip="${eggName}">${eggName}</div>
+            <div class="incubator-actions">${hatchBtnHtml(i, hatchLocked)}</div>
+          </div>
         </div>`;
         continue;
       }
@@ -1181,7 +1184,7 @@ export function renderIncubatorView() {
       html += `<div class="incubator-row">
         <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" /></div>
         <div class="incubator-info">
-          <div class="incubator-name" data-tip="${eggName}">蛋</div>
+          <div class="incubator-name" data-tip="${eggName}">${eggName}</div>
           <div class="incubator-progress-wrap" data-slot="${i}">
             <div class="incubator-progress-fill${boostPct > 0 ? ' has-boost' : ''}" style="width:${pct}%"></div>
             ${boostPct > 0 ? `<div class="incubator-progress-boost" style="left:${pct}%;width:${boostPct}%"></div>` : ''}

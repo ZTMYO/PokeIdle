@@ -1,6 +1,6 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, ITEM_DESC, CANDY_EXCHANGE, ITEM_SELL_RATE, ITEM_SELL_OVERRIDE, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER, EVO_PRICES, EVO_EXCLUSIVE_PRICE, EVO_SHOP_DAILY, EVO_SHOP_WEIGHTS, EVO_SHOP_EXCLUSIVE_SLOTS, EVO_SHOP_EXCLUSIVE_WEIGHT, EVO_SHOP_MINT_WEIGHT, MINT_NATURES, MINT_PRICE } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmGuaranteed, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge } from './state.js';
+import { ITEM_NAMES, ITEM_DESC, CANDY_EXCHANGE, ITEM_SELL_RATE, ITEM_SELL_OVERRIDE, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER, EVO_PRICES, EVO_EXCLUSIVE_PRICE, EVO_SHOP_DAILY, EVO_SHOP_WEIGHTS, EVO_SHOP_EXCLUSIVE_SLOTS, EVO_SHOP_EXCLUSIVE_WEIGHT, EVO_SHOP_MINT_WEIGHT, MINT_NATURES, MINT_PRICE, BREED_ONLY_IDS, LEGEND_POOL_DIVISOR, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmGuaranteed, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, isIdleStageVisible, isPageHidden, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, delay, burstShinySparkle } from './animation.js';
@@ -45,11 +45,11 @@ export const ITEM_ICONS = {
   'master-ball': 'balls/master-ball.png', 'candy': 'goods/candy.png',
   'sweet-honey': 'goods/honey.png', 'mystery-egg': 'goods/mystery-egg.png', 'shiny-charm': 'goods/shiny-charm.png',
   'bike': 'goods/bike.png', 'exp-candy': 'goods/xp-candy.png',
-  // 15 种通用进化道具（存档键 = 中文名，与 evolution.json 一致；文件名一律英文）
+  // 14 种通用进化道具（存档键 = 中文名，与 evolution.json 一致；文件名一律英文）
   '火之石': 'evo/fire-stone.png', '水之石': 'evo/water-stone.png', '雷之石': 'evo/thunder-stone.png', '叶之石': 'evo/leaf-stone.png',
   '冰之石': 'evo/ice-stone.png', '月之石': 'evo/moon-stone.png', '日之石': 'evo/sun-stone.png', '光之石': 'evo/shiny-stone.png',
   '暗之石': 'evo/dusk-stone.png', '觉醒之石': 'evo/dawn-stone.png',
-  '联系绳': 'evo/linking-cord.png', '奇异石': 'evo/strange-stone.png', '心之石': 'evo/heart-stone.png', '熏香': 'evo/incense.png',
+  '联系绳': 'evo/linking-cord.png', '奇异石': 'evo/strange-stone.png', '心之石': 'evo/heart-stone.png',
   // 21 种薄荷共用 6 张图（items/mints/），按提升的能力分组：mint_0 攻击 / 1 防御 / 2 特攻 / 3 特防 / 4 速度 / 5 中性
   '怕寂寞薄荷': 'mints/mint_0.png', '固执薄荷': 'mints/mint_0.png', '顽皮薄荷': 'mints/mint_0.png', '勇敢薄荷': 'mints/mint_0.png',
   '大胆薄荷': 'mints/mint_1.png', '淘气薄荷': 'mints/mint_1.png', '乐天薄荷': 'mints/mint_1.png', '悠闲薄荷': 'mints/mint_1.png',
@@ -268,12 +268,49 @@ export async function renderShopEvoSection(box, { onBought, onDetail } = {}) {
   };
 }
 
-// 清掉商店的每日限量货（形状 { date, ids }），__refreshAll() 用它做调试刷新
+// ---------- 每日神兽池 ----------
+// 每天给每个地区分几只神兽/幻兽：按该地区神兽数量浮动，多的多分、少的至少 1 只，当天池内不重复。
+// 遇敌时由 battle.js 掷一次极低概率，命中才从当天池里抽；表随 __refreshAll() 的 clearDailyStock() 清掉
+export function ensureLegendPool() {
+  const today = evoDateStr();
+  if (gameData.legendPool && gameData.legendPool.date === today) return gameData.legendPool;
+  const byRegion = {};
+  for (const p of allPokemon) {
+    if (!p.legend || isPowerForm(p) || BREED_ONLY_IDS.includes(String(p.index))) continue;
+    (byRegion[p.region] = byRegion[p.region] || []).push(String(p.index));
+  }
+  const picked = {};
+  for (const [region, list] of Object.entries(byRegion)) {
+    const n = Math.min(list.length, Math.max(1, Math.round(list.length / LEGEND_POOL_DIVISOR)));
+    const bag = [...list];
+    for (let i = bag.length - 1; i > 0; i--) { const j = randInt(0, i); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+    picked[region] = bag.slice(0, n);
+  }
+  gameData.legendPool = { date: today, byRegion: picked };
+  saveGame();
+  return gameData.legendPool;
+}
+
+// 遇敌时掷一次：命中就从当天这个地区的池里抽一只；软保底到点必出
+export function rollLegendEncounter() {
+  const pool = ensureLegendPool();
+  const list = pool.byRegion[getCurrentRegion().name] || [];
+  if (!list.length) return null;
+  const rate = (honeyBuffActive || charmBuffActive) ? LEGEND_ENCOUNTER_RATE_BUFF : LEGEND_ENCOUNTER_RATE;
+  if ((gameData.legendPity || 0) < LEGEND_PITY && Math.random() >= rate) {
+    gameData.legendPity = (gameData.legendPity || 0) + 1;
+    return null;
+  }
+  gameData.legendPity = 0;
+  return getPokemonByIndex(list[randInt(0, list.length - 1)]) || null;
+}
+
+// 清掉每日限量货与每日神兽池（{ date, ids } 或 { date, byRegion }），__refreshAll() 用它做调试刷新
 export function clearDailyStock() {
   let n = 0;
   for (const k of Object.keys(gameData)) {
     const v = gameData[k];
-    if (v && typeof v === 'object' && typeof v.date === 'string' && Array.isArray(v.ids)) {
+    if (v && typeof v === 'object' && typeof v.date === 'string' && (Array.isArray(v.ids) || v.byRegion)) {
       gameData[k] = null;
       n++;
     }
@@ -421,7 +458,7 @@ export function pickWeightedPokemon(rarityBoost, pool) {
 export function pickRandomPokemon() {
   if (allPokemon.length === 0) return null;
   const region = getCurrentRegion();
-  const pool = allPokemon.filter(p => p.region === region.name && !p.legend && !isPowerForm(p)); // 神兽与强化形态不进普通遇敌池
+  const pool = allPokemon.filter(p => p.region === region.name && !p.legend && !isPowerForm(p) && !isWildExcluded(p)); // 神兽与强化形态不进普通遇敌池
   if (pool.length === 0) return null;
   let rarityBoost = 0;
   if (honeyBuffActive) rarityBoost = Math.max(rarityBoost, HONEY_RARITY_BOOST);
@@ -444,6 +481,7 @@ export function findBerryTarget(recipe) {
   return allPokemon.find(p =>
     p.region === region.name &&
     !isPowerForm(p) &&
+    !isWildExcluded(p) &&
     Array.isArray(p.foods) &&
     p.foods.length === sorted.length &&
     sorted.every(s => p.foods.includes(s))
@@ -1043,6 +1081,30 @@ export async function hatchFromIncubator(slotIndex) {
 // 独立页面 hatchAllView：全部蛋同屏展示（≤6 只一行 3 个、7~8 只一行 4 个，两行居中），
 // 逐个播放破壳动画 → 宝可梦大图 + 名字（依次进行），全部完成后弹底部确认条
 // （同时播放与单只孵化同款的祝贺音效），确认后收起页面回孵蛋器。
+// 播放中点画面 = 跳过剩余破壳动画，剩下的蛋直接出结果
+let _hatchAllSkip = false;     // 本次批量是否已点画面跳过
+let _hatchAllRunning = false;  // 批量序列是否在播（只有播放中才响应点击）
+let _hatchAllWait = null;      // 当前等待的延时（跳过时立刻放行）
+let _hatchAllSkipBound = false;
+function bindHatchAllSkip() {
+  if (_hatchAllSkipBound) return;
+  const view = $('hatchAllView');
+  if (!view) return;
+  _hatchAllSkipBound = true;
+  view.addEventListener('click', () => {
+    if (!_hatchAllRunning || _hatchAllSkip) return;
+    _hatchAllSkip = true;
+    if (_hatchAllWait) _hatchAllWait();
+  });
+}
+// 可跳过的等待：点了画面就立刻返回
+function hatchDelay(ms) {
+  if (_hatchAllSkip) return Promise.resolve();
+  return new Promise((res) => {
+    const timer = setTimeout(() => { _hatchAllWait = null; res(); }, ms);
+    _hatchAllWait = () => { clearTimeout(timer); _hatchAllWait = null; res(); };
+  });
+}
 export async function hatchAllFromIncubator() {
   if (_eggHatching) return;
   if (phase === 'battle' || phase === 'eggResult' || phase === 'evo') return; // NPC 对战 / 孵蛋结果 / 进化演出期间仍禁止孵化
@@ -1119,15 +1181,19 @@ export async function hatchAllFromIncubator() {
     return;
   }
 
-  // 依次孵化：每只播放破壳动画 → 大图出现 → 显示名字后立即落库
+  // 依次孵化：每只播放破壳动画 → 大图出现 → 显示名字后立即落库；点画面跳过剩余演出
+  _hatchAllSkip = false;
+  _hatchAllRunning = true;
+  bindHatchAllSkip();
   for (let k = 0; k < cells.length; k++) {
     const { slot, poke, eggShiny, stage, nameEl } = cells[k];
     const cellGender = hatchCellGender(incubators[slot], poke); // 预判性别：动画与建档共用，保证显示一致
     await playHatchAllCell(stage, poke, eggShiny, nameEl, cellGender);
     applyHatchEntry(slot, cellGender); // 名字/闪光星标/性别/粒子已随图片在 playHatchAllCell 内同步出现
     await saveGame(); // 每只完成后落盘，中途崩溃也不丢已孵化结果
-    if (k < cells.length - 1) await delay(180);
+    if (k < cells.length - 1) await hatchDelay(180);
   }
+  _hatchAllRunning = false;
   await saveGame();
   updateStats();
   updateIncubatorBadge();
@@ -1159,39 +1225,42 @@ function hatchCellGender(slot, poke) {
 
 // 单个蛋的完整孵出流程：直接从蛋裂一帧开始快速播放破壳动画 → 宝可梦大图从蛋中心缩放出现
 // nameEl 传入后与图片同步显示名字（名字后跟性别图标，闪光时性别左侧追加雪碧图星标）
+// 已点画面跳过：不建蛋壳、不走缩放，直接把大图 + 名字摆出来
 async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender) {
-  // 蛋精灵：与单只孵蛋动画同源（hatch.png 竖排 4 帧）
-  const tmp = new Image();
-  tmp.src = './items/goods/hatch.png';
-  await new Promise(r => { tmp.onload = r; tmp.onerror = r; });
-  const frameW = tmp.naturalWidth;
-  const frameH = tmp.naturalHeight / 4;
-  const displayW = 48;
-  const displayH = displayW * (frameH / frameW);
-  const sprite = document.createElement('div');
-  sprite.className = 'hatch-all-egg';
-  sprite.style.cssText = `
-    background-image: url(./items/goods/hatch.png);
-    background-size: ${displayW}px ${displayH * 4}px;
-    background-position: 0 0;
-    background-repeat: no-repeat;
-    width: ${displayW}px; height: ${displayH}px;
-    image-rendering: pixelated;
-  `;
-  stage.appendChild(sprite);
+  if (!_hatchAllSkip) {
+    // 蛋精灵：与单只孵蛋动画同源（hatch.png 竖排 4 帧）
+    const tmp = new Image();
+    tmp.src = './items/goods/hatch.png';
+    await new Promise(r => { tmp.onload = r; tmp.onerror = r; });
+    const frameW = tmp.naturalWidth;
+    const frameH = tmp.naturalHeight / 4;
+    const displayW = 48;
+    const displayH = displayW * (frameH / frameW);
+    const sprite = document.createElement('div');
+    sprite.className = 'hatch-all-egg';
+    sprite.style.cssText = `
+      background-image: url(./items/goods/hatch.png);
+      background-size: ${displayW}px ${displayH * 4}px;
+      background-position: 0 0;
+      background-repeat: no-repeat;
+      width: ${displayW}px; height: ${displayH}px;
+      image-rendering: pixelated;
+    `;
+    stage.appendChild(sprite);
 
-  // 跳过摇晃帧，直接从蛋裂开始快速连播（帧率高、节奏紧凑）
-  await delay(120);
-  sprite.style.backgroundPosition = `0 -${displayH}px`; // 蛋裂
-  await delay(150);
-  sprite.style.backgroundPosition = `0 -${displayH * 2}px`; // 裂缝更大
-  await delay(160);
-  sprite.style.backgroundPosition = `0 -${displayH * 3}px`; // 破壳
-  await delay(100);
+    // 跳过摇晃帧，直接从蛋裂开始快速连播（帧率高、节奏紧凑）
+    await hatchDelay(120);
+    sprite.style.backgroundPosition = `0 -${displayH}px`; // 蛋裂
+    await hatchDelay(150);
+    sprite.style.backgroundPosition = `0 -${displayH * 2}px`; // 裂缝更大
+    await hatchDelay(160);
+    sprite.style.backgroundPosition = `0 -${displayH * 3}px`; // 破壳
+    await hatchDelay(100);
+    sprite.remove();
+  }
 
   // 宝可梦大图出现（缩放 + 淡入）。尺寸不设固定值，交给 .hatch-all-stage img 的
   // max-width/max-height 自适应各列宽高，避免大图溢出格子与邻近内容重叠
-  sprite.remove();
   const img = document.createElement('img');
   img.style.opacity = '0';
   img.style.objectFit = 'contain';
@@ -1201,10 +1270,9 @@ async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender) {
     img.style.width = '100%';
     img.style.height = '100%';
   }
-  img.style.transform = 'translate(-50%, -50%) scale(0)';
-  void img.offsetHeight;
-  // 图片开始放大出场的同时显示名字（名字 → 闪光星标 → 性别图标）并爆发闪光粒子
-  if (nameEl) {
+  // 图片出场的同时显示名字（名字 → 闪光星标 → 性别图标）并爆发闪光粒子
+  const showName = () => {
+    if (!nameEl) return;
     let nameHtml = `<span>${poke.name}</span>`;
     if (eggShiny) {
       nameHtml += '<svg viewBox="0 0 1024 1024" width="8" height="8" style="flex-shrink:0;color:var(--ui-color);vertical-align:0px;"><use xlink:href="#icon-star"/></svg>';
@@ -1213,7 +1281,15 @@ async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender) {
     }
     nameHtml += genderBadge(gender, 8);
     nameEl.innerHTML = nameHtml;
+  };
+  if (_hatchAllSkip) {
+    img.style.opacity = '1';
+    showName();
+    return;
   }
+  img.style.transform = 'translate(-50%, -50%) scale(0)';
+  void img.offsetHeight;
+  showName();
   const dur = 250;
   await animate(dur, t => {
     img.style.transform = `translate(-50%, -50%) scale(${t < 0.15 ? t / 0.15 : 1})`;

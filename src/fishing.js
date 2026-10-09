@@ -2,12 +2,11 @@
 // 进入有垂钓点的路段后停下钓鱼一次：甩竿 → 等待上钩（随机6~30s）→ 上钩抖动 → 收获随机道具×1~10
 import { ITEM_NAMES, ITEM_RATES, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, FISH_RARE_TOP, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX } from './config.js';
 import { ITEM_ICONS, clearHoneyCountdown, clearCharmCountdown, startHoneyCountdown, startCharmCountdown, pickFamily, evoDropPool } from './items.js';
-import { phase, gameData, nextEncounterTimer, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, _itemDropActive, _fishing, gameTick, allPokemon, getCurrentRegion, isPowerForm, setFishing, setNextEncounterTimer, saveGame, addSystemLog, randInt, rand, setHoneyBuffActive, setCharmBuffActive, setHoneyCountdownEnd, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval } from './state.js';
+import { phase, gameData, nextEncounterTimer, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, _itemDropActive, _fishing, gameTick, allPokemon, getCurrentRegion, isPowerForm, isWildExcluded, setFishing, setNextEncounterTimer, saveGame, addSystemLog, randInt, rand, setHoneyBuffActive, setCharmBuffActive, setHoneyCountdownEnd, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval } from './state.js';
 import { $, setIdleCharacter, updateBackpack, updateStats, getCharPrefix } from './ui.js';
 import { showFishingWait, showFishingResult, showBuffExpired } from './messages.js';
 import { delay } from './animation.js';
 import { scheduleNextEncounter, startFishingEncounter, tryEncounter } from './battle.js';
-import { isWildCatchable } from './evolution.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
 
@@ -310,7 +309,7 @@ function pickFishingReward() {
 // 两个池子都走野池口径：神兽（只从时空扭曲来）与进化链终点不进
 function pickFishingPokemon() {
   const regionName = getCurrentRegion().name;
-  const wildPool = allPokemon.filter(p => p.region === regionName && !p.legend && !isPowerForm(p) && isWildCatchable(p.index));
+  const wildPool = allPokemon.filter(p => p.region === regionName && !p.legend && !isPowerForm(p) && !isWildExcluded(p));
   const sorted = [...wildPool].sort((a, b) => (b.rarity || 0.5) - (a.rarity || 0.5));
   const rarePool = sorted.slice(0, Math.max(1, Math.round(sorted.length * FISH_RARE_TOP)));
   const waterPool = wildPool.filter(p => (p.types || []).includes('水'));

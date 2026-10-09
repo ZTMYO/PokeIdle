@@ -83,6 +83,12 @@ export function describeLogEntry(log) {
   return desc;
 }
 
+// 图鉴详情放大查看：把贴图铺满所在屏（同个体详情页的做法）
+function setPokedexZoom(on) {
+  const pl = $('pokedexList');
+  if (pl) pl.classList.toggle('pokedex-zoom', !!on);
+}
+
 export function showEncounterLogs(pokemonIndex) {
   setupFoodTooltip();
   const idx = String(pokemonIndex);
@@ -111,10 +117,11 @@ export function showEncounterLogs(pokemonIndex) {
   let html = `<div style="font-size:14px;font-weight:700;padding:6px 5px 2px;">${displayName}</div>`;
   // 未遇到：不展示素材
   if (seenCount > 0) {
-    html += `<div style="display:flex;gap:8px;padding:2px 3px;align-items:center;">
+    html += `<div class="pokedex-detail-head" style="display:flex;gap:8px;padding:2px 3px;align-items:center;">
       <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
-        <div class="poke-img-grid" title="点击切换闪光">
+        <div class="poke-img-grid" title="点击放大">
           <img id="logPokeImg" class="poke-img-in-grid" />
+          <button class="poke-img-shiny" id="logShinyBtn" type="button" title="切换闪光"><svg viewBox="0 0 1024 1024" width="11" height="11"><use xlink:href="#icon-star"/></svg></button>
         </div>
         ${(caughtCount > 0 && poke && poke.genus) ? `<div style="font-size:9px;">${poke.genus}</div>` : ''}
         ${(caughtCount > 0 && poke && poke.eggGroup && poke.eggGroup.length) ? `<div style="font-size:9px;white-space:nowrap;">${poke.eggGroup.join(' ')}</div>` : ''}
@@ -220,6 +227,21 @@ export function showEncounterLogs(pokemonIndex) {
     return content;
   };
 
+  // 进化记录：形态变了不算"新遇见一只"，单独一块放在相遇日志上方
+  const evoRows = (gameData.systemLogs || []).filter((g) => g && g.type === 'evolve' && g.details && String(g.details.to) === idx);
+  if (evoRows.length) {
+    const roster = gameData.roster || [];
+    const rows = [...evoRows].reverse().slice(0, 10).map((g) => {
+      const from = getPokemonByIndex(g.details.from);
+      const me = roster.find((r) => r.id === g.details.id);
+      const who = me && me.nickname ? `「${me.nickname}」` : '';
+      return `<div style="padding:4px 0;border-bottom:1px solid rgba(var(--ui-color-rgb),0.06);">
+        <div style="font-size:9px;opacity:0.4;line-height:1.4;">${formatLogTime(g.time)}</div>
+        <div style="font-size:10px;line-height:1.4;">${who}由 ${from ? (from.form || from.name) : g.details.from} 进化而来</div>
+      </div>`;
+    }).join('');
+    html += `<div style="font-size:10px;font-weight:700;padding:6px 4px 2px;">进化记录</div><div style="padding:0 4px;">${rows}</div>`;
+  }
   html += renderLogContent();
   list.innerHTML = html;
 
@@ -229,28 +251,38 @@ export function showEncounterLogs(pokemonIndex) {
     tryLoadImage(icon, `./items/berries/${BERRY_ICONS[bi]}`);
   });
 
-  // 加载宝可梦素材，点击切换闪光；闪光形态循环播放星星粒子（与个体详情页同款）
+  // 加载宝可梦素材；点贴图放大查看（再点收起，点放大后的空白处也收起），
+  // 右上角星标按钮切换闪光；闪光形态循环播放星星粒子（与个体详情页同款）
   const img = $('logPokeImg');
   if (img && poke) {
     img.dataset.shiny = 'false';
     tryLoadPokemonImage(img, poke, '');
-    img.onclick = () => {
-      const isShiny = img.dataset.shiny === 'true';
-      const suffix = isShiny ? '' : '_shiny';
-      // 短暂隐藏，用完整 fallback 链加载，加载完再显示
-      img.style.visibility = 'hidden';
-      tryLoadPokemonImage(img, poke, suffix).then(() => {
-        img.style.visibility = 'visible';
-        img.dataset.shiny = isShiny ? 'false' : 'true';
-        if (!isShiny) startShinySparkleOn($('pokedexView'), img, { cls: 'sm', scale: 0.6 });
-        else stopShinySparkleLoop();
+    const shinyBtn = $('logShinyBtn');
+    if (shinyBtn) {
+      shinyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const on = img.dataset.shiny !== 'true';
+        // 短暂隐藏，用完整 fallback 链加载，加载完再显示
+        img.style.visibility = 'hidden';
+        tryLoadPokemonImage(img, poke, on ? '_shiny' : '').then(() => {
+          img.style.visibility = 'visible';
+          img.dataset.shiny = on ? 'true' : 'false';
+          shinyBtn.classList.toggle('on', on);
+          if (on) startShinySparkleOn($('pokedexView'), img, { cls: 'sm', scale: 0.6 });
+          else stopShinySparkleLoop();
+        });
       });
-    };
+    }
+    const zoomGrid = img.closest('.poke-img-grid');
+    const head = list.querySelector('.pokedex-detail-head');
+    zoomGrid?.addEventListener('click', (e) => { e.stopPropagation(); setPokedexZoom(!list.classList.contains('pokedex-zoom')); });
+    head?.addEventListener('click', () => setPokedexZoom(false));
   }
 }
 
 export function restorePokedex() {
   stopShinySparkleLoop(); // 离开图鉴详情：停止闪光粒子循环
+  setPokedexZoom(false);  // 并收起放大态
   setPokedexInLogView(false);
   // 恢复搜索框、表头和进度
   document.querySelector('.pokedex-search').style.display = '';
