@@ -273,6 +273,7 @@ window.__addEgg = function (speciesIndex) {
     shiny: false,
     source: 'egg',
     obtainedAt: Date.now(),
+    originSpecies: String(poke.index),
     inRoster: true,
   };
   gameData.roster.push(entry);

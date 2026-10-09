@@ -473,13 +473,14 @@ export function pickAnyPokemon() {
   return pickFamily(pool, () => 1);
 }
 
-// 树果方块：当前地区中 foods 与配方完全一致的宝可梦
+// 树果方块：当前地区中 foods 与配方完全一致的宝可梦；神兽/幻兽不吃方块，免得抓到一只后无限召唤刷闪光
 export function findBerryTarget(recipe) {
   if (!Array.isArray(recipe) || recipe.length === 0) return null;
   const region = getCurrentRegion();
   const sorted = [...recipe].sort((a, b) => a - b);
   return allPokemon.find(p =>
     p.region === region.name &&
+    !p.legend &&
     !isPowerForm(p) &&
     !isWildExcluded(p) &&
     Array.isArray(p.foods) &&

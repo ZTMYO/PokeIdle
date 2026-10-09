@@ -1197,10 +1197,12 @@ async function renderEvoBlock(id) {
   });
   // 图鉴里还没见过的目标
   box.querySelectorAll('.evo-icon[data-unknown]').forEach((im) => tryLoadImage(im, 'pokemon-data/icon/unknown.png'));
-  // 顺手预取进化目标的立绘：点进化后演出要立刻换图，别等它现加载
+  // 顺手预取进化目标的立绘并解掉首帧：点进化后演出要立刻换图、立刻起手，别等到那时候才加载/解码
   for (const t of rows.flatMap((r) => r.targets)) {
     const pd = getPokemonByIndex(String(t));
-    if (pd) tryLoadPokemonImage(new Image(), pd, p.shiny ? '_shiny' : '');
+    if (!pd) continue;
+    const warm = new Image();
+    tryLoadPokemonImage(warm, pd, p.shiny ? '_shiny' : '').then(() => { try { warm.decode && warm.decode().catch(() => {}); } catch (_) {} });
   }
   // 只有点按钮才触发进化
   box.querySelectorAll('.evo-btn').forEach((btn) => {
@@ -1263,21 +1265,24 @@ function startEvolution(id, row) {
     ? `${costText}${who}进化为${target ? (target.form || target.name) : '新的形态'}？`
     : `${costText}确定进化${who}？`;
   showConfirmBar(ask, () => {
-    // 进化前这只解锁到哪就带过来哪些：新形态整个学不到的按「继承」留底，之后再练级也不会解锁新的
-    const before = _learnset ? candidateMoves(p).filter((c) => !c.locked).map((c) => c.id) : [];
-    const gone = before.filter((m) => !learnsAtAll(String(to), m));
-    if (gone.length) p.inherited = [...new Set([...(p.inherited || []), ...gone])];
     const fromIdx = String(p.species);                 // 演出要按"进化前"的形态开场，先记下来
     const shiny = !!p.shiny;
-    applyEvolution(p, to, row.cond);
-    // 演出可点屏跳过；演完回到已经变了的那只详情
+    // 结算（扣道具 / 写图鉴 / 存档 / 重绘）放到演出结束：确认后立刻开演，起手那一帧不再被 saveGame 和界面刷新卡住
+    const commit = () => {
+      // 进化前这只解锁到哪就带过来哪些：新形态整个学不到的按「继承」留底，之后再练级也不会解锁新的
+      const before = _learnset ? candidateMoves(p).filter((c) => !c.locked).map((c) => c.id) : [];
+      const gone = before.filter((m) => !learnsAtAll(String(to), m));
+      if (gone.length) p.inherited = [...new Set([...(p.inherited || []), ...gone])];
+      applyEvolution(p, to, row.cond);
+    };
+    // 演出可点屏跳过；演完（或直接播不了）再结算，然后回到已经变了的那只详情
     playEvolution({
       from: { idx: fromIdx, name: from ? (from.form || from.name) : fromIdx, types: (from && from.types) || [] },
       to: { idx: String(to), name: target ? (target.form || target.name) : String(to), types: (target && target.types) || [] },
       items: condItems(row.cond),
       shiny,
       variant: p.variant || null,   // RGB / 污染特效：演出贴图也要带出来
-      onFinish: () => showRosterDetail(id),
+      onFinish: () => { commit(); showRosterDetail(id); },
     });
   }, null, { overlay: true });
 }
@@ -1367,7 +1372,7 @@ function showRosterDetail(id) {
 
   const poke = getPokemonByIndex(String(p.species));
   const dGSpan = genderBadge(ensureGender(p));
-  const lastLog = latestLogLine(String(p.species), p.obtainedAt);
+  const lastLog = latestLogLine(String(p.originSpecies || p.species), p.obtainedAt);
   const list = $('rosterList');
   if (!list) return;
   list.innerHTML = `
@@ -2082,7 +2087,7 @@ function releasePokemon(id) {
   });
 }
 
-// 该物种最近一次遭遇日志（一行小字，附在获得时间下）
+// 该个体获得时那次遭遇的日志（一行小字，附在获得时间下）：按 originSpecies 匹配，进化后不会串到别的日志
 function latestLogLine(idx, obtainedAt) {
   const logs = (gameData.encounterLogs || {})[idx] || [];
   if (logs.length === 0) return null;

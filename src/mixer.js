@@ -7,8 +7,8 @@ import { BERRY_ICONS, BERRY_NAMES, BERRY_COLORS, findBerryTarget } from './items
 import { BLOCK_DISTANCE, PX_PER_METER, BLOCK_QUALITY } from './config.js';
 import { playObtained } from './audio.js';
 
-// 制作一个树果方块最多消耗的树果颗数（每种 1 颗）
-const RECIPE_MAX = 4;
+// 制作一个树果方块最多消耗的树果颗数（每种 1 颗）；配方只有 1/2/3 颗三档，选 4 颗没有物种能对上
+const RECIPE_MAX = 3;
 let _recipe = [];       // 已选树果下标（去重）
 let _lastRecipe = [];   // 最近成功制作的配方（决定颜色与吸引目标）
 let _pickOpen = false;  // 是否处于选择树果状态

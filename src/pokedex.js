@@ -4,6 +4,7 @@ import { gameData, allPokemon, getPokemonByIndex, _pokedexSortBy, _pokedexSortDi
 import { $, showView, tryLoadPokemonImage, tryLoadImage, setupFoodTooltip } from './ui.js';
 import { TYPE_COLORS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
+import { acquireEntries, loadAcquire } from './acquire.js';
 
 const REGION_OPTIONS = ['全部地区', '关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
 const STAR_OUTLINE = '<svg class="pokedex-star-svg" viewBox="2 2 20.2 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.77272 14.5899L5.24822 20.9745C5.1866 21.2304 5.28549 21.498 5.49671 21.6536C5.70873 21.8087 5.99207 21.8238 6.21922 21.6891L11.9527 18.2844L17.6835 21.6891C17.787 21.7505 17.9027 21.7812 18.0178 21.7812C18.1547 21.7812 18.2907 21.7387 18.406 21.6543C18.6173 21.4985 18.7162 21.231 18.6545 20.9752L17.13 14.5905L22.1907 10.3017C22.3931 10.131 22.4721 9.85483 22.3911 9.60288C22.3106 9.35093 22.0855 9.17223 21.8217 9.15074L15.1466 8.59969L12.5534 2.54696C12.4506 2.30605 12.2138 2.15039 11.952 2.15039C11.6902 2.15039 11.4534 2.30605 11.3507 2.54696L8.7555 8.59969L2.08241 9.14997C1.81862 9.17165 1.59348 9.35026 1.51299 9.60226C1.43185 9.85421 1.51107 10.1304 1.7133 10.301L6.77272 14.5899ZM9.25537 9.87121C9.49689 9.85157 9.70763 9.69973 9.80309 9.47651L11.952 4.46477L14.0984 9.47589C14.1938 9.69898 14.4045 9.85095 14.646 9.87044L20.1387 10.3234L15.9763 13.851C15.7878 14.0102 15.7055 14.262 15.763 14.5023L17.022 19.7731L12.2871 16.9599C12.0816 16.837 11.8244 16.837 11.6189 16.9599L6.88149 19.7737L8.14037 14.5023C8.19791 14.262 8.11557 14.0102 7.92708 13.851L3.76593 10.3234L9.25537 9.87121Z" fill="currentColor"></path></svg>';
@@ -89,7 +90,123 @@ function setPokedexZoom(on) {
   if (pl) pl.classList.toggle('pokedex-zoom', !!on);
 }
 
-export function showEncounterLogs(pokemonIndex) {
+// 相遇日志正文（独立页用；详情页只留右上角入口）
+function logsContentHtml(logs) {
+  if (!logs || logs.length === 0) {
+    return '<div style="padding:20px 4px;text-align:center;">暂无任何遭遇日志</div>';
+  }
+  const sorted = [...logs].sort((a, b) => b.time - a.time);
+  let content = '<div style="padding:0 4px;">';
+  for (const log of sorted) {
+    // 孵化与交换都不消耗球（balls 为空对象），需排除交换来源避免误判为孵化
+    const isHatch = log.result === 'caught' && log.source !== 'trade' && Object.values(log.balls).every(v => v === 0);
+    let label;
+    if (isHatch) {
+      label = '☆ 孵化获得';
+    } else if (log.result === 'caught') {
+      label = log.source === 'fishing' ? '☆ 钓鱼捕获' : (log.source === 'trade' ? (log.npcName ? `和${log.npcName}交换获得` : '☆ 交换获得') : '☆ 捕获成功');
+    } else if (log.manual !== undefined) {
+      label = log.source === 'fishing' ? '钓鱼遭遇后逃跑' : '主动逃跑';
+    } else {
+      label = log.source === 'fishing' ? '钓鱼遭遇后逃脱' : '精灵逃跑';
+    }
+    const typeLabel = (() => {
+      // 孵化与交换都不消耗球：不标注「未丢球」
+      if (isHatch || log.source === 'trade') return '';
+      const cnt = Object.values(log.balls).filter(v => v > 0).length;
+      if (cnt <= 1) {
+        const bt = Object.entries(log.balls).find(([,v]) => v > 0);
+        return bt ? `仅${ITEM_NAMES[bt[0]]}` : '未丢球';
+      }
+      return '多种球混用';
+    })();
+    const shinyIcon = '<svg viewBox="0 0 1024 1024" width="10" height="10" style="vertical-align:-1px;color:var(--ui-color);"><use xlink:href="#icon-star"/></svg>';
+    content += `<div style="padding:4px 0;border-bottom:1px solid rgba(var(--ui-color-rgb),0.06);">
+      <div style="font-size:9px;opacity:0.4;line-height:1.4;">${formatLogTime(log.time)}</div>
+      <div >${label}${log.shiny ? ' ' + shinyIcon : ''}${typeLabel ? '，' + typeLabel : ''}</div>
+      <div style="font-size:10px;line-height:1.4;">${describeLogEntry(log)}</div>
+    </div>`;
+  }
+  content += '</div>';
+  return content;
+}
+
+// 详情页当前正在看的编号：获取方式表懒加载回来时，确认还在这一页才补进去
+let _curDetailIdx = null;
+
+// 获取途径块：锁着 → 灰显占位；表没到 → 加载中；到了 → 一行小标签
+function acqBlockHtml(entries, locked) {
+  const head = '<div class="pokedex-acq-title">获取途径</div>';
+  if (locked) return head + '<div class="pokedex-acq-locked">？？？（捕获后解锁）</div>';
+  if (entries == null) return head + '<div class="pokedex-acq-locked">加载中…</div>';
+  if (!entries.length) return head + '<div class="pokedex-acq-locked">暂无已知途径</div>';
+  return head + '<div class="pokedex-acq-list">' + entries.map((e) =>
+    `<span class="pokedex-acq-tag"><b>${e.label}</b>${e.text ? `<span class="pokedex-acq-text">${e.text}</span>` : ''}</span>`).join('') + '</div>';
+}
+function fillAcqBox(idx, locked) {
+  const box = $('pokedexAcqBox');
+  if (!box) return;
+  if (locked) { box.innerHTML = acqBlockHtml(null, true); return; }
+  const rows = acquireEntries(idx);
+  if (rows) { box.innerHTML = acqBlockHtml(rows, false); return; }
+  box.innerHTML = acqBlockHtml(null, false);
+  loadAcquire().then(() => { if (_curDetailIdx === idx && $('pokedexAcqBox')) fillAcqBox(idx, false); }).catch(() => {});
+}
+
+// 相遇日志独立页：图鉴详情右上角「相遇日志」进入，返回回到该详情。
+// 页内不画标题/返回：接管 appTitle（照孵蛋记录的写法），返回走全局返回链。
+let _logsIdx = null;
+let _logsPrevTitle = null;
+function enterLogsTitle() {
+  const t = $('appTitle');
+  if (!t || _logsPrevTitle != null) return;
+  _logsPrevTitle = { html: t.innerHTML, action: t.dataset.action || '' };
+  t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 相遇日志';
+  t.dataset.action = 'back';
+}
+function leaveLogsTitle() {
+  const t = $('appTitle');
+  if (t && _logsPrevTitle != null) { t.innerHTML = _logsPrevTitle.html; t.dataset.action = _logsPrevTitle.action; }
+  _logsPrevTitle = null;
+}
+let _detailScroll = 0;
+export function isPokedexLogsPage() { return _logsIdx != null; }
+export function backFromPokedexLogs() {
+  if (_logsIdx == null) return false;
+  const i = _logsIdx;
+  _logsIdx = null;
+  leaveLogsTitle();
+  showEncounterLogs(i, true);
+  return true;
+}
+function renderPokedexLogsPage(idx) {
+  const list = $('pokedexList');
+  if (!list) return;
+  _logsIdx = idx;
+  enterLogsTitle();
+  let html = '';
+    // 进化记录：形态变了不算"新遇见一只"，单独一块放在相遇日志上方
+    const evoRows = (gameData.systemLogs || []).filter((g) => g && g.type === 'evolve' && g.details && String(g.details.to) === idx);
+    if (evoRows.length) {
+      const roster = gameData.roster || [];
+      const rows = [...evoRows].reverse().slice(0, 10).map((g) => {
+        const from = getPokemonByIndex(g.details.from);
+        const me = roster.find((r) => r.id === g.details.id);
+        const who = me && me.nickname ? `「${me.nickname}」` : '';
+        return `<div style="padding:4px 0;border-bottom:1px solid rgba(var(--ui-color-rgb),0.06);">
+          <div style="font-size:9px;opacity:0.4;line-height:1.4;">${formatLogTime(g.time)}</div>
+          <div style="font-size:10px;line-height:1.4;">${who}由 ${from ? (from.form || from.name) : g.details.from} 进化而来</div>
+        </div>`;
+      }).join('');
+      html += `<div style="font-size:10px;font-weight:700;padding:6px 4px 2px;">进化记录</div><div style="padding:0 4px;">${rows}</div>`;
+    }
+  
+  html += logsContentHtml((gameData.encounterLogs || {})[idx]);
+  list.innerHTML = html;
+  list.scrollTop = 0;
+}
+
+export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
   setupFoodTooltip();
   const idx = String(pokemonIndex);
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
@@ -104,9 +221,13 @@ export function showEncounterLogs(pokemonIndex) {
   if (!list) return;
 
   setPokedexInLogView(true);
-  // 保存滚动位置并滚到顶部
+  // 从详情进日志页：记住详情滚动位置，返回时回到原处；从列表进详情：保存列表滚动并滚到顶部
   const pl = $('pokedexList');
-  if (pl) { pl.dataset.savedScroll = pl.scrollTop; pl.scrollTop = 0; }
+  if (pl) {
+    if (fromLogsBack) pl.scrollTop = _detailScroll;
+    else { pl.dataset.savedScroll = pl.scrollTop; pl.scrollTop = 0; }
+  }
+  _logsIdx = null;
   // 隐藏搜索框、表头和进度
   document.querySelector('.pokedex-search').style.display = 'none';
   document.querySelector('.pokedex-header').style.display = 'none';
@@ -114,7 +235,12 @@ export function showEncounterLogs(pokemonIndex) {
   if (progEl) progEl.style.display = 'none';
 
   // 构建 HTML：宝可梦素材 + 日志列表
-  let html = `<div style="font-size:14px;font-weight:700;padding:6px 5px 2px;">${displayName}</div>`;
+  // 未捕获：组件照常摆出来，数值灰显占位（捕获后解锁）
+  const locked = caughtCount === 0;
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 5px 2px;">
+    <div style="font-size:14px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</div>
+    <button class="incubator-log-btn" id="pokedexLogsBtn">相遇日志</button>
+  </div>`;
   // 未遇到：不展示素材
   if (seenCount > 0) {
     html += `<div class="pokedex-detail-head" style="display:flex;gap:8px;padding:2px 3px;align-items:center;">
@@ -123,8 +249,8 @@ export function showEncounterLogs(pokemonIndex) {
           <img id="logPokeImg" class="poke-img-in-grid" />
           <button class="poke-img-shiny" id="logShinyBtn" type="button" title="切换闪光"><svg viewBox="0 0 1024 1024" width="11" height="11"><use xlink:href="#icon-star"/></svg></button>
         </div>
-        ${(caughtCount > 0 && poke && poke.genus) ? `<div style="font-size:9px;">${poke.genus}</div>` : ''}
-        ${(caughtCount > 0 && poke && poke.eggGroup && poke.eggGroup.length) ? `<div style="font-size:9px;white-space:nowrap;">${poke.eggGroup.join(' ')}</div>` : ''}
+        ${(poke && poke.genus) ? `<div style="font-size:9px;${locked ? 'opacity:.4;' : ''}">${locked ? '？？？' : poke.genus}</div>` : ''}
+        ${(poke && poke.eggGroup && poke.eggGroup.length) ? `<div style="font-size:9px;white-space:nowrap;${locked ? 'opacity:.4;' : ''}">${locked ? '？？？' : poke.eggGroup.join(' ')}</div>` : ''}
       </div>
       <div style="min-width:0;">
         <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:2px;">
@@ -158,92 +284,53 @@ export function showEncounterLogs(pokemonIndex) {
         ${(poke && poke.weight != null) ? `<div>体重：${(poke.weight/10).toFixed(1)}kg</div>` : ''}
       </div>
       </div>
-      ${(caughtCount > 0 && poke && poke.stats && poke.stats.length) ? `<div style="font-size:9px;flex:1;min-width:0;overflow:hidden;">${(() => {
+      ${(poke && poke.stats && poke.stats.length) ? `<div style="font-size:9px;flex:1;min-width:0;overflow:hidden;">${(() => {
         // stats 为固定顺序数字数组：0=HP, 1=物攻, 2=物防, 3=特攻, 4=特防, 5=速度
         const statNames = ['HP', '攻击', '防御', '特攻', '特防', '速度'];
         const maxStat = 255;
         return poke.stats.map((v, i) => `<div style="display:flex;align-items:center;gap:2px;line-height:1.4;">
           <span style="width:24px;flex-shrink:0;">${statNames[i]||i}</span>
-          <span style="width:16px;text-align:right;flex-shrink:0;">${v}</span>
+          <span style="width:16px;text-align:right;flex-shrink:0;">${locked ? '？' : v}</span>
           <div style="flex:1;height:4px;background:rgba(var(--ui-color-rgb),0.12);border-radius:2px;overflow:hidden;">
-            <div style="height:100%;width:${(v/maxStat*100).toFixed(0)}%;background:rgba(var(--ui-color-rgb),0.5);border-radius:2px;"></div>
+            <div style="height:100%;width:${locked ? 100 : (v/maxStat*100).toFixed(0)}%;background:rgba(var(--ui-color-rgb),${locked ? 0.18 : 0.5});border-radius:2px;"></div>
           </div>
         </div>`).join('') +
         `<div style="display:flex;align-items:center;gap:2px;line-height:1.4;">
           <span style="width:24px;flex-shrink:0;">总和</span>
-          <span style="width:16px;text-align:right;flex-shrink:0;">${poke.stats.reduce((s, v) => s + v, 0)}</span>
+          <span style="width:16px;text-align:right;flex-shrink:0;">${locked ? '？' : poke.stats.reduce((s, v) => s + v, 0)}</span>
         </div>`;
       })()}</div>` : ''}
     </div>`;
-    // 描述文本（仅捕获后显示）
-    if (caughtCount > 0 && poke && poke.description) {
-      html += `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;">${poke.description}</div>`;
+    // 描述文本
+    if (poke && poke.description) {
+      html += locked
+        ? `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;opacity:.4;">？？？（捕获后解锁）</div>`
+        : `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;">${poke.description}</div>`;
     }
-    // 喜欢的食物（仅捕获后显示）
-    if (caughtCount > 0 && poke && poke.foods && poke.foods.length) {
+    // 喜欢的食物
+    if (poke && poke.foods && poke.foods.length && locked) {
+      html += `<div style="font-size:10px;line-height:1.6;padding:2px 0 4px;display:flex;align-items:center;opacity:.4;"><span style="flex-shrink:0;">爱吃的食物：</span><span>？？？</span></div>`;
+    }
+    if (!locked && poke && poke.foods && poke.foods.length) {
       const foodIcons = poke.foods.map(i =>
         `<img class="berry-icon" data-berry="${i}" data-tip="${BERRY_NAMES[BERRY_ICONS[i]]}" alt="树果${i + 1}" style="width:16px;height:16px;vertical-align:middle;cursor:pointer;" />`).join('');
       html += `<div style="font-size:10px;line-height:1.6;padding:2px 0 4px;display:flex;align-items:center;"><span style="flex-shrink:0;">爱吃的食物：</span><span style="display:flex;align-items:center;">${foodIcons}</span></div>`;
     }
+    // 获取途径
+    html += '<div id="pokedexAcqBox" class="pokedex-acq"></div>';
   }
 
-  const renderLogContent = () => {
-    if (!logs || logs.length === 0) {
-      return '<div style="padding:20px 4px;text-align:center;">暂无任何遭遇日志</div>';
-    }
-    const sorted = [...logs].sort((a, b) => b.time - a.time);
-    let content = '<div style="padding:0 4px;">';
-    for (const log of sorted) {
-      // 孵化与交换都不消耗球（balls 为空对象），需排除交换来源避免误判为孵化
-      const isHatch = log.result === 'caught' && log.source !== 'trade' && Object.values(log.balls).every(v => v === 0);
-      let label;
-      if (isHatch) {
-        label = '☆ 孵化获得';
-      } else if (log.result === 'caught') {
-        label = log.source === 'fishing' ? '☆ 钓鱼捕获' : (log.source === 'trade' ? (log.npcName ? `和${log.npcName}交换获得` : '☆ 交换获得') : '☆ 捕获成功');
-      } else if (log.manual !== undefined) {
-        label = log.source === 'fishing' ? '钓鱼遭遇后逃跑' : '主动逃跑';
-      } else {
-        label = log.source === 'fishing' ? '钓鱼遭遇后逃脱' : '精灵逃跑';
-      }
-      const typeLabel = (() => {
-        // 孵化与交换都不消耗球：不标注「未丢球」
-        if (isHatch || log.source === 'trade') return '';
-        const cnt = Object.values(log.balls).filter(v => v > 0).length;
-        if (cnt <= 1) {
-          const bt = Object.entries(log.balls).find(([,v]) => v > 0);
-          return bt ? `仅${ITEM_NAMES[bt[0]]}` : '未丢球';
-        }
-        return '多种球混用';
-      })();
-      const shinyIcon = '<svg viewBox="0 0 1024 1024" width="10" height="10" style="vertical-align:-1px;color:var(--ui-color);"><use xlink:href="#icon-star"/></svg>';
-      content += `<div style="padding:4px 0;border-bottom:1px solid rgba(var(--ui-color-rgb),0.06);">
-        <div style="font-size:9px;opacity:0.4;line-height:1.4;">${formatLogTime(log.time)}</div>
-        <div >${label}${log.shiny ? ' ' + shinyIcon : ''}${typeLabel ? '，' + typeLabel : ''}</div>
-        <div style="font-size:10px;line-height:1.4;">${describeLogEntry(log)}</div>
-      </div>`;
-    }
-    content += '</div>';
-    return content;
-  };
 
-  // 进化记录：形态变了不算"新遇见一只"，单独一块放在相遇日志上方
-  const evoRows = (gameData.systemLogs || []).filter((g) => g && g.type === 'evolve' && g.details && String(g.details.to) === idx);
-  if (evoRows.length) {
-    const roster = gameData.roster || [];
-    const rows = [...evoRows].reverse().slice(0, 10).map((g) => {
-      const from = getPokemonByIndex(g.details.from);
-      const me = roster.find((r) => r.id === g.details.id);
-      const who = me && me.nickname ? `「${me.nickname}」` : '';
-      return `<div style="padding:4px 0;border-bottom:1px solid rgba(var(--ui-color-rgb),0.06);">
-        <div style="font-size:9px;opacity:0.4;line-height:1.4;">${formatLogTime(g.time)}</div>
-        <div style="font-size:10px;line-height:1.4;">${who}由 ${from ? (from.form || from.name) : g.details.from} 进化而来</div>
-      </div>`;
-    }).join('');
-    html += `<div style="font-size:10px;font-weight:700;padding:6px 4px 2px;">进化记录</div><div style="padding:0 4px;">${rows}</div>`;
-  }
-  html += renderLogContent();
   list.innerHTML = html;
+  _curDetailIdx = idx;
+  fillAcqBox(idx, locked);
+
+  // 右上角「相遇日志」：收进独立页（返回回到本详情）
+  $('pokedexLogsBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _detailScroll = $('pokedexList')?.scrollTop || 0;
+    renderPokedexLogsPage(idx);
+  });
 
   // 树果图标走降级链加载（中文文件名直接 <img> 在部分 WebView 下会失败）
   list.querySelectorAll('.berry-icon').forEach(icon => {
@@ -282,6 +369,9 @@ export function showEncounterLogs(pokemonIndex) {
 
 export function restorePokedex() {
   stopShinySparkleLoop(); // 离开图鉴详情：停止闪光粒子循环
+  _logsIdx = null;
+  leaveLogsTitle();
+  _curDetailIdx = null;
   setPokedexZoom(false);  // 并收起放大态
   setPokedexInLogView(false);
   // 恢复搜索框、表头和进度

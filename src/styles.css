@@ -3873,6 +3873,26 @@ html.mobile-app #quitHide { display: none !important; }
   right: 4px;
 }
 
+/* 图鉴详情的「获取途径」：一行行小标签 */
+.pokedex-acq-title { font-weight: 700; margin-bottom: 2px; }
+.pokedex-acq-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.pokedex-acq-tag {
+  display: inline-flex;
+  flex-wrap: wrap;    /* 细节过长时折到标签下面，标签名保持完整 */
+  align-items: baseline;
+  gap: 1px 3px;
+  max-width: 100%;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.22);
+  background: rgba(var(--ui-color-rgb), 0.06);
+}
+.pokedex-acq-tag b { font-weight: 700; white-space: nowrap; }
+.pokedex-acq-text { min-width: 0; }
+.pokedex-acq-locked { opacity: 0.4; }
+
+
 /* ---- 图鉴拼音搜索 ---- */
 .pokedex-search {
   position: relative;

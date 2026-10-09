@@ -478,13 +478,16 @@ async function preloadSprite(idx, suff) {
   if (!poke) return null;
   const img = new Image();
   const ok = await tryLoadPokemonImage(img, poke, suff);
-  return ok ? img.src : null;
+  if (!ok) return null;
+  // 顺手把首帧解码掉：动图在演出第一拍才解码会卡一下
+  try { await img.decode(); } catch (_) { /* 不支持就跳过 */ }
+  return img.src;
 }
 
 // from/to 传 { idx, name, types }；items 是道具键数组，如 ['火之石']；shiny 是个体是否闪光
 export async function playEvolution({ from, to, items = [], shiny = false, variant = null, onFinish = null }) {
   const l = layers();
-  if (!l.view) return;                          // 没挂上视图就直接回调，别卡流程
+  if (!l.view) { onFinish && onFinish(); return; }   // 没挂上视图就直接回调，别卡流程（调用方的结算在 onFinish 里）
   const suff = shiny ? '_shiny' : '';
   const [srcFrom, srcTo] = await Promise.all([preloadSprite(from.idx, suff), preloadSprite(to.idx, suff)]);
   st = {

@@ -146,6 +146,11 @@ export const PICKUP_RESULTS = ['捡到了', '发现了', '找到了', '翻出了
 let _msgSnapshot = '';
 
 // 当前闲置消息依赖数据的稳定字符串快照。
+// 今天的日期键（与 items.js 的 evoDateStr / bounty.js 的 dateStr 同格式）
+function todayKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function msgDataSnapshot() {
   const d = gameData || {};
   const s = d.stats || {};
@@ -170,6 +175,7 @@ function msgDataSnapshot() {
     dex,
     ach,
     b ? `${b.date || ''}|${(b.visited || []).join(',')}|${JSON.stringify(b.rewards)}` : '',
+    (d.legendPool && d.legendPool.date) || '',
   ].join(';;');
 }
 
@@ -202,14 +208,15 @@ export function buildIdleMessages() {
     '手机里的导航应用，可以规划前往其他地区的路线。',
     '这是由ZTMYO个人开发的同人游戏。',
     '这是由ZTMYO个人开发的同人游戏。',
-    '完成地区悬赏，能换来一大笔糖果奖励！',
+    '详情页能看到进化链，条件齐了就能进化。',
+    '完成地区悬赏，能换来糖果或进化道具！',
     '混合器把树果做成树果方块，能吸引特定的宝可梦。',
     '饲育屋让两只宝可梦配对繁殖，培育出高个体值后代。',
     '同蛋组的宝可梦可以配对繁殖，培育出高个体值后代。',
     '战胜训练家，有机会掉落经验糖果。',
     '训练家对战中，上场且最终存活的宝可梦将得到经验。',
     '在水域场景，有机会钓起稀有的宝可梦！',
-    '事件点会明显提高闪光率且闪耀护符不生效！',
+    '事件点的闪光率更高，但护符不生效！',
     '开启自动操作，遇敌会自动捕捉或逃跑，挂机更省心。',
     '在自行车道上捡到的自行车可以在需要的时候用来赶路。',
     '手机里的交换应用，可以和训练家互换宝可梦。',
@@ -223,7 +230,16 @@ export function buildIdleMessages() {
     '到达指定的地区才可以提交地区悬赏。',
     '放生宝可梦会返还经验，累积可获得经验糖果。',
     '在设置页面可以导出和导入游戏存档。',
-    '抽取宝可梦随从可以获得限时增益！'
+    '抽取宝可梦随从可以获得限时增益！',
+    '进化道具不靠挂机掉落，去商店货架找吧。',
+    '超级进化的宝可梦靠专属道具进化，野外遇不到。',
+    '树果方块吸引不了神兽与幻兽。',
+    '有的宝可梦要开启熏香才能繁育出幼体。',
+    '有的宝可梦要使用特殊道具才能进化。',
+    '薄荷能在宝可梦详情页使用改宝可梦的性格。',
+    '在详情页面点击宝可梦图片可放大查看。',
+    '招式机买一次所有宝可梦永久解锁这个招式。',
+    '孵蛋得到的宝可梦才能解锁蛋招式。',
   ];
   // 教程指引类分散投入数组：轮播按顺序推进，若连续 push 会连排出现，此处只投开头 1 条
   msgs.push(guideMsgs[randInt(0, guideMsgs.length - 1)]);
@@ -300,7 +316,7 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   if (stats.totalPlaySeconds >= 3600) {
     const hours = Math.round(stats.totalPlaySeconds / 3600);
     if (hours >= 168) msgs.push(`已经连续冒险${Math.round(hours/24)}天，准备好成为宝可梦大师了。`);
-    else msgs.push(`已经连续冒险${hours}小时，，准备好成为宝可梦大师了。`);
+    else msgs.push(`已经连续冒险${hours}小时，准备好成为宝可梦大师了。`);
   }
   if (stats.totalBallsUsed > 0) msgs.push(`至今一共抛出${stats.totalBallsUsed}颗精灵球。`);
   if (stats.totalFlees > 0) msgs.push(`有${stats.totalFlees}只宝可梦挣脱精灵球逃走了……`);
@@ -368,7 +384,7 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
     if (ballCount >= 100) msgs.push(`背包里有${ballCount}颗精灵球，弹药充足！`);
     else msgs.push(`背包里有${ballCount}颗精灵球，随时准备出发！`);
   }
-  if ((items['ultra-ball']||0) > 0) msgs.push(`高级球${items['ultra-ball']}颗在手，高级的宝可梦也不怕！`);
+  if ((items['ultra-ball']||0) > 0) msgs.push(`高级球${items['ultra-ball']}颗在手，稀有的宝可梦也不怕！`);
   if ((items['master-ball']||0) > 0) msgs.push(`你有${items['master-ball']}颗大师球！无惧任何宝可梦！`);
   if ((items['candy']||0) > 0) msgs.push(`攒了${items['candy']}颗糖果，去商店看看有什么好东西吧！`);
   if ((items['candy']||0) >= 100) msgs.push(`糖果已经${items['candy']}颗了，兑换一些精灵球如何？`);
@@ -424,13 +440,25 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
         }
       }
       const unclaimed = total - claimed;
-      if (unclaimed > 0) msgs.push(`今日悬赏还有${unclaimed}份糖果奖励没提交，抓到目标就去提交！`);
+      if (unclaimed > 0) msgs.push(`今日悬赏还有${unclaimed}份奖励没提交，抓到目标就去提交！`);
       else if (total > 0) msgs.push('今日悬赏已全部提交，明天零点又会刷新新目标！');
     }
-    msgs.push('完成地区悬赏能换来糖果作为奖励。');
-    msgs.push('各个地区的悬赏目标，能获得大量糖果奖励。');
+    msgs.push('完成地区悬赏能换来糖果或进化道具。');
+    msgs.push('各个地区的悬赏目标都有糖果或道具奖励。');
   } else {
     msgs.push('地区悬赏每天零点刷新，别忘了去查看目标。');
+  }
+
+  // ——— 今日神兽池：今天可能在哪遇到哪只神兽（从当天全部神兽里随机抽一只，每次重建重抽）———
+  const lp = gameData.legendPool;
+  if (lp && lp.byRegion && lp.date === todayKey()) {
+    const pairs = [];
+    for (const [region, list] of Object.entries(lp.byRegion)) for (const idx of list || []) pairs.push([region, idx]);
+    if (pairs.length) {
+      const [region, idx] = pairs[randInt(0, pairs.length - 1)];
+      const poke = getPokemonByIndex(idx);
+      if (poke) msgs.push(randInt(0, 1) ? `今天在${region}地区似乎可以遇到${poke.name}。` : `听说今天${region}地区有${poke.name}出没。`);
+    }
   }
 
   // 教程指引第 3 条：落在数组末尾，其后补一条闲聊收尾，

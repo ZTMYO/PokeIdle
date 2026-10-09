@@ -2,7 +2,7 @@
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
 import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER } from './config.js';
-import { allPokemon, gameData, phase, currentEncounter, currentEncounterBalls, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, rand, setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer } from './state.js';
+import { allPokemon, gameData, phase, currentEncounterBalls, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer } from './state.js';
 import { migrateEncounterScores } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
 import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView } from './ui.js';
@@ -14,7 +14,7 @@ import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending }
 import { helperTick, showBerryView, catchUpHelper } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
-  showPokedex, setupPokedexSearch } from './pokedex.js';
+  showPokedex, setupPokedexSearch, isPokedexLogsPage, backFromPokedexLogs } from './pokedex.js';
 import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease } from './roster.js';
 import { isTradeInDetail, restoreTradeList, showTradeView } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs, showAchievementView, renderSystemLogs, applyWindowScale } from './views.js';
@@ -213,6 +213,8 @@ function goBack() {
   if (isRosterInMoveEdit() && $('moveEditView')?.style.display === 'flex') { leaveMoveEditor(); return; }
   // 详情页跳转图鉴（第 4 层子页）：返回先回详情页，再按详情返回逻辑走
   if (isRosterDetailJumpedToPokedex()) { returnRosterDetailFromPokedex(); return; }
+  // 相遇日志独立页：返回先回它所属的图鉴详情
+  if (isPokedexLogsPage()) { backFromPokedexLogs(); return; }
   if (_pokedexInLogView && $('pokedexView')?.style.display === 'flex') { restorePokedex(); return; }
   // 从悬赏提交/交换选择列表进入的详情，或「仓库情况」列表搜索（无详情）：按返回直接回来源视图
   if (isRosterDetailFromList() && $('rosterView')?.style.display === 'flex') {

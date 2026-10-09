@@ -2,7 +2,7 @@
 // 数据表 src/pokemon-data/evolution.json：{ wildKeep, stones: { 形态编号: 道具名 }, stoneIcons, edges: { 来源: { 目标: 条件 } } }
 // 条件字段 lv / item / move / region / candy / coin / gender 列出的都要满足。
 // incense 只给繁育用、不参与判定；nature 与 gender 是形态选择而不是门槛：由不得玩家挑，只列对得上的那条边。
-import { gameData, getPokemonByIndex, getCurrentRegion, getNature, ensureGender, saveGame, addSystemLog, setWildExcluded } from './state.js';
+import { gameData, getPokemonByIndex, getCurrentRegion, getNature, ensureGender, saveGame, addSystemLog, setWildExcluded, setPowerForms } from './state.js';
 import { updateBackpack, updateStats } from './ui.js';
 
 let _data = null;
@@ -17,6 +17,8 @@ export function loadEvolution() {
       .then((r) => r.json())
       .then((d) => {
         _data = d;
+        // 强化形态名单（141 条）：只靠 form 名判断会漏掉"原始回归 / 合体 / 王形态"那批，这里按 stones 收口
+        setPowerForms(Object.keys(d.stones || {}));
         // 路边池的排除名单：在 edges 里当目标、自己又没有出边，且不在 wildKeep 里的那些
         const keep = new Set(d.wildKeep || []);
         const excluded = [];

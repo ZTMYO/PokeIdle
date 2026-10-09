@@ -15,8 +15,12 @@ export function getPokemonByIndex(idx) {
 }
 export function setAllPokemon(a) { allPokemon = a; _pokemonMap = null; }
 
-// 强化形态（超级/超极巨）：战斗中的临时形态而非独立物种，不进任何抽取池
+// 强化形态（超级 / 超极巨 / 原始回归 / 合体 / 王形态…）：战斗中的临时形态而非独立物种，不进任何抽取池。
+// 名单由 evolution.js 读到表之后灌进来（stones 的 141 条，命名不一定带"超级/超极巨"）；表没到之前靠 form 名兜底
+let _powerForms = null;
+export function setPowerForms(ids) { _powerForms = new Set((ids || []).map(String)); }
 export function isPowerForm(p) {
+  if (p && _powerForms && _powerForms.has(String(p.index))) return true;
   const f = p?.form || '';
   return f.includes('超级') || f.includes('超极巨');
 }
@@ -343,6 +347,29 @@ export function rollGender(species) {
   return Math.random() * 8 < rate ? 'female' : 'male';
 }
 
+// 雌雄异形的两条形态（同一编号下"XX-雄性 / XX-雌性"，轻飘飘、爱管侍这种）：返回 { male, female }，不是这种形态返回 null
+function sexFormPair(species) {
+  const me = getPokemonByIndex(String(species));
+  if (!me) return null;
+  const base = String(species).split('-')[0];
+  let male = null, female = null;
+  for (const p of allPokemon) {
+    if (p.index !== base && !String(p.index).startsWith(base + '-')) continue;
+    if (p.form === `${p.name}-雄性`) male = String(p.index);
+    else if (p.form === `${p.name}-雌性`) female = String(p.index);
+  }
+  return male && female ? { male, female } : null;
+}
+
+// 蛋的物种：雌雄异形的物种由性别定形态——比例按两条形态合并（各自全雄/全雌 → 50/50），
+// 出了哪种性别就落哪条，所以同族配对、与百变怪配对都能生出公母两种
+export function rollSexForm(species) {
+  const pair = sexFormPair(species);
+  if (!pair) return String(species);
+  const femaleRate = ((getPokemonByIndex(pair.male)?.genderRate ?? 4) + (getPokemonByIndex(pair.female)?.genderRate ?? 4)) / 16;
+  return Math.random() < femaleRate ? pair.female : pair.male;
+}
+
 // 旧存档兼容：无 gender 字段的旧个体按物种比例补 roll 并写回
 export function ensureGender(entry) {
   if (!entry || entry.gender) return entry?.gender || 'genderless';
@@ -374,6 +401,8 @@ export function addRosterEntry({ species, shiny = false, source = 'normal', leve
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     species,
+    // 获得时的物种：详情页那句「获得方式」永远按它翻遭遇日志，之后进化也不跟着变
+    originSpecies: String(species),
     shiny: !!shiny,
     gender: gender || rollGender(species), // 显式传入的性别优先（如捕获时沿用遭遇性别，避免两次 roll 不一致）
     level, // 捕获/孵化即 Lv1（战斗系统）；野生捕获可传随机等级

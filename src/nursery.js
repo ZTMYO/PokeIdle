@@ -2,7 +2,7 @@
 // 把两只宝可梦放进饲育屋配对：满足蛋组条件（雌雄共蛋组 / 百变怪万能配对）即可繁殖。
 // 互斥规则：饲育屋 / 训练 / 配队三方互斥——放入饲育屋自动离开队伍与训练槽，反之亦然。
 import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar, hideConfirmBar } from './ui.js';
-import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender, genderBadge, rollGender, rollNature, addSystemLog } from './state.js';
+import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender, genderBadge, rollGender, rollNature, rollSexForm, addSystemLog } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { BERRY_ICONS, BERRY_NAMES, TYPE_COLORS, pokemonSourceBadge } from './items.js';
 import { ensureBerryFarm } from './berry.js';
@@ -62,7 +62,7 @@ for (let r = 0; r < NURSERY.h; r++) {
 // 繁殖特例编号（与图鉴 index 一致：补前导零，保证 getPokemonByIndex 命中）
 const DITTO = '0132';    // 百变怪：万能配对
 // 幼年宝可梦 / 尼多娜·尼多后 / 神兽幻兽等：官方蛋组均为"未发现群"，由 noEggGroup 统一覆盖，不需要特判
-// 唯一的例外：玛纳霏的蛋按原作固定是霏欧纳（蛋产物，不是进化，蛋组和进化表都表达不了）
+// 唯一的例外：玛纳霏（无性别但有蛋组，只能和百变怪繁育）的蛋按原作固定是霏欧纳——蛋产物不是进化，蛋组和进化表都表达不了
 const BREED_CHILD = { '0490': '0489' };
 
 let _timer = null;
@@ -1368,7 +1368,7 @@ export function settleBreeding() {
     gameData.roster.push(entry);
     n.lastEggAt = Date.now();
     gameData.stats.totalEggsProduced = (gameData.stats.totalEggsProduced || 0) + 1; // 育种成就统计
-    addSystemLog('nursery_egg', { pokemon: r.childSpecies, shiny: entry.shiny });
+    addSystemLog('nursery_egg', { pokemon: entry.species, shiny: entry.shiny });
     b.roundsDone++;
     produced++;
   }
@@ -1415,6 +1415,7 @@ export function markNurseryBreedVisited() {
 // 生成蛋条目：个体值 6 项中 5 项继承双亲、1 项随机。锁定位固定继承所选亲本（source）的
 // 数值（占 1 个继承名额），其余随机遗传位 50% 取父/母；性别/性格/闪光出生即定，孵化后完全沿用
 function createEggEntry(ea, eb, childSpecies, lockedIv) {
+  childSpecies = rollSexForm(childSpecies); // 雌雄异形（轻飘飘、爱管侍…）：后代性别单独 roll，出了哪种性别就落哪条形态
   const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
   const inherits = new Set();
   const ivs = {};
@@ -1440,6 +1441,7 @@ function createEggEntry(ea, eb, childSpecies, lockedIv) {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     kind: 'egg', // 蛋条目：孵化后原地转正为宝可梦
     species: childSpecies,
+    originSpecies: String(childSpecies), // 同 state.addRosterEntry：详情页的「获得方式」按它翻日志
     gender: rollGender(String(childSpecies)),
     level: 1,
     exp: 0,
