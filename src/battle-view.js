@@ -1,13 +1,13 @@
 // 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
 import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, updateBackpack, logicViewport, popupBounds } from './ui.js';
-import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon } from './state.js';
+import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon, randInt } from './state.js';
 import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon } from './battle-core.js';
 import { typeMult } from './type-chart.js';
-import { grantItem, ITEM_ICONS, typeIconColor } from './items.js';
+import { grantItem, ITEM_ICONS, itemIconSrc, evoDropPool, MINT_KEYS, typeIconColor } from './items.js';
 import { chooseMoves } from './moves.js';
 import { ensureNpcs, refreshNpcs, buildNpcTeam, npcBaseLevel } from './npcs.js';
-import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, MAX_LEVEL, SPECIAL_SPRITE_SCALE, ITEM_NAMES } from './config.js';
+import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, BATTLE_EVO_POOLS, MAX_LEVEL, SPECIAL_SPRITE_SCALE, ITEM_NAMES } from './config.js';
 import { playBattle, endBattle, playVictory, stopVictory, playShiny } from './audio.js';
 import { burstShinySparkle } from './animation.js';
 import * as road from './road.js';
@@ -2752,6 +2752,18 @@ async function battleLoop(battle) {
 }
 
 // ---------- 结算 ----------
+// 档位追加道具抽取：写 key 是固定道具，写 pool 是从池子里随机一件（结算页与调试共用这一份）
+export function rollTierDrops(tier) {
+  const drops = [];
+  for (const r of BATTLE_TIER_ITEMS[tier] || []) {
+    if (r.chance != null && Math.random() >= r.chance) continue;
+    const pool = r.pool === 'mint' ? MINT_KEYS : r.pool === 'evoAll' ? evoDropPool() : BATTLE_EVO_POOLS[r.pool] || null;
+    const key = pool && pool.length ? pool[randInt(0, pool.length - 1)] : r.key;
+    if (key) drops.push({ key, qty: r.qty });
+  }
+  return drops;
+}
+
 function finishBattle(battle) {
   _retryAuto = _auto; // 记住战斗结束时的自动状态：「再战一次」沿袭（战斗中切回手动的则手动重试）
   const win = battle.winner === 'p';
@@ -2788,10 +2800,9 @@ function finishBattle(battle) {
     // 经验糖果掉落：按 NPC 档位概率判定，胜利才有、失败没有
     dropCandy = Math.random() < (battle.preset.expChance || 0);
     // 档位追加道具：练度够才打得到高档，这是"力量换得到东西"的出口
-    for (const r of BATTLE_TIER_ITEMS[battle.preset.tier] || []) {
-      if (r.chance != null && Math.random() >= r.chance) continue;
-      grantItem(r.key, r.qty); // grantItem 自带日志与背包刷新
-      tierDrops.push({ key: r.key, qty: r.qty });
+    for (const d of rollTierDrops(battle.preset.tier)) {
+      grantItem(d.key, d.qty); // grantItem 自带日志与背包刷新
+      tierDrops.push(d);
     }
     if (dropCandy) {
       gd.items['exp-candy'] = (gd.items['exp-candy'] || 0) + 1;
@@ -2821,7 +2832,7 @@ function finishBattle(battle) {
       <div class="battle-result-title">${win ? '挑战成功！' : '挑战失败…'}</div>
       <div class="battle-result-detail">
         ${win ? results.map((r) => `<div>${r.name} 升级到 Lv${r.lv}${r.up ? `（+${r.up}级）` : ''}${r.bonusGain > 0 ? ` <span class="exp-bonus">+${r.bonusGain}经验</span>` : ''}</div>`).join('') : '<div>失败无经验，调整队伍或招式再来试试吧！</div>'}
-        ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/goods/candy.png" alt=""> × ${battle.preset.candy}${dropCandy ? ` <img class="candy-icon" src="./items/goods/xp-candy.png" alt=""> × 1` : ''}${tierDrops.map(d => ` <img class="candy-icon" src="./items/${ITEM_ICONS[d.key] || d.key + '.png'}" alt=""> × ${d.qty}`).join('')}</div>` : ''}
+        ${win ? `<div class="candy-gain">获得 <img class="candy-icon" src="./items/goods/candy.png" alt=""> × ${battle.preset.candy}${dropCandy ? ` <img class="candy-icon" src="./items/goods/xp-candy.png" alt=""> × 1` : ''}${tierDrops.map(d => ` <img class="candy-icon" src="${itemIconSrc(d.key)}" alt=""> × ${d.qty}`).join('')}</div>` : ''}
       </div>
       ${win
         ? `<div class="battle-result-btns"><button class="battle-btn" id="b-review">回顾</button><button class="battle-btn main" id="b-confirm">确定</button></div>`

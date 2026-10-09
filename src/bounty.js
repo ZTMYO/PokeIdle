@@ -1,25 +1,20 @@
 // ===== 地区悬赏 =====
-// 每天 0 点刷新，生成后当天不变：每个地区指定若干只宝可梦（从全国图鉴加权随机抽取）
-// ，按稀有度/捕获难度生成随机糖果奖励。
-// 仓库中拥有该宝可梦（在仓个体）即可提交（交出一只个体）。
-// 只有今日到访过的地区才显示悬赏内容（离开后仍可查看）；提交必须到达该地区。
-import { REGION_CYCLE, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon } from './state.js';
+// 每天 0 点刷新：每地区指定若干只宝可梦（图鉴加权抽样），奖励糖果或道具。
+// 仓库里有该物种的在仓个体即可提交；只有今日到访过的地区能看到内容，提交必须到当地。
+import { REGION_CYCLE, ITEM_NAMES, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT, BOUNTY_COST_REF, BOUNTY_CANDY_CN, BOUNTY_BIG_CN, BOUNTY_BIG_RARE_CHANCE, BOUNTY_EXCLUSIVE_CHANCE, BOUNTY_MINT_CHANCE, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BOUNTY_EXP_CANDY_QTY, EVO_PRICES } from './config.js';
+import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon, randInt } from './state.js';
 import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
-import { pickFamily, pokemonSourceBadge } from './items.js';
+import { pickFamily, pokemonSourceBadge, grantItem, itemIconSrc, evoExclusivePool, MINT_KEYS } from './items.js';
+import { evolutionData, isWildCatchable, evoPreEvos } from './evolution.js';
 
-// 日期字符串（YYYY-MM-DD，本地时区）
 function dateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 从全国图鉴加权随机抽取 count 只宝可梦（各地区独立抽样，允许重复）
-// 权重 = 0.3 + 稀有度 × BOUNTY_RARE_WEIGHT（越稀有越可能成为悬赏目标）；
-// 家族归一：多变体家族（未知图腾、彩粉蝶等）按单个形态权重计，不因形态数叠加
+// 抽样权重 = 0.3 + 稀有度 × BOUNTY_RARE_WEIGHT；家族归一（多变体家族按一个形态计，不因形态数叠加）
 function sampleBountyPokemon(count) {
-  // 神兽与强化形态不进悬赏：神兽按稀有度加权时最容易被点名（每天 45 条里会出 7 条左右）
-  const pool = allPokemon.filter(p => !p.legend && !isPowerForm(p));
+  const pool = allPokemon.filter(p => !p.legend && !isPowerForm(p)); // 神兽与强化形态不进悬赏
   const picked = [];
   for (let i = 0; i < count; i++) {
     picked.push(pickFamily(pool, p => 0.3 + (p.rarity ?? 0.5) * BOUNTY_RARE_WEIGHT));
@@ -27,14 +22,104 @@ function sampleBountyPokemon(count) {
   return picked;
 }
 
-// 糖果奖励公式：难度 = (1-捕获率)/2 + 稀有度/2（0~1），越难捕获奖励越多，再叠加随机浮动（不超上限）
-function calcBountyCandy(poke) {
+// 获取成本：能直接抓到的算野池难度，只能进化的把链上各段代价累加（等级 /100、道具 价÷2500、条件各算一档）
+const COST_ITEM_UNIT = 2500;
+function edgeCost(cond) {
+  let c = 0;
+  if (cond.lv) c += (cond.lv - 1) / 100;
+  if (cond.item) c += (EVO_PRICES[cond.item] || 400) / COST_ITEM_UNIT;
+  if (cond.move) c += 0.15;
+  if (cond.region) c += 0.15;
+  if (cond.gender) c += 0.05;
+  if (cond.pick) c += 0.1;
+  if (cond.candy || cond.coin) c += 0.2;
+  return c;
+}
+
+// 野池难度（0~1）：捕获难度一半 + 稀有度一半
+function wildDifficulty(poke) {
   const catchRate = Math.min(Math.max(poke.catchRate ?? 0.5, 0), 1);
   const rarity = Math.min(Math.max(poke.rarity ?? 0.5, 0), 1);
-  const difficulty = 0.5 * (1 - catchRate) + 0.5 * rarity;
-  const base = BOUNTY_CANDY_MIN + (BOUNTY_CANDY_MAX - BOUNTY_CANDY_MIN) * difficulty;
+  return 0.5 * (1 - catchRate) + 0.5 * rarity;
+}
+
+// 沿反向边找最便宜的底子路线：底子难度 + 进化代价
+export function bountyCost(poke) {
+  const idx = String(poke.index);
+  if (!evolutionData() || isWildCatchable(idx)) return wildDifficulty(poke);
+  const seen = new Set([idx]);
+  let frontier = [{ idx, acc: 0 }];
+  let best = Infinity;
+  while (frontier.length) {
+    const next = [];
+    for (const { idx: cur, acc } of frontier) {
+      for (const e of evoPreEvos(cur)) {
+        if (seen.has(e.from)) continue;
+        seen.add(e.from);
+        const cost = acc + edgeCost(e.cond);
+        const p = getPokemonByIndex(e.from);
+        if (p && isWildCatchable(e.from)) best = Math.min(best, wildDifficulty(p) + cost);
+        next.push({ idx: e.from, acc: cost });
+      }
+    }
+    frontier = next;
+  }
+  return Number.isFinite(best) ? best : wildDifficulty(poke);
+}
+
+// 糖果 = 成本越高越多（BOUNTY_CANDY_MIN~MAX）× ±BOUNTY_JITTER，不超上限
+function calcBountyCandy(c) {
+  const base = BOUNTY_CANDY_MIN + (BOUNTY_CANDY_MAX - BOUNTY_CANDY_MIN) * c;
   const jitter = 1 + (Math.random() * 2 - 1) * BOUNTY_JITTER;
   return Math.min(BOUNTY_CANDY_MAX, Math.max(BOUNTY_CANDY_MIN, Math.round(base * jitter)));
+}
+
+// 奖励按成本分三档（列表按成本升序排，所以上面是糖果、中间单件、下面高阶）：
+//   成本归一值 < BOUNTY_CANDY_CN → 糖果
+//   到 BOUNTY_BIG_CN 之前 → 1 件道具（常见档：10 种通用石 + 熏香 + 经验糖果）
+//   ≥ BOUNTY_BIG_CN → 1 件稀有道具（薄荷 / 形态专属道具 / 4 种高价通用道具）或 2~5 件常见道具
+const BOUNTY_COMMON_ITEMS = ['火之石', '水之石', '雷之石', '叶之石', '冰之石', '月之石', '日之石', '光之石', '暗之石', '觉醒之石', '熏香', 'exp-candy'];
+const BOUNTY_RARE_ITEMS = ['心之石', '联系绳', '极巨汤', '奇异石'];
+function rollItemReward(big) {
+  if (big && Math.random() < BOUNTY_BIG_RARE_CHANCE) {
+    if (Math.random() < BOUNTY_MINT_CHANCE) return { item: MINT_KEYS[randInt(0, MINT_KEYS.length - 1)], qty: 1 };
+    const pool = evoExclusivePool();
+    if (pool.length && Math.random() < BOUNTY_EXCLUSIVE_CHANCE) return { item: pool[randInt(0, pool.length - 1)], qty: 1 };
+    return { item: BOUNTY_RARE_ITEMS[randInt(0, BOUNTY_RARE_ITEMS.length - 1)], qty: 1 };
+  }
+  const key = BOUNTY_COMMON_ITEMS[randInt(0, BOUNTY_COMMON_ITEMS.length - 1)];
+  if (key === 'exp-candy') return { item: key, qty: BOUNTY_EXP_CANDY_QTY };
+  return { item: key, qty: big ? randInt(BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX) : 1 };
+}
+
+function rollBountyReward(poke) {
+  const cn = Math.min(1, bountyCost(poke) / BOUNTY_COST_REF);
+  const cost = Math.round(cn * 1000) / 1000; // 归一成本随奖励存一份，列表按它排序
+  if (cn < BOUNTY_CANDY_CN) return { c: cost, candy: calcBountyCandy(cn) };
+  return { c: cost, ...rollItemReward(cn >= BOUNTY_BIG_CN) };
+}
+
+const bountyOrder = (b) => (b.c ?? 0);
+
+// 生成当日悬赏表（每地区 BOUNTY_PER_REGION 条、按奖励价值从低到高排）；visited 省略则视为今日尚未到访
+function generateBounty(visited) {
+  const sampled = sampleBountyPokemon(REGION_CYCLE.length * BOUNTY_PER_REGION);
+  let k = 0;
+  gameData.bounty = {
+    date: dateStr(),
+    visited: visited || REGION_CYCLE.map(() => false),
+    rewards: REGION_CYCLE.map(() => {
+      const arr = Array.from({ length: BOUNTY_PER_REGION }, () => {
+        const poke = sampled[k++];
+        if (!poke) return null;
+        return { pokemon: String(poke.index), ...rollBountyReward(poke), claimed: false };
+      });
+      return arr.sort((a, b) => {
+        if (a && b) return bountyOrder(a) - bountyOrder(b);
+        return a ? -1 : 1;
+      });
+    }),
+  };
 }
 
 // 生成/刷新当日悬赏：跨过 0 点（日期变化）或旧格式存档时全部重新生成，当天保持不变；
@@ -47,24 +132,7 @@ export function ensureBounty() {
   const legacy = b && Array.isArray(b.rewards) && b.rewards.length > 0
     && (!Array.isArray(b.rewards[0]) || b.rewards[0].length !== BOUNTY_PER_REGION);
   if (!b || b.date !== today || !Array.isArray(b.rewards) || legacy) {
-    const sampled = sampleBountyPokemon(REGION_CYCLE.length * BOUNTY_PER_REGION);
-    let k = 0;
-    gameData.bounty = {
-      date: today,
-      visited: REGION_CYCLE.map(() => false),
-      rewards: REGION_CYCLE.map(() => {
-        const arr = Array.from({ length: BOUNTY_PER_REGION }, () => {
-          const poke = sampled[k++];
-          if (!poke) return null;
-          return { pokemon: String(poke.index), candy: calcBountyCandy(poke), claimed: false };
-        });
-        // 每页按糖果奖励从低到高排序
-        return arr.sort((a, b) => {
-          if (a && b) return a.candy - b.candy;
-          return a ? -1 : 1;
-        });
-      }),
-    };
+    generateBounty();
   } else if (!Array.isArray(b.visited)) {
     // 兼容缺少 visited 字段的存档：视为今日尚未到访任何地区
     b.visited = REGION_CYCLE.map(() => false);
@@ -77,10 +145,10 @@ export function ensureBounty() {
       if (!e || !isPowerForm(getPokemonByIndex(e.pokemon))) return;
       const fresh = sampleBountyPokemon(1)[0];
       if (!fresh) return;
-      arr[i] = { pokemon: String(fresh.index), candy: calcBountyCandy(fresh), claimed: e.claimed };
+      arr[i] = { pokemon: String(fresh.index), ...rollBountyReward(fresh), claimed: e.claimed };
       dirty = true;
     });
-    if (dirty) arr.sort((a, b) => (a && b ? a.candy - b.candy : a ? -1 : 1));
+    if (dirty) arr.sort((a, b) => (a && b ? bountyOrder(a) - bountyOrder(b) : a ? -1 : 1));
   }
   // 标记当前所在地区今日已到访（离开该地区后仍可查看其悬赏）
   // 以 gps.curIdx（到达的节点）为准：在途中不标记，只有真正抵达节点才算今日到访
@@ -131,6 +199,15 @@ export function updateBountyBadge() {
   if (badge) badge.style.display = hasRedeemableBounty() ? '' : 'none';
 }
 
+// 调试用（__refreshAll）：重抽当日悬赏，保留今日到访状态
+export function forceRefreshBounty() {
+  if (!gameData) return 0;
+  const visited = Array.isArray(gameData.bounty?.visited) ? gameData.bounty.visited : null;
+  generateBounty(visited);
+  updateBountyBadge();
+  return gameData.bounty.rewards.reduce((n, arr) => n + arr.filter(Boolean).length, 0);
+}
+
 // ---------- 渲染 ----------
 const CANDY_IMG = '<img src="./items/goods/candy.png" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" />';
 const BACK_ICON = '<svg viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="#icon-back"/></svg>';
@@ -142,7 +219,7 @@ let _pageIdx = 2;
 let _wheelLock = 0;
 let _wheelAcc = 0;
 
-function renderBounty() {
+export function renderBounty() {
   const content = $('bountyContent');
   if (!content) return;
   ensureBounty();
@@ -178,10 +255,14 @@ function renderBounty() {
       const btnText = claimed ? '已提交' : has ? (isCur ? '提交' : '可提交') : '未拥有';
       const btnTip = has && !isCur ? `到达${name}提交` : '';
       const fullName = poke.form || poke.name;
+      // 奖励二选一，都是「图标 ×N」排版；道具图标 hover 显示名字
+      const reward = b.item
+        ? `<img src="${itemIconSrc(b.item)}" alt="" data-tip="${(ITEM_NAMES[b.item] || b.item).replace(/"/g, '&quot;')}" />×${b.qty || 1}`
+        : `${CANDY_IMG}×${b.candy}`;
       return `
       <div class="bounty-line${claimed ? ' claimed' : ignored ? ' ignored' : ''}" data-region="${i}" data-bi="${k}">
-        <span class="bounty-name" data-tip="${fullName.replace(/"/g, '&quot;')}">${fullName}</span>
-        <span class="bounty-candy">${CANDY_IMG}×${b.candy}</span>
+        <span class="bounty-name"><span class="bounty-name-t" data-tip="${fullName.replace(/"/g, '&quot;')}">${fullName}</span></span>
+        <span class="bounty-reward">${reward}</span>
         <span class="bounty-claim ${btnCls}" data-region="${i}" data-bi="${k}"${btnTip ? ` title="${btnTip}"` : ''}>${btnText}</span>
       </div>`;
     }).join('');
@@ -266,20 +347,24 @@ function doClaimBounty(regionIdx, bi) {
   const b = (gameData.bounty?.rewards || [])[regionIdx]?.[bi] || null;
   if (!b || b.claimed) return;
   b.claimed = true;
-  gameData.items.candy = (gameData.items.candy || 0) + b.candy;
-  gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + b.candy; // 提交悬赏也计入道具获得
+  if (b.item) {
+    grantItem(b.item, b.qty || 1, '悬赏'); // 给了道具就不再给糖果
+  } else {
+    gameData.items.candy = (gameData.items.candy || 0) + b.candy;
+    gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + b.candy;
+    gameData.stats.totalBountyCandy = (gameData.stats.totalBountyCandy || 0) + b.candy;
+  }
   gameData.stats.totalBountyClaims = (gameData.stats.totalBountyClaims || 0) + 1;
-  gameData.stats.totalBountyCandy = (gameData.stats.totalBountyCandy || 0) + b.candy;
   // 今日完成数：跨天自动清零
   if (gameData.stats.lastBountyDate !== dateStr()) {
     gameData.stats.lastBountyDate = dateStr();
     gameData.stats.bountyClaimsToday = 0;
   }
   gameData.stats.bountyClaimsToday = (gameData.stats.bountyClaimsToday || 0) + 1;
-  addSystemLog('bounty_claim', { pokemon: b.pokemon, candy: b.candy });
+  addSystemLog('bounty_claim', { pokemon: b.pokemon, candy: b.candy || 0, item: b.item || null, qty: b.qty || 1 });
   saveGame();
   updateStats();
-  updateBountyBadge(); // 当前地区无剩余可提交时熄灭红点
+  updateBountyBadge();
   renderBounty();
 }
 

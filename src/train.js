@@ -232,6 +232,7 @@ export function isTrainingPokemon(id) {
 // 仓库选取：从列表项放入训练（空槽点击跳转仓库后由列表项触发）。
 // 若该个体正被饲育屋/队伍占用，先弹确认框，确认后才放入（自动撤下原占用方）
 export function addToTraining(id, slot) {
+  if (slot == null) return; // 槽位缺失不处理：写进 slots[null] 会被存档丢掉
   const t = ensureTraining();
   if (t.slots[slot]) return;
   const occ = [];
@@ -894,9 +895,8 @@ function renderPickPage(box) {
       const btn = e.target.closest('[data-pick-submit]');
       if (btn) {
         e.stopPropagation();
-        const slot = _pickSlot;
-        _pickSlot = null;
-        addToTraining(btn.dataset.pickSubmit, slot);
+        // 槽位不能在这里清：占用时先弹确认框，点「取消」要留在放入页（doAddToTraining 里才清）
+        addToTraining(btn.dataset.pickSubmit, _pickSlot);
         return;
       }
       const row = e.target.closest('[data-pick-view]');

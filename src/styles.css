@@ -2416,7 +2416,7 @@ html.mobile-app #quitHide { display: none !important; }
   z-index: 11;
   background: var(--console-body);
   border-radius: 8px 8px 0 0;
-  color: var(--color-text);
+  color: var(--ui-color);
   padding:4px 4px 4px 0;
   border: 2px solid var(--screen-bg-dark);
   animation: berry-picker-up 0.22s ease-out;
@@ -2554,7 +2554,7 @@ html.mobile-app #quitHide { display: none !important; }
   gap: 1px;
   font-size: 10px;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--ui-color);
 }
 .board-stock-item img {
   width: 22px;
@@ -2574,7 +2574,7 @@ html.mobile-app #quitHide { display: none !important; }
   padding: 3px 6px;
   font-size: 10px;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--ui-color);
 }
 .board-demand img {
   width: 22px;
@@ -2651,7 +2651,7 @@ html.mobile-app #quitHide { display: none !important; }
 .helper-name {
   font-size: 11px;
   font-weight: 800;
-  color: var(--color-text);
+  color: var(--ui-color);
 }
 .helper-desc {
   font-size: 9px;
@@ -3602,7 +3602,7 @@ html.mobile-app #quitHide { display: none !important; }
   border-top: 1px dashed rgba(var(--ui-color-rgb), 0.15);
 }
 .bounty-line.claimed .bounty-name,
-.bounty-line.claimed .bounty-candy {
+.bounty-line.claimed .bounty-reward {
   text-decoration: line-through;
   opacity: 0.5;
 }
@@ -3614,13 +3614,14 @@ html.mobile-app #quitHide { display: none !important; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.bounty-candy {
+.bounty-reward {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 2px;
   opacity: 0.8;
 }
+.bounty-reward img { width: 12px; height: 12px; image-rendering: pixelated; }
 .bounty-claim {
   flex-shrink: 0;
   width: 44px;
@@ -4133,22 +4134,30 @@ html.mobile-app #quitHide { display: none !important; }
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0; /* 名字过长时这一侧可被压缩，省略号才有位置 */
   cursor: pointer;
 }
 .shop-icon {
   width: 20px;
   height: 20px;
   image-rendering: pixelated;
+  flex-shrink: 0;
 }
 .shop-item-name {
   font-size: 11px;
   font-weight: 600;
   color: var(--ui-color);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap; /* 长名字单行省略 */
 }
+.shop-item-left .idx { flex-shrink: 0; white-space: nowrap; } /* 数量不跟着缩 */
 .shop-item-right {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0; /* 价格与按钮不被名字挤压 */
 }
 .shop-cost {
   font-size: 10px;
@@ -5115,6 +5124,30 @@ html.mobile-app #quitHide { display: none !important; }
   border-top: 1px solid rgba(var(--ui-color-rgb),0.1);
   padding: 6px 10px;
 }
+/* 详情页「性格」行：从宝可梦列表进来的详情可点（弹薄荷面板），挑一只来用的入口不给 */
+.roster-nature { padding: 0 2px; margin: 0 -2px; border-radius: 3px; }
+.roster-nature.can-use { cursor: pointer; }
+.roster-nature.can-use:hover { background: rgba(var(--ui-color-rgb), 0.14); color: var(--ui-color); opacity: 1; }
+.roster-nature.can-use:active { transform: scale(0.96); }
+/* 使用薄荷弹层：外形复用告示牌那套 .berry-picker / .berry-board，这里只排行 */
+.mint-list { padding: 0 0 4px; }
+.mint-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color);
+  cursor: pointer;
+}
+.mint-row img { width: 22px; height: 22px; image-rendering: pixelated; flex: 0 0 auto; }
+.mint-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mint-qty { flex: 0 0 auto; font-style: normal; font-size: 9px; color: var(--ui-color); }
+@media (hover: hover) {
+  .mint-row:hover { background: rgba(var(--ui-color-rgb), 0.1); }
+}
+.mint-empty { padding: 10px 6px; font-size: 10px; color: var(--ui-color); opacity: 0.6; text-align: center; }
 .roster-detail-title {
   font-size: 10px;
   font-weight: 700;
@@ -10827,3 +10860,42 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   white-space: pre-line;
 }
 .shop-btn.inert { opacity: 0.35; pointer-events: none; }
+
+/* ===== 道具盒 ===== */
+.ib-search { padding: 6px 8px 0; margin-bottom: 5px; }
+.ib-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.18);
+}
+.ib-tab {
+  flex: 1;
+  text-align: center;
+  padding: 7px 2px 6px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--ui-color);
+  opacity: 0.5;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 2px solid transparent;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.ib-tab.on { opacity: 1; font-weight: 700; border-bottom-color: currentColor; }
+.ib-tabs.solo .ib-tab { flex: 0 0 auto; text-align: left; padding-right: 10px; } /* 单页签贴左，下划线只到文字宽度 */
+.ib-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 12px; }
+.ib-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  color: var(--ui-color);
+  font-size: 11px;
+  border-bottom: 1px dashed rgba(var(--ui-color-rgb), 0.14);
+}
+.ib-row:last-child { border-bottom: none; }
+.ib-row img { width: 20px; height: 20px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
+.ib-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-qty { flex: 0 0 auto; opacity: 0.6; font-size: 10px; font-variant-numeric: tabular-nums; }
+.ib-empty { padding: 18px 0; text-align: center; opacity: 0.5; font-size: 11px; }

@@ -6,7 +6,7 @@ import { allPokemon, gameData, phase, currentEncounter, currentEncounterBalls, h
 import { migrateEncounterScores } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
 import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView } from './ui.js';
-import { spawnItemDrop, hasActiveDrop, activateHoney, activateShinyCharm, restoreHoneyRecord, restoreCharmRecord, grantItem, cancelItemDrop, rollCandyMult } from './items.js';
+import { spawnItemDrop, hasActiveDrop, activateHoney, activateShinyCharm, restoreHoneyRecord, restoreCharmRecord, grantItem, cancelItemDrop, rollCandyMult, ensureEvoMeta } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, autoCatch, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, syncBattleMusic } from './battle.js';
 import { startIdleRotation } from './messages.js';
@@ -769,6 +769,9 @@ async function init() {
     document.body.classList.remove('booting');
     return;
   }
+
+  // 进化表：派遣掉落、商店货架、道具盒都要，开局先备好
+  await ensureEvoMeta();
 
   // 随从增益查询入口：供各机制（路段抽取等）读取当前随从的活跃增益
   window.__followerActiveBoost = () => null;

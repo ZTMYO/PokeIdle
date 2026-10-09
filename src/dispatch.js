@@ -2,9 +2,9 @@
 // 离线期间派遣照常计时：calcOffline 对派遣槽不做 startAt += ms 后移
 import { $, showView, tryLoadImage, showConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog, ensureGender, genderBadge, getIncubatorUnlockCost } from './state.js';
-import { DISPATCH_SLOTS, DISPATCH_FREE_SLOTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_EXTRA_CHANCE, DISPATCH_SPEED_REF, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_SPEED_DECAY, DISPATCH_SPEED_FLAT, DISPATCH_BASE_WEIGHTS, DISPATCH_TYPE_BOOST, DISPATCH_ITEM_VALUE, DISPATCH_ITEM_CAP, DISPATCH_VALUE_PER_HOUR, DISPATCH_PICKS_MAX, REGION_CYCLE, DISPATCH_BOOST_DISCOUNT, DISPATCH_CANDY_JITTER, DISPATCH_VARIANT_CANDY_BONUS } from './config.js';
+import { DISPATCH_SLOTS, DISPATCH_FREE_SLOTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_EXTRA_CHANCE, DISPATCH_SPEED_REF, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_SPEED_DECAY, DISPATCH_SPEED_FLAT, DISPATCH_BASE_WEIGHTS, DISPATCH_TYPE_BOOST, DISPATCH_ITEM_VALUE, DISPATCH_ITEM_CAP, DISPATCH_VALUE_PER_HOUR, DISPATCH_PICKS_MAX, DISPATCH_EVO_MAX_CHANCE, REGION_CYCLE, DISPATCH_BOOST_DISCOUNT, DISPATCH_CANDY_JITTER, DISPATCH_VARIANT_CANDY_BONUS } from './config.js';
 import { removePokemonFromAllTeams, isInAnyTeam } from './team.js';
-import { grantItem, TYPE_COLORS, itemIconSrc, pokemonSourceBadge } from './items.js';
+import { grantItem, TYPE_COLORS, itemIconSrc, ensureEvoMeta, evoDropPool, pokemonSourceBadge } from './items.js';
 import { NATURES } from './battle-core.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
@@ -129,18 +129,19 @@ export function rollRewards(entry, durationMin) {
   const boost = poke ? DISPATCH_TYPE_BOOST[poke.types?.[0]] : null;
   const weights = { ...DISPATCH_BASE_WEIGHTS };
   if (boost) {
-    // 侧重道具外的其他道具权重打折（突出侧重）；糖果侧重无道具增强，但同样让整体道具少一点
+    // 非侧重道具权重打折：权重 ≥1 的老道具用下限 1 保住（别被抹成 0），
+    // 低于 1 的稀有道具（大师球/护符）按比例缩——否则打折反而把它们的占比抬高好几倍
     const boosted = Object.keys(boost).filter(k => k !== 'candy');
     for (const k of Object.keys(weights)) {
       if (k !== 'candy' && !boosted.includes(k)) {
-        weights[k] = Math.max(1, Math.floor(weights[k] * DISPATCH_BOOST_DISCOUNT));
+        const w = weights[k];
+        weights[k] = w < 1 ? w * DISPATCH_BOOST_DISCOUNT : Math.max(1, Math.floor(w * DISPATCH_BOOST_DISCOUNT));
       }
     }
     for (const [k, v] of Object.entries(boost)) weights[k] = (weights[k] || 0) + v;
   }
   delete weights['candy']; // 糖果固定给大头，不参与道具抽取
-  const hours = durationMin / 60; // 档位小时（收益基准，与速度无关）
-  // 糖果 = 基准值 ±5% 随机浮动（属性糖果侧重已计入基准）
+  const hours = durationMin / 60;
   let candyCount = candyBase(entry, durationMin);
   candyCount = Math.max(1, Math.round(candyCount * (1 + (Math.random() * 2 - 1) * DISPATCH_CANDY_JITTER)));
   const merged = new Map();
@@ -152,14 +153,25 @@ export function rollRewards(entry, durationMin) {
     const unit = DISPATCH_ITEM_VALUE[k] || 10;
     const cap = DISPATCH_ITEM_CAP[k] || 5;
     const used = merged.get(k) || 0;
-    if (used >= cap) continue; // 该种已满，整次派遣累计封顶，跳过本轮
+    if (used >= cap) continue; // 该种已满，跳本轮
     let qty = Math.max(1, Math.round((budget / (picks - i) / unit) * (0.6 + Math.random() * 0.8)));
     qty = Math.min(qty, cap - used);
     budget -= qty * unit;
     merged.set(k, used + qty);
   }
+  const evo = rollEvoDrop(durationMin); // 进化道具/薄荷独立一轨，不占上面的预算
+  if (evo) merged.set(evo.key, 1);
   merged.set('candy', candyCount);
   return [...merged].map(([key, qty]) => ({ key, qty }));
+}
+
+// 进化道具/薄荷掉落：概率随档位线性上升（1h 2.5% → 24h 60%），命中就从全部池子里等概率抽一件
+function rollEvoDrop(durationMin) {
+  const hours = durationMin / 60;
+  const chance = Math.min(1, hours / 24) * DISPATCH_EVO_MAX_CHANCE;
+  if (Math.random() >= chance) return null;
+  const pool = evoDropPool();
+  return { key: pool[Math.floor(Math.random() * pool.length)], qty: 1 };
 }
 
 // 推进完成检测：到点未标记完成的槽置 done 并预计算奖励；放生的清空；返回本次新完成数
@@ -210,13 +222,16 @@ function loadResultIcons(list) {
 // 打开领取结果页并绑定确定结算；rows = [{ i, entry, slot }]，确定时统一入包清槽
 let _claimAnim = false;
 let _savedTitle = null;
-function openResultPage(rows) {
-  closeDispatchMenu();
+async function openResultPage(rows) {
+  if (_claimAnim) return; // 结果页正在开启/展示
   const view = $('dispatchResultView');
   if (!view || !rows.length) return;
+  _claimAnim = true; // 占位：await 期间别重复开启
+  closeDispatchMenu();
+  await ensureEvoMeta(); // 专属道具图标名要先就位
   const list = view.querySelector('#dispatchResultList');
   list.innerHTML = rows.map(({ entry, slot }) => resultRowHtml(entry, slot)).join('');
-  // 末尾追加道具总计行（所有派遣同类合并）
+  // 末尾追加道具总计行（同类合并）
   const merged = {};
   for (const { slot } of rows) {
     for (const r of slot.rewards || []) merged[r.key] = (merged[r.key] || 0) + r.qty;
@@ -235,7 +250,7 @@ function openResultPage(rows) {
   const okFn = () => {
     if (!_claimAnim) return;
     _claimAnim = false;
-    // 同类先合并再入包：一次结算多个槽位时，逐条 grant 会刷出一串「获得 ×1」日志（展示层早就合并了）
+    // 先合并再入包，否则一槽一条「获得」日志
     const mergedRewards = {};
     for (const { slot } of rows) {
       for (const r of slot.rewards || []) mergedRewards[r.key] = (mergedRewards[r.key] || 0) + r.qty;
@@ -275,7 +290,6 @@ function openResultPage(rows) {
   view.style.display = 'flex';
   view.classList.remove('open');
   requestAnimationFrame(() => requestAnimationFrame(() => view.classList.add('open')));
-  _claimAnim = true;
 }
 
 // 领取单个已完成槽：进结果页展示一行（宝可梦图标 + 道具图标），确定后入包清槽

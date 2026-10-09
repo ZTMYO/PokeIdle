@@ -48,6 +48,7 @@ release 产物：`dist/android/pokeidle-android-v<version>.apk`。
 |---|---|
 | 1.1.1 | 10101 |
 | 1.1.2 | 10102 |
+| 1.1.3 | 10103 |
 
 ## 签名
 

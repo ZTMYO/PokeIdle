@@ -1,11 +1,11 @@
 // ===== 宝可梦仓库 =====
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
-import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea } from './ui.js';
+import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, updateStats, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
-import { TYPE_COLORS, typeIconColor, pokemonSourceBadge } from './items.js';
+import { TYPE_COLORS, typeIconColor, pokemonSourceBadge, itemIconSrc, MINT_KEYS } from './items.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
-import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL } from './config.js';
+import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL, MINT_NATURES } from './config.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { chooseMoves, fallbackMoves } from './moves.js';
 import { NATURES } from './battle-core.js';
@@ -96,6 +96,7 @@ let _detailId = null;  // 当前详情个体 id（非空=处于详情页）
 let _detailFromView = null; // 详情跳转来源（捕获/孵蛋后“查看详情”进入时记录，返回列表后再返回时优先回来源）
 let _detailReturnFn = null; // 从悬赏提交/交换选择列表进入详情时注册的返回回调（返回时恢复来源列表）
 let _detailJumpedToPokedex = false; // 详情页跳转图鉴中（返回键应先回详情页，再按来源返回）
+let _detailEvoAllowed = false; // 详情页是否允许「改性格 / 进化链」：只有从宝可梦 app 列表点行进来才允许（挑一只来用的入口都不行）
 let _picker = null; // 选取模式：配队/训练点击空位跳转仓库选择，{ mode:'team'|'train', slot, from, exclude[] }
 let _renderSeq = 0; // 列表分片渲染版本号：新一轮渲染作废旧一轮，避免快速切换筛选时乱序
 let _rosterIconObs = null; // 列表图标懒加载观察器：滚动进入视口（含预载带）才加载，避免大仓库并发请求打爆资源
@@ -341,6 +342,7 @@ function renderList() {
       return;
     }
     _detailFromView = null;
+    _detailEvoAllowed = true; // 从宝可梦列表点行进来：允许改性格（进化链将来共用这个开关）
     showRosterDetail(row.dataset.rid);
   };
   // 批量模式底部栏
@@ -1100,6 +1102,67 @@ async function loadMovesBlock(id) {
   renderMovesBlock(id);
 }
 
+// ---------- 使用薄荷（改性格） ----------
+// 用掉一颗薄荷改性格；没库存 / 已经是该性格 / 不是薄荷都不动（返回 false）
+export function applyMint(entry, mintKey) {
+  const nature = MINT_NATURES[mintKey];
+  if (!entry || !nature) return false;
+  if ((gameData.items[mintKey] || 0) <= 0 || entry.nature === nature) return false;
+  gameData.items[mintKey]--;
+  entry.nature = nature;
+  addSystemLog('item_use', { item: mintKey, pokemon: entry.species });
+  saveGame();
+  updateBackpack(mintKey);
+  updateStats();
+  window.dispatchEvent(new CustomEvent('roster-changed')); // 性格影响派遣速度，相关界面要重算
+  return true;
+}
+
+let _mintPanelDoc = null; // 点面板外关闭的文档监听：打开时挂、关闭时摘
+function closeMintPanel() {
+  document.getElementById('mintPanel')?.remove();
+  if (_mintPanelDoc) { document.removeEventListener('click', _mintPanelDoc); _mintPanelDoc = null; }
+}
+
+// 底部薄荷面板：列持有的薄荷（当前性格那种不列），点一颗二次确认后用掉
+function openMintPanel() {
+  const view = $('rosterView');
+  const entry = (gameData.roster || []).find(r => r.id === _detailId);
+  if (!view || !entry) return;
+  closeMintPanel();
+  const owned = MINT_KEYS.filter((k) => (gameData.items[k] || 0) > 0 && MINT_NATURES[k] !== entry.nature);
+  const rows = owned.length
+    ? owned.map((k) => `<div class="mint-row" data-mint="${k}">
+        <img src="${itemIconSrc(k)}" alt="" /><span class="mint-name">${k}</span><em class="mint-qty">×${gameData.items[k]}</em></div>`).join('')
+    : '<div class="mint-empty">没有可用的薄荷</div>';
+  const panel = document.createElement('div');
+  panel.id = 'mintPanel';
+  panel.className = 'berry-picker berry-board'; // 复用告示牌/种子选择那套上浮框
+  panel.innerHTML = `<div class="berry-picker-head">
+      <span class="berry-picker-title">使用薄荷</span>
+      <div class="berry-picker-x" data-mint-close>✕</div>
+    </div>
+    <div class="berry-board-sections">
+      <div class="berry-board-section-title">持有中的薄荷</div>
+      <div class="mint-list">${rows}</div>
+    </div>`;
+  (view.closest('.screen') || view).appendChild(panel);
+  panel.onclick = (e) => {
+    if (e.target.closest('[data-mint-close]') || e.target === panel) { closeMintPanel(); return; }
+    const row = e.target.closest('[data-mint]');
+    if (!row) return;
+    const key = row.dataset.mint;
+    showConfirmBar(`用掉 1 颗「${key}」，性格变为${key.replace('薄荷', '')}？`, () => {
+      if (!applyMint(entry, key)) return;
+      closeMintPanel();
+      showRosterDetail(_detailId); // 就地刷新详情（性格与持有数量都变了）
+    }, null, { overlay: true });
+  };
+  // 点面板外的空白也关掉（打开那次点击已在入口 stopPropagation，不会立刻触发）
+  _mintPanelDoc = (ev) => { if (!panel.contains(ev.target)) closeMintPanel(); };
+  document.addEventListener('click', _mintPanelDoc);
+}
+
 // ---------- 个体详情 ----------
 // 点击列表行进入；返回按钮（标题栏 back）→ restoreRosterList 回到列表
 function showRosterDetail(id) {
@@ -1143,7 +1206,7 @@ function showRosterDetail(id) {
           ${memberStatusTags(p)}
         </div>
         <div style="font-size:10px;opacity:0.7;line-height:1.6;">
-          <div style="display:flex;flex-wrap:wrap;column-gap:8px;"><div data-tip="${natureBoostText(p.nature)}" style="cursor:pointer;">性格：${natureText(p.nature)}</div><span>来源：${srcName(p.source)}</span></div>
+          <div style="display:flex;flex-wrap:wrap;column-gap:8px;"><div class="roster-nature${_detailEvoAllowed ? ' can-use' : ''}" data-tip="${natureBoostText(p.nature)}"${_detailEvoAllowed ? ' data-mint-open' : ''}>性格：${natureText(p.nature)}</div><span>来源：${srcName(p.source)}</span></div>
           <div style="display:flex;flex-wrap:wrap;column-gap:8px;">获得时间：${fmtTime(p.obtainedAt)}${lastLog ? `<span>${lastLog}</span>` : ''}</div>
         </div>
       </div>
@@ -1181,6 +1244,9 @@ function showRosterDetail(id) {
   const detailHead = list.querySelector('.roster-detail-head');
   zoomBox?.addEventListener('click', e => { e.stopPropagation(); setDetailZoom(!$('rosterList')?.classList.contains('roster-zoom')); });
   detailHead?.addEventListener('click', () => setDetailZoom(false));
+
+  // 性格行：只有从宝可梦列表进来的详情允许点开薄荷面板（挑一只来用的入口不给改）
+  list.querySelector('[data-mint-open]')?.addEventListener('click', (e) => { e.stopPropagation(); openMintPanel(); });
 
   // 改名按钮
   const nickBtn = $('rosterNickBtn');
@@ -1849,6 +1915,7 @@ export function restoreRosterList() {
   stopShinySparkleLoop();
   if (_detailId == null) return;
   _detailJumpedToPokedex = false;
+  _detailEvoAllowed = false; // 退出详情就关掉改性格/进化链的开关，别漏给下一次别的入口
   // 从悬赏提交/交换选择列表进入的详情：返回直接恢复来源列表
   if (_detailReturnFn) { leaveRosterDetailToList(); return; }
   _detailId = null;
@@ -2020,6 +2087,7 @@ function setupSelectAll() {
 // fromView：从该页面离开后，详情返回列表时再返回优先回到这里
 export function showRosterDetailById(id, fromView) {
   _detailFromView = fromView || 'idleView';
+  _detailEvoAllowed = false; // 捕获/孵蛋/交换后的“查看详情”不算正常途径
   showRosterView();    // 先渲染并显示仓库列表
   showRosterDetail(id); // 再进入该个体的详情
 }
@@ -2033,6 +2101,7 @@ export function refreshRosterDetail(id) {
 // 从悬赏提交/交换选择列表进入个体详情（第三层）
 // returnFn：详情页按返回时执行，负责切回来源视图并恢复其子页状态
 export function showRosterDetailFromList(id, returnFn) {
+  _detailEvoAllowed = false; // 悬赏/交换/放入等「挑一只来用」的入口
   _detailFromView = null;
   _detailReturnFn = typeof returnFn === 'function' ? returnFn : null;
   // 不压导航栈：详情是来源列表的子层级，返回靠 returnFn 恢复来源视图。
@@ -2044,6 +2113,7 @@ export function showRosterDetailFromList(id, returnFn) {
 // 从其他页面查看「仓库情况」：跳到仓库列表并预填搜索词（如交换详情页的「仓库情况」按钮）
 // returnFn：仓库页按返回时执行，负责切回来源视图并恢复其子页状态
 export function showRosterSearch(q, returnFn) {
+  _detailEvoAllowed = false;
   _detailFromView = null;
   _detailReturnFn = typeof returnFn === 'function' ? returnFn : null;
   // 不压栈：返回靠 returnFn 恢复来源视图。搜索词交给 showRosterView 预填（含清空按钮显隐同步）

@@ -9,7 +9,7 @@
 //   __addPokeLv(25, 50)               写入指定等级
 //   __unlockAllPokedex(true)          解锁全图鉴（含闪光）
 //   __nextEncounter(25, true)         指定下次遇敌（用后即焚）
-//   __refreshAll()                    一键刷新：对战/交换/大量出没/时空扭曲/商店每日限量货
+//   __refreshAll()                    一键刷新：对战/交换/大量出没/时空扭曲/悬赏/商店每日限量货
 //   __npcTeam(25, 6, 149)             对战 NPC 全部使用指定精灵
 import {
   gameData, allPokemon, getPokemonByIndex, addRosterEntry, saveGame,
@@ -25,6 +25,7 @@ import { setDebugNextEncounter } from './battle.js';
 import { isBattleActive, renderBattleList } from './battle-view.js';
 import { refreshNpcs } from './npcs.js';
 import { refreshTrades, renderTrade } from './trade.js';
+import { forceRefreshBounty, renderBounty } from './bounty.js';
 import { isRosterInDetail, restoreRosterList, showRosterView } from './roster.js';
 import { showPokedex } from './pokedex.js';
 import { computeObtainScore } from './scoring.js';
@@ -170,20 +171,23 @@ window.__nextEncounter = (idx, shiny = false) => {
   console.log(`__nextEncounter: 下次遇敌已指定为 ${poke ? poke.name : '#' + idx}${shiny ? '（闪光）' : ''}，用后即焚`);
 };
 
-// 一键刷新：对战/交换/大量出没/时空扭曲/商店每日限量货（只重置生成与倒计时，不改变当前位置）
+// 一键刷新：对战/交换/大量出没/时空扭曲/悬赏/商店每日限量货（只重置生成与倒计时，不改变当前位置）
 window.__refreshAll = () => {
   const stock = clearDailyStock();
   refreshNpcs();
   refreshTrades();
   forceRefreshMassOutbreak();
   forceRefreshTwist();
+  const bounty = forceRefreshBounty();
   if ($('gpsView')?.style.display === 'flex') showGpsView();
   const mo = gameData.massOutbreak;
   const tw = gameData.twist;
-  console.log(`对战、交换已刷新；大量出没剩余 ${mo ? mo.remain : 0} 只，时空扭曲剩余 ${tw ? tw.remain : 0} 只（位置不变）`
+  console.log(`对战、交换、悬赏已刷新；大量出没剩余 ${mo ? mo.remain : 0} 只，时空扭曲剩余 ${tw ? tw.remain : 0} 只（位置不变）`
+    + (bounty ? `；悬赏 ${bounty} 条目标已重抽` : '')
     + (stock ? `；商店每日限量货已重抽（${stock} 类）` : ''));
   if ($('battleView')?.style.display !== 'none' && !isBattleActive()) renderBattleList();
   if ($('tradeView')?.style.display !== 'none') renderTrade();
+  if ($('bountyView')?.style.display === 'flex') renderBounty();
   if (stock && $('shopView')?.style.display === 'flex') import('./views.js').then((m) => m.showShopView());
 };
 

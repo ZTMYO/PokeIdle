@@ -27,6 +27,16 @@ export const ITEM_NAMES = {
   'master-ball': '大师球', 'candy': '糖果',
   'sweet-honey': '甜甜蜜', 'mystery-egg': '神秘蛋', 'shiny-charm': '闪耀护符',
   'bike': '自行车', 'exp-candy': '经验糖果',
+  '火之石': '火之石', '水之石': '水之石', '雷之石': '雷之石', '叶之石': '叶之石',
+  '冰之石': '冰之石', '月之石': '月之石', '日之石': '日之石', '光之石': '光之石',
+  '暗之石': '暗之石', '觉醒之石': '觉醒之石',
+  '联系绳': '联系绳', '奇异石': '奇异石', '心之石': '心之石', '熏香': '熏香', '极巨汤': '极巨汤',
+  '怕寂寞薄荷': '怕寂寞薄荷', '固执薄荷': '固执薄荷', '顽皮薄荷': '顽皮薄荷', '勇敢薄荷': '勇敢薄荷',
+  '大胆薄荷': '大胆薄荷', '淘气薄荷': '淘气薄荷', '乐天薄荷': '乐天薄荷', '悠闲薄荷': '悠闲薄荷',
+  '内敛薄荷': '内敛薄荷', '慢吞吞薄荷': '慢吞吞薄荷', '马虎薄荷': '马虎薄荷', '冷静薄荷': '冷静薄荷',
+  '温和薄荷': '温和薄荷', '温顺薄荷': '温顺薄荷', '慎重薄荷': '慎重薄荷', '自大薄荷': '自大薄荷',
+  '胆小薄荷': '胆小薄荷', '急躁薄荷': '急躁薄荷', '爽朗薄荷': '爽朗薄荷', '天真薄荷': '天真薄荷',
+  '认真薄荷': '认真薄荷',
 };
 
 // 精灵球基础捕获率（最终 = 基础率 × 宝可梦 catchRate × 丢球加成）
@@ -44,14 +54,45 @@ export const CATCH_BONUS_INC = 0.10;
 // 糖果商店兑换价格
 export const CANDY_EXCHANGE = {
   'poke-ball': 10, 'ultra-ball': 25, 'master-ball': 2000, // 大师球：唯一的保底捕获，定价到稀缺资源档
-  'sweet-honey': 40, 'mystery-egg': 100, 'shiny-charm': 20000, // 护符：一天挂机产出，换一只保底闪光（与刷事件 8.7 小时注意力同量级）
+  'mystery-egg': 100, 'sweet-honey': 40, 'shiny-charm': 20000, // 护符：一天挂机产出，换一只保底闪光（与刷事件 8.7 小时注意力同量级）
   'bike': 200, // 自行车：赶路工具（骑行路段也能免费获得，商店是保底渠道）
 };
 
-// 商店出售回收比例：出售价 = 兑换价 × 该比例（四舍五入），低于半价防止倒卖刷糖
-export const ITEM_SELL_RATE = 0.4;
-// 贵重道具固定回收价：按 40% 回收会在高价道具上变成刷糖通道（护符掉落 3.6/小时 × 4000 糖果）
-export const ITEM_SELL_OVERRIDE = { 'master-ball': 150, 'shiny-charm': 1000 }; // 固定为售价 5~7%，不随涨价放大
+// 进化道具基础价：不进商店常驻列表（货架、悬赏、派遣、钓鱼、对战都能出）；也是回收价与悬赏折算的基准
+export const EVO_PRICES = {
+  '火之石': 400, '水之石': 400, '雷之石': 400, '叶之石': 400, '冰之石': 400,
+  '月之石': 400, '日之石': 400, '光之石': 400, '暗之石': 400, '觉醒之石': 400,
+  '熏香': 300, '心之石': 500, '联系绳': 900, '极巨汤': 1200, '奇异石': 1600,
+};
+export const EVO_EXCLUSIVE_PRICE = 2500; // 形态专属道具的统一基准价
+
+// 今日道具：每天限 5 件、每件限买 1 个，价格就是基础价
+export const EVO_SHOP_DAILY = 5;
+export const EVO_SHOP_WEIGHTS = {
+  '火之石': 1.0, '水之石': 1.0, '雷之石': 1.0, '叶之石': 1.0, '冰之石': 1.0,
+  '月之石': 1.0, '日之石': 1.0, '光之石': 1.0, '暗之石': 1.0, '觉醒之石': 0.9,
+  '熏香': 1.0, '心之石': 0.9, '联系绳': 0.8, '极巨汤': 1.0, '奇异石': 0.7,
+};
+export const EVO_SHOP_EXCLUSIVE_SLOTS = 1;     // 保底格：一定从专属道具里出
+export const EVO_SHOP_EXCLUSIVE_WEIGHT = 5.0;  // 其余格子抽到专属道具的整类权重
+export const EVO_SHOP_MINT_WEIGHT = 1.0;       // 其余格子抽到薄荷的整类权重（21 种平分）
+
+// ===== 薄荷（改性格）=====
+// 21 种：20 种带修正的性格各一个 + 认真（中性）；值是性格 key，与 battle-core 的 NATURES 一致。
+// 图按提升的能力分 6 组共用：mint_0 攻击 / 1 防御 / 2 特攻 / 3 特防 / 4 速度 / 5 中性
+export const MINT_PRICE = 400; // 基础价：货架售价与回收价（160）的基准
+export const MINT_NATURES = {
+  '怕寂寞薄荷': 'lonely', '固执薄荷': 'adamant', '顽皮薄荷': 'naughty', '勇敢薄荷': 'brave',
+  '大胆薄荷': 'bold', '淘气薄荷': 'impish', '乐天薄荷': 'lax', '悠闲薄荷': 'relaxed',
+  '内敛薄荷': 'modest', '慢吞吞薄荷': 'mild', '马虎薄荷': 'rash', '冷静薄荷': 'quiet',
+  '温和薄荷': 'calm', '温顺薄荷': 'gentle', '慎重薄荷': 'careful', '自大薄荷': 'sassy',
+  '胆小薄荷': 'timid', '急躁薄荷': 'hasty', '爽朗薄荷': 'jolly', '天真薄荷': 'naive',
+  '认真薄荷': 'serious',
+};
+
+export const ITEM_SELL_RATE = 0.4; // 回收价 = 兑换价 × 该比例
+// 固定回收价（不随商店定价放大）：大师球/闪耀护符按商店价的 20%；经验糖果没有商店价，按精灵球的一半
+export const ITEM_SELL_OVERRIDE = { 'master-ball': 400, 'shiny-charm': 4000, 'exp-candy': 5 };
 
 // 丢球挣脱后宝可梦逃跑的概率（随丢球次数递增，上限 FLEE_CHANCE_MAX）
 export const FLEE_CHANCE = 0.04;     // 第 1 球挣脱后的逃跑概率
@@ -118,9 +159,18 @@ export const PX_PER_METER = 39;
 // ===== 地区悬赏 =====
 export const BOUNTY_PER_REGION = 5;   // 每地区每日悬赏条数
 export const BOUNTY_CANDY_MIN = 30;    // 最低糖果奖励
-export const BOUNTY_CANDY_MAX = 500;    // 最高糖果奖励
+export const BOUNTY_CANDY_MAX = 1000;  // 最高糖果奖励（按获取成本线性给）
 export const BOUNTY_JITTER = 0.25;     // 糖果奖励随机浮动（±25%）
 export const BOUNTY_RARE_WEIGHT = 0.7; // 选角稀有度权重
+export const BOUNTY_COST_REF = 1.3;    // 获取成本上限，用来把成本归一化到 0~1
+export const BOUNTY_CANDY_CN = 0.35;   // 归一成本 < 它：糖果档
+export const BOUNTY_BIG_CN = 0.60;     // 归一成本 ≥ 它：高阶档（1 件稀有道具 或 2~5 件常见道具）
+export const BOUNTY_BIG_RARE_CHANCE = 0.4; // 高阶档里给「稀有道具」的概率，其余给常见道具 2~5 件
+export const BOUNTY_EXCLUSIVE_CHANCE = 0.25; // 稀有档里给形态专属道具（100 种）的概率，其余给 4 种高价通用道具
+export const BOUNTY_MINT_CHANCE = 0.30;      // 稀有档里给薄荷的概率（最优先判）
+export const BOUNTY_COMMON_QTY_MIN = 2; // 高阶档常见道具的数量范围
+export const BOUNTY_COMMON_QTY_MAX = 5;
+export const BOUNTY_EXP_CANDY_QTY = 5;  // 抽到经验糖果时固定给几颗
 
 // ---- 交换 ----
 export const TRADE_COUNT = 6;          // 每波上架的交换 offer 数量
@@ -163,13 +213,33 @@ export const BATTLE_TIER_BAND = {
   leader:   [50, 68],
   champion: [70, 90], // 封顶档：最高 90 级，留 10 级给满级收尾
 };
-// 战胜各档的追加道具（chance 缺省为必定）：只给可消耗品，
-// 不碰糖果/护符/大师球的价格体系，避免又开一个白送口
+// 对战胜利的进化道具池：档位越高池子越大（冠军档含 100 种专属道具）
+const EVO_POOL_LOW = ['火之石', '水之石', '雷之石', '叶之石', '冰之石', '月之石', '日之石', '光之石', '暗之石', '觉醒之石', '熏香'];
+export const BATTLE_EVO_POOLS = {
+  evoLow: EVO_POOL_LOW,
+  evoMid: [...EVO_POOL_LOW, '心之石', '联系绳'],
+  evoHigh: [...EVO_POOL_LOW, '心之石', '联系绳', '极巨汤', '奇异石'],
+  evoAll: null, // null = 运行时取全部进化道具（含专属道具）
+};
+// 战胜各档的追加道具（chance 缺省为必定）：`key` 是固定道具，`pool` 是从池子里随机一件（见上，'mint' = 薄荷）。
+// 四档都会掉进化道具与薄荷，档位越高概率越大、池子越好
 export const BATTLE_TIER_ITEMS = {
-  novice:   [{ key: 'poke-ball', qty: 2 }],
-  veteran:  [{ key: 'poke-ball', qty: 3 }, { key: 'ultra-ball', qty: 2 }, { key: 'sweet-honey', qty: 1, chance: 0.2 }],
-  leader:   [{ key: 'ultra-ball', qty: 2 }, { key: 'sweet-honey', qty: 1, chance: 0.3 }, { key: 'mystery-egg', qty: 1, chance: 0.2 }],
-  champion: [{ key: 'ultra-ball', qty: 3 }, { key: 'sweet-honey', qty: 1, chance: 0.4 }, { key: 'mystery-egg', qty: 1, chance: 0.35 }],
+  novice:   [
+    { key: 'poke-ball', qty: 2 },
+    { pool: 'evoLow', qty: 1, chance: 0.03 }, { pool: 'mint', qty: 1, chance: 0.02 },
+  ],
+  veteran:  [
+    { key: 'poke-ball', qty: 3 }, { key: 'ultra-ball', qty: 2 }, { key: 'sweet-honey', qty: 1, chance: 0.2 },
+    { pool: 'evoMid', qty: 1, chance: 0.06 }, { pool: 'mint', qty: 1, chance: 0.04 },
+  ],
+  leader:   [
+    { key: 'ultra-ball', qty: 2 }, { key: 'sweet-honey', qty: 1, chance: 0.3 }, { key: 'mystery-egg', qty: 1, chance: 0.2 },
+    { pool: 'evoHigh', qty: 1, chance: 0.12 }, { pool: 'mint', qty: 1, chance: 0.08 },
+  ],
+  champion: [
+    { key: 'ultra-ball', qty: 3 }, { key: 'sweet-honey', qty: 1, chance: 0.4 }, { key: 'mystery-egg', qty: 1, chance: 0.35 },
+    { pool: 'evoAll', qty: 1, chance: 0.4 }, { pool: 'mint', qty: 1, chance: 0.4 },
+  ],
 };
 export const BATTLE_REFRESH_MS = 20 * 60 * 1000; // NPC 挑战刷新间隔（20 分钟）
 export const BATTLE_NPC_COUNTS = { novice: 1, veteran: 2, leader: 1, champion: 1 }; // 每波各档 NPC 数量
@@ -328,13 +398,15 @@ export const TRAIN_SATIETY_EAT_AT = 50;
 // ===== 钓鱼 =====
 export const FISH_POKEMON_CHANCE = 0.1;   // 每次钓鱼钓到宝可梦的几率
 export const FISH_BUFF_POKEMON_CHANCE = 0.5; // 增益期间钓到宝可梦的几率
-export const FISH_RARE_RATE = 0.6;      // 钓到宝可梦时极稀有所占比例
+export const FISH_RARE_RATE = 0.6;      // 钓到宝可梦时「地区稀有」那一档的比例，其余给当地水系
+export const FISH_RARE_TOP = 0.15;      // 「地区稀有」= 本地野池按稀有度排序的前 15%
 export const FISH_WAIT_MIN = 6;         // 等待上钩最短秒数
 export const FISH_WAIT_MAX = 30;        // 等待上钩最长秒数
 export const FISH_QTY_MIN = 1;          // 钓到道具最少数量
 export const FISH_QTY_MAX = 15;         // 钓到道具最多数量
 export const FISH_TRIGGER_MIN = 5;      // 进入垂钓路段后预定开始钓鱼的最短秒数
 export const FISH_TRIGGER_MAX = 20;     // 预定开始钓鱼的最长秒数
+export const FISH_EVO_CHANCE = 0.1;     // 钓到道具时改钓到一件进化道具或薄荷的概率（只给 1 件）
 
 // ===== 路段生成 =====
 export const ROAD_SPECIAL_CHANCE = 0.05;   // 特殊路段概率（水域与自行车道对半）
@@ -361,6 +433,32 @@ export const ITEM_DESC = {
   'shiny-charm': `使用后下一只遭遇必定闪光
 其余 ${BUFF_DURATION} 秒内闪光概率提升至 ${pct(CHARM_SHINY_CHANCE)}`,
   'bike': `骑行赶路工具\n速度 ${Math.round(ROAD_SPEED_BIKE / ROAD_SPEED_WALK)} 倍且不遇敌、不拾取`,
+  // 进化道具说明：是什么 + 干什么用；形态专属道具在 items.js 里按数据生成
+  '火之石': '蕴含火之力量的不可思议的石头\n能让某些宝可梦进化',
+  '水之石': '蕴含水之力量的不可思议的石头\n能让某些宝可梦进化',
+  '雷之石': '蕴含雷电之力量的不可思议的石头\n能让某些宝可梦进化',
+  '叶之石': '蕴含草木之力量的不可思议的石头\n能让某些宝可梦进化',
+  '冰之石': '蕴含冰雪之力量的不可思议的石头\n能让某些宝可梦进化',
+  '月之石': '散发着月光般清辉的石头\n能让某些宝可梦进化',
+  '日之石': '散发着日光般温暖的石头\n能让某些宝可梦进化',
+  '光之石': '闪耀着柔和光芒的石头\n能让某些宝可梦进化',
+  '暗之石': '笼罩着深邃暗影的石头\n能让某些宝可梦进化',
+  '觉醒之石': '只对特定性别有效的石头\n能让某些宝可梦进化',
+  '联系绳': '两端带插头的连接线缆\n能让某些宝可梦进化',
+  '奇异石': '散发着奇异光辉的石头\n能让某些宝可梦进化',
+  '心之石': '能听见训练家心声的石头\n能让某些宝可梦进化',
+  '熏香': '繁育用\n能让孵出的宝可梦回到最低阶形态',
+  '极巨汤': '用极巨菇菇制作的汤\n能让特定宝可梦超极巨化',
+  '朱红色宝珠': '让固拉多原始回归的宝珠',
+  '靛蓝色宝珠': '让盖欧卡原始回归的宝珠',
+  '奈克洛索尔合体器': '让奈克洛兹玛与索尔迦雷欧合体',
+  '奈克洛露奈合体器': '让奈克洛兹玛与露奈雅拉合体',
+  '究极奈克洛Ｚ': '让奈克洛兹玛究极爆发的Ｚ纯晶',
+  '基因之楔': '让酋雷姆与莱希拉姆 / 捷克罗姆合体',
+  '腐朽的剑': '让苍响恢复剑之王形态',
+  '腐朽的盾': '让藏玛然特恢复盾之王形态',
+  '牵绊缰绳': '让蕾冠王与雪暴马 / 灵幽马合体',
+  '无极核心': '让无极汰那无极巨化的核心',
 };
 
 // ===== 抽卡机 =====
@@ -425,12 +523,12 @@ export const DISPATCH_SPEED_MAX = 1.0;                                  // 最�
 export const DISPATCH_SPEED_DECAY = 64;                                 // 衰减尺度：越大速度差异越平缓，速度 6 → 系数 ≈0.96，速度 80+ → 收敛到 0.63
 export const DISPATCH_SPEED_FLAT = 5;                                   // 面板速度 ≤ 此值：按档位满时长，不加速
 // 派遣道具基础权重（糖果权重参照挂机稀有度，占大头；道具仅少量调味）
+// 大师球 / 闪耀护符是全场唯一的低于 1 的权重：它们要和挂机掉落（大师球约 2/天、护符约 0.7/天）保持同一量级的稀有感
 export const DISPATCH_BASE_WEIGHTS = {
   'candy': 60, 'poke-ball': 14, 'ultra-ball': 6, 'sweet-honey': 4,
-  'exp-candy': 3, 'mystery-egg': 2, 'bike': 2, 'master-ball': 1, 'shiny-charm': 1,
+  'exp-candy': 3, 'mystery-egg': 2, 'bike': 2, 'master-ball': 0.15, 'shiny-charm': 0.08,
 };
-// 主属性侧重：18 属性各对应一种特色道具，数字为权重增量（非掉落数量），只提高抽中该道具的概率。
-// 贵重的（大师球/闪耀护符）不设侧重，留在全随机池按基础权重掉落，避免被某一属性定向刷
+// 主属性侧重：数字是权重增量，只提高抽中概率；大师球/闪耀护符不设侧重。进化道具不在这张表里
 export const DISPATCH_TYPE_BOOST = {
   '一般': { 'candy': 20 },
   '岩石': { 'candy': 10 }, '地面': { 'candy': 10 },
@@ -452,6 +550,8 @@ export const DISPATCH_ITEM_CAP = {
   'poke-ball': 10, 'ultra-ball': 5, 'sweet-honey': 4, 'exp-candy': 4,
   'master-ball': 1, 'shiny-charm': 1,
 };
+// 进化道具+薄荷独立一轨：不占上面的价值预算，按档位掷一次，命中就从全部进化道具与薄荷里平抽一件
+export const DISPATCH_EVO_MAX_CHANCE = 0.6; // 24 小时档的出道具概率（其他档 = 时长/24 × 该值）
 export const DISPATCH_BOOST_DISCOUNT = 0.5; // 属性侧重时，非侧重道具权重统一打折，突出侧重道具
 export const DISPATCH_VALUE_PER_HOUR = 20; // 道具价值预算 / 实际小时（24h → 480 价值，够 2 辆自行车；6 格全满约 2880/天）
 export const DISPATCH_PICKS_MAX = 5;       // 单次派遣最多抽取道具种类数
