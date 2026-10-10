@@ -1,4 +1,4 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL } from './config.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, setEncounterSource, setEncounterVariant } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, isIdleStageVisible, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
@@ -234,6 +234,12 @@ function resolveEncounterPoke() {
       }
       setCurrentEncounter(poke);
       setCurrentIsShiny(false);
+    } else {
+      // 其余走普通遇敌：闪光按基础概率重判（稀有度加成由 pickRandomPokemon 内部按增益生效）
+      poke = pickRandomPokemon();
+      if (!poke) return null;
+      setCurrentEncounter(poke);
+      setCurrentIsShiny(Math.random() < SHINY_CHANCE);
     }
   } else {
     poke = pickRandomPokemon();
@@ -470,7 +476,7 @@ export function startMassEncounter(poke, shiny) {
   setPhase('encounter');
   setEncounterBallsUsed(0);
   setCurrentEncounter(poke);
-  setCurrentIsShiny(shiny != null ? shiny : Math.random() < MASS_SHINY_CHANCE);
+  setCurrentIsShiny(shiny != null ? shiny : Math.random() < massShinyChance());
   beginEncounter(poke, { message: (currentIsShiny ? '野生的 闪光 ' : '野生的 ') + poke.name + ' 迎面冲了过来！', source: 'mass' });
 }
 
@@ -807,10 +813,8 @@ export async function throwBall(ballType) {
     // 捕获加成：逃跑率拉满（50%）后，每多丢一球 +10%，上限 2 倍 —— 能撑过逃跑率上限的奖励
     const catchBonus = catchBonusFor(encounterBallsUsed);
     // 高级球额外 +ULTRA_BALL_ADD 绝对捕获率：对低 catchRate 的稀有宝可梦增幅显著（定位：抓神兽用高级球）
-    // 随从增益：catch 类提升精灵球（红白球）捕捉率，仅普通精灵球生效
-    const catchBoost = ballType === 'pokeball' ? (window.__followerBoostMechanic?.('catchRate', 1) ?? 1) : 1;
     const rate = ballType === 'master-ball' ? 1.0
-      : ((CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) * catchBoost + (ballType === 'ultra-ball' ? ULTRA_BALL_ADD : 0)) * catchBonus;
+      : ((CATCH_RATES[ballType] || 0.30) * (currentEncounter.catchRate ?? 1) + (ballType === 'ultra-ball' ? ULTRA_BALL_ADD : 0)) * catchBonus;
     const isCaught = Math.random() < rate;
 
     // 丢球瞬间生成全部判定（挣脱轮数 / 是否逃跑）并立即落库：动画只做展示，刷新/重启不丢数据

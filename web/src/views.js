@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_DUR, FOLLOWER_TIER_BOOST, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, formatNum, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform } from './ui.js';
 import { doCandyExchange, doSellBall, activateHoney, activateShinyCharm, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf } from './items.js';
@@ -1736,6 +1736,17 @@ function tutorialTable(rows, headers, widths) {
   return `<table class="tutorial-table"><tr>${head}</tr>${body}</table>`;
 }
 
+// 随从九组增益表（主增益幅度固定、副增益按稀有度区间写；文案与结算页共用 config 里的表）
+const FOLLOWER_SUB_RANGE = `${Math.round(FOLLOWER_TIER_BOOST.N * 100)}~${Math.round(FOLLOWER_TIER_BOOST.UR * 100)}`;
+const FOLLOWER_TUTORIAL_ROWS = [
+  ['飞行、妖精', 'bike'], ['水', 'fishing'], ['草、虫', 'berry'], ['地面、岩石、钢', 'itemdrop'],
+  ['格斗、恶', 'battleexp'], ['一般、幽灵', 'catch'], ['电、冰', 'flee'], ['龙、火', 'hatch'],
+  ['毒、超能', 'trade'],
+].map(([types, g]) => {
+  const e = FOLLOWER_EFFECTS[g];
+  return [types, `主：[${e.tag}] ${e.main}<br>副：[${e.subTag}] ${e.sub(FOLLOWER_SUB_RANGE)}`];
+});
+
 // 道具掉落：按稀有度从低到高（常见→稀有）排序，配置变化自动同步（单位秒，1/X 秒掉落一个）
 const ITEM_DROP_ROWS = Object.entries(ITEM_RATES)
   .sort((a, b) => b[1] - a[1])
@@ -1836,7 +1847,7 @@ const TUTORIAL_SECTIONS = [
       + `<p><b>大量出没</b>：每隔 <b>${MASS_GEN_MIN}~${MASS_GEN_MAX}</b> 分钟出现一次，<b>锁定该地区的一只宝可梦</b>大量出现，闪光率 <b>1/${Math.round(1 / MASS_SHINY_CHANCE)}</b>（不吃闪耀护符加成）。</p>`
       + `<p>使用<b>甜甜蜜</b>可让大量出没的下一只出现得更快（<b>${MASS_SPAWN_HONEY_MIN}~${MASS_SPAWN_HONEY_MAX}</b> 秒，普通 <b>${MASS_SPAWN_MIN}~${MASS_SPAWN_MAX}</b> 秒）。事件持续 <b>${MASS_DURATION}</b> 分钟，抓完剩余数量（<b>${MASS_COUNT_MIN}~${MASS_COUNT_MAX}</b> 只）或到期后结束。</p>`
       + `<p><b>时空扭曲</b>：每隔 <b>${TWIST_GEN_MIN}~${TWIST_GEN_MAX}</b> 分钟出现一次，从<b>全地区（排除事件所在地）</b>的宝可梦中随机现身，每次遭遇都不同；<b>超级进化 / 超极巨化</b>这类强化形态<b>不会现身</b>，它们只能靠进化获得。</p>`
-      + `<p>时空扭曲的宝可梦<b>按野池等级上限现身</b>（没有等级进化的一律 <b>${WILD_LEVEL_MAX}</b> 级，有等级进化的压在自己的进化等级之下），<b>个体值保底 ${TWIST_GUARANTEED_IVS}V</b>，闪光率 <b>1/${Math.round(1 / TWIST_SHINY_CHANCE)}</b>（不吃闪耀护符加成），有 <b>${Math.round(TWIST_RGB_CHANCE * 100)}%</b> 概率是 <b>RGB 分离</b>宝可梦、<b>${Math.round(TWIST_POLLUTED_CHANCE * 100)}%</b> 概率是<b>污染宝可梦</b>。</p>`
+      + `<p>时空扭曲的宝可梦<b>个体值保底 ${TWIST_GUARANTEED_IVS}V</b>，闪光率 <b>1/${Math.round(1 / TWIST_SHINY_CHANCE)}</b>（不吃闪耀护符加成），有 <b>${Math.round(TWIST_RGB_CHANCE * 100)}%</b> 概率是 <b>RGB 分离</b>宝可梦、<b>${Math.round(TWIST_POLLUTED_CHANCE * 100)}%</b> 概率是<b>污染宝可梦</b>。</p>`
       + `<p>当这两类带有特效的宝可梦被<b>派遣</b>探险时，带回的糖果数量提升 <b>${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>派遣</b>」章节）。</p>`
       + `<p>事件持续 <b>${TWIST_DURATION}</b> 分钟，抓完剩余数量（<b>${TWIST_COUNT_MIN}</b> 只）或到期后结束。</p>`,
   },
@@ -1853,7 +1864,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>页面打开<b>交换</b>应用，NPC 挂出想要的宝可梦与愿意给的宝可梦，有 <b>1/${Math.round(1 / TRADE_SHINY_CHANCE)}</b> 的概率给出闪光宝可梦。</p>`
       + `<p>NPC 有 <b>${TRADE_LEVEL_CHANCE * 100}</b>% 的概率指定想要的宝可梦<b>等级下限</b>（<b>${TRADE_WANT_LEVEL_MIN}~${TRADE_WANT_LEVEL_MAX}</b> 级）：个体必须达到等级要求才能提交。孵化攒下的 1 级宝可梦可用<b>经验糖果</b>快速拉到等级线（详见「<b>经验糖果</b>」章节）。</p>`
       + `<p>仓库中有符合要求的个体即可与之互换，收到的宝可梦来源记为「<b>交换</b>」；每 <b>${TRADE_REFRESH_MS / 60000}</b> 分钟刷新一波。</p>`
-      + `<p>跟随<b>毒 / 超能</b>属性随从（增益「<b>交换闪光概率提升</b>」）时，会<b>强制刷新一波交易</b>，让新加成立即生效。</p>`
+      + `<p>跟随<b>毒 / 超能</b>属性随从时，会<b>强制刷新一波交易</b>并多挂一个 NPC，让新加成立即生效。</p>`
       + `<p>右键可交换的条目可「<b>忽略</b>」：忽略后随时可右键恢复，仍可正常交换。</p>`,
   },
   {
@@ -1917,7 +1928,7 @@ const TUTORIAL_SECTIONS = [
         ['生效', `<b>${BUFF_DURATION}</b> 秒`, `<b>${BUFF_DURATION}</b> 秒`],
         ['遇敌', `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒`, `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒`],
         ['稀有', `极稀有出现权重 ×<b>${rarityWeightBoost(HONEY_RARITY_BOOST)}</b>`, `极稀有出现权重 ×<b>${rarityWeightBoost(CHARM_RARITY_BOOST)}</b>`],
-        ['闪光', '无加成', `<b>${Math.round(CHARM_SHINY_CHANCE * 100)}</b>% 闪光、<b>${Math.round(CHARM_UNCAUGHT_CHANCE * 100)}</b>% 未收录宝可梦，其余走普通遇敌`],
+        ['闪光', '无加成', `<b>${Math.round(CHARM_SHINY_CHANCE * 100)}</b>% 闪光、<b>${Math.round(CHARM_UNCAUGHT_CHANCE * 100)}</b>% 遇到还未解锁的野生宝可梦，其余走普通遇敌`],
         ['钓鱼', `钓到宝可梦概率提升至 <b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}</b>%`, `钓到宝可梦概率提升至 <b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}</b>%，闪光率 <b>${Math.round(CHARM_SHINY_CHANCE * 100)}</b>%`],
       ], ['特性', '甜甜蜜', '闪耀护符'], [32, '40%', 'auto']),
   },
@@ -1954,7 +1965,7 @@ const TUTORIAL_SECTIONS = [
         ['无增益时', `<b>${Math.round(FISH_POKEMON_CHANCE * 100)}</b>%`],
         ['增益期间', `<b>${Math.round(FISH_BUFF_POKEMON_CHANCE * 100)}</b>%`],
       ], ['情况', '概率'], [80, 'auto'])
-      + `<p>钓到宝可梦的种类（都只从本地野池里出，神兽与只能靠进化的最终形态钓不到）：</p>`
+      + `<p>钓到宝可梦的种类：</p>`
       + tutorialTable([
         ['当地稀有宝可梦', `<b>${Math.round(FISH_RARE_RATE * 100)}</b>%`],
         ['当地水系宝可梦', `<b>${Math.round((1 - FISH_RARE_RATE) * 100)}</b>%`],
@@ -2114,19 +2125,10 @@ const TUTORIAL_SECTIONS = [
   {
     title: '随从',
     html: `<p>在<b>手机</b>第二页打开<b>随从</b>应用：消耗 <b>${FOLLOWER_DRAW_COST} 颗糖果</b>抽一只宝可梦当随从，跟随期间获得限时增益，<b>同时只能跟随 1 只</b>。</p>`
-      + `<p>稀有度概率：N <b>${Math.round(FOLLOWER_TIER_CHANCE.N * 100)}%</b> / R <b>${Math.round(FOLLOWER_TIER_CHANCE.R * 100)}%</b> / SR <b>${Math.round(FOLLOWER_TIER_CHANCE.SR * 100)}%</b> / UR <b>${Math.round(FOLLOWER_TIER_CHANCE.UR * 100)}%</b>；跟随时长：N <b>${FOLLOWER_TIER_DUR.N}</b> 分 / R <b>${FOLLOWER_TIER_DUR.R}</b> 分 / SR <b>${FOLLOWER_TIER_DUR.SR}</b> 分 / UR <b>${FOLLOWER_TIER_DUR.UR}</b> 分。</p>`
-      + `<p>随从按<b>属性</b>归入 <b>9</b> 大类，每类对应一种增益（按稀有度 <b>${Math.round(FOLLOWER_TIER_BOOST.N * 100)}% ~ ${Math.round(FOLLOWER_TIER_BOOST.UR * 100)}%</b> 递增），双属性跨类时两类增益<b>同时生效</b>：</p>`
-      + tutorialTable([
-          ['飞行、妖精', '自行车道路段概率提升'],
-          ['水', '钓鱼路段概率提升'],
-          ['草、虫', '树果成熟速度提升'],
-          ['地面、岩石、钢', '挂机道具掉落率提升'],
-          ['格斗、恶', '对战胜利经验提升'],
-          ['一般、幽灵', '精灵球捕捉率提升'],
-          ['电、冰', '宝可梦逃跑率降低'],
-          ['龙、火', '孵蛋所需里程降低'],
-          ['毒、超能', '交换时NPC闪光概率提升'],
-        ], ['属性', '增益'], ['auto', 'auto'])
+      + `<p>稀有度概率：N <b>${Math.round(FOLLOWER_TIER_CHANCE.N * 100)}%</b> / R <b>${Math.round(FOLLOWER_TIER_CHANCE.R * 100)}%</b> / SR <b>${Math.round(FOLLOWER_TIER_CHANCE.SR * 100)}%</b> / UR <b>${Math.round(FOLLOWER_TIER_CHANCE.UR * 100)}%</b>。稀有度只决定<b>副增益强度</b>，不影响跟随时长。</p>`
+      + `<p>跟随时长只看<b>星级</b>——★1~★5 依次 <b>${FOLLOWER_STAR_MIN.join(' / ')}</b> 分钟。</p>`
+      + `<p>随从按<b>属性</b>归入 <b>9</b> 大类：每类有一条<b>幅度固定</b>的主增益，外加一条按稀有度递增（<b>${FOLLOWER_SUB_RANGE}%</b>）的副增益；双属性跨类时两类<b>同时生效</b>：</p>`
+      + tutorialTable(FOLLOWER_TUTORIAL_ROWS, ['属性', '增益'], [46, 'auto'])
   },
   {
     title: '派遣',

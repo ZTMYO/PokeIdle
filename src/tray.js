@@ -14,6 +14,7 @@
 //   7. 主角走动中       → 推游戏真实走路雪碧图 4 帧动画
 //   8. 主角不动         → 只推站立帧单帧，托盘静止
 import { getCharPrefix, tryLoadImage, isBuffActive } from './ui.js';
+import { eggSprite } from './config.js';
 import * as road from './road.js';
 import { hasDryBerries, getFarmStats } from './berry.js';
 import { countTradableOffers } from './trade.js';
@@ -30,7 +31,7 @@ function inEncounter() {
 }
 const SPRITES = {
   sprout: () => ['./icons/sprout-1.png', './icons/sprout-2.png'],
-  egg: () => ['./items/goods/mystery-egg.png'],
+  egg: () => [firstEggSprite()],
 };
 const TRAY_SIZE = 64;
 let started = false;
@@ -40,6 +41,7 @@ let pushedPaused = null;
 let pushedDry = null;
 let pushedEncIdx = null;
 let pushedEgg = false;
+let pushedEggSrc = null;
 let pushedFishing = false;
 let pushedBike = false;
 let pushedRun = false;
@@ -141,6 +143,17 @@ function hasIncubatingEgg() {
   return _eggHatching || (gameData?.incubators || []).some(s => s && s.hatched && !s.ignored);
 }
 
+// 托盘蛋图标：取孵蛋器里第一颗可孵化的蛋（没有就第一颗），按蛋的属性取配色图；
+// 培育蛋用彩色蛋图、神秘蛋用「?」图（与孵蛋器槽位同一套口径）
+function firstEggSprite() {
+  const slots = gameData?.incubators || [];
+  const pick = slots.find(s => s && s.eggIndex != null && s.hatched && !s.ignored)
+    || slots.find(s => s && s.eggIndex != null);
+  if (!pick) return eggSprite(null);
+  const poke = getPokemonByIndex(String(pick.eggIndex));
+  return eggSprite(pick.eggRef != null ? poke?.types?.[0] : null);
+}
+
 // 把当前状态对应的动画帧推送给 Rust：
 // 遭遇中推精灵图标；否则按钓鱼/孵蛋/缺水/骑车/走路/静止推对应帧
 // 推送成功后才记录已推状态；失败不记录，下一轮 tick 会自动重试
@@ -153,11 +166,12 @@ async function pushFrames() {
     const dry = hasDryBerries();
     const paused = !road.isActive();
     const egg = hasIncubatingEgg();
+    const eggSrc = egg ? firstEggSprite() : null; // 蛋图也算状态：换蛋/换属性要重推
     const fishing = isFishing();
     const bike = road.isBike();
     const run = isBuffActive() && !bike; // 增益生效时跑步（骑车优先）
     const encIdx = inEncounter() ? currentEncounter.index : null;
-    if (prefix === pushedPrefix && paused === pushedPaused && dry === pushedDry && encIdx === pushedEncIdx && egg === pushedEgg && fishing === pushedFishing && bike === pushedBike && run === pushedRun) return; // 状态未变不重推
+    if (prefix === pushedPrefix && paused === pushedPaused && dry === pushedDry && encIdx === pushedEncIdx && egg === pushedEgg && eggSrc === pushedEggSrc && fishing === pushedFishing && bike === pushedBike && run === pushedRun) return; // 状态未变不重推
     let frames;
     let seq;
     let delay; // 每帧间隔（毫秒），与游戏内对应动画节奏一致
@@ -209,6 +223,7 @@ async function pushFrames() {
     pushedDry = dry;
     pushedEncIdx = encIdx;
     pushedEgg = egg;
+    pushedEggSrc = eggSrc;
     pushedFishing = fishing;
     pushedBike = bike;
     pushedRun = run;
@@ -321,11 +336,12 @@ export function startTrayAnimation() {
     const dry = hasDryBerries();
     const paused = !road.isActive();
     const egg = hasIncubatingEgg();
+    const eggSrc = egg ? firstEggSprite() : null;
     const fishing = isFishing();
     const bike = road.isBike();
     const run = isBuffActive() && !bike;
     const encIdx = inEncounter() ? currentEncounter.index : null;
-    if (prefix !== pushedPrefix || paused !== pushedPaused || dry !== pushedDry || encIdx !== pushedEncIdx || egg !== pushedEgg || fishing !== pushedFishing || bike !== pushedBike || run !== pushedRun) pushFrames();
+    if (prefix !== pushedPrefix || paused !== pushedPaused || dry !== pushedDry || encIdx !== pushedEncIdx || egg !== pushedEgg || eggSrc !== pushedEggSrc || fishing !== pushedFishing || bike !== pushedBike || run !== pushedRun) pushFrames();
     pushStatus();
   }, 1000);
 }

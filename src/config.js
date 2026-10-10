@@ -505,8 +505,32 @@ export const RIICHI_COST = 50;         // 立直费用（游戏币）
 // 用糖果抽出一只宝可梦，选择「跟随」获得限时增益，用完即走；「放走」则糖果消耗无收益
 export const FOLLOWER_DRAW_COST = 100;              // 单抽糖果价格
 export const FOLLOWER_TIER_CHANCE = { N: 0.55, R: 0.30, SR: 0.12, UR: 0.03 }; // 稀有度档位概率
-export const FOLLOWER_TIER_DUR = { N: 15, R: 20, SR: 30, UR: 60 };            // 跟随时长（分钟）
-export const FOLLOWER_TIER_BOOST = { N: 0.08, R: 0.10, SR: 0.12, UR: 0.15 };  // 增益幅度（稀有度缓递增）
+export const FOLLOWER_STAR_MIN = [10, 20, 30, 40, 60];   // ★1~★5 的任期时长（分钟，查表）：只看星级，稀有度不影响时长
+export const FOLLOWER_TIER_BOOST = { N: 0.10, R: 0.15, SR: 0.22, UR: 0.30 };  // 效果幅度（数值辅效果按此递增）
+// 主增益幅度：全是固定值，不随稀有度变化（稀有度只放大副增益）
+export const FOLLOWER_MAIN = {
+  bikeSpeedBonus: 0.20,   // 骑行速度 +20%
+  itemExtraChance: 0.25,  // 掉落额外一件的概率
+  berryExtraChance: 0.25, // 树果多结一颗的概率
+  twistDexMult: 2,        // 时空扭曲里未解锁宝可梦的权重 ×2
+  massShinyMult: 2,       // 大量出没的闪光率 ×2（1/200 → 1/100）
+  mysteryEggBonus: 0.50,  // 神秘蛋的掉落率 +50%
+  roadWaterPref: 0.85,    // 特殊路段里水域一侧的权重（bike 类取补数 0.15，即偏向自行车道）
+};
+const fPct = (v) => `${Math.round(v * 100)}%`;
+export const FOLLOWER_TIER_ROMAN = { N: 'I', R: 'II', SR: 'III', UR: 'IV' };   // 副增益 tag 的强度后缀
+// 展示文案（教程与结算页共用）：主增益是固定值，副增益把幅度 p 插进来（p 也可以用 '10~30'）
+export const FOLLOWER_EFFECTS = {
+  bike:      { tag: '骑行加速', subTag: '更多车道', main: `骑行速度提升 ${fPct(FOLLOWER_MAIN.bikeSpeedBonus)}`, sub: (p) => `自行车道路段的出现率提升 ${p}%` },
+  fishing:   { tag: '钓鱼增产', subTag: '更多钓点', main: '钓到的道具数量提升 1 件', sub: (p) => `钓鱼点的出现率提升 ${p}%` },
+  berry:     { tag: '树果增产', subTag: '树果生长', main: `收获多结一颗的概率提升 ${fPct(FOLLOWER_MAIN.berryExtraChance)}`, sub: (p) => `树果的成熟速度提升 ${p}%` },
+  itemdrop:  { tag: '额外掉落', subTag: '掉落概率', main: `挂机额外掉落一件的概率提升 ${fPct(FOLLOWER_MAIN.itemExtraChance)}`, sub: (p) => `道具的掉落率提升 ${p}%` },
+  battleexp: { tag: '糖果保底', subTag: '战斗经验', main: '胜利必定掉落经验糖果', sub: (p) => `对战的胜利经验提升 ${p}%` },
+  catch:     { tag: '扭曲补缺', subTag: '扭曲变体', main: `时空扭曲里未解锁宝可梦的出现权重提升 ${Math.round((FOLLOWER_MAIN.twistDexMult - 1) * 100)}%`, sub: (p) => `扭曲个体的变体率提升 ${p}%` },
+  flee:      { tag: '闪光出没', subTag: '不易逃跑', main: `大量出没的闪光率提升 ${Math.round((FOLLOWER_MAIN.massShinyMult - 1) * 100)}%（1/200 → 1/100）`, sub: (p) => `宝可梦的逃跑率降低 ${p}%` },
+  hatch:     { tag: '神秘蛋', subTag: '孵蛋加速', main: `神秘蛋的掉落率提升 ${fPct(FOLLOWER_MAIN.mysteryEggBonus)}`, sub: (p) => `孵蛋的里程需求降低 ${p}%` },
+  trade:     { tag: '交换名额', subTag: '交换闪光', main: '交换广场将多一个 NPC', sub: (p) => `交换的闪光率提升 ${p}%` },
+};
 // 宝可梦主属性 → 随从类别（9 类）
 export const FOLLOWER_TYPE_GROUP = {
   '飞行': 'bike', '妖精': 'bike',
@@ -519,18 +543,22 @@ export const FOLLOWER_TYPE_GROUP = {
   '龙': 'hatch', '火': 'hatch',
   '毒': 'trade', '超能': 'trade',
 };
-// 类别 → 生效机制（每类一种核心增益）
+// 类别 → 生效机制：[0] 是结构性主效果、[1] 是数值辅效果（机制名走 __followerBoostMechanic 统一入口）
 export const FOLLOWER_GROUP_BOOST = {
-  bike:     'bikeSegment',    // 进入自行车道路段概率提升
-  fishing:  'fishingSegment', // 进入钓鱼路段概率提升
-  berry:    'berryGrow',      // 树果成熟速度提升
-  itemdrop: 'itemDrop',       // 挂机道具掉落率提升
-  battleexp:'battleExp',      // 对战胜利经验提升
-  catch:    'catchRate',      // 精灵球（红白球）捕捉率提升
-  flee:     'fleeRate',       // 宝可梦逃跑率降低
-  hatch:    'hatchDist',      // 孵蛋所需里程降低
-  trade:    'tradeShiny',     // 交换时 NPC 给出闪光概率提升
+  bike:      ['bikeSpeed', 'roadWaterPref'],         // 骑行提速 + 特殊路段偏自行车道
+  fishing:   ['extraFishingItem', 'roadWaterPref'],  // 钓到道具多一件 + 特殊路段偏水域
+  berry:     ['extraBerry', 'berryGrow'],            // 收获多结一颗 + 成熟加速
+  itemdrop:  ['itemDropExtra', 'itemDrop'],          // 额外掉落一件 + 掉落率
+  battleexp: ['expCandyGuarantee', 'battleExp'],     // 必定掉经验糖果 + 经验
+  catch:     ['twistDexWeight', 'twistVariantRate'], // 扭曲偏爱未解锁 + 变体率
+  flee:      ['massShinyRate', 'fleeRate'],          // 出没闪光率翻倍 + 逃跑率
+  hatch:     ['mysteryEggRate', 'hatchDist'],        // 神秘蛋掉落率 + 孵蛋里程降低
+  trade:     ['tradeOfferBonus', 'tradeShiny'],      // 交换多挂一个 NPC + 交换闪光
 };
+// 大量出没的闪光率：flee 类随从在场时按 FOLLOWER_MAIN.massShinyMult 放大（原有"不吃闪耀护符"的口径不变）
+export function massShinyChance() {
+  return window.__followerBoostMechanic?.('massShinyRate', MASS_SHINY_CHANCE) ?? MASS_SHINY_CHANCE;
+}
 
 // ===== 派遣（手机 app，唯一离线收益来源）=====
 export const DISPATCH_SLOTS = 6;              // 槽位总数

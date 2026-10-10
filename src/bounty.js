@@ -3,7 +3,7 @@
 // 仓库里有该物种的在仓个体即可提交；只有今日到访过的地区能看到内容，提交必须到当地。
 import { REGION_CYCLE, ITEM_NAMES, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_JITTER, BOUNTY_RARE_WEIGHT, BOUNTY_COST_REF, BOUNTY_CANDY_CN, BOUNTY_BIG_CN, BOUNTY_BIG_RARE_CHANCE, BOUNTY_EXCLUSIVE_CHANCE, BOUNTY_MINT_CHANCE, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BOUNTY_EXP_CANDY_QTY, EVO_PRICES } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon, randInt } from './state.js';
-import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds } from './ui.js';
+import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds, showConfirmBar } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
 import { pickFamily, pokemonSourceBadge, grantItem, itemIconSrc, evoExclusivePool, MINT_KEYS } from './items.js';
 import { evolutionData, evoPreEvos } from './evolution.js';
@@ -366,6 +366,11 @@ function doClaimBounty(regionIdx, bi) {
   updateStats();
   updateBountyBadge();
   renderBounty();
+  // 结算框：展示本次奖励，点「确定」关闭
+  const reward = b.item
+    ? `<img src="${itemIconSrc(b.item)}" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" alt="" />「${ITEM_NAMES[b.item] || b.item}」×${b.qty || 1}`
+    : `${CANDY_IMG}×${b.candy}`;
+  showConfirmBar(`悬赏完成，获得 ${reward}`, null, null, { singleButton: true });
 }
 
 // ---------- 提交列表（类似仓库列表） ----------

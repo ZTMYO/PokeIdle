@@ -249,7 +249,8 @@ function regenerateOffers() {
   // 作者是彩蛋用 makeAuthorOffer 单独生成，普通 NPC 池必须剔除，否则会以普通 offer 冒充 ZTMYO
   const pool = NPCS.filter(n => n.id !== 'author' && n.id !== 'imiti');
   const offers = [];
-  const count = Math.min(TRADE_COUNT, pool.length);
+  // 随从（毒/超能）主效果：这一波交换多挂一个 NPC
+  const count = Math.min(TRADE_COUNT + (window.__followerBoostMechanic?.('tradeOfferBonus', 0) ?? 0), pool.length);
   // 作者彩蛋：以 0.01 概率取代某一格普通 offer
   const authorSlot = Math.random() < AUTHOR_CHANCE ? randInt(0, count - 1) : -1;
   // 伊美蒂彩蛋：与作者独立 roll 一格（避免同格冲突，若撞格则本波不出伊美蒂）

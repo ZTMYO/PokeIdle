@@ -438,7 +438,7 @@ function methodDetail(p, m, type) {
   if (type === 'wild') {
     if (p.legend) {
       // 神兽 / 幻兽单独一套说法：不进普通野池，走每日神兽池，概率写清楚
-      return `每日神兽池：每天随机分到各地区的几只神兽 / 幻兽混在普通遇敌里，遇敌时约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE)}</b> 直接遇到，甜甜蜜 / 闪耀护符生效期间约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE_BUFF)}</b>。本只排在 <b>${p.region || '本地'}</b> 地区。`;
+      return `在 <b>${p.region || '本地'}</b> 地区有概率以当日限定神兽出现。`;
     }
     return `在 <b>${p.region || '本地'}</b> 地区的野外遇到（普通遇敌 / 大量出没 / 钓鱼）`;
   }

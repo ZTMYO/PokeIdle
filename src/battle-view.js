@@ -4,7 +4,7 @@ import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, upda
 import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon, randInt } from './state.js';
 import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon } from './battle-core.js';
 import { typeMult } from './type-chart.js';
-import { grantItem, ITEM_ICONS, itemIconSrc, evoDropPool, MINT_KEYS, typeIconColor } from './items.js';
+import { grantItem, itemIconSrc, evoDropPool, MINT_KEYS, typeIconColor } from './items.js';
 import { chooseMoves } from './moves.js';
 import { ensureNpcs, refreshNpcs, buildNpcTeam, npcBaseLevel } from './npcs.js';
 import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, BATTLE_EVO_POOLS, MAX_LEVEL, SPECIAL_SPRITE_SCALE, ITEM_NAMES } from './config.js';
@@ -2798,7 +2798,9 @@ function finishBattle(battle) {
     }
     gd.items.candy = (gd.items.candy || 0) + battle.preset.candy;
     // 经验糖果掉落：按 NPC 档位概率判定，胜利才有、失败没有
-    dropCandy = Math.random() < (battle.preset.expChance || 0);
+    // 随从（格斗/恶）主效果：胜利必定掉经验糖果
+    const expChance = window.__followerBoostMechanic?.('expCandyGuarantee', battle.preset.expChance || 0) ?? (battle.preset.expChance || 0);
+    dropCandy = Math.random() < expChance;
     // 档位追加道具：练度够才打得到高档，这是"力量换得到东西"的出口
     for (const d of rollTierDrops(battle.preset.tier)) {
       grantItem(d.key, d.qty); // grantItem 自带日志与背包刷新

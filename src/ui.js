@@ -53,7 +53,7 @@ export function showNowPlaying(title, artist) {
 
 // ---------- 视图切换 ----------
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
-const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','hatchAllView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','itemBoxView','followerView','dispatchView','evoView'];
+const VIEW_IDS = ['idleView','introView','phoneView','pokedexView','encounterView','hatchView','hatchAllView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','itemBoxView','followerView','followerDexView','dispatchView','evoView'];
 const CASINO_VIEWS = new Set(['casinoView', 'casinoGameView', 'mahjongView', 'gachaView', 'gachaHistoryView', 'casinoHistoryView']);
 // 舞台类视图 = 游戏画面（挂机/遇敌），其余都是下屏的应用类
 const STAGE_VIEWS = new Set(['idleView', 'encounterView']);
@@ -256,7 +256,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', hatchView:'孵化', hatchAllView:'孵化全部', evoView:'进化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', dispatchView:'派遣', casinoView:'游戏厅', casinoGameView:'21 点', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', itemBoxView:'道具盒', followerView:'随从' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', followerDexView:'随从图鉴', hatchView:'孵化', hatchAllView:'孵化全部', evoView:'进化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', dispatchView:'派遣', casinoView:'游戏厅', casinoGameView:'21 点', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', itemBoxView:'道具盒', followerView:'随从' };
     title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${names[chromeId]||''}`;
     title.dataset.action = 'back';
   }
@@ -496,7 +496,8 @@ export function setIdleCharacter(state, itemKey) {
   } else {
     if (road.isBike()) {
       el.classList.add('bike');
-      road.setSpeed(ROAD_SPEED_BIKE);
+      // 随从（飞行/妖精）主效果：骑行提速
+      road.setSpeed(ROAD_SPEED_BIKE * (window.__followerBoostMechanic?.('bikeSpeed', 1) ?? 1));
     } else if (isBuffActive()) {
       el.classList.add('run');
       road.setSpeed(ROAD_SPEED_RUN);
@@ -1164,7 +1165,7 @@ export function renderIncubatorView() {
     } else if (hasEgg) {
       const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
       const usedValid = !isNaN(used) && used >= 0;
-      // 随从增益：hatch 类动态减免孵化所需里程（达标线 = 原始里程 × 当前随从倍率）
+      // 随从（龙/火）辅效果：蛋的里程需求降低
       const need = (s.hatchDuration || 0) * (window.__followerBoostMechanic?.('hatchDist', 1) ?? 1);
       const shouldBeReady = (!usedValid || (used >= need)) && !s.hatched;
       if (shouldBeReady) {
@@ -1359,7 +1360,7 @@ export function updateIncubatorTimers() {
     if (s.hatched) { changed = true; return; }
     const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
     const usedValid = !isNaN(used) && used >= 0;
-    // 随从增益：hatch 类动态减免孵化所需里程（达标线 = 原始里程 × 当前随从倍率）
+    // 随从（龙/火）辅效果：蛋的里程需求降低
     const need = (s.hatchDuration || 0) * (window.__followerBoostMechanic?.('hatchDist', 1) ?? 1);
     if (!usedValid || (used + 100) >= need) {
       s.hatched = true;

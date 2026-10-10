@@ -183,7 +183,9 @@ async function startFishing() {
   }
 
   // 钓到随机道具 ×1~10（进化道具固定 1 件）
-  const { key: itemKey, qty } = pickFishingReward();
+  const { key: itemKey, qty: baseQty } = pickFishingReward();
+  // 随从（水）主效果：钓到的道具多一件
+  const qty = baseQty + (window.__followerBoostMechanic?.('extraFishingItem', 0) ?? 0);
   gameData.items[itemKey] = (gameData.items[itemKey] || 0) + qty;
   gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + qty;
   addSystemLog('fishing', { item: itemKey, qty });

@@ -2,13 +2,13 @@
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
 import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER } from './config.js';
-import { allPokemon, gameData, phase, currentEncounterBalls, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer } from './state.js';
+import { allPokemon, gameData, phase, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, setEncounterMsg, addPlaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer } from './state.js';
 import { migrateEncounterScores } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
 import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView } from './ui.js';
 import { spawnItemDrop, hasActiveDrop, activateHoney, activateShinyCharm, restoreHoneyRecord, restoreCharmRecord, grantItem, cancelItemDrop, rollCandyMult, ensureEvoMeta } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
-import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, autoCatch, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, syncBattleMusic } from './battle.js';
+import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, syncBattleMusic } from './battle.js';
 import { startIdleRotation } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
 import { helperTick, showBerryView, catchUpHelper } from './berry.js';
@@ -136,11 +136,10 @@ road.onManualBikeChanged(v => {
 // 依次按 水域/自行车道 → 普通陆地 抽取下一段路：
 // ROAD_SPECIAL_CHANCE 概率出特殊路段，其中水域与自行车道对半开，
 // 目标子池为空时换另一个子池，两个都空则退回普通陆地。
-// 随从增益可倾斜特殊路段倾向：bike 类抬升自行车道、fishing 类抬升水域
 function _pickNextRoad() {
   let pool = ROAD_LAND;
-  const followerBoost = _followerSpecialBoost(); // 随从对特殊路段的倾向调整
-  const waterPref = followerBoost === 'fishing' ? 0.85 : (followerBoost === 'bike' ? 0.15 : 0.5);
+  // 水 / 飞行·妖精随从把特殊路段的倾向推到自己那一侧
+  const waterPref = window.__followerBoostMechanic?.('roadWaterPref', 0.5) ?? 0.5;
   if (ROAD_WATER.length + ROAD_BIKE.length > 0 && Math.random() < ROAD_SPECIAL_CHANCE) {
     pool = Math.random() < waterPref
       ? (ROAD_WATER.length > 0 ? ROAD_WATER : ROAD_BIKE)
@@ -151,15 +150,6 @@ function _pickNextRoad() {
   let next;
   do { next = pool[Math.floor(Math.random() * pool.length)]; } while (next === _roadIdx);
   return next;
-}
-
-// 随从活跃时返回对特殊路段的倾向类别（'fishing'/'bike'/null）；无增益时返回 null
-function _followerSpecialBoost() {
-  const b = window.__followerActiveBoost?.();
-  if (!b) return null;
-  if (b.groups.includes('fishing')) return 'fishing';
-  if (b.groups.includes('bike')) return 'bike';
-  return null;
 }
 
 // ---------- 返回按钮 ----------
@@ -200,6 +190,8 @@ function goBack() {
   }
   // 放入蛋独立页：点击标题栏返回孵蛋器
   if ($('incubatorEggView')?.style.display === 'flex') { closeIncubatorEggView(); return; }
+  // 随从图鉴页：返回随从页
+  if ($('followerDexView')?.style.display === 'flex') { import('./follower.js').then(m => m.closeFollowerDexView()); return; }
   // 战斗替换选择页（teamView）：主动替换 → 取消选择回战斗操作界面；倒下换人 → 直接撤退回对战列表
   if (isBattlePicking() && $('teamView')?.style.display === 'flex') {
     if (backFromBattlePick()) retreatBattle();
@@ -497,6 +489,12 @@ async function onGameTick() {
     }
   }
 
+  // 随从（地面/岩石/钢）主效果：这件掉落额外多带的量
+  function extraDropQty(item) {
+    const chance = window.__followerBoostMechanic?.('itemDropExtra', 0) ?? 0;
+    if (!(chance > 0) || Math.random() >= chance) return 0;
+    return item === 'candy' ? rollCandyMult() : 1;
+  }
   // 钓鱼：有垂钓点的路段随机停下钓鱼（钓鱼期间不生成道路道具；自行车道上不钓鱼不拾取，
   // 过渡到自行车道期间也停止生成，避免遗留道具在骑行开始后滑过；大量出没/时空扭曲事件路段内不钓鱼）
   if (!road.isBike() && !inMassZone() && !inTwistZone()) tryStartFishing();
@@ -510,8 +508,9 @@ async function onGameTick() {
     for (const [item, rate] of Object.entries(ITEM_RATES)) {
       const key = `_f_${item}`;
       if (!gameData[key]) gameData[key] = 0;
-      // 随从增益：itemdrop 类提升挂机道具掉落率
-      const effRate = window.__followerBoostMechanic?.('itemDrop', rate) ?? rate;
+      // 随从增益：龙/火主效果抬神秘蛋掉落率，地面/岩石/钢副效果抬全部掉落率
+      const eggRate = item === 'mystery-egg' ? (window.__followerBoostMechanic?.('mysteryEggRate', rate) ?? rate) : rate;
+      const effRate = window.__followerBoostMechanic?.('itemDrop', eggRate) ?? eggRate;
       // 按实际走路秒数累积：正常滚动帧间隔累计 + 后台停摆秒数一次补齐，挂机不掉产出
       gameData[key] += effRate * (walkSec + idleAfkSec);
       const gained = Math.floor(gameData[key]);
@@ -522,7 +521,7 @@ async function onGameTick() {
           // 糖果按掉落次数逐次 roll 倍率（与前台 spawnItemDrop 同节奏），汇总后一次性入账
           let gainedQty = 0;
           for (let i = 0; i < gained; i++) {
-            gainedQty += item === 'candy' ? rollCandyMult() : 1;
+            gainedQty += (item === 'candy' ? rollCandyMult() : 1) + extraDropQty(item);
           }
           grantItem(item, gainedQty);
           gameData[key] -= gained;
@@ -534,7 +533,9 @@ async function onGameTick() {
           // 只扣减真正生成成功的数量：遇敌/钓鱼/锁占用等 spawn 失败时保留累积值，下次 tick 重试，避免道具凭空丢失
           let spawned = 0;
           for (let i = 0; i < gained; i++) {
-            if (!spawnItemDrop(item)) break; // 失败即锁占用/非 idle，短时内重试结果相同，直接退出
+            // 随从（地面/岩石/钢）主效果：这件掉落有概率额外带一件（糖果按掉落倍率另抽）
+            const qty = (item === 'candy' ? rollCandyMult() : 1) + extraDropQty(item);
+            if (!spawnItemDrop(item, { qty })) break; // 失败即锁占用/非 idle，短时内重试结果相同，直接退出
             spawned++;
           }
           gameData[key] -= spawned;
@@ -570,7 +571,7 @@ async function onGameTick() {
   for (const s of (gameData.incubators || [])) {
     if (s && s.eggIndex != null && !s.hatched) {
       const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
-      // 随从增益：hatch 类动态减免孵化所需里程（达标线 = 原始里程 × 当前随从倍率）
+      // 随从（龙/火）辅效果：蛋的里程需求降低
       const need = (s.hatchDuration || 0) * (window.__followerBoostMechanic?.('hatchDist', 1) ?? 1);
       // 检查里程达标（加 100px 容差）+ hatchStart 无效（NaN/负值）兜底
       if (isNaN(used) || used < 0 || (used + 100) >= need) {
@@ -775,9 +776,6 @@ async function init() {
 
   // 进化表：派遣掉落、商店货架、道具盒都要，开局先备好
   await ensureEvoMeta();
-
-  // 随从增益查询入口：供各机制（路段抽取等）读取当前随从的活跃增益
-  window.__followerActiveBoost = () => null;
 
   // 加载存档（localStorage 与 Tauri 文件取较新者）
   let gameDataRaw = null;

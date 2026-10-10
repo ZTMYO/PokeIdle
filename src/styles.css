@@ -370,7 +370,6 @@ html.mobile-app #quitHide { display: none !important; }
 }
 
 
-
 /* === 道具向主角移动 === */
 .item-fly {
   position: absolute;
@@ -3891,7 +3890,6 @@ html.mobile-app #quitHide { display: none !important; }
 .pokedex-acq-tag b { font-weight: 700; white-space: nowrap; }
 .pokedex-acq-text { min-width: 0; }
 .pokedex-acq-locked { opacity: 0.4; }
-
 
 /* ---- 图鉴拼音搜索 ---- */
 .pokedex-search {
@@ -10251,9 +10249,9 @@ body.booting { visibility: hidden; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 18px;
   width: 100%;
-  padding: 0 16px;
+  padding: 0 14px;
 }
 .follower-card-area {
   width: 80px;
@@ -10265,22 +10263,12 @@ body.booting { visibility: hidden; }
   border-radius: 8px;
   flex-shrink: 0;
 }
-/* 下方行：强度 + 时长同一行居中 */
-.follower-dur-boost {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  font-size: 10px;
-  opacity: 0.8;
-  margin-top: 6px;
-}
 .follower-big-img { max-width: 74px; max-height: 74px; image-rendering: pixelated; }
 .follower-info { flex: 1; min-width: 0; text-align: left; }
-.follower-info-name { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
-.follower-info-line { font-size: 10px; opacity: 0.85; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.follower-info-name { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.follower-info-line { font-size: 10px; opacity: 0.85; margin-top: 5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-/* 结果页信息逐条淡入（图片已就位，仅文字/按钮淡入） */
+/* 结果页信息逐条淡入（图片已就位） */
 .follower-fade {
   opacity: 0;
   animation: follower-fade-in 0.3s ease forwards;
@@ -10290,7 +10278,7 @@ body.booting { visibility: hidden; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* 锁定阶段：中央两侧滚动格分别向左/右移出屏幕（边界对齐游戏屏幕，移出即裁） */
+/* 锁定阶段：两侧滚动格向左右移出游戏屏幕边界，移出即裁 */
 .follower-lock-ghosts {
   position: absolute;
   pointer-events: none;
@@ -10358,7 +10346,7 @@ body.booting { visibility: hidden; }
 .follower-roll-item img { image-rendering: pixelated; }
 
 /* ── 5 连抽：顶部收集区（依次停放 5 只目标宝可梦） ── */
-/* 收集区：结果页正常流展示；滚动阶段用 overlay 绝对定位浮在滚动区上方（不挤压跑马灯） */
+/* 收集区：结果页走正常流，滚动阶段 overlay 浮在滚动区上方 */
 .follower-multi-collect {
   display: flex;
   justify-content: center;
@@ -10439,7 +10427,7 @@ body.booting { visibility: hidden; }
 .follower-actions button:disabled { opacity: 0.3; }
 .follower-actions .gacha-coin-icon { width: 13px; height: 13px; margin-left: 3px; transform: translateY(1px); }
 
-/* 跟随/放走双按钮：深色主按钮（让他跟随）与浅色次按钮（放走）区分（参考树果合成双按钮 dock） */
+/* 跟随/放走双按钮：主按钮深色、次按钮浅色 */
 .follower-actions .follower-follow-btn {
   background: var(--ui-color);
   color: var(--screen-bg-light);
@@ -10495,6 +10483,87 @@ body.booting { visibility: hidden; }
 
 /* === 仓库高级筛选 === */
 /* 批量放生全选按钮：固定在仓库视图右上角（进度条右侧） */
+/* 随从卡片：左＝图像列（大图 + 下方时间行），右＝名字/稀有度/属性徽章/增益 tag */
+.follower-card-col { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
+.follower-time-line { font-size: 9px; font-weight: 700; white-space: nowrap; opacity: 0.9; }
+.follower-effect-row { gap: 6px; margin-top: 6px; }
+/* 卡片里的属性徽章与增益 tag 同尺寸，观感统一 */
+.follower-info .type-badge { padding: 3px 7px; }
+.follower-effect-tag {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 3px 7px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.28);
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: default;
+  color: var(--ui-color);
+  background: rgba(var(--ui-color-rgb), 0.06);
+}
+.follower-effect-tag.main { background: rgba(var(--ui-color-rgb), 0.16); border-color: rgba(var(--ui-color-rgb), 0.5); }
+.follower-effect-tag.sub { opacity: 0.85; }
+
+/* ===== 随从图鉴页（列表：随从 / 属性 / 星级 / 次数）===== */
+.follower-dex-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 0 2px;
+  font-size: 9px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.2);
+}
+.follower-dex-header [data-fdx-sort] {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.follower-dex-header [data-fdx-sort].sort-asc::after,
+.follower-dex-header [data-fdx-sort].sort-desc::after {
+  font-size: 7px;
+  margin-left: 1px;
+  opacity: 0.8;
+  vertical-align: middle;
+}
+.follower-dex-header [data-fdx-sort].sort-asc::after { content: '▲'; }
+.follower-dex-header [data-fdx-sort].sort-desc::after { content: '▼'; }
+.follower-dex-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  cursor: default;
+}
+.follower-dex-row .fdx-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.follower-dex-row .fdx-name img { flex-shrink: 0; image-rendering: pixelated; }
+.follower-dex-row .fdx-type { width: 56px; flex-shrink: 0; display: flex; gap: 2px; overflow: hidden; }
+.follower-dex-row .fdx-type .type-badge { padding: 2px 5px; font-size: 8px; }
+.follower-dex-row .fdx-star { width: 26px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.follower-dex-row .fdx-count { width: 44px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; opacity: 0.85; }
+.follower-dex-header .fdx-name { flex: 1; min-width: 0; }
+.follower-dex-header .fdx-type { width: 56px; flex-shrink: 0; }
+.follower-dex-header .fdx-star { width: 26px; flex-shrink: 0; text-align: right; }
+.follower-dex-header .fdx-count { width: 44px; flex-shrink: 0; text-align: right; }
+
+/* 随从图鉴入口（随从页右上角）：视觉走 .incubator-log-btn */
+#followerDexBtn {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  z-index: 5;
+  margin-left: 0;
+}
+
 #rosterSelectAll {
   position: absolute;
   top: 1px;
@@ -10790,7 +10859,6 @@ body.booting { visibility: hidden; }
     opacity: 0.9;
   }
 }
-
 
 
 /* ==================== 手游模式（移动端竖屏布局） ====================

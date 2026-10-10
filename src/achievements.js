@@ -120,6 +120,11 @@ export const ACHIEVEMENTS = [
     fmt: v => `${Number(v)} 种`,
   },
   {
+    id: 'followerDex', name: '随从收藏家', desc: '随从图鉴中收集的不同种类',
+    metric: () => Object.keys(gameData?.followerDex || {}).length, base: 5, reward: 20,
+    fmt: v => `${Number(v)} 只`,
+  },
+  {
     id: 'shinyDex', name: '闪光收藏家', desc: '图鉴中累计拥有闪光的不同种类',
     metric: () => shinyDexCount(), base: 10, reward: 100, maxTiers: 8,
     // 满级阈值对齐全图鉴 1429 种，达成即图鉴全实心五角星

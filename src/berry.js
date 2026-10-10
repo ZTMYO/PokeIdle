@@ -827,7 +827,9 @@ function harvest(i) {
   const f = ensureBerryFarm();
   const p = f.plots[i];
   if (!p || stageOf(p).key !== 'ripe') return;
-  const qty = randInt(HARVEST_MIN, HARVEST_MAX);
+  // 随从（草/虫）主效果：收获有概率多结一颗
+  const extraChance = window.__followerBoostMechanic?.('extraBerry', 0) ?? 0;
+  const qty = randInt(HARVEST_MIN, HARVEST_MAX) + (Math.random() < extraChance ? 1 : 0);
   gameData.stats.totalHarvests = (gameData.stats.totalHarvests || 0) + 1;
   gameData.stats.totalBerriesHarvested = (gameData.stats.totalBerriesHarvested || 0) + qty;
   f.stock[p.type] = (f.stock[p.type] || 0) + qty;
@@ -1202,7 +1204,9 @@ function helperHarvest(i) {
   const f = ensureBerryFarm();
   const p = f.plots[i];
   if (!p || stageOf(p).key !== 'ripe') return;
-  const qty = randInt(HARVEST_MIN, HARVEST_MAX);
+  // 随从（草/虫）主效果：收获有概率多结一颗
+  const extraChance = window.__followerBoostMechanic?.('extraBerry', 0) ?? 0;
+  const qty = randInt(HARVEST_MIN, HARVEST_MAX) + (Math.random() < extraChance ? 1 : 0);
   gameData.stats.totalHarvests = (gameData.stats.totalHarvests || 0) + 1;
   gameData.stats.totalBerriesHarvested = (gameData.stats.totalBerriesHarvested || 0) + qty;
   f.stock[p.type] = (f.stock[p.type] || 0) + qty;
