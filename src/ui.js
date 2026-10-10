@@ -328,7 +328,7 @@ export function showConfirmBar(text, onYes, onNo, opts = {}) {
     overlay.addEventListener('click', (e) => {
       e.stopPropagation();
       if (onNo) onNo();
-      hideConfirmBar();
+      hideConfirmBarUnlessReplaced(bar);
     });
   }
   bar.style.display = 'flex';
@@ -345,17 +345,22 @@ export function showConfirmBar(text, onYes, onNo, opts = {}) {
       // 确认按钮不冒泡：避免误触 document 级"点击面板外部关闭"等监听（如确认后刚打开的面板被瞬间关闭）
       e.stopPropagation();
       const keep = onYes ? onYes() : undefined;
-      if (!keep) hideConfirmBar();
+      if (!keep) hideConfirmBarUnlessReplaced(bar);
     });
     // singleButton 模式无「取消」按钮，需判空再绑定
     const noBtn = bar.querySelector('[data-cb-no]');
     if (noBtn) noBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (onNo) onNo();
-      hideConfirmBar();
+      hideConfirmBarUnlessReplaced(bar);
     });
   }
   return bar;
+}
+
+// 收框：只有当前显示的就是自己时才收（回调里可能又弹了新的确认框，别把新框删掉）
+function hideConfirmBarUnlessReplaced(bar) {
+  if (document.getElementById('confirmBar') === bar) hideConfirmBar();
 }
 
 export function hideConfirmBar() {
@@ -375,6 +380,12 @@ export function isIdleStageVisible() {
 // 页面是否真的不可见（切标签/最小化）：用于"不播动画直接入账"这类真后台逻辑
 export function isPageHidden() {
   return typeof document !== 'undefined' && document.hidden;
+}
+
+// 进化演出是否正在播（按视图判断）：演出不接管游戏阶段，挂机世界照常跑，
+// 只有"别在演出上再叠一层动画/演出"的地方需要它
+export function isEvolutionShowActive() {
+  return $('evoView')?.style.display === 'flex';
 }
 
 export function isOnGameView() {

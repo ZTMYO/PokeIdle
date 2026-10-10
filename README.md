@@ -61,8 +61,9 @@
 <td align="center"><img src="web/public/images/21点.png" width="180"></td>
 <td align="center"><img src="web/public/images/抽卡.png" width="180"></td>
 <td align="center"><img src="web/public/images/麻将.png" width="180"></td>
-<td align="center"><img src="web/public/images/配招.png" width="180"></td>
 <td align="center"><img src="web/public/images/随从.png" width="180"></td>
+<td align="center"><img src="web/public/images/派遣.png" width="180"></td>
+
 </tr>
 </table>
 

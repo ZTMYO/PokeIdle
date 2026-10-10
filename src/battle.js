@@ -1,6 +1,6 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, setEncounterSource, setEncounterVariant } from './state.js';
-import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, isIdleStageVisible, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
+import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, isIdleStageVisible, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
@@ -940,7 +940,7 @@ export async function throwBall(ballType) {
         await delay(300);
         stopVictory(); // 与自动捕捉流程一致，关闭胜利音效并恢复背景曲（离开游戏页时确认框不可见，无人点按钮触发）
         // 孵蛋动画进行中：判定已落库，只清理现场不切视图，等孵蛋结束后统一回空闲
-        if (_eggHatching || phase === 'eggResult' || phase === 'evo') { cleanupEncounterState(); return; }
+        if (_eggHatching || phase === 'eggResult' || isEvolutionShowActive()) { cleanupEncounterState(); return; }
         goIdle();
       }
       return;
@@ -963,7 +963,7 @@ export async function throwBall(ballType) {
       if (isOnGameView()) await playFleeAnim();
       await delay(300);
       // 孵蛋动画进行中：判定已落库，只清理现场不切视图，等孵蛋结束后统一回空闲
-      if (_eggHatching || phase === 'eggResult' || phase === 'evo') { cleanupEncounterState(); return; }
+      if (_eggHatching || phase === 'eggResult' || isEvolutionShowActive()) { cleanupEncounterState(); return; }
       goIdle();
       return;
     }
@@ -1022,7 +1022,7 @@ export async function fleeEncounter(isAutoFlee) {
   if (_bgCatchup) { goIdle(); return; } // 后台补算：跳过延迟直接收尾
   setTimeout(() => {
     // 孵蛋动画进行中：判定已落库，只清理现场不切视图，等孵蛋结束后统一回空闲
-    if (_eggHatching || phase === 'eggResult' || phase === 'evo') { cleanupEncounterState(); return; }
+    if (_eggHatching || phase === 'eggResult' || isEvolutionShowActive()) { cleanupEncounterState(); return; }
     goIdle();
   }, isAutoFlee ? 300 : 1200);
 }
@@ -1313,7 +1313,7 @@ export async function autoCatch() {
   const fr = catchFilterResult();
   if (fr === 'flee') { stopAutoFleeTimer(); await fleeEncounter(true); return; }
   if (fr === 'stop') return;
-  if (phase === 'eggResult' || phase === 'evo' || _eggHatching) return; // 孵蛋/进化演出进行中不自动捕捉
+  if (phase === 'eggResult' || isEvolutionShowActive() || _eggHatching) return; // 孵蛋结果 / 进化演出进行中不自动捕捉
   if (phase === 'caught' || phase === 'fled') return; // 判定已落库（捕获/逃跑）的遭遇不再重复捕捉
   const bg = phase !== 'encounter'; // 遭遇被 NPC 对战等打断时进入后台结算模式
   if (bg) _bgCatch = true;

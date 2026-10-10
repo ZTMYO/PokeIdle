@@ -114,9 +114,17 @@ export function ensureNursery() {
 // 返回 { ok, reason, mode?, childSpecies?, shared? }
 // 类型1 常规：性别一雄一雌 + 至少共用 1 个蛋组 + 都不属未发现群
 // 类型2 百变怪：一方百变怪 + 另一方不属未发现群（无视性别）
-// 有没有蛋组、有没有共同蛋组决定能不能配，不看物种；后代按族根，只有玛纳霏那张表例外
+// 有没有蛋组、有没有共同蛋组决定能不能配，不看物种；后代按族根，另外两张表例外
+// 尼多兰 / 尼多朗是两个独立编号（0029 / 0032）的对称线（原版五世代起子代各一半），
+// 这里只定族根、不掷随机——配对预览要靠它比对熏香前后是否同种，掷了会误判；随机在产蛋时做
+const NIDO_PAIR = { '0029': '0032', '0032': '0029' };
 function breedChild(species, useIncense) {
   return BREED_CHILD[String(species)] || familyRoot(species, useIncense);
+}
+// 预览用后代名字：尼多兰/尼多朗这种二选一的，两条都写出来
+function childNameOf(idx) {
+  const one = (k) => { const p = getPokemonByIndex(String(k)); return p ? p.name : `#${k}`; };
+  return NIDO_PAIR[String(idx)] ? `${one(idx)} / ${one(NIDO_PAIR[String(idx)])}` : one(idx);
 }
 export function checkPairing(entryA, entryB, useIncense = false) {
   const aDitto = String(entryA.species) === DITTO;
@@ -1084,8 +1092,7 @@ function pairStatusHtml(n) {
   const r = (n.useIncense && canIncense) ? rInc : rBase;
   // 防御分支：放入列表已过滤，正常不会走到这里
   if (!r.ok) return `<div class="nursery-pair-status idle">${r.reason}</div>`;
-  const child = getPokemonByIndex(String(r.childSpecies));
-  const childName = child ? child.name : `#${r.childSpecies}`;
+  const childName = childNameOf(r.childSpecies);
   const locked = n.lockedIv || null;
   const preview = previewChildIvs(ea, eb, locked);
   // 繁殖开始后（繁殖中）锁定区隐藏：锁定项已随本轮繁殖固定，不能再改；
@@ -1262,8 +1269,6 @@ function berryDemand(ea, eb) {
 // 一批完成后直接恢复默认界面，可立即开始下一批（蛋已自动入库，无需手动收取）
 function breedAreaHtml(n, ea, eb, r) {
   const st = breedingState(n);
-  const child = getPokemonByIndex(String(r.childSpecies));
-  const childName = child ? child.name : `#${r.childSpecies}`;
   if (st.key === 'running') {
     const pct = Math.max(0, Math.min(100, (1 - st.remain / st.total) * 100));
     const sec = Math.ceil(st.remain / 1000);
@@ -1415,6 +1420,8 @@ export function markNurseryBreedVisited() {
 // 生成蛋条目：个体值 6 项中 5 项继承双亲、1 项随机。锁定位固定继承所选亲本（source）的
 // 数值（占 1 个继承名额），其余随机遗传位 50% 取父/母；性别/性格/闪光出生即定，孵化后完全沿用
 function createEggEntry(ea, eb, childSpecies, lockedIv) {
+  // 尼多兰/尼多朗二选一：母方尼多兰、或尼多朗一家配百变怪都按这条掷
+  if (NIDO_PAIR[String(childSpecies)] && Math.random() < 0.5) childSpecies = NIDO_PAIR[String(childSpecies)];
   childSpecies = rollSexForm(childSpecies); // 雌雄异形：后代性别单独 roll，出了哪种就落哪条形态
   const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
   const inherits = new Set();

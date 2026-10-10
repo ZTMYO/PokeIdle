@@ -1,9 +1,10 @@
 // ===== 进化演出 =====
 // 约 6.5~7.4 秒，点画面跳过：登场 → 道具注入 → 能量汇聚转白剪影 → 剪影交替 6 拍 → 收束 → 新形态浮现。
 // 全部按 render(t) 纯函数渲染，暂停 / 跳过 / 重播只是换一个 t。
-import { getPokemonByIndex, setPhase } from './state.js';
+import { getPokemonByIndex, phase } from './state.js';
 import { TYPE_COLORS, itemIconSrc } from './items.js';
-import { $, showView, tryLoadPokemonImage } from './ui.js';
+import { $, showView, tryLoadPokemonImage, setIdleCharacter } from './ui.js';
+import * as road from './road.js';
 import { playCongratulation } from './audio.js';
 
 /* ---------- 节奏参数 ---------- */
@@ -310,12 +311,19 @@ function render(t) {
   const primF = fresh(primT);
   const c1 = fresh(rgbMix(rgbMix(typeColor(st.from.types, 0), typeColor(st.to.types, 0), shift), primT, focus));
   const c2 = fresh(rgbMix(rgbMix(typeColor(st.from.types, 1), typeColor(st.to.types, 1), shift), primT, focus));
-  l.view.style.setProperty('--c1', c1);
-  l.view.style.setProperty('--c2', c2);
-  l.view.style.setProperty('--star', primF);
-  // 暗角 ＝ 当前底色的更深版，保住白剪影的对比
-  l.view.style.setProperty('--vig-c', shade(bgColor(primT), 0.78));
-  // 屏幕底色：绿 → 属性色的深底，② 结束时换完；双属性跟着上面那个来回一起渐变
+  // 这几个颜色变量喂着 glowL / glowR / halo / floor / vig / 星盘 那一堆"渐变 + blur + 混合 + 蒙版"的图层，
+  // 它们每被改写一次就要重新栅格化一次：逐帧写 → 移动端白剪影边缘炸方块；按 ~150ms 节流写 → 颜色一跳一跳。
+  // 所以只在两个节点各写一次：登场（旧形态色）与收束（新形态色，正好被收白闪盖住）。
+  const themePhase = t >= st.T.burst[0] ? 1 : 0;
+  if (themePhase !== st.colorPhase) {
+    st.colorPhase = themePhase;
+    l.view.style.setProperty('--c1', c1);
+    l.view.style.setProperty('--c2', c2);
+    l.view.style.setProperty('--star', primF);
+    // 暗角 ＝ 当前底色的更深版，保住白剪影的对比
+    l.view.style.setProperty('--vig-c', shade(bgColor(primT), 0.78));
+  }
+  // 逐帧呼吸的只有屏幕底色：纯色填充很便宜，双属性的来回渐变主要靠它体现
   l.view.style.backgroundColor = rgbMix(st.baseBg, bgColor(primT), darkAt(t));
 
   // 八角星：三层错开、一圈圈往外走 + 缓慢自转
@@ -338,7 +346,7 @@ function render(t) {
   l.floor.style.opacity = 0.45 * g;
   l.flash.style.opacity = flashAt(t);
 
-  // ③ 最后一拍停在初始形态剪影上；⑤ 一进来就换成新形态，切换那一瞬还是全透明
+  // ⑥ 最后一拍停在初始形态剪影上；⑦ 一进来就换成新形态，切换那一瞬还是全透明
   const face = t >= st.T.finish[0] ? 1 : beatFace(t);
   const want = (face ? st.to : st.from).src;
   if (l.mon.dataset.src !== want) {
@@ -461,7 +469,11 @@ function confirmDone() {
   if (l.done) { l.done.classList.remove('show'); l.done.style.transform = 'translateY(100%)'; l.done.style.display = 'none'; }
   const cb = st && st.onFinish;
   st = null;
-  setPhase('idle');
+  // 兜底：演出期间若有拾取/钓鱼收尾被打断（角色卡在动作姿势 / 道路停在暂停态），确认离场时补回一次
+  if (phase === 'idle') {
+    setIdleCharacter('walk');
+    road.resume();
+  }
   showView('rosterView');   // 演出的落点固定是仓库页，详情页内容由调用方重渲染
   if (cb) cb();
 }
@@ -512,7 +524,8 @@ export async function playEvolution({ from, to, items = [], shiny = false, varia
   render(0);
   showView('evoView');
   layout();                                  // 视图显示后再量一次，拿到自己那块屏的真实尺寸
-  setPhase('evo');
+  // 演出不占游戏阶段：它是下屏的一块视图，挂机世界（走路 / 掉落 / 事件）照常跑。
+  // 需要"别在演出上再叠动画"的地方（孵蛋、自动捕捉、遭遇结算）改看 isEvolutionShowActive()。
   render(0);
   last = 0;
   cancelAnimationFrame(raf);
