@@ -121,7 +121,9 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'followerDex', name: '随从收藏家', desc: '随从图鉴中收集的不同种类',
-    metric: () => Object.keys(gameData?.followerDex || {}).length, base: 5, reward: 20,
+    metric: () => Object.keys(gameData?.followerDex || {}).length, base: 5, reward: 20, maxTiers: 8,
+    // 满级阈值对齐随从卡池 649 种（编号 ≤ 649）；卡池若放开到全图鉴，改末级数字并同步 maxTiers
+    tiers: [5, 10, 20, 50, 100, 200, 500, 649],
     fmt: v => `${Number(v)} 只`,
   },
   {

@@ -810,7 +810,7 @@ function render() {
           : roamHint ? `<span class="gps-roam-paused">${roamHint}</span>` : ''}
       </div>
       ${buildMiniMap(g)}
-      <div class="bottom-dock">
+      <div class="bottom-dock" id="gpsDock">
         ${(hasDest || pendingBike) ? `
         <span class="gps-bottom-cancel" id="gpsCancelBtn">
           <svg viewBox="0 0 12 12" width="13" height="13"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
@@ -921,11 +921,11 @@ export function showGpsView() {
     }
     const cancel = e.target.closest('#gpsCancelBtn');
     if (cancel) { cancelNavigation(); return; }
-    // 点击底部"点击地图选择目的地"（无导航目标时）→ 弹出目的地选择对话框
-    const pick = e.target.closest('#gpsPickDest');
+    // 点底部整条底栏（文字与留白都算）→ 弹出目的地选择对话框，导航途中也能改选目的地
+    // （骑行中地图与目的地都锁着，改选要先下车，所以这里也不弹）
+    const pick = e.target.closest('#gpsPickDest, #gpsDock');
     if (pick) {
-      const g = gameData.gps;
-      if (g.destIdx == null && g.massTarget == null) openDestDialog();
+      if (!road.isManualBike()) openDestDialog();
       return;
     }
     // 点击大量出没事件点标记 → 规划前往事件点（骑行中锁定；待选中 = 选它作为骑行目的地）

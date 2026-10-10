@@ -38,6 +38,13 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    // 产物名与 PC 版同款：口袋挂机_1.1.3.apk（debug 变体加 -debug 后缀），不再叫 app-release.apk
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def suffix = variant.name == 'release' ? '' : '-' + variant.name
+            output.outputFileName = "口袋挂机_${android.defaultConfig.versionName}${suffix}.apk"
+        }
+    }
 }
 
 repositories {

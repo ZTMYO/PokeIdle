@@ -17,6 +17,11 @@ let _pokedexLegend = 'all'; // 二级：all=不限 | normal(普通) | legend(神
 let _pokedexShiny = 'all';  // 二级：all=不限 | normal(非闪光) | shiny(闪光)
 let _pokedexType = '';     // 属性筛选（''=全部）
 
+// 「图鉴认不认这一条」：遇到过，或已经获得过——孵蛋 / 交换 / 彩蛋 / 进化得到的常常没在野外遇见过
+function dexKnown(idx, seen) {
+  return (seen || 0) > 0 || dexUnlocked(idx);
+}
+
 // 性别比例文案（genderRate: -1 无性别；0-8 雌性概率/8）
 function genderRatioText(poke) {
   const rate = poke?.genderRate;
@@ -137,7 +142,7 @@ let _curDetailIdx = null;
 // 获取途径块：锁着 → 灰显占位；表没到 → 加载中；到了 → 一行小标签
 function acqBlockHtml(entries, locked) {
   const head = '<div class="pokedex-acq-title">获取途径</div>';
-  if (locked) return head + '<div class="pokedex-acq-locked">？？？（捕获后解锁）</div>';
+  if (locked) return head + '<div class="pokedex-acq-locked">？？？（获得后解锁）</div>';
   if (entries == null) return head + '<div class="pokedex-acq-locked">加载中…</div>';
   if (!entries.length) return head + '<div class="pokedex-acq-locked">暂无已知途径</div>';
   return head + '<div class="pokedex-acq-list">' + entries.map((e) =>
@@ -214,8 +219,9 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
   const poke = getPokemonByIndex(pokemonIndex);
   const caughtEntry = gameData.pokedex[idx];
   const seenCount = caughtEntry?.seen || 0;
-  // 详情页标题显示全名（变体用 form，如"风速狗-洗翠"）；未遇到显示？？？
-  const displayName = seenCount > 0 ? (poke?.form || poke?.name || `#${pokemonIndex}`) : '？？？';
+  const known = dexKnown(idx, seenCount);
+  // 详情页标题显示全名（变体用 form，如"风速狗-洗翠"）；没见过也没获得过才显示？？？
+  const displayName = known ? (poke?.form || poke?.name || `#${pokemonIndex}`) : '？？？';
   const list = $('pokedexList');
   if (!list) return;
 
@@ -240,8 +246,8 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
     <div style="font-size:14px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</div>
     <button class="incubator-log-btn" id="pokedexLogsBtn">相遇日志</button>
   </div>`;
-  // 未遇到：不展示素材
-  if (seenCount > 0) {
+  // 没见过也没获得过：不展示素材
+  if (known) {
     html += `<div class="pokedex-detail-head" style="display:flex;gap:8px;padding:2px 3px;align-items:center;">
       <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
         <div class="poke-img-grid" title="点击放大">
@@ -303,7 +309,7 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
     // 描述文本
     if (poke && poke.description) {
       html += locked
-        ? `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;opacity:.4;">？？？（捕获后解锁）</div>`
+        ? `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;opacity:.4;">？？？（获得后解锁）</div>`
         : `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;">${poke.description}</div>`;
     }
     // 喜欢的食物
@@ -462,8 +468,10 @@ export function setupPokedexSearch() {
     if (!q) { dropdown.style.display = 'none'; return; }
 
     const upper = q.toUpperCase();
+    const seenOf = p => gameData.pokedex?.[p.index]?.seen || 0;
+    // 只搜「遇见过或获得过」的条目：没解锁的一律不进下拉，编号也不行
     const matched = allPokemon.filter(p =>
-      (gameData.pokedex?.[p.index]?.seen || 0) > 0 && (
+      dexKnown(p.index, seenOf(p)) && (
         p.index.includes(q) ||
         p.name.includes(q) ||
         (p.form || '').includes(q) ||
@@ -774,10 +782,12 @@ export function showPokedex() {
     const shinyCaught = entry?.shinyCaught || 0;
     // 星标按「持有过」给：进化得到的形态也算拥有
     const shinyTag = dexUnlocked(p.index) ? (dexShinyOwned(p.index) ? STAR_FILLED : STAR_OUTLINE) : '';
-    html += `<div class="pokedex-entry${seen > 0 ? '' : ' disabled'}" data-index="${p.index}" data-seen="${seen > 0 ? '1' : '0'}">
+    // 获得过（哪怕没在野外遇见过）就显示真名——与详情页同一口径
+    const known = dexKnown(p.index, seen);
+    html += `<div class="pokedex-entry${known ? '' : ' disabled'}" data-index="${p.index}" data-seen="${known ? '1' : '0'}">
       <span class="pokedex-star">${shinyTag}</span>
       <span class="pokedex-idx">#${p.index}</span>
-      <span class="pokedex-name">${seen > 0 ? p.name : '？？？'}</span>
+      <span class="pokedex-name">${known ? (p.form || p.name) : '？？？'}</span>
       <span class="pokedex-stat">${seen}</span>
       <span class="pokedex-stat">${caught}</span>
       <span class="pokedex-stat">${shinySeen}</span>

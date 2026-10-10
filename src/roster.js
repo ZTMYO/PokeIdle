@@ -2,7 +2,7 @@
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, updateStats, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea } from './ui.js';
-import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase, dexUnlocked } from './state.js';
 import { TYPE_COLORS, typeIconColor, pokemonSourceBadge, itemIconSrc, MINT_KEYS } from './items.js';
 import { evolutionRows, applyEvolution, condItems, moveCondText, evoPreEvos, evolutionData, loadEvolution } from './evolution.js';
 import { playEvolution } from './evo-view.js';
@@ -1153,12 +1153,12 @@ function evoBlockHtml(p, rows) {
   const title = `<div class="roster-detail-title">进化</div>`;
   if (!rows.length) return `${title}<div class="evo-empty">该宝可梦没有进化形态</div>`;
   const rowsHtml = rows.map((r, i) => {
-    // 一行一个目标；没遇到过的用问号图占位
+    // 一行一个目标；没见过也没获得过的用问号图占位（进化得到的也算获得过）
     const tid = String(r.targets[0]);
     const tp = getPokemonByIndex(tid);
-    const seen = (gameData.pokedex?.[tid]?.seen || 0) > 0;
-    const name = seen && tp ? (tp.form || tp.name) : '？？？';
-    const iconId = seen ? tid : null;
+    const known = (gameData.pokedex?.[tid]?.seen || 0) > 0 || dexUnlocked(tid);
+    const name = known && tp ? (tp.form || tp.name) : '？？？';
+    const iconId = known ? tid : null;
     const conds = [];
     if (r.cond.lv) conds.push({ text: `Lv${r.cond.lv}`, ok: !r.unmet.lv });
     for (const it of condItems(r.cond)) conds.push({ text: it, ok: !r.unmet.items.has(it) });
@@ -1260,7 +1260,7 @@ function startEvolution(id, row) {
   const who = p.nickname || (from ? (from.form || from.name) : '这只宝可梦');
   const costText = costs.length ? `消耗 ${costs.join(' + ')}，` : '';
   // 目标没解锁就不点破名字，详情页里显示 ？？？
-  const seenTarget = (gameData.pokedex?.[to]?.seen || 0) > 0;
+  const seenTarget = (gameData.pokedex?.[to]?.seen || 0) > 0 || dexUnlocked(to);
   const ask = seenTarget
     ? `${costText}${who}进化为${target ? (target.form || target.name) : '新的形态'}？`
     : `${costText}确定进化${who}？`;

@@ -133,18 +133,19 @@ npm run dev
 ### 构建
 
 ```bash
-npm run build
+npm run build        # 一次出 PC + 安卓两个包
+npm run build:pc     # 只出 PC（Tauri · NSIS 安装包）
 ```
 
-构建产物输出到 `src-tauri/target/release/bundle/nsis/`，生成 NSIS 安装包。
+`npm run build` 依次构建 Windows 安装包与安卓签名 APK，两个产物统一收集到 `dist/`：`口袋挂机_<version>_x64-setup.exe`、`口袋挂机_<version>.apk`——dist/ 里只有这两个包，SHA-256 打在执行输出里（拷贝后逐字节校验，对不上直接报错）。只想出一端：`npm run build -- --skip-pc` / `-- --skip-android`。只出 PC 时中间产物仍在 `src-tauri/target/release/bundle/nsis/`。
 
 ### Android 版
 
 用 Capacitor 把同一份 `src/` 打包成离线 APK，命令与签名步骤见 [`docs/android-build.md`](docs/android-build.md)：
 
 ```bash
+npm run android:build     # release APK（带签名）
 npm run android:debug     # debug APK，无需签名
-npm run android:build     # release APK，需要先初始化签名
 ```
 
 ### 官网
