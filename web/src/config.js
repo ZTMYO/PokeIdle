@@ -149,6 +149,20 @@ export const HATCH_DIST_MIN = 2000;   // 最短（2 公里）
 export const HATCH_DIST_MAX = 30000;  // 最长（30 公里）
 export const HATCH_DIST_SIGMA = 0.2;  // 分布宽度系数（标准差 = 峰值 × 系数）
 
+export const EGG_TYPE_SLUG = {
+  '一般': 'normal', '火': 'fire', '水': 'water', '草': 'grass', '电': 'electric', '冰': 'ice',
+  '格斗': 'fighting', '毒': 'poison', '地面': 'ground', '飞行': 'flying', '超能': 'psychic',
+  '虫': 'bug', '岩石': 'rock', '幽灵': 'ghost', '龙': 'dragon', '恶': 'dark', '钢': 'steel', '妖精': 'fairy',
+};
+export function eggSprite(type) {
+  const slug = EGG_TYPE_SLUG[type];
+  return slug ? `./items/eggs/egg-${slug}.png` : './items/goods/mystery-egg.png';
+}
+export function hatchSprite(type) {
+  const slug = EGG_TYPE_SLUG[type];
+  return slug ? `./items/eggs/hatch-${slug}.png` : './items/eggs/hatch-mystery.png';
+}
+
 // 地区列表
 export const REGION_CYCLE = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
 

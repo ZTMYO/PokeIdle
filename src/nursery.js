@@ -7,7 +7,7 @@ import { matchPinyinPartial } from './pokedex.js';
 import { BERRY_ICONS, BERRY_NAMES, TYPE_COLORS, pokemonSourceBadge } from './items.js';
 import { ensureBerryFarm } from './berry.js';
 import { removePokemonFromAllTeams } from './team.js';
-import { REGION_CYCLE } from './config.js';
+import { REGION_CYCLE, eggSprite } from './config.js';
 import { familyRoot } from './evolution.js';
 
 const BERRY_DIR = './items/berries/';
@@ -1762,7 +1762,7 @@ export function renderEggView() {
             const name = poke ? poke.name : `#${eg.species}`;
             return `
               <div class="pokedex-entry roster-row nursery-egg-row" data-egg-id="${eg.id}">
-                <span class="pokedex-name"><img class="roster-icon-img" src="./items/goods/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                <span class="pokedex-name"><img class="roster-icon-img" src="${eggSprite(poke?.types?.[0])}" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
                 <span class="roster-iv">${eggIvSlash(eg)}</span>
                 ${eggDiscardCell(eg)}
               </div>`;
@@ -1808,7 +1808,7 @@ export function renderEggView() {
               const name = poke ? poke.name : `#${eg.species}`;
               return `
                 <div class="pokedex-entry roster-row nursery-egg-row" data-egg-id="${eg.id}">
-                  <span class="pokedex-name"><img class="roster-icon-img" src="./items/goods/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                  <span class="pokedex-name"><img class="roster-icon-img" src="${eggSprite(poke?.types?.[0])}" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
                   <span class="roster-iv">${eggIvSlash(eg)}</span>
                   ${eggDiscardCell(eg)}
                 </div>`;

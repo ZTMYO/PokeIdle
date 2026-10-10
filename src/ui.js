@@ -1,7 +1,7 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, gameData, saveGame, _fishing, _eggHatching, _navStack } from './state.js';
 import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getTwist, getRoadNumForEdge, getPokemonByIndex, isPokemon, genderBadge } from './state.js';
-import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER } from './config.js';
+import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER, eggSprite } from './config.js';
 import { formatLogTime } from './pokedex.js';
 import * as road from './road.js';
 
@@ -884,6 +884,13 @@ function slotEggName(s) {
   return '神秘蛋';
 }
 
+// 槽位里的蛋图：培育蛋按蛋里那只的属性取彩色版，神秘蛋（物种没揭晓）用基础蛋图
+function slotEggSrc(s) {
+  const eggEntry = s && s.eggRef ? (gameData.roster || []).find(r => r.id === s.eggRef) : null;
+  const poke = eggEntry ? getPokemonByIndex(String(eggEntry.species)) : null;
+  return eggSprite(poke?.types?.[0]);
+}
+
 // 六维个体值斜杠串：31/31/31/31/31/31（HP/攻击/防御/特攻/特防/速度，与繁殖页面一致；
 // 蛋条目在生成时已 roll 好个体值，是孵蛋前唯一已知的信息）
 function eggIvSlash(p) {
@@ -950,7 +957,7 @@ function renderEggPickList() {
             const name = poke ? poke.name : `#${eg.species}`;
             return `
               <div class="pokedex-entry roster-row nursery-egg-row" data-egg-pick="${eg.id}">
-                <span class="pokedex-name"><img class="roster-icon-img" src="./items/goods/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                <span class="pokedex-name"><img class="roster-icon-img" src="${eggSprite(poke?.types?.[0])}" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
                 <span class="roster-iv">${eggIvSlash(eg)}</span>
               </div>`;
           }).join('');
@@ -995,7 +1002,7 @@ function renderEggPickList() {
               const name = poke ? poke.name : `#${eg.species}`;
               return `
                 <div class="pokedex-entry roster-row nursery-egg-row" data-egg-pick="${eg.id}">
-                  <span class="pokedex-name"><img class="roster-icon-img" src="./items/goods/mystery-egg.png" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
+                  <span class="pokedex-name"><img class="roster-icon-img" src="${eggSprite(poke?.types?.[0])}" alt="蛋" style="width:18px;height:18px;" />${name}的蛋${eg.shiny ? ' ★' : ''}</span>
                   <span class="roster-iv">${eggIvSlash(eg)}</span>
                 </div>`;
             }).join('')}
@@ -1148,7 +1155,7 @@ export function renderIncubatorView() {
     const rowCls = 'incubator-row' + (s?.ignored ? ' ignored' : '');
     if (s && s.hatched) {
       html += `<div class="${rowCls}">
-        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" class="shake" /></div>
+        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="${slotEggSrc(s)}" alt="蛋" class="shake" /></div>
         <div class="incubator-info">
           <div class="incubator-name" data-tip="${eggName}">${eggName}</div>
           <div class="incubator-actions">${hatchBtnHtml(i, hatchLocked)}</div>
@@ -1167,7 +1174,7 @@ export function renderIncubatorView() {
       }
       if (s.hatched) {
         html += `<div class="${rowCls}">
-          <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" class="shake" /></div>
+          <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="${slotEggSrc(s)}" alt="蛋" class="shake" /></div>
           <div class="incubator-info">
             <div class="incubator-name" data-tip="${eggName}">${eggName}</div>
             <div class="incubator-actions">${hatchBtnHtml(i, hatchLocked)}</div>
@@ -1182,7 +1189,7 @@ export function renderIncubatorView() {
       const remain = Math.max(0, Math.ceil((need - used) / PX_PER_METER));
       const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
       html += `<div class="incubator-row">
-        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="./items/goods/mystery-egg.png" alt="蛋" /></div>
+        <div class="incubator-egg-slot has-egg" data-tip="${eggName}"><img src="${slotEggSrc(s)}" alt="蛋" /></div>
         <div class="incubator-info">
           <div class="incubator-name" data-tip="${eggName}">${eggName}</div>
           <div class="incubator-progress-wrap" data-slot="${i}">

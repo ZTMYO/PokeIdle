@@ -1,5 +1,5 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, ITEM_DESC, CANDY_EXCHANGE, ITEM_SELL_RATE, ITEM_SELL_OVERRIDE, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER, EVO_PRICES, EVO_EXCLUSIVE_PRICE, EVO_SHOP_DAILY, EVO_SHOP_WEIGHTS, EVO_SHOP_EXCLUSIVE_SLOTS, EVO_SHOP_EXCLUSIVE_WEIGHT, EVO_SHOP_MINT_WEIGHT, MINT_NATURES, MINT_PRICE, BREED_ONLY_IDS, LEGEND_POOL_DIVISOR, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY } from './config.js';
+import { ITEM_NAMES, ITEM_DESC, CANDY_EXCHANGE, ITEM_SELL_RATE, ITEM_SELL_OVERRIDE, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER, EVO_PRICES, EVO_EXCLUSIVE_PRICE, EVO_SHOP_DAILY, EVO_SHOP_WEIGHTS, EVO_SHOP_EXCLUSIVE_SLOTS, EVO_SHOP_EXCLUSIVE_WEIGHT, EVO_SHOP_MINT_WEIGHT, MINT_NATURES, MINT_PRICE, BREED_ONLY_IDS, LEGEND_POOL_DIVISOR, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, eggSprite, hatchSprite } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmGuaranteed, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge, dexUnlocked, dexShinyOwned } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, isIdleStageVisible, isPageHidden, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
@@ -735,6 +735,19 @@ export function spawnItemDrop(itemKey, opts = {}) {
   return true;
 }
 
+// 蛋壳精灵：属性版加载失败（图缺失）时回退到基础版 hatch.png
+async function resolveHatchSprite(src) {
+  const base = './items/eggs/hatch.png';
+  if (src === base) return src;
+  const ok = await new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res(true);
+    im.onerror = () => res(false);
+    im.src = src;
+  });
+  return ok ? src : base;
+}
+
 // ---------- 放入孵蛋器 ----------
 export function placeEggInIncubator(slotIndex) {
   if (_eggHatching) return;
@@ -925,8 +938,10 @@ export async function hatchFromIncubator(slotIndex) {
   const oldImg = $('hatchGif');
   const parent = oldImg.parentNode;
 
+  // 蛋壳精灵：培育蛋用属性配色版，神秘蛋用基础版；属性图缺失时回退基础版
+  const hatchSrc = await resolveHatchSprite(hatchSprite(slot.eggRef ? poke.types?.[0] : null));
   const tmp = new Image();
-  tmp.src = './items/goods/hatch.png';
+  tmp.src = hatchSrc;
   await new Promise(r => { tmp.onload = r; tmp.onerror = r; });
   const frameW = tmp.naturalWidth;
   const frameH = tmp.naturalHeight / 4;
@@ -938,7 +953,7 @@ export async function hatchFromIncubator(slotIndex) {
   sprite.id = 'hatchGif';
   sprite.className = 'encounter-gif';
   sprite.style.cssText = `
-    background-image: url(./items/goods/hatch.png);
+    background-image: url(${hatchSrc});
     background-size: ${displayW}px ${displayH * 4}px;
     background-position: 0 0;
     background-repeat: no-repeat;
@@ -1190,7 +1205,8 @@ export async function hatchAllFromIncubator() {
   for (let k = 0; k < cells.length; k++) {
     const { slot, poke, eggShiny, stage, nameEl } = cells[k];
     const cellGender = hatchCellGender(incubators[slot], poke); // 预判性别：动画与建档共用，保证显示一致
-    await playHatchAllCell(stage, poke, eggShiny, nameEl, cellGender);
+    const cellHatchSrc = await resolveHatchSprite(hatchSprite(incubators[slot].eggRef ? poke.types?.[0] : null));
+    await playHatchAllCell(stage, poke, eggShiny, nameEl, cellGender, cellHatchSrc);
     applyHatchEntry(slot, cellGender); // 名字/闪光星标/性别/粒子已随图片在 playHatchAllCell 内同步出现
     await saveGame(); // 每只完成后落盘，中途崩溃也不丢已孵化结果
     if (k < cells.length - 1) await hatchDelay(180);
@@ -1228,11 +1244,11 @@ function hatchCellGender(slot, poke) {
 // 单个蛋的完整孵出流程：直接从蛋裂一帧开始快速播放破壳动画 → 宝可梦大图从蛋中心缩放出现
 // nameEl 传入后与图片同步显示名字（名字后跟性别图标，闪光时性别左侧追加雪碧图星标）
 // 已点画面跳过：不建蛋壳、不走缩放，直接把大图 + 名字摆出来
-async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender) {
+async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender, hatchSrc) {
   if (!_hatchAllSkip) {
-    // 蛋精灵：与单只孵蛋动画同源（hatch.png 竖排 4 帧）
+    // 蛋精灵：培育蛋用属性配色版，神秘蛋用基础版（hatch.png 竖排 4 帧）
     const tmp = new Image();
-    tmp.src = './items/goods/hatch.png';
+    tmp.src = hatchSrc;
     await new Promise(r => { tmp.onload = r; tmp.onerror = r; });
     const frameW = tmp.naturalWidth;
     const frameH = tmp.naturalHeight / 4;
@@ -1241,7 +1257,7 @@ async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender) {
     const sprite = document.createElement('div');
     sprite.className = 'hatch-all-egg';
     sprite.style.cssText = `
-      background-image: url(./items/goods/hatch.png);
+      background-image: url(${hatchSrc});
       background-size: ${displayW}px ${displayH * 4}px;
       background-position: 0 0;
       background-repeat: no-repeat;
