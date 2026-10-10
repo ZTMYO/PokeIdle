@@ -4,7 +4,7 @@
 //       npm run build -- --skip-android  —— 只出 PC
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, readdir, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, stat, utimes } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -50,6 +50,7 @@ if (pcOk) {
   } else {
     const target = join(distDir, basename(picked));
     await copyFile(join(nsisDir, picked), target);
+    await utimes(target, new Date(), new Date()).catch(() => {});   // 同 APK：时间戳记成拷贝时刻
     const [a, b] = [await sha256(join(nsisDir, picked)), await sha256(target)];
     if (a !== b) throw new Error('PC 安装包拷贝校验失败，请重跑');
   }

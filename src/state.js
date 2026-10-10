@@ -37,7 +37,7 @@ export function isTmUnlocked(moveId) {
 }
 
 export let gameData = null;
-export let phase = 'idle'; // idle | encounter | caught | fled | eggResult | evo
+export let phase = 'idle'; // idle | encounter | caught | fled | eggResult（进化演出不占阶段，见 ui.js isEvolutionShowActive）
 export let currentEncounter = null;
 export let currentIsShiny = false;
 export let encounterLevel = 1; // 当前野生遇敌的等级（1~20，遇敌时随机生成）

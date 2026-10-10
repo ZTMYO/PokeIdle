@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { access, copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, readdir, readFile, stat, utimes, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -148,6 +148,8 @@ if (mode === 'release') {
   const outPath = join(outDir, `口袋挂机_${version}.apk`);
   await mkdir(outDir, { recursive: true });
   await copyFile(apk, outPath);
+  // copyFile 在 Windows 上会保留源文件时间，这里改成拷贝时刻，dist 里的时间才是"这次构建刷出来的"
+  await utimes(outPath, new Date(), new Date()).catch(() => {});
   // 校验拷贝完整（源与目标逐字节一致）后打印校验和；不落 .sha256 文件，dist/ 只留产物本身
   const srcSha = createHash('sha256').update(await readFile(apk)).digest('hex');
   const dstSha = createHash('sha256').update(await readFile(outPath)).digest('hex');

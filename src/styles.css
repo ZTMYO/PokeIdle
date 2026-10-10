@@ -5065,6 +5065,10 @@ html.mobile-app #quitHide { display: none !important; }
   white-space: nowrap; /* 性别图标与 Lv 数字强制单行，禁止换行 */
 }
 /* 详情页名字后的等级小字（与名字不同字体） */
+/* 详情页「等级」：从宝可梦列表进来的详情可点（反向使用经验糖果），与性格行同一道门 */
+.roster-detail-lv.can-use { display: inline-block; cursor: pointer; }
+.roster-detail-lv.can-use:hover { opacity: 1; }
+.roster-detail-lv.can-use:active { transform: scale(0.96); }
 .roster-detail-lv {
   font-family: monospace;
   font-size: 11px;
@@ -5227,19 +5231,26 @@ html.mobile-app #quitHide { display: none !important; }
 .roster-nature.can-use:active { transform: scale(0.96); }
 /* 使用薄荷弹层：外形复用告示牌那套 .berry-picker / .berry-board，这里只排行 */
 .mint-list { padding: 0 0 4px; }
+/* 薄荷行：定宽四列（图标 / 名字 / 性格修正 / 数量），名字与修正左端、数量右端各自对齐 */
 .mint-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 22px 58px 1fr auto;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   padding: 3px 6px;
   font-size: 10px;
   font-weight: 700;
   color: var(--ui-color);
   cursor: pointer;
 }
-.mint-row img { width: 22px; height: 22px; image-rendering: pixelated; flex: 0 0 auto; }
-.mint-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mint-qty { flex: 0 0 auto; font-style: normal; font-size: 9px; color: var(--ui-color); }
+.mint-row img { width: 22px; height: 22px; image-rendering: pixelated; }
+/* 名字列定宽（最长 5 字）：不定宽的话"修正"列会跟着名字长短左右跳 */
+.mint-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 性格修正只用 UI 绿，靠深浅区分：↑ 实色、↓ 淡一档（方向由箭头表达），无修正更淡 */
+.mint-effect { display: flex; gap: 7px; font-size: 9px; white-space: nowrap; }
+.mint-effect .mint-down { opacity: 0.6; }
+.mint-effect .mint-none { opacity: 0.45; }
+.mint-qty { font-style: normal; font-size: 9px; color: var(--ui-color); text-align: right; min-width: 24px; }
 @media (hover: hover) {
   .mint-row:hover { background: rgba(var(--ui-color-rgb), 0.1); }
 }
