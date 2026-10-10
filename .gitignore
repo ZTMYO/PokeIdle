@@ -48,3 +48,9 @@ Desktop.ini
 
 # doc
 docs/devdoc/
+
+# 图鉴 xlsx 的自动备份（tools/update_dex_xlsx.py 生成时留一份）
+docs/*.bak_variants
+
+# Python 缓存（tools 下的脚本会生成）
+__pycache__/

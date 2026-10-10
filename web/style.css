@@ -1663,6 +1663,20 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
   vertical-align: middle;
   image-rendering: pixelated;
 }
+/* 宝可梦图标：外框固定 24px 负责居中，内层尺寸由内联样式给 */
+.dex-ico-box {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  margin: 0 6px 0 0;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.dex-ico {
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
 .dex-table-wrap {
   flex: 1;
   min-height: 0;
@@ -1706,6 +1720,9 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 .dex-table tbody tr:hover { background: rgba(55, 109, 86, .12); }
 .dex-table tbody tr.legend:hover { background: rgba(55, 109, 86, .16); }
 .dex-table td.c-num { text-align: center; }
+/* 数值列：数字最多三位，左右留白收窄，窄屏不容易顶出横向滚动条 */
+.dex-table th.c-num, .dex-table td.c-num { padding-left: 5px; padding-right: 5px; }
+.dex-table th.c-num .sort-ind { margin-left: 1px; }
 .dex-table td.c-index { color: var(--ui-color-dark); font-variant-numeric: tabular-nums; }
 /* 神兽：编号加粗换金色，不做整行红底 */
 .dex-table tr.legend td.c-index {
@@ -1715,4 +1732,125 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 .dex-table td.c-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
 .dex-table td.c-type { min-width: 84px; }
 .dex-table td.c-food { overflow: hidden; }
+/* 行可点：点开这只的获取途径（模态框） */
+.dex-table tbody tr[data-index] { cursor: pointer; }
+
+/* ===== 获取途径模态框（点图鉴某一行弹出）===== */
+.pk-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.pk-modal[hidden] { display: none; }
+.pk-card {
+  position: relative;
+  width: min(620px, 100%);
+  max-height: min(76vh, 640px);
+  overflow-y: auto;
+  background: #fffef9;
+  border: 1px solid var(--console-border);
+  border-radius: 14px;
+  padding: 14px 16px 16px;
+  box-shadow: 0 18px 44px rgba(20, 50, 38, .38);
+}
+.pk-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.pk-close:hover { background: rgba(55, 109, 86, .12); color: var(--ui-color-dark); }
+.pk-head { display: flex; align-items: center; gap: 12px; padding-right: 28px; }
+.pk-ico {
+  flex: 0 0 auto;
+  width: 50px;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pk-head-text { min-width: 0; }
+.pk-title { font-size: 16px; font-weight: 700; color: var(--ui-color-darker); }
+.pk-title em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-muted);
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+/* 列表里没有的信息（英文名 / 分类 / 身高体重）走这一行副标题 */
+.pk-sub { margin-top: 3px; font-size: 12px; color: var(--color-muted); }
+.pk-desc {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text);
+  /* 主属性色（--tc 由 JS 按属性写入；神兽用编号那支金色）：底色是它的一层浅染，左边留一道色条 */
+  background: color-mix(in srgb, var(--tc, var(--screen-bg)) 12%, #fff);
+  border-left: 3px solid var(--tc, var(--screen-bg));
+  border-radius: 0 8px 8px 0;
+  padding: 8px 10px;
+}
+.pk-desc:empty { display: none; }
+.pk-sec { margin-top: 14px; font-size: 12px; font-weight: 700; color: var(--ui-color-dark); }
+.pk-sec-num { font-weight: 400; color: var(--color-muted); margin-left: 2px; }
+/* 获取途径：一行一种途径 —— 左侧色 tag，右侧详细说明（tag 不套 tag） */
+.pk-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.pk-method { display: flex; align-items: baseline; gap: 8px; }
+.pk-tag {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--c, #888);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.pk-txt { flex: 1; min-width: 0; font-size: 12px; line-height: 1.7; color: var(--color-text); }
+.pk-txt b { color: var(--ui-color-darker); }
+.pk-recipe { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; vertical-align: middle; }
+.pk-empty { font-size: 12px; color: var(--color-muted); }
+/* 进化链：根在左、分支向右的横向树，靠 grid 列对齐，超宽时横向滚动 */
+.pk-chain { margin-top: 12px; border-top: 1px dashed var(--console-border); padding-top: 10px; }
+.pk-chain-label { font-size: 12px; font-weight: 700; color: var(--ui-color-dark); }
+/* 滚动容器：宽度不超过卡片，窄屏就地横滑 */
+.pk-tree-scroll { margin-top: 8px; max-width: 100%; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+.pk-tree {
+  display: grid;
+  justify-content: start;
+  align-items: center;
+  gap: 4px 6px;
+  font-size: 11px;
+  width: max-content;      /* 内容该多宽就多宽，交给外层滚动 */
+}
+.pk-node-cell { display: flex; align-items: center; }
+.pk-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+.pk-node.self { background: rgba(115, 197, 164, .18); box-shadow: inset 0 0 0 1px var(--screen-bg); }
+.pk-node.self .pk-stage-name { font-weight: 700; color: var(--ui-color-darker); }
+.pk-conn { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.pk-cond { font-size: 10px; color: var(--color-muted); }
+.pk-arrow { font-size: 11px; color: var(--ui-color); }
+.pk-bar { font-size: 11px; color: var(--ui-color); }
+.pk-stage-name { font-size: 11px; color: var(--color-text); white-space: nowrap; }
+.pk-tree-more { font-size: 10px; color: var(--color-muted); margin-top: 4px; }
 .dex-error { padding: 30px 0; text-align: center; color: #a33; }

@@ -418,8 +418,10 @@ function drawFx(t, cx, cy, ringHex) {
 /* ---------- 尺寸 ---------- */
 function layout() {
   const l = layers();
-  const host = $('screen') || l.view;              // 视图还没显示时 clientWidth 是 0，按屏幕尺寸先排好
-  st.W = host.clientWidth || l.view.clientWidth; st.H = host.clientHeight || l.view.clientHeight;
+  // 尺寸取演出自己那块屏（手游双屏下 #evoView 在下屏），视图还没显示时先借舞台尺寸排好
+  const stage = $('screen');
+  st.W = l.view.clientWidth || (stage && stage.clientWidth) || 0;
+  st.H = l.view.clientHeight || (stage && stage.clientHeight) || 0;
   const dpr = Math.min(3, window.devicePixelRatio || 1);
   l.canvas.width = Math.round(st.W * dpr);
   l.canvas.height = Math.round(st.H * dpr);
@@ -509,6 +511,7 @@ export async function playEvolution({ from, to, items = [], shiny = false, varia
   if (l.done) { l.done.classList.remove('show'); l.done.style.transform = 'translateY(100%)'; l.done.style.display = 'none'; }
   render(0);
   showView('evoView');
+  layout();                                  // 视图显示后再量一次，拿到自己那块屏的真实尺寸
   setPhase('evo');
   render(0);
   last = 0;

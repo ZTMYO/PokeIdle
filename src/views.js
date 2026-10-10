@@ -1786,12 +1786,12 @@ const TUTORIAL_SECTIONS = [
         ['钓鱼', '钓到道具时有概率改给 1 件'],
         ['对战', '四档都有概率，越难越贵'],
       ], ['渠道', '给什么'], [56, 'auto'])
-      + `<p>道具都是<b>一次性消耗品</b>；<b>道具盒</b>里能查看持有数与来源，用不上的可在商店按 40% 卖出。</p>`,
+      + `<p>道具都是<b>一次性消耗品</b>；<b>道具盒</b>里能查看持有数与来源，用不上的可在商店回收：按<b>基础价的 40%</b> 折算糖果（进化道具、专属道具、薄荷都照此办理）。</p>`,
   },
   {
     title: '遭遇',
     html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只当前地区的野生宝可梦。</p>`
-      + `<p>野生宝可梦的<b>等级在 ${1}~${WILD_LEVEL_MAX} 级</b>之间随机生成。</p>`
+      + `<p>野生宝可梦的<b>等级在 ${1}~${WILD_LEVEL_MAX} 级</b>之间随机生成，但不会到它自己的进化等级（免得一抓来就能进化）。</p>`
       + `<p>每个地区每天还有几只<b>神兽 / 幻兽</b>混在野池里（数量随该地区神兽多少浮动，少的至少 1 只）：遇敌时约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE)}</b> 的概率直接遇到，甜甜蜜 / 闪耀护符生效期间约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE_BUFF)}</b>，现身等级固定 <b>${LEGEND_LEVEL}</b>。</p>`
       + `<p>连着 <b>${LEGEND_PITY}</b> 次遇敌都没出过神兽的话，下一只必定是。</p>`
   },
@@ -1803,7 +1803,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '图鉴',
     html: `<p>在<b>手机</b>页面打开<b>图鉴</b>应用，支持<b>搜索</b>（输入名称快速检索）与地区筛选，点表头可以按该字段排序。</p>`
-      + `<p>点进详情：遇到过能看到基础信息与完整日志，捕获后解锁精确数值、种族值条与爱吃的食物。</p>`
+      + `<p>点进详情：遇到过能看到基础信息与完整日志，<b>获得后</b>解锁精确数值、种族值条与爱吃的食物。</p>`
   },
   {
     title: '统计',
@@ -1836,7 +1836,7 @@ const TUTORIAL_SECTIONS = [
       + `<p><b>大量出没</b>：每隔 <b>${MASS_GEN_MIN}~${MASS_GEN_MAX}</b> 分钟出现一次，<b>锁定该地区的一只宝可梦</b>大量出现，闪光率 <b>1/${Math.round(1 / MASS_SHINY_CHANCE)}</b>（不吃闪耀护符加成）。</p>`
       + `<p>使用<b>甜甜蜜</b>可让大量出没的下一只出现得更快（<b>${MASS_SPAWN_HONEY_MIN}~${MASS_SPAWN_HONEY_MAX}</b> 秒，普通 <b>${MASS_SPAWN_MIN}~${MASS_SPAWN_MAX}</b> 秒）。事件持续 <b>${MASS_DURATION}</b> 分钟，抓完剩余数量（<b>${MASS_COUNT_MIN}~${MASS_COUNT_MAX}</b> 只）或到期后结束。</p>`
       + `<p><b>时空扭曲</b>：每隔 <b>${TWIST_GEN_MIN}~${TWIST_GEN_MAX}</b> 分钟出现一次，从<b>全地区（排除事件所在地）</b>的宝可梦中随机现身，每次遭遇都不同；<b>超级进化 / 超极巨化</b>这类强化形态<b>不会现身</b>，它们只能靠进化获得。</p>`
-      + `<p>时空扭曲的宝可梦<b>等级固定为 ${WILD_LEVEL_MAX} 级</b>，<b>个体值保底 ${TWIST_GUARANTEED_IVS}V</b>，闪光率 <b>1/${Math.round(1 / TWIST_SHINY_CHANCE)}</b>（不吃闪耀护符加成），有 <b>${Math.round(TWIST_RGB_CHANCE * 100)}%</b> 概率是 <b>RGB 分离</b>宝可梦、<b>${Math.round(TWIST_POLLUTED_CHANCE * 100)}%</b> 概率是<b>污染宝可梦</b>。</p>`
+      + `<p>时空扭曲的宝可梦<b>按野池等级上限现身</b>（没有等级进化的一律 <b>${WILD_LEVEL_MAX}</b> 级，有等级进化的压在自己的进化等级之下），<b>个体值保底 ${TWIST_GUARANTEED_IVS}V</b>，闪光率 <b>1/${Math.round(1 / TWIST_SHINY_CHANCE)}</b>（不吃闪耀护符加成），有 <b>${Math.round(TWIST_RGB_CHANCE * 100)}%</b> 概率是 <b>RGB 分离</b>宝可梦、<b>${Math.round(TWIST_POLLUTED_CHANCE * 100)}%</b> 概率是<b>污染宝可梦</b>。</p>`
       + `<p>当这两类带有特效的宝可梦被<b>派遣</b>探险时，带回的糖果数量提升 <b>${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>派遣</b>」章节）。</p>`
       + `<p>事件持续 <b>${TWIST_DURATION}</b> 分钟，抓完剩余数量（<b>${TWIST_COUNT_MIN}</b> 只）或到期后结束。</p>`,
   },
@@ -1899,7 +1899,7 @@ const TUTORIAL_SECTIONS = [
     title: '商店',
     html: `<p>在标题栏点商店按钮（或点主界面的糖果数量）进入<b>商店</b>，消耗<b>糖果</b>兑换基础道具。</p>`
       + `<p>点击「兑换」买 1 个，<b>右键</b>可批量购买。</p>`
-      + `<p>进入「出售」模式后：你持有的任何道具都能按 <b>40%</b> 价格卖出（含进化、专属、薄荷）；点击卖 1 个，<b>右键</b>可批量出售。</p>`
+      + `<p>进入「出售」模式后：道具按<b>基础价的 40%</b> 回收成糖果（<b>大师球 / 闪耀护符 / 经验糖果</b>是固定回收价，不按 40%）；点击卖 1 个，<b>右键</b>可批量出售。</p>`
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto'])
       + `<p><b>今日招式机</b>：每天上架 <b>${TM_SHOP_DAILY}</b> 个还没有解锁的招式，价格按威力 <b>${TM_PRICE_TIERS[0].price}~${TM_PRICE_TIERS[TM_PRICE_TIERS.length - 1].price}</b> 糖果。</p>`
@@ -2002,10 +2002,10 @@ const TUTORIAL_SECTIONS = [
     title: '训练',
     html: `<p>在<b>手机</b>页面打开<b>训练</b>应用即可进入训练场。</p>`
       + `<p>点场地上的<b>告示牌</b>打开管理面板：共 <b>${TRAIN_SLOTS}</b> 个槽位，点空位去仓库放入一只、再点已有取出。</p>`
-      + `<p>挂机自动获得经验 <b>${TRAIN_XP_PER_MIN}</b>/分钟，不消耗糖果；放入训练后自动从<b>队伍</b>中撤下（训练/队伍互斥）。</p>`
+      + `<p>挂机自动获得经验 <b>${TRAIN_XP_PER_MIN}</b>/分钟，不消耗糖果；</p>`
       + `<p>训练会消耗<b>饱食度</b>（上限 <b>${TRAIN_SATIETY_MAX}</b>、每分钟降 <b>${TRAIN_SATIETY_DRAIN_PER_MIN}</b>）：降到 <b>${TRAIN_SATIETY_EAT_AT}</b> 时自动吃库存里它爱吃的树果补充 <b>${TRAIN_SATIETY_PER_BERRY}</b> 点，正好回满（<b>图鉴</b>可查爱吃的食物），没存货就会饿到<b>饱食度归零并一直偷懒</b>。</p>`
       + `<p>训练中偶尔会<b>偷懒</b>（约 <b>${Math.round(TRAIN_LAZY.chancePerMin * 100)}</b>%/分钟，暂停 <b>${TRAIN_LAZY.durationMin / 1000 / 60}~${TRAIN_LAZY.durationMax / 1000 / 60}</b> 分钟）；饱食度越低越容易偷懒，饱食度<b>归零</b>时会一直偷懒，直到吃上树果才恢复。</p>`
-      + `<p>偷懒的宝可梦会停止跳动，鼠标移上去点一下即可叫醒；</p>`,
+      + `<p>偷懒的宝可梦会睡觉，点击即可叫醒；</p>`,
   },
   {
     title: '对战',
@@ -2065,7 +2065,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p><b>树果方块</b>是<b>混合器</b>的产物：用配方树果制成，用于吸引特定的宝可梦。</p>`
       + `<p><b>品质</b>决定效果：品质越高，遇敌时直接遇到目标宝可梦的概率越高（${Object.values(BLOCK_QUALITY).map(q => `${q.label} <b>${Math.round(q.chance * 100)}</b>%`).join(' / ')}）。</p>`
       + `<p>按行走里程计时：主角再走 <b>${BLOCK_DISTANCE}</b> 米没被吃掉则风干失效（停下不走不消耗），期间不改变正常遇敌节奏。</p>`
-      + `<p>配方在当前地区野外没有宝可梦爱吃则无效；方块只对<b>抓到过</b>的宝可梦有效，已收服的可以在图鉴查看它爱吃的配方；<b>神兽与幻兽</b>不会被方块吸引。</p>`
+      + `<p>配方在当前地区野外没有宝可梦爱吃则无效；方块只对<b>已经拥有</b>的宝可梦有效，可以在图鉴查看它爱吃的配方；<b>神兽与幻兽</b>不会被方块吸引。</p>`
       + `<p>注意：方块命中目标的那次遇敌，闪光按默认 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 判定，不享受闪耀护符加成，也不计入闪耀护符的遭遇计数。</p>`,
   },
   {

@@ -1,5 +1,5 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, WILD_LEVEL_MAX, LEGEND_LEVEL } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, setEncounterSource, setEncounterVariant } from './state.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, MASS_SHINY_CHANCE, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, setEncounterSource, setEncounterVariant } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, setIdleCharacter, isOnGameView, isIdleStageVisible, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
@@ -197,14 +197,14 @@ function resolveEncounterPoke() {
   // 神兽与强化形态不进普通遇敌池：神兽只从时空扭曲（加权后）与后续的日程型来源出现
   const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p) && !isWildExcluded(p));
   // 树果方块：按 BLOCK_TARGET_CHANCE 提高目标宝可梦的出现概率（命中则方块被吃掉 → buff 结束）
-  // 只有图鉴中成功捕获过的目标才具备吸引力；未捕获时等同没有宝可梦吃，方块仅走里程
+  // 只有已经拥有的目标才具备吸引力，没有时方块仅走里程
   const blockTarget = (blockBuffActive && blockRecipe.length > 0) ? findBerryTarget(blockRecipe) : null;
-  const blockTargetCaught = !!blockTarget && (gameData.pokedex?.[String(blockTarget.index)]?.caught || 0) > 0;
+  const blockTargetOwned = !!blockTarget && dexUnlocked(blockTarget.index);
   // 命中概率随方块品质浮动（无品质记录按兜底概率）
   const blockChance = BLOCK_QUALITY[blockQuality]?.chance ?? BLOCK_TARGET_CHANCE;
   let poke;
   let legendTarget = null;
-  if (blockTargetCaught && Math.random() < blockChance) {
+  if (blockTargetOwned && Math.random() < blockChance) {
     // 高概率直接遇到目标宝可梦
     poke = blockTarget;
     setCurrentEncounter(poke);
@@ -224,11 +224,8 @@ function resolveEncounterPoke() {
       setCurrentEncounter(poke);
       setCurrentIsShiny(true);
     } else if (roll < CHARM_SHINY_CHANCE + CHARM_UNCAUGHT_CHANCE) {
-      // 未捕获精灵（非闪光，仅限当前地区）
-      const uncaught = regionPool.filter(p => {
-        const e = gameData.pokedex[String(p.index)];
-        return !e || (e.caught || 0) === 0;
-      });
+      // 还没有的精灵（限当前地区）：进化得到的也算已有
+      const uncaught = regionPool.filter(p => !dexUnlocked(p.index));
       if (uncaught.length > 0) {
         // 家族归一：多变体家族（未知图腾字母等）只占一个名额，随机出其中一种形态
         poke = pickFamily(uncaught, () => 1);
@@ -245,8 +242,8 @@ function resolveEncounterPoke() {
     setCurrentIsShiny(Math.random() < SHINY_CHANCE);
   }
   // 无论哪条路径，只要选中目标宝可梦（未触发直接命中的情况下恰好抽中），方块即被吃掉
-  // 未捕获的目标不算：抽中仅普通遇敌，方块继续走里程
-  const blockHit = blockTargetCaught && poke === blockTarget;
+  // 还没拥有的目标不算：抽中仅普通遇敌，方块继续走里程
+  const blockHit = blockTargetOwned && poke === blockTarget;
   if (blockHit) eatBlock('encounter');
   // 方块期间不吃增益（闪光也走基础概率），被方块吃掉的这只就不算护符的一次遭遇计数
   if (charmBuffActive && !blockHit) setCharmEncounterCount(_charmEncounterCount + 1);
@@ -489,7 +486,7 @@ export function startTwistEncounter(poke, shiny, variant) {
   setPhase('encounter');
   setEncounterBallsUsed(0);
   setCurrentEncounter(poke);
-  setEncounterLevel(WILD_LEVEL_MAX); // 时空扭曲固定按野生遭遇等级上限现身
+  setEncounterLevel(wildLevelCap(poke.index)); // 按野池上限现身
   setCurrentIsShiny(shiny != null ? shiny : Math.random() < TWIST_SHINY_CHANCE);
   beginEncounter(poke, { message: (currentIsShiny ? '野生的 闪光 ' : '野生的 ') + poke.name + ' 从时空扭曲中现身！', source: 'twist' });
 }
@@ -731,24 +728,25 @@ export function renderEncounterScene(poke) {
       : currentIsShiny ? entry.shinySeen === 1 : entry.seen === 1;
     newLabel.style.display = isNew ? '' : 'none';
   }
-  // 已捕获标记（普通/闪光分开）：hover 图标显示"首次捕获"时间
+  // 已拥有标记（普通/闪光分开）：抓到过或进化得到过
   const ownedWrap = $('encounterOwnedWrap');
   if (ownedWrap) {
-    const entry = gameData.pokedex[String(poke.index)];
-    const hasCaught = entry && (currentIsShiny ? entry.shinyCaught > 0 : entry.caught > 0);
-    ownedWrap.style.display = hasCaught ? '' : 'none';
-    if (hasCaught) {
+    const hasOwned = currentIsShiny ? dexShinyOwned(poke.index) : dexUnlocked(poke.index);
+    ownedWrap.style.display = hasOwned ? '' : 'none';
+    if (hasOwned) {
       const tip = $('encounterOwnedTip');
       if (tip) {
-        // 首次捕获时间：从遭遇日志取该形态（普通/闪光）第一条 caught 记录
+        // 首次捕获时间：取该形态第一条 caught 日志；进化/孵蛋得到的没有
         const logs = (gameData.encounterLogs || {})[String(poke.index)] || [];
         const first = logs.find(l => l.result === 'caught' && !!l.shiny === currentIsShiny);
         if (first && first.time) {
           const d = new Date(first.time);
           const pad = n => String(n).padStart(2, '0');
           tip.textContent = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        } else {
+        } else if (first) {
           tip.textContent = '首次捕获：较早前';
+        } else {
+          tip.textContent = '不是亲手捕捉到的，没有捕获记录';
         }
       }
     }

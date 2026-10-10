@@ -80,18 +80,12 @@ def make_type_fill(types):
         return PatternFill('solid', fgColor=cols[0])
     return GradientFill(degree=0, stop=[Color(rgb=cols[0], tint=0), Color(rgb=cols[1], tint=0)])
 
-# 表头第 1 行在蛋组后插入「孵蛋里程」——原 I~O（HP~爱吃树果）整体右移一列
-for c in range(15, 8, -1):
-    src = ws.cell(1, c)
-    dst = ws.cell(1, c + 1)
-    dst.value = src.value
-    dst.font = copy(src.font)
-    dst.fill = copy(src.fill)
-    dst.border = copy(src.border)
-    dst.alignment = copy(src.alignment)
-    dst.number_format = src.number_format
-h9 = ws.cell(1, 9)
-h9.value = '孵蛋里程'
+# 表头：直接按目标列序写值（曾经是"每跑一次就把 I~O 右移一列"，跑两遍表头就错位了，这里改成幂等写法）
+HEADERS = ['编号', '宝可梦', '属性', '地区', '稀有度', '捕获率', '性别比例', '蛋组',
+           '孵蛋里程', 'HP', '攻击', '防御', '特攻', '特防', '速度', '爱吃树果']
+for i, name in enumerate(HEADERS, start=1):
+    if ws.cell(1, i).value != name:
+        ws.cell(1, i).value = name
 
 # 通用对齐/边框（取原表第 2 行为模板）
 tpl_font = copy(ws.cell(2, 1).font)

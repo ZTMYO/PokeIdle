@@ -2,23 +2,23 @@
 // 每个成就按「等级」递进：达标一级即可领取一次糖果，领取后自动进入下一级。
 // 等级无限：阈值/糖果都按 1-2-5 规整序列递进（10,20,50,100,200,500…），数字好记、等级多。
 // 领取一级一级来；未领取的等级会一直累计。图鉴类（maxTiers）达到上限即完结。
-import { gameData, saveGame, formatNum, addSystemLog } from './state.js';
+import { gameData, saveGame, formatNum, addSystemLog, dexUnlocked, dexShinyOwned } from './state.js';
 import { updateBackpack, updateStats } from './ui.js';
 import { PX_PER_METER } from './config.js';
 
 // 糖果图标（显示在按钮左侧）
 const CANDY_ICON = '<img src="./items/goods/candy.png" style="width:12px;height:12px;vertical-align:-2px;image-rendering:pixelated;" />';
 
-// 图鉴已捕获种类数（去重）
+// 图鉴已解锁种类数（去重）
 function dexCount() {
   if (!gameData?.pokedex) return 0;
-  return Object.values(gameData.pokedex).filter(e => e && (e.caught || 0) > 0).length;
+  return Object.keys(gameData.pokedex).filter(k => dexUnlocked(k)).length;
 }
 
 // 图鉴已拥有闪光的种类数（去重，对应图鉴实心五角星）
 function shinyDexCount() {
   if (!gameData?.pokedex) return 0;
-  return Object.values(gameData.pokedex).filter(e => e && (e.shinyCaught || 0) > 0).length;
+  return Object.keys(gameData.pokedex).filter(k => dexShinyOwned(k)).length;
 }
 
 // 规整等级系数：1, 2, 5, 10, 20, 50, 100, ...（每 3 级一个数量级，等级多且数字好记）

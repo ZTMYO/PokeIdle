@@ -11081,6 +11081,8 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   width: 100%; height: 100%;
   overflow: hidden;
   background: var(--screen-bg);
+  /* 手游双屏下机身被缩放，模糊/混合图层会突破 overflow 的裁剪，contain 把绘制框死在这块屏 */
+  contain: paint;
 }
 #evoFx { position: absolute; inset: 0; width: 100%; height: 100%; }
 .evo-glow {

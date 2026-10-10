@@ -42,3 +42,21 @@ if (existsSync(dexSrc)) {
 } else {
   console.warn('[sync-src] 未找到图鉴数据 pokedex.json，跳过同步');
 }
+
+// 获取途径：acquire.json -> web/public/（图鉴行点开模态框时按需取）
+const acqSrc = join(srcDir, 'pokemon-data', 'acquire.json');
+if (existsSync(acqSrc)) {
+  copyFileSync(acqSrc, join(publicDir, 'acquire.json'));
+  console.log('[sync-src] 已同步 acquire.json -> web/public/');
+} else {
+  console.warn('[sync-src] 未找到获取途径数据 acquire.json，跳过同步');
+}
+
+// 进化链：evolution.json -> web/public/（模态框底部画进化链用）
+const evoSrc = join(srcDir, 'pokemon-data', 'evolution.json');
+if (existsSync(evoSrc)) {
+  copyFileSync(evoSrc, join(publicDir, 'evolution.json'));
+  console.log('[sync-src] 已同步 evolution.json -> web/public/');
+} else {
+  console.warn('[sync-src] 未找到进化数据 evolution.json，跳过同步');
+}

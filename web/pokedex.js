@@ -4,6 +4,8 @@
 //   编号 / 名称(含变体) / 属性 / 地区 / 稀有度 / 捕捉率 / 性别比例 / 蛋组 / 孵蛋里程 / 六维 / 爱吃树果
 // 排序与 Excel 相同：全国图鉴顺序，变体紧跟所属本体（0001 → 0001-1）。
 import './style.css';
+// 交换概率与神兽池概率公示要用的常量，由 sync-src.mjs 同步过来
+import { TRADE_COUNT, TRADE_BASE_FORM_CHANCE, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF } from './src/config.js';
 
 // 属性 → 颜色（与游戏 src/items.js TYPE_COLORS 一致）
 const TYPE_COLORS = {
@@ -228,6 +230,22 @@ function berryIconHtml(i) {
   return `<span class="berry-ico" title="${BERRY_NAMES[i]}" style="background:${bg};"></span>`;
 }
 
+// 宝可梦图标：雪碧图 + 位置表（tools/build-icon-sprite.mjs 生成）。元素尺寸 = 图标显示尺寸，外框只负责居中
+const ICON_SPRITE = './pokeicons.png';
+const ICON_BOX = 24; // 行内方框边长（与游戏里仓库列表的 24px 一致）
+let ICONS = null;
+function iconSpanHtml(index, box = ICON_BOX) {
+  const rect = ICONS && ICONS.icons[index];
+  if (!rect) return '';
+  const [x, y, w, h] = rect;
+  const k = Math.min(box / w, box / h);
+  const px = (n) => `${Math.round(n * 100) / 100}px`;
+  const style = `width:${px(w * k)};height:${px(h * k)};background-image:url('${ICON_SPRITE}');`
+    + `background-size:${px(ICONS.w * k)} ${px(ICONS.h * k)};`
+    + `background-position:${px(-x * k)} ${px(-y * k)};`;
+  return `<span class="dex-ico" style="${style}"></span>`;
+}
+
 // 行 HTML（列顺序与表头/Excel 一致）
 function rowHtml(p) {
   const types = (p.types || []).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t] || '#888'}">${t}</span>`).join('');
@@ -236,8 +254,8 @@ function rowHtml(p) {
   const foods = (p.foods || []).some(i => BERRY_NAMES[i])
     ? (p.foods || []).map(i => berryIconHtml(i)).join('')
     : '—';
-  return `<tr class="${p.legend ? 'legend' : ''}">
-    <td class="c-index">${p.index}</td>
+  return `<tr class="${p.legend ? 'legend' : ''}" data-index="${p.index}" title="点击查看获取途径">
+    <td class="c-index"><span class="dex-ico-box">${iconSpanHtml(p.index)}</span>${p.index}</td>
     <td class="c-name">${p.form || p.name}</td>
     <td class="c-type">${types}</td>
     <td class="c-region">${p.region || '—'}</td>
@@ -332,11 +350,308 @@ function initFilters() {
   });
 }
 
+// ===== 获取途径模态框（点某一行弹出）=====
+// 获取途径模态框：一行一种途径，左侧色 tag + 右侧说明；底部按 evolution.json 画带图标的进化链
+const ACQ_TYPES = {
+  wild: { label: '地区遭遇', color: '#3e8a68' },
+  tree: { label: '树果方块', color: '#6f8f22' },
+  twist: { label: '时空扭曲', color: '#7e5bb5' },
+  trade: { label: '交换', color: '#2f7fb0' },
+  egg_shop: { label: '神秘蛋', color: '#b5722f' },
+  easter_author: { label: '彩蛋', color: '#c2456a' },
+  easter_imiti: { label: '彩蛋', color: '#a05a8f' },
+  breed: { label: '繁育', color: '#cf6f9d' },
+  evolve: { label: '进化', color: '#8a6a3a' },
+};
+let ACQ = null, EVO = null, ACQ_LOADING = null;
+// acquire.json（获取途径）+ evolution.json（进化链）：第一次点开时才取，首屏不受影响
+function loadAcqData() {
+  if (ACQ && EVO) return Promise.resolve();
+  if (!ACQ_LOADING) {
+    ACQ_LOADING = Promise.all([fetch('./acquire.json'), fetch('./evolution.json')])
+      .then(([a, e]) => {
+        if (!a.ok || !e.ok) throw new Error(`HTTP ${a.status}/${e.status}`);
+        return Promise.all([a.json(), e.json()]);
+      })
+      .then(([a, e]) => {
+        ACQ = new Map((a.pokemon || []).map((p) => [String(p.index), p.methods || []]));
+        EVO = e;
+      })
+      .catch((err) => { ACQ_LOADING = null; throw err; });
+  }
+  return ACQ_LOADING;
+}
+let DEX_BY_IDX = new Map();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const dexName = (i) => { const p = DEX_BY_IDX.get(String(i)); return p ? (p.form || p.name) : `#${i}`; };
+// 雌雄异形的两条形态压成一条（轻飘飘-雄性/雌性）：同一个编号、同一个名字的两条只占一个名额
+function parentNames(list) {
+  const arr = (list || []).map(String);
+  const isSexForm = (i) => /-(雄性|雌性)$/.test((DEX_BY_IDX.get(i) || {}).form || '');
+  const done = new Set(), out = [];
+  for (const i of arr) {
+    const base = i.split('-')[0];
+    const sib = isSexForm(i) && arr.some((o) => o !== i && o.split('-')[0] === base && isSexForm(o));
+    if (!sib) { out.push(dexName(i)); continue; }
+    if (done.has(base)) continue;
+    done.add(base);
+    const b = DEX_BY_IDX.get(base);
+    out.push(`${b ? b.name : base}-雄性/雌性`);
+  }
+  return out;
+}
+// 条件 → 中文（只列玩家要满足的条件）
+function condText(cond) {
+  const c = cond || {};
+  const bits = [];
+  if (c.lv) bits.push(`达到 Lv${c.lv}`);
+  if (c.item) bits.push(`使用${Array.isArray(c.item) ? c.item.join(' 和 ') : c.item}`); // 多件道具是"都要"，不是二选一（游戏里逐件检查）
+  if (c.nature) bits.push(`性格 ${Array.isArray(c.nature) ? c.nature.join('/') : c.nature}`);
+  // 招式条件是"带在身上"而不是"学过就行"；「X属性招式」本身就是完整说法，不再套「」招式
+  if (c.move) bits.push(/属性招式$/.test(c.move) ? `携带${c.move}` : `携带「${c.move}」招式`);
+  if (c.region) bits.push(`在${c.region}地区进化`);
+  if (c.candy) bits.push(`消耗 ${c.candy} 糖果`);
+  if (c.coin) bits.push(`消耗 ${c.coin} 游戏币`);
+  return bits.join(' · ');
+}
+// 交换出现概率：按 trade.js 的规则实算
+let _tradeFams = null;
+function tradeChance(index) {
+  if (!_tradeFams) {
+    const fams = new Map();
+    for (const p of DEX) {
+      if (p.legend) continue;                    // 神兽不参与交换
+      const k = String(p.index).split('-')[0];
+      if (!fams.has(k)) fams.set(k, []);
+      fams.get(k).push(String(p.index));
+    }
+    _tradeFams = [...fams.values()];
+  }
+  const key = String(index);
+  const fam = _tradeFams.find((g) => g.includes(key));
+  if (!fam) return null;
+  const bases = fam.filter((i) => !i.includes('-'));
+  const pOne = (1 / _tradeFams.length) * ((bases.includes(key) ? TRADE_BASE_FORM_CHANCE / bases.length : 0) + (1 - TRADE_BASE_FORM_CHANCE) / fam.length);
+  return 1 - Math.pow(1 - pOne, TRADE_COUNT);
+}
+function methodDetail(p, m, type) {
+  if (type === 'wild') {
+    if (p.legend) {
+      // 神兽 / 幻兽单独一套说法：不进普通野池，走每日神兽池，概率写清楚
+      return `每日神兽池：每天随机分到各地区的几只神兽 / 幻兽混在普通遇敌里，遇敌时约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE)}</b> 直接遇到，甜甜蜜 / 闪耀护符生效期间约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE_BUFF)}</b>。本只排在 <b>${p.region || '本地'}</b> 地区。`;
+    }
+    return `在 <b>${p.region || '本地'}</b> 地区的野外遇到（普通遇敌 / 大量出没 / 钓鱼）`;
+  }
+  if (type === 'tree') {
+    const foods = (p.foods || []).map((i) => berryIconHtml(i)).join('');
+    return `用配方一致的树果方块吸引（需先拥有过它）${foods ? `<span class="pk-recipe">配方 ${foods}</span>` : ''}`;
+  }
+  if (type === 'twist') {
+    const own = p.region ? `${p.region}以外` : '它所在地区以外';
+    return `在<b>${own}</b>的地区触发时空扭曲时出现`;
+  }
+  if (type === 'trade') {
+    const c = tradeChance(p.index);
+    const pct = c == null ? null : c * 100;
+    // 变体形态一族 15% 要分给几十个形态，概率极小 —— 别显示成 0.00%
+    const rate = pct == null ? '' : ` <b>${pct < 0.01 ? '&lt;0.01' : pct.toFixed(pct < 1 ? 2 : 1)}%</b>`;
+    return rate ? `交换广场约${rate} 概率挂出` : '交换广场挂出';
+  }
+  if (type === 'egg_shop') return '孵化神秘蛋';
+  if (type === 'easter_author') return '交换广场偶尔出现彩蛋 NPC <b>ZTMYO</b>：赠送闪光 6V 神兽';
+  if (type === 'easter_imiti') return '交换广场偶尔出现彩蛋 NPC <b>伊美蒂</b>：赠送百变怪';
+  if (type === 'breed') {
+    const ps = parentNames(m.parents).map(esc).join('、');
+    const pi = parentNames(m.parentsIncense).map(esc).join('、');
+    // 只能和百变怪配的（玛纳霏）并进一句话说；能正常配对的就不提百变怪
+    const ditto = !!m.note && m.note.includes('百变怪');
+    let s = ps ? `亲本 <b>${ps}</b>${ditto ? '和百变怪生蛋' : ''}` : '';
+    if (pi) s += `${s ? '；' : ''}开熏香生蛋，亲本：<b>${pi}</b>`;
+    if (m.note && !ditto) s += `${s ? '；' : ''}${esc(m.note)}`;
+    return s;
+  }
+  if (type === 'evolve') return `由 <b>${esc(dexName(m.from))}</b> 满足 <b>${condText(m.cond) || '特定条件'}</b> 进化而来`;
+  return '';
+}
+// 进化链：从这只沿反向边回到族根，再往下铺它这一支的后代，每级带图标与条件
+function evolveChainHtml(idx) {
+  if (!EVO) return '';
+  const E = EVO.edges || {}, stones = EVO.stones || {}, srcOf = EVO.stoneSource || {};
+  const self = String(idx);
+  const preds = new Map();
+  for (const [from, row] of Object.entries(E)) for (const to of Object.keys(row)) {
+    if (!preds.has(to)) preds.set(to, []);
+    preds.get(to).push(from);
+  }
+  const suffixOf = (i) => {
+    const q = DEX_BY_IDX.get(String(i));
+    const f = (q && q.form) || '', n = (q && q.name) || '';
+    return f.startsWith(n + '-') ? f.slice(n.length + 1) : '';
+  };
+  // 某一级的下一级 = 普通边 + 挂在它身上的专属石头形态
+  const childrenOf = (i) => [
+    ...Object.keys(E[i] || {}).map((k) => ({ id: k, cond: condText(E[i][k]) })),
+    ...Object.keys(stones).filter((k) => String(srcOf[k]) === String(i)).map((k) => ({ id: k, cond: condText({ item: stones[k] }) })),
+  ];
+  // 族根：沿反向边往上走（同后缀优先，与游戏 familyRoot 同规则；石头形态先回挂靠形态）
+  let cur = self, guard = 0;
+  while (guard++ < 12) {
+    let from = null;
+    if (stones[cur]) from = String(srcOf[cur] || cur.split('-')[0]);
+    else {
+      const list = preds.get(cur) || [];
+      if (!list.length) break;
+      const sfx = suffixOf(cur);
+      from = (sfx && list.find((f) => suffixOf(f) === sfx)) || (sfx && list.find((f) => !String(f).includes('-'))) || list[0];
+    }
+    cur = from;
+  }
+  // 一行一层：主干（根 → 本只）排在一行，行内可自然换行；其余分支各自成行、按挂下来的层数缩进。
+  // 不依赖固定列宽，所以再长的链也只换行，不会把容器撑出横向滚动条
+  const nodeCell = (i) => {
+    const isSelf = String(i) === self;
+    return `<span class="pk-node${isSelf ? ' self' : ''}">${iconSpanHtml(i, 26)}<span class="pk-stage-name">${esc(dexName(i))}</span></span>`;
+  };
+  const conn = (glyph, cond) => `<span class="pk-conn"><span class="pk-arrow">${glyph}</span>`
+    + (cond ? `<span class="pk-cond">${esc(cond)}</span><span class="pk-arrow">→</span>` : '') + '</span>';
+  // 根在左、分支向右的横向树：节点占列 2d+1、连接符占列 2d，整块不换行交给外层横向滚动
+  const root = pathOf(self)[0];
+  const cells = new Map();
+  const put = (row, col, html, cls) => { cells.set(`${row}:${col}`, { html, cls }); };
+  let count = 0, maxDepth = 0;
+  const place = (i, row, depth) => {          // 返回这棵子树用到的最后一行
+    put(row, 2 * depth + 1, nodeCell(i));
+    maxDepth = Math.max(maxDepth, depth);
+    const kids = childrenOf(i);
+    if (!kids.length) return row;
+    const rows = [row];                       // 每个孩子占的行（第一个接在父节点同一行）
+    let last = row;
+    for (let n = 0; n < kids.length; n++) {
+      if (count++ >= 40) { kids.length = n; break; }
+      const childRow = n === 0 ? row : last + 1;
+      rows.push(childRow);
+      last = Math.max(last, place(kids[n].id, childRow, depth + 1));
+    }
+    const col = 2 * (depth + 1);              // 连接符列：夹在父节点与子节点之间
+    for (let n = 0; n < kids.length; n++) {
+      const elbow = n === 0 ? (kids.length > 1 ? '┬' : '─') : (n === kids.length - 1 ? '└' : '├');
+      put(rows[n + 1], col, conn(elbow, kids[n].cond), 'pk-conn');
+    }
+    // 兄弟之间补竖线：非最后那个孩子整棵子树的行上都要有 │
+    for (let n = 0; n < kids.length - 1; n++) {
+      for (let r = rows[n + 1] + 1; r <= rows[n + 2] - 1; r++) put(r, col, '<span class="pk-bar">│</span>', 'pk-conn');
+    }
+    return last;
+  };
+  place(root, 1, 0);
+  if (cells.size < 2) return '';
+  const parts = [];
+  for (const [key, cell] of cells) {
+    const [r, c] = key.split(':').map(Number);
+    parts.push(`<span class="${cell.cls || 'pk-node-cell'}" style="grid-row:${r};grid-column:${c}">${cell.html}</span>`);
+  }
+  const more = count >= 40 ? '<div class="pk-tree-more">…还有更多形态未展开</div>' : '';
+  const cols = 2 * maxDepth + 1;
+  const body = `<div class="pk-tree" style="grid-template-columns:repeat(${cols},max-content)">${parts.join('')}</div>`;
+  return `<div class="pk-chain"><span class="pk-chain-label">进化链</span><div class="pk-tree-scroll">${body}</div>${more}</div>`;
+}
+
+// 从某只沿反向边回到族根，返回 [族根, …, 这一只]（同后缀优先）
+function pathOf(start) {
+  const E = EVO.edges || {}, stones = EVO.stones || {}, srcOf = EVO.stoneSource || {};
+  const preds = new Map();
+  for (const [from, row] of Object.entries(E)) for (const to of Object.keys(row)) {
+    if (!preds.has(to)) preds.set(to, []);
+    preds.get(to).push(from);
+  }
+  const suffixOf = (i) => {
+    const q = DEX_BY_IDX.get(String(i));
+    const f = (q && q.form) || '', n = (q && q.name) || '';
+    return f.startsWith(n + '-') ? f.slice(n.length + 1) : '';
+  };
+  const out = [String(start)];
+  let cur = String(start), guard = 0;
+  while (guard++ < 12) {
+    let from = null;
+    if (stones[cur]) from = String(srcOf[cur] || cur.split('-')[0]);
+    else {
+      const list = preds.get(cur) || [];
+      if (!list.length) break;
+      const sfx = suffixOf(cur);
+      from = (sfx && list.find((f) => suffixOf(f) === sfx)) || (sfx && list.find((f) => !String(f).includes('-'))) || list[0];
+    }
+    out.unshift(from);
+    cur = from;
+  }
+  return out;
+}
+const pkModal = document.getElementById('pkModal');
+function closeAcquire() { if (pkModal) pkModal.hidden = true; }
+function openAcquire(index) {
+  try {
+    const p = DEX_BY_IDX.get(String(index));
+    if (!pkModal || !p) { console.warn('[pk] 提前返回：pkModal 或图鉴记录缺失'); return; }
+    // 图标跟着 .pk-ico 的方框放大，靠 image-rendering: pixelated 保持像素感
+    document.getElementById('pkIco').innerHTML = iconSpanHtml(index, 46);
+    document.getElementById('pkTitle').innerHTML = `${esc(p.form || p.name)}<em>#${esc(p.index)}</em>`;
+    // 列表里没有的信息：英文名 / 分类 / 身高体重；描述另起一段，配色跟着主属性
+    const bits = [p.name_en, p.genus, p.height != null ? `高 ${(p.height / 10).toFixed(1)}m` : '', p.weight != null ? `重 ${(p.weight / 10).toFixed(1)}kg` : ''].filter(Boolean);
+    document.getElementById('pkSub').textContent = bits.join(' · ');
+    const descEl = document.getElementById('pkDesc');
+    descEl.textContent = (p.description || '').replace(/\s+/g, ' ').trim();
+    descEl.style.setProperty('--tc', p.legend ? '#b8860b' : (TYPE_COLORS[(p.types || [])[0]] || 'var(--screen-bg)'));
+    const numEl = document.getElementById('pkNum');
+    const listEl = document.getElementById('pkPills');
+    numEl.textContent = '';
+    listEl.innerHTML = '<div class="pk-empty">加载中…</div>';
+    pkModal.hidden = false;
+    loadAcqData().then(() => {
+      const methods = ACQ.get(String(index)) || [];
+      const row = (type, txt) => {
+        const meta = ACQ_TYPES[type] || { label: type, color: '#888' };
+        return `<div class="pk-method"><span class="pk-tag" style="--c:${meta.color}">${esc(meta.label)}</span><div class="pk-txt">${txt}</div></div>`;
+      };
+      const rows = [];
+      // 进化并成一行（绅士蛾这类：多种形态都能进化成它，细节交给下面的进化链）
+      const evos = methods.filter((m) => m.type === 'evolve');
+      if (evos.length) {
+        // 条件不在这里写：下面进化链上每级都标了（绅士蛾这类多形态也并成一行）
+        const froms = [...new Set(evos.map((m) => dexName(m.from)))].map(esc).join(' / ');
+        rows.push(row('evolve', `由 <b>${froms}</b> 进化而来`));
+      }
+      for (const m of methods) if (m.type !== 'evolve') rows.push(row(m.type, methodDetail(p, m, m.type)));
+      const chain = evolveChainHtml(index);
+      numEl.textContent = rows.length ? `（${rows.length} 种）` : '';
+      listEl.innerHTML = (rows.join('') || '<div class="pk-empty">暂无获取途径数据</div>') + chain;
+    }).catch((err) => {
+      console.error('[pk] 获取途径 / 进化数据加载失败：', err);
+      listEl.innerHTML = '<div class="pk-empty">获取途径数据加载失败，刷新重试</div>';
+    });
+  } catch (err) {
+    console.error('[pk] 打开模态框出错：', err);
+  }
+}
+if (pkModal) {
+  dexBody.addEventListener('click', (e) => {
+    const el = e.target instanceof Element ? e.target : null;
+    const tr = el ? el.closest('tr[data-index]') : null;
+    if (tr) openAcquire(tr.dataset.index);
+  });
+  document.getElementById('pkClose').addEventListener('click', closeAcquire);
+  pkModal.addEventListener('click', (e) => { if (e.target === pkModal) closeAcquire(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pkModal.hidden) closeAcquire(); });
+} else {
+  console.warn('[pk] 页面里没有 #pkModal，模态框逻辑没挂上');
+}
+
 async function loadDex() {
   try {
-    const res = await fetch('./pokedex.json');
+    // 图标位置表跟图鉴一起取：行 HTML 有缓存，必须先到齐再渲染
+    const [res, ico] = await Promise.all([fetch('./pokedex.json'), fetch('./pokeicons.json').catch(() => null)]);
     if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (ico && ico.ok) ICONS = await ico.json();
     DEX = orderDex(await res.json());
+    DEX_BY_IDX = new Map(DEX.map((p) => [String(p.index), p]));
     sortDex();
     updateSortIndicators();
     initFilters();

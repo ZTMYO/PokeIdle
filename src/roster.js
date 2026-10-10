@@ -4,7 +4,7 @@
 import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, updateStats, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase } from './state.js';
 import { TYPE_COLORS, typeIconColor, pokemonSourceBadge, itemIconSrc, MINT_KEYS } from './items.js';
-import { evolutionRows, applyEvolution, condItems, evoPreEvos, evolutionData, loadEvolution } from './evolution.js';
+import { evolutionRows, applyEvolution, condItems, moveCondText, evoPreEvos, evolutionData, loadEvolution } from './evolution.js';
 import { playEvolution } from './evo-view.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL, MINT_NATURES } from './config.js';
@@ -1162,7 +1162,7 @@ function evoBlockHtml(p, rows) {
     const conds = [];
     if (r.cond.lv) conds.push({ text: `Lv${r.cond.lv}`, ok: !r.unmet.lv });
     for (const it of condItems(r.cond)) conds.push({ text: it, ok: !r.unmet.items.has(it) });
-    if (r.cond.move) conds.push({ text: `携带${r.cond.move}`, ok: !r.unmet.move });   // 判定看的是"带着的 4 招"，不是学过
+    if (r.cond.move) conds.push({ text: moveCondText(r.cond.move), ok: !r.unmet.move });   // 判定看的是"带着的 4 招"，不是学过
     if (r.cond.region) conds.push({ text: `${r.cond.region}地区`, ok: !r.unmet.region });
     if (r.cond.gender) conds.push({ text: r.cond.gender === 'female' ? '雌性' : '雄性', ok: !r.unmet.gender });
     if (r.cond.candy) conds.push({ text: `${r.cond.candy} 糖果`, ok: !r.unmet.candy });

@@ -46,6 +46,9 @@ STAT_CN = {
     "totalEggsHatched": ("孵蛋总数", "累计孵化宝可梦数"),
     "totalShinyEggsHatched": ("闪光孵蛋", "累计孵化出闪光宝可梦数"),
     "totalEggsProduced": ("繁育产蛋", "饲育屋累计产蛋数"),
+    "totalEvolutions": ("进化次数", "累计进化宝可梦数"),
+    "evolutionsToday": ("今日进化", "今日进化次数"),
+    "lastEvoDate": ("上次进化日期", "最近一次进化日期（YYYY-MM-DD）"),
     "releaseXpPool": ("放生经验池", "放生返还经验累积池，攒满自动产出经验糖果"),
     "totalPlaySeconds": ("在线时长(秒)", "累计挂机时长"),
     "playSecondsToday": ("今日时长(秒)", "今日挂机时长"),
@@ -88,6 +91,8 @@ TOP_KEY_CN = {
     "nursery": "饲育屋", "berryFarm": "树果农场", "gps": "导航", "massOutbreak": "大量出没",
     "massNextGenAt": "大量出没刷新时间", "twist": "时空扭曲", "twistNextGenAt": "时空扭曲刷新时间",
     "bounty": "悬赏", "trades": "交换广场",
+    "tmUnlocked": "招式机解锁", "tmShop": "今日招式机",
+    "legendPool": "每日神兽池", "legendPity": "神兽池保底计数",
     "battleNpcs": "NPC对战", "training": "训练", "dispatch": "派遣", "achievements": "成就",
     "systemLogs": "系统日志", "settings": "设置", "lastSavedAt": "最后保存时间",
     "version": "版本", "introDone": "开场剧情完成", "currentRegion": "当前地区",
@@ -177,6 +182,7 @@ TAB_OF_PATH = (
     ("trades", 9), ("battleNpcs", 9), ("lastSavedAt", 9), ("incubatorUnlockedSlots", 9),
     ("twist", 9), ("twistNextGenAt", 9), ("tutorialRewards", 9), ("mahjongRecords.", 9),
     ("follower", 9), ("followerPending", 9), ("gachaLogs.", 9), ("casinoRecords.", 9),
+    ("tmUnlocked.", 9), ("tmUnlocked", 9), ("tmShop", 9), ("legendPool.", 9), ("legendPool", 9), ("legendPity", 9),
 )
 ISSUE_TAB = 17  # 「数据问题」页索引
 RAW_TAB = 16    # 「原始数据」页索引
@@ -184,10 +190,15 @@ CARDS_TAB = 14  # 「卡牌收集」页索引
 ENCOUNTER_TAB = 15  # 「遭遇记录」页索引
 
 
+LEGEND_IDS = set()  # 神兽/幻兽编号，池子检查用
+
+
 def load_pokedex():
+    global LEGEND_IDS
     try:
         with open(POKEDEX_PATH, "r", encoding="utf-8-sig") as f:
             arr = json.load(f)
+        LEGEND_IDS = {str(p["index"]) for p in arr if p.get("legend")}
         return {str(p["index"]): p.get("name", str(p["index"])) for p in arr}
     except Exception:
         return {}
@@ -276,6 +287,26 @@ def run_checks(data, pokedex):
         src = m.get("source")
         if src is not None and src not in sources:
             add(f"{p}.source", f"未知来源「{src}」")
+        osc = m.get("originSpecies")
+        if osc is not None and str(osc) not in valid_idx:
+            add(f"{p}.originSpecies", f"获得时物种编号无效「{osc}」")
+        lin = m.get("lineage")
+        if lin is not None:
+            if not isinstance(lin, dict):
+                add(f"{p}.lineage", f"lineage 不是对象（{lin!r}）")
+            else:
+                lf = lin.get("from")
+                lat = lin.get("at")
+                if lf is not None and str(lf) not in valid_idx:
+                    add(f"{p}.lineage.from", f"进化前物种编号无效「{lf}」")
+                if lat is not None and not isinstance(lat, (int, float)):
+                    add(f"{p}.lineage.at", f"进化时间不是时间戳（{lat!r}）")
+                elif isinstance(lat, (int, float)) and lat > now + 60 * 60 * 1000:
+                    add(f"{p}.lineage.at", f"进化时间在未来（{fmt_time(lat)}）")
+        if m.get("variant") is not None and m.get("variant") not in ("rgb", "polluted"):
+            add(f"{p}.variant", f"未知外观变体「{m.get('variant')}」")
+        if m.get("ivRandomKey") is not None and m.get("ivRandomKey") not in STAT_KEYS:
+            add(f"{p}.ivRandomKey", f"随机遗传项不是六维之一（{m.get('ivRandomKey')}）")
         g = m.get("gender")
         if g is not None and g not in GENDER_SYMBOL:
             add(f"{p}.gender", f"未知性别「{g}」")
@@ -354,6 +385,8 @@ def run_checks(data, pokedex):
                     pt = pp.get("placedAt")
                     if isinstance(pt, (int, float)) and pt > now + 60 * 60 * 1000:
                         add(f"nursery.parents.{i}.placedAt", f"放入时间在未来（{fmt_time(pt)}）")
+            if "useIncense" in nursery and not isinstance(nursery.get("useIncense"), bool):
+                add("nursery.useIncense", f"熏香开关不是布尔（{nursery.get('useIncense')!r}）")
             li = nursery.get("lockedIv")
             if li is not None:
                 if not isinstance(li, dict):
@@ -499,9 +532,61 @@ def run_checks(data, pokedex):
             if str(k) not in valid_idx and not k.isdigit():
                 add(f"pokedex.{k}", f"图鉴键「{k}」不是合法编号")
             if isinstance(v, dict):
-                for fld in ("seen", "caught"):
-                    if isinstance(v.get(fld), (int, float)) and v[fld] < 0:
-                        add(f"pokedex.{k}.{fld}", f"图鉴计数为负（{fld}={v[fld]}）")
+                # owned / evolved / shinyOwned 是「获得过就解锁」登记
+                for fld in ("seen", "caught", "shinySeen", "shinyCaught", "owned", "evolved", "shinyOwned"):
+                    val = v.get(fld)
+                    if val is None:
+                        continue
+                    if not isinstance(val, (int, float)):
+                        add(f"pokedex.{k}.{fld}", f"图鉴计数不是数值（{fld}={val!r}）")
+                    elif val < 0:
+                        add(f"pokedex.{k}.{fld}", f"图鉴计数为负（{fld}={val}）")
+
+    # --- 招式机 + 每日神兽池 ---
+    tmu = data.get("tmUnlocked")
+    if tmu is not None:
+        if not isinstance(tmu, dict):
+            add("tmUnlocked", f"tmUnlocked 不是对象（{type(tmu).__name__}）")
+        else:
+            for k, v in tmu.items():
+                if not str(k).strip().isdigit():
+                    add(f"tmUnlocked.{k}", f"招式机键不是招式编号「{k}」")
+                if not isinstance(v, (int, float)):
+                    add(f"tmUnlocked.{k}", f"解锁时间不是时间戳（{v!r}）")
+    tms = data.get("tmShop")
+    if tms is not None:
+        if not isinstance(tms, dict):
+            add("tmShop", f"tmShop 不是对象（{type(tms).__name__}）")
+        else:
+            if not isinstance(tms.get("ids"), list):
+                add("tmShop.ids", f"今日货架不是数组（{tms.get('ids')!r}）")
+            for j, mid in enumerate(tms.get("ids") or []):
+                if not str(mid).strip().isdigit():
+                    add(f"tmShop.ids.{j}", f"货架里的招式编号非法（{mid!r}）")
+    lp = data.get("legendPool")
+    if lp is not None:
+        if not isinstance(lp, dict):
+            add("legendPool", f"legendPool 不是对象（{type(lp).__name__}）")
+        else:
+            by = lp.get("byRegion")
+            if not isinstance(by, dict):
+                add("legendPool.byRegion", f"byRegion 不是对象（{by!r}）")
+            else:
+                for region, members in by.items():
+                    if not isinstance(members, list):
+                        add(f"legendPool.byRegion.{region}", f"该地区的池子不是数组（{members!r}）")
+                        continue
+                    for j, mid in enumerate(members):
+                        if str(mid) not in valid_idx:
+                            add(f"legendPool.byRegion.{region}.{j}", f"池子里有未知编号「{mid}」")
+                        elif LEGEND_IDS and str(mid) not in LEGEND_IDS:
+                            add(f"legendPool.byRegion.{region}.{j}", f"池中「{mid}」不是神兽/幻兽")
+    if "legendPity" in data:
+        lpv = data.get("legendPity")
+        if not isinstance(lpv, (int, float)):
+            add("legendPity", f"保底计数不是数值（{lpv!r}）")
+        elif lpv < 0:
+            add("legendPity", f"保底计数为负（{lpv}）")
 
     return issues
 
@@ -583,10 +668,13 @@ class SaveViewer:
             ("宝可梦", [("name", "名称", 100), ("num", "编号", 55), ("lv", "等级", 50), ("exp", "经验", 70),
                         ("gender", "性别", 45), ("shiny", "闪光", 45), ("nature", "性格", 60), ("src", "来源", 55),
                         ("inroster", "在仓库", 55), ("ivs", "个体值(HP/攻/防/特攻/特防/速)", 260),
-                        ("evs", "努力值", 190), ("id", "ID", 120)]),
+                        ("evs", "努力值", 190), ("origin", "获得时物种", 110),
+                        ("lineage", "进化", 150), ("variant", "变体", 75),
+                        ("ivr", "随机遗传项", 85), ("id", "ID", 120)]),
             ("队伍", [("idx", "序号", 45), ("name", "名称", 110), ("lv", "等级", 55), ("shiny", "闪光", 45), ("note", "状态", 300)]),
             ("图鉴", [("num", "编号", 60), ("name", "名称", 110), ("seen", "遇见", 70), ("caught", "捕获", 70),
-                      ("sseen", "闪光遇见", 80), ("scaught", "闪光捕获", 80)]),
+                      ("sseen", "闪光遇见", 80), ("scaught", "闪光捕获", 80),
+                      ("owned", "登记获得", 80), ("evolved", "进化登记", 80), ("sowned", "闪光登记", 80)]),
             ("孵蛋器", [("slot", "槽位", 55), ("num", "蛋编号", 70), ("name", "蛋名称", 110),
                         ("type", "类型", 75), ("done", "已孵化", 60), ("shiny", "闪光", 45)]),
             ("孵蛋记录", [("time", "孵化时间", 150), ("name", "宝可梦", 120), ("gender", "性别", 55), ("shiny", "闪光", 45)]),
@@ -682,7 +770,7 @@ class SaveViewer:
         t.delete(*t.get_children())
         for i, m in enumerate(self.data.get("roster") or []):
             if not isinstance(m, dict):
-                t.insert("", "end", values=("?", "", "", "", "", "", "", "", "", "", "", ""),
+                t.insert("", "end", values=("?", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""),
                          tags=("issue",))
                 continue
             sid = str(m.get("species", ""))
@@ -695,11 +783,17 @@ class SaveViewer:
             iv_str = " ".join(str(ivs.get(k, 0)) for k in STAT_KEYS)
             ev_str = " ".join(str(evs.get(k, 0)) for k in STAT_KEYS)
             gender = GENDER_SYMBOL.get(m.get("gender"), m.get("gender", "?"))
+            osc = m.get("originSpecies")
+            origin_str = self.pokedex.get(str(osc), str(osc)) if osc else ""
+            lin = m.get("lineage") if isinstance(m.get("lineage"), dict) else {}
+            lin_str = f"由 {self.pokedex.get(str(lin.get('from')), lin.get('from'))} 进化" if lin.get("from") else ""
+            var_str = {"rgb": "RGB 分离", "polluted": "污染"}.get(m.get("variant"), m.get("variant") or "")
             t.insert("", "end", values=(
                 name, sid, m.get("level", "?"), round(m.get("exp") or 0), gender, fmt_bool(m.get("shiny", False)),
                 NATURE_CN.get(m.get("nature"), m.get("nature", "?")),
                 SRC_CN.get(m.get("source"), m.get("source", "?")),
-                fmt_bool(m.get("inRoster", True)), iv_str, ev_str, m.get("id", "")), tags=tags)
+                fmt_bool(m.get("inRoster", True)), iv_str, ev_str, origin_str, lin_str, var_str,
+                m.get("ivRandomKey", "?"), m.get("id", "")), tags=tags)
 
     def _render_team(self):
         t = self._tabs[2]
@@ -726,12 +820,15 @@ class SaveViewer:
         for num, info in dex.items():
             if not isinstance(info, dict):
                 tags = ("issue",) if self._has_issue(f"pokedex.{num}") else ()
-                t.insert("", "end", values=(num, "?", "-", "-", "-", "-"), tags=tags)
+                t.insert("", "end", values=(num, "?", "-", "-", "-", "-", "-", "-", "-"), tags=tags)
                 continue
-            tags = ("issue",) if self._has_issue(f"pokedex.{num}") or self._has_issue(f"pokedex.{num}.seen") or self._has_issue(f"pokedex.{num}.caught") else ()
+            tags = ("issue",) if self._has_issue(f"pokedex.{num}") or any(
+                self._has_issue(f"pokedex.{num}.{f}") for f in
+                ("seen", "caught", "shinySeen", "shinyCaught", "owned", "evolved", "shinyOwned")) else ()
             t.insert("", "end", values=(num, self.pokedex.get(str(num), "?"),
                                         info.get("seen", 0), info.get("caught", 0),
-                                        info.get("shinySeen", 0), info.get("shinyCaught", 0)), tags=tags)
+                                        info.get("shinySeen", 0), info.get("shinyCaught", 0),
+                                        info.get("owned", 0), info.get("evolved", 0), info.get("shinyOwned", 0)), tags=tags)
 
     def _render_incubators(self):
         t = self._tabs[4]
@@ -808,6 +905,9 @@ class SaveViewer:
             src = "亲本1" if li.get("source") == "a" else "亲本2" if li.get("source") == "b" else "?"
             t.insert("", "end", values=("锁定遗传", f"{stat} ← {src}",
                                         "该维个体值固定继承指定亲本"))
+        # 熏香开关：开着产最低阶幼体
+        t.insert("", "end", values=("熏香开关", "开" if n.get("useIncense") else "关",
+                                    "打开后产最低阶幼体（卡比兽 → 小卡比兽），不消耗道具"))
         # 繁殖状态
         b = n.get("breeding")
         if not isinstance(b, dict):
@@ -933,6 +1033,25 @@ class SaveViewer:
         cr = d.get("casinoRecords")
         if isinstance(cr, list):
             rows.append(("赌场记录", f"{len(cr)} 局", " 21 点对局记录"))
+        # 招式机：永久解锁 + 每日货架
+        tmu = d.get("tmUnlocked")
+        if isinstance(tmu, dict):
+            rows.append(("招式机解锁", f"{len(tmu)} 个招式",
+                         "已永久解锁的招式机（解锁即发给仓库里能学的宝可梦）"))
+        tms = d.get("tmShop")
+        if isinstance(tms, dict):
+            rows.append(("今日招式机", f"{tms.get('date', '?')} · {len(tms.get('ids') or [])} 个",
+                         "今日货架：每天随机一批还没解锁的招式"))
+        # 每日神兽池：按地区分配 + 软保底
+        lp = d.get("legendPool")
+        if isinstance(lp, dict):
+            by = lp.get("byRegion") or {}
+            total = sum(len(v or []) for v in by.values())
+            detail = " / ".join(f"{r} {len(v or [])}" for r, v in by.items())
+            rows.append(("每日神兽池", f"{lp.get('date', '?')} · 共 {total} 只", detail or "本日池为空"))
+        if "legendPity" in d:
+            rows.append(("神兽池保底", str(d.get("legendPity", 0)),
+                         "连着多少场遇敌没出神兽，满 200 场下一只必出"))
         # 掉落浮点余数（_f_ 前缀：挂机道具掉落的累积余数，满 1 掉落一个）
         drop_parts = []
         for k in sorted(d.keys()):

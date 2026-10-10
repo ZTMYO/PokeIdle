@@ -1415,7 +1415,7 @@ export function markNurseryBreedVisited() {
 // 生成蛋条目：个体值 6 项中 5 项继承双亲、1 项随机。锁定位固定继承所选亲本（source）的
 // 数值（占 1 个继承名额），其余随机遗传位 50% 取父/母；性别/性格/闪光出生即定，孵化后完全沿用
 function createEggEntry(ea, eb, childSpecies, lockedIv) {
-  childSpecies = rollSexForm(childSpecies); // 雌雄异形（轻飘飘、爱管侍…）：后代性别单独 roll，出了哪种性别就落哪条形态
+  childSpecies = rollSexForm(childSpecies); // 雌雄异形：后代性别单独 roll，出了哪种就落哪条形态
   const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
   const inherits = new Set();
   const ivs = {};

@@ -17,7 +17,7 @@ const SCRIPT = [
   "考虑到你要辗转各地长途旅行，",
   "我准备了一台特制手机送给你。",
   "既能导航、查阅图鉴，还能管理宝可梦。",
-  "内置帮助APP，随时可以查看使用教程。",
+  "内置教程APP，随时可以查看玩法说明。",
 ];
 const ASK_LINE = '准备好了吗？这就出发吧！';
 const PHONE_LINE = SCRIPT.findIndex(l => l.includes('特制手机')) + 1;

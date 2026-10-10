@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, BIKE_RESTORE_MAX_GAP_MS, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -97,10 +97,18 @@ export let _prevBagCounts = {};
 // ---------- Setter 函数（跨模块同步） ----------
 export function setGameData(d) { gameData = d; }
 export function setPhase(p) { phase = p; }
+// 野池等级上限表（编号 → 最高等级）：evolution.js 读表后灌进来
+let _wildLevelCaps = null;
+export function setWildLevelCaps(caps) { _wildLevelCaps = caps || null; }
+// 某个物种的野池等级上限：普通遇敌与时空扭曲都走它
+export function wildLevelCap(idx) {
+  return (_wildLevelCaps && _wildLevelCaps[String(idx)]) || WILD_LEVEL_MAX;
+}
+
 export function setCurrentEncounter(e) {
   currentEncounter = e;
-  // 新遇敌生成野生等级；结束遇敌（null）时重置
-  encounterLevel = e ? 1 + Math.floor(Math.random() * WILD_LEVEL_MAX) : 1;
+  // 新遇敌摇等级；带上限的物种压低上限，免得一抓来就能进化
+  encounterLevel = e ? 1 + Math.floor(Math.random() * wildLevelCap(e.index)) : 1;
 }
 export function setEncounterLevel(lv) { encounterLevel = lv; }
 export function setCurrentIsShiny(s) { currentIsShiny = s; }
@@ -242,7 +250,7 @@ export function ensureGpsState() {
 export function getDefaultSave() {
   return {
     manualBike: false, // 手动骑行状态标记（上车/下车时随主存档持久化，刷新/重开可恢复）
-    items: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'casinoCoin':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
+    items: { 'poke-ball':START_POKE_BALLS, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'casinoCoin':0, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
     stats: {
       totalPlaySeconds:0, playSecondsToday:0, lastPlayDate:'', walkDistance:0, totalCatches:0, totalFlees:0, lastSaveTime:Date.now(),
       totalShinySeen:0, totalShinyCaught:0,
@@ -347,7 +355,7 @@ export function rollGender(species) {
   return Math.random() * 8 < rate ? 'female' : 'male';
 }
 
-// 雌雄异形的两条形态（同一编号下"XX-雄性 / XX-雌性"，轻飘飘、爱管侍这种）：返回 { male, female }，不是这种形态返回 null
+// 雌雄异形的两条形态（轻飘飘、爱管侍这类）：返回 { male, female }，没有则 null
 function sexFormPair(species) {
   const me = getPokemonByIndex(String(species));
   if (!me) return null;
@@ -361,8 +369,7 @@ function sexFormPair(species) {
   return male && female ? { male, female } : null;
 }
 
-// 蛋的物种：雌雄异形的物种由性别定形态——比例按两条形态合并（各自全雄/全雌 → 50/50），
-// 出了哪种性别就落哪条，所以同族配对、与百变怪配对都能生出公母两种
+// 蛋的物种：雌雄异形由性别定形态，比例按两条形态合并后 roll
 export function rollSexForm(species) {
   const pair = sexFormPair(species);
   if (!pair) return String(species);
@@ -392,9 +399,33 @@ export function isPokemon(p) {
   return !p || !p.kind || p.kind !== 'egg';
 }
 
-// 把一只刚获得的宝可梦加入仓库（捕获/孵蛋时调用）
+// 图鉴「获得过」登记：任何来源拿到一只都算解锁，捕获数另有 caught
+export function markDexOwned(idx, shiny) {
+  if (!gameData) return;
+  const key = String(idx);
+  if (!gameData.pokedex) gameData.pokedex = {};
+  if (!gameData.pokedex[key]) gameData.pokedex[key] = { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0 };
+  const e = gameData.pokedex[key];
+  e.owned = (e.owned || 0) + 1;
+  if (shiny) e.shinyOwned = (e.shinyOwned || 0) + 1;
+}
+
+// 图鉴「已解锁」：获得过就解锁，后两个条件给没有 owned 的老存档兜底
+export function dexUnlocked(idx) {
+  const e = gameData && gameData.pokedex && gameData.pokedex[String(idx)];
+  return !!e && ((e.owned || 0) > 0 || (e.caught || 0) > 0 || (e.evolved || 0) > 0);
+}
+
+// 图鉴「持有过闪光」：任何来源的闪光都算
+export function dexShinyOwned(idx) {
+  const e = gameData && gameData.pokedex && gameData.pokedex[String(idx)];
+  return !!e && ((e.shinyOwned || 0) > 0 || (e.shinyCaught || 0) > 0 || (e.shinyEvolved || 0) > 0);
+}
+
+// 把一只刚获得的宝可梦加入仓库（捕获/孵蛋/交换时调用）
 export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1, gender, ivs, variant }) {
   if (!gameData) return null;
+  markDexOwned(species, !!shiny); // 任何来源获得即解锁图鉴
   if (!Array.isArray(gameData.roster)) gameData.roster = [];
   const poke = getPokemonByIndex(String(species));
   const legendIv = source !== 'egg' && poke && poke.legend === true;

@@ -68,10 +68,10 @@
       <div class="dex-table-wrap" id="dexWrap">
         <table class="dex-table">
           <colgroup>
-            <col style="width:56px" /><col style="width:150px" /><col style="width:76px" /><col style="width:64px" />
-            <col style="width:64px" /><col style="width:60px" /><col style="width:110px" /><col style="width:110px" />
-            <col style="width:92px" /><col style="width:46px" /><col style="width:46px" /><col style="width:46px" />
-            <col style="width:46px" /><col style="width:46px" /><col style="width:46px" /><col style="width:52px" />
+            <col style="width:94px" /><col style="width:150px" /><col style="width:76px" /><col style="width:64px" />
+            <col style="width:64px" /><col style="width:60px" /><col style="width:96px" /><col style="width:110px" />
+            <col style="width:92px" /><col style="width:38px" /><col style="width:38px" /><col style="width:38px" />
+            <col style="width:38px" /><col style="width:38px" /><col style="width:38px" /><col style="width:44px" />
             <col style="width:110px" />
           </colgroup>
           <thead>
@@ -98,6 +98,23 @@
           <tbody id="dexBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- 点某一行 → 弹出这只宝可梦的获取途径（含列表里没有的分类 / 身高体重 / 图鉴描述） -->
+  <div class="pk-modal" id="pkModal" hidden>
+    <div class="pk-card" role="dialog" aria-modal="true" aria-labelledby="pkTitle">
+      <button class="pk-close" id="pkClose" type="button" title="关闭（Esc）" aria-label="关闭">✕</button>
+      <div class="pk-head">
+        <span class="pk-ico" id="pkIco"></span>
+        <div class="pk-head-text">
+          <div class="pk-title" id="pkTitle"></div>
+          <div class="pk-sub" id="pkSub"></div>
+        </div>
+      </div>
+      <p class="pk-desc" id="pkDesc"></p>
+      <div class="pk-sec">获取途径<span class="pk-sec-num" id="pkNum"></span></div>
+      <div class="pk-list" id="pkPills"></div>
     </div>
   </div>
 

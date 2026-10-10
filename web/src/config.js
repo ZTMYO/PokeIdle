@@ -1,6 +1,7 @@
 // ===== 游戏常量配置 =====
 
 export const START_CANDY = 450; // 新存档启动资金
+export const START_POKE_BALLS = 10; // 新存档初始精灵球：开局的几只要抓得住，不用等掉落
 // 道具概率权重
 export const ITEM_RATES = {
   'poke-ball':   1 / 90,    // 精灵球   ≈40/小时（基本弹药）
@@ -90,7 +91,7 @@ export const MINT_NATURES = {
   '认真薄荷': 'serious',
 };
 
-export const ITEM_SELL_RATE = 0.4; // 回收价 = 兑换价 × 该比例
+export const ITEM_SELL_RATE = 0.4; // 回收价 = 基础价 × 该比例（基础价见 CANDY_EXCHANGE / EVO_PRICES / MINT_PRICE / EVO_EXCLUSIVE_PRICE）
 // 固定回收价（不随商店定价放大）：大师球/闪耀护符按商店价的 20%；经验糖果没有商店价，按精灵球的一半
 export const ITEM_SELL_OVERRIDE = { 'master-ball': 400, 'shiny-charm': 4000, 'exp-candy': 5 };
 

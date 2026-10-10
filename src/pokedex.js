@@ -1,6 +1,6 @@
 // ===== 图鉴模块 =====
 import { ITEM_NAMES } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, _pokedexSortBy, _pokedexSortDir, pad, pushNav, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, _pokedexSortBy, _pokedexSortDir, pad, pushNav, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir, dexUnlocked, dexShinyOwned } from './state.js';
 import { $, showView, tryLoadPokemonImage, tryLoadImage, setupFoodTooltip } from './ui.js';
 import { TYPE_COLORS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
@@ -214,7 +214,6 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
   const poke = getPokemonByIndex(pokemonIndex);
   const caughtEntry = gameData.pokedex[idx];
   const seenCount = caughtEntry?.seen || 0;
-  const caughtCount = caughtEntry?.caught || 0;
   // 详情页标题显示全名（变体用 form，如"风速狗-洗翠"）；未遇到显示？？？
   const displayName = seenCount > 0 ? (poke?.form || poke?.name || `#${pokemonIndex}`) : '？？？';
   const list = $('pokedexList');
@@ -235,8 +234,8 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
   if (progEl) progEl.style.display = 'none';
 
   // 构建 HTML：宝可梦素材 + 日志列表
-  // 未捕获：组件照常摆出来，数值灰显占位（捕获后解锁）
-  const locked = caughtCount === 0;
+  // 未解锁：组件照常摆出来，数值灰显占位（获得过就解锁，进化得到的算解锁、不算捕获数）
+  const locked = !dexUnlocked(idx);
   let html = `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 5px 2px;">
     <div style="font-size:14px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</div>
     <button class="incubator-log-btn" id="pokedexLogsBtn">相遇日志</button>
@@ -261,7 +260,7 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
         ${(() => {
           const r = (poke && poke.catchRate !== undefined) ? poke.catchRate : 0.5;
           const rarity = (poke && poke.rarity !== undefined) ? poke.rarity : 0.5;
-          if (caughtCount > 0) {
+          if (!locked) {
             return `<div>捕获率：${(r * 100).toFixed(0)}%</div><div>稀有度：${rarity.toFixed(2)}</div>`;
           } else {
             let crLabel;
@@ -728,12 +727,12 @@ export function showPokedex() {
   // 多级筛选：解锁/未解锁 → 完整组合（全部/普通/神兽/闪光/普通闪光/神兽闪光）
   // legend/shiny 用 all=不限，normal=非，legend/shiny=是
   const st = _pokedexStatus, lg = _pokedexLegend, sh = _pokedexShiny;
-  if (st === 'unlock') filtered = filtered.filter(p => ((caughtMap[p.index]?.caught || 0) > 0 || (caughtMap[p.index]?.evolved || 0) > 0));
-  else if (st === 'lock') filtered = filtered.filter(p => ((caughtMap[p.index]?.caught || 0) === 0 && (caughtMap[p.index]?.evolved || 0) === 0));
+  if (st === 'unlock') filtered = filtered.filter(p => dexUnlocked(p.index));
+  else if (st === 'lock') filtered = filtered.filter(p => !dexUnlocked(p.index));
   if (lg === 'legend') filtered = filtered.filter(p => p.legend === true);
   else if (lg === 'normal') filtered = filtered.filter(p => p.legend !== true);
-  if (sh === 'shiny') filtered = filtered.filter(p => (caughtMap[p.index]?.shinyCaught || 0) > 0);
-  else if (sh === 'normal') filtered = filtered.filter(p => (caughtMap[p.index]?.shinyCaught || 0) === 0);
+  if (sh === 'shiny') filtered = filtered.filter(p => dexShinyOwned(p.index));
+  else if (sh === 'normal') filtered = filtered.filter(p => !dexShinyOwned(p.index));
   // 属性筛选：含有目标属性的宝可梦都筛出来（单属性/双属性均可命中）
   if (_pokedexType) filtered = filtered.filter(p => (p.types || []).includes(_pokedexType));
   // 更新捕获进度
@@ -741,8 +740,8 @@ export function showPokedex() {
   if (progEl) {
     const total = filtered.length;
     const seen = filtered.filter(p => (caughtMap[p.index]?.seen||0) > 0).length;
-    const caught = filtered.filter(p => (caughtMap[p.index]?.caught||0) > 0).length;
-    progEl.textContent = `已相遇 ${seen}/${total}  ·  已捕获 ${caught}/${total}`;
+    const unlocked = filtered.filter(p => dexUnlocked(p.index)).length;
+    progEl.textContent = `已相遇 ${seen}/${total}  ·  已解锁 ${unlocked}/${total}`;
   }
   // 排序（by=null 时按默认图鉴编号 index 升序）
   const sortBy = _pokedexSortBy;
@@ -773,7 +772,8 @@ export function showPokedex() {
     const caught = entry?.caught || 0;
     const shinySeen = entry?.shinySeen || 0;
     const shinyCaught = entry?.shinyCaught || 0;
-    const shinyTag = caught > 0 ? (shinyCaught > 0 ? STAR_FILLED : STAR_OUTLINE) : '';
+    // 星标按「持有过」给：进化得到的形态也算拥有
+    const shinyTag = dexUnlocked(p.index) ? (dexShinyOwned(p.index) ? STAR_FILLED : STAR_OUTLINE) : '';
     html += `<div class="pokedex-entry${seen > 0 ? '' : ' disabled'}" data-index="${p.index}" data-seen="${seen > 0 ? '1' : '0'}">
       <span class="pokedex-star">${shinyTag}</span>
       <span class="pokedex-idx">#${p.index}</span>

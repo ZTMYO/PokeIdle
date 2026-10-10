@@ -2,7 +2,7 @@
 // 从农场库存选树果（1~RECIPE_MAX 颗）作配方，确认后制成树果方块：按配方颜色混合着色，
 // 优先吸引当前地区与配方一致的宝可梦，被吃掉或再走满 BLOCK_DISTANCE 米后结束。
 import { $, showView, tryLoadImage } from './ui.js';
-import { phase, gameData, blockBuffActive, blockRecipe, blockStartWalk, blockQuality, qteState, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, saveSessionState, setIdleMsgIdx, pushNav, addSystemLog, saveGame, randInt, getCurrentRegion } from './state.js';
+import { phase, gameData, blockBuffActive, blockRecipe, blockStartWalk, blockQuality, qteState, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, saveSessionState, setIdleMsgIdx, pushNav, addSystemLog, saveGame, randInt, getCurrentRegion, dexUnlocked } from './state.js';
 import { BERRY_ICONS, BERRY_NAMES, BERRY_COLORS, findBerryTarget } from './items.js';
 import { BLOCK_DISTANCE, PX_PER_METER, BLOCK_QUALITY } from './config.js';
 import { playObtained } from './audio.js';
@@ -468,16 +468,16 @@ function tintBlockVisual() {
   });
 }
 
-// 目标宝可梦文案：抓到过 → 概率提示；配方对但没抓到过 → 说明原因；野外没有这只 → 换配方
-function blockTargetText(target, targetCaught, quality) {
-  if (target && targetCaught) return `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`;
-  if (target) return '还没抓到过这只宝可梦，配方无法生效';
+// 目标宝可梦文案：已经有了给概率提示，还没有 / 野外没这只给原因
+function blockTargetText(target, targetOwned, quality) {
+  if (target && targetOwned) return `遇敌时 ${Math.round(quality.chance * 100)}% 概率直接遇到目标宝可梦！`;
+  if (target) return '图鉴里还没有这只宝可梦，配方无法生效';
   return '野外没有爱吃这个配方的宝可梦！';
 }
 
 function cooldownHtml() {
   const target = findBerryTarget(blockRecipe);
-  const targetCaught = !!(target && (gameData.pokedex?.[String(target.index)]?.caught || 0) > 0);
+  const targetOwned = !!(target && dexUnlocked(target.index));
   const quality = BLOCK_QUALITY[blockQuality] || BLOCK_QUALITY.good;
   // 布局与首页/结果页统一
   return `
@@ -488,7 +488,7 @@ function cooldownHtml() {
         <div class="mixer-cool-quality ${blockQuality}">${quality.label}</div>
         <div class="mixer-cool-timer">剩余 <span id="mixerCoolMeters">${blockMetersRemaining()}</span> 米</div>
         <div class="mixer-result-target show">
-          ${blockTargetText(target, targetCaught, quality)}
+          ${blockTargetText(target, targetOwned, quality)}
         </div>
       </div>
       <button class="bottom-dock" id="mixerCancelBtn">取消使用</button>
@@ -755,8 +755,8 @@ function showResult() {
   startResultRegionWatch();
   const recipe = [..._lastRecipe].sort((a, b) => a - b);
   const target = findBerryTarget(recipe);
-  // 目标已捕获才算"有宝可梦吃"，否则不可领取
-  const targetCaught = !!(target && (gameData.pokedex?.[String(target.index)]?.caught || 0) > 0);
+  // 目标已在图鉴里才算"有宝可梦吃"，否则不可领取
+  const targetOwned = !!(target && dexUnlocked(target.index));
   const quality = BLOCK_QUALITY[_qteQuality] || BLOCK_QUALITY.good;
   el.innerHTML = `
     <div class="mixer-wrap mixer-result">
@@ -765,7 +765,7 @@ function showResult() {
         <img class="mixer-block-visual" id="mixerResultCube" src="./items/goods/cube.png" alt="树果方块" />
         <div class="mixer-result-berries">${berryImgsHtml(recipe)}</div>
         <div class="mixer-result-target" id="mixerResultTarget">
-          ${blockTargetText(target, targetCaught, quality)}
+          ${blockTargetText(target, targetOwned, quality)}
         </div>
       </div>
       <div class="mixer-result-actions">
@@ -811,10 +811,10 @@ function startResultRegionWatch() {
     _resultRegion = cur;
     const recipe = (Array.isArray(s.recipe) && s.recipe.length > 0) ? s.recipe : _lastRecipe;
     const target = findBerryTarget(recipe);
-    const targetCaught = !!(target && (gameData.pokedex?.[String(target.index)]?.caught || 0) > 0);
+    const targetOwned = !!(target && dexUnlocked(target.index));
     const quality = BLOCK_QUALITY[s.quality || 'good'] || BLOCK_QUALITY.good;
     const el = $('mixerResultTarget');
-    if (el) el.textContent = blockTargetText(target, targetCaught, quality);
+    if (el) el.textContent = blockTargetText(target, targetOwned, quality);
   }, 500);
 }
 

@@ -2,8 +2,9 @@
 // 数据表 src/pokemon-data/evolution.json：{ wildKeep, stones: { 形态编号: 道具名 }, stoneIcons, edges: { 来源: { 目标: 条件 } } }
 // 条件字段 lv / item / move / region / candy / coin / gender 列出的都要满足。
 // incense 只给繁育用、不参与判定；nature 与 gender 是形态选择而不是门槛：由不得玩家挑，只列对得上的那条边。
-import { gameData, getPokemonByIndex, getCurrentRegion, getNature, ensureGender, saveGame, addSystemLog, setWildExcluded, setPowerForms } from './state.js';
+import { gameData, getPokemonByIndex, getCurrentRegion, getNature, ensureGender, saveGame, addSystemLog, setWildExcluded, setPowerForms, setWildLevelCaps, markDexOwned } from './state.js';
 import { updateBackpack, updateStats } from './ui.js';
+import { WILD_LEVEL_MAX } from './config.js';
 
 let _data = null;
 let _loading = null;
@@ -29,6 +30,17 @@ export function loadEvolution() {
           }
         }
         setWildExcluded(excluded);
+        // 野池等级上限：压在自己最低的一条进化等级之下（橡实果 → 13 级封顶）
+        const caps = {};
+        for (const [from, row] of Object.entries(d.edges || {})) {
+          for (const cond of Object.values(row)) {
+            const lv = Number(cond && cond.lv);
+            if (!lv) continue;
+            const lim = Math.max(1, Math.min(WILD_LEVEL_MAX, lv - 1));
+            if (caps[from] === undefined || lim < caps[from]) caps[from] = lim;
+          }
+        }
+        setWildLevelCaps(caps);
         return d;
       })
       .catch((e) => { _loading = null; throw e; });
@@ -110,6 +122,11 @@ export function condItems(cond) {
   return cond.item ? (Array.isArray(cond.item) ? cond.item : [cond.item]) : [];
 }
 
+// 招式条件的显示文案：「X属性招式」本身就是完整说法，具名招式套「」并补"招式"，避免被当成道具
+export function moveCondText(move) {
+  return /属性招式$/.test(move) ? `携带${move}` : `携带「${move}」招式`;
+}
+
 // 招式条件看当前携带的 4 招：entry.moves 手配过就用那 4 格，否则用自动配的那 4 招
 // 「某招」＝带在身上，「X属性招式」＝带着的一招是该属性。moveIds / moveData 由调用方传入
 function hasCondMove(entry, want, { moveIds, moveData } = {}) {
@@ -138,7 +155,7 @@ function judgeCond(entry, cond, ctx) {
   if (cond.candy && (gameData.items.candy || 0) < cond.candy) { notes.push(`缺 ${cond.candy} 糖果`); unmet.candy = true; }
   if (cond.coin && (gameData.items.casinoCoin || 0) < cond.coin) { notes.push(`缺 ${cond.coin} 游戏币`); unmet.coin = true; }
   if (cond.move && !hasCondMove(entry, cond.move, ctx)) {
-    notes.push(/属性招式$/.test(cond.move) ? `未携带${cond.move}` : `未携带「${cond.move}」`);
+    notes.push(`未${moveCondText(cond.move)}`);
     unmet.move = true;
   }
   if (cond.gender && ensureGender(entry) !== cond.gender) {
@@ -183,7 +200,7 @@ export function evolutionRows(entry, ctx) {
 }
 
 // ---------- 执行进化 ----------
-// 扣掉这次要的东西 → 改 species → 图鉴 seen/evolved +1、caught 不动 → 遭遇日志 source 记 evo
+// 扣道具 → 改 species → 图鉴 seen/evolved/owned +1、caught 不动 → 日志记 evo
 export function applyEvolution(entry, to, cond) {
   const gd = gameData;
   const items = condItems(cond);
@@ -193,8 +210,7 @@ export function applyEvolution(entry, to, cond) {
   const from = String(entry.species);
   entry.species = String(to);
   entry.lineage = { from, at: Date.now() };
-  if (!gd.pokedex) gd.pokedex = {};
-  if (!gd.pokedex[to]) gd.pokedex[to] = { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0 };
+  markDexOwned(to, !!entry.shiny); // 进化也是"获得过"：图鉴直接解锁（evolved 单独记一笔来源）
   gd.pokedex[to].seen++;
   gd.pokedex[to].evolved = (gd.pokedex[to].evolved || 0) + 1;
   // 相遇记录绑个体、一生只写一次：进化不算"新遇见一只"，只留一条进化记录

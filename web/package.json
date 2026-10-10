@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "sync-src": "node sync-src.mjs",
-    "dev": "node sync-src.mjs && vite",
-    "build": "node sync-src.mjs && vite build",
+    "icons": "node ../tools/build-icon-sprite.mjs",
+    "dev": "node ../tools/build-icon-sprite.mjs && node sync-src.mjs && vite",
+    "build": "node ../tools/build-icon-sprite.mjs && node sync-src.mjs && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
