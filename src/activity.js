@@ -2,7 +2,7 @@
 // 服务端只发"开关 + 时间段 + 参数"（GET /api/activity/），玩法写在 src/activities.js 里。
 // 手机首页时钟左侧会多出一个入口按钮，活动窗口内点开进容器；到点自己消失。
 // 拉不到清单（离线 / 服务器挂了）就当没有活动，主游戏完全不受影响。
-import { $, showView, showConfirmBar, getCurrentView } from './ui.js';
+import { $, showView, showConfirmBar, getCurrentView, isDualLayout } from './ui.js';
 import { gameData, saveGame, addSystemLog, pushNav, popNav, rollGender } from './state.js';
 import { grantItem } from './items.js';
 import { ITEM_NAMES } from './config.js';
@@ -124,6 +124,11 @@ function devWin(di) {
   const from = di.from || Date.now();
   return { from, to: Math.max(from + (di.hours || 24) * 3600e3, Date.now() + 3600e3) };
 }
+// 某个活动此刻是否在窗口内（不发奖励，只判断）；本地预览的那个也算
+export function activityActive(id) {
+  return activeActivities().some(a => a.id === id) || (devPreview() || {}).id === id;
+}
+
 // 这个 id 该用哪条记录：本地预览优先（同一个 id 也走假窗口和覆盖后的 payload）
 function entryOf(id) {
   const di = devPreview();
@@ -236,6 +241,30 @@ function refreshEntry() {
   import('./phone.js').then((m) => m.refreshPhoneHome()).catch(() => {});
 }
 
+// 航海寻宝配色：活动页与悬赏页共用。双屏布局页面在下屏；
+// 经典布局两屏重合，app 页在 #appScreen 里、背景靠底下 #screen 透出来，两块都要换
+function voyageScreenEls() {
+  const app = document.getElementById('appScreen');
+  return isDualLayout() ? [app] : [app, document.getElementById('screen')];
+}
+
+function applyVoyageTheme(on) {
+  const els = voyageScreenEls().filter(Boolean);
+  if (!els.length || els.every((sc) => sc.classList.contains('voyage') === on)) return;
+  els.forEach((sc) => sc.classList.add('no-theme-trans')); // 配色切换禁用过渡，直接跳变
+  els.forEach((sc) => sc.classList.toggle('voyage', on));
+  void els[0].offsetWidth;
+  els.forEach((sc) => sc.classList.remove('no-theme-trans'));
+}
+
+// 只有活动页（且当前开的是航海寻宝）和悬赏页（且活动期内）才用这套配色，切到别的页面立刻收回
+function syncVoyageTheme() {
+  const onBounty = $('bountyView')?.style.display !== 'none';
+  const onAct = $('activityView')?.style.display !== 'none';
+  applyVoyageTheme((onBounty && activityActive('voyage')) || (onAct && _open === 'voyage'));
+}
+window.addEventListener('view-changed', syncVoyageTheme);
+
 function openActivity(id) {
   const mod = ACTIVITIES[id];
   const view = $('activityView');
@@ -293,6 +322,15 @@ function ctxFor(a, win) {
     slot,                                   // 这个活动的存档命名空间（随主存档落盘，按"这一次活动"隔离）
     get left() { return Math.max(0, (win ? win.to : 0) - serverNow()); },
     grant: (key, qty = 1) => grantItem(key, qty, '限时活动'),   // 第三个参数是掉落来源，会写进系统日志
+    // 持有量（只读）与消耗：不足则整单不执行，返回是否成功
+    count: (key) => Number(gameData.items[key]) || 0,
+    spend: (key, qty = 1) => {
+      const n = Number(gameData.items[key]) || 0;
+      if (n < qty) return false;
+      if (n === qty) delete gameData.items[key]; else gameData.items[key] = n - qty;
+      saveGame();
+      return true;
+    },
     confirm: (text, onYes) => showConfirmBar(text, onYes || null, null, {}),   // 留取消键，让玩家能反悔
     picks: _picks,                                    // 槽位里已选的个体 id（下标 = 槽位）
     setPick: (i, rid) => { _picks[i] = rid || null; },
@@ -392,7 +430,9 @@ function paintLeft(ctx) {
   if (!left) return;
   const ms = ctx.left;
   const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), sec = Math.floor((ms % 60000) / 1000);
-  left.textContent = h >= 24 ? `剩 ${Math.floor(h / 24)} 天` : `剩 ${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  left.textContent = h >= 24
+    ? `剩 ${Math.floor(h / 24)} 天 ${h % 24} 小时`
+    : `剩 ${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
 // 开机：先吃缓存再拉最新；之后每分钟看一眼（到点就收摊），每 10 分钟对一次表

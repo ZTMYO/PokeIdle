@@ -153,17 +153,17 @@ function overlayOnPhone() {
     || document.querySelector('.dg-blocker') || document.querySelector('#quitDialog.open'));
 }
 // 双屏下手机页会被战斗屏的内层盖住，角标收不到 click：在文档捕获阶段按坐标判定。
-// 指针坐标要换算回机身逻辑坐标再和 rect 比（机身整体被缩放/transform 过，两个坐标系不一致）
+// 盒子用 getClientRects 取（没被 main.js 的 rect 补偿改写，是真实视口坐标），直接和指针比：
+// 手机单屏模式走 transform 缩放，getBoundingClientRect 返回的是机身逻辑坐标，两边对不上
 function bindHotBadge() {
   const el = $('phoneUpdate');
   if (!el || el._wired) return;
   el._wired = true;
   document.addEventListener('pointerdown', (e) => {
     if (overlayOnPhone()) return;
-    const r = el.getBoundingClientRect();
-    if (!r.width) return;
-    const p = viewportToLogic(e.clientX, e.clientY);
-    if (p.x < r.left - 6 || p.x > r.right + 6 || p.y < r.top - 6 || p.y > r.bottom + 6) return;
+    const r = el.getClientRects()[0];
+    if (!r || !r.width) return;
+    if (e.clientX < r.left - 6 || e.clientX > r.right + 6 || e.clientY < r.top - 6 || e.clientY > r.bottom + 6) return;
     e.preventDefault();
     e.stopPropagation();
     import('./hot-update.js')

@@ -664,24 +664,20 @@ function syncWalkers() {
 }
 
 // ---------- 四向走动素材 ----------
-// 「列=帧、行=方向」；walk / idle 两图层叠在同一位置靠显隐切换，脚底锚点对齐格子底部中心
+// 「列=帧、行=方向」；只铺走动图，脚底锚点对齐格子底部中心（停下即定格，不播待机）
 function layoutNurseryFourDir(w) {
-  const { Walk, Idle, ax, ay } = w.fd;
+  const { Walk, ax, ay } = w.fd;
   const box = 32; // .nursery-walker 固定 32×32
-  const place = (img, anim) => {
-    img.style.position = 'absolute';
-    img.style.width = anim.w + 'px';
-    img.style.height = anim.h + 'px';
-    img.style.objectFit = 'none';
-    img.style.left = (box / 2 - ax) + 'px';
-    img.style.top = (box - ay) + 'px';
-    img.style.transformOrigin = ax + 'px ' + ay + 'px';
-    img.style.transform = 'scale(' + FOUR_DIR_SCALE + ')';
-  };
-  place(w.walkImg, Walk);
-  place(w.idleImg, Idle);
-  setNurseryFourDirPos(w, w.walkImg, Walk, 0);
-  setNurseryFourDirPos(w, w.idleImg, Idle, 0);
+  const img = w.walkImg;
+  img.style.position = 'absolute';
+  img.style.width = Walk.w + 'px';
+  img.style.height = Walk.h + 'px';
+  img.style.objectFit = 'none';
+  img.style.left = (box / 2 - ax) + 'px';
+  img.style.top = (box - ay) + 'px';
+  img.style.transformOrigin = ax + 'px ' + ay + 'px';
+  img.style.transform = 'scale(' + FOUR_DIR_SCALE + ')';
+  setNurseryFourDirPos(w, img, Walk, 0);
 }
 
 function setNurseryFourDirPos(w, img, anim, frame) {
@@ -692,9 +688,7 @@ function setNurseryFourDirRow(w, row) {
   if (w.fdRow === row) return;
   w.fdRow = row;
   setNurseryFourDirPos(w, w.walkImg, w.fd.Walk, 0);
-  setNurseryFourDirPos(w, w.idleImg, w.fd.Idle, 0);
-  // 换行后从头播当前动作
-  w.fdAnim = null;
+  // 换行后从头播走动动作
   w.fdFrame = 0;
   w.fdNextAt = performance.now();
 }
@@ -702,55 +696,43 @@ function setNurseryFourDirRow(w, row) {
 function loadNurseryFourDir(w, geom) {
   return tryLoadImage(w.img, fourDirSrc(geom, 'walk')).then(ok => {
     if (!ok || !w.img.isConnected) return false;
-    const idleImg = document.createElement('img');
-    idleImg.className = 'nursery-walker-img fd move';
-    idleImg.alt = '';
     w.img.classList.add('fd', 'move');
-    w.flipEl.insertBefore(idleImg, w.img);
     // 四向素材自己带左右帧，不再镜像
     w.flipEl.style.transform = '';
     w.fd = geom;
     w.walkImg = w.img;
-    w.idleImg = idleImg;
     w.fdRow = DIR_ROW.down;
-    w.fdAnim = null;
+    w.fdMoving = false;
     w.fdFrame = 0;
     w.fdNextAt = 0;
-    w.fdIdleOk = false;
     layoutNurseryFourDir(w);
     w.img.style.display = 'block';
-    idleImg.style.display = 'none';
-    // 待机图晚一拍加载：失败就退化成走图第一帧静止
-    tryLoadImage(idleImg, fourDirSrc(geom, 'idle')).then(ok2 => { w.fdIdleOk = !!ok2; });
     addMoveAnim(w);
     return true;
   });
 }
 
-// 四向切帧：走动按 Walk 的 d[]、停下按 Idle 的 d[] 循环
+// 四向切帧：走动循环播 Walk 的 d[]，停下定格在走图第 0 帧（不播待机）
 function nurseryFourDirTick(w, now) {
   if (w.moving && now > w.moveUntil) w.moving = false;
-  const useIdle = !w.moving && w.fdIdleOk;
-  const anim = useIdle ? w.fd.Idle : w.fd.Walk;
-  const img = useIdle ? w.idleImg : w.walkImg;
-  if (w.fdAnim !== anim || w.fdShow !== useIdle) {
-    w.fdAnim = anim;
-    w.fdShow = useIdle;
-    w.fdFrame = 0;
-    w.fdNextAt = now;
-    w.walkImg.style.display = useIdle ? 'none' : 'block';
-    w.idleImg.style.display = useIdle ? 'block' : 'none';
-  }
-  // 待机图缺失：静止时停在走图第 0 帧
-  if (!w.moving && !w.fdIdleOk) {
-    setNurseryFourDirPos(w, w.walkImg, w.fd.Walk, 0);
+  if (!w.moving) {
+    if (w.fdMoving !== false) {
+      w.fdMoving = false;
+      w.fdFrame = 0;
+      setNurseryFourDirPos(w, w.walkImg, w.fd.Walk, 0);
+    }
     return;
   }
+  if (w.fdMoving !== true) {
+    w.fdMoving = true;
+    w.fdFrame = 0;
+    w.fdNextAt = now;
+  }
   if (now < w.fdNextAt) return;
-  const n = Math.max(1, anim.n);
+  const n = Math.max(1, w.fd.Walk.n);
   if (w.fdFrame >= n) w.fdFrame = 0;
-  setNurseryFourDirPos(w, img, anim, w.fdFrame);
-  w.fdNextAt = now + fourDirDelay(anim, w.fdFrame);
+  setNurseryFourDirPos(w, w.walkImg, w.fd.Walk, w.fdFrame);
+  w.fdNextAt = now + fourDirDelay(w.fd.Walk, w.fdFrame);
   w.fdFrame = (w.fdFrame + 1) % n;
 }
 

@@ -27,7 +27,7 @@ export const ITEM_NAMES = {
   'poke-ball': '精灵球', 'ultra-ball': '高级球',
   'master-ball': '大师球', 'candy': '糖果',
   'sweet-honey': '甜甜蜜', 'mystery-egg': '神秘蛋', 'shiny-charm': '闪耀护符',
-  'bike': '自行车', 'exp-candy': '经验糖果', 'casinoCoin': '游戏币',
+  'bike': '自行车', 'exp-candy': '经验糖果', 'casinoCoin': '游戏币', 'ticket': '船票',
   '火之石': '火之石', '水之石': '水之石', '雷之石': '雷之石', '叶之石': '叶之石',
   '冰之石': '冰之石', '月之石': '月之石', '日之石': '日之石', '光之石': '光之石',
   '暗之石': '暗之石', '觉醒之石': '觉醒之石',
@@ -477,6 +477,7 @@ export const ITEM_DESC = {
   'bike': `骑行赶路工具\n速度 ${Math.round(ROAD_SPEED_BIKE / ROAD_SPEED_WALK)} 倍且不遇敌、不拾取`,
   'exp-candy': '使用后给宝可梦增加经验\n在背包里点经验糖果选一只使用',
   'casinoCoin': '游戏厅的筹码\n在游戏厅柜台用糖果兑换',
+  'ticket': '限时活动「航海寻宝」的船票\n活动期间提交悬赏可获得',
   // 进化道具说明：是什么 + 干什么用；形态专属道具在 items.js 里按数据生成
   '火之石': '蕴含火之力量的不可思议的石头\n能让某些宝可梦进化',
   '水之石': '蕴含水之力量的不可思议的石头\n能让某些宝可梦进化',

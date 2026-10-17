@@ -22,8 +22,8 @@ android {
         applicationId "com.pokemon.idle"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 11901
-        versionName "1.19.1"
+        versionCode 11902
+        versionName "1.19.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -38,7 +38,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    // 产物名与 PC 版同款：口袋挂机_1.19.1.apk（debug 变体加 -debug 后缀），不再叫 app-release.apk
+    // 产物名与 PC 版同款：口袋挂机_1.19.2.apk（debug 变体加 -debug 后缀），不再叫 app-release.apk
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
             def suffix = variant.name == 'release' ? '' : '-' + variant.name

@@ -618,6 +618,7 @@ export function getStageSize() {
 export function relayoutStage() {
   invalidateStageSize();
   road.refreshSize(); // 路面画布按新的容器宽度重算，晚一拍量能拿到缩放落定后的尺寸
+  import('./follower.js').then(m => m.refreshRoadFollower());
   const encImg = document.getElementById('encounterGif');
   if (encImg && encImg.naturalWidth) fitPokemonImage(encImg);
   if (phase === 'encounter' && currentEncounter && isOnGameView()) {

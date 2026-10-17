@@ -66,6 +66,7 @@
         <option value="poke-flip">宝可翻牌</option>
         <option value="bird-stack">鸟了个鸟</option>
         <option value="flow-link">宝可连线</option>
+        <option value="voyage">航海寻宝</option>
       </select>
     </div>
     <div class="row" id="rowPerTier">
@@ -87,7 +88,7 @@
     <div class="row">
       <label>闪光蛋物种</label>
       <input type="text" id="egg" placeholder="留空 = 随机" />
-      <span class="hint">图鉴编号，如 0133（伊布）；大量悬赏第四档，以及宝可翻牌 / 鸟了个鸟 / 宝可连线兑换所里的闪光蛋都用它</span>
+      <span class="hint">图鉴编号，如 0133（伊布）；大量悬赏第四档、航海寻宝第 10 格，以及宝可翻牌 / 鸟了个鸟 / 宝可连线兑换所里的闪光蛋都用它</span>
     </div>
     <div class="row" style="align-items: flex-start;">
       <label style="padding-top: 6px;">已有清单</label>
@@ -236,7 +237,9 @@ $('gen').addEventListener('click', async () => {
         ? '宝可翻牌：payload.seed 决定兑换所那颗闪光蛋的物种，改它换一颗'
         : k === 'flow-link'
           ? '宝可连线：奖励固定的几件货由 payload.seed 摇，改它换一份；难度由玩家在活动页自选'
-          : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
+          : k === 'voyage'
+            ? '航海寻宝：拼图底图、碎片落点、每格奖励与航段里程都由 payload.seed 摇，改它换一份；数值写死在客户端'
+            : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
   } catch (e) {
     $('genHint').textContent = `生成失败：${e.message}（点「生成」重试）`;
   } finally { btn.disabled = false; }

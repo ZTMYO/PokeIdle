@@ -44,7 +44,7 @@ export const ITEM_ICONS = {
   'poke-ball': 'balls/poke-ball.png', 'ultra-ball': 'balls/ultra-ball.png',
   'master-ball': 'balls/master-ball.png', 'candy': 'goods/candy.png',
   'sweet-honey': 'goods/honey.png', 'mystery-egg': 'goods/mystery-egg.png', 'shiny-charm': 'goods/shiny-charm.png',
-  'bike': 'goods/bike.png', 'exp-candy': 'goods/xp-candy.png',
+  'bike': 'goods/bike.png', 'exp-candy': 'goods/xp-candy.png', 'ticket': 'goods/ticket.png',
   // 14 种通用进化道具（存档键 = 中文名，与 evolution.json 一致；文件名一律英文）
   '火之石': 'evo/fire-stone.png', '水之石': 'evo/water-stone.png', '雷之石': 'evo/thunder-stone.png', '叶之石': 'evo/leaf-stone.png',
   '冰之石': 'evo/ice-stone.png', '月之石': 'evo/moon-stone.png', '日之石': 'evo/sun-stone.png', '光之石': 'evo/shiny-stone.png',

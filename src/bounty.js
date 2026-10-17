@@ -7,6 +7,7 @@ import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds, sho
 import { showGoodbyeConfirm } from './animation.js';
 import { pickFamily, pokemonSourceBadge, grantItem, itemIconSrc, evoExclusivePool, MINT_KEYS } from './items.js';
 import { evolutionData, evoPreEvos } from './evolution.js';
+import { activityActive } from './activity.js';
 
 function dateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -216,6 +217,15 @@ const CANDY_IMG = '<img src="./items/goods/candy.png" style="width:12px;height:1
 const BACK_ICON = '<svg viewBox="0 0 1024 1024" width="14" height="14"><use xlink:href="#icon-back"/></svg>';
 // 标题右侧导航图标（纸飞机样式），fill 跟随主题色
 const GO_ICON = '<svg viewBox="0 0 1024 1024" width="13" height="13" aria-hidden="true"><path d="M123.92 555.9a32 32 0 0 1-14.82-60.38l719.19-374.9a32 32 0 0 1 29.59 56.76l-719.2 374.89a31.87 31.87 0 0 1-14.76 3.63z"/><path d="M608.6 957.7a32 32 0 0 1-30.6-41.27l234.64-776.34a32 32 0 0 1 61.26 18.52L639.22 935a32 32 0 0 1-30.62 22.7zM505.92 580.44c-0.68 0-1.36 0-2.05-0.07l-381.46-24.12a32 32 0 1 1 4-63.88l381.5 24.13a32 32 0 0 1-2 63.94z"/><path d="M608.14 957.32a32 32 0 0 1-30.87-23.63L475 556.82a32 32 0 1 1 61.77-16.76L639 916.93a32 32 0 0 1-22.51 39.26 31.61 31.61 0 0 1-8.35 1.13z"/></svg>';
+
+// 活动期间悬赏奖励一律换成船票（列表预览 / 结算框 / 实发三处取同一口径）；
+// 不在活动期返回 null，照旧走原本的糖果/道具
+const TICKETS_PER_BOUNTY = 1;
+function voyageTicketReward() {
+  if (!activityActive('voyage')) return null;
+  return { item: 'ticket', qty: TICKETS_PER_BOUNTY };
+}
+
 // 当前翻页所在地区索引（打开页面时默认定位到当前地区）
 let _pageIdx = 2;
 // 鼠标滚轮翻页：节流窗口内累计滚动量，解锁时按每 100px 一页翻多页，连续滚动不吞格
@@ -226,6 +236,8 @@ export function renderBounty() {
   const content = $('bountyContent');
   if (!content) return;
   ensureBounty();
+  // 活动期间：奖励整体换成船票（与结算框、实发同一口径）
+  const vt = voyageTicketReward();
   // 提交悬赏中：页面切换为仓库样式列表
   if (_tradeMode) { renderBountyTrade(content, _tradeMode.regionIdx, _tradeMode.bi); return; }
   const g = gameData.bounty;
@@ -259,9 +271,11 @@ export function renderBounty() {
       const btnTip = has && !isCur ? `到达${name}提交` : '';
       const fullName = poke.form || poke.name;
       // 奖励二选一，都是「图标 ×N」排版；道具图标 hover 显示名字
-      const reward = b.item
-        ? `<img src="${itemIconSrc(b.item)}" alt="" data-tip="${(ITEM_NAMES[b.item] || b.item).replace(/"/g, '&quot;')}" />×${b.qty || 1}`
-        : `${CANDY_IMG}×${b.candy}`;
+      const reward = vt
+        ? `<img src="${itemIconSrc(vt.item)}" alt="" data-tip="${ITEM_NAMES[vt.item] || vt.item}" />×${vt.qty}`
+        : b.item
+          ? `<img src="${itemIconSrc(b.item)}" alt="" data-tip="${(ITEM_NAMES[b.item] || b.item).replace(/"/g, '&quot;')}" />×${b.qty || 1}`
+          : `${CANDY_IMG}×${b.candy}`;
       return `
       <div class="bounty-line${claimed ? ' claimed' : ignored ? ' ignored' : ''}" data-region="${i}" data-bi="${k}">
         <span class="bounty-name"><span class="bounty-name-t" data-tip="${fullName.replace(/"/g, '&quot;')}">${fullName}</span></span>
@@ -350,7 +364,11 @@ function doClaimBounty(regionIdx, bi) {
   const b = (gameData.bounty?.rewards || [])[regionIdx]?.[bi] || null;
   if (!b || b.claimed) return;
   b.claimed = true;
-  if (b.item) {
+  // 活动期间：原糖果/道具一律不发，只发船票
+  const vt = voyageTicketReward();
+  if (vt) {
+    grantItem(vt.item, vt.qty, '悬赏');
+  } else if (b.item) {
     grantItem(b.item, b.qty || 1, '悬赏'); // 给了道具就不再给糖果
   } else {
     gameData.items.candy = (gameData.items.candy || 0) + b.candy;
@@ -363,15 +381,20 @@ function doClaimBounty(regionIdx, bi) {
     gameData.stats.bountyClaimsToday = 0;
   }
   gameData.stats.bountyClaimsToday = (gameData.stats.bountyClaimsToday || 0) + 1;
-  addSystemLog('bounty_claim', { pokemon: b.pokemon, candy: b.candy || 0, item: b.item || null, qty: b.qty || 1 });
+  // 日志按实发记（活动期记成船票，方便日后查账）
+  addSystemLog('bounty_claim', vt
+    ? { pokemon: b.pokemon, candy: 0, item: vt.item, qty: vt.qty }
+    : { pokemon: b.pokemon, candy: b.candy || 0, item: b.item || null, qty: b.qty || 1 });
   saveGame();
   updateStats();
   updateBountyBadge();
   renderBounty();
   // 结算框：展示本次奖励，点「确定」关闭
-  const reward = b.item
-    ? `<img src="${itemIconSrc(b.item)}" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" alt="" />「${ITEM_NAMES[b.item] || b.item}」×${b.qty || 1}`
-    : `${CANDY_IMG}×${b.candy}`;
+  const reward = vt
+    ? `<img src="${itemIconSrc(vt.item)}" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" alt="" />「${ITEM_NAMES[vt.item] || vt.item}」×${vt.qty}`
+    : b.item
+      ? `<img src="${itemIconSrc(b.item)}" style="width:12px;height:12px;vertical-align:middle;image-rendering:pixelated;" alt="" />「${ITEM_NAMES[b.item] || b.item}」×${b.qty || 1}`
+      : `${CANDY_IMG}×${b.candy}`;
   showConfirmBar(`悬赏完成，获得 ${reward}`, null, null, { singleButton: true });
 }
 

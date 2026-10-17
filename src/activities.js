@@ -5,7 +5,7 @@
 // 约定：改游戏状态一律走 ctx（grant / take），别的地方只读。
 
 import { getPokemonByIndex, gameData, allPokemon, isPowerForm, isPokemon, isWildExcluded, POKEMON_NATURES } from './state.js';
-import { tryLoadImage, tryLoadPokemonImage } from './ui.js';
+import { tryLoadImage, tryLoadPokemonImage, showConfirmBar } from './ui.js';
 import { itemIconSrc, MINT_KEYS, pickFamilyBySeed } from './items.js';
 import { ITEM_NAMES, EVO_PRICES, eggSprite } from './config.js';
 import { MG_LEVELS, levelOf } from './memory-game.js';
@@ -282,6 +282,427 @@ function buyShopItem(ctx, id) {
   });
 }
 
+// ===== 航海寻宝（id: voyage）：用船票起航，转盘抽里程，边开边打捞拼图碎片 =====
+// w 是权重（总和不必是 100）：起航时按权重摇出结果，再凑一组候选铺到转盘上滚动
+const VOYAGE_MILES = [
+  { nm: 30,  w: 30 },
+  { nm: 45,  w: 24 },
+  { nm: 65,  w: 16 },
+  { nm: 90,  w: 12 },
+  { nm: 120, w: 10 },
+  { nm: 160, w: 5  },
+  { nm: 220, w: 3  },
+];
+const VOYAGE_WHEEL_SLOTS = 6;   // 转盘上铺几个候选
+const VOYAGE_WHEEL_D = 84;      // 圆盘直径（像素）
+// 拼图板 4 列 × 3 行 = 12 格：nm 是落格门槛，跨过点亮该格，奖励等玩家点开再发
+const VOYAGE_EVO_POOL = Object.keys(EVO_PRICES).filter(k => EVO_PRICES[k] >= 500 && !k.endsWith('crown'));
+const VOYAGE_POOLS = { evo: VOYAGE_EVO_POOL, mint: MINT_KEYS, crown: CROWN_POOL };
+const VOYAGE_PUZZLE = [
+  { nm: 100,  give: [{ item: 'exp-candy',   qty: 5  }] },
+  { nm: 250,  give: [{ item: 'ultra-ball',  qty: 10 }] },
+  { nm: 450,  give: [{ pool: 'mint',        qty: 2  }] },
+  { nm: 700,  give: [{ pool: 'crown',       qty: 1  }] },
+  { nm: 1000, give: [{ pool: 'evo',         qty: 1  }] },
+  { nm: 1350, give: [{ item: 'exp-candy',   qty: 10 }] },
+  { nm: 1700, give: [{ pool: 'crown',       qty: 2  }] },
+  { nm: 2100, give: [{ item: 'master-ball', qty: 1  }] },
+  { nm: 2550, give: [{ pool: 'evo',         qty: 2  }] },
+  { nm: 3000, give: [{ egg: true }] },
+  { nm: 3500, give: [{ item: 'master-ball', qty: 3  }] },
+  { nm: 4000, give: [{ item: 'shiny-charm', qty: 2  }] },
+];
+const VOYAGE_CANDY = { min: 50, max: 300 };    // 每段必给的糖果区间
+const VOYAGE_BALL_CHANCE = 0.3;                // 额外出精灵球的概率
+const VOYAGE_BALL = { min: 5, max: 15 };
+const VOYAGE_SPEED = 90;                       // 海面滚动速度（像素/秒）
+const VOYAGE_SEG_SECONDS = 8;                  // 单段航行时长（别让玩家干等）
+const VOYAGE_HOLD_MS = 900;                    // 转盘停稳后停一会儿再开船，让玩家看清抽到的里程
+const VOYAGE_PICS = 7;                         // 拼图底图张数：本地随机分一张，只决定外观
+const VOYAGE_COLS = 4, VOYAGE_ROWS = 3;        // 12 格；底图按百分比切片，格子宽度自适应容器
+const VOYAGE_WATER = { src: 16, col: 16, row: 57 };   // terrain-tileset 里那块水纹
+
+// 存档槽补齐默认值（槽本身由总线按活动窗口重置）
+function voyageSlot(ctx) {
+  const s = ctx.slot;
+  if (!Number.isFinite(s.miles)) s.miles = 0;
+  if (!Array.isArray(s.got)) s.got = [];
+  if (!Array.isArray(s.opened)) s.opened = [];   // 已经点开看过奖励的格子
+  if (!s.pic) s.pic = 1 + Math.floor(rngFrom(seedOf(ctx))() * VOYAGE_PICS);
+  if (s.seg === undefined) s.seg = null;
+  if (!Number.isFinite(s.spends)) s.spends = 0;
+  return s;
+}
+// 闪光蛋：定下来就存着（同大量悬赏口径，可被 payload.eggSpecies 指定）
+function voyageEgg(ctx) {
+  if (!ctx.slot.egg) {
+    ctx.slot.egg = eggFrom(ctx, rngFrom((seedOf(ctx) ^ strSeed('voyage-egg')) >>> 0));
+    ctx.save();
+  }
+  return ctx.slot.egg;
+}
+// 门槛 → 格子的映射：按种子打乱一次，碎片解锁位置是散的，不按行列顺序
+function voyagePerm(ctx) {
+  const n = VOYAGE_PUZZLE.length;
+  const r = rngFrom((seedOf(ctx) ^ strSeed('voyage-perm')) >>> 0);
+  const arr = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+// 某格给什么：显示与发放共用一份口径；i 是门槛下标
+// 同一池子（薄荷 / 王冠 / 进化道具）在各格里不重复出，池子抽空了才允许重复
+let _voyageGiftCache = null;   // { key, list }，种子不变就复用
+function voyageGiftAll(ctx) {
+  const key = seedOf(ctx);
+  if (_voyageGiftCache && _voyageGiftCache.key === key) return _voyageGiftCache.list;
+  const used = {};
+  const list = VOYAGE_PUZZLE.map((p, i) => {
+    const g = p.give[0];
+    if (g.egg) { const e = voyageEgg(ctx); return { egg: true, species: e.species }; }
+    if (g.pool) {
+      const pool = VOYAGE_POOLS[g.pool];
+      const taken = used[g.pool] || (used[g.pool] = []);
+      const left = pool.filter(k => !taken.includes(k));
+      const src = left.length ? left : pool;
+      const r = rngFrom((seedOf(ctx) ^ strSeed(`voyage-pool${g.pool}${i}`)) >>> 0);
+      const k = src[Math.floor(r() * src.length)];
+      taken.push(k);
+      return { key: k, qty: g.qty };
+    }
+    return { key: g.item, qty: g.qty };
+  });
+  _voyageGiftCache = { key, list };
+  return list;
+}
+function voyageGiftOf(ctx, i) {
+  return voyageGiftAll(ctx)[i];
+}
+function voyageGiftHtml(ctx, i, size = 20) {
+  const g = voyageGiftOf(ctx, i);
+  if (g.egg) return `${eggIconHtml(g.species, size)}<i>${eggLabel(g.species)}</i>`;
+  return `${itemIconHtml(g.key, size)}<i>${ITEM_NAMES[g.key] || g.key} ×${g.qty}</i>`;
+}
+// 还没落格的最前一个门槛（-1 = 全部拼齐）
+function voyageNextGoal(ctx) {
+  const s = ctx.slot, perm = voyagePerm(ctx);
+  for (let k = 0; k < VOYAGE_PUZZLE.length; k++) if (!s.got.includes(perm[k] + 1)) return k;
+  return -1;
+}
+// 到下一块碎片的进度（0~100）
+function voyageProgress(ctx) {
+  const gi = voyageNextGoal(ctx);
+  if (gi < 0) return 100;
+  const prev = gi === 0 ? 0 : VOYAGE_PUZZLE[gi - 1].nm;
+  const next = VOYAGE_PUZZLE[gi].nm;
+  return Math.max(0, Math.min(100, ((ctx.slot.miles - prev) / (next - prev)) * 100));
+}
+// 拼图一格：底图按列行切成百分比背景；未落格 cover 盖实，落格变淡，点开收掉只留图案
+function voyageCellHtml(ctx, i) {
+  const s = ctx.slot;
+  const k = voyagePerm(ctx).indexOf(i);   // 这一格对应哪个门槛，奖励跟着门槛走
+  const col = i % VOYAGE_COLS, row = Math.floor(i / VOYAGE_COLS);
+  const bg = `background-image:url(./items/jigsaws/jigsaw_${s.pic}.png);`
+    + `background-size:${VOYAGE_COLS * 100}% ${VOYAGE_ROWS * 100}%;`
+    + `background-position:${(col * 100) / (VOYAGE_COLS - 1)}% ${(row * 100) / (VOYAGE_ROWS - 1)}%;`;
+  const cls = s.opened.includes(i + 1) ? ' opened' : (s.got.includes(i + 1) ? ' got' : '');
+  return `<div class="voyage-pc${cls}" data-cell="${i + 1}" style="${bg}">
+    <span class="voyage-cover">${voyageGiftHtml(ctx, k)}</span>
+  </div>`;
+}
+// 抽一段航程：摇出结果 + 凑一组候选（必含结果）打乱铺盘。种子挂在"活动 + 第几张票"，刷新不重抽
+function voyageRollSeg(ctx) {
+  const s = voyageSlot(ctx);
+  const r = rngFrom((seedOf(ctx) ^ strSeed(`voyage-seg${s.spends}`)) >>> 0);
+  const total = VOYAGE_MILES.reduce((a, x) => a + x.w, 0);
+  let t = r() * total, pick = 0;
+  for (let i = 0; i < VOYAGE_MILES.length; i++) { t -= VOYAGE_MILES[i].w; if (t < 0) { pick = i; break; } }
+  const nm = VOYAGE_MILES[pick].nm;
+  const others = VOYAGE_MILES.filter(m => m.nm !== nm);
+  for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [others[i], others[j]] = [others[j], others[i]]; }
+  const slots = [nm, ...others.slice(0, VOYAGE_WHEEL_SLOTS - 1).map(m => m.nm)];
+  for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
+  return { nm, slots, target: slots.indexOf(nm), remain: 0 };
+}
+
+// 航海页的动画状态（同一时刻只开一个活动页，所以放模块级；mount 时重建，unmount 时清掉）
+let _voyageRun = null;
+let _voyageWater = null, _voyageShip = null;
+function voyageAssets() {
+  if (!_voyageWater) { _voyageWater = new Image(); _voyageWater.src = './terrain/terrain-tileset.png'; }
+  if (!_voyageShip) { _voyageShip = new Image(); _voyageShip.src = './icons/ship.png'; }
+  return { water: _voyageWater, ship: _voyageShip };
+}
+function voyageStopRun() {
+  const r = _voyageRun;
+  if (!r) return;
+  if (r.raf) cancelAnimationFrame(r.raf);
+  if (r.onResize) window.removeEventListener('resize', r.onResize);
+  _voyageRun = null;
+}
+// 活动视图是否还显示着（showView 用 display 切换）
+function voyageVisible() {
+  const v = document.getElementById('activityView');
+  return !v || v.style.display !== 'none';
+}
+// 高 DPI：后端分辨率按 dpr 放大，绘制尺寸仍用逻辑像素
+function voyageSizing(r) {
+  const canvas = r.canvas;
+  if (!canvas) return;
+  if (r.stageEl) {
+    const h = Math.max(170, Math.round(r.root ? r.root.clientHeight : 0));
+    r.stageEl.style.height = `${h}px`;
+  }
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  r.dpr = dpr;
+  r.w = Math.max(1, rect.width);
+  r.h = Math.max(1, rect.height);
+  canvas.width = Math.round(r.w * dpr);
+  canvas.height = Math.round(r.h * dpr);
+  const c = canvas.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.imageSmoothingEnabled = false;
+  r.c2d = c;
+}
+// 画一帧：平铺水纹（偏移对齐设备像素网格，免得接缝随滚动"呼吸"）+ 颠簸的船
+function voyageDraw(r, now) {
+  const c = r.c2d;
+  if (!c) return;
+  const w = r.w, h = r.h;
+  c.clearRect(0, 0, w, h);
+  const water = r.water;
+  if (water && water.complete && water.naturalWidth) {
+    const S = VOYAGE_WATER.src;
+    const sx = VOYAGE_WATER.col * S, sy = VOYAGE_WATER.row * S;
+    const off = Math.round((-r.scrollX % S) * r.dpr) / r.dpr;
+    for (let x = off - S; x < w + S; x += S) {
+      for (let y = 0; y < h; y += S) {
+        c.drawImage(water, sx, sy, S, S, Math.round(x), Math.round(y), S, S);
+      }
+    }
+  }
+  const ship = r.ship;
+  if (ship && ship.complete && ship.naturalWidth) {
+    const sc = 2;   // 整数倍放大，像素不糊
+    const sw = ship.naturalWidth * sc, sh = ship.naturalHeight * sc;
+    const bob = Math.sin(now / 420) * 4;
+    const tilt = Math.sin(now / 420) * 2 * Math.PI / 180;
+    const cy = Math.max(64, h * 0.62 - 26);   // 顶部进度条和底部转盘之间偏下
+    c.save();
+    c.translate(w * 0.22, cy + bob);
+    c.rotate(tilt);
+    c.drawImage(ship, -sw / 2, -sh / 2, sw, sh);
+    c.restore();
+  }
+}
+// 画圆盘：按候选数均分扇区，扇区里径向写里程数；hi 是结果格（-1 = 还没抽）
+function voyageWheelDraw(r, seg, hi) {
+  const cv = r.wheelCv;
+  if (!cv) return;
+  const D = VOYAGE_WHEEL_D;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(D * dpr);
+  cv.height = Math.round(D * dpr);
+  cv.style.width = `${D}px`;
+  cv.style.height = `${D}px`;
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, D, D);
+  const cx = D / 2, cy = D / 2, R = D / 2 - 2;
+  const n = seg ? seg.slots.length : VOYAGE_WHEEL_SLOTS;
+  const step = (Math.PI * 2) / n;
+  for (let i = 0; i < n; i++) {
+    const a0 = -Math.PI / 2 + i * step;
+    const a1 = a0 + step;
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.arc(cx, cy, R, a0, a1);
+    c.closePath();
+    c.fillStyle = i === hi ? '#ffcb05' : (i % 2 ? '#eef5fc' : '#ffffff');
+    c.fill();
+    c.strokeStyle = '#cfe0f2';
+    c.lineWidth = 1;
+    c.stroke();
+    // 数字沿扇区中线摆放
+    const am = a0 + step / 2;
+    c.save();
+    c.translate(cx + Math.cos(am) * R * 0.66, cy + Math.sin(am) * R * 0.66);
+    c.rotate(am + Math.PI / 2);
+    c.fillStyle = i === hi ? '#5a4200' : '#2e6db4';
+    c.font = '700 10px sans-serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText(seg ? String(seg.slots[i]) : '?', 0, 0);
+    c.restore();
+  }
+  c.beginPath();
+  c.arc(cx, cy, R - 1, 0, Math.PI * 2);
+  c.strokeStyle = '#cfe0f2';
+  c.lineWidth = 2;
+  c.stroke();
+  // 圆心不画轴心：指针（水滴形）由 CSS 叠在中心
+}
+// 航行途中打捞到的东西：累积起来盖在海面上，玩家点一下就收掉
+function voyageLootPush(r, html) {
+  r.loot.push(html);
+  if (!r.lootEl) return;
+  r.lootEl.innerHTML = r.loot.join('');
+  r.lootEl.classList.add('on');
+}
+function voyageLootClear(r) {
+  r.loot = [];
+  if (r.lootEl) { r.lootEl.innerHTML = ''; r.lootEl.classList.remove('on'); }
+}
+// 只刷进度条/按钮，不整页重画（重画会把 canvas 和 rAF 一起拆掉）
+function voyageHud(ctx, r) {
+  const s = voyageSlot(ctx);
+  if (r.barEl) r.barEl.style.width = `${voyageProgress(ctx).toFixed(1)}%`;
+  const n = ctx.count('ticket');
+  // 页头徽标也显示票数：起航扣票后不等整页重画就跟着变
+  if (r.badgeEl && r.badgeN !== n) {
+    r.badgeN = n;
+    r.badgeEl.innerHTML = `<img src="./items/goods/ticket.png" alt="">${n}`;
+  }
+  const wheelOn = r.phase === 'spin' || r.phase === 'hold';
+  if (r.wheelEl) r.wheelEl.classList.toggle('on', wheelOn);   // 转盘只在抽里程期间露面
+  if (r.goEl) {
+    const sailing = r.phase === 'sail';
+    if (r.goTextEl) r.goTextEl.textContent = sailing ? `前进 ${Math.round(s.seg.nm)} 海里` : '起航';
+    r.goEl.classList.toggle('hide', wheelOn);
+    r.goEl.classList.toggle('sail', sailing);
+    r.goEl.classList.toggle('off', !wheelOn && !sailing && n < 1);
+  }
+  const cellsKey = `${s.got.join(',')}|${s.opened.join(',')}`;
+  if (r.gotKey !== cellsKey) {
+    r.gotKey = cellsKey;
+    r.puzzleCells.forEach((el, i) => {
+      el.classList.toggle('got', s.got.includes(i + 1));
+      el.classList.toggle('opened', s.opened.includes(i + 1));
+    });
+  }
+}
+// 跨过门槛就落格（只点亮格子，奖励等玩家点开再发；一帧跨过多个门槛就一次补齐）
+function voyageLand(ctx, r) {
+  const s = ctx.slot;
+  const perm = voyagePerm(ctx);
+  let changed = false;
+  VOYAGE_PUZZLE.forEach((p, k) => {
+    const cell = perm[k] + 1;
+    if (s.got.includes(cell) || s.miles < p.nm) return;
+    s.got.push(cell);
+    voyageLootPush(r, `<span class="voyage-loot-row"><img src="./items/goods/jigsaw.png" alt="" style="width:16px;height:16px;"><i>拼图碎片 +1</i></span>`);
+    changed = true;
+  });
+  if (changed) ctx.save();
+}
+// 点格子：碎片已到手就领奖并亮出图案；还没打捞到就提示怎么拿
+function voyageOpenCell(ctx, cell) {
+  const s = voyageSlot(ctx);
+  if (!cell || s.opened.includes(cell)) return;
+  const k = voyagePerm(ctx).indexOf(cell - 1);
+  if (!s.got.includes(cell)) {
+    showConfirmBar('航行中打捞到这块拼图后，即可领取奖励', null, null,
+      { singleButton: true, host: document.getElementById('activityView') });
+    return;
+  }
+  s.opened.push(cell);
+  const g = voyageGiftOf(ctx, k);
+  if (g.egg) ctx.grantEgg(g.species, voyageEgg(ctx));
+  else ctx.grant(g.key, g.qty);
+  ctx.save();
+  const text = g.egg ? eggLabel(g.species) : `${ITEM_NAMES[g.key] || g.key} ×${g.qty}`;
+  showConfirmBar(`获得 ${text}`, null, null,
+    { singleButton: true, host: document.getElementById('activityView') });
+}
+// 一段开完：结算途中零钱（必给糖果，偶尔精灵球），回到待机
+function voyageFinishSeg(ctx, r) {
+  const s = ctx.slot;
+  const rng = rngFrom((seedOf(ctx) ^ strSeed(`voyage-loot${s.spends}`)) >>> 0);
+  const candy = VOYAGE_CANDY.min + Math.floor(rng() * (VOYAGE_CANDY.max - VOYAGE_CANDY.min + 1));
+  let balls = 0;
+  if (rng() < VOYAGE_BALL_CHANCE) balls = VOYAGE_BALL.min + Math.floor(rng() * (VOYAGE_BALL.max - VOYAGE_BALL.min + 1));
+  s.seg = null;
+  ctx.save();
+  ctx.grant('candy', candy);
+  voyageLootPush(r, `<span class="voyage-loot-row">${itemIconHtml('candy', 16)}<i>糖果 +${candy}</i></span>`);
+  if (balls) {
+    ctx.grant('poke-ball', balls);
+    voyageLootPush(r, `<span class="voyage-loot-row">${itemIconHtml('poke-ball', 16)}<i>精灵球 +${balls}</i></span>`);
+  }
+  r.phase = 'idle';
+}
+function voyageAdvance(ctx, r, dt) {
+  const s = ctx.slot;
+  const seg = s.seg;
+  if (!seg) { r.phase = 'idle'; return; }
+  const rate = seg.nm / VOYAGE_SEG_SECONDS;   // 用 dt 推进，掉帧时里程增速不变
+  const d = Math.min(rate * dt, seg.remain);
+  seg.remain -= d;
+  s.miles += d;
+  voyageLand(ctx, r);
+  if (seg.remain <= 1e-6) voyageFinishSeg(ctx, r);
+  else {
+    r.saveAcc += dt;
+    if (r.saveAcc >= 1) { r.saveAcc = 0; ctx.save(); }   // 不必每帧落盘
+  }
+}
+// 转盘：缓动（ease-out）转几圈后停在结果扇区，扇区中心对准顶部指针
+function voyageSpinStep(r, now) {
+  const sp = r.spin;
+  if (!sp) { r.phase = 'idle'; return; }
+  const p = Math.min(1, (now - sp.t0) / sp.dur);
+  const eased = 1 - Math.pow(1 - p, 3);
+  r.wheelCv.style.transform = `rotate(${(eased * sp.total).toFixed(2)}deg)`;
+  if (p >= 1) {
+    r.spin = null;
+    r.phase = 'hold';
+    r.holdUntil = now + VOYAGE_HOLD_MS;
+    voyageWheelDraw(r, r.ctx.slot.seg, r.ctx.slot.seg.target);   // 停下后把结果扇区点亮
+  }
+}
+// 起航：扣 1 张票 → 抽航段（立刻落盘）→ 圆盘开转 → 开船
+function voyageStart(ctx, r) {
+  const s = voyageSlot(ctx);
+  if (s.seg) return;                         // 正在航行（互斥，防连点吞票）
+  if (ctx.count('ticket') < 1) return;
+  if (!ctx.spend('ticket', 1)) return;
+  s.spends += 1;
+  s.seg = voyageRollSeg(ctx);
+  s.seg.remain = s.seg.nm;
+  ctx.save();
+  voyageLootClear(r);
+  voyageWheelDraw(r, s.seg, -1);
+  r.wheelCv.style.transform = 'rotate(0deg)';
+  const segDeg = 360 / s.seg.slots.length;
+  r.spin = { t0: performance.now(), total: 360 * 3 - (s.seg.target + 0.5) * segDeg, dur: 1800 };
+  r.phase = 'spin';
+}
+function voyageLoop(now) {
+  const r = _voyageRun;
+  if (!r) return;
+  // 视图被切走（容器不调 unmount）就停掉循环，别在后台空转；回页由容器每秒 tick 唤醒
+  if (!voyageVisible()) { r.raf = 0; return; }
+  if (!r.sized && r.canvas) { voyageSizing(r); if (r.w > 2) r.sized = true; }   // 首帧容器可能还没量到宽
+  const dt = Math.min(0.05, (now - (r.last || now)) / 1000);
+  r.last = now;
+  if (r.phase === 'sail') {
+    r.scrollX += VOYAGE_SPEED * dt;
+    voyageAdvance(r.ctx, r, dt);
+  } else if (r.phase === 'spin') {
+    voyageSpinStep(r, now);
+  } else if (r.phase === 'hold') {
+    if (now >= r.holdUntil) r.phase = 'sail';   // 停一会儿收掉转盘，船接着开
+  } else {
+    r.scrollX += 6 * dt;   // 待机时海面极慢漂，画面不僵
+  }
+  voyageHud(r.ctx, r);
+  voyageDraw(r, now);
+  r.raf = requestAnimationFrame(voyageLoop);
+}
+
 export const ACTIVITIES = {
   // ---- 大量悬赏（id: mass-bounty）：活动期间固定一只宝可梦，每交 3 只领一档，四档共 12 只 ----
   // 服务器 activity.json 里加一条：
@@ -499,5 +920,93 @@ export const ACTIVITIES = {
       const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${ctx.slot.level || ''}`;
       if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
     },
+  },
+
+  // ---- 航海寻宝（voyage）----
+  // 服务器 activity.json 加 { "id": "voyage", "from": …, "to": …, "payload": { "seed": … } }
+  // 数值（里程权重/门槛/零钱/速度）都是客户端常量，见文件顶部 VOYAGE_*
+  'voyage': {
+    name: '航海寻宝',
+    icon: './items/goods/ticket.png',
+
+    badge(ctx) { return `<img src="./items/goods/ticket.png" alt="">${ctx.count('ticket')}`; },
+
+    render(ctx) {
+      voyageSlot(ctx);   // render 早于 mount，先把槽补全（pic/got 等）
+      const board = VOYAGE_PUZZLE.map((_, i) => voyageCellHtml(ctx, i)).join('');
+      return `
+        <div class="voyage-stage">
+          <canvas class="voyage-canvas"></canvas>
+          <div class="voyage-hud"><div class="voyage-bar"><i id="voyageBar"></i></div></div>
+          <div class="voyage-wheel" id="voyageWheel">
+            <canvas class="voyage-wheel-canvas" id="voyageWheelCv"></canvas>
+            <svg class="voyage-wheel-pin" viewBox="0 0 20 32" aria-hidden="true">
+              <path d="M10 0 L18.9 17.46 A10 10 0 1 1 1.1 17.46 Z"/>
+            </svg>
+          </div>
+          <span class="catch-confirm-btn voyage-go" id="voyageGo">
+            <img src="./items/goods/ticket.png" alt=""><i id="voyageGoText">起航</i>
+          </span>
+          <div class="voyage-toast" id="voyageToast"></div>
+        </div>
+        <div class="voyage-board" id="voyageBoard">${board}</div>`;
+    },
+
+    mount(root, ctx) {
+      voyageStopRun();   // 重进/重画时先把上一次的 rAF 停掉，避免两套动画并存
+      const s = voyageSlot(ctx);
+      const assets = voyageAssets();
+      const r = {
+        ctx,
+        root,
+        stageEl: root.querySelector('.voyage-stage'),
+        canvas: root.querySelector('.voyage-canvas'),
+        barEl: root.querySelector('#voyageBar'),
+        wheelEl: root.querySelector('#voyageWheel'),
+        wheelCv: root.querySelector('#voyageWheelCv'),
+        goEl: root.querySelector('#voyageGo'),
+        goTextEl: root.querySelector('#voyageGoText'),
+        lootEl: root.querySelector('#voyageToast'),
+        badgeEl: document.getElementById('activityBadge'),
+        puzzleCells: Array.from(root.querySelectorAll('.voyage-pc')),
+        water: assets.water,
+        ship: assets.ship,
+        scrollX: 0, last: 0, saveAcc: 0, gotKey: '', badgeN: null, spin: null, loot: [],
+        phase: s.seg ? 'sail' : 'idle',   // 刷新回来时若还在航行就接着开
+      };
+      voyageSizing(r);
+      r.sized = r.w > 2;
+      // 刷新回来时盘面仍是这一轮的候选，直接摆到结果位置
+      voyageWheelDraw(r, s.seg, s.seg ? s.seg.target : -1);
+      if (s.seg) r.wheelCv.style.transform = `rotate(${-(s.seg.target + 0.5) * (360 / s.seg.slots.length)}deg)`;
+      if (r.lootEl) r.lootEl.addEventListener('click', () => r.lootEl.classList.remove('on'));
+      const boardEl = root.querySelector('#voyageBoard');
+      if (boardEl) boardEl.addEventListener('click', (e) => {
+        const pc = e.target.closest('.voyage-pc');
+        if (pc) voyageOpenCell(ctx, Number(pc.dataset.cell));
+      });
+      if (r.goEl) r.goEl.addEventListener('click', () => {
+        const cur = voyageSlot(ctx);
+        // 置灰（票不足）时点一下给出获取途径；航行中点则不响应
+        if (!cur.seg && ctx.count('ticket') < 1) {
+          showConfirmBar('船票不足，活动期间提交悬赏可获得船票', null, null,
+            { singleButton: true, host: document.getElementById('activityView') });
+          return;
+        }
+        voyageStart(ctx, r);
+      });
+      r.onResize = () => { voyageSizing(r); r.sized = r.w > 2; };
+      window.addEventListener('resize', r.onResize);
+      _voyageRun = r;
+      r.raf = requestAnimationFrame(voyageLoop);
+    },
+
+    // 页面在 rAF 里刷，这里不重画；只负责循环被切走暂停后把它唤醒
+    tick() {
+      const r = _voyageRun;
+      if (r && !r.raf && voyageVisible()) { r.last = 0; r.raf = requestAnimationFrame(voyageLoop); }
+    },
+
+    unmount() { voyageStopRun(); },
   },
 };

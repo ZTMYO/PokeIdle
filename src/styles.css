@@ -2301,6 +2301,110 @@ html.mobile-app #quitHide { display: none !important; }
 .act-shop-price img { width: 14px; height: 14px; }
 .act-shop-row .catch-confirm-btn { flex: 0 0 auto; }
 
+/* === 航海寻宝：一整块海面（进度条、转盘、起航按钮、打捞提示都叠在里面）+ 拼图板 === */
+.voyage-stage {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  margin: 0 0 8px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--item-bg);
+}
+.voyage-canvas { display: block; width: 100%; height: 100%; }
+[data-theme="dark"] .voyage-canvas {
+  filter: brightness(0.65) saturate(0.85);
+  transition: filter 0.4s ease-out;
+}
+.voyage-hud {
+  position: absolute; top: 10px; left: 0; right: 0;
+  display: flex; justify-content: center;
+  pointer-events: none;
+}
+.voyage-bar {
+  width: 62%; max-width: 220px; height: 8px; border-radius: 4px; overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+.voyage-bar i { display: block; height: 100%; width: 0; background: rgba(255, 255, 255, 0.75); transition: width 0.2s linear; }
+.voyage-wheel {
+  position: absolute; left: 0; right: 0; bottom: 34px;
+  display: none;
+  width: fit-content; margin: 0 auto;
+}
+.voyage-wheel.on { display: block; }
+.voyage-wheel-canvas {
+  display: block;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.voyage-wheel-pin {
+  position: absolute; left: 50%; bottom: calc(50% - 9px);
+  width: 18px; height: 28.8px;
+  transform: translateX(-50%);
+  fill: #2e6db4;
+  pointer-events: none;
+}
+.voyage-go {
+  position: absolute; left: 0; right: 0; bottom: 8px;
+  display: flex; align-items: center; gap: 4px;
+  width: fit-content; margin: 0 auto;
+  color: #2e6db4; border-color: #fff; background: #fff;
+}
+.voyage-go.hide { display: none; }
+.voyage-go.sail { pointer-events: none; }
+.voyage-go.sail img { display: none; }
+.voyage-go img { width: 14px; height: 14px; image-rendering: pixelated; }
+.voyage-go i { font-style: normal; }
+@media (hover: hover) {
+  .voyage-go:not(.off):hover { background: #eef5fc; }
+  .act-body .voyage-go.off:hover { background: #fff; }
+}
+.voyage-toast {
+  position: absolute; inset: 0;
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: rgba(0,0,0,0.62); color: #fff;
+  font-size: 9.5px; cursor: pointer;
+}
+.voyage-toast.on { display: flex; }
+.voyage-loot-row { display: flex; align-items: center; gap: 3px; }
+.voyage-loot-row i { font-style: normal; }
+.voyage-loot-row img { image-rendering: pixelated; }
+.voyage-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  max-width: 300px;
+  margin: 0 auto 8px;
+  background: rgba(var(--ui-color-rgb), 0.3);
+  border: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.voyage-pc {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background-repeat: no-repeat;
+  background-color: #cfe6f7;
+  overflow: hidden;
+  image-rendering: pixelated;
+}
+.voyage-cover {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 2px;
+  background: #cfe6f7;
+  font-size: 8.5px; line-height: 1.2; text-align: center;
+}
+[data-theme="dark"] .voyage-pc { background-color: #17303f; }
+[data-theme="dark"] .voyage-cover { background: #17303f; }
+.voyage-cover i { font-style: normal; }
+.voyage-cover img { image-rendering: pixelated; }
+.voyage-pc.got .voyage-cover { opacity: .8; cursor: pointer; }
+.voyage-pc.opened .voyage-cover { display: none; }
+
 /* === 宝可翻牌牌桌：整块铺满容器（行列都按容器分，不滚动）=== */
 .mg-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
@@ -4301,6 +4405,27 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   display: flex;
   flex-direction: column;
   user-select: none;
+}
+/* 活动期间：承载悬赏页的屏换成航海配色（覆盖屏上的主题变量，屏背景、屏边框与页面控件一起变） */
+#appScreen.voyage,
+#screen.voyage {
+  --screen-bg: #cfe6f7;
+  --screen-bg-light: #dbeaf7;
+  --screen-bg-dark: #2e6db4;
+  --ui-color: #1f5687;
+  --ui-color-dark: #17456e;
+  --ui-color-rgb: 31, 86, 135;
+  --item-border: rgba(31, 86, 135, 0.22);
+}
+[data-theme="dark"] #appScreen.voyage,
+[data-theme="dark"] #screen.voyage {
+  --screen-bg: #0d1a26;
+  --screen-bg-light: #17303f;
+  --screen-bg-dark: #4f93c4;
+  --ui-color: #7cc0ea;
+  --ui-color-dark: #4f93c4;
+  --ui-color-rgb: 124, 192, 234;
+  --item-border: rgba(255, 255, 255, 0.14);
 }
 .bounty-title {
   font-weight: 700;
@@ -9237,7 +9362,7 @@ body.booting { visibility: hidden; }
 .nursery-walker-img.move {
   animation: none;
 }
-/* 四向素材：walk / idle 两图层绝对定位叠放取帧，尺寸与缩放由脚本按几何表写入 */
+/* 四向素材：单层走动图绝对定位取帧，尺寸与缩放由脚本按几何表写入 */
 .nursery-walker-img.fd {
   position: absolute;
   animation: none;
