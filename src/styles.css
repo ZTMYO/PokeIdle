@@ -6078,6 +6078,9 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap; /* 性别图标与 Lv 数字强制单行，禁止换行 */
 }
+/* 仓库（列表 / 盒子）无性别符号跟随角标主题色，避免自带的绿过于跳 */
+.roster-lv-col .g-genderless,
+.box-gender .g-genderless { color: var(--ui-color); }
 /* 详情页名字后的等级小字（与名字不同字体） */
 /* 详情页「等级」：从宝可梦列表进来的详情可点（反向使用经验糖果），与性格行同一道门 */
 .roster-detail-lv.can-use { display: inline-block; cursor: pointer; }
@@ -6185,6 +6188,119 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   flex-shrink: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ===== 仓库盒子（网格）视图 ===== */
+/* 表头改造成排序栏（筛选区下方），只保留可排序字段；列表改为自适应网格 */
+#rosterView.roster-box .roster-header {
+  display: flex;
+  gap: 2px;
+  padding: 0 0 2px;
+  font-size: 8px;
+  border-bottom: none;
+}
+#rosterView.roster-box .roster-header .roster-icon,
+#rosterView.roster-box .roster-header .pokedex-star { display: none; }
+#rosterView.roster-box .roster-header [data-sort] {
+  flex: 1;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 1px 0;
+  line-height: 1.2;
+  text-align: center;
+  background: rgba(var(--ui-color-rgb), 0.06);
+}
+@media (hover: hover) {
+  #rosterView.roster-box .roster-header [data-sort]:hover { background: rgba(var(--ui-color-rgb), 0.14); }
+}
+#rosterView.roster-box .roster-header [data-sort].sort-asc,
+#rosterView.roster-box .roster-header [data-sort].sort-desc { background: rgba(var(--ui-color-rgb), 0.18); }
+#rosterView.roster-box #rosterList {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); /* 每格宽 =（容器宽 - 列间距）/ 5，正方形由 JS 写入行高 */
+  gap: 3px; /* 行列间距一致 */
+  padding: 0;
+  align-content: start;
+}
+#rosterView.roster-box .roster-empty { grid-column: 1 / -1; }
+/* 格子复用了 .roster-row，其固定行高会钉死高度，这里撑满网格行高（行高由 JS 按列宽写入） */
+#rosterView.roster-box .roster-box-cell { height: 100%; }
+
+.roster-box-cell {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  padding: 1px;
+  overflow: hidden; /* 内容再多也不撑破格子 */
+  border: 1px solid transparent;
+  background: rgba(var(--ui-color-rgb), 0.06);
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .roster-box-cell:hover { background: rgba(var(--ui-color-rgb), 0.14); }
+}
+.roster-box-cell.roster-batch-sel { outline: 2px solid var(--ui-color-dark); outline-offset: -2px; }
+
+/* 顶部个体值条：未满淡化，满 6V 不透明 */
+.box-iv {
+  flex-shrink: 0;
+  height: 3px;
+  background: rgba(var(--ui-color-rgb), 0.15);
+  overflow: hidden;
+}
+.box-iv-fill { height: 100%; background: var(--ui-color); opacity: .4; }
+.box-iv-fill.perfect { opacity: 1; }
+
+/* 图标与右上角闪光/扭曲角标 */
+.box-icon-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.box-icon-wrap .roster-icon-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+.box-badges { position: absolute; top: 0; right: 0; display: flex; }
+.box-badges .pokedex-star-svg { width: 9px; height: 9px; display: block; }
+
+/* 底部等级 / 性别 */
+.box-foot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--ui-color);
+  font-variant-numeric: tabular-nums;
+}
+.box-lv { white-space: nowrap; }
+.box-gender { display: flex; align-items: center; flex-shrink: 0; }
+.box-gender svg { width: 9px; height: 9px; display: block; }
+
+/* 稀有度色框：普通 / 稀有 / 传说 */
+.roster-box-cell.rar-common { border-color: #7a8a8a; }
+.roster-box-cell.rar-rare { border-color: #4477cc; }
+.roster-box-cell.rar-legend { border-color: #d4850a; }
+
+/* 变体色框优先于稀有度：污染（紫）/ RGB（上左青、下右红的分离色边框，配色同 .fx-variant-rgb） */
+.roster-box-cell.var-polluted { border-color: #8a4fd0; }
+.roster-box-cell.var-rgb {
+  border-color: rgba(0, 220, 255, .85) rgba(255, 0, 80, .85) rgba(255, 0, 80, .85) rgba(0, 220, 255, .85);
 }
 
 /* 个体详情 */

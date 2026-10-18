@@ -1594,6 +1594,7 @@ export async function catchUpEncounters(secs, buffRemainingMs) {
     setSimClock(0);
     resumeEncounterFlow(); // 补算结束统一恢复 buff 倒计时与遇敌调度
     setBulkQuiet(false); // 恢复背景曲（补算期间的闪光提示音在此一并补播）
+    setSaveSuspended(false); // 解除挂起，否则这次收尾的 saveGame 会被直接挡掉，之后也一直存不了
     saveGame();
   }
   const result = { done, total, balls, shinies, caught, stalledSec };

@@ -890,48 +890,28 @@ async function init() {
 
   // 加载存档（localStorage 与 Tauri 文件取较新者）
   let gameDataRaw = null;
-  try {
-    const candidates = [];
-    if (window.__TAURI__?.core?.invoke) {
-      const raw = await window.__TAURI__.core.invoke('load_game_data');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.items) candidates.push(parsed);
-      }
-    }
+  const candidates = [];
+  // 每个来源各自解析：某一档损坏（半截 JSON）只丢它自己，不能连累其它好档
+  const pushCandidate = (raw) => {
+    if (!raw) return;
     try {
-      const mobileRaw = await window.__POKEIDLE_MOBILE__?.readSave();
-      if (mobileRaw) {
-        const parsed = JSON.parse(mobileRaw);
-        if (parsed && parsed.items) candidates.push(parsed);
-      }
-    } catch (_) {}
-    // 移动端备份档：主档缺失/损坏时才可能胜出
-    try {
-      const backupRaw = await window.__POKEIDLE_MOBILE__?.readSaveBackup?.();
-      if (backupRaw) {
-        const parsed = JSON.parse(backupRaw);
-        if (parsed && parsed.items) candidates.push(parsed);
-      }
-    } catch (_) {}
-    // 移动端外部目录镜像：内部档丢了（清数据/写坏）时靠它
-    try {
-      const mirrorRaw = await window.__POKEIDLE_MOBILE__?.readSaveMirror?.();
-      if (mirrorRaw) {
-        const parsed = JSON.parse(mirrorRaw);
-        if (parsed && parsed.items) candidates.push(parsed);
-      }
-    } catch (_) {}
-    const local = localStorage.getItem('pokemon_idle_save');
-    if (local) {
-      const parsed = JSON.parse(local);
+      const parsed = JSON.parse(raw);
       if (parsed && parsed.items) candidates.push(parsed);
-    }
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => (b.stats?.lastSaveTime || 0) - (a.stats?.lastSaveTime || 0));
-      gameDataRaw = candidates[0];
-    }
-  } catch (_) {}
+    } catch (_) {}
+  };
+  if (window.__TAURI__?.core?.invoke) {
+    try { pushCandidate(await window.__TAURI__.core.invoke('load_game_data')); } catch (_) {}
+  }
+  try { pushCandidate(await window.__POKEIDLE_MOBILE__?.readSave()); } catch (_) {}
+  // 移动端备份档：主档缺失/损坏时才可能胜出
+  try { pushCandidate(await window.__POKEIDLE_MOBILE__?.readSaveBackup?.()); } catch (_) {}
+  // 移动端外部目录镜像：内部档丢了（清数据/写坏）时靠它
+  try { pushCandidate(await window.__POKEIDLE_MOBILE__?.readSaveMirror?.()); } catch (_) {}
+  try { pushCandidate(localStorage.getItem('pokemon_idle_save')); } catch (_) {}
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => (b.stats?.lastSaveTime || 0) - (a.stats?.lastSaveTime || 0));
+    gameDataRaw = candidates[0];
+  }
   setGameData(gameDataRaw || getDefaultSave());
   // 应用存档中的窗口倍率（未设置时默认 2 倍）
   applyWindowScale(gameData?.settings?.windowScale);

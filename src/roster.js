@@ -104,6 +104,8 @@ let _detailEvoAllowed = false; // 详情页是否允许「改性格 / 点进化�
 let _picker = null; // 选取模式：配队/训练/限时活动点击空位跳转仓库选择，{ mode:'team'|'train'|'activity', slot, from, exclude[] }
 let _renderSeq = 0; // 列表分片渲染版本号：新一轮渲染作废旧一轮，避免快速切换筛选时乱序
 let _rosterIconObs = null; // 列表图标懒加载观察器：滚动进入视口（含预载带）才加载，避免大仓库并发请求打爆资源
+let _boxView = false;      // 盒子（网格）视图：右键菜单切换，选择记到 localStorage
+try { _boxView = localStorage.getItem('rosterBoxView') === '1'; } catch (e) {}
 
 // 个体值总和 / V 数：都按有效值算（王冠练满的按 31，见 state.js ivOf）
 function ivSum(p) { return effIvTotal(p); }
@@ -273,10 +275,38 @@ window.addEventListener('roster-changed', () => {
   }));
 });
 
+// 盒子视图：格子为正方形，边长 =（容器宽 - 列间距）/ 5。
+// grid 的 fr 轨道下 aspect-ratio 推不出高度会让格子塌陷，这里显式写入行高。
+function boxCellSize(list) {
+  const w = list.clientWidth;
+  if (!w) return 0;
+  const gap = parseFloat(getComputedStyle(list).columnGap) || 0;
+  return (w - gap * 4) / 5;
+}
+function syncBoxRows() {
+  const list = $('rosterList');
+  if (!list) return;
+  if (!_boxView) { list.style.gridAutoRows = ''; return; }
+  const size = boxCellSize(list);
+  if (size > 0) { list.style.gridAutoRows = size + 'px'; return; }
+  // 刚切进页面时容器可能还没布局，下一帧再量
+  requestAnimationFrame(() => {
+    if (!_boxView) return;
+    const l = $('rosterList');
+    if (!l) return;
+    const s = boxCellSize(l);
+    if (s > 0) l.style.gridAutoRows = s + 'px';
+  });
+}
+window.addEventListener('resize', () => { if (_boxView) syncBoxRows(); });
+
 function renderList() {
   const list = $('rosterList');
   if (!list) return;
   setDetailZoom(false);
+  // 盒子 / 列表视图：容器类驱动表头隐藏与网格布局
+  $('rosterView')?.classList.toggle('roster-box', _boxView);
+  syncBoxRows();
   // 懒加载图标观察器：监听 #rosterList 视口（含预载带），回调加载后自动解除观察
   if ('IntersectionObserver' in window && !_rosterIconObs) {
     _rosterIconObs = new IntersectionObserver((entries) => {
@@ -358,8 +388,9 @@ function renderList() {
       for (; i < end; i++) {
         const p = sorted[i];
         const sel = _batchRelease && _batchSelected.has(p.id);
-        rows.push(rowHtml(p).replace('<div class="pokedex-entry roster-row"',
-          `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}"`));
+        const html = _boxView ? boxHtml(p) : rowHtml(p);
+        rows.push(html.replace('<div class="pokedex-entry roster-row',
+          `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}`));
       }
       const before = list.querySelectorAll('.roster-icon-img').length;
       list.insertAdjacentHTML('beforeend', rows.join(''));
@@ -428,6 +459,30 @@ function rowHtml(p) {
       <span class="pokedex-name">${rosterName(p)}</span>
       <span class="roster-lv-col">${gSpan}Lv${p.level || 1}</span>
       <span class="roster-iv">${ivSum(p)}</span>
+    </div>`;
+}
+
+// 盒子视图边框类：变体优先（RGB / 污染），否则按稀有度（普通 / 稀有 / 传说）
+function boxFrameClass(p, poke) {
+  if (p.variant === 'rgb') return 'var-rgb';
+  if (p.variant === 'polluted') return 'var-polluted';
+  if (poke?.legend) return 'rar-legend';
+  if ((poke?.rarity || 0) > 0.6) return 'rar-rare';
+  return 'rar-common';
+}
+
+// 盒子视图单格：顶部个体值条 + 图标（右上角闪光/扭曲角标）+ 底部等级 / 性别
+function boxHtml(p) {
+  const poke = getPokemonByIndex(String(p.species));
+  const icon = poke?.icon ? `<img class="roster-icon-img" data-icon="${p.species}" alt="" />` : '';
+  const pct = Math.round((ivSum(p) / 186) * 100);
+  const perfect = perfectIvCount(p) >= 6; // 6V：进度条用重色强调
+  const frame = boxFrameClass(p, poke);
+  return `
+    <div class="pokedex-entry roster-row roster-box-cell ${frame}" data-rid="${p.id}">
+      <div class="box-iv"><div class="box-iv-fill${perfect ? ' perfect' : ''}" style="width:${pct}%"></div></div>
+      <div class="box-icon-wrap">${icon}<span class="box-badges">${pokemonSourceBadge(p)}</span></div>
+      <div class="box-foot"><span class="box-lv">Lv${p.level || 1}</span><span class="box-gender">${genderBadge(ensureGender(p), 9)}</span></div>
     </div>`;
 }
 
@@ -1549,6 +1604,8 @@ function showRosterDetail(id) {
   const listEl = $('rosterList');
   if (listEl) { listEl.dataset.savedScroll = listEl.scrollTop; listEl.scrollTop = 0; } // 记住列表位置，详情从顶部开始
   setDetailZoom(false);
+  // 详情内容直接铺在 #rosterList 里，网格类必须摘掉，否则详情被排成格子
+  rootEl.classList.remove('roster-box');
   // 隐藏搜索框、表头、进度和高级筛选预览条（与图鉴详情一致）
   rootEl.querySelector('.pokedex-search').style.display = 'none';
   rootEl.querySelector('.roster-header').style.display = 'none';
@@ -2145,7 +2202,7 @@ function showContextMenu(x, y) {
     menu.className = 'shop-ctx-menu';
     document.body.appendChild(menu);
   }
-  menu.innerHTML = `<div class="shop-ctx-item" data-action="advFilter">高级筛选</div><div class="shop-ctx-item" data-action="batchRelease">批量放生</div>`;
+  menu.innerHTML = `<div class="shop-ctx-item" data-action="boxView">${_boxView ? '列表视图' : '盒子视图'}</div><div class="shop-ctx-item" data-action="advFilter">高级筛选</div><div class="shop-ctx-item" data-action="batchRelease">批量放生</div>`;
   const { x: lx, y: ly } = logicViewport(x, y); // zoom 下还原逻辑坐标
   const b = popupBounds(); // 夹紧在机身内：手游双屏下机身只占屏幕中间一块
   menu.style.left = Math.min(lx, b.right - 120) + 'px';
@@ -2154,11 +2211,20 @@ function showContextMenu(x, y) {
   menu.onclick = (e) => {
     const act = e.target.closest('[data-action]')?.dataset.action;
     hideContextMenu();
-    if (act === 'advFilter') openAdvFilter();
+    if (act === 'boxView') toggleBoxView();
+    else if (act === 'advFilter') openAdvFilter();
     else if (act === 'batchRelease') startBatchRelease();
   };
   _ctxUnwatch?.();
   _ctxUnwatch = watchOutsidePress(menu, hideContextMenu);
+}
+
+// 右键菜单：列表 / 盒子（网格）视图切换，选择持久化
+function toggleBoxView() {
+  _boxView = !_boxView;
+  try { localStorage.setItem('rosterBoxView', _boxView ? '1' : '0'); } catch (e) {}
+  if (_batchRelease) setBatchWheel(true); // 重算紧凑样式（盒子视图下不套用）
+  renderList();
 }
 
 let _ctxUnwatch = null; // 点外面收菜单的解绑函数（每次弹出重新挂）
@@ -2196,7 +2262,8 @@ let _batchWheel = null;
 function setBatchWheel(on) {
   const list = $('rosterList');
   if (!list) return;
-  list.classList.toggle('batch-compact', on);
+  // 盒子视图下不套用紧凑行样式（会压扁格子），仅保留滚轮降速
+  list.classList.toggle('batch-compact', on && !_boxView);
   if (on && !_batchWheel) {
     _batchWheel = e => { e.preventDefault(); list.scrollTop += e.deltaY * 0.5; };
     list.addEventListener('wheel', _batchWheel, { passive: false });
