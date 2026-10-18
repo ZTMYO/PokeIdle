@@ -23,10 +23,19 @@
         slow: { label: '启动较慢', title: '游戏启动较慢', text: '网络慢或素材较多，还在加载中。稍等一会儿，或者换个网络重新进。' },
       };
       var primary = null;   // 第一条错误的文案，决定浮层标题和小字
+      // 桌面端有 Tauri 桥、安卓壳有 Capacitor / mobile bridge：都不沾边才当网页体验版
+      function isWebBuild() {
+        if (window.Capacitor || window.__TAURI_INTERNALS__ || (window.__TAURI__ && window.__TAURI__.core)) return false;
+        if (window.__POKEIDLE_MOBILE__) return false;
+        if (location.protocol === 'file:') return false;
+        return true;
+      }
       function add(kind, detailText) {
         var info = DESC[kind] || DESC.script;
         lines.push('[' + stamp() + '] ' + info.label + '\n' + (detailText || ''));
         if (!primary) primary = info;
+        // 网页体验版：浮层上的「下载最新版」对网页玩家没用，报错只写进控制台，不弹出来打断操作
+        if (isWebBuild()) { try { console.error('[PokeIdle] ' + info.label + '\n' + (detailText || '')); } catch (e) {} return; }
         paint();
       }
       function openSite(e) {

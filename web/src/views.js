@@ -2124,7 +2124,7 @@ const TUTORIAL_SECTIONS = [
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto'])
       + `<p><b>今日招式机</b>：每天上架 <b>${TM_SHOP_DAILY}</b> 个还没有解锁的招式，价格按威力 <b>${TM_PRICE_TIERS[0].price}~${TM_PRICE_TIERS[TM_PRICE_TIERS.length - 1].price}</b> 糖果。</p>`
       + `<p>招式机<b>解锁后永久有效</b>：仓库里能学会这招的宝可梦会直接学会（满 4 招的保留你自己配的，可以在配招页替换）。蛋招式不在这里卖——只有<b>孵蛋</b>得到的宝可梦能学，详见「<b>孵蛋</b>」章节。</p>`
-      + `<p><b>今日道具</b>：出手进化道具、薄荷与王冠，每天换一批，每件限买 1 个。</p>`
+      + `<p><b>今日道具</b>：出售进化道具、薄荷与王冠，每天换一批，每件限买 1 个。</p>`
   },
   {
     title: '增益',
