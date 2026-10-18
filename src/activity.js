@@ -129,6 +129,14 @@ export function activityActive(id) {
   return activeActivities().some(a => a.id === id) || (devPreview() || {}).id === id;
 }
 
+// 某个活动当前这一期的开始时刻（不在窗口内返回 0）：给"一开跑就要重置"的模块当标记用
+export function activityFrom(id) {
+  const a = activeActivities().find(x => x.id === id);
+  if (a) return a.from;
+  const di = devPreview();
+  return di && di.id === id ? devWin(di).from : 0;
+}
+
 // 这个 id 该用哪条记录：本地预览优先（同一个 id 也走假窗口和覆盖后的 payload）
 function entryOf(id) {
   const di = devPreview();

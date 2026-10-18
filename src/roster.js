@@ -4,7 +4,7 @@
 import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, updateStats, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea, watchOutsidePress } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase, dexUnlocked, ivOf, effIvTotal, effPerfectCount, applyCrown, IV_STATS } from './state.js';
 import { TYPE_COLORS, typeIconColor, pokemonSourceBadge, itemIconSrc, MINT_KEYS } from './items.js';
-import { evolutionRows, applyEvolution, condItems, moveCondText, evoPreEvos, evolutionData, loadEvolution } from './evolution.js';
+import { evolutionRows, applyEvolution, condItems, moveCondText, evoPreEvos, evolutionData, loadEvolution, stoneSources } from './evolution.js';
 import { playEvolution } from './evo-view.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
 import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL, MINT_NATURES, ITEM_NAMES } from './config.js';
@@ -158,7 +158,7 @@ function evoCapableSet() {
   if (!T) return null;
   if (!_evoCapableSet) {
     _evoCapableSet = new Set(Object.keys(T.edges || {}));
-    for (const f of Object.keys(T.stones || {})) _evoCapableSet.add(String(f).split('-')[0]);
+    for (const f of Object.keys(T.stones || {})) for (const s of stoneSources(f)) _evoCapableSet.add(s);
   }
   return _evoCapableSet;
 }

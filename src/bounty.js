@@ -7,7 +7,7 @@ import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds, sho
 import { showGoodbyeConfirm } from './animation.js';
 import { pickFamily, pokemonSourceBadge, grantItem, itemIconSrc, evoExclusivePool, MINT_KEYS } from './items.js';
 import { evolutionData, evoPreEvos } from './evolution.js';
-import { activityActive } from './activity.js';
+import { activityActive, activityFrom } from './activity.js';
 
 function dateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -135,7 +135,9 @@ export function ensureBounty() {
   const legacy = b && Array.isArray(b.rewards) && b.rewards.length > 0
     && (!Array.isArray(b.rewards[0]) || b.rewards[0].length !== BOUNTY_PER_REGION);
   if (!b || b.date !== today || !Array.isArray(b.rewards) || legacy) {
+    const keepFrom = b?.voyageFrom || 0; // 跨天重建时留着活动标记，免得活动期内又被重抽一次
     generateBounty();
+    gameData.bounty.voyageFrom = keepFrom;
   } else if (!Array.isArray(b.visited)) {
     // 兼容缺少 visited 字段的存档：视为今日尚未到访任何地区
     b.visited = REGION_CYCLE.map(() => false);
@@ -158,6 +160,21 @@ export function ensureBounty() {
   const g = gameData.bounty;
   const cur = gameData.gps?.curIdx ?? 2;
   if (cur >= 0 && cur < g.visited.length) g.visited[cur] = true;
+  // 航海活动开跑那一刻：全部地区悬赏强制重抽一次（保留今日到访状态）。
+  // 玩家可能在活动前就提交过悬赏、或攒了一堆已知目标的宝可梦：重抽后目标全换新、
+  // 已提交的位置也回到未提交（活动期奖励改发船票），既不亏船票又堵住提前囤货速通。
+  const vFrom = activityFrom('voyage');
+  if (vFrom && gameData.bounty.voyageFrom !== vFrom) {
+    generateBounty(Array.isArray(g.visited) ? g.visited : undefined);
+    gameData.bounty.voyageFrom = vFrom;
+    saveGame();
+    // 悬赏页开着就重画：目标已换，旧列表的提交索引会串位；提交子页一并退出
+    const tv = $('bountyView');
+    if (tv && tv.style.display === 'flex') {
+      _tradeMode = null;
+      renderBounty();
+    }
+  }
 }
 
 // 仓库中是否有该物种的在仓**宝可梦**（获得时间不限，任意来源均可提交；
@@ -207,7 +224,9 @@ export function updateBountyBadge() {
 export function forceRefreshBounty() {
   if (!gameData) return 0;
   const visited = Array.isArray(gameData.bounty?.visited) ? gameData.bounty.visited : null;
+  const keepFrom = gameData.bounty?.voyageFrom || 0; // 保留活动标记，免得刚抽完又被活动刷新覆盖
   generateBounty(visited);
+  gameData.bounty.voyageFrom = keepFrom;
   updateBountyBadge();
   return gameData.bounty.rewards.reduce((n, arr) => n + arr.filter(Boolean).length, 0);
 }

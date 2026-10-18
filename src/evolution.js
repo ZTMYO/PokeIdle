@@ -61,7 +61,7 @@ export function familyRoot(idx, useIncense) {
   if (!_data) return String(idx);
   const key = String(idx);
   const start = _data.stones && _data.stones[key]
-    ? String((_data.stoneSource && _data.stoneSource[key]) || key.split('-')[0])
+    ? (stoneSources(key)[0] || String(key).split('-')[0])
     : key;
   const suffix = start.includes('-') ? start.slice(start.indexOf('-')) : '';
   let cur = start;
@@ -114,6 +114,14 @@ export function evoExclusiveForms() {
   if (!_data) return out;
   for (const [formIdx, name] of Object.entries(_data.stones)) if (!out[name]) out[name] = formIdx;
   return out;
+}
+
+// 一枚石头能用在哪些形态上：stoneSource 写成数组表示雄雌同编号的形态共用（老数据是单值）
+export function stoneSources(formIdx) {
+  if (!_data) return [];
+  const v = (_data.stoneSource || {})[formIdx];
+  if (v == null) return [String(formIdx).split('-')[0]];
+  return (Array.isArray(v) ? v : [v]).map(String);
 }
 
 // ---------- 条件判定 ----------
@@ -191,8 +199,7 @@ export function evolutionRows(entry, ctx) {
   // 强化形态：stones 里挂在自己编号下的那几条，stoneSource 写明这枚石头挂谁身上；
   // 老数据没写来源就退回「本体挂自己的强化形态」
   for (const [formIdx, item] of Object.entries((_data && _data.stones) || {})) {
-    const from = (_data.stoneSource && _data.stoneSource[formIdx]) || String(formIdx).split('-')[0];
-    if (from !== idx || !getPokemonByIndex(formIdx)) continue;
+    if (!stoneSources(formIdx).includes(idx) || !getPokemonByIndex(formIdx)) continue;
     const cond = { item };
     rows.push({ kind: 'form', cond, targets: [formIdx], ...judgeCond(entry, cond, ctx) });
   }

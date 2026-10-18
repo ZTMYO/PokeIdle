@@ -39,6 +39,10 @@ def gender_text(rate):
     pct = lambda x: '%g%%' % (x * 100)
     return '♂%s ♀%s' % (pct(male), pct(female))
 
+# 雌雄异形（轻飘飘-雄性/雌性）：编号带后缀但属于同一种，不算变体
+def is_sex_form(p):
+    return (p.get('form') or '').endswith(('-雄性', '-雌性'))
+
 def rows_for(p):
     return [
         p['index'],
@@ -113,7 +117,10 @@ for p in dex:
     seen.add(base)
     lst = sorted(bases[base], key=lambda x: (0 if '-' not in x['index'] else 1, x['index']))
     out.extend(lst)
-print('总条目:', len(out), '| 变体:', sum(1 for p in out if '-' in p['index']))
+n_sex = sum(1 for p in out if is_sex_form(p))
+n_var = sum(1 for p in out if '-' in p['index'] and not is_sex_form(p))
+n_base = len(out) - n_sex - n_var
+print('总条目:', len(out), '| 本体:', n_base, '| 雌雄异形:', n_sex, '| 变体:', n_var)
 
 # 重建数据区（清空样式，逐行写入）
 for r in range(2, 2 + len(out)):
@@ -147,8 +154,8 @@ ws.column_dimensions['P'].width = ws.column_dimensions['O'].width
 ws.auto_filter.ref = 'A1:P%d' % (len(out) + 1)
 
 # 颜色说明表补充说明
-lw.cell(32, 1).value = '5. 数据来源：src/pokemon-data/pokedex.json，共 %d 只（本体 %d + 变体 %d）。' % (
-    len(out), sum(1 for p in out if '-' not in p['index']), sum(1 for p in out if '-' in p['index']))
+lw.cell(32, 1).value = '5. 数据来源：src/pokemon-data/pokedex.json，共 %d 只（本体 %d + 雌雄异形 %d + 变体 %d）。' % (
+    len(out), n_base, n_sex, n_var)
 
 wb.save(XLSX)
 print('完成：数据行 %d，红色神兽行 %d' % (len(out), sum(1 for p in out if p.get('legend'))))

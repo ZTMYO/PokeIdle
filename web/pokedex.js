@@ -478,6 +478,8 @@ function evolveChainHtml(idx) {
   if (!EVO) return '';
   const E = EVO.edges || {}, stones = EVO.stones || {}, srcOf = EVO.stoneSource || {};
   const self = String(idx);
+  // stoneSource 支持数组：雄雌同编号的形态共用一枚石头
+  const srcList = (k) => (Array.isArray(srcOf[k]) ? srcOf[k] : [srcOf[k] == null ? String(k).split('-')[0] : srcOf[k]]).map(String);
   const preds = new Map();
   for (const [from, row] of Object.entries(E)) for (const to of Object.keys(row)) {
     if (!preds.has(to)) preds.set(to, []);
@@ -491,13 +493,13 @@ function evolveChainHtml(idx) {
   // 某一级的下一级 = 普通边 + 挂在它身上的专属石头形态
   const childrenOf = (i) => [
     ...Object.keys(E[i] || {}).map((k) => ({ id: k, cond: condText(E[i][k]) })),
-    ...Object.keys(stones).filter((k) => String(srcOf[k]) === String(i)).map((k) => ({ id: k, cond: condText({ item: stones[k] }) })),
+    ...Object.keys(stones).filter((k) => srcList(k).includes(String(i))).map((k) => ({ id: k, cond: condText({ item: stones[k] }) })),
   ];
   // 族根：沿反向边往上走（同后缀优先，与游戏 familyRoot 同规则；石头形态先回挂靠形态）
   let cur = self, guard = 0;
   while (guard++ < 12) {
     let from = null;
-    if (stones[cur]) from = String(srcOf[cur] || cur.split('-')[0]);
+    if (stones[cur]) from = srcList(cur)[0] || String(cur).split('-')[0];
     else {
       const list = preds.get(cur) || [];
       if (!list.length) break;
@@ -559,6 +561,7 @@ function evolveChainHtml(idx) {
 // 从某只沿反向边回到族根，返回 [族根, …, 这一只]（同后缀优先）
 function pathOf(start) {
   const E = EVO.edges || {}, stones = EVO.stones || {}, srcOf = EVO.stoneSource || {};
+  const srcList = (k) => (Array.isArray(srcOf[k]) ? srcOf[k] : [srcOf[k] == null ? String(k).split('-')[0] : srcOf[k]]).map(String);
   const preds = new Map();
   for (const [from, row] of Object.entries(E)) for (const to of Object.keys(row)) {
     if (!preds.has(to)) preds.set(to, []);
@@ -573,7 +576,7 @@ function pathOf(start) {
   let cur = String(start), guard = 0;
   while (guard++ < 12) {
     let from = null;
-    if (stones[cur]) from = String(srcOf[cur] || cur.split('-')[0]);
+    if (stones[cur]) from = srcList(cur)[0] || String(cur).split('-')[0];
     else {
       const list = preds.get(cur) || [];
       if (!list.length) break;
