@@ -282,16 +282,17 @@ function buyShopItem(ctx, id) {
   });
 }
 
-// ===== 航海寻宝（id: voyage）：用船票起航，转盘抽里程，边开边打捞拼图碎片 =====
+// ===== 航海寻宝（id: voyage）：用船票起航，转盘抽里程，边开边打捞拼图 =====
 // w 是权重（总和不必是 100）：起航时按权重摇出结果，再凑一组候选铺到转盘上滚动
+// 各里程等概率，这里 w 全给同一个值
 const VOYAGE_MILES = [
-  { nm: 30,  w: 30 },
-  { nm: 45,  w: 24 },
-  { nm: 65,  w: 16 },
-  { nm: 90,  w: 12 },
-  { nm: 120, w: 10 },
-  { nm: 160, w: 5  },
-  { nm: 220, w: 3  },
+  { nm: 30,  w: 1 },
+  { nm: 45,  w: 1 },
+  { nm: 65,  w: 1 },
+  { nm: 90,  w: 1 },
+  { nm: 120, w: 1 },
+  { nm: 160, w: 1 },
+  { nm: 220, w: 1 },
 ];
 const VOYAGE_WHEEL_SLOTS = 6;   // 转盘上铺几个候选
 const VOYAGE_WHEEL_D = 84;      // 圆盘直径（像素）
@@ -312,8 +313,14 @@ const VOYAGE_PUZZLE = [
   { nm: 3500, give: [{ item: 'master-ball', qty: 3  }] },
   { nm: 4000, give: [{ item: 'shiny-charm', qty: 2  }] },
 ];
-const VOYAGE_CANDY = { min: 50, max: 300 };    // 每段必给的糖果区间
-const VOYAGE_BALL_CHANCE = 0.3;                // 额外出精灵球的概率
+// 拼图集齐后每再跑这么多海里满一轮，发一件随机奖励（五类等概率）
+const VOYAGE_REWARD_NM = 500;
+// 顶部航线刻度尺：每海里多少像素、小船钉在左侧的像素位置、刻度间隔（海里）
+const VOYAGE_GAUGE = { pxPerNm: 1.5, shipX: 34, tick: 25 };
+// 航行途中的补给点：每跑这么多海里即时发一次（糖果或精灵球，单点单样）
+const VOYAGE_SUPPLY_NM = 25;
+const VOYAGE_CANDY = { min: 50, max: 300 };    // 糖果补给点的数量区间
+const VOYAGE_BALL_CHANCE = 0.3;                // 补给点出精灵球（而非糖果）的概率
 const VOYAGE_BALL = { min: 5, max: 15 };
 const VOYAGE_SPEED = 90;                       // 海面滚动速度（像素/秒）
 const VOYAGE_SEG_SECONDS = 8;                  // 单段航行时长（别让玩家干等）
@@ -331,6 +338,12 @@ function voyageSlot(ctx) {
   if (!s.pic) s.pic = 1 + Math.floor(rngFrom(seedOf(ctx))() * VOYAGE_PICS);
   if (s.seg === undefined) s.seg = null;
   if (!Number.isFinite(s.spends)) s.spends = 0;
+  if (!Number.isFinite(s.rewarded)) s.rewarded = 0;   // 拼图集齐后已领过几轮奖励
+  // 已领过的补给点数；老存档按已有里程折算，避免一次性补发一大串
+  if (!Number.isFinite(s.supplied)) {
+    s.supplied = 0;
+    while (s.miles >= voyageSupplyNm(s.supplied)) s.supplied += 1;
+  }
   return s;
 }
 // 闪光蛋：定下来就存着（同大量悬赏口径，可被 payload.eggSpecies 指定）
@@ -385,19 +398,108 @@ function voyageGiftHtml(ctx, i, size = 20) {
   if (g.egg) return `${eggIconHtml(g.species, size)}<i>${eggLabel(g.species)}</i>`;
   return `${itemIconHtml(g.key, size)}<i>${ITEM_NAMES[g.key] || g.key} ×${g.qty}</i>`;
 }
-// 还没落格的最前一个门槛（-1 = 全部拼齐）
-function voyageNextGoal(ctx) {
-  const s = ctx.slot, perm = voyagePerm(ctx);
-  for (let k = 0; k < VOYAGE_PUZZLE.length; k++) if (!s.got.includes(perm[k] + 1)) return k;
-  return -1;
+// 拼图集齐后已跑满几轮奖励
+function voyageRewardCycles(ctx) {
+  const over = ctx.slot.miles - VOYAGE_PUZZLE[VOYAGE_PUZZLE.length - 1].nm;
+  return over <= 0 ? 0 : Math.floor(over / VOYAGE_REWARD_NM);
 }
-// 到下一块碎片的进度（0~100）
-function voyageProgress(ctx) {
-  const gi = voyageNextGoal(ctx);
-  if (gi < 0) return 100;
-  const prev = gi === 0 ? 0 : VOYAGE_PUZZLE[gi - 1].nm;
-  const next = VOYAGE_PUZZLE[gi].nm;
-  return Math.max(0, Math.min(100, ((ctx.slot.miles - prev) / (next - prev)) * 100));
+// 第 j 轮给哪件：王冠 / 大师球 / 闪耀护符 / 稀有进化道具 / 薄荷，五类等概率；同轮结果固定
+function voyageRewardOf(ctx, j) {
+  const r = rngFrom((seedOf(ctx) ^ strSeed(`voyage-reward${j}`)) >>> 0);
+  const pick = list => list[Math.floor(r() * list.length)];
+  const kind = Math.floor(r() * 5);
+  if (kind === 0) return { key: pick(CROWN_POOL), qty: 1 };
+  if (kind === 1) return { key: 'master-ball', qty: 1 };
+  if (kind === 2) return { key: 'shiny-charm', qty: 1 };
+  if (kind === 3) return { key: pick(VOYAGE_EVO_POOL), qty: 1 };
+  return { key: pick(MINT_KEYS), qty: 1 };
+}
+// 被碎片门槛或奖励轮次占用的里程（都是 25 的整数倍），补给点生成时跳过这些档
+function voyageNmTaken(nm) {
+  if (VOYAGE_PUZZLE.some(p => p.nm === nm)) return true;
+  const base = VOYAGE_PUZZLE[VOYAGE_PUZZLE.length - 1].nm;
+  return nm > base && (nm - base) % VOYAGE_REWARD_NM === 0;
+}
+// 第 i 个补给点的里程：从 25 起每 25 一档往后数，跳过被占用的档
+function voyageSupplyNm(i) {
+  let nm = 0, k = -1;
+  while (k < i) {
+    do { nm += VOYAGE_SUPPLY_NM; } while (voyageNmTaken(nm));
+    k += 1;
+  }
+  return nm;
+}
+// 第 i 个补给点给什么：种子决定是糖果还是精灵球，单点单样；种子挂在序号上，尺子上可提前预览
+function voyageSupplyOf(ctx, i) {
+  const r = rngFrom((seedOf(ctx) ^ strSeed(`voyage-supply${i}`)) >>> 0);
+  if (r() < VOYAGE_BALL_CHANCE) {
+    const qty = VOYAGE_BALL.min + Math.floor(r() * (VOYAGE_BALL.max - VOYAGE_BALL.min + 1));
+    return { nm: voyageSupplyNm(i), key: 'poke-ball', qty };
+  }
+  const qty = VOYAGE_CANDY.min + Math.floor(r() * (VOYAGE_CANDY.max - VOYAGE_CANDY.min + 1));
+  return { nm: voyageSupplyNm(i), key: 'candy', qty };
+}
+// 刻度尺上要摆的节点：航行补给 + 拼图碎片 + 集齐后的奖励轮次，只取落在可视里程段内的
+function voyageGaugeNodes(ctx, fromNm, toNm) {
+  const s = ctx.slot, perm = voyagePerm(ctx);
+  const out = [];
+  // 定位窗口内第一个补给点：从估算档位出发前后校准，避免从 0 扫
+  let i = Math.max(0, Math.floor(fromNm / VOYAGE_SUPPLY_NM) - 1);
+  while (i > 0 && voyageSupplyNm(i) > fromNm) i -= 1;
+  while (voyageSupplyNm(i) < fromNm) i += 1;
+  for (;; i++) {
+    const nm = voyageSupplyNm(i);
+    if (nm > toNm) break;
+    const g = voyageSupplyOf(ctx, i);
+    const title = `${ITEM_NAMES[g.key] || g.key} +${g.qty}`;
+    out.push({ nm, src: itemIconSrc(g.key), done: i < s.supplied, title });
+  }
+  VOYAGE_PUZZLE.forEach((p, k) => {
+    if (p.nm < fromNm || p.nm > toNm) return;
+    out.push({ nm: p.nm, src: './items/goods/jigsaw.png', done: s.got.includes(perm[k] + 1), title: '拼图碎片' });
+  });
+  const base = VOYAGE_PUZZLE[VOYAGE_PUZZLE.length - 1].nm;
+  const j0 = Math.max(0, Math.floor((fromNm - base) / VOYAGE_REWARD_NM));
+  const j1 = Math.ceil((toNm - base) / VOYAGE_REWARD_NM);
+  for (let j = j0; j <= j1; j++) {
+    const nm = base + (j + 1) * VOYAGE_REWARD_NM;
+    if (nm < fromNm || nm > toNm) continue;
+    const g = voyageRewardOf(ctx, j);
+    out.push({ nm, src: itemIconSrc(g.key), done: j < s.rewarded, title: ITEM_NAMES[g.key] || g.key });
+  }
+  out.sort((a, b) => a.nm - b.nm);
+  return out;
+}
+// 刷刻度尺：小船钉在 shipX，刻度线与奖励节点按里程向左平移；滚过小船即表示已到手
+function voyageGaugeUpdate(ctx, r) {
+  if (!r.gaugeEl) return;
+  let W = r.gaugeW;
+  if (!W) { W = r.gaugeW = r.gaugeEl.clientWidth; if (!W) return; }
+  const k = VOYAGE_GAUGE.pxPerNm, shipX = VOYAGE_GAUGE.shipX, miles = ctx.slot.miles;
+  if (r.rulerEl) r.rulerEl.style.backgroundPositionX = `${-miles * k}px`;
+  const fromNm = miles - shipX / k, toNm = miles + (W - shipX) / k;
+  const nodes = voyageGaugeNodes(ctx, fromNm, toNm);
+  const keep = new Set();
+  for (const n of nodes) {
+    keep.add(n.nm);
+    let el = r.nodeMap.get(n.nm);
+    if (!el) {
+      el = document.createElement('span');
+      el.className = 'voyage-gauge-node';
+      el.innerHTML = '<img alt="">';
+      r.gaugeEl.appendChild(el);
+      r.nodeMap.set(n.nm, el);
+    }
+    const img = el.firstChild;
+    if (el.dataset.src !== n.src) { el.dataset.src = n.src; img.src = n.src; }
+    img.alt = n.title;
+    el.title = n.title;
+    el.style.left = `${shipX + (n.nm - miles) * k}px`;
+    el.classList.toggle('done', !!n.done);
+  }
+  for (const [nm, el] of r.nodeMap) {
+    if (!keep.has(nm)) { el.remove(); r.nodeMap.delete(nm); }
+  }
 }
 // 拼图一格：底图按列行切成百分比背景；未落格 cover 盖实，落格变淡，点开收掉只留图案
 function voyageCellHtml(ctx, i) {
@@ -455,6 +557,19 @@ function voyageSizing(r) {
     const h = Math.max(170, Math.round(r.root ? r.root.clientHeight : 0));
     r.stageEl.style.height = `${h}px`;
   }
+  if (r.gaugeEl) {
+    r.gaugeW = r.gaugeEl.clientWidth;
+    if (r.rulerEl) {
+      // 小刻度每 tick 海里一格，大刻度每 4 格一个；两层都贴轴底，形成长短刻度
+      const t = VOYAGE_GAUGE.tick * VOYAGE_GAUGE.pxPerNm;
+      r.rulerEl.style.backgroundImage =
+        'linear-gradient(to right, rgba(255,255,255,.9) 0 1px, transparent 1px),' +
+        'linear-gradient(to right, rgba(255,255,255,.5) 0 1px, transparent 1px)';
+      r.rulerEl.style.backgroundSize = `${t * 4}px 12px, ${t}px 6px`;
+      r.rulerEl.style.backgroundPosition = '0 100%';
+    }
+    if (r.shipEl) r.shipEl.style.left = `${VOYAGE_GAUGE.shipX}px`;
+  }
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   r.dpr = dpr;
@@ -490,7 +605,7 @@ function voyageDraw(r, now) {
     const sw = ship.naturalWidth * sc, sh = ship.naturalHeight * sc;
     const bob = Math.sin(now / 420) * 4;
     const tilt = Math.sin(now / 420) * 2 * Math.PI / 180;
-    const cy = Math.max(64, h * 0.62 - 26);   // 顶部进度条和底部转盘之间偏下
+    const cy = Math.max(64, h * 0.62 - 14);   // 顶部刻度尺和底部转盘之间，稍偏下留出间距
     c.save();
     c.translate(w * 0.22, cy + bob);
     c.rotate(tilt);
@@ -559,7 +674,7 @@ function voyageLootClear(r) {
 // 只刷进度条/按钮，不整页重画（重画会把 canvas 和 rAF 一起拆掉）
 function voyageHud(ctx, r) {
   const s = voyageSlot(ctx);
-  if (r.barEl) r.barEl.style.width = `${voyageProgress(ctx).toFixed(1)}%`;
+  voyageGaugeUpdate(ctx, r);
   const n = ctx.count('ticket');
   // 页头徽标也显示票数：起航扣票后不等整页重画就跟着变
   if (r.badgeEl && r.badgeN !== n) {
@@ -593,9 +708,31 @@ function voyageLand(ctx, r) {
     const cell = perm[k] + 1;
     if (s.got.includes(cell) || s.miles < p.nm) return;
     s.got.push(cell);
-    voyageLootPush(r, `<span class="voyage-loot-row"><img src="./items/goods/jigsaw.png" alt="" style="width:16px;height:16px;"><i>拼图碎片 +1</i></span>`);
+    voyageLootPush(r, `<span class="voyage-loot-row"><img src="./items/goods/jigsaw.png" alt="" style="width:16px;height:16px;"><i>拼图 +1</i></span>`);
     changed = true;
   });
+  // 拼图集齐后里程继续推进奖励轮次：每满一轮发一件（一帧跨多轮也补齐）
+  const cycles = voyageRewardCycles(ctx);
+  while (s.rewarded < cycles) {
+    const g = voyageRewardOf(ctx, s.rewarded);
+    s.rewarded += 1;
+    ctx.grant(g.key, g.qty);
+    voyageLootPush(r, `<span class="voyage-loot-row">${itemIconHtml(g.key, 16)}<i>${ITEM_NAMES[g.key] || g.key} +${g.qty}</i></span>`);
+    changed = true;
+  }
+  if (changed) ctx.save();
+}
+// 里程推进跨过补给点就即时发放（一帧跨多个点也补齐）
+function voyageSupplyLand(ctx, r) {
+  const s = ctx.slot;
+  let changed = false;
+  while (s.miles >= voyageSupplyNm(s.supplied)) {
+    const g = voyageSupplyOf(ctx, s.supplied);
+    s.supplied += 1;
+    ctx.grant(g.key, g.qty);
+    voyageLootPush(r, `<span class="voyage-loot-row">${itemIconHtml(g.key, 16)}<i>${ITEM_NAMES[g.key] || g.key} +${g.qty}</i></span>`);
+    changed = true;
+  }
   if (changed) ctx.save();
 }
 // 点格子：碎片已到手就领奖并亮出图案；还没打捞到就提示怎么拿
@@ -617,21 +754,10 @@ function voyageOpenCell(ctx, cell) {
   showConfirmBar(`获得 ${text}`, null, null,
     { singleButton: true, host: document.getElementById('activityView') });
 }
-// 一段开完：结算途中零钱（必给糖果，偶尔精灵球），回到待机
+// 一段开完：回到待机（糖果等奖励已随里程即时发放，这里不再结算）
 function voyageFinishSeg(ctx, r) {
-  const s = ctx.slot;
-  const rng = rngFrom((seedOf(ctx) ^ strSeed(`voyage-loot${s.spends}`)) >>> 0);
-  const candy = VOYAGE_CANDY.min + Math.floor(rng() * (VOYAGE_CANDY.max - VOYAGE_CANDY.min + 1));
-  let balls = 0;
-  if (rng() < VOYAGE_BALL_CHANCE) balls = VOYAGE_BALL.min + Math.floor(rng() * (VOYAGE_BALL.max - VOYAGE_BALL.min + 1));
-  s.seg = null;
+  ctx.slot.seg = null;
   ctx.save();
-  ctx.grant('candy', candy);
-  voyageLootPush(r, `<span class="voyage-loot-row">${itemIconHtml('candy', 16)}<i>糖果 +${candy}</i></span>`);
-  if (balls) {
-    ctx.grant('poke-ball', balls);
-    voyageLootPush(r, `<span class="voyage-loot-row">${itemIconHtml('poke-ball', 16)}<i>精灵球 +${balls}</i></span>`);
-  }
   r.phase = 'idle';
 }
 function voyageAdvance(ctx, r, dt) {
@@ -643,6 +769,7 @@ function voyageAdvance(ctx, r, dt) {
   seg.remain -= d;
   s.miles += d;
   voyageLand(ctx, r);
+  voyageSupplyLand(ctx, r);
   if (seg.remain <= 1e-6) voyageFinishSeg(ctx, r);
   else {
     r.saveAcc += dt;
@@ -937,7 +1064,12 @@ export const ACTIVITIES = {
       return `
         <div class="voyage-stage">
           <canvas class="voyage-canvas"></canvas>
-          <div class="voyage-hud"><div class="voyage-bar"><i id="voyageBar"></i></div></div>
+          <div class="voyage-hud">
+            <div class="voyage-gauge" id="voyageGauge">
+              <div class="voyage-gauge-ruler" id="voyageGaugeRuler"></div>
+              <img class="voyage-gauge-ship" src="./icons/ship.png" alt="当前航程">
+            </div>
+          </div>
           <div class="voyage-wheel" id="voyageWheel">
             <canvas class="voyage-wheel-canvas" id="voyageWheelCv"></canvas>
             <svg class="voyage-wheel-pin" viewBox="0 0 20 32" aria-hidden="true">
@@ -961,7 +1093,10 @@ export const ACTIVITIES = {
         root,
         stageEl: root.querySelector('.voyage-stage'),
         canvas: root.querySelector('.voyage-canvas'),
-        barEl: root.querySelector('#voyageBar'),
+        gaugeEl: root.querySelector('#voyageGauge'),
+        rulerEl: root.querySelector('#voyageGaugeRuler'),
+        shipEl: root.querySelector('.voyage-gauge-ship'),
+        nodeMap: new Map(),
         wheelEl: root.querySelector('#voyageWheel'),
         wheelCv: root.querySelector('#voyageWheelCv'),
         goEl: root.querySelector('#voyageGo'),
@@ -979,7 +1114,8 @@ export const ACTIVITIES = {
       // 刷新回来时盘面仍是这一轮的候选，直接摆到结果位置
       voyageWheelDraw(r, s.seg, s.seg ? s.seg.target : -1);
       if (s.seg) r.wheelCv.style.transform = `rotate(${-(s.seg.target + 0.5) * (360 / s.seg.slots.length)}deg)`;
-      if (r.lootEl) r.lootEl.addEventListener('click', () => r.lootEl.classList.remove('on'));
+      // 点掉打捞提示等于确认看过，清空累积，之后只弹新打捞到的东西
+      if (r.lootEl) r.lootEl.addEventListener('click', () => voyageLootClear(r));
       const boardEl = root.querySelector('#voyageBoard');
       if (boardEl) boardEl.addEventListener('click', (e) => {
         const pc = e.target.closest('.voyage-pc');

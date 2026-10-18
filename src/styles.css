@@ -2318,16 +2318,35 @@ html.mobile-app #quitHide { display: none !important; }
   transition: filter 0.4s ease-out;
 }
 .voyage-hud {
-  position: absolute; top: 10px; left: 0; right: 0;
+  position: absolute; top: 4px; left: 0; right: 0;
   display: flex; justify-content: center;
   pointer-events: none;
 }
-.voyage-bar {
-  width: 62%; max-width: 220px; height: 8px; border-radius: 4px; overflow: hidden;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+/* 航线刻度尺：小船钉在左侧，轴与刻度线随里程向左滚 */
+.voyage-gauge {
+  position: relative;
+  width: 74%; max-width: 280px; height: 40px;
+  overflow: hidden;
 }
-.voyage-bar i { display: block; height: 100%; width: 0; background: rgba(255, 255, 255, 0.75); transition: width 0.2s linear; }
+/* 一根横轴，向上伸出长短刻度（大刻度每 4 小格一个），随里程向左平移 */
+.voyage-gauge-ruler {
+  position: absolute; left: 0; right: 0; top: 12px; height: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.75);
+  background-repeat: repeat-x;
+}
+.voyage-gauge-ship {
+  position: absolute; top: 7px; left: 0;
+  width: 16px; height: 16px;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+}
+.voyage-gauge-node {
+  position: absolute; top: 26px;
+  width: 14px; height: 14px;
+  transform: translateX(-50%);
+}
+.voyage-gauge-node img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.voyage-gauge-node.done { opacity: 0.35; filter: grayscale(1); }
 .voyage-wheel {
   position: absolute; left: 0; right: 0; bottom: 34px;
   display: none;
