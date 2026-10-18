@@ -16,10 +16,10 @@
       function stamp() { try { return new Date().toLocaleString(); } catch (e) { return String(Date.now()); } }
       // 浮层文案按出错类型分开：一律写"版本没对上"，玩家会拿着这个说法去乱重装
       var DESC = {
-        script: { label: '脚本错误', title: '游戏出错了', text: '游戏代码执行时出错了。装最新版重进试试。' },
-        promise: { label: '未处理的 Promise 异常', title: '游戏出错了', text: '游戏代码执行时出错了。装最新版重进试试。' },
-        resource: { label: '资源加载失败', title: '资源没加载全', text: '游戏文件没加载全，多半是网络不稳或缓存有问题。刷新一下或换个网络再进。' },
-        dead: { label: '启动卡死', title: '游戏没能启动', text: '本地资源和热更新版本没对上。安装最新安装包后再进游戏即可。' },
+        script: { label: '脚本错误', title: '游戏出错了', text: '游戏代码执行时出错了。先点「尝试修复并重载」，多数情况能直接恢复。' },
+        promise: { label: '未处理的 Promise 异常', title: '游戏出错了', text: '游戏代码执行时出错了。先点「尝试修复并重载」，多数情况能直接恢复。' },
+        resource: { label: '资源加载失败', title: '资源没加载全', text: '游戏文件没加载全，多半是网络不稳或缓存有问题。先点「尝试修复并重载」，或换个网络再进。' },
+        dead: { label: '启动卡死', title: '游戏没能启动', text: '本地资源和热更新版本没对上。先点「尝试修复并重载」，一般不用重装。' },
         slow: { label: '启动较慢', title: '游戏启动较慢', text: '网络慢或素材较多，还在加载中。稍等一会儿，或者换个网络重新进。' },
       };
       var primary = null;   // 第一条错误的文案，决定浮层标题和小字
@@ -82,6 +82,66 @@
         if (detail) detail.style.display = detailOpen ? 'block' : 'none';
         if (detailToggle) detailToggle.textContent = detailOpen ? '收起错误详情' : '查看错误详情';
       }
+      // 按钮文案临时换成结果提示，两秒后复原（连点时按原始文案复原）
+      function flashBtn(btn, text) {
+        var label = btn.dataset.label || btn.textContent;
+        btn.dataset.label = label;
+        btn.textContent = text;
+        clearTimeout(btn._t);
+        btn._t = setTimeout(function () { btn.textContent = label; }, 2000);
+      }
+      // 安卓壳里被热更过的 index.html 会丢掉 bridge 标签（main.js 的兜底只在主脚本跑起来时才生效），
+      // 崩溃时这里自己把桥接补上：mobile-bridge.js 是打进安装包的经典脚本，能直接插进来执行
+      function loadBridge(cb) {
+        if (window.__POKEIDLE_MOBILE__) { cb(true); return; }
+        if (!window.Capacitor) { cb(false); return; }
+        var s = document.createElement('script');
+        s.src = './mobile-bridge.js';
+        s.onload = function () { cb(!!window.__POKEIDLE_MOBILE__); };
+        s.onerror = function () { cb(false); };
+        (document.head || document.documentElement).appendChild(s);
+      }
+      // 导出存档：三端的 saveGame 都会往 localStorage 写一份，这里不依赖主脚本是否跑起来。
+      // 移动端交给系统分享面板（能自己挑存放位置），桌面走保存对话框，网页直接下载
+      function exportSave(btn) {
+        var raw = null;
+        try { raw = localStorage.getItem('pokemon_idle_save'); } catch (e) {}
+        if (!raw) { flashBtn(btn, '读不到存档'); return; }
+        btn.textContent = '导出中…';
+        loadBridge(function (hasBridge) {
+          if (hasBridge) {
+            window.__POKEIDLE_MOBILE__.exportSave(raw).then(function (ok) {
+              flashBtn(btn, ok === false ? '已取消' : '已导出 ✓');
+            }, function () { flashBtn(btn, '导出失败'); });
+            return;
+          }
+          var inv = window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke;
+          if (inv) {
+            inv('export_save_data', { data: raw }).then(function () { flashBtn(btn, '已导出 ✓'); },
+              function (e) { flashBtn(btn, typeof e === 'string' && e.indexOf('取消') >= 0 ? '已取消' : '导出失败'); });
+            return;
+          }
+          // 在安卓壳里却没有桥接：WebView 的 <a download> 不生效，别报"已导出"骗玩家
+          if (window.Capacitor) { flashBtn(btn, '导出通道不可用'); return; }
+          try {
+            var url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'pokemon-idle-save.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            flashBtn(btn, '已导出 ✓');
+          } catch (e) { flashBtn(btn, '导出失败'); }
+        });
+      }
+      // 手动修复：清掉热更缓存再重载。多数"起不来/闪退"是新旧文件混在一起（热更只换了一部分），
+      // 清了就退回安装包里的完整版本，不用重装。不写自愈标记，免得占掉启动时那次自动修复
+      function repairReload(btn) {
+        var go = function () { try { location.reload(); } catch (e) {} };
+        if (!window.caches || !caches.delete) { go(); return; }
+        btn.textContent = '修复中…';
+        caches.delete('pokeidle-hot').then(go, go);
+      }
       function paint() {
         var host = document.body || document.documentElement;
         if (!host) return;
@@ -91,68 +151,106 @@
           box.setAttribute('style', 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;' +
             'visibility:visible;background:var(--console-body);' +
             'display:flex;align-items:center;justify-content:center;' +
-            'padding:24px;box-sizing:border-box;overflow:auto;-webkit-overflow-scrolling:touch;' +
+            'padding:16px;box-sizing:border-box;overflow:auto;-webkit-overflow-scrolling:touch;' +
             'font-family:monospace;-webkit-user-select:text;user-select:text');
 
           var card = document.createElement('div');
+          // max-height + 内部滚动：小屏上按钮再多也压不出视口
           card.setAttribute('style', 'width:100%;max-width:340px;box-sizing:border-box;' +
+            'max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;' +
             'background:var(--console-body,#e8dcc0);border:2px solid var(--console-border,#c4b692);' +
-            'box-shadow:0 6px 0 var(--console-shadow,#b8a88a);border-radius:8px;padding:22px 20px 18px');
+            'box-shadow:0 6px 0 var(--console-shadow,#b8a88a);border-radius:8px;padding:18px 18px 16px');
+
+          // 图标和标题并排，省下一整行高度
+          var head = document.createElement('div');
+          head.setAttribute('style', 'display:flex;align-items:center;margin-bottom:10px');
 
           var badge = document.createElement('div');
-          badge.setAttribute('style', 'width:26px;height:26px;line-height:26px;text-align:center;' +
-            'margin-bottom:12px;background:var(--ui-color,#376d56);color:var(--console-body,#e8dcc0);' +
-            'font-weight:bold;font-size:16px;border-radius:4px');
+          badge.setAttribute('style', 'flex:0 0 auto;width:22px;height:22px;line-height:22px;text-align:center;' +
+            'margin-right:10px;background:var(--ui-color,#376d56);color:var(--console-body,#e8dcc0);' +
+            'font-weight:bold;font-size:15px;border-radius:4px');
           badge.textContent = '!';
 
           var title = document.createElement('div');
-          title.setAttribute('style', 'font-size:17px;font-weight:bold;letter-spacing:2px;' +
-            'color:var(--ui-color-darker,#1d4937);margin-bottom:8px');
+          title.setAttribute('style', 'flex:1;min-width:0;font-size:16px;font-weight:bold;letter-spacing:1px;' +
+            'color:var(--ui-color-darker,#1d4937)');
           title.textContent = primary.title;
 
+          head.appendChild(badge);
+          head.appendChild(title);
+
           var desc = document.createElement('div');
-          desc.setAttribute('style', 'font-size:12px;line-height:1.7;letter-spacing:0.5px;' +
-            'color:var(--color-muted,#7c7c7c);margin-bottom:18px');
+          desc.setAttribute('style', 'font-size:12px;line-height:1.6;letter-spacing:0.5px;' +
+            'color:var(--color-muted,#7c7c7c);margin-bottom:10px');
           desc.textContent = primary.text + VER_TEXT;
+
+          var note = document.createElement('div');
+          note.setAttribute('style', 'margin-bottom:14px;padding:7px 9px;' +
+            'background:var(--item-bg,rgba(0,0,0,0.06));border-radius:4px;' +
+            'font-size:11px;line-height:1.6;letter-spacing:0.5px;color:var(--color-text,#1f1f1f)');
+          note.textContent = '存档存在这台设备上，卸载会一起清掉。要重装的话，先点「导出存档」，' +
+            '装好后用「导入存档」恢复。';
+
+          var exportBtn = document.createElement('button');
+          exportBtn.textContent = '导出存档';
+          exportBtn.setAttribute('style', 'display:block;width:100%;box-sizing:border-box;' +
+            'padding:12px 10px;text-align:center;background:var(--ui-color,#376d56);' +
+            'color:var(--console-body,#e8dcc0);font-family:monospace;font-size:14px;font-weight:bold;' +
+            'letter-spacing:2px;border:0;border-radius:6px;box-shadow:0 3px 0 var(--ui-color-dark,#24563f)');
+          exportBtn.onclick = function () { exportSave(exportBtn); };
+
+          // 次级操作两两并排，别一路往下堆（flex 不写 gap，兼容老内核）
+          var smallStyle = 'flex:1 1 0;min-width:0;box-sizing:border-box;padding:9px 6px;' +
+            'background:transparent;color:var(--ui-color-dark,#24563f);font-family:monospace;' +
+            'font-size:12px;letter-spacing:1px;border:2px solid var(--console-border,#c4b692);border-radius:6px';
+
+          var row1 = document.createElement('div');
+          row1.setAttribute('style', 'display:flex;margin-top:8px');
+
+          var repairBtn = document.createElement('button');
+          repairBtn.textContent = '修复并重载';
+          repairBtn.setAttribute('style', smallStyle + ';margin-right:8px');
+          repairBtn.onclick = function () { repairReload(repairBtn); };
 
           var dl = document.createElement('a');
           dl.href = SITE;
           dl.onclick = openSite;
-          dl.setAttribute('style', 'display:block;padding:13px 10px;text-align:center;' +
-            'background:var(--ui-color,#376d56);color:var(--console-body,#e8dcc0);' +
-            'font-size:14px;font-weight:bold;letter-spacing:2px;text-decoration:none;' +
-            'border-radius:6px;box-shadow:0 3px 0 var(--ui-color-dark,#24563f)');
-          dl.textContent = '去官网下载最新版';
+          dl.setAttribute('style', smallStyle + ';text-align:center;text-decoration:none');
+          dl.textContent = '官网下载最新版';
+
+          row1.appendChild(repairBtn);
+          row1.appendChild(dl);
+
+          var row2 = document.createElement('div');
+          row2.setAttribute('style', 'display:flex;margin-top:8px');
 
           var copy = document.createElement('button');
           copy.textContent = '复制错误信息';
-          copy.setAttribute('style', 'display:block;width:100%;margin-top:10px;padding:10px;' +
-            'background:transparent;color:var(--ui-color-dark,#24563f);font-family:monospace;' +
-            'font-size:12px;letter-spacing:1px;border:2px solid var(--console-border,#c4b692);' +
-            'border-radius:6px');
+          copy.setAttribute('style', smallStyle + ';margin-right:8px');
           copy.onclick = function () { copyAll(copy); };
 
           detailToggle = document.createElement('button');
           detailToggle.textContent = '查看错误详情';
-          detailToggle.setAttribute('style', 'display:block;width:100%;margin-top:12px;padding:4px;' +
-            'background:transparent;border:0;color:var(--color-muted,#7c7c7c);' +
-            'font-family:monospace;font-size:11px;letter-spacing:1px');
+          detailToggle.setAttribute('style', smallStyle);
           detailToggle.onclick = toggleDetail;
+
+          row2.appendChild(copy);
+          row2.appendChild(detailToggle);
 
           detail = document.createElement('div');
           // 全局 *{user-select:none} 会盖掉继承，这里必须显式放开，才能长按选中报错文字
-          detail.setAttribute('style', 'display:none;margin-top:10px;padding:10px;' +
+          detail.setAttribute('style', 'display:none;margin-top:8px;padding:9px;' +
             'background:var(--item-bg,rgba(0,0,0,0.06));border-radius:4px;' +
             'font-size:10px;line-height:1.6;color:var(--color-text,#1f1f1f);' +
-            'white-space:pre-wrap;word-break:break-all;max-height:34vh;overflow:auto;' +
+            'white-space:pre-wrap;word-break:break-all;max-height:30vh;overflow:auto;' +
             '-webkit-user-select:text;user-select:text;-webkit-touch-callout:default');
 
-          card.appendChild(badge);
-          card.appendChild(title);
+          card.appendChild(head);
           card.appendChild(desc);
-          card.appendChild(dl);
-          card.appendChild(copy);
-          card.appendChild(detailToggle);
+          card.appendChild(note);
+          card.appendChild(exportBtn);
+          card.appendChild(row1);
+          card.appendChild(row2);
           card.appendChild(detail);
           box.appendChild(card);
           host.appendChild(box);
