@@ -15,6 +15,7 @@ const FOLLOWER_GAP = 10;      // 随从内容右边界到主角贴图左边缘�
 const LOCK_WALK_PX_PER_S = 220; // 抽出后走向卡片的移动速度（像素/秒），按恒定速度分两段走
 const LOCK_WALK_BOX = 48;       // 走过去时的显示尺寸，与走马灯一致；到位后才放大到卡片尺寸
 const LOCK_CARD_SIZE = 74;      // 卡片里的大图尺寸（内容最长边）
+const ROLL_ITEM_STEP = 56;      // 滚动格步进：54px 项宽 + 2px 间距，与 .follower-roll-item 一致
 const FOLLOWER_TIER_LABEL = { N: '常见', R: '稀有', SR: '超稀有', UR: '传说' };
 let _followerAnimRaf = null;
 let _followerEl = null;       // 跟随宝可梦 DOM 元素
@@ -55,6 +56,20 @@ function loadFollowerSprite(img, index, anim = 'walk') {
 // ===== 四向 UI 动画（走马灯 / 滚动格 / 卡片大图共用）=====
 let _fdImgs = [];
 let _fdRaf = null;
+let _fdGate = null; // 可见性门控：滚动一次几十张图，只有真看得见的才需要逐帧重写
+
+// 滚动格与走马灯都会被 overflow 容器裁掉，IntersectionObserver 会连带算上祖先裁剪，
+// 视口外的格子自动落榜，不再每帧写 objectPosition（该属性非合成，写一次就要重采样一次）
+function fdGateObserver() {
+  if (_fdGate) return _fdGate;
+  _fdGate = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      const m = e.target.__fdItem;
+      if (m) m.visible = e.isIntersecting;
+    }
+  });
+  return _fdGate;
+}
 
 // opts.content 按内容框归一（消除透明留白）；否则 opts.box 按画布边长
 function startFourDirAnim(img, geom, opts = {}) {
@@ -62,18 +77,24 @@ function startFourDirAnim(img, geom, opts = {}) {
   const anim = opts.anim || 'walk';
   if (opts.content) fourDirFitContent(img, geom, anim, opts.content, { row });
   else fourDirFitBox(img, geom, anim, opts.box || 48, { row });
-  const item = { img, anim: fourDirAnim(geom, anim), row, frame: 0, nextAt: performance.now() };
+  const item = { img, anim: fourDirAnim(geom, anim), row, frame: 0, nextAt: performance.now(), visible: true };
   const i = _fdImgs.findIndex(m => m.img === img);
   if (i >= 0) _fdImgs.splice(i, 1);
   _fdImgs.push(item);
+  img.__fdItem = item;
+  fdGateObserver().observe(img);
   if (!_fdRaf) _fdRaf = requestAnimationFrame(fdAnimTick);
 }
 
 function fdAnimTick() {
   const now = performance.now();
-  _fdImgs = _fdImgs.filter(m => m.img && m.img.isConnected);
+  _fdImgs = _fdImgs.filter(m => {
+    if (m.img && m.img.isConnected) return true;
+    if (m.img) { _fdGate.unobserve(m.img); m.img.__fdItem = null; }
+    return false;
+  });
   for (const m of _fdImgs) {
-    if (now < m.nextAt) continue;
+    if (!m.visible || now < m.nextAt) continue;
     const n = Math.max(1, m.anim.n);
     if (m.frame >= n) m.frame = 0;
     m.img.style.objectPosition = `-${m.frame * m.anim.w}px -${m.row * m.anim.h}px`;
@@ -614,9 +635,19 @@ function followerMarqueeItems() {
   return items.join('') + items.join('');
 }
 
-// 本批图先抢载进缓存，滚动中不闪现未加载状态
+// 本批图先抢载进缓存并等解码完成：每次滚动都是全新一批图，等到首帧才解码会集中卡一下
 function preloadMoveImages(rels) {
-  rels.forEach(rel => tryLoadImage(new Image(), rel));
+  const done = new Set();
+  const jobs = [];
+  rels.forEach(rel => {
+    if (!rel || done.has(rel)) return;
+    done.add(rel);
+    const img = new Image();
+    jobs.push(tryLoadImage(img, rel).then(ok => {
+      if (ok && img.decode) img.decode().catch(() => {});
+    }));
+  });
+  return Promise.all(jobs);
 }
 
 // 容器内的图走标准加载通道（Tauri 下相对 src 会失败），加载完播帧动画
@@ -624,10 +655,16 @@ function animateMoveImgs(scope, selector, opts = {}) {
   scope.querySelectorAll(selector).forEach(img => {
     const rel = img.dataset.src;
     if (!rel) return;
+    const geom = followerGeom(img.dataset.fd);
+    if (!geom) return;
+    const anim = opts.anim === 'idle' ? fourDirStaticAnim(geom) : opts.anim;
+    // 先铺好尺寸与帧位再加载：图片一解码就按整张 sheet 的自然尺寸渲染，
+    // 等 onload 回来才设样式的话，中间会闪出一片没裁切的原始大图
+    if (opts.content) fourDirFitContent(img, geom, anim, opts.content, { row: opts.row || 0 });
+    else fourDirFitBox(img, geom, anim, opts.box || 48, { row: opts.row || 0 });
     tryLoadImage(img, rel).then(ok => {
       if (!ok) return;
-      const geom = followerGeom(img.dataset.fd);
-      startFourDirAnim(img, geom, { box: opts.box || 48, row: opts.row, anim: opts.anim === 'idle' ? fourDirStaticAnim(geom) : opts.anim });
+      startFourDirAnim(img, geom, { box: opts.box || 48, row: opts.row, anim });
     });
   });
 }
@@ -725,7 +762,8 @@ function clearPending() {
   saveGame();
 }
 
-// 生成一批滚动格（pick(i) 决定第 i 格是谁），图先抢载再渲染
+// 生成一批滚动格（pick(i) 决定第 i 格是谁）。图没到就开滚会先空一片（加载期间是
+// 透明占位），所以等预热完再插图起滚；预热万一卡住，最多等 600ms 就带空图开滚
 function buildRollTrack(track, count, pick) {
   const rels = [];
   let html = '';
@@ -738,10 +776,15 @@ function buildRollTrack(track, count, pick) {
     rels.push(rel);
     html += `<div class="follower-roll-item"><img class="follower-roll-img" ${geom ? `data-fd="${p.index}"` : ''} data-src="${rel}" alt="${p.name}"></div>`;
   }
-  preloadMoveImages(rels);
-  track.innerHTML = html;
-  // 滚动格同样播朝右行走帧
-  animateMoveImgs(track, '.follower-roll-img', { box: 48, row: DIR_ROW.right });
+  return Promise.race([
+    preloadMoveImages(rels),
+    new Promise(r => setTimeout(r, 600)),
+  ]).then(() => {
+    if (!track.isConnected) return;
+    track.innerHTML = html;
+    // 滚动格同样播朝右行走帧
+    animateMoveImgs(track, '.follower-roll-img', { box: 48, row: DIR_ROW.right });
+  });
 }
 
 // 滚动抽卡：全新随机一批随从格，向右减速滚动后吸附到目标格居中
@@ -752,37 +795,38 @@ function startFollowerRoll() {
   const pool = getFollowerPool();
   if (pool.length === 0) return;
   const itemCount = 30;
-  const ITEM_STEP = 56; // 54px 项宽 + 2px 间距，与 .follower-roll-item 保持一致
-  const centerPx = container.clientWidth / 2;
   // 目标格靠 track 左段，向右滚动后正好停在视口中央
   const targetIdx = 2 + Math.floor(Math.random() * 5);
   _rollTargetIdx = targetIdx;
   // 每批全新随机（避免提前暴露卡池），目标格放本次抽到的那只
   buildRollTrack(track, itemCount, i => i === targetIdx
     ? (getPokemonByIndex(_drawResult.index) || pool[0])
-    : pool[Math.floor(Math.random() * pool.length)]);
-  // 向右减速滑行到目标格居中：固定时间线 + easeOut，末尾速度趋零不滑过头
-  const tFinal = centerPx - targetIdx * ITEM_STEP - ITEM_STEP / 2;
-  const tStart = tFinal - 1100;
-  const DURATION = 200; // 总帧数（约 3.3s），让抽卡滚动多滑一会儿
-  let frame = 0;
-  let locked = false;
-  const tick = () => {
-    if (locked || !track.isConnected) return;
-    frame++;
-    const k = 1 - Math.pow(1 - Math.min(frame / DURATION, 1), 3); // easeOutCubic
-    track.style.transform = `translateX(${tStart + (tFinal - tStart) * k}px)`;
-    if (frame >= DURATION) {
-      locked = true;
-      // 停在目标格居中 → 直接进锁定放大
-      if ($('followerView')?.style.display !== 'flex') return;
-      _drawPhase = 'locking';
-      renderFollowerView();
-    } else {
-      requestAnimationFrame(tick);
-    }
-  };
-  requestAnimationFrame(tick);
+    : pool[Math.floor(Math.random() * pool.length)]).then(() => {
+    if (!track.isConnected) return;
+    const centerPx = container.clientWidth / 2;
+    // 向右减速滑行到目标格居中：固定时间线 + easeOut，末尾速度趋零不滑过头
+    const tFinal = centerPx - targetIdx * ROLL_ITEM_STEP - ROLL_ITEM_STEP / 2;
+    const tStart = tFinal - 1100;
+    const DURATION = 200; // 总帧数（约 3.3s），让抽卡滚动多滑一会儿
+    let frame = 0;
+    let locked = false;
+    const tick = () => {
+      if (locked || !track.isConnected) return;
+      frame++;
+      const k = 1 - Math.pow(1 - Math.min(frame / DURATION, 1), 3); // easeOutCubic
+      track.style.transform = `translateX(${tStart + (tFinal - tStart) * k}px)`;
+      if (frame >= DURATION) {
+        locked = true;
+        // 停在目标格居中 → 直接进锁定放大
+        if ($('followerView')?.style.display !== 'flex') return;
+        _drawPhase = 'locking';
+        renderFollowerView();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  });
 }
 
 // 5 连抽滚动：单条长 track 全程不停滚动（方向与单抽一致：track 右移，内容从右往左流入），
@@ -794,45 +838,46 @@ function startMultiRoll() {
   const results = _multiResult || [];
   if (results.length === 0) return;
   const pool = getFollowerPool();
-  const ITEM_STEP = 56;
   // 预热 5 只结果图，槽位上浮时直接命中缓存
   preloadMoveImages(results.map(r => followerStaticRel(r.index)));
   const itemCount = 44;
-  buildRollTrack(track, itemCount, () => pool[Math.floor(Math.random() * pool.length)]);
-  // 滚动参数与单抽相同：右移减速滑行约 1100px
-  const centerPx = container.clientWidth / 2;
-  const tStart = centerPx - 25 * ITEM_STEP - ITEM_STEP / 2;
-  const tFinal = tStart + 1100;
-  const DURATION = 200; // 与单抽相同的总帧数
-  let frame = 0;
-  let count = 0; // 已上浮数量
-  let locked = false;
-  const tick = () => {
-    if (locked || !track.isConnected) return;
-    frame++;
-    const k = 1 - Math.pow(1 - Math.min(frame / DURATION, 1), 3); // easeOutCubic 与单抽一致
-    const x = tStart + (tFinal - tStart) * k;
-    track.style.transform = `translateX(${x}px)`;
-    // 滚动途中依次上浮，最后一只在前 75% 进度内出现
-    const target = Math.min(5, Math.floor(frame * 5 / (DURATION * 0.75)));
-    while (count < target) {
-      collectMultiPoke(count, results[count]);
-      count++;
-    }
-    if (frame >= DURATION) {
-      locked = true;
-      while (count < 5) {
+  buildRollTrack(track, itemCount, () => pool[Math.floor(Math.random() * pool.length)]).then(() => {
+    if (!track.isConnected) return;
+    // 滚动参数与单抽相同：右移减速滑行约 1100px
+    const centerPx = container.clientWidth / 2;
+    const tStart = centerPx - 25 * ROLL_ITEM_STEP - ROLL_ITEM_STEP / 2;
+    const tFinal = tStart + 1100;
+    const DURATION = 200; // 与单抽相同的总帧数
+    let frame = 0;
+    let count = 0; // 已上浮数量
+    let locked = false;
+    const tick = () => {
+      if (locked || !track.isConnected) return;
+      frame++;
+      const k = 1 - Math.pow(1 - Math.min(frame / DURATION, 1), 3); // easeOutCubic 与单抽一致
+      const x = tStart + (tFinal - tStart) * k;
+      track.style.transform = `translateX(${x}px)`;
+      // 滚动途中依次上浮，最后一只在前 75% 进度内出现
+      const target = Math.min(5, Math.floor(frame * 5 / (DURATION * 0.75)));
+      while (count < target) {
         collectMultiPoke(count, results[count]);
         count++;
       }
-      if ($('followerView')?.style.display !== 'flex') return;
-      _drawPhase = 'multi-result';
-      renderFollowerView();
-    } else {
-      requestAnimationFrame(tick);
-    }
-  };
-  requestAnimationFrame(tick);
+      if (frame >= DURATION) {
+        locked = true;
+        while (count < 5) {
+          collectMultiPoke(count, results[count]);
+          count++;
+        }
+        if ($('followerView')?.style.display !== 'flex') return;
+        _drawPhase = 'multi-result';
+        renderFollowerView();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  });
 }
 
 // 第 i 格停稳：把宝可梦放进收集槽 i（从下方 24px 飞入）
@@ -850,9 +895,13 @@ function collectMultiPoke(i, cur) {
       : cur.tier === 'SR' ? '<span class="follower-slot-star">✦</span>' : '';
     slot.innerHTML = `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="${movePath}" alt="${cur.name}">${star}`;
     const img = slot.querySelector('img');
-    if (img) tryLoadImage(img, movePath).then(ok => {
-      if (ok) startFourDirAnim(img, geom, { box: 34, anim });
-    });
+    if (img) {
+      // 同滚动格：先铺好尺寸与帧位，避免缓存命中时闪出一帧原始大图
+      fourDirFitBox(img, geom, anim, 34, { row: DIR_ROW.down });
+      tryLoadImage(img, movePath).then(ok => {
+        if (ok) startFourDirAnim(img, geom, { box: 34, anim });
+      });
+    }
     slot.classList.add('filled');
     // 飞入动画：从下方 24px 移入槽位
     slot.style.opacity = '0';
@@ -1315,6 +1364,8 @@ function renderFollowerOnRoad() {
   loadFollowerSprite(img, f.index).then(r => {
     if (!r.ok) return;
     _followerRoadGeom = r.geom;
+    // 待机表也预热：钓鱼/捡道具时要切过去播正面待机，冷加载会闪一下空白
+    preloadMoveImages([fourDirSrc(r.geom, fourDirStaticAnim(r.geom))]);
     // 四向素材横向朝右（行 1）：按源像素固定倍率缩放，只对超大体型封顶
     const box = fourDirRowBox(r.geom, 'walk');
     const maxEdge = Math.max(box[2] - box[0] + 1, box[3] - box[1] + 1);
@@ -1365,14 +1416,24 @@ function removeFollowerFromRoad() {
   }
 }
 
-// 路上随从：四向素材横向朝右（行 1），步频跟随主角速度
+// 路上随从：走动时朝右（行 1）播行走帧、步频跟随主角速度；
+// 主角停下（钓鱼 / 捡道具）时转正面（行 0）播待机帧——这时主角是面朝前方的
 function startRoadFourDirAnim(img, geom) {
-  const anim = fourDirAnim(geom, 'walk');
-  const n = Math.max(1, anim.n);
-  const row = DIR_ROW.right;
+  const walk = fourDirAnim(geom, 'walk');
+  const idleAnim = fourDirStaticAnim(geom); // 有 idle 素材就用，缺了退回 walk
+  const idle = fourDirAnim(geom, idleAnim);
   const base = FOLLOWER_STEP_MS.walk;
+  let sheet = 'walk'; // 当前贴图：walk | idle（两套画布同尺寸，换表只影响取帧的行与帧数）
   let frame = 0;
   let nextAt = performance.now();
+  // 换表：走标准加载通道，命中缓存时同步生效
+  function useSheet(name) {
+    if (sheet === name) return;
+    sheet = name;
+    frame = 0;
+    nextAt = performance.now();
+    tryLoadImage(img, fourDirSrc(geom, name));
+  }
   function advance() {
     if (!_followerEl || !_followerEl.isConnected) { _followerAnimRaf = null; return; }
     const hide = !isOnGameView() || phase !== 'idle';
@@ -1383,17 +1444,14 @@ function startRoadFourDirAnim(img, geom) {
     const wg = $('walkGif');
     const stopped = wg ? (wg.classList.contains('get-item') || wg.classList.contains('fishing')) : false;
     const now = performance.now();
-    if (stopped) {
-      // 停下：定格朝右站立帧
-      img.style.objectPosition = `0px -${row * anim.h}px`;
-      nextAt = now;
-      _followerAnimRaf = requestAnimationFrame(advance);
-      return;
-    }
+    const a = stopped ? idle : walk;
+    useSheet(stopped ? idleAnim : 'walk');
+    const n = Math.max(1, a.n);
+    const row = stopped ? DIR_ROW.down : DIR_ROW.right;
     if (now >= nextAt) {
       if (frame >= n) frame = 0;
-      img.style.objectPosition = `-${frame * anim.w}px -${row * anim.h}px`;
-      nextAt = now + fourDirDelay(anim, frame) * (followerStepMs() / base);
+      img.style.objectPosition = `-${frame * a.w}px -${row * a.h}px`;
+      nextAt = now + fourDirDelay(a, frame) * (stopped ? 1 : followerStepMs() / base);
       frame = (frame + 1) % n;
     }
     _followerAnimRaf = requestAnimationFrame(advance);

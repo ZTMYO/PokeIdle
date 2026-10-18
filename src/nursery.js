@@ -23,6 +23,7 @@ const BOX_IMG = './items/berry-trees/box.png';
 const randInt = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
 
 const MOVE_DUR_MS = 600; // 覆盖 0.5s 位移过渡，帧动画稍长避免瞬停
+const TURN_MS = 200;     // 转身节拍：方向变了先原地转身站定，再起步
 
 // 饲育屋地图（{col,row} 为 terrain tileset 坐标）：围栏环绕 + 草地/花丛，11x9
 const NURSERY = {
@@ -625,12 +626,13 @@ function syncWalkers() {
     else if (poke && poke.icon) tryLoadImage(w.img, poke.icon);
     w.flipEl.appendChild(w.img);
     w.el.appendChild(w.flipEl);
-    // 爱心粒子层（繁殖进行中才显示，由 syncWalkers 末尾同步显隐）：头顶 ♥ 上浮放大淡出
+    // 爱心粒子层（繁殖进行中才显示，由 syncWalkers 末尾同步显隐）：头顶爱心上浮放大淡出。
+    // 用内置 svg 而不是 ♥ 字符：字符在各设备上会走不同字体，形状和大小都不一致
     const fx = document.createElement('div');
     fx.className = 'nursery-walker-fx';
     for (let i = 0; i < 4; i++) {
       const p = document.createElement('i');
-      p.textContent = '♥';
+      p.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11"><use xlink:href="#icon-liked"/></svg>';
       p.style.left = (Math.random() * 24 - 12) + 'px';
       p.style.animationDelay = (i * 0.45).toFixed(2) + 's';
       fx.appendChild(p);
@@ -815,28 +817,35 @@ function walkerTick() {
       next = opts[Math.floor(Math.random() * opts.length)];
     }
     w.busy = true;
-    w.x = next.c * TILE;
-    w.y = next.r * TILE;
-    // 图标素材默认朝左：向左走不镜像，向右镜像；四向素材自带左右帧，不做镜像
+    // 朝向：图标素材默认朝左，向左走不镜像、向右镜像；四向素材按行走方向换行（自带左右帧）
     const nf = next.c < cur.c ? 1 : next.c > cur.c ? -1 : w.facing;
-    if (nf !== w.facing) {
-      if (!w.fd) w.flipEl.style.transform = nf < 0 ? 'scaleX(-1)' : '';
-      w.facing = nf;
-    }
-    // 四向素材按行走方向换行
-    if (w.fd) {
-      setNurseryFourDirRow(w, next.c !== cur.c
-        ? (next.c < cur.c ? DIR_ROW.left : DIR_ROW.right)
-        : (next.r < cur.r ? DIR_ROW.up : DIR_ROW.down));
-      w.moveUntil = performance.now() + MOVE_DUR_MS;
-      w.moving = true;
-    }
-    w.el.style.left = w.x + 'px';
-    w.el.style.top = w.y + 'px';
-    w.el.style.zIndex = 10 + w.y; // 俯视层级随 y 递增
-    w.img.classList.remove('idle'); // 开始走动：恢复上下跳动（停下时 transitionend 再加回）
+    const row = w.fd
+      ? (next.c !== cur.c ? (next.c < cur.c ? DIR_ROW.left : DIR_ROW.right)
+                          : (next.r < cur.r ? DIR_ROW.up : DIR_ROW.down))
+      : null;
+    // 先转身再迈步：朝向变了就只换朝向、原地站住一拍，再开始位移；
+    // 同方向继续走则直接迈步。避免出现"面朝一侧平移"的违和感
+    const turning = w.fd ? row !== w.fdRow : nf !== w.facing;
+    if (w.fd) setNurseryFourDirRow(w, row);
+    else if (nf !== w.facing) w.flipEl.style.transform = nf < 0 ? 'scaleX(-1)' : '';
+    w.facing = nf;
+    // 目标格先占住：转身这一拍里不让另一只把格子抢走
     _walkerPos.set(w.id, { c: next.c, r: next.r, facing: w.facing });
     w.nextAt = now + randInt(900, 2200); // 迈步后随机歇息，节奏各异
+    const step = () => {
+      w.x = next.c * TILE;
+      w.y = next.r * TILE;
+      if (w.fd) {
+        w.moveUntil = performance.now() + MOVE_DUR_MS;
+        w.moving = true;
+      }
+      w.el.style.left = w.x + 'px';
+      w.el.style.top = w.y + 'px';
+      w.el.style.zIndex = 10 + w.y; // 俯视层级随 y 递增
+      w.img.classList.remove('idle'); // 开始走动：恢复上下跳动（停下时 transitionend 再加回）
+    };
+    if (turning) setTimeout(step, TURN_MS);
+    else step();
   }
   // 两只左右相邻时强制面对面（左朝右、右朝左），避免背靠背
   if (_walkers.size === 2) {

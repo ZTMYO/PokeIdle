@@ -275,13 +275,13 @@ window.addEventListener('roster-changed', () => {
   }));
 });
 
-// 盒子视图：格子为正方形，边长 =（容器宽 - 列间距）/ 5。
+// 盒子视图：格子为正方形，边长 =（容器宽 - 列间距）/ 6。
 // grid 的 fr 轨道下 aspect-ratio 推不出高度会让格子塌陷，这里显式写入行高。
 function boxCellSize(list) {
   const w = list.clientWidth;
   if (!w) return 0;
   const gap = parseFloat(getComputedStyle(list).columnGap) || 0;
-  return (w - gap * 4) / 5;
+  return (w - gap * 5) / 6;
 }
 function syncBoxRows() {
   const list = $('rosterList');

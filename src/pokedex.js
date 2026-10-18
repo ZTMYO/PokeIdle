@@ -1,7 +1,7 @@
 // ===== 图鉴模块 =====
 import { ITEM_NAMES } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, _pokedexSortBy, _pokedexSortDir, pad, pushNav, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir, dexUnlocked, dexShinyOwned } from './state.js';
-import { $, showView, tryLoadPokemonImage, tryLoadImage, setupFoodTooltip } from './ui.js';
+import { gameData, allPokemon, getPokemonByIndex, _pokedexSortBy, _pokedexSortDir, pad, pushNav, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir, dexUnlocked, dexShinyOwned, isPokemon } from './state.js';
+import { $, showView, tryLoadPokemonImage, tryLoadImage, setupFoodTooltip, logicViewport, popupBounds, watchOutsidePress } from './ui.js';
 import { TYPE_COLORS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { acquireEntries, loadAcquire } from './acquire.js';
@@ -16,6 +16,8 @@ let _pokedexStatus = '';   // 一级：''=全部 | unlock | lock
 let _pokedexLegend = 'all'; // 二级：all=不限 | normal(普通) | legend(神兽)
 let _pokedexShiny = 'all';  // 二级：all=不限 | normal(非闪光) | shiny(闪光)
 let _pokedexType = '';     // 属性筛选（''=全部）
+let _pokedexBoxView = false; // 盒子（网格）视图：右键菜单切换，选择记到 localStorage
+try { _pokedexBoxView = localStorage.getItem('pokedexBoxView') === '1'; } catch (e) {}
 
 // 「图鉴认不认这一条」：遇到过，或已经获得过——孵蛋 / 交换 / 彩蛋 / 进化得到的常常没在野外遇见过
 function dexKnown(idx, seen) {
@@ -233,6 +235,8 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
     else { pl.dataset.savedScroll = pl.scrollTop; pl.scrollTop = 0; }
   }
   _logsIdx = null;
+  // 详情内容直接铺在 #pokedexList 里，网格类必须摘掉，否则详情被排成格子
+  $('pokedexView')?.classList.remove('pokedex-box');
   // 隐藏搜索框、表头和进度
   document.querySelector('.pokedex-search').style.display = 'none';
   document.querySelector('.pokedex-header').style.display = 'none';
@@ -312,6 +316,9 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
         ? `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;opacity:.4;">？？？（获得后解锁）</div>`
         : `<div style="font-size:10px;line-height:1.5;padding:2px 0 4px;">${poke.description}</div>`;
     }
+    // 拥有数量：仓库中现存个体（含队伍/培育中的）
+    const ownedCount = (gameData.roster || []).filter(p => p.inRoster && isPokemon(p) && String(p.species) === idx).length;
+    html += `<div style="font-size:10px;line-height:1.6;padding:2px 0 4px;display:flex;align-items:center;${locked ? 'opacity:.4;' : ''}"><span style="flex-shrink:0;">拥有数量：</span><span>${ownedCount}</span></div>`;
     // 喜欢的食物
     if (poke && poke.foods && poke.foods.length && locked) {
       html += `<div style="font-size:10px;line-height:1.6;padding:2px 0 4px;display:flex;align-items:center;opacity:.4;"><span style="flex-shrink:0;">爱吃的食物：</span><span>？？？</span></div>`;
@@ -742,11 +749,123 @@ window.addEventListener('roster-changed', () => {
   }));
 });
 
+// ===== 盒子（网格）视图 =====
+// 格子为正方形，边长 =（容器宽 - 列间距）/ 6。
+// grid 的 fr 轨道下 aspect-ratio 推不出高度会让格子塌陷，这里显式写入行高。
+function pokedexBoxCellSize(list) {
+  const w = list.clientWidth;
+  if (!w) return 0;
+  const gap = parseFloat(getComputedStyle(list).columnGap) || 0;
+  return (w - gap * 5) / 6;
+}
+function syncPokedexBoxRows() {
+  const list = $('pokedexList');
+  if (!list) return;
+  if (!_pokedexBoxView) { list.style.gridAutoRows = ''; return; }
+  const size = pokedexBoxCellSize(list);
+  if (size > 0) { list.style.gridAutoRows = size + 'px'; return; }
+  // 刚切进页面时容器可能还没布局，下一帧再量
+  requestAnimationFrame(() => {
+    if (!_pokedexBoxView) return;
+    const l = $('pokedexList');
+    if (!l) return;
+    const s = pokedexBoxCellSize(l);
+    if (s > 0) l.style.gridAutoRows = s + 'px';
+  });
+}
+window.addEventListener('resize', () => { if (_pokedexBoxView) syncPokedexBoxRows(); });
+
+// 边框色：神兽金黄（未解锁用淡金，见样式）→ 未解锁灰显 → 已捕获深色 → 遇到过浅色
+function pokedexBoxFrameClass(p, seen, caught) {
+  if (p.legend) return 'dex-frame-legend';
+  if (!dexKnown(p.index, seen)) return 'dex-frame-locked';
+  if (caught > 0) return 'dex-frame-caught';
+  return 'dex-frame-seen';
+}
+
+// 盒子视图单格：只有图标；未解锁用 unknown 灰显，捉到闪光才在右上角挂实心星
+function pokedexBoxHtml(p, caughtMap) {
+  const entry = caughtMap[p.index];
+  const seen = entry?.seen || 0;
+  const caught = entry?.caught || 0;
+  const known = dexKnown(p.index, seen);
+  const poke = getPokemonByIndex(p.index);
+  const frame = pokedexBoxFrameClass(p, seen, caught);
+  const shiny = dexShinyOwned(p.index) ? STAR_FILLED : '';
+  const icon = known && poke?.icon
+    ? `<img class="pokedex-box-icon" data-icon="${p.index}" alt="" />`
+    : `<img class="pokedex-box-icon" data-unknown alt="" />`;
+  return `<div class="pokedex-entry pokedex-box-cell ${frame}${known ? '' : ' disabled'}" data-index="${p.index}" data-seen="${known ? '1' : '0'}">${icon}<span class="pokedex-box-idx">#${p.index}</span><span class="pokedex-box-star">${shiny}</span></div>`;
+}
+
+// 图标懒加载：进入视口（含预载带）才请求；未解锁的直接挂 unknown
+let _pokedexIconObs = null;
+function observePokedexIcon(img) {
+  if (img.hasAttribute('data-unknown')) { tryLoadImage(img, 'pokemon-data/icon/unknown.png'); return; }
+  const list = $('pokedexList');
+  if (!('IntersectionObserver' in window) || !list) {
+    const poke = getPokemonByIndex(img.dataset.icon);
+    if (poke?.icon) tryLoadImage(img, poke.icon);
+    return;
+  }
+  if (!_pokedexIconObs) {
+    _pokedexIconObs = new IntersectionObserver((entries) => {
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        _pokedexIconObs.unobserve(en.target);
+        const poke = getPokemonByIndex(en.target.dataset.icon);
+        if (poke?.icon) tryLoadImage(en.target, poke.icon);
+      }
+    }, { root: list, rootMargin: '200px 0px' });
+  }
+  _pokedexIconObs.observe(img);
+}
+
+// 右键菜单：列表 / 盒子（网格）视图切换，选择持久化
+function togglePokedexBoxView() {
+  _pokedexBoxView = !_pokedexBoxView;
+  try { localStorage.setItem('pokedexBoxView', _pokedexBoxView ? '1' : '0'); } catch (e) {}
+  showPokedex();
+}
+
+let _pokedexCtxUnwatch = null;
+function hidePokedexContextMenu() {
+  const menu = document.getElementById('pokedexCtxMenu');
+  if (menu) menu.style.display = 'none';
+  _pokedexCtxUnwatch?.();
+  _pokedexCtxUnwatch = null;
+}
+function showPokedexContextMenu(x, y) {
+  let menu = document.getElementById('pokedexCtxMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'pokedexCtxMenu';
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+  }
+  menu.innerHTML = `<div class="shop-ctx-item" data-action="boxView">${_pokedexBoxView ? '列表视图' : '盒子视图'}</div>`;
+  const { x: lx, y: ly } = logicViewport(x, y); // zoom 下还原逻辑坐标
+  const b = popupBounds(); // 夹紧在机身内
+  menu.style.left = Math.min(lx, b.right - 120) + 'px';
+  menu.style.top = Math.min(ly, b.bottom - 40) + 'px';
+  menu.style.display = 'block';
+  menu.onclick = (e) => {
+    const act = e.target.closest('[data-action]')?.dataset.action;
+    hidePokedexContextMenu();
+    if (act === 'boxView') togglePokedexBoxView();
+  };
+  _pokedexCtxUnwatch?.();
+  _pokedexCtxUnwatch = watchOutsidePress(menu, hidePokedexContextMenu);
+}
+
 export function showPokedex() {
   pushNav('pokedexView');
   const list = $('pokedexList');
   if (!list) return;
   delete list.dataset.savedHtml;
+  // 盒子 / 列表视图：容器类驱动表头与网格布局
+  $('pokedexView')?.classList.toggle('pokedex-box', _pokedexBoxView);
+  syncPokedexBoxRows();
   const caughtMap = gameData.pokedex || {};
   const regionLabel = $('pokedexRegionLabel')?.textContent || '';
   const regionFilter = regionLabel === '全部地区' ? '' : regionLabel;
@@ -793,17 +912,20 @@ export function showPokedex() {
     return (va - vb) * _pokedexSortDir;
   });
   let html = '';
-  for (const p of sorted) {
-    const entry = caughtMap[p.index];
-    const seen = entry?.seen || 0;
-    const caught = entry?.caught || 0;
-    const shinySeen = entry?.shinySeen || 0;
-    const shinyCaught = entry?.shinyCaught || 0;
-    // 星标按「持有过」给：进化得到的形态也算拥有
-    const shinyTag = dexUnlocked(p.index) ? (dexShinyOwned(p.index) ? STAR_FILLED : STAR_OUTLINE) : '';
-    // 获得过（哪怕没在野外遇见过）就显示真名——与详情页同一口径
-    const known = dexKnown(p.index, seen);
-    html += `<div class="pokedex-entry${known ? '' : ' disabled'}" data-index="${p.index}" data-seen="${known ? '1' : '0'}">
+  if (_pokedexBoxView) {
+    for (const p of sorted) html += pokedexBoxHtml(p, caughtMap);
+  } else {
+    for (const p of sorted) {
+      const entry = caughtMap[p.index];
+      const seen = entry?.seen || 0;
+      const caught = entry?.caught || 0;
+      const shinySeen = entry?.shinySeen || 0;
+      const shinyCaught = entry?.shinyCaught || 0;
+      // 星标按「持有过」给：进化得到的形态也算拥有
+      const shinyTag = dexUnlocked(p.index) ? (dexShinyOwned(p.index) ? STAR_FILLED : STAR_OUTLINE) : '';
+      // 获得过（哪怕没在野外遇见过）就显示真名——与详情页同一口径
+      const known = dexKnown(p.index, seen);
+      html += `<div class="pokedex-entry${known ? '' : ' disabled'}" data-index="${p.index}" data-seen="${known ? '1' : '0'}">
       <span class="pokedex-star">${shinyTag}</span>
       <span class="pokedex-idx">#${p.index}</span>
       <span class="pokedex-name">${known ? p.name : '？？？'}</span>
@@ -812,12 +934,19 @@ export function showPokedex() {
       <span class="pokedex-stat">${shinySeen}</span>
       <span class="pokedex-stat">${shinyCaught}</span>
     </div>`;
+    }
   }
   list.innerHTML = html;
+  if (_pokedexBoxView) list.querySelectorAll('.pokedex-box-icon').forEach(observePokedexIcon);
   // 点击条目弹出遭遇日志（仅已看到过的）
   list.onclick = (e) => {
     const entry = e.target.closest('.pokedex-entry');
     if (entry && entry.dataset.seen === '1') showEncounterLogs(entry.dataset.index);
+  };
+  // 右键菜单：切换列表 / 盒子视图
+  list.oncontextmenu = (e) => {
+    e.preventDefault();
+    showPokedexContextMenu(e.clientX, e.clientY);
   };
   // 表头点击排序
   sortHeaderClick();

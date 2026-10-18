@@ -6218,7 +6218,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 #rosterView.roster-box .roster-header [data-sort].sort-desc { background: rgba(var(--ui-color-rgb), 0.18); }
 #rosterView.roster-box #rosterList {
   display: grid;
-  grid-template-columns: repeat(5, 1fr); /* 每格宽 =（容器宽 - 列间距）/ 5，正方形由 JS 写入行高 */
+  grid-template-columns: repeat(6, 1fr); /* 每格宽 =（容器宽 - 列间距）/ 6，正方形由 JS 写入行高 */
   gap: 3px; /* 行列间距一致 */
   padding: 0;
   align-content: start;
@@ -6273,7 +6273,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   object-fit: contain;
 }
 .box-badges { position: absolute; top: 0; right: 0; display: flex; }
-.box-badges .pokedex-star-svg { width: 9px; height: 9px; display: block; }
+.box-badges .pokedex-star-svg { width: 7px; height: 7px; display: block; }
 
 /* 底部等级 / 性别 */
 .box-foot {
@@ -6302,6 +6302,93 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .roster-box-cell.var-rgb {
   border-color: rgba(0, 220, 255, .85) rgba(255, 0, 80, .85) rgba(255, 0, 80, .85) rgba(0, 220, 255, .85);
 }
+
+/* ===== 图鉴盒子（网格）视图 ===== */
+/* 表头改造成排序栏（筛选区下方），只保留可排序字段；列表改为自适应网格 */
+#pokedexView.pokedex-box .pokedex-header {
+  display: flex;
+  gap: 2px;
+  padding: 0 0 2px;
+  font-size: 8px;
+  border-bottom: none;
+}
+#pokedexView.pokedex-box .pokedex-header .pokedex-star { display: none; }
+#pokedexView.pokedex-box .pokedex-header [data-sort] {
+  flex: 1;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 1px 0;
+  line-height: 1.2;
+  text-align: center;
+  background: rgba(var(--ui-color-rgb), 0.06);
+}
+@media (hover: hover) {
+  #pokedexView.pokedex-box .pokedex-header [data-sort]:hover { background: rgba(var(--ui-color-rgb), 0.14); }
+}
+#pokedexView.pokedex-box .pokedex-header [data-sort].sort-asc,
+#pokedexView.pokedex-box .pokedex-header [data-sort].sort-desc { background: rgba(var(--ui-color-rgb), 0.18); }
+#pokedexView.pokedex-box #pokedexList {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr); /* 每格宽 =（容器宽 - 列间距）/ 6，正方形由 JS 写入行高 */
+  gap: 3px; /* 行列间距一致 */
+  padding: 0;
+  align-content: start;
+}
+/* 格子复用了 .pokedex-entry，其固定行高会钉死高度，这里撑满网格行高（行高由 JS 按列宽写入） */
+#pokedexView.pokedex-box .pokedex-box-cell { height: 100%; }
+/* 未解锁不整体淡化：淡金边框还要靠它辨认（图标自身已灰显） */
+#pokedexView.pokedex-box .pokedex-entry.disabled { opacity: 1; }
+
+.pokedex-box-cell {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px;
+  overflow: hidden; /* 内容再多也不撑破格子 */
+  border: 1px solid transparent;
+  background: rgba(var(--ui-color-rgb), 0.06);
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .pokedex-box-cell:hover { background: rgba(var(--ui-color-rgb), 0.14); }
+}
+.pokedex-box-icon {
+  max-width: 100%;
+  max-height: 100%;
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+/* 未解锁：unknown 图标灰显（边框仍按神兽 / 普通规则给色） */
+.pokedex-box-cell.disabled .pokedex-box-icon { filter: grayscale(1); opacity: .3; }
+
+/* 左上角编号 / 右上角闪光角标（捉到闪光才给实心星） */
+.pokedex-box-idx {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-size: 5px;
+  line-height: 1;
+  opacity: .5;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+/* 手游双屏：格子更小，编号再收一档 */
+html.ui-mobile .pokedex-box-idx { font-size: 4px; }
+.pokedex-box-star { position: absolute; top: 1px; right: 1px; color: var(--ui-color); line-height: 0; }
+.pokedex-box-star .pokedex-star-svg { width: 7px; height: 7px; display: block; }
+
+/* 边框色：未解锁 / 只遇到过都淡灰，已捕获深，神兽金黄 */
+.pokedex-box-cell.dex-frame-locked { border-color: rgba(var(--ui-color-rgb), 0.18); }
+.pokedex-box-cell.dex-frame-seen { border-color: rgba(var(--ui-color-rgb), 0.18); }
+.pokedex-box-cell.dex-frame-caught { border-color: var(--ui-color-dark); }
+.pokedex-box-cell.dex-frame-legend { border-color: #d4850a; }
+/* 未解锁神兽：淡金提示，与已解锁的满色金区分 */
+.pokedex-box-cell.dex-frame-legend.disabled { border-color: rgba(212, 133, 10, 0.4); }
 
 /* 个体详情 */
 .roster-detail-head {
@@ -9509,7 +9596,7 @@ body.booting { visibility: hidden; }
 .nursery-walker-img.idle:not(.move) {
   transform: translateY(5px);
 }
-/* 繁殖中亲本头顶的爱心粒子：♥ 上浮放大淡出（与战斗着迷同款表现，错峰飘散） */
+/* 繁殖中亲本头顶的爱心粒子：爱心上浮放大淡出（与战斗着迷同款表现，错峰飘散） */
 .nursery-walker-fx {
   position: absolute;
   left: 50%;
@@ -9520,10 +9607,14 @@ body.booting { visibility: hidden; }
 .nursery-walker-fx i {
   position: absolute;
   font-style: normal;
-  font-size: 11px;
   color: #ff6fa5;
-  text-shadow: 0 0 4px rgba(255, 111, 165, 0.55);
+  filter: drop-shadow(0 0 3px rgba(255, 111, 165, 0.55));
   animation: nurseryHeart 1.8s ease-out infinite;
+}
+.nursery-walker-fx i svg {
+  display: block;
+  width: 11px;
+  height: 11px;
 }
 @keyframes nurseryHeart {
   0% { opacity: 0; transform: translateY(6px) scale(0.5) rotate(-14deg); }
