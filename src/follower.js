@@ -16,6 +16,7 @@ const LOCK_WALK_PX_PER_S = 220; // 抽出后走向卡片的移动速度（像素
 const LOCK_WALK_BOX = 48;       // 走过去时的显示尺寸，与走马灯一致；到位后才放大到卡片尺寸
 const LOCK_CARD_SIZE = 74;      // 卡片里的大图尺寸（内容最长边）
 const ROLL_ITEM_STEP = 56;      // 滚动格步进：54px 项宽 + 2px 间距，与 .follower-roll-item 一致
+const ROLL_POOL_SIZE = 14;      // 滚动格复用池大小：屏幕同时只可见约 7 格，14 只循环铺满看不出重复
 const FOLLOWER_TIER_LABEL = { N: '常见', R: '稀有', SR: '超稀有', UR: '传说' };
 let _followerAnimRaf = null;
 let _followerEl = null;       // 跟随宝可梦 DOM 元素
@@ -762,6 +763,18 @@ function clearPending() {
   saveGame();
 }
 
+// 滚动格复用池：从卡池随机取 n 只循环铺满整条轨道（排除 exclude，免得残影里撞到目标那只）。
+// 屏幕同时只可见约 7 格，看不出重复，但同屏解码的贴图从 30/44 张降到 n 张
+function rollPoolOf(pool, n, exclude) {
+  let a = pool.filter(p => !exclude || String(p.index).padStart(4, '0') !== exclude);
+  if (a.length === 0) a = pool.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a.slice(0, Math.max(1, Math.min(n, a.length)));
+}
+
 // 生成一批滚动格（pick(i) 决定第 i 格是谁）。图没到就开滚会先空一片（加载期间是
 // 透明占位），所以等预热完再插图起滚；预热万一卡住，最多等 600ms 就带空图开滚
 function buildRollTrack(track, count, pick) {
@@ -799,9 +812,10 @@ function startFollowerRoll() {
   const targetIdx = 2 + Math.floor(Math.random() * 5);
   _rollTargetIdx = targetIdx;
   // 每批全新随机（避免提前暴露卡池），目标格放本次抽到的那只
+  const rollPool = rollPoolOf(pool, ROLL_POOL_SIZE, _drawResult.index);
   buildRollTrack(track, itemCount, i => i === targetIdx
     ? (getPokemonByIndex(_drawResult.index) || pool[0])
-    : pool[Math.floor(Math.random() * pool.length)]).then(() => {
+    : rollPool[i % rollPool.length]).then(() => {
     if (!track.isConnected) return;
     const centerPx = container.clientWidth / 2;
     // 向右减速滑行到目标格居中：固定时间线 + easeOut，末尾速度趋零不滑过头
@@ -841,7 +855,8 @@ function startMultiRoll() {
   // 预热 5 只结果图，槽位上浮时直接命中缓存
   preloadMoveImages(results.map(r => followerStaticRel(r.index)));
   const itemCount = 44;
-  buildRollTrack(track, itemCount, () => pool[Math.floor(Math.random() * pool.length)]).then(() => {
+  const rollPool = rollPoolOf(pool, ROLL_POOL_SIZE);
+  buildRollTrack(track, itemCount, i => rollPool[i % rollPool.length]).then(() => {
     if (!track.isConnected) return;
     // 滚动参数与单抽相同：右移减速滑行约 1100px
     const centerPx = container.clientWidth / 2;

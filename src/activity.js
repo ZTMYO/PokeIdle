@@ -266,7 +266,7 @@ function applyVoyageTheme(on) {
 }
 
 // 只有活动页（且当前开的是航海寻宝）和悬赏页（且活动期内）才用这套配色，切到别的页面立刻收回
-function syncVoyageTheme() {
+export function syncVoyageTheme() {
   const onBounty = $('bountyView')?.style.display !== 'none';
   const onAct = $('activityView')?.style.display !== 'none';
   applyVoyageTheme((onBounty && activityActive('voyage')) || (onAct && _open === 'voyage'));

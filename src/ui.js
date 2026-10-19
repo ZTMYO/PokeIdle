@@ -89,6 +89,8 @@ export function syncViewChrome(id) {
   _currentView = id;
   // 视图切换立即同步时空扭曲配色
   import('./events.js').then(m => m.syncTwistTheme());
+  // 下半屏换页可能只走这里（不广播 view-changed），航海配色也要跟着重算
+  import('./activity.js').then(m => m.syncVoyageTheme());
   updateStats(); // 视图切换立即刷新状态栏：进入游戏厅立刻显示 coin，离开立刻隐藏
   document.querySelectorAll('.control-btn.window-icon[data-view]').forEach(btn => {
     const on = btn.dataset.view === id || (btn.dataset.view === 'phoneView' && PHONE_VIEWS.has(id));
@@ -1555,6 +1557,13 @@ function consoleBox() {
   return r && w && h ? { r, w, h } : null;
 }
 
+// 机身是否整体 transform 缩放：手游模式，或移动端壳里选经典单屏（两种都按机身盒子换算坐标）。
+// 桌面端走 html zoom、Tauri 不缩放，都是 false，仍按整页视口/逻辑像素处理
+export function consoleScaled() {
+  const el = document.querySelector('.console');
+  return isUiMobile() || !!(el && el.style.transform && el.style.transform !== 'none');
+}
+
 // 浮层菜单通用关闭：捕获阶段的 pointerdown。
 // 用冒泡监听会被 stopPropagation 的控件（筛选下拉按钮这类）挡掉，菜单就赖在屏幕上并压住下拉；
 // 捕获阶段先于目标控件触发，挡不住。返回解绑函数，菜单收起时记得调用
@@ -1564,31 +1573,32 @@ export function watchOutsidePress(el, close) {
   return () => document.removeEventListener('pointerdown', onDown, true);
 }
 
-// 浮层边界：手游夹在机身内，经典布局即整页视口
+// 浮层边界：机身 transform 缩放时夹在机身内（物理坐标），否则即整页视口
 export function popupBounds() {
-  const b = isUiMobile() ? consoleBox() : null;
+  const b = consoleScaled() ? consoleBox() : null;
   if (b) return { left: b.r.left, top: b.r.top, right: b.r.right, bottom: b.r.bottom };
   const z = parseFloat(document.documentElement.style.zoom) || 1;
   return { left: 0, top: 0, right: window.innerWidth / z, bottom: window.innerHeight / z };
 }
 
-// 机身内逻辑坐标 ⇄ 浮层/指针坐标：手游模式只差一个机身缩放比，经典布局为恒等 / 除以 zoom
+// 机身内逻辑坐标 ⇄ 浮层/指针坐标：机身缩放时只差一个机身缩放比，否则为恒等 / 除以 zoom
 export function logicToViewport(lx, ly) {
-  const b = isUiMobile() ? consoleBox() : null;
+  const b = consoleScaled() ? consoleBox() : null;
   if (!b) return { x: lx, y: ly };
   return { x: b.r.left + lx * (b.r.width / b.w), y: b.r.top + ly * (b.r.height / b.h) };
 }
 
 export function viewportToLogic(px, py) {
-  const b = isUiMobile() ? consoleBox() : null;
+  const b = consoleScaled() ? consoleBox() : null;
   if (b) return { x: (px - b.r.left) / (b.r.width / b.w), y: (py - b.r.top) / (b.r.height / b.h) };
   const z = parseFloat(document.documentElement.style.zoom) || 1;
   return { x: px / z, y: py / z };
 }
 
-// 机身外的整屏演出层：手游模式铺在机身上并按机身缩放，层内沿用机身逻辑坐标
+// 机身外的整屏演出层：机身整体 transform 缩放时铺到机身上并按同一倍率缩放，层内沿用机身逻辑坐标；
+// 桌面 zoom / Tauri 不缩放，返回 null 走视口坐标
 export function consoleLayerStyle() {
-  const b = isUiMobile() ? consoleBox() : null;
+  const b = consoleScaled() ? consoleBox() : null;
   if (!b) return null;
   return {
     left: b.r.left + 'px',

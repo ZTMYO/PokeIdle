@@ -9,12 +9,12 @@ import { ensureBerryFarm } from './berry.js';
 import { removePokemonFromAllTeams } from './team.js';
 import { familyRoot } from './evolution.js';
 import { fourDirGeom, fourDirSrc, fourDirDelay, FOUR_DIR_SCALE, DIR_ROW } from './four-dir.js';
+import { EGG_SHINY_CHANCE } from './config.js';
 
 const BERRY_DIR = './items/berries/';
 // 产蛋时长区间（分钟，本期固定随机，后续可做同种/同蛋组和睦度加成）
 const BREED_MIN_MIN = 2;
 const BREED_MAX_MIN = 8;
-const EGG_SHINY_CHANCE = 1 / 4096; // 蛋的闪光概率：与原版一致的低概率，不与亲本闪光挂钩
 
 const TILE = 24;
 const TILESET = './terrain/terrain-tileset.png';

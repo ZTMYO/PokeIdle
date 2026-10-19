@@ -3,7 +3,7 @@
 // 规则：标准 52 张牌；A = 1/11 取最优，J/Q/K = 10；玩家可要牌/停牌/加倍；
 // 庄家点数 < 17 一直要牌；天然 21（前两张即 21 = 黑杰克）按 1.5 倍赔付；
 // 下注/赔付均操作 gameData.items.candy，结算走 saveGame() + updateStats()。
-import { $, showView, updateStats, hideFoodTip } from './ui.js';
+import { $, showView, updateStats, hideFoodTip, logicToViewport, popupBounds } from './ui.js';
 import { gameData, saveGame, pushNav, formatNum, addSystemLog } from './state.js';
 import { playCasino, playMahjongSfx } from './audio.js';
 import { COIN_RATE, DEALER_STAND, BJ_MULT } from './config.js';
@@ -249,9 +249,12 @@ function exchangeCoin() {
   document.body.appendChild(menu);
   const scene = document.querySelector('.casino-coin-exchange');
   if (scene) {
+    // 菜单挂在机身外：场景 rect 是机身逻辑坐标，先换算成浮层坐标，再夹进机身
     const r = scene.getBoundingClientRect();
-    menu.style.left = Math.max(4, r.left) + 'px';
-    menu.style.top = Math.max(4, r.bottom + 2) + 'px';
+    const { x, y } = logicToViewport(r.left, r.bottom + 2);
+    const b = popupBounds();
+    menu.style.left = Math.max(b.left + 4, x) + 'px';
+    menu.style.top = Math.max(b.top + 4, y) + 'px';
   }
   menu.addEventListener('pointerdown', e => e.stopPropagation());
   menu.onclick = (e) => {

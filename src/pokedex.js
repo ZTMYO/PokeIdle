@@ -775,11 +775,12 @@ function syncPokedexBoxRows() {
 }
 window.addEventListener('resize', () => { if (_pokedexBoxView) syncPokedexBoxRows(); });
 
-// 边框色：神兽金黄（未解锁用淡金，见样式）→ 未解锁灰显 → 已捕获深色 → 遇到过浅色
-function pokedexBoxFrameClass(p, seen, caught) {
+// 边框色：神兽金黄（未解锁用淡金，见样式）→ 未解锁灰显 → 已解锁深色 → 仅遇见过浅色。
+// 深色按「已解锁」而非「捕获数」判断：进化/孵化/交换获得的没抓到过，但数据已解锁，得跟捕获过的一致
+function pokedexBoxFrameClass(p, seen) {
   if (p.legend) return 'dex-frame-legend';
   if (!dexKnown(p.index, seen)) return 'dex-frame-locked';
-  if (caught > 0) return 'dex-frame-caught';
+  if (dexUnlocked(p.index)) return 'dex-frame-caught';
   return 'dex-frame-seen';
 }
 
@@ -787,10 +788,9 @@ function pokedexBoxFrameClass(p, seen, caught) {
 function pokedexBoxHtml(p, caughtMap) {
   const entry = caughtMap[p.index];
   const seen = entry?.seen || 0;
-  const caught = entry?.caught || 0;
   const known = dexKnown(p.index, seen);
   const poke = getPokemonByIndex(p.index);
-  const frame = pokedexBoxFrameClass(p, seen, caught);
+  const frame = pokedexBoxFrameClass(p, seen);
   const shiny = dexShinyOwned(p.index) ? STAR_FILLED : '';
   const icon = known && poke?.icon
     ? `<img class="pokedex-box-icon" data-icon="${p.index}" alt="" />`

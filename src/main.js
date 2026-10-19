@@ -4,7 +4,7 @@ window.__POKEIDLE_BOOTED__ = true;
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
 import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
-import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
+import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, getPokemonByIndex, ensureGpsState, restoreSessionState, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
 import { migrateEncounterScores } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
 import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyWindowBg, isEvolutionShowActive, isEggShowActive, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView, relayoutStage } from './ui.js';
@@ -370,7 +370,14 @@ function onBagClick(itemKey) {
   if (itemKey === 'sweet-honey') { activateHoney(); }
   else if (itemKey === 'shiny-charm') {
     if (honeyBuffActive) return;
-    showConfirmBar('使用闪耀护符？60秒内大幅提升闪光率，并保底遇到一只闪光宝可梦。', () => {
+    // 保底只在普通野生遭遇生效，事件区/树果方块按当前场景换文案，避免误导
+    let charmText = '使用闪耀护符？60秒内大幅提升闪光率，并保底遇到一只闪光宝可梦。';
+    if (inMassZone() || inTwistZone()) {
+      charmText = '使用闪耀护符？此处不会有普通野生遭遇，护符加成与保底都不生效。';
+    } else if (blockBuffActive) {
+      charmText = '使用闪耀护符？60秒闪光加成照常，但方块吸引的那次遇敌不吃加成。';
+    }
+    showConfirmBar(charmText, () => {
       activateShinyCharm();
     }, null, { overlay: true });
   } else if (itemKey === 'bike') {
@@ -404,8 +411,12 @@ async function onGameTick() {
   // 自动补球：勾选的球为 0 时每秒自动补 1 个（便宜优先），背包数量即时可见（手动/自动都生效）
   tryAutoRefill();
   setGameTick(gameTick + 1);
-  gameData.stats.totalPlaySeconds++;
-  addPlaySeconds(gameData, 1); // 今日挂机时长（跨天自动清零重计）
+  // 隐藏/最小化期间不逐秒计时：这段由 visibilitychange 记账、回前台统一补发，
+  // 两处各记一遍会翻倍（窗口最小化时定时器不节流，只有浏览器标签页才会）
+  if (!document.hidden) {
+    gameData.stats.totalPlaySeconds++;
+    addPlaySeconds(gameData, 1); // 今日挂机时长（跨天自动清零重计）
+  }
   // 招募帮手：在线秒数递减（离线不递减，天然离线暂停），到期终止并刷新农场页
   helperTick();
   // 同步真实行走距离：仅 idle 挂机时道路在滚动，遇敌/战斗/钓鱼不计

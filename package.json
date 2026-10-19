@@ -1,7 +1,7 @@
 {
   "name": "PokeIdle",
   "private": true,
-  "version": "1.19.3",
+  "version": "1.19.4",
   "type": "module",
   "scripts": {
     "dev": "node tools/sync-version.mjs --dev && tauri dev",

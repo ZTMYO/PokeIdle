@@ -26,9 +26,9 @@ export function fourDirAnim(geom, anim) {
   return (anim === 'idle' ? geom.Idle : geom.Walk) || geom.Walk;
 }
 
-// 静止展示该用哪个动作：有 Idle 就用 idle（只一帧时即静止不动），缺素材才退回 Walk
+// 静止展示该用哪个动作：Idle 有多帧才用 idle，单帧等于定格不动，退回 Walk 继续走
 export function fourDirStaticAnim(geom) {
-  return geom && geom.Idle ? 'idle' : 'walk';
+  return geom && geom.Idle && geom.Idle.n > 1 ? 'idle' : 'walk';
 }
 
 // 一帧的显示时长（毫秒），d[] 单位 1/60 秒

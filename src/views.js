@@ -1,4 +1,4 @@
-import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_SPAWN_MIN, TWIST_SPAWN_MAX, TWIST_SPAWN_HONEY_MIN, TWIST_SPAWN_HONEY_MAX, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, PENGUIN_STEPS, PENGUIN_BREAK_CHANCE, PENGUIN_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
+import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, EGG_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_SPAWN_MIN, TWIST_SPAWN_MAX, TWIST_SPAWN_HONEY_MIN, TWIST_SPAWN_HONEY_MAX, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, PENGUIN_STEPS, PENGUIN_BREAK_CHANCE, PENGUIN_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, setSaveSuspended, formatNum, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress } from './ui.js';
 import { doCandyExchange, doSellBall, useBuffNowOrDefer, refillBuffIfEmpty, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf, BASIC_ITEM_ORDER } from './items.js';
@@ -2057,7 +2057,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '手机',
     html: `<p>点击<b>手机</b>按钮进入，应用都摆在桌面上，也能看到当前系统时间。科学的力量真伟大！</p>`
-      + `<p>应用多了会自动分页，滚动滚轮或点击底部圆点可以翻页。新的应用会排在最后。</p>`
+      + `<p>应用多了会自动分页，滚动滚轮或点击底部圆点可以翻页。</p>`
       + `<p><b>长按</b>桌面上的任意图标可以整理桌面：拖动换位置、拖到一起合成<b>合集</b>。</p>`
       + `<p>时间下面是<b>音乐栏</b>，点它进<b>音乐</b>页，可以点播BGM。</p>`
   },
@@ -2075,12 +2075,18 @@ const TUTORIAL_SECTIONS = [
         ['派遣', '时长越长给的概率越高'],
         ['钓鱼', '钓到道具时有概率给 1 件'],
         ['对战', '战胜NPC后有概率掉落'],
-      ], ['渠道', '给什么'], [56, 'auto'])
+      ], ['渠道', '给什么'], [32, 'auto'])
+      + `<p><b>经验糖果</b>、<b>薄荷</b>、<b>王冠</b>都是对单只宝可梦使用，入口在<b>手机→宝可梦</b>点开某只的详情页，点对应字段打开面板：</p>`
+      + tutorialTable([
+        ['经验糖果', '点<b>等级</b>行；也可在底部背包直接点经验糖果，再挑一只宝可梦'],
+        ['薄荷', '点<b>性格</b>行，换成对应薄荷的性格'],
+        ['王冠', '点<b>个体值</b>标题，把选中的维度练到 31'],
+      ], ['道具', '使用入口'], [56, 'auto'])
       + `<b>道具盒</b>里能查看持有数与来源，大多数道具都可在<b>商店</b>出售。</p>`,
   },
   {
     title: '遭遇',
-    html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只当前地区的野生宝可梦。</p>`
+    html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只<b>当前地区</b>的野生宝可梦。</p>`
       + `<p>野生宝可梦的等级在<b> ${1}~${WILD_LEVEL_MAX} 级</b>之间。</p>`
       + `<p>每个地区每天还有限定的<b>神兽</b>可以遭遇：遇敌时约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE)}</b> 的概率直接遇到，甜甜蜜 / 闪耀护符生效期间约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE_BUFF)}</b>，等级固定 <b>${LEGEND_LEVEL}级</b>。</p>`
       + `<p>保底 <b>${LEGEND_PITY}</b> 次遭遇出神兽。</p>`
@@ -2112,7 +2118,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '糖果',
-    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托、完成悬赏、对战、成就、派遣、出售道具等获得，能在手机里虚拟存储，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子、解锁<b>派遣</b>格子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
+    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托、完成悬赏、对战、成就、派遣、出售道具等获得，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子、解锁<b>派遣</b>格子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
       + `<p>注意区分道具<b>经验糖果</b>：它不是货币，而是给宝可梦直接加经验的消耗品，主要从 NPC 对战掉落、悬赏中档发放与放生返还的经验池产出（详见「<b>经验糖果</b>」章节）。</p>`
   },
   {
@@ -2123,13 +2129,14 @@ const TUTORIAL_SECTIONS = [
       + `<p>兑换价格（糖果）：</p>`
       + tutorialTable(Object.entries(CANDY_EXCHANGE).map(([item, cost]) => [ITEM_NAMES[item], `<b>${cost}</b> 糖果`]), ['道具', '价格'], [52, 'auto'])
       + `<p><b>今日招式机</b>：每天上架 <b>${TM_SHOP_DAILY}</b> 个还没有解锁的招式，价格按威力 <b>${TM_PRICE_TIERS[0].price}~${TM_PRICE_TIERS[TM_PRICE_TIERS.length - 1].price}</b> 糖果。</p>`
-      + `<p>招式机<b>解锁后永久有效</b>：仓库里能学会这招的宝可梦会直接学会（满 4 招的保留你自己配的，可以在配招页替换）。蛋招式不在这里卖——只有<b>孵蛋</b>得到的宝可梦能学，详见「<b>孵蛋</b>」章节。</p>`
+      + `<p>招式机<b>解锁后永久有效</b>：仓库里能学会这招的宝可梦会直接学会（满 4 招的保留你自己配的，可以在配招页替换）。蛋招式不在这里卖——只有<b>孵蛋</b>得到的宝可梦能学，详见「<b>孵蛋器</b>」章节。</p>`
       + `<p><b>今日道具</b>：出售进化道具、薄荷与王冠，每天换一批，每件限买 1 个。</p>`
   },
   {
     title: '增益',
     html: `<p><b>甜甜蜜</b>与<b>闪耀护符</b>都是 <b>${BUFF_DURATION}</b> 秒增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
       + `<p><b>闪耀护符</b>额外带保底：<b>使用后的下一只遭遇必定闪光</b>，之后这段时间内继续按提升后的概率判定。</p>`
+      + `<p>保底只在<b>普通野生遭遇</b>触发；大量出没、时空扭曲、树果方块吸引等玩法有各自的固定闪光率，不吃护符的闪光加成。</p>`
       + `<p>骑行中速度以 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，增益的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
       + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`
@@ -2224,7 +2231,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>每只个体带有随机<b>个体值</b>（HP/攻击/防御/特攻/特防/速度，各 <b>0~31</b>）与随机<b>性格</b>（共 <b>25</b> 种）。</p>`
       + `<p>点进详情可以重命名宝可梦（最多 <b>5</b> 个字），改名后搜索中文可匹配昵称。</p>`
       + `<p><b>个体值</b>那一行右侧的<b>放生</b>按钮可放生该个体（不可恢复），同时返还（<b>${RELEASE_XP_RATE * 100}%</b>）经验（详见「<b>经验糖果</b>」章节）。</p>`
-      + `<p>详情页右上角是<b>图鉴</b> / <b>锁定</b> / <b>分享</b>三个按钮：<b>图鉴</b>查看该物种的图鉴；<b>分享</b>可以生成这只宝可梦的详情卡片用于分享；<b>锁定</b>后不会被放生，批量放生列表里也不再出现；交换与地区悬赏的候选里仍会列出它，只是交换 / 提交按钮不可点（点了会提示先解锁）。再点一次解除锁定。</p>`
+      + `<p>详情页右上角是<b>图鉴</b> / <b>锁定</b> / <b>分享</b>三个按钮：<b>图鉴</b>查看该物种的图鉴；<b>分享</b>可以生成这只宝可梦的详情卡片用于分享；<b>锁定</b>后不会被放生，批量放生列表里也不再出现；交换与地区悬赏的候选里仍会列出它，只是交换 / 提交按钮不可点。</p>`
       + `<p>在仓库<b>列表页右键</b>可<b>批量放生</b>：勾选多只个体统一放生并返还总经验。</p>`
       + `<p>右键也可<b>高级筛选</b>，方便批量处理；也可以切换到<b>盒子视图</b>，一屏能看更多个体。</p>`
       + `<p>个体可用来提交地区悬赏——提交后该宝可梦会从仓库中移除（详见「<b>悬赏</b>」章节）。</p>`,
@@ -2295,7 +2302,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>两者都要从<b>宝可梦</b>列表进详情才可用；获取渠道详见「<b>道具</b>」章节。</p>`,
   },
   {
-    title: '孵蛋',
+    title: '孵蛋器',
     html: `<p>在<b>手机</b>主页打开<b>孵蛋器</b>应用，将背包里的<b>神秘蛋</b>或繁殖得到的<b>宝可梦蛋</b>放入空闲槽位开始<b>孵化</b>。</p>`
       + `<p><b>神秘蛋</b>从<b>全图鉴</b>随机孵化（<b>神兽与超级进化/超极巨化形态除外</b>）。</p>`
       + `<p>孵蛋得到的宝可梦还能学会本物种的<b>蛋招式</b>，另有独立的个体值、性格与闪光判定。</p>`
@@ -2307,14 +2314,15 @@ const TUTORIAL_SECTIONS = [
         ['跑步（增益生效）', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_RUN * 60) / 60 * 10) / 10}</b> 分钟`],
         ['骑行', `<b>${Math.round((1000 * PX_PER_METER) / (ROAD_SPEED_BIKE * 60) / 60 * 10) / 10}</b> 分钟`],
       ], ['移动方式', '1 公里耗时'], [92, 'auto'])
-      + `<p>孵化完成后点击孵化按钮即可获得宝可梦，结果完全随机，有 <b>1/${Math.round(1 / SHINY_CHANCE)}</b> 概率出闪光。</p>`,
+      + `<p>孵化完成后点击孵化按钮即可获得宝可梦。<b>神秘蛋</b>孵出闪光的概率是 <b>1/${Math.round(1 / SHINY_CHANCE)}</b>；</p>`,
   },
   {
     title: '培育',
     html: `<p>在<b>手机</b>主页打开<b>饲育屋</b>：点<b>告示牌</b>放入两只宝可梦配对。普通配对要求<b>一雄一雌</b>且<b>至少共有一个蛋组</b>——只有<b>同蛋组</b>的宝可梦才能一起孵蛋。</p>`
       + `<p><b>百变怪</b>可无视性别，与<b>任意非「未发现蛋组」</b>的宝可梦繁殖（后代按那一族的最低阶算）；但<b>「未发现蛋组」</b>的宝可梦<b>不能</b>与百变怪配对。</p>`
       + `<p>投喂它们爱吃的<b>树果</b>开始繁殖：先选择<b>连续繁殖轮数</b>（<b>1~10 轮</b>），树果按轮数 <b>×N</b> 一次性扣除；每轮 <b>2~8 分钟</b>产一枚蛋并<b>自动入库</b>、自动续下一轮，无需手动收蛋；一批完成后直接恢复轮数选择界面，可立即开始下一批。</p>`
-      + `<p>繁殖期间取出亲本会<b>终止剩余轮次</b>（树果不退，已产蛋不丢）；产出的<b>宝可梦蛋</b>放入<b>孵蛋器</b>里孵化（详见「<b>孵蛋</b>」章节）。</p>`
+      + `<p>每枚蛋的<b>闪光</b>在产出的瞬间就已定好：闪光率为 <b>1/${Math.round(1 / EGG_SHINY_CHANCE)}</b>。</p>`
+      + `<p>繁殖期间取出亲本会<b>终止剩余轮次</b>（树果不退，已产蛋不丢）；产出的<b>宝可梦蛋</b>放入<b>孵蛋器</b>里孵化（详见「<b>孵蛋器</b>」章节）。</p>`
       + `<p><b>个体值遗传</b>：<b>1 项</b>完全随机，<b>5 项</b>继承自双亲（默认 50% 随机取父或母）。可从这 5 项中<b>锁定一项</b>，指定该维固定继承父方或母方的数值。</p>`
       + `<p><b>如何培育 6V</b>：优先找两只高个体亲本繁殖，用后代中更优秀的替换亲本，反复迭代拉高双亲基础。遗传的 5 项中，双亲都到 31 的项必然还是 31（从双亲二选一，任意一方都是 31）；但唯一纯随机项完全随机（0~31），有 1/6 概率正好落在某一维——所以最终要赌的还是这 <b>1 个随机项</b>（出 31 的概率 1/32）。锁定功能可在关键维缺一只亲本时帮补短板。</p>`
       + `<p>「<b>纸箱</b>」里可以查看仓库中所有宝可梦蛋；点击某一行可把它<b>收藏</b>起来。收藏的蛋会单独收进蛋页面右上角的「<b>收藏</b>」页，不再和别的蛋混在一起（也不会出现在孵蛋器的放入列表里），在收藏页点同一行可取消收藏。</p>`
@@ -2487,7 +2495,7 @@ const TUTORIAL_SUMMARIES = {
   '糖果': '奖励你30个糖果。',
   '商店': '点击商品查看简介，右键兑换按钮能批量买。',
   '增益': '闪耀护符有着甜甜蜜同样的增益。',
-  '孵蛋': '拥有两种蛋的时候，需要二次点击选择放入蛋的种类。',
+  '孵蛋器': '拥有两种蛋的时候，需要二次点击选择放入蛋的种类。',
   '培育': '一般情况下只有同蛋组的宝可梦才能生蛋。',
   '钓鱼': '每个可钓鱼场景会自动进行一次钓鱼。',
   '树果': '树果用处很多，多囤树果。',

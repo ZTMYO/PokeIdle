@@ -129,11 +129,11 @@ html.mobile-app #quitHide { display: none !important; }
   -webkit-app-region: no-drag;
 }
 @media (hover: hover) {
-  .control-btn:hover { background: rgba(0,0,0,0.08); }
+  .control-btn:hover { background: var(--item-border); }
 }
 .control-btn.window-icon { opacity: 0.7; }
 @media (hover: hover) {
-  .control-btn.window-icon:hover { opacity: 1; background: rgba(0,0,0,0.08); }
+  .control-btn.window-icon:hover { opacity: 1; background: var(--item-border); }
 }
 .control-btn.window-icon.active { opacity: 1; background: rgba(0,0,0,0.12); }
 .control-btn svg { width: 15px; height: 15px; display: block; color: var(--color-text); fill: currentColor; }
@@ -1152,15 +1152,6 @@ html.mobile-app #quitHide { display: none !important; }
   71%, 100% { transform: translateY(3px) scaleX(-1); }
 }
 /* 派遣进行中：使用移动帧素材向右行走（素材默认朝右，覆盖静态翻转；切帧循环，视觉约 22px） */
-.incubator-egg-slot img.dispatch-cell-icon.dispatch-move {
-  width: 32px;
-  height: 32px;
-  object-fit: none;
-  object-position: 0px 0px;
-  transform: scale(0.7);
-  transform-origin: center;
-  animation: none;
-}
 /* 派遣静态图标（待出发/完成/空槽放入）默认素材朝左，统一水平翻转朝右 */
 .incubator-egg-slot img.dispatch-cell-icon {
   transform: scaleX(-1);
@@ -1211,7 +1202,7 @@ html.mobile-app #quitHide { display: none !important; }
 .incubator-progress-wrap {
   height: 10px;
   margin-top: 4px;   /* 和名字拉开距离，与孵化按钮那一行同一水平线 */
-  background: rgba(0,0,0,0.08);
+  background: var(--item-border);
   border-radius: 5px;
   overflow: hidden;
   position: relative;
@@ -1324,14 +1315,6 @@ html.mobile-app #quitHide { display: none !important; }
   font-size: 16px;
   color: var(--color-muted);
 }
-.incubator-lock-info {
-  flex: 1;
-  min-width: 0;
-  font-size: 10px;
-  color: var(--ui-color);
-  line-height: 1.4;
-  font-weight: 600;
-}
 .incubator-lock-cost {
   font-weight: 700;
   color: var(--ui-color);
@@ -1376,20 +1359,6 @@ html.mobile-app #quitHide { display: none !important; }
 .incubator-log-btn.disabled { opacity: 0.4; pointer-events: none; cursor: default; }
 
 /* 宝可梦蛋列表（挑蛋入槽） */
-.incubator-egg-list {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.incubator-egg-list-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 2px 6px;
-  font-size: 12px;
-  font-weight: 700;
-}
 
 /* === 派遣（主列表复用孵蛋器布局）=== */
 #dispatchView { overflow-y: auto; }
@@ -1470,11 +1439,6 @@ html.mobile-app #quitHide { display: none !important; }
 .dispatch-dur-start:active { transform: translateY(2px); }
 
 /* 仓库蛋条目行：蛋图标（icon-egg 随主题色） */
-.roster-icon-egg {
-  width: 22px;
-  height: 22px;
-  color: var(--ui-color);
-}
 
 .stats-bar {
   display: grid;
@@ -1519,10 +1483,6 @@ html.mobile-app #quitHide { display: none !important; }
 }
 
 /* === 加载失败 === */
-.load-error {
-  font-size: 10px;
-  color: #8b3a3a;
-}
 
 /* ==================== 捕捉动画舞台 ==================== */
 .catch-stage {
@@ -1599,25 +1559,8 @@ html.mobile-app #quitHide { display: none !important; }
   100% { transform: rotate(0deg); }
 }
 
-@keyframes ballBounce {
-  0%   { transform: translateY(0); }
-  20%  { transform: translateY(-40px); }
-  40%  { transform: translateY(-18px); }
-  60%  { transform: translateY(-6px); }
-  80%  { transform: translateY(-2px); }
-  100% { transform: translateY(0); }
-}
 
-@keyframes lockFeedback {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.25); }
-  100% { transform: scale(1); }
-}
 
-@keyframes starFloat {
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-50px) scale(0.2); }
-}
 
 /* 蛋摇晃动画 — 底部中心为支点 */
 .egg-shake {
@@ -2131,18 +2074,8 @@ html.mobile-app #quitHide { display: none !important; }
   box-sizing: border-box;
   overflow: hidden;
 }
-.log-back-inline {
-  cursor: pointer;
-  font-weight: 600;
-  line-height: 1.6;
-  padding: 2px 0;
-  user-select: none;
-  color: inherit;
-}
 @media (hover: hover) {
-  .log-back-inline:hover { opacity: 0.7; }
 }
-.log-back-inline svg { color: inherit; }
 .pokedex-progress {
   font-size: 9px;
   font-weight: 700;
@@ -2151,12 +2084,7 @@ html.mobile-app #quitHide { display: none !important; }
   margin: 2px;
   line-height: 1.6;
 }
-.pokedex-close {
-  cursor: pointer;
-  opacity: 0.5;
-}
 @media (hover: hover) {
-  .pokedex-close:hover { opacity: 1; }
 }
 
 /* === 手机主页（主菜单） === */
@@ -3170,15 +3098,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   image-rendering: pixelated;
 }
 /* 调试叠加层：只在本机 ?berrydebug=1 时由 JS 插入，画出碰撞盒与路线 */
-.berry-debug {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 240px;
-  height: 216px;
-  pointer-events: none;
-  z-index: 12;
-}
 .berry-plot {
   position: absolute;
   display: flex;
@@ -3766,12 +3685,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   padding: 10px 0 4px;
 }
 /* 通用淡入：动画完成后由 JS 加 show 显示 */
-.mixer-fade {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.6s ease, visibility 0.6s;
-}
-.mixer-fade.show { opacity: 1; visibility: visible; }
 
 .mixer-wrap {
   display: flex;
@@ -3870,18 +3783,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   height: 180px;
   margin-top: 12px;
 }
-.mixer-cost {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  font-size: 9px;
-}
-.mixer-cost img {
-  width: 12px;
-  height: 12px;
-  image-rendering: pixelated;
-}
 .mixer-empty {
   font-size: 10px;
   text-align: center;
@@ -3954,144 +3855,12 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   flex-direction: column;
   min-height: 0;
 }
-.mixer-stage {
-  position: relative;
-  flex: 1;
-  min-height: 240px;
-  border-radius: 8px;
-  background: var(--item-bg);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  cursor: pointer;
-}
-.mixer-falling-berry {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  will-change: transform;
-  z-index: 5;
-}
-.mixer-falling-berry::after {
-  content: '';
-  position: absolute;
-  left: -12px;
-  top: -12px;
-  right: -12px;
-  bottom: -12px;
-  border-radius: 50%;
-  z-index: 1;
-}
-.mixer-falling-berry img {
-  width: 34px;
-  height: 34px;
-  object-fit: contain;
-  image-rendering: pixelated;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35));
-}
-.mixer-falling-berry.landed {
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
-  z-index: 4;
-}
-.mixer-falling-berry.miss {
-  /* 只淡出；transform 由 inline 定位，动画里动 scale 会覆盖定位 */
-  animation: berryMiss 0.22s ease-in forwards;
-}
-@keyframes berryMiss {
-  to { opacity: 0; }
-}
 
 /* 舞台左上角已收集树果 */
-.mixer-collected {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  max-width: 130px;
-}
-.mixer-collected-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--ui-color-dark);
-  border-radius: 3px;
-  padding: 1px 5px;
-  align-self: flex-start;
-}
-.mixer-collected-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  align-items: center;
-}
-.mixer-collected-berry {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-}
-.mixer-collected-berry img {
-  width: 17px;
-  height: 17px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-.mixer-collected .mixer-empty { padding: 0; font-size: 9px; }
 
 /* 轮次提示（右上角） */
-.mixer-round {
-  position: absolute;
-  top: 5px;
-  right: 6px;
-  z-index: 10;
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--ui-color-dark);
-  border-radius: 3px;
-  padding: 1px 5px;
-}
 
 /* 3-2-1 倒计时 */
-.mixer-countdown {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 64px;
-  font-weight: 900;
-  line-height: 1;
-  text-align: center;
-  color: var(--ui-color);
-  margin-bottom: 24px;
-  opacity: 0;
-  transform: scale(0.6);
-  pointer-events: none;
-  user-select: none;
-}
-.mixer-countdown.show {
-  animation: countdownPop 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-@keyframes countdownPop {
-  0%   { opacity: 0; transform: scale(0.6); }
-  25%  { opacity: 1; transform: scale(1.15); }
-  60%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.9); }
-}
 
 /* 结果页 */
 .mixer-result { align-items: center; text-align: center; gap: 6px; justify-content: center; }
@@ -4480,11 +4249,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   text-align: center;
   margin-bottom: 6px;
 }
-.bounty-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 /* 翻页布局：左右箭头 + 中间卡片 */
 .bounty-pager {
   display: flex;
@@ -4626,7 +4390,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   right: 8px;
   z-index: 40;
   color: var(--ui-color);
-  background: rgba(0, 0, 0, 0.07);
+  background: var(--item-border);
   border-radius: 4px;
   font-size: 8px;
   font-weight: 600;
@@ -5055,25 +4819,10 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   0%   { background: rgba(var(--ui-color-rgb),0.25); }
   100% { background: transparent; }
 }
-@keyframes fadeOut {
-  0%   { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
-}
 .pokedex-entry.flash {
   animation: searchFlash 1s ease-out 2;
 }
-.log-back {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--ui-color);
-  cursor: pointer;
-  padding: 2px 0;
-  margin-bottom: 2px;
-  user-select: none;
-}
 @media (hover: hover) {
-  .log-back:hover { opacity: 0.7; }
 }
 .pokedex-idx {
   opacity: 0.5;
@@ -5247,10 +4996,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   gap: 4px;
   align-items: center;
   z-index: 2;
-}
-@keyframes shopBoxIn {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
 }
 
 /* ===== 设置面板 ===== */
@@ -6181,7 +5926,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   font-family: inherit;
 }
 .roster-nick-input:focus {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--item-bg);
 }
 .roster-iv {
   width: 34px;
@@ -6371,14 +6116,17 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   position: absolute;
   top: 1px;
   left: 2px;
-  font-size: 5px;
+  font-size: 8px;
   line-height: 1;
   opacity: .5;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+  transform-origin: top left;
+  transform: scale(0.55);
+  white-space: nowrap;
 }
 /* 手游双屏：格子更小，编号再收一档 */
-html.ui-mobile .pokedex-box-idx { font-size: 4px; }
+html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
 .pokedex-box-star { position: absolute; top: 1px; right: 1px; color: var(--ui-color); line-height: 0; }
 .pokedex-box-star .pokedex-star-svg { width: 7px; height: 7px; display: block; }
 
@@ -6690,7 +6438,7 @@ html.ui-mobile .pokedex-box-idx { font-size: 4px; }
   cursor: pointer;
 }
 @media (hover: hover) {
-  .roster-move-slot:hover { background: rgba(255,255,255,0.32); }
+  .roster-move-slot:hover { background: var(--item-hover-bg); }
 }
 .roster-move-slot.empty { border-style: dashed; }
 .roster-move-slot-name {
@@ -6730,7 +6478,7 @@ html.ui-mobile .pokedex-box-idx { font-size: 4px; }
   touch-action: none; /* 允许触摸拖拽交换槽位 */
 }
 @media (hover: hover) {
-  .move-edit-slot:hover { background: rgba(255,255,255,0.32); }
+  .move-edit-slot:hover { background: var(--item-hover-bg); }
 }
 .move-edit-slot.empty { background: rgba(255,255,255,0.06); border-style: dashed; }
 /* 配招页拖拽：源压暗 + 目标高亮 */
@@ -7744,22 +7492,6 @@ body.booting { visibility: hidden; }
   position: absolute;
   cursor: pointer;
 }
-.casino-placeholder {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.casino-placeholder-title {
-  font-size: 14px;
-  font-weight: 800;
-}
-.casino-placeholder-sub {
-  font-size: 10px;
-  opacity: 0.6;
-}
 /* 下注区：仿混合器布局——内容居中，开始对局 dock 贴底全宽 */
 .casino-bet-area {
   flex: 1;
@@ -8222,7 +7954,7 @@ body.booting { visibility: hidden; }
 }
 .b-enemy-box .b-panel,
 .b-player-box .b-panel {
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--item-hover-bg);
   padding: 4px 8px;
   min-width: 0;
 }
@@ -8458,7 +8190,7 @@ body.booting { visibility: hidden; }
 .b-log-page .rec-row {
   align-items: flex-start;
   gap: 5px;
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+  border-bottom: 1px dashed var(--item-border);
   padding: 2px 0;
   color: var(--ui-color);
 }
@@ -9384,7 +9116,7 @@ body.booting { visibility: hidden; }
   opacity: 0.5;
   font-size: 12px;
 }
-.train-cell.lazy { background: rgba(0, 0, 0, 0.08); }
+.train-cell.lazy { background: var(--item-border); }
 .train-status-empty {
   padding: 8px 6px;
   font-size: 10px;
@@ -10205,7 +9937,7 @@ body.booting { visibility: hidden; }
   height: 20px;
   box-sizing: border-box;
   background: #3f8a63;
-  border: 1px solid #2f6a4a;
+  border: 1px solid var(--mj-label-color);
   border-radius: 3px;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
   flex-shrink: 0;
@@ -10266,7 +9998,7 @@ body.booting { visibility: hidden; }
   width: 9px;
   height: 22px;
   background: #fff7e6;
-  border: 1px solid #2f6a4a;
+  border: 1px solid var(--mj-label-color);
   border-radius: 2px;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
   position: relative;
@@ -10313,16 +10045,10 @@ body.booting { visibility: hidden; }
   }
 }
 /* 非玩家回合 / 发牌中：禁止手牌 hover 浮起 */
-#mahjongView .mj-dealing .mj-stack.mj-hovered {
-  transform: none;
-}
 @media (hover: hover) {
   #mahjongView .mj-dealing .mj-stack:hover {
     transform: none;
   }
-}
-#mahjongView .mj-dealing .mj-stack.mj-hovered .mj-card {
-  outline: none;
 }
 @media (hover: hover) {
   #mahjongView .mj-dealing .mj-stack:hover .mj-card {
@@ -10637,7 +10363,7 @@ body.booting { visibility: hidden; }
 #mahjongView .mj-pon-card .mj-card {
   box-sizing: border-box;
   background: var(--tc); /* 主卡面 = 属性色纯色（示例主卡） */
-  border: 1.5px solid #2f6a4a;
+  border: 1.5px solid var(--mj-label-color);
   border-radius: 3px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
   width: 22px;  /* 手牌缩小：24x34 → 22x28 */
@@ -10662,7 +10388,7 @@ body.booting { visibility: hidden; }
   background-image: linear-gradient(115deg,
     transparent 20%,
     rgba(255, 255, 255, 0.45) 40%,
-    rgba(255, 255, 255, 0.15) 55%,
+    var(--item-bg) 55%,
     transparent 70%);
   background-size: 260% 100%;
   background-position: 130% 0;
@@ -10708,7 +10434,7 @@ body.booting { visibility: hidden; }
   right: 0;
   height: 12px; /* 越过卡面圆角区填满缺口 */
   box-sizing: border-box;
-  border: 1px solid #2f6a4a;
+  border: 1px solid var(--mj-label-color);
   pointer-events: none;
 }
 #mahjongView .mj-layer-inner { background: #fff7e6; z-index: 2; }
@@ -10747,14 +10473,14 @@ body.booting { visibility: hidden; }
   top: auto;
   bottom: -4px;
   border-top: none;
-  border-bottom: 1.5px solid #2f6a4a;
+  border-bottom: 1.5px solid var(--mj-label-color);
   border-radius: 0 0 3px 3px;
 }
 #mahjongView .mj-stack:has(.mj-flat) .mj-layer-outer {
   top: auto;
   bottom: -6px;
   border-top: none;
-  border-bottom: 1.5px solid #2f6a4a;
+  border-bottom: 1.5px solid var(--mj-label-color);
   border-radius: 0 0 3px 3px;
 }
 /* 中央宝牌指示牌 / 碰指示牌：明牌 + 底部夹层（与副露同款） */
@@ -11346,11 +11072,6 @@ body.booting { visibility: hidden; }
 }
 
 /* ── 卡片弹出（走马灯结束后出现）已废弃，保留兼容 ── */
-@keyframes gachaCardPop {
-  from { transform: scale(0.6); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
-}
-.gacha-card-pop { animation: gachaCardPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
 /* ── 3D 翻转卡片 ── */
 .gacha-card-wrap { perspective: 600px; width: 100px; }
@@ -11374,7 +11095,7 @@ body.booting { visibility: hidden; }
   background: linear-gradient(115deg,
     transparent 18%,
     rgba(255, 255, 255, 0.6) 38%,
-    rgba(255, 255, 255, 0.15) 55%,
+    var(--item-bg) 55%,
     transparent 72%);
   background-size: 260% 100%;
   background-position: 130% 0;
@@ -11690,10 +11411,6 @@ body.booting { visibility: hidden; }
   overflow: hidden;
 }
 /* 锁定放大后容器框淡入：图先放大到位，框再浮现 */
-@keyframes follower-card-appear {
-  from { background: rgba(var(--ui-color-rgb), 0); }
-  to   { background: rgba(var(--ui-color-rgb), 0.08); }
-}
 .follower-display-inner {
   display: flex;
   align-items: center;
@@ -12200,9 +11917,6 @@ body.booting { visibility: hidden; }
   background: var(--ui-color);
   color: var(--screen-bg);
   font-weight: 700;
-}
-.adv-type-chip {
-  gap: 3px;
 }
 .adv-range {
   align-items: center;

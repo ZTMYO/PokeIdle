@@ -121,7 +121,8 @@ export const HONEY_RARITY_BOOST = 0.3; // 甜甜蜜稀有度加成权重
 export const CHARM_RARITY_BOOST = 0.5; // 闪耀护符稀有度加成权重
 
 // 闪光概率
-export const SHINY_CHANCE = 1 / 1000;  // 野生/钓鱼/孵蛋基础闪光概率
+export const SHINY_CHANCE = 1 / 1000;  // 野生/钓鱼/神秘蛋基础闪光概率
+export const EGG_SHINY_CHANCE = 1 / 4096; // 饲育屋繁殖蛋闪光率
 export const CHARM_SHINY_CHANCE = 0.05;    // 闪耀护符生效时的遇敌/钓鱼闪光概率（基础的 50 倍）
 export const CHARM_UNCAUGHT_CHANCE = 0.2;  // 护符期间额外提高「未捕获过」宝可梦的出现概率
 

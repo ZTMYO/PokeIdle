@@ -40,7 +40,7 @@ function genderText(p) {
   if (rate === undefined || rate === null) return '—';
   if (rate === -1) return '无性别';
   const male = (8 - rate) / 8, female = rate / 8;
-  const pct = x => `${x * 100}%`.replace(/\.?0+%$/, '%');
+  const pct = x => `${+(x * 100).toFixed(1)}%`;
   if (male === 0) return '♀100%';
   if (female === 0) return '♂100%';
   return `♂${pct(male)} ♀${pct(female)}`;

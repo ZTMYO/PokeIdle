@@ -471,8 +471,10 @@ function loadFourDirWalker(w, img, geom) {
     layoutFourDir(w);
     img.style.display = 'block';
     idleImg.style.display = 'none';
-    // 待机图晚一拍加载：失败就退化成走图第一帧静止
-    tryLoadImage(idleImg, fourDirSrc(geom, 'idle')).then(ok2 => { w.fdIdleOk = !!ok2; });
+    // 待机图晚一拍加载：只有多帧待机才值得切；单帧等于定格，直接复用走图动画
+    if (geom.Idle && geom.Idle.n > 1) {
+      tryLoadImage(idleImg, fourDirSrc(geom, 'idle')).then(ok2 => { w.fdIdleOk = !!ok2; });
+    }
     addMoveAnim(w);
     return true;
   });
@@ -511,11 +513,7 @@ function fourDirTick(w, now) {
     w.walkImg.style.display = useIdle ? 'none' : 'block';
     w.idleImg.style.display = useIdle ? 'block' : 'none';
   }
-  // 待机图缺失：静止时停在走图第 0 帧
-  if (!w.moving && !w.fdIdleOk) {
-    setFourDirPos(w, w.walkImg, w.fd.Walk, 0);
-    return;
-  }
+  // 待机图不可用（缺素材或只有单帧）：静止时继续放走图，避免定格不动
   if (now < w.fdNextAt) return;
   const n = Math.max(1, anim.n);
   if (w.fdFrame >= n) w.fdFrame = 0;
