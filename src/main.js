@@ -34,7 +34,7 @@ import { retreatBattle, isBattleActive, isBattleSettled, restoreBattleTier, clea
 import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit, isTeamPicking, leaveTeamPick, showTeamView } from './team.js';
 import { showCasinoView } from './casino.js';
 import * as road from './road.js';
-import { initBackgroundCatchup, startBackgroundCatchup, bgCatchupEnabled, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds, bgPeekAccum, bgTakeStatSeconds } from './background-catchup.js';
+import { initBackgroundCatchup, startBackgroundCatchup, notifyAppState, bgCatchupEnabled, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds, bgPeekAccum, bgTakeStatSeconds } from './background-catchup.js';
 import { startEventRefresh } from './server-events.js';
 import { startActivityRefresh } from './activity.js';
 
@@ -489,17 +489,10 @@ async function onGameTick() {
     const gap = bgPeekAccum();
     if (gap > 0) {
       setEncounterAt(Date.now() - gap * 1000);
-      // 压屏的遭遇要玩家亲自处理（手动/暂停）：这窗口主角一直卡着，记账丢掉别等处理完再补
-      const autoHandled = gameData.settings?.autoCatch
-        ? catchFilterResult() !== 'stop'
-        : !!gameData.settings?.autoFlee;
-      if (bgCatchupEnabled() && !autoHandled) {
-        // 收益作废，但人确实挂着：这段时间照记挂机时长
-        creditAwaySeconds(Math.max(bgTakeStatSeconds(), road.takeAfkSeconds()));
-        bgTakeAccum();
-        bgTakeBike();
-        bgTakeBuffRemainingMs();
-      }
+      // 人确实挂着：这段时间先记挂机时长；收益补算的停摆秒数（_bgSecAccum）留在账上别消费——
+      // 等这只遭遇处理完、回到挂机后走下面的正常分支补，否则挂机时长涨了、里程道具一点不动。
+      // 时长取两个源的最大值（两源量的是同一段停摆，不能相加），顺带把 road 帧间隔兜底取走防重复计
+      if (bgCatchupEnabled()) creditAwaySeconds(Math.max(bgTakeStatSeconds(), road.takeAfkSeconds()));
     }
     updateStats();
     return;
@@ -1519,6 +1512,8 @@ async function init() {
 
   window.__POKEIDLE_MOBILE__?.attach({
     saveNow: () => saveGame(),
+    // 壳里的原生切后台信号：挂机补发用它记账（document.hidden 在 WebView 里不可靠）
+    onAppStateChange: (isActive) => notifyAppState(isActive),
     back: () => {
       if (closeShareCardIfOpen()) return; // 分享图预览开着：系统返回先关它
       if ($('appTitle')?.dataset.action === 'back') handleAppTitleBack();

@@ -127,7 +127,7 @@ window.__POKEIDLE_MOBILE__ = {
   shareImage,
   openExternal: url => Browser.open({ url }),
   exitApp: () => App.exitApp(),
-  attach({ saveNow, back }) {
+  attach({ saveNow, back, onAppStateChange }) {
     App.addListener('backButton', () => back());
     App.addListener('appStateChange', ({ isActive }) => {
       // 切后台：停乐 + 立刻落盘；回前台：把被系统挂起的音频接回去
@@ -136,6 +136,8 @@ window.__POKEIDLE_MOBILE__ = {
         window.__POKEIDLE_AUDIO_PAUSE__?.();
         saveNow();
       }
+      // 挂机补发记账：原生信号比 WebView 的 visibilitychange 可靠，交给主脚本处理
+      onAppStateChange?.(isActive);
     });
   },
 };

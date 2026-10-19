@@ -37,6 +37,18 @@ function guessPool() {
 }
 export function guessReady() { return guessPool().length > 0; }
 
+let _byName = null;
+function guessByName() {
+  if (!_byName || !_byName.size) {
+    _byName = new Map();
+    allPokemon.forEach((p) => {
+      const n = p.name || '';
+      if (!p.form && /^[\u4e00-\u9fa5]{2,5}$/.test(n) && !_byName.has(n)) _byName.set(n, p);
+    });
+  }
+  return _byName;
+}
+
 // 干扰字池：全题库出现过的字去重（答案自身的字另外保留，重复字照留）
 let _chars = null;
 function guessChars() {
@@ -323,22 +335,33 @@ function clickSlot(i) {
   renderRound();
 }
 
+// 拼出的名字和答案是不是同一只：字全对，或者只是同字重排（奇麒麟 / 麒麟奇）
+function sameName(got, answer) {
+  const p = guessByName().get(got);
+  return p && [...p.name].sort().join('') === [...answer.name].sort().join('') ? p : null;
+}
+
 // 点「确定」时判定：答对当场记气球、换下一题；答错整排框变红抖一下，填进去的字留着接着改
 function check() {
   if (!_g) return;
   const hard = _g.lv?.id === 'hard';
   let hit;   // 简单/普通档 = 拼出的那只宝可梦；困难档 = 两行是否都对上
   if (hard) {
-    // 困难档按行比对：第一行必须是第一只、第二行必须是第二只，填反或填错都算错
+    // 困难档按行比对：第一行必须是第一只、第二行必须是第二只，填反或填错都算错；
+    // 同字重排的两只认作同一只
     let base = 0;
+    const got = [];
     hit = _g.answers.every((p) => {
       const n = [...p.name].length;
-      const ok = _g.slots.slice(base, base + n).join('') === p.name;
+      const m = sameName(_g.slots.slice(base, base + n).join(''), p);
       base += n;
-      return ok;
+      if (!m) return false;
+      got.push(m);
+      return true;
     });
+    if (hit) _g.answers = got;   // 揭晓显示玩家实际拼出的那只，免得字和头像对不上
   } else {
-    hit = guessPool().find(p => p.name === _g.slots.join('')) || null;   // 拼出的是不是一只宝可梦
+    hit = guessByName().get(_g.slots.join('')) || null;   // 拼出的是不是一只宝可梦
   }
   if (hit) {
     const gain = guessReward(_g.lv || guessLevelOf(), _g.hinted);   // 用过提示奖励减半

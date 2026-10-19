@@ -2096,15 +2096,15 @@
         "pinyinInitials": "CJLQＸLQ",
         "catchRate": 0.384,
         "genus": "鼠宝可梦",
-        "description": "电击有时候会达到十万伏特，不小心碰到的话，连印度象也会昏厥。",
+        "description": "凭借电磁力浮空，将电力集中在拳头后全力使出猛烈的一击。",
         "height": 8,
         "weight": 300,
         "stats": [
             60,
+            135,
+            95,
             90,
-            55,
-            90,
-            80,
+            95,
             110
         ],
         "rarity": 0.6775,
@@ -2135,16 +2135,16 @@
         "pinyinInitials": "CJLQＹLQ",
         "catchRate": 0.384,
         "genus": "鼠宝可梦",
-        "description": "电击有时候会达到十万伏特，不小心碰到的话，连印度象也会昏厥。",
+        "description": "拥有优异的爆发力，通过流遍全身的电流释放增幅至数倍的电击。",
         "height": 8,
         "weight": 300,
         "stats": [
             60,
-            90,
+            100,
             55,
-            90,
+            160,
             80,
-            110
+            130
         ],
         "rarity": 0.6775,
         "legend": false,
@@ -9488,7 +9488,7 @@
         "pinyinInitials": "DWL",
         "catchRate": 0.53,
         "genus": "长躯干宝可梦",
-        "description": "大尾立：它会筑巢以适应自己细长的身体。这个巢穴其他宝可梦无法进入。",
+        "description": "它会筑巢以适应自己细长的身体。这个巢穴其他宝可梦无法进入。",
         "height": 18,
         "weight": 325,
         "stats": [
@@ -29278,11 +29278,11 @@
         "weight": 929,
         "stats": [
             105,
-            140,
-            55,
             30,
-            55,
-            95
+            105,
+            140,
+            105,
+            55
         ],
         "rarity": 0.6407,
         "legend": false,
@@ -31669,7 +31669,7 @@
         "pinyinInitials": "MMMYW",
         "catchRate": 0.24,
         "genus": "电鱼宝可梦",
-        "description": "麻麻鳗鱼王：它们用前肢从海洋中爬出，会袭击岸上的猎物并立即将其拖入海中。",
+        "description": "它们用前肢从海洋中爬出，会袭击岸上的猎物并立即将其拖入海中。",
         "height": 21,
         "weight": 805,
         "stats": [
@@ -31706,7 +31706,7 @@
         "pinyinInitials": "CJMMMYWMMMYW",
         "catchRate": 0.192,
         "genus": "电鱼宝可梦",
-        "description": "麻麻鳗鱼王：它们用前肢从海洋中爬出，会袭击岸上的猎物并立即将其拖入海中。",
+        "description": "它们用前肢从海洋中爬出，会袭击岸上的猎物并立即将其拖入海中。",
         "height": 21,
         "weight": 805,
         "stats": [
@@ -35980,12 +35980,12 @@
         "height": 2,
         "weight": 9,
         "stats": [
-            54,
-            45,
-            47,
-            75,
-            98,
-            52
+            74,
+            65,
+            67,
+            125,
+            128,
+            92
         ],
         "rarity": 0.4747,
         "legend": false,
@@ -37174,15 +37174,15 @@
         "pinyinInitials": "JDJGJXT",
         "catchRate": 0.35,
         "genus": "王剑宝可梦",
-        "description": "处于防御状态时，会用钢之身体和灵力的屏障 来减弱一切的攻击。",
+        "description": "特别强化了攻击的状态。会运用钢铁的重量和强度来击碎对手。",
         "height": 17,
         "weight": 530,
         "stats": [
             60,
+            150,
             50,
-            140,
+            150,
             50,
-            140,
             60
         ],
         "rarity": 0.6811,
@@ -48486,7 +48486,7 @@
         "pinyinInitials": "LJDLG",
         "catchRate": 0.03,
         "genus": "龙玉宝可梦",
-        "description": "有一种未经证实的学术说法 认为它手臂的形状 是古代龙宝可梦的头，",
+        "description": "有一种未经证实的学术说法 认为它手臂的形状 是古代龙宝可梦的头。",
         "height": 21,
         "weight": 2000,
         "stats": [
@@ -50616,7 +50616,7 @@
         "pinyinInitials": "DDHY",
         "catchRate": 0.53,
         "genus": "军舰鸟宝可梦",
-        "description": "大电海燕：大电海燕会鼓起喉囊来增强电力。借助风力，这只宝可梦一天能飞行超过430英里。",
+        "description": "大电海燕会鼓起喉囊来增强电力。借助风力，这只宝可梦一天能飞行超过430英里。",
         "height": 14,
         "weight": 386,
         "stats": [
@@ -50846,7 +50846,7 @@
         "pinyinInitials": "BNSC",
         "catchRate": 0.35,
         "genus": "滚草宝可梦",
-        "description": "怖纳噬草：它会张开头部的枝条包裹猎物。吸收完所需的所有生命能量后，它会将猎物排出并丢弃。",
+        "description": "它会张开头部的枝条包裹猎物。吸收完所需的所有生命能量后，它会将猎物排出并丢弃。",
         "height": 12,
         "weight": 60,
         "stats": [
@@ -51418,7 +51418,7 @@
         "pinyinInitials": "SHDS",
         "catchRate": 0.37,
         "genus": "糯鳗宝可梦",
-        "description": "三海地鼠：它的性情凶暴，与外表截然相反。它会用长长的身体缠绕猎物，然后将猎物拖入巢穴。",
+        "description": "它的性情凶暴，与外表截然相反。它会用长长的身体缠绕猎物，然后将猎物拖入巢穴。",
         "height": 12,
         "weight": 54,
         "stats": [
