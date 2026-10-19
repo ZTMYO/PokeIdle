@@ -11,6 +11,7 @@ import { ITEM_NAMES, EVO_PRICES, eggSprite } from './config.js';
 import { MG_LEVELS, levelOf } from './memory-game.js';
 import { BG_LEVELS, bgLevelOf } from './bird-game.js';
 import { FLOW_LEVELS, flowLevelOf } from './flow-game.js';
+import { GUESS_LEVELS, guessLevelOf, guessReady } from './guess-game.js';
 
 const TIERS = 4;      // 四档：进化道具 / 薄荷·王冠 / 大师球·闪耀护符 / 闪光蛋
 const PER_TIER = 3;   // 每档交 3 只（payload.perTier 可覆盖），四档共 12 只
@@ -202,6 +203,7 @@ const BALLOON_ICON = './items/goods/balloon-cyan.png';
 const COIN_ICONS = {
   'bird-stack': './items/goods/balloon-teal.png',
   'flow-link': './items/goods/balloon-pink.png',
+  'guess-name': './items/goods/balloon-lime.png',
 };
 const coinIcon = (ctx) => COIN_ICONS[ctx && ctx.id] || BALLOON_ICON;
 // 兑换表：价格按"一周活动能换完"配（合计 4250）；每样限一次，所以不用怕刷。
@@ -1045,6 +1047,60 @@ export const ACTIVITIES = {
     // 每秒看一眼：币数/兑换状态/难度有变化才重画
     tick(root, ctx) {
       const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${ctx.slot.level || ''}`;
+      if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
+    },
+  },
+
+  // ---- 猜宝可梦（guess-name）：独立小游戏页，从候选字里拼出宝可梦名字，答对累加气球 ----
+  // 服务器 activity.json 里加一条 { "id": "guess-name", "from": …, "to": … }
+  'guess-name': {
+    name: '猜宝可梦',
+    icon: COIN_ICONS['guess-name'],
+
+    badge(ctx) { return `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`; },
+
+    ready() { return guessReady(); },
+
+    render(ctx) {
+      const solved = Number(ctx.slot.solved) || 0;
+      const lv = guessLevelOf(ctx.slot.level || 'normal');
+      return `
+        <div class="act-card act-rules">从候选字里挑出能拼成名字的字，填满后点「确定」；点格子可以改填错的字。<br>
+          困难档两行，按行首的属性图标把两只名字分行填；点「提示」划掉几个用不到的字，气球减半。</div>
+        <div class="act-own">已答对 <b>${solved}</b> 题</div>
+        <div class="act-levels">${GUESS_LEVELS.map(l => `<span class="act-level${l.id === lv.id ? ' on' : ''}" data-guess-level="${l.id}">${l.name}<em>${l.reward} 气球</em></span>`).join('')}</div>
+        <div class="act-shop">${shopItemsOf(ctx).map(it => shopRowHtml(ctx, it)).join('')}</div>`;
+    },
+
+    mount(root, ctx) {
+      // 点难度直接开局；换档就作废上一题，同档则是接着上次没答完的那题
+      root.querySelectorAll('[data-guess-level]').forEach((el) => el.addEventListener('click', () => {
+        const id = el.dataset.guessLevel;
+        if ((ctx.slot.level || 'normal') !== id) { ctx.slot.level = id; ctx.slot.round = null; }
+        ctx.save();
+        import('./guess-game.js').then(m => m.startGuessGame({
+          coins: coinsOf(ctx),
+          solved: Number(ctx.slot.solved) || 0,
+          level: ctx.slot.level || 'normal',
+          round: ctx.slot.round || null,   // 上次退出去查图鉴时留下的那题
+          // 每答对一题记一次账，中途退出也不丢
+          onFinish: (coins) => {
+            ctx.slot.coins = coinsOf(ctx) + coins;
+            ctx.slot.solved = (Number(ctx.slot.solved) || 0) + 1;
+            ctx.save();
+          },
+          // 换题 / 离开时把当前这题存下来，重进接着答
+          onRound: (round) => { ctx.slot.round = round; ctx.save(); },
+        }));
+      }));
+      root.querySelectorAll('[data-buy]').forEach((btn) => {
+        btn.addEventListener('click', () => buyShopItem(ctx, btn.dataset.buy));
+      });
+    },
+
+    // 每秒看一眼：气球/兑换状态/答对数/难度有变化才重画
+    tick(root, ctx) {
+      const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${Number(ctx.slot.solved) || 0}|${ctx.slot.level || ''}`;
       if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
     },
   },

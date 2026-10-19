@@ -841,6 +841,23 @@
               <div id="mgBoard" class="mg-board"></div>
             </div>
 
+            <!-- 猜宝可梦（限时活动里的小游戏）：从候选字里拼出宝可梦名字，答对累加气球 -->
+            <div id="guessView" class="view-fixed" style="display:none;">
+              <div class="gs-head">
+                <span class="gs-coins"><img src="./items/goods/balloon-lime.png" alt=""><b id="gsCoins">0</b></span>
+                <span id="gsSolved">已答对 0 题</span>
+              </div>
+              <div class="gs-stage">
+                <div class="gs-rows" id="gsSlots"></div>
+              </div>
+              <div class="gs-cands" id="gsCands"></div>
+              <div class="gs-actions">
+                <span class="catch-confirm-btn" id="gsHint">提示</span>
+                <span class="catch-confirm-btn" id="gsOk">确定</span>
+                <span class="catch-confirm-btn" id="gsSkip">放弃</span>
+              </div>
+            </div>
+
             <!-- 鸟了个鸟（限时活动里的小游戏）：叠成一堆的鸟，点进槽位凑三只抵消 -->
             <div id="birdView" class="view-fixed" style="display:none;">
               <div class="bg-head">

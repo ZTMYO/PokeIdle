@@ -2352,6 +2352,109 @@ html.mobile-app #quitHide { display: none !important; }
 .voyage-pc.got .voyage-cover { opacity: .8; cursor: pointer; }
 .voyage-pc.opened .voyage-cover { display: none; }
 
+/* === 猜宝可梦：独立玩法页（谜面格 + 3 行 × 6 字候选区）=== */
+#guessView { position: relative; padding: 6px 8px 4px; }
+.gs-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 1px 2px 3px; font-size: 9.5px; color: var(--ui-color); opacity: .9;
+}
+.gs-coins { display: flex; align-items: center; gap: 3px; font-weight: 700; }
+.gs-coins img { width: 12px; height: 12px; image-rendering: pixelated; }
+.gs-stage {
+  flex: none;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 5px; margin-bottom: 5px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.3); border-radius: 6px;
+  background: var(--item-bg);
+}
+.gs-rows { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.gs-row { display: flex; align-items: center; gap: 4px; }
+/* 行首图标区：困难档两行各一组属性图标（双属性两个并排）。宽度按双属性定死，
+   单属性的行也占满（图标靠右贴格子），两行格子的左边缘就对齐了 */
+.gs-type-slot { flex: none; width: 33px; display: flex; align-items: center; justify-content: flex-end; gap: 3px; }
+/* 属性图标：类型色圆底 + 属性符号（困难档当线索） */
+.gs-type {
+  flex: none; width: 15px; height: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.gs-type .b-move-type-icon { width: 10px; height: 10px; }
+.gs-slot {
+  width: 30px; height: 35px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; line-height: 1;
+  border: 1px dashed rgba(var(--ui-color-rgb), 0.4); border-radius: 4px;
+  background: var(--item-bg); color: var(--ui-color);
+  transition: width 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+}
+.gs-slot.filled { border-style: solid; border-color: var(--ui-color); cursor: pointer; }
+/* 光标格：边框加深，表示下一个字填这里 */
+.gs-slot.cur { border-color: var(--ui-color); }
+/* 答对揭晓：框去掉、格子收成字宽，名字连起来像正常文字；高度不动，容器不会塌 */
+.gs-rows.ok .gs-slot { width: 1em; border-color: transparent; background: none; }
+.gs-rows.ok .gs-row { gap: 0; animation: gsPop 0.3s ease-out; }
+.gs-rows.ok .gs-type-slot { width: auto; }
+/* 答对时行首的宝可梦头像（图标原图非正方形，contain 防拉伸） */
+.gs-poke { width: 18px; height: 18px; object-fit: contain; image-rendering: pixelated; }
+@keyframes gsPop {
+  from { transform: scale(1.12); }
+  to { transform: scale(1); }
+}
+/* 答错：整排虚线框变红 */
+.gs-slot.bad { border-style: dashed; border-color: #e74c3c; }
+.gs-slot.shake { animation: gsShake 0.4s; }
+@keyframes gsShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+/* 答对彩带：从左右下角抛上去再落下 */
+.gs-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 6; }
+.gs-confetti i {
+  position: absolute; bottom: 0; width: 5px; height: 9px; border-radius: 1px;
+  will-change: transform, opacity;
+}
+.gs-confetti i:nth-child(6n+1) { background: #f2c53d; }
+.gs-confetti i:nth-child(6n+2) { background: #e8574b; }
+.gs-confetti i:nth-child(6n+3) { background: #57c46b; }
+.gs-confetti i:nth-child(6n+4) { background: #4aa3e0; }
+.gs-confetti i:nth-child(6n+5) { background: #b06fd8; }
+.gs-confetti i:nth-child(6n+6) { background: #f7f3e6; }
+@keyframes gsConfetti {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  55% { transform: translate(calc(var(--dx) * 0.85), calc(var(--dy) * 0.92)) rotate(calc(var(--rot) * 0.55)); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+}
+.gs-cands {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 4px;
+}
+.gs-cand {
+  min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.3); border-radius: 5px;
+  background: var(--item-bg); color: var(--ui-color); cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
+}
+@media (hover: hover) {
+  .gs-cand:hover { background: var(--item-hover-bg); }
+}
+.gs-cand.used { opacity: .28; cursor: default; }
+/* 提示划掉的字 */
+.gs-cand.banned { opacity: .28; text-decoration: line-through; cursor: default; }
+@media (hover: hover) {
+  .gs-cand.used:hover { background: var(--item-bg); }
+  .gs-cand.banned:hover { background: var(--item-bg); }
+}
+.gs-actions { flex: none; display: flex; justify-content: center; gap: 8px; padding: 4px 0 0; }
+.gs-actions .catch-confirm-btn.off { opacity: .5; cursor: default; }
+@media (hover: hover) {
+  .gs-actions .catch-confirm-btn.off:hover { background: none; }
+}
+
 /* === 宝可翻牌牌桌：整块铺满容器（行列都按容器分，不滚动）=== */
 .mg-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;

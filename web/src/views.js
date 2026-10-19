@@ -2086,7 +2086,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '遭遇',
-    html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只当前地区的野生宝可梦。</p>`
+    html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只<b>当前地区</b>的野生宝可梦。</p>`
       + `<p>野生宝可梦的等级在<b> ${1}~${WILD_LEVEL_MAX} 级</b>之间。</p>`
       + `<p>每个地区每天还有限定的<b>神兽</b>可以遭遇：遇敌时约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE)}</b> 的概率直接遇到，甜甜蜜 / 闪耀护符生效期间约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE_BUFF)}</b>，等级固定 <b>${LEGEND_LEVEL}级</b>。</p>`
       + `<p>保底 <b>${LEGEND_PITY}</b> 次遭遇出神兽。</p>`

@@ -53,7 +53,7 @@ export function showNowPlaying(title, artist) {
 
 // ---------- 视图切换 ----------
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
-const VIEW_IDS = ['idleView','introView','phoneView','musicView','pokedexView','encounterView','hatchView','hatchAllView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','casinoPenguinView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','itemBoxView','followerView','followerDexView','dispatchView','evoView','activityView','memoryView','birdView','flowView','eventsView'];
+const VIEW_IDS = ['idleView','introView','phoneView','musicView','pokedexView','encounterView','hatchView','hatchAllView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','casinoPenguinView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','itemBoxView','followerView','followerDexView','dispatchView','evoView','activityView','memoryView','guessView','birdView','flowView','eventsView'];
 const CASINO_VIEWS = new Set(['casinoView', 'casinoGameView', 'casinoPenguinView', 'mahjongView', 'gachaView', 'gachaHistoryView', 'casinoHistoryView']);
 // 舞台类视图 = 游戏画面（挂机/遇敌），其余都是下屏的应用类
 const STAGE_VIEWS = new Set(['idleView', 'encounterView']);
@@ -83,7 +83,7 @@ export function closeAppArea() {
 }
 
 // 当前页标记与入口按钮高亮：showView 与「下半屏回手机首页」共用同一套记账
-const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','hatchAllView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','albumView','itemBoxView','musicView','activityView','memoryView','birdView','flowView','eventsView']);
+const PHONE_VIEWS = new Set(['phoneView','gpsView','pokedexView','incubatorView','hatchView','hatchAllView','berryView','mixerView','dataView','achievementView','systemLogView','tutorialView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','albumView','itemBoxView','musicView','activityView','memoryView','guessView','birdView','flowView','eventsView']);
 export function syncViewChrome(id) {
   document.documentElement.dataset.view = id;
   _currentView = id;

@@ -257,6 +257,8 @@ function goBack() {
   if ($('birdView')?.style.display === 'flex') { import('./bird-game.js').then(m => m.leaveBirdGame()); return; }
   // 宝可连线：返回 = 本局作废（不给气球）并回活动页
   if ($('flowView')?.style.display === 'flex') { import('./flow-game.js').then(m => m.leaveFlowGame()); return; }
+  // 猜宝可梦：返回 = 回活动页（气球在答对时就记过了，不用结算）
+  if ($('guessView')?.style.display === 'flex') { import('./guess-game.js').then(m => m.leaveGuessGame()); return; }
   const target = popNav();
   // 手游双屏：弹回舞台页时下半屏若还停在 app 页面，退回手机首页
   if (isDualLayout() && isStageView(target) && getAppChannelView() !== 'phoneView') {
