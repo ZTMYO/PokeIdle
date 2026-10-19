@@ -42583,16 +42583,16 @@
     },
     {
         "index": "0778",
-        "name": "谜拟Ｑ",
+        "name": "谜拟丘",
         "name_en": "Mimikyu",
-        "image": "pokemon-data/images/0778-谜拟Ｑ.gif",
-        "icon": "pokemon-data/icon/0778-谜拟Ｑ.png",
+        "image": "pokemon-data/images/0778-谜拟丘-化形.gif",
+        "icon": "pokemon-data/icon/0778-谜拟丘-化形.png",
         "types": [
             "幽灵",
             "妖精"
         ],
-        "pinyin": "MiNiＱ",
-        "pinyinInitials": "MNＱ",
+        "pinyin": "MiNiQiu",
+        "pinyinInitials": "MNQ",
         "catchRate": 0.35,
         "genus": "画皮宝可梦",
         "description": "正身不明。 某位学者看过破布里面后，因为太过恐惧而被惊吓致死。",
@@ -42617,7 +42617,47 @@
         "eggGroup": [
             "不定形群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "谜拟丘-化形"
+    },
+    {
+        "index": "0778-1",
+        "name": "谜拟丘",
+        "name_en": "Mimikyu",
+        "image": "pokemon-data/images/0778-1-谜拟丘-现形.gif",
+        "icon": "pokemon-data/icon/0778-1-谜拟丘-现形.png",
+        "types": [
+            "幽灵",
+            "妖精"
+        ],
+        "pinyin": "MiNiQiu",
+        "pinyinInitials": "MNQ",
+        "catchRate": 0.35,
+        "genus": "画皮宝可梦",
+        "description": "正身不明。 某位学者看过破布里面后，因为太过恐惧而被惊吓致死。",
+        "height": 2,
+        "weight": 7,
+        "stats": [
+            55,
+            90,
+            80,
+            50,
+            105,
+            96
+        ],
+        "rarity": 0.6578,
+        "legend": false,
+        "region": "阿罗拉",
+        "foods": [
+            3,
+            10
+        ],
+        "genderRate": 4,
+        "eggGroup": [
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "谜拟丘-现形"
     },
     {
         "index": "0779",

@@ -148,7 +148,8 @@ writeFileSync(OUT_PNG, png);
 
 const icons = {};
 for (const it of placed.sort((a, b) => a.key.localeCompare(b.key))) icons[it.key] = [it.x, it.y, it.img.w, it.img.h];
-writeFileSync(OUT_JSON, `${JSON.stringify({ w: width, h: height, count: placed.length, icons }, null, 1)}\n`);
+// v 为图集内容的指纹，页面据此给 png 加查询串，避免旧图配新坐标
+writeFileSync(OUT_JSON, `${JSON.stringify({ w: width, h: height, count: placed.length, v: crc32(png).toString(16), icons }, null, 1)}\n`);
 
 // ---------- 自检：重新解码写出的图集，逐像素与源文件比对 ----------
 const back = decodePng(readFileSync(OUT_PNG));

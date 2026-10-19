@@ -196,6 +196,8 @@ function restoreRound(r) {
   _g.used = r.used.slice();
   _g.hinted = !!r.hinted;
   _g.banned = Array.isArray(r.banned) ? r.banned.filter((i) => Number.isInteger(i) && i >= 0 && i < GUESS_CANDS) : [];
+  // 划掉的字按"整字"对齐：老存档可能只划了同字的一部分，框里被划掉的同字也一并收回
+  banChars(new Set(_g.banned.map((i) => _g.cands[i])));
   const first = _g.slots.indexOf('');   // 光标落在最左边的空格上
   _g.cursor = first >= 0 ? first : _g.slots.length - 1;
   _g.gaveUp = false;
@@ -386,13 +388,29 @@ function check() {
   }, 900);
 }
 
+// 提示划掉的字：整字划掉 —— 候选区里同一个字的所有格子一起划，框里已经放着的同字也一并收回。
+// 只划其中一格会出现"同一个字一半划掉一半还能点"，手动退字时划掉的那格还会复活成可用
+function banChars(kill) {
+  if (!_g || !kill.size) return;
+  _g.banned = _g.cands.map((c, i) => i).filter(i => kill.has(_g.cands[i]));
+  _g.slots.forEach((c, i) => {
+    if (!c || !kill.has(c)) return;
+    if (_g.src[i] >= 0) _g.used[_g.src[i]] = false;
+    _g.src[i] = -1;
+    _g.slots[i] = '';
+  });
+}
+
 // 提示：从候选区划掉几个用不到的字（每题一次，用过奖励减半）
 function hint() {
   if (!_g || _g.state !== 'play' || _g.hinted) return;
   const need = new Set(_g.answers.flatMap(p => [...p.name]));   // 答案要用到的字一个都不能划
-  const spare = _g.cands.map((c, i) => i).filter(i => !need.has(_g.cands[i]) && !_g.used[i]);
+  // 按字去重后再挑：同一个字在候选区可能有多个，划掉的是字不是格子
+  const spare = [...new Set(_g.cands.filter(c => !need.has(c)))];
   if (!spare.length) return;
-  _g.banned = shuffled(spare).slice(0, GUESS_HINT_BAN);
+  banChars(new Set(shuffled(spare).slice(0, GUESS_HINT_BAN)));
+  // 光标别停在已填的格子上：提示刚清出来的空格才是接下来要填的
+  if (_g.slots[cursorAt()]) { const e = _g.slots.indexOf(''); if (e >= 0) _g.cursor = e; }
   _g.hinted = true;
   renderRound();
   saveRound();   // 划掉的字当场落盘，退出重进还在

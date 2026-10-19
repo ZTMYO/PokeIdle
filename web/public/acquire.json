@@ -1,7 +1,7 @@
 {
     "meta": {
         "source": "generate-acquire.mjs（evolution-study）从 pokedex.json + evolution.json 推导，规则与游戏代码一致",
-        "dexTotal": 1429,
+        "dexTotal": 1430,
         "note": "methods 是数组：一个形态可能有多种获取方式；编号含形态后缀（如 0006-1）"
     },
     "sources": [
@@ -29868,7 +29868,7 @@
         },
         {
             "index": "0778",
-            "name": "谜拟Ｑ",
+            "name": "谜拟丘-化形",
             "region": "阿罗拉",
             "legend": false,
             "methods": [
@@ -29893,6 +29893,37 @@
                     "type": "breed",
                     "parents": [
                         "0778"
+                    ]
+                }
+            ]
+        },
+        {
+            "index": "0778-1",
+            "name": "谜拟丘-现形",
+            "region": "阿罗拉",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "wild",
+                    "region": "阿罗拉"
+                },
+                {
+                    "type": "tree",
+                    "region": "阿罗拉"
+                },
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "breed",
+                    "parents": [
+                        "0778-1"
                     ]
                 }
             ]

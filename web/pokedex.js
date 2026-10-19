@@ -231,7 +231,7 @@ function berryIconHtml(i, size = 18) {
 }
 
 // 宝可梦图标：雪碧图 + 位置表（tools/build-icon-sprite.mjs 生成）。元素尺寸 = 图标显示尺寸，外框只负责居中
-const ICON_SPRITE = './pokeicons.png';
+let ICON_SPRITE = './pokeicons.png';
 const ICON_BOX = 24; // 行内方框边长（与游戏里仓库列表的 24px 一致）
 let ICONS = null;
 function iconSpanHtml(index, box = ICON_BOX) {
@@ -368,7 +368,7 @@ let ACQ = null, EVO = null, ACQ_LOADING = null;
 function loadAcqData() {
   if (ACQ && EVO) return Promise.resolve();
   if (!ACQ_LOADING) {
-    ACQ_LOADING = Promise.all([fetch('./acquire.json'), fetch('./evolution.json')])
+    ACQ_LOADING = Promise.all([fetch('./acquire.json', { cache: 'no-cache' }), fetch('./evolution.json', { cache: 'no-cache' })])
       .then(([a, e]) => {
         if (!a.ok || !e.ok) throw new Error(`HTTP ${a.status}/${e.status}`);
         return Promise.all([a.json(), e.json()]);
@@ -650,9 +650,12 @@ if (pkModal) {
 async function loadDex() {
   try {
     // 图标位置表跟图鉴一起取：行 HTML 有缓存，必须先到齐再渲染
-    const [res, ico] = await Promise.all([fetch('./pokedex.json'), fetch('./pokeicons.json').catch(() => null)]);
+    const [res, ico] = await Promise.all([fetch('./pokedex.json', { cache: 'no-cache' }), fetch('./pokeicons.json', { cache: 'no-cache' }).catch(() => null)]);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    if (ico && ico.ok) ICONS = await ico.json();
+    if (ico && ico.ok) {
+      ICONS = await ico.json();
+      if (ICONS.v) ICON_SPRITE = `./pokeicons.png?v=${ICONS.v}`;
+    }
     DEX = orderDex(await res.json());
     DEX_BY_IDX = new Map(DEX.map((p) => [String(p.index), p]));
     sortDex();

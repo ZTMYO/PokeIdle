@@ -810,7 +810,7 @@ const segLabel = (s, now) => `${hhmm(s.from)}~${hhmm(s.to)}　`
   + untilText(s.from, now ?? evNow());
 
 /* ---------- 大量出没的宝可梦：与游戏内同一套算法（该地区野池 + 种子的取模落点）---------- */
-const ICON_SPRITE = './pokeicons.png';
+let ICON_SPRITE = './pokeicons.png';
 let DEX = null, DEX_ICONS = null, PFORM = null, WILD_OUT = null, DEX_LOAD = null;
 const POOL_CACHE = new Map();
 
@@ -818,11 +818,12 @@ const POOL_CACHE = new Map();
 function loadDex() {
   if (DEX_LOAD) return DEX_LOAD;
   DEX_LOAD = Promise.all([
-    fetch('./pokedex.json').then(r => r.json()),
-    fetch('./pokeicons.json').then(r => r.json()).catch(() => null),
-    fetch('./evolution.json').then(r => r.json()),
+    fetch('./pokedex.json', { cache: 'no-cache' }).then(r => r.json()),
+    fetch('./pokeicons.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => null),
+    fetch('./evolution.json', { cache: 'no-cache' }).then(r => r.json()),
   ]).then(([dex, icons, evo]) => {
     DEX = dex; DEX_ICONS = icons;
+    if (icons && icons.v) ICON_SPRITE = `./pokeicons.png?v=${icons.v}`;
     // 与游戏内 state.js 同一套排除：强化形态按进化表的 stones 名单收口
     PFORM = new Set(Object.keys(evo.stones || {}));
     // 路边池排除"在 edges 里当目标、自己又没有出边"的进化链终点（wildKeep 里的例外照旧可遇）

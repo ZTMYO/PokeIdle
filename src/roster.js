@@ -300,6 +300,27 @@ function syncBoxRows() {
 }
 window.addEventListener('resize', () => { if (_boxView) syncBoxRows(); });
 
+// 当前池的排序结果：列表渲染与详情页「上一只 / 下一只」共用同一顺序
+function sortPool(pool) {
+  return [...pool].sort((a, b) => {
+    let va, vb;
+    if (_sortBy === 'index') {
+      va = a.species; vb = b.species;
+    } else if (_sortBy === 'name') {
+      va = getPokemonByIndex(String(a.species))?.name || '';
+      vb = getPokemonByIndex(String(b.species))?.name || '';
+    } else if (_sortBy === 'iv') {
+      va = ivSum(a); vb = ivSum(b);
+    } else if (_sortBy === 'level') {
+      va = a.level || 1; vb = b.level || 1;
+    } else {
+      va = a.obtainedAt; vb = b.obtainedAt;
+    }
+    if (typeof va === 'string') return va.localeCompare(vb) * _sortDir;
+    return (va - vb) * _sortDir;
+  });
+}
+
 function renderList() {
   const list = $('rosterList');
   if (!list) return;
@@ -349,23 +370,7 @@ function renderList() {
     }
   }
   // 排序
-  const sorted = [...pool].sort((a, b) => {
-    let va, vb;
-    if (_sortBy === 'index') {
-      va = a.species; vb = b.species;
-    } else if (_sortBy === 'name') {
-      va = getPokemonByIndex(String(a.species))?.name || '';
-      vb = getPokemonByIndex(String(b.species))?.name || '';
-    } else if (_sortBy === 'iv') {
-      va = ivSum(a); vb = ivSum(b);
-    } else if (_sortBy === 'level') {
-      va = a.level || 1; vb = b.level || 1;
-    } else {
-      va = a.obtainedAt; vb = b.obtainedAt;
-    }
-    if (typeof va === 'string') return va.localeCompare(vb) * _sortDir;
-    return (va - vb) * _sortDir;
-  });
+  const sorted = sortPool(pool);
   // 渲染行（复用图鉴 .pokedex-entry 样式）：分片插入 + 分片懒加载图标，
   // 避免几百条一次性 innerHTML 与全量图片请求长时间阻塞主线程
   _renderSeq++;
@@ -416,6 +421,7 @@ function renderList() {
       return;
     }
     _detailFromView = null;
+    _detailReturnFn = null; // 从仓库列表点进来的详情就是仓库自己的层级，清掉来源列表的返回回调
     _detailEvoAllowed = true; // 从宝可梦列表点行进来：允许改性格和进化
     showRosterDetail(row.dataset.rid);
   };
@@ -1594,15 +1600,86 @@ function shareCardModel(p, poke) {
   };
 }
 
+// 详情页切上一只 / 下一只：与列表同一筛选池、同一排序顺序取相邻个体，到头 / 到尾不动。
+// 悬赏提交、交换等「挑一只来用」的详情，背后是来源列表而非仓库，顺序对不上，不参与切换
+function canNavRosterDetail() {
+  return _detailId != null && _detailReturnFn == null
+    && getCurrentView() === 'rosterView' && $('rosterView')?.style.display !== 'none';
+}
+// 上浮面板 / 确认栏开着时不响应切只（薄荷、王冠、放生确认等），免得跟面板操作打架
+function detailPanelOpen() {
+  return !!(document.getElementById('mintPanel') || document.getElementById('crownPanel') || document.getElementById('confirmBar'));
+}
+function navRosterDetail(dir) {
+  if (!canNavRosterDetail()) return false;
+  const sorted = sortPool(currentFilterPool());
+  const i = sorted.findIndex((p) => p.id === _detailId);
+  if (i < 0) return false;
+  const j = i + dir;
+  if (j < 0 || j >= sorted.length) return false;
+  showRosterDetail(sorted[j].id);
+  return true;
+}
+
+// 手机：详情页左右滑动切上下一只（电脑端走方向键，鼠标拖拽不参与）
+// 用 touch 事件：详情内容纵向可滚动，指针事件会被浏览器判定成滚动后发 pointercancel，收不到收尾
+let _detailSwipeBound = false;
+let _swipeNavAt = 0; // 刚滑动切过只：吞掉紧随其后的一次 click，避免顺带触发大图放大等
+function bindDetailSwipe() {
+  const list = $('rosterList');
+  if (!list || _detailSwipeBound) return;
+  _detailSwipeBound = true;
+  let sx = 0, sy = 0, st = 0, tracking = false;
+  list.addEventListener('touchstart', (e) => {
+    tracking = false;
+    if (e.touches.length !== 1) return; // 双指缩放不参与
+    if (!canNavRosterDetail()) return;
+    if (list.classList.contains('roster-zoom')) return; // 大图放大态：这一下是收起
+    if (e.target.closest('input, textarea, button')) return; // 从输入框 / 按钮起手不当滑动
+    const t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; st = Date.now(); tracking = true;
+  }, { passive: true });
+  list.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    if (detailPanelOpen()) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Date.now() - st > 800) return; // 长按不是滑动
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // 纵向滚动 / 位移太小
+    if (navRosterDetail(dx < 0 ? 1 : -1)) _swipeNavAt = Date.now();
+  }, { passive: true });
+  list.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+  // 滑动收尾的那一下 click 不进详情内容，否则滑到大图上会顺手把图放大
+  list.addEventListener('click', (e) => {
+    if (Date.now() - _swipeNavAt < 400) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+}
+
+// 电脑：详情页左右方向键切上下一只
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (detailPanelOpen()) return;
+  if (navRosterDetail(e.key === 'ArrowRight' ? 1 : -1)) e.preventDefault();
+});
+
 function showRosterDetail(id) {
   _renderSeq++; // 详情页直接覆盖列表内容：作废未完成的分片渲染，防止 rAF 分片把列表行追加到详情下方
   const p = (gameData.roster || []).find(r => r.id === id);
   if (!p) return;
+  const fromList = _detailId == null; // 只有首次从列表进来才记位置，详情内切上下一只不能覆盖掉
   _detailId = id;
   const rootEl = $('rosterView');
   if (!rootEl) return;
   const listEl = $('rosterList');
-  if (listEl) { listEl.dataset.savedScroll = listEl.scrollTop; listEl.scrollTop = 0; } // 记住列表位置，详情从顶部开始
+  if (listEl) {
+    if (fromList) listEl.dataset.savedScroll = listEl.scrollTop; // 记住列表位置
+    listEl.scrollTop = 0; // 详情从顶部开始
+  }
   setDetailZoom(false);
   // 详情内容直接铺在 #rosterList 里，网格类必须摘掉，否则详情被排成格子
   rootEl.classList.remove('roster-box');
@@ -2587,6 +2664,7 @@ export function showRosterView(noNav, opts) {
     setupRegionFilter();
     setupHeaderSort();
     setupSelectAll();
+    bindDetailSwipe();
     _uiBound = true;
   }
   _detailId = null;
@@ -2638,6 +2716,7 @@ function setupSelectAll() {
 // fromView：从该页面离开后，详情返回列表时再返回优先回到这里
 export function showRosterDetailById(id, fromView) {
   _detailFromView = fromView || 'idleView';
+  _detailReturnFn = null; // 背后的列表就是仓库，清掉来源列表的返回回调，让详情支持切上下一只
   _detailEvoAllowed = false; // 捕获/孵蛋/交换后的“查看详情”不算正常途径
   showRosterView();    // 先渲染并显示仓库列表
   showRosterDetail(id); // 再进入该个体的详情

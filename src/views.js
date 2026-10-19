@@ -2001,10 +2001,15 @@ export function toggleGender(g) {
 
 // 渲染数据表：表头数组 + 行数组（每行与表头同列数），带边框表格（数据驱动）
 // widths 可选：每列宽度数组（数字=px，字符串按原样，如 '28%'/'auto'），缺省列按 fixed 布局平分剩余
+// 单元格可传 { html, rowspan } 做纵向合并；传 null 表示该格已被上方合并覆盖，不输出
 function tutorialTable(rows, headers, widths) {
   const head = headers.map((h, i) =>
     `<th${widths ? ` style="width:${typeof widths[i] === 'number' ? widths[i] + 'px' : widths[i]}"` : ''}>${h}</th>`).join('');
-  const body = rows.map(row => `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+  const body = rows.map(row => `<tr>${row.map(c => {
+    if (c === null) return '';
+    if (typeof c === 'object') return `<td${c.rowspan > 1 ? ` rowspan="${c.rowspan}"` : ''}>${c.html}</td>`;
+    return `<td>${c}</td>`;
+  }).join('')}</tr>`).join('');
   return `<table class="tutorial-table"><tr>${head}</tr>${body}</table>`;
 }
 
@@ -2014,9 +2019,12 @@ const FOLLOWER_TUTORIAL_ROWS = [
   ['飞行、妖精', 'bike'], ['水', 'fishing'], ['草、虫', 'berry'], ['地面、岩石、钢', 'itemdrop'],
   ['格斗、恶', 'battleexp'], ['一般、幽灵', 'catch'], ['电、冰', 'flee'], ['龙、火', 'hatch'],
   ['毒、超能', 'trade'],
-].map(([types, g]) => {
+].flatMap(([types, g]) => {
   const e = FOLLOWER_EFFECTS[g];
-  return [types, `主：[${e.tag}] ${e.main}<br>副：[${e.subTag}] ${e.sub(FOLLOWER_SUB_RANGE)}`];
+  const gain = `主：[${e.tag}] ${e.main}<br>副：[${e.subTag}] ${e.sub(FOLLOWER_SUB_RANGE)}`;
+  // 属性一行一个、增益列纵向合并：避免「甲、乙」连排后换行参差
+  const list = types.split('、');
+  return list.map((t, i) => [t, i === 0 ? { html: gain, rowspan: list.length } : null]);
 });
 
 // 道具掉落：按稀有度从低到高（常见→稀有）排序，配置变化自动同步（单位秒，1/X 秒掉落一个）
@@ -2426,7 +2434,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>稀有度概率：N <b>${Math.round(FOLLOWER_TIER_CHANCE.N * 100)}%</b> / R <b>${Math.round(FOLLOWER_TIER_CHANCE.R * 100)}%</b> / SR <b>${Math.round(FOLLOWER_TIER_CHANCE.SR * 100)}%</b> / UR <b>${Math.round(FOLLOWER_TIER_CHANCE.UR * 100)}%</b>。稀有度只决定<b>副增益强度</b>，不影响跟随时长。</p>`
       + `<p>跟随时长只看<b>星级</b>——★1~★5 依次 <b>${FOLLOWER_STAR_MIN.join(' / ')}</b> 分钟。</p>`
       + `<p>随从按<b>属性</b>归入 <b>9</b> 大类：每类有一条<b>幅度固定</b>的主增益，外加一条按稀有度递增（<b>${FOLLOWER_SUB_RANGE}%</b>）的副增益；双属性跨类时两类<b>同时生效</b>：</p>`
-      + tutorialTable(FOLLOWER_TUTORIAL_ROWS, ['属性', '增益'], [46, 'auto'])
+      + tutorialTable(FOLLOWER_TUTORIAL_ROWS, ['属性', '增益'], [32, 'auto'])
   },
   {
     title: '派遣',

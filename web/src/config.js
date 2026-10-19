@@ -66,7 +66,7 @@ export const CANDY_EXCHANGE = {
 export const EVO_PRICES = {
   '火之石': 400, '水之石': 400, '雷之石': 400, '叶之石': 400, '冰之石': 400,
   '月之石': 400, '日之石': 400, '光之石': 400, '暗之石': 400, '觉醒之石': 400,
-  '心之石': 500, '联系绳': 900, '极巨汤': 1200, '奇异石': 1600,
+  '心之石': 500, '联系绳': 900, '极巨汤': 1200, '奇异石': 1500,
   'silver-crown': 500, 'golden-crown': 1000,
 };
 export const EVO_EXCLUSIVE_PRICE = 2500; // 形态专属道具的统一基准价
@@ -76,7 +76,7 @@ export const EVO_SHOP_DAILY = 5;
 export const EVO_SHOP_WEIGHTS = {
   '火之石': 1.0, '水之石': 1.0, '雷之石': 1.0, '叶之石': 1.0, '冰之石': 1.0,
   '月之石': 1.0, '日之石': 1.0, '光之石': 1.0, '暗之石': 1.0, '觉醒之石': 0.9,
-  '心之石': 0.9, '联系绳': 0.8, '极巨汤': 1.0, '奇异石': 0.7,
+  '心之石': 0.9, '联系绳': 0.8, '极巨汤': 1.0, '奇异石': 0.8,
 };
 export const EVO_SHOP_EXCLUSIVE_SLOTS = 1;     // 保底格：一定从专属道具里出
 export const EVO_SHOP_EXCLUSIVE_WEIGHT = 5.0;  // 其余格子抽到专属道具的整类权重
@@ -552,11 +552,11 @@ export const FOLLOWER_EFFECTS = {
   bike:      { tag: '骑行加速', subTag: '更多车道', main: `骑行速度提升 ${fPct(FOLLOWER_MAIN.bikeSpeedBonus)}`, sub: (p) => `自行车道路段的出现率提升 ${p}%` },
   fishing:   { tag: '钓鱼增产', subTag: '更多钓点', main: '钓到的道具数量提升 1 件', sub: (p) => `钓鱼点的出现率提升 ${p}%` },
   berry:     { tag: '树果增产', subTag: '树果生长', main: `收获多结一颗的概率提升 ${fPct(FOLLOWER_MAIN.berryExtraChance)}`, sub: (p) => `树果的成熟速度提升 ${p}%` },
-  itemdrop:  { tag: '额外掉落', subTag: '掉落概率', main: `挂机额外掉落一件的概率提升 ${fPct(FOLLOWER_MAIN.itemExtraChance)}`, sub: (p) => `道具的掉落率提升 ${p}%` },
+  itemdrop:  { tag: '额外拾取', subTag: '拾取加速', main: `挂机时多拾取一件道具的概率提升 ${fPct(FOLLOWER_MAIN.itemExtraChance)}`, sub: (p) => `挂机拾取道具的速度提升 ${p}%` },
   battleexp: { tag: '糖果保底', subTag: '战斗经验', main: '胜利必定掉落经验糖果', sub: (p) => `对战的胜利经验提升 ${p}%` },
   catch:     { tag: '扭曲补缺', subTag: '扭曲变体', main: `时空扭曲里未解锁宝可梦的出现权重提升 ${Math.round((FOLLOWER_MAIN.twistDexMult - 1) * 100)}%`, sub: (p) => `扭曲个体的变体率提升 ${p}%` },
   flee:      { tag: '闪光出没', subTag: '不易逃跑', main: `大量出没的闪光率提升 ${Math.round((FOLLOWER_MAIN.massShinyMult - 1) * 100)}%（1/200 → 1/100）`, sub: (p) => `宝可梦的逃跑率降低 ${p}%` },
-  hatch:     { tag: '神秘蛋', subTag: '孵蛋加速', main: `神秘蛋的掉落率提升 ${fPct(FOLLOWER_MAIN.mysteryEggBonus)}`, sub: (p) => `孵蛋的里程需求降低 ${p}%` },
+  hatch:     { tag: '神秘蛋', subTag: '孵蛋加速', main: `挂机拾取到神秘蛋的概率提升 ${fPct(FOLLOWER_MAIN.mysteryEggBonus)}`, sub: (p) => `孵蛋的里程需求降低 ${p}%` },
   trade:     { tag: '交换名额', subTag: '交换闪光', main: '交换广场将多一个 NPC', sub: (p) => `交换的闪光率提升 ${p}%` },
 };
 // 宝可梦主属性 → 随从类别（9 类）
