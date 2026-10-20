@@ -1418,42 +1418,42 @@
     }
   },
   {
-    "name": "天桥",
-    "type": "prob",
-    "editor": {
-      "w": 10,
-      "h": 3
-    },
-    "game": {
-      "width": 10,
-      "height": 3,
-      "place": "在自行车道上",
-      "bike": true,
-      "rows": [
-        [
-          {
-            "col": 66,
-            "row": 30,
-            "weight": 100
-          }
-        ],
-        [
-          {
-            "col": 68,
-            "row": 26,
-            "weight": 100
-          }
-        ],
-        [
-          {
-            "col": 70,
-            "row": 32,
-            "weight": 100
-          }
-        ]
-      ]
-    }
+  "name": "天桥",
+  "type": "prob",
+  "editor": {
+    "w": 10,
+    "h": 3
   },
+  "game": {
+    "width": 10,
+    "height": 3,
+    "place": "在自行车道上",
+    "rows": [
+      [
+        {
+          "col": 66,
+          "row": 30,
+          "weight": 100
+        }
+      ],
+      [
+        {
+          "col": 70,
+          "row": 31,
+          "weight": 100
+        }
+      ],
+      [
+        {
+          "col": 70,
+          "row": 32,
+          "weight": 100
+        }
+      ]
+    ],
+    "bike": true
+  }
+},
   {
     "name": "天桥2",
     "type": "prob",

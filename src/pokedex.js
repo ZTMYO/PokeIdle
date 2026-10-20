@@ -637,8 +637,9 @@ export function setupStatusDropdown() {
                  data-status="${k}" data-legend="${lk}" data-shiny="${shk}">${cname}</div>`).join('')}
           </div>
         </div>`;
-      return `<div class="roster-filter-item" data-status="${k}" data-legend="all" data-shiny="all">
-        <span class="roster-filter-src${_pokedexStatus === k && _pokedexLegend === 'all' && _pokedexShiny === 'all' ? ' active' : ''}">${name}</span>
+      return `<div class="roster-filter-item">
+        <span class="roster-filter-src${_pokedexStatus === k && _pokedexLegend === 'all' && _pokedexShiny === 'all' ? ' active' : ''}"
+              data-status="${k}">${name}</span>
         <span class="roster-filter-arrow">▸</span>
         <div class="roster-sub-menu">${comboHtml}</div>
       </div>`;
@@ -664,7 +665,27 @@ export function setupStatusDropdown() {
   dd.addEventListener('click', (e) => {
     e.stopPropagation();
     const el = e.target.closest('[data-status][data-legend]');
-    if (el) pickItem(el);
+    if (el) { pickItem(el); return; }
+    // 触摸端没有 hover：点这一行（箭头 / 行内空白）就地展开收起子菜单，同一层只留一个展开
+    const row = e.target.closest('.roster-filter-item');
+    if (row && !e.target.closest('.roster-filter-src') && !e.target.closest('.roster-filter-leaf')) {
+      const open = row.classList.contains('open');
+      row.parentElement?.querySelectorAll(':scope > .roster-filter-item.open').forEach(r => { r.classList.remove('open', 'flip-left'); });
+      row.classList.toggle('open', !open);
+      if (!open) {
+        // 子菜单向右飞出：放不下就翻到左边
+        const sub = row.querySelector(':scope > .roster-sub-menu');
+        const panel = row.closest('.screen')?.getBoundingClientRect();
+        const r = row.getBoundingClientRect(), sw = sub?.getBoundingClientRect().width || 0;
+        row.classList.toggle('flip-left', !!panel && r.right + sw > panel.right - 4);
+      } else {
+        row.classList.remove('flip-left');
+      }
+      return;
+    }
+    // 点一级标题（已解锁 / 未解锁）：直接筛该状态全部，不限普/神/闪
+    const srcEl = e.target.closest('.roster-filter-src');
+    if (srcEl) pickItem({ dataset: { status: srcEl.dataset.status || '', legend: 'all', shiny: 'all' } });
   });
   trigger.addEventListener('click', (e) => {
     e.stopPropagation();

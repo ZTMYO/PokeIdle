@@ -281,6 +281,7 @@ function openActivity(id) {
   const known = !!(_list || []).find(x => x.id === id);
   if (!known && id !== DEV_PREVIEW && !a.dev) return;   // 清单里没有、也不是开发预览/本地预览：不打开
   if (!readyOf(id, mod)) return;          // 条件不满足（比如拿不到排期）：不打开
+  const switched = _open !== id;          // 换活动重进：正文回到顶部，别沿用上一个活动的滚动位置
   _open = id;
   _openMod = mod;
   _picks = [];
@@ -288,6 +289,7 @@ function openActivity(id) {
   if (getCurrentView() !== 'activityView') pushNav('activityView');   // 已在活动页（切活动）时别再压一层
   showView('activityView');
   paintActivity();
+  if (switched) $('activityBody').scrollTop = 0;
   if (_bodyTimer) clearInterval(_bodyTimer);
   _bodyTimer = setInterval(() => {
     const cur = (_list || []).find(x => x.id === _open);
@@ -358,12 +360,13 @@ function ctxFor(a, win) {
         kind: 'egg',
         species: String(species),
         originSpecies: String(species),
-        gender: rollGender(String(species)),
+        gender: eggOpts.gender || rollGender(String(species)),
         level: 1, exp: 0,
         evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
         ivs: eggOpts.ivs || { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
         nature: eggOpts.nature || 'hardy',
         shiny: !!eggOpts.shiny,
+        variant: eggOpts.variant || null,   // 特殊外观（如霜奶仙糖饰-口味），孵蛋原地转正后保留
         source: 'egg',
         obtainedAt: Date.now(),
         inRoster: true,

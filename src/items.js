@@ -1,5 +1,5 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, ITEM_DESC, CANDY_EXCHANGE, ITEM_SELL_RATE, ITEM_SELL_OVERRIDE, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER, EVO_PRICES, EVO_EXCLUSIVE_PRICE, EVO_SHOP_DAILY, EVO_SHOP_WEIGHTS, EVO_SHOP_EXCLUSIVE_SLOTS, EVO_SHOP_EXCLUSIVE_WEIGHT, EVO_SHOP_MINT_WEIGHT, EVO_SHOP_CROWNS, MINT_NATURES, MINT_PRICE, BREED_ONLY_IDS, LEGEND_POOL_DIVISOR, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, hatchSprite } from './config.js';
+import { ITEM_NAMES, ITEM_DESC, CANDY_EXCHANGE, ITEM_SELL_RATE, ITEM_SELL_OVERRIDE, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER, EVO_PRICES, EVO_EXCLUSIVE_PRICE, EVO_SHOP_DAILY, EVO_SHOP_WEIGHTS, EVO_SHOP_EXCLUSIVE_SLOTS, EVO_SHOP_EXCLUSIVE_WEIGHT, EVO_SHOP_MINT_WEIGHT, EVO_SHOP_CROWNS, MINT_NATURES, MINT_PRICE, BREED_ONLY_IDS, LEGEND_POOL_DIVISOR, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, hatchSprite, alcremieSuffix } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmGuaranteed, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge, dexUnlocked, dexShinyOwned } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, isIdleStageVisible, isPageHidden, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar, isEvolutionShowActive, isEggShowActive } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
@@ -1009,6 +1009,9 @@ export async function hatchFromIncubator(slotIndex) {
   if (!poke) { setEggHatching(false); return; }
 
   const eggIsShiny = slot.isShiny || false;
+  // 特殊外观（霜奶仙糖饰-口味）跟着蛋条目走，出场时就用组合立绘（没有闪光版）
+  const spriteEntry = slot.eggRef ? (gameData.roster || []).find(r => r.id === slot.eggRef) : null;
+  const variantSuffix = alcremieSuffix(spriteEntry && spriteEntry.variant);
 
   const idx = String(poke.index);
 
@@ -1114,8 +1117,8 @@ export async function hatchFromIncubator(slotIndex) {
   if (watchedAnim) {
     img.style.opacity = '0';
     let imageLoaded = false;
-    // 闪光蛋加载 _shiny 贴图，与图鉴/批量孵化保持一致
-    await tryLoadPokemonImage(img, poke, eggIsShiny ? '_shiny' : '').then(ok => { imageLoaded = ok; });
+    // 闪光蛋加载 _shiny 贴图；特殊外观优先用组合立绘，与图鉴/批量孵化保持一致
+    await tryLoadPokemonImage(img, poke, variantSuffix || (eggIsShiny ? '_shiny' : '')).then(ok => { imageLoaded = ok; });
 
     img.style.transform = 'translateX(-50%) scale(0)';
     if (imageLoaded) {
@@ -1304,7 +1307,10 @@ export async function hatchAllFromIncubator() {
     cell.className = 'hatch-all-cell';
     cell.innerHTML = '<div class="hatch-all-stage"></div><div class="hatch-all-name"></div>';
     grid.appendChild(cell);
-    cells.push({ slot: slotIdx, poke, eggShiny: !!(incubators[slotIdx].isShiny), stage: cell.firstElementChild, nameEl: cell.lastElementChild });
+    const cellEntry = incubators[slotIdx].eggRef
+      ? (gameData.roster || []).find(r => r.id === incubators[slotIdx].eggRef) : null;
+    const cellSuffix = alcremieSuffix(cellEntry && cellEntry.variant);
+    cells.push({ slot: slotIdx, poke, eggShiny: !!(incubators[slotIdx].isShiny), stage: cell.firstElementChild, nameEl: cell.lastElementChild, suffix: cellSuffix });
   }
   if (!cells.length) {
     setEggHatching(false);
@@ -1325,10 +1331,10 @@ export async function hatchAllFromIncubator() {
   _hatchAllRunning = true;
   bindHatchAllSkip();
   for (let k = 0; k < cells.length; k++) {
-    const { slot, poke, eggShiny, stage, nameEl } = cells[k];
+    const { slot, poke, eggShiny, stage, nameEl, suffix } = cells[k];
     const cellGender = hatchCellGender(incubators[slot], poke); // 预判性别：动画与建档共用，保证显示一致
     const cellHatchSrc = await resolveHatchSprite(hatchSprite(incubators[slot].eggRef ? poke.types?.[0] : null));
-    await playHatchAllCell(stage, poke, eggShiny, nameEl, cellGender, cellHatchSrc);
+    await playHatchAllCell(stage, poke, eggShiny, nameEl, cellGender, cellHatchSrc, suffix);
     applyHatchEntry(slot, cellGender); // 名字/闪光星标/性别/粒子已随图片在 playHatchAllCell 内同步出现
     await saveGame(); // 每只完成后落盘，中途崩溃也不丢已孵化结果
     if (k < cells.length - 1) await hatchDelay(180);
@@ -1367,7 +1373,7 @@ function hatchCellGender(slot, poke) {
 // 单个蛋的完整孵出流程：直接从蛋裂一帧开始快速播放破壳动画 → 宝可梦大图从蛋中心缩放出现
 // nameEl 传入后与图片同步显示名字（名字后跟性别图标，闪光时性别左侧追加雪碧图星标）
 // 已点画面跳过：不建蛋壳、不走缩放，直接把大图 + 名字摆出来
-async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender, hatchSrc) {
+async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender, hatchSrc, suffix) {
   if (!_hatchAllSkip) {
     // 蛋精灵：培育蛋用属性配色版，神秘蛋用基础版（hatch.png 竖排 4 帧）
     const tmp = new Image();
@@ -1406,7 +1412,7 @@ async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender, hatchSrc)
   img.style.opacity = '0';
   img.style.objectFit = 'contain';
   stage.appendChild(img);
-  const loaded = await tryLoadPokemonImage(img, poke, eggShiny ? '_shiny' : '');
+  const loaded = await tryLoadPokemonImage(img, poke, suffix || (eggShiny ? '_shiny' : ''));
   if (!loaded) {
     img.style.width = '100%';
     img.style.height = '100%';

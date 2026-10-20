@@ -172,6 +172,13 @@ export function hatchSprite(type) {
   return slug ? `./items/eggs/hatch-${slug}.png` : './items/eggs/hatch-mystery.png';
 }
 
+// 霜奶仙特殊外观：糖饰 × 口味 的组合，立绘是 pokemon-data/images/0869-霜奶仙_<糖饰>-<口味>.gif。
+// 个体的 variant 命中这个集合就换这张贴图；时空扭曲的 rgb / polluted 不在这里，仍走 CSS 滤镜
+export const ALCREMIE_DECOS = ['草莓糖饰', '爱心糖饰', '野莓糖饰', '幸运草糖饰', '花朵糖饰', '星星糖饰', '蝴蝶结糖饰'];
+export const ALCREMIE_FLAVORS = ['奶香香草', '焦糖综合', '奶香红钻', '红钻综合', '奶香抹茶', '奶香柠檬', '奶香雪盐', '奶香薄荷', '三色综合'];
+const ALCREMIE_VARIANTS = new Set(ALCREMIE_DECOS.flatMap(d => ALCREMIE_FLAVORS.map(f => `${d}-${f}`)));
+export const alcremieSuffix = (v) => (ALCREMIE_VARIANTS.has(v) ? `_${v}` : '');
+
 // 地区列表
 export const REGION_CYCLE = ['关都', '城都', '丰缘', '神奥', '合众', '卡洛斯', '阿罗拉', '伽勒尔', '帕底亚'];
 

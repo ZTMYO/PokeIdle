@@ -7,7 +7,7 @@ import { TYPE_COLORS, typeIconColor, pokemonSourceBadge, itemIconSrc, MINT_KEYS 
 import { evolutionRows, applyEvolution, condItems, moveCondText, evoPreEvos, evolutionData, loadEvolution, stoneSources } from './evolution.js';
 import { playEvolution } from './evo-view.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
-import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL, MINT_NATURES, ITEM_NAMES } from './config.js';
+import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL, MINT_NATURES, ITEM_NAMES, alcremieSuffix } from './config.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { chooseMoves, fallbackMoves } from './moves.js';
 import { NATURES } from './battle-core.js';
@@ -1754,7 +1754,8 @@ function showRosterDetail(id) {
     if (p.variant === 'rgb') img.classList.add('fx-variant-rgb');
     else if (p.variant === 'polluted') img.classList.add('fx-variant-polluted');
     // 等图片加载完成再启动粒子，否则 burst 时图片尺寸为 0 会定位到页面中心
-    tryLoadPokemonImage(img, poke, p.shiny ? '_shiny' : '').then(() => {
+    // 霜奶仙特殊外观优先取组合图（无闪光版），否则闪光取 _shiny
+    tryLoadPokemonImage(img, poke, alcremieSuffix(p.variant) || (p.shiny ? '_shiny' : '')).then(() => {
       // 闪光个体：图片周围循环播放星星粒子（详情页图小 → 粒子缩小、飞行更近）
       if (p.shiny && _detailId === id) startShinySparkleOn($('rosterView'), img, { cls: 'sm', scale: 0.6 });
     });

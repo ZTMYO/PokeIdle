@@ -7,7 +7,7 @@ import { typeMult } from './type-chart.js';
 import { grantItem, itemIconSrc, pickEvoDrop, MINT_KEYS, typeIconColor } from './items.js';
 import { chooseMoves } from './moves.js';
 import { ensureNpcs, refreshNpcs, buildNpcTeam, npcBaseLevel } from './npcs.js';
-import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, BATTLE_EVO_POOLS, MAX_LEVEL, SPECIAL_SPRITE_SCALE, ITEM_NAMES } from './config.js';
+import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, BATTLE_EVO_POOLS, MAX_LEVEL, SPECIAL_SPRITE_SCALE, ITEM_NAMES, alcremieSuffix } from './config.js';
 import { playBattle, endBattle, playVictory, stopVictory, playShiny } from './audio.js';
 import { burstShinySparkle } from './animation.js';
 import * as road from './road.js';
@@ -772,8 +772,8 @@ function renderMon(mon, side, enter) {
   // 登场球动画期间隐藏精灵；两回合招式蓄力（钻地/升空/入水）期间同样保持隐藏
   img.style.visibility = (enter || mon.chargeHidden) ? 'hidden' : '';
   img.dataset.charged = mon.chargeHidden ? '1' : ''; // 蓄力离场标记与逻辑状态同步（换人/刷新时清除残留）
-  // 战斗大图优先，失败回退小图标；闪光个体使用 _shiny 贴图（路径含中文，走 tryLoad 的编码/兜底加载）
-  const loaded = tryLoadPokemonImage(img, pd, mon.shiny ? '_shiny' : '').then(ok => {
+  // 战斗大图优先，失败回退小图标；霜奶仙特殊外观取组合图（无闪光版），否则闪光取 _shiny（路径含中文，走 tryLoad 的编码/兜底加载）
+  const loaded = tryLoadPokemonImage(img, pd, alcremieSuffix(mon.variant) || (mon.shiny ? '_shiny' : '')).then(ok => {
     if (!ok) return tryLoadPokemonIcon(img, pd);
   }).then(() => {
     applySpriteSize(img, side, pd); // 按真实身高缩放（仅战斗页生效）

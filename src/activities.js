@@ -7,11 +7,12 @@
 import { getPokemonByIndex, gameData, allPokemon, isPowerForm, isPokemon, isWildExcluded, POKEMON_NATURES } from './state.js';
 import { tryLoadImage, tryLoadPokemonImage, showConfirmBar } from './ui.js';
 import { itemIconSrc, MINT_KEYS, pickFamilyBySeed } from './items.js';
-import { ITEM_NAMES, EVO_PRICES, eggSprite } from './config.js';
+import { ITEM_NAMES, EVO_PRICES, eggSprite, ALCREMIE_DECOS, ALCREMIE_FLAVORS } from './config.js';
 import { MG_LEVELS, levelOf } from './memory-game.js';
 import { BG_LEVELS, bgLevelOf } from './bird-game.js';
 import { FLOW_LEVELS, flowLevelOf } from './flow-game.js';
 import { GUESS_LEVELS, guessLevelOf, guessReady } from './guess-game.js';
+import { SW_LEVELS, swLevelOf } from './sweet-game.js';
 
 const TIERS = 4;      // 四档：进化道具 / 薄荷·王冠 / 大师球·闪耀护符 / 闪光蛋
 const PER_TIER = 3;   // 每档交 3 只（payload.perTier 可覆盖），四档共 12 只
@@ -149,9 +150,9 @@ function pickerExclude(ctx, slot) {
 }
 
 // 蛋的图标（按属性）与名字「闪光×××的蛋」：档位与兑换所两处共用
-function eggIconHtml(species, box = 24) {
+function eggIconHtml(species, box = 24, title = '闪光蛋') {
   const ep = getPokemonByIndex(String(species));
-  return `<img src="${eggSprite(ep?.types?.[0])}" alt="蛋" title="闪光蛋" style="width:${box}px;height:${box}px;">`;
+  return `<img src="${eggSprite(ep?.types?.[0])}" alt="蛋" title="${title}" style="width:${box}px;height:${box}px;">`;
 }
 function eggLabel(species) {
   const ep = getPokemonByIndex(String(species));
@@ -204,6 +205,7 @@ const COIN_ICONS = {
   'bird-stack': './items/goods/balloon-teal.png',
   'flow-link': './items/goods/balloon-pink.png',
   'guess-name': './items/goods/balloon-lime.png',
+  'sweet-workshop': './items/goods/balloon-cream.png',
 };
 const coinIcon = (ctx) => COIN_ICONS[ctx && ctx.id] || BALLOON_ICON;
 // 兑换表：价格按"一周活动能换完"配（合计 4250）；每样限一次，所以不用怕刷。
@@ -222,7 +224,15 @@ const SHOP_ITEMS = [
 const BIRD_SHOP_ITEMS = SHOP_ITEMS.map(it => (
   it.id === 'crown' ? { id: 'mystery', price: 300, qty: 1, icon: 'mystery-egg' } : it
 ));
-const shopItemsOf = (ctx) => (ctx.id === 'bird-stack' ? BIRD_SHOP_ITEMS : SHOP_ITEMS);
+// 甜蜜工坊单独一份兑换表：最后那颗蛋换成指定外观的霜奶仙
+const SWEET_SHOP_ITEMS = SHOP_ITEMS.map(it => (
+  it.id === 'egg' ? { id: 'alcremie', price: 1500, qty: 1, alcremie: true } : it
+));
+const shopItemsOf = (ctx) => (
+  ctx.id === 'bird-stack' ? BIRD_SHOP_ITEMS
+    : ctx.id === 'sweet-workshop' ? SWEET_SHOP_ITEMS
+      : SHOP_ITEMS
+);
 
 const coinsOf = ctx => Math.max(0, Math.round(Number(ctx.slot && ctx.slot.coins) || 0));
 function boughtOf(ctx) {
@@ -247,14 +257,38 @@ function shopEgg(ctx) {
   }
   return ctx.slot.egg;
 }
+// 甜蜜工坊那颗蛋：霜奶仙，随机一种糖饰-口味外观，个体全满、固定雌性（不走闪光）
+// 外观用本机随机（不挂活动种子）：同一场活动，各玩家换到的形态都不一样
+const ALCREMIE_SPECIES = '0869';
+const ALCREMIE_EGG_LABEL = '限定霜奶仙的蛋';
+// 草莓糖饰-奶香香草就是基础立绘那张（默认形态），活动蛋只从其余 62 种里摇
+const ALCREMIE_DEFAULT = '草莓糖饰-奶香香草';
+const ALCREMIE_POOL = ALCREMIE_DECOS
+  .flatMap(d => ALCREMIE_FLAVORS.map(f => `${d}-${f}`))
+  .filter(v => v !== ALCREMIE_DEFAULT);
+function sweetEgg(ctx) {
+  if (!ctx.slot.alcremie) {
+    ctx.slot.alcremie = {
+      ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
+      gender: 'female',
+      variant: ALCREMIE_POOL[Math.floor(Math.random() * ALCREMIE_POOL.length)],
+      shiny: false,
+    };
+    ctx.save();
+  }
+  return ctx.slot.alcremie;
+}
 function shopName(ctx, item) {
+  if (item.alcremie) return ALCREMIE_EGG_LABEL;
   if (item.egg) return eggLabel(shopEgg(ctx).species);
   return item.name || ITEM_NAMES[shopGrantOf(ctx, item)] || item.id;
 }
 function shopRowHtml(ctx, item) {
   const bought = !!boughtOf(ctx)[item.id];
   const can = !bought && coinsOf(ctx) >= item.price;
-  const icon = item.egg ? eggIconHtml(shopEgg(ctx).species) : itemIconHtml(shopGrantOf(ctx, item));
+  const icon = item.alcremie ? eggIconHtml(ALCREMIE_SPECIES, 24, ALCREMIE_EGG_LABEL)
+    : item.egg ? eggIconHtml(shopEgg(ctx).species)
+      : itemIconHtml(shopGrantOf(ctx, item));
   return `
     <div class="act-shop-row${bought ? ' done' : ''}">
       ${icon}
@@ -269,9 +303,10 @@ function buyShopItem(ctx, id) {
   const bought = boughtOf(ctx);
   if (bought[item.id] || coinsOf(ctx) < item.price) return;
   ctx.confirm(`花 ${item.price} 个气球换「${shopName(ctx, item)}」？`, () => {
-    // 确认框开着的这段时间余额/已兑换可能变了：再核一次
     if (bought[item.id] || coinsOf(ctx) < item.price) { ctx.refresh(); return; }
-    if (item.egg) {
+    if (item.alcremie) {
+      ctx.grantEgg(ALCREMIE_SPECIES, sweetEgg(ctx));
+    } else if (item.egg) {
       const egg = shopEgg(ctx);
       ctx.grantEgg(egg.species, egg);
     } else {
@@ -1039,6 +1074,52 @@ export const ACTIVITIES = {
           },
         }));
       });
+      root.querySelectorAll('[data-buy]').forEach((btn) => {
+        btn.addEventListener('click', () => buyShopItem(ctx, btn.dataset.buy));
+      });
+    },
+
+    // 每秒看一眼：币数/兑换状态/难度有变化才重画
+    tick(root, ctx) {
+      const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${ctx.slot.level || ''}`;
+      if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
+    },
+  },
+
+  // ---- 甜蜜工坊（sweet-workshop）：照顾客点单做冰激凌，按时机出货赚气球，换道具（每样限一次）----
+  // 服务器 activity.json 里加一条 { "id": "sweet-workshop", "from": …, "to": … }
+  'sweet-workshop': {
+    name: '甜蜜工坊',
+    icon: './items/goods/balloon-cream.png',
+
+    badge(ctx) { return `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`; },
+
+    render(ctx) {
+      const lv = swLevelOf(ctx.slot.level || 'normal');
+      return `
+        <div class="act-card act-rules">照着顾客订单制作冰激凌，先选冰激凌再选糖饰，确认后按时机点击按钮出货。<br>
+          出货越完美给的气球越多。困难模式需要按照顾客要求的顺序堆叠冰激凌。做错了需丢弃后重做。
+          气球可以兑换下面的奖励，每样限一次。</div>
+        <div class="act-levels">${SW_LEVELS.map(l => `<span class="act-level${l.id === lv.id ? ' on' : ''}" data-sw-level="${l.id}">${l.name}<em>最高 ${l.perfect} 气球</em></span>`).join('')}</div>
+        <div class="act-shop">${shopItemsOf(ctx).map(it => shopRowHtml(ctx, it)).join('')}</div>`;
+    },
+
+    mount(root, ctx) {
+      const startGame = (level) => {
+        import('./sweet-game.js').then(m => m.startSweetGame({
+          level,
+          // 结算回调：币记账，页面的数字等回来时重画
+          onFinish: (coins) => {
+            ctx.slot.coins = coinsOf(ctx) + coins;
+            ctx.save();
+          },
+        }));
+      };
+      root.querySelectorAll('[data-sw-level]').forEach((el) => el.addEventListener('click', () => {
+        ctx.slot.level = el.dataset.swLevel;
+        ctx.save();
+        startGame(el.dataset.swLevel);
+      }));
       root.querySelectorAll('[data-buy]').forEach((btn) => {
         btn.addEventListener('click', () => buyShopItem(ctx, btn.dataset.buy));
       });

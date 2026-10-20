@@ -9,7 +9,7 @@
     (function () {
       var SITE = 'https://pokeidle.shiliu.space';
       // 版本号由 tools/sync-version.mjs 改写：经典脚本这里 import 不了 build-info.js
-      var APP_VER = '1.19.5';
+      var APP_VER = '1.20.1';
       var VER_TEXT = '（v' + APP_VER + '）';
       var lines = [], box = null, detail = null, detailToggle = null, detailOpen = false;
 
@@ -875,6 +875,21 @@
               <div class="fl-stage" id="flStage">
                 <div class="fl-board" id="flBoard"></div>
               </div>
+            </div>
+
+            <!-- 甜蜜工坊（限时活动里的小游戏）：顾客点单，选料做冰激凌，按时机出货 -->
+            <div id="sweetView" class="view-fixed" style="display:none;">
+              <div class="sw-head">
+                <span id="swInfo">顾客 0/5</span>
+                <span id="swTime"></span>
+                <span id="swCoins"></span>
+              </div>
+              <div class="sw-stage">
+                <div class="sw-cust" id="swCust"><img id="swCustImg" alt=""></div>
+                <canvas id="swOrderCv"></canvas>
+                <div class="sw-bubble" id="swBubble"></div>
+              </div>
+              <div class="sw-panel" id="swPanel"></div>
             </div>
 
             <!-- 对战（NPC 挑战） -->

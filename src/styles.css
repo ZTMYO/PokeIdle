@@ -2615,6 +2615,131 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .fl-board.done .fl-cell { visibility: hidden; }
 .fl-result { inset: -1px; background: var(--screen-bg); border-radius: 3px; }
 
+/* === 甜蜜工坊：顾客点单，选料做冰激凌，按时机出货 === */
+/* 底部不留白：按钮栏要贴住屏幕下沿；左右的内边距由按钮栏自己用负边距抵消 */
+#sweetView { padding: 4px 6px 0; }
+.sw-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 1px 0 5px; font-size: 10.5px; color: var(--ui-color); opacity: .9;
+}
+.sw-head #swCoins { display: flex; align-items: center; gap: 4px; font-weight: 700; opacity: 1; }
+.sw-head #swCoins img { width: 16px; height: 16px; image-rendering: pixelated; }
+.sw-head #swTime { font-weight: 700; opacity: 1; }
+.sw-head #swTime.low { color: #e74c3c; }
+/* 顾客站台：立绘、成品预览、需求气泡一行排开，三样都站在同一条底线上 */
+.sw-stage {
+  flex: none; height: 62px; padding: 0 0 2px;
+  display: flex; align-items: flex-end; gap: 6px;
+  /* 顾客进出场的横移只在这里裁掉，不会压到旁边的预览和气泡 */
+  overflow: hidden;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.18);
+}
+/* 固定 56px 的格子（和 CUST_FIT 一致）：四向图是按内容框缩放、从中心撑开的，
+   布局框只有原帧大小，给它一个方格子才不会压到旁边的预览和气泡 */
+.sw-cust {
+  flex: none; width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transform: translateX(-40px);
+  transition: transform .55s ease-out, opacity .35s ease-out;
+}
+.sw-cust.in { opacity: 1; transform: translateX(0); }
+/* 退场：从站位一路走到屏幕外，走完这一段才换下一位 */
+.sw-cust.out {
+  opacity: 0; transform: translateX(260px);
+  transition: transform .8s linear, opacity .25s ease-out .55s;
+}
+/* 入场前先把位置按回左侧起点：上一位是往右走掉的，不重置会从右边滑进来 */
+.sw-cust.pre { transition: none; opacity: 0; transform: translateX(-40px); }
+.sw-cust img { display: block; image-rendering: pixelated; pointer-events: none; }
+/* 成品预览：跟着手上选的料实时变，默认只有一个空蛋筒；筒底贴着站台底线，球往上叠 */
+#swOrderCv { flex: none; }
+.sw-bubble {
+  flex: 1; min-width: 0; align-self: center;
+  padding: 4px 7px; font-size: 10.5px; line-height: 1.4; text-align: left;
+  color: var(--ui-color); background: var(--phone-box);
+  border: 1px solid var(--ui-color-dark); border-radius: 8px;
+}
+/* 顾客爆赞：整句换成粉色，和普通反馈区分开 */
+.sw-bubble.rave { color: #d94a8c; border-color: #d94a8c; font-weight: 700; }
+/* 面板不裁内容：底部按钮栏要拉出面板贴到容器边；会滚的只有 .sw-picks 那块 */
+.sw-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 5px; padding-top: 5px; }
+
+/* 需求里的糖饰和口味各用各的颜色标出（浅色的取深一档，浅底上也读得清） */
+.sw-ink { padding: 0 3px; border-radius: 4px; }
+
+/* 糖饰、口味两行都拉满全宽：7 格等分，格子跟着宽度走，方块也大一圈好点 */
+.sw-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.sw-chip {
+  position: relative; width: 100%; aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--item-bg); border: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  border-radius: 5px; cursor: pointer;
+}
+/* 糖饰原图就是 30×30，按原尺寸摆最清楚 */
+.sw-chip img { width: 30px; height: 30px; max-width: 100%; object-fit: contain; image-rendering: pixelated; }
+/* 口味是纯色块，深一点的描边让浅色也看得出边界 */
+.sw-chip.sw-flavor { border-color: rgba(0, 0, 0, .22); }
+/* 选料区：够高就撑满，真不够时只有这一块滚，底部按钮栏永远钉在那儿 */
+.sw-picks { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+/* 底部按钮栏：一条 dock 分两格（照随从页那栏做）—— 主键深底浅字，次键浅底淡一档。
+   左右各拉出 6px 抵消 #sweetView 的内边距，dock 才能贴住容器两边 */
+.sw-actions {
+  display: flex; flex: none; margin: auto -6px 0;
+  border-top: 1px solid rgba(var(--ui-color-rgb), 0.3);
+}
+.sw-actions button {
+  flex: 1; padding: 6px 8px;
+  border: none; border-right: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  background: transparent; color: var(--ui-color);
+  font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.sw-actions button:last-child { border-right: none; }
+.sw-actions .sw-primary { background: var(--ui-color); color: var(--screen-bg-light); }
+.sw-actions #swDiscard { background: var(--screen-bg-light); color: var(--ui-color); opacity: .85; }
+.sw-actions button:disabled { opacity: .3; cursor: default; }
+@media (hover: hover) {
+  .sw-actions .sw-primary:hover { filter: brightness(1.08); }
+  .sw-actions #swDiscard:hover { filter: brightness(0.97); }
+}
+.sw-actions button:active { filter: brightness(0.92); }
+/* 糖饰放早了、球叠不上去，或想把糖饰取下来：丢弃键反色闪两下，提示这杯只能重做 */
+#swDiscard.nudge { animation: sw-nudge .5s ease 3; }
+@keyframes sw-nudge {
+  0%, 100% { background: var(--screen-bg-light); color: var(--ui-color); }
+  50% { background: var(--ui-color); color: #fff; }
+}
+/* 结算页那几个按钮按下就定死，不做缩放反馈，免得像是还能再点一次 */
+.sw-panel .catch-confirm-btn:active { transform: none; }
+
+/* 点击条：配色照树果混合器那台 QTE —— 屏幕底色本身就是绿的，绿区在上面根本看不出来，
+   所以空条走中性暗色，良好区琥珀、完美区红（和混合器的 good/perfect 同一对色），光标是深绿竖条 */
+.sw-bar {
+  position: relative; flex: none; height: 30px; margin: auto 6px 8px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--item-border); border-radius: 6px;
+  overflow: hidden; cursor: pointer;
+}
+.sw-bar.locked { cursor: default; }
+.sw-zone, .sw-perfect { position: absolute; top: 0; bottom: 0; }
+.sw-zone { background: #e3b540; }
+.sw-perfect { background: #c54444; }
+.sw-cursor {
+  position: absolute; top: 0; bottom: 0; width: 4px; margin-left: -2px;
+  background: #24563f; border-radius: 2px;
+}
+
+.sw-result {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  text-align: center; color: var(--ui-color);
+}
+.sw-result-title { font-size: 15px; font-weight: 700; margin: 0; }
+.sw-result-coins { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; margin: 2px 0 0; }
+.sw-result-coins img { width: 18px; height: 18px; image-rendering: pixelated; }
+.sw-result-btns { display: flex; gap: 10px; margin-top: 4px; }
+/* 结算页就这两个按钮，按手机的点击尺寸放大一档 */
+.sw-result-btns .catch-confirm-btn { padding: 7px 18px; font-size: 11.5px; }
+
 /* 有音乐时压缩时间区域（上挤），app 图标位置保持不动 */
 #phoneView.has-music .phone-clock { padding: 0 0 2px; }
 #phoneView.has-music .phone-clock .date { font-size: 9px; }
@@ -11755,14 +11880,14 @@ body.booting { visibility: hidden; }
 /* 随从卡片：左＝图像列（大图 + 下方时间行），右＝名字/稀有度/属性徽章/增益 tag */
 .follower-card-col { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
 .follower-time-line { font-size: 9px; font-weight: 700; white-space: nowrap; opacity: 0.9; }
-.follower-effect-row { gap: 6px; margin-top: 6px; }
+.follower-effect-row { gap: 4px; margin-top: 5px; }
 /* 卡片里的属性徽章与增益 tag 同尺寸，观感统一 */
 .follower-info .type-badge { padding: 3px 7px; }
 .follower-effect-tag {
   font-size: 9px;
   font-weight: 700;
   line-height: 1.2;
-  padding: 3px 7px;
+  padding: 3px 5px;
   border: 1px solid rgba(var(--ui-color-rgb), 0.28);
   border-radius: 4px;
   white-space: nowrap;

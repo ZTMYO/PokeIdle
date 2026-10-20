@@ -68,6 +68,7 @@
         <option value="flow-link">宝可连线</option>
         <option value="voyage">航海寻宝</option>
         <option value="guess-name">猜宝可梦</option>
+        <option value="sweet-workshop">甜蜜工坊</option>
       </select>
     </div>
     <div class="row" id="rowPerTier">
@@ -215,7 +216,7 @@ function build() {
   const payload = {};
   if (!NO_SEED.has(f.kind)) payload.seed = (from ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
   if (f.kind === 'mass-bounty') payload.perTier = f.perTier;
-  if (f.egg && f.kind !== 'guess-name') payload.eggSpecies = f.egg.padStart(4, '0');
+  if (f.egg && f.kind !== 'guess-name' && f.kind !== 'sweet-workshop') payload.eggSpecies = f.egg.padStart(4, '0');
   if (Object.keys(payload).length) item.payload = payload;
   return { text: JSON.stringify({ list: base.concat([item]) }, null, 2), from, to, baseCount: base.length };
 }
@@ -243,7 +244,9 @@ $('gen').addEventListener('click', async () => {
             ? '航海寻宝：拼图底图、碎片落点、每格奖励与航段里程都由 payload.seed 摇，改它换一份；数值写死在客户端'
             : k === 'guess-name'
               ? '猜宝可梦：不需要种子，题目与奖励都写死在客户端；难度由玩家在活动页自选'
-              : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
+              : k === 'sweet-workshop'
+                ? '甜蜜工坊：薄荷/道具/王冠/大师球由 payload.seed 摇；那颗霜奶仙蛋的外观每位玩家各自随机，不吃种子'
+                : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
   } catch (e) {
     $('genHint').textContent = `生成失败：${e.message}（点「生成」重试）`;
   } finally { btn.disabled = false; }

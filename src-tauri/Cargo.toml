@@ -1,6 +1,6 @@
 [package]
 name = "PokeIdle"
-version = "1.19.5"
+version = "1.20.1"
 description = "Pokemon Idle Game"
 authors = ["ZTMYO"]
 edition = "2021"
