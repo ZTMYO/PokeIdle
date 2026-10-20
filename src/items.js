@@ -9,6 +9,7 @@ import { NATURES } from './battle-core.js';
 import { playCongratulation, stopCongratulation, playShiny } from './audio.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
+import { bgPeekAccum } from './background-catchup.js';
 
 // 宝可梦属性显示颜色（图鉴/战斗页类型标签用）
 export const TYPE_COLORS = {
@@ -824,6 +825,14 @@ async function resolveHatchSprite(src) {
   return ok ? src : base;
 }
 
+// 放蛋起点：当前累计里程 + 还没入账的后台/离线补发里程。
+// 补发是在挂机 tick 里一次性加进 walkDistance 的，不排除的话回来后才放的蛋会被整段离线里程直接顶熟。
+function hatchBaseDistance() {
+  const pendingSec = Math.max(bgPeekAccum(), road.peekAfkSeconds());
+  return (gameData.stats?.walkDistance || 0)
+    + (pendingSec > 0 ? Math.floor(pendingSec * road.getPxPerSec()) : 0);
+}
+
 // ---------- 放入孵蛋器 ----------
 export function placeEggInIncubator(slotIndex) {
   if (_eggHatching) return;
@@ -843,7 +852,7 @@ export function placeEggInIncubator(slotIndex) {
 
   incubators[slotIndex] = {
     eggIndex: poke.index,
-    hatchStart: gameData.stats?.walkDistance || 0, // 放蛋时累计行走像素，行走增量达标即孵化
+    hatchStart: hatchBaseDistance(), // 放蛋时累计行走像素，行走增量达标即孵化
     hatchDuration: distance * PX_PER_METER, // 原始所需里程；随从减免在达标判断时动态计算
     hatched: false,
     isShiny: eggIsShiny,
@@ -870,7 +879,7 @@ export function placePokemonEggInIncubator(slotIndex, entryId) {
   incubators[slotIndex] = {
     eggIndex: poke.index,
     eggRef: entry.id,
-    hatchStart: gameData.stats?.walkDistance || 0, // 放蛋时累计行走像素，行走增量达标即孵化
+    hatchStart: hatchBaseDistance(), // 放蛋时累计行走像素，行走增量达标即孵化
     hatchDuration: distance * PX_PER_METER, // 原始所需里程；随从减免在达标判断时动态计算
     hatched: false,
     isShiny: !!entry.shiny,
@@ -1632,7 +1641,7 @@ export function handleHoneyExpired() {
 
 export function handleCharmExpired() {
   setCharmBuffActive(false);
-  setCharmGuaranteed(false);
+  // 保底不随到期作废：方块/扭曲期间普通遭遇被压着，60 秒里可能一次都用不上，留到下一只普通遭遇兑现
   setCharmCountdownEnd(0);
   clearCharmCountdown();
   showBuffExpired('charm');

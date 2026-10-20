@@ -9517,9 +9517,8 @@ body.booting { visibility: hidden; }
   .nursery-egg-fav-btn:hover { background: rgba(var(--ui-color-rgb),0.14); }
 }
 .nursery-egg-fav-btn:active { transform: scale(0.96); }
-/* 收藏页没有「丢弃」列，名字列撑开把个体值顶到右缘 */
-.nursery-egg-fav .nursery-egg-header .pokedex-name,
-.nursery-egg-fav .nursery-egg-row .pokedex-name { flex: 1 1 auto; margin-right: auto; }
+.nursery-egg-page .nursery-egg-header .pokedex-name,
+.nursery-egg-page .nursery-egg-row .pokedex-name { flex: 1 1 auto; margin-right: auto; }
 /* 标题后跟的小字（目标蛋组） */
 .nursery-pick-egggroup {
   font-size: 10px;

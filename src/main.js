@@ -681,8 +681,11 @@ async function onGameTick() {
       const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
       // 随从（龙/火）辅效果：蛋的里程需求降低
       const need = (s.hatchDuration || 0) * (window.__followerBoostMechanic?.('hatchDist', 1) ?? 1);
-      // 检查里程达标（加 100px 容差）+ hatchStart 无效（NaN/负值）兜底
-      if (isNaN(used) || used < 0 || (used + 100) >= need) {
+      if (!Number.isFinite(used) || used < 0) {
+        // 存档里程比蛋的起点还小（旧档/回滚）：从当前里程重新起算，别一次判熟
+        s.hatchStart = gameData.stats?.walkDistance || 0;
+        incubatorChanged = true;
+      } else if ((used + 100) >= need) {
         s.hatched = true;
         incubatorChanged = true;
       }

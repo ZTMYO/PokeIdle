@@ -437,6 +437,11 @@ export function takeAfkSeconds() {
   return clock.takeAfkSeconds();
 }
 
+// 只读：待补算的停摆秒数
+export function peekAfkSeconds() {
+  return clock.peekAfkSeconds();
+}
+
 // 取走并清零正常走动累计秒数（掉落在 idle 期间按真实走路时长折算）
 export function takeWalkSeconds() {
   const now = clock.simSeconds();

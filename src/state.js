@@ -583,6 +583,9 @@ function syncBuffRecord() {
     const count = _charmEncounterCount || 0;
     if (charmCountdownEnd > 0) rec.charm = { left: Math.max(0, charmCountdownEnd - Date.now()), count, guaranteed: charmGuaranteed };
     else if (charmPausedRemaining > 0) rec.charm = { paused: charmPausedRemaining, count, guaranteed: charmGuaranteed };
+  } else if (charmGuaranteed) {
+    // 护符已到期、保底还没兑现：单独存一条，别让刷新把这只闪光丢掉
+    rec.charm = { guaranteed: true, count: _charmEncounterCount || 0 };
   }
   gameData.buffs = (rec.honey || rec.charm) ? rec : null;
 }

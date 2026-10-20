@@ -153,11 +153,12 @@ export function endMassOutbreak() {
     const hadMassTarget = !!gameData.gps.massTarget;
     gameData.gps.massTarget = null;
     gameData.gps.massArrived = false;
-    // 事件结束且玩家正骑行导航到该事件点：目的地已失效，手动骑行立即下车。
-    // 否则会停在「骑行中 + 地图禁止改选目的地（planRoute 拦截）+ 取消按钮不显示（hasDest=false）」
-    // 的不可操作死锁状态，必须在此兜底。
+    // 骑行途中事件结束：目的地改成路线终点，继续骑完再下车；直接下车会把玩家丢在半路
     if (hadMassTarget && road.isManualBike()) {
-      road.setManualBike(false);
+      const path = gameData.gps.path;
+      const last = path && path.length ? path[path.length - 1] : null;
+      if (last != null) gameData.gps.destIdx = last;
+      else road.setManualBike(false);
     }
   }
   saveGame();
@@ -295,6 +296,8 @@ function despawnMassPoke() {
 }
 
 function hitMassPoke() {
+  // 已有遭遇在打（普通/护符/钓鱼）：这只先留在原地，等这场打完再撞上来，别覆盖掉正在进行的遭遇
+  if (encState()) return;
   const mo = gameData?.massOutbreak;
   const poke = mo ? getPokemonByIndex(mo.pokemon) : null;
   const shiny = _massPokeShiny;
@@ -451,7 +454,10 @@ export function endTwist() {
     gameData.gps.massTarget = null;
     gameData.gps.massArrived = false;
     if (hadMassTarget && road.isManualBike()) {
-      road.setManualBike(false);
+      const path = gameData.gps.path;
+      const last = path && path.length ? path[path.length - 1] : null;
+      if (last != null) gameData.gps.destIdx = last;
+      else road.setManualBike(false);
     }
   }
   saveGame();
@@ -630,6 +636,8 @@ function despawnTwistPoke() {
 }
 
 function hitTwistPoke() {
+  // 已有遭遇在打：这只留在原地，等这场打完再撞上来（否则会把护符保底那只/正在进行的那只顶掉）
+  if (encState()) return;
   const tw = gameData?.twist;
   if (!tw) { despawnTwistPoke(); return; }
   const poke = _twistPoke || pickTwistPoke(tw);

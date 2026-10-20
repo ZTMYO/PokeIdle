@@ -68,3 +68,6 @@ export function takeAfkSeconds() {
   _afkMs = 0;
   return s;
 }
+
+// 只读：待补算的停摆秒数（放蛋时把还没入账的补发里程排除在新蛋之外）
+export function peekAfkSeconds() { return _afkMs / 1000; }

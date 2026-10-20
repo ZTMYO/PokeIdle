@@ -43,11 +43,14 @@ function guessByName() {
     _byName = new Map();
     allPokemon.forEach((p) => {
       const n = p.name || '';
-      if (!p.form && /^[\u4e00-\u9fa5]{2,5}$/.test(n) && !_byName.has(n)) _byName.set(n, p);
+      if (!/^[\u4e00-\u9fa5]{2,5}$/.test(n)) return;
+      const prev = _byName.get(n);
+      if (!prev || (prev.form && !p.form)) _byName.set(n, p);
     });
   }
   return _byName;
 }
+const guessNameList = () => [...guessByName().values()];
 
 // 干扰字池：全题库出现过的字去重（答案自身的字另外保留，重复字照留）
 let _chars = null;
@@ -86,7 +89,7 @@ function extraOf(cands, answers) {
   for (const c of cands) cnt.set(c, (cnt.get(c) || 0) + 1);
   const skip = new Set(answers.map(p => p.index));
   const n = [...answers[0].name].length;
-  return guessPool().filter((p) => {
+  return guessNameList().filter((p) => {
     if (skip.has(p.index) || [...p.name].length !== n) return false;
     const need = new Map();
     for (const c of p.name) need.set(c, (need.get(c) || 0) + 1);
@@ -189,6 +192,12 @@ function restoreRound(r) {
   if (!Array.isArray(r.slots) || r.slots.length !== total) return false;
   if (!Array.isArray(r.src) || r.src.length !== total) return false;
   if (!Array.isArray(r.used) || r.used.length !== GUESS_CANDS) return false;
+  // 存档里答案要用的字不够就重出题
+  const need = new Map();
+  for (const p of answers) for (const c of p.name) need.set(c, (need.get(c) || 0) + 1);
+  const have = new Map();
+  for (const c of r.cands) have.set(c, (have.get(c) || 0) + 1);
+  for (const [c, k] of need) if ((have.get(c) || 0) < k) return false;
   _g.answers = answers;
   _g.cands = r.cands.slice();
   _g.slots = r.slots.slice();
@@ -337,10 +346,14 @@ function clickSlot(i) {
   renderRound();
 }
 
-// 拼出的名字和答案是不是同一只：字全对，或者只是同字重排（奇麒麟 / 麒麟奇）
+// 拼出的名字算不算这一行：同字重排，或者任意一只属性对得上的合法宝可梦
 function sameName(got, answer) {
   const p = guessByName().get(got);
-  return p && [...p.name].sort().join('') === [...answer.name].sort().join('') ? p : null;
+  if (!p) return null;
+  if ([...p.name].sort().join('') === [...answer.name].sort().join('')) return p;
+  const at = p.types || [];
+  const bt = answer.types || [];
+  return at.some(t => bt.includes(t)) ? p : null;
 }
 
 // 点「确定」时判定：答对当场记气球、换下一题；答错整排框变红抖一下，填进去的字留着接着改
@@ -349,19 +362,19 @@ function check() {
   const hard = _g.lv?.id === 'hard';
   let hit;   // 简单/普通档 = 拼出的那只宝可梦；困难档 = 两行是否都对上
   if (hard) {
-    // 困难档按行比对：第一行必须是第一只、第二行必须是第二只，填反或填错都算错；
-    // 同字重排的两只认作同一只
     let base = 0;
     const got = [];
-    hit = _g.answers.every((p) => {
+    let ok = true;
+    for (const p of _g.answers) {
       const n = [...p.name].length;
       const m = sameName(_g.slots.slice(base, base + n).join(''), p);
       base += n;
-      if (!m) return false;
+      if (!m) { ok = false; break }
       got.push(m);
-      return true;
-    });
-    if (hit) _g.answers = got;   // 揭晓显示玩家实际拼出的那只，免得字和头像对不上
+    }
+    if (ok && new Set(got.map(p => p.name)).size !== got.length) ok = false;
+    hit = ok ? got : null;
+    if (hit) _g.answers = got;
   } else {
     hit = guessByName().get(_g.slots.join('')) || null;   // 拼出的是不是一只宝可梦
   }

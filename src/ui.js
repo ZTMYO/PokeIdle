@@ -305,6 +305,15 @@ function afterPaint(fn) {
   setTimeout(run, 350);
 }
 
+// 文字框入场动画令牌：排队中的落位如果撞上 hide，必须作废，
+// 否则 hide 之后它会把 .show 加回去而 display 仍是 none，框永远显示不出来
+const _boxAnimToken = new WeakMap();
+function bumpBoxToken(box) {
+  const t = (_boxAnimToken.get(box) || 0) + 1;
+  _boxAnimToken.set(box, t);
+  return t;
+}
+
 // 直接把文字框放到位（不走升起动画）：切后台恢复、尺寸变化补场时用，动画那套在不可见页面会卡住
 export function showTextBoxNow(owner = 'stage') {
   const { box } = textBoxHost(owner);
@@ -321,9 +330,12 @@ export function updateTextBox(text, showArrow, owner = 'stage') {
   if (!box || !content) return;
   content.textContent = text;
   if (arrow) arrow.style.display = showArrow ? 'flex' : 'none';
-  if (box.classList.contains('show')) return;
+  // 已显示就只换文案；但 display 被收掉过（隐藏/冻结留下的半截状态）时还得重新放出来
+  if (box.classList.contains('show') && box.style.display !== 'none') return;
   box.style.display = 'flex';
+  const token = bumpBoxToken(box);
   afterPaint(() => {
+    if (_boxAnimToken.get(box) !== token) return;   // 期间被 hide/重开过，这次落位作废
     box.style.transform = 'translateY(100%)';
     void box.offsetHeight;
     box.classList.add('show');
@@ -337,6 +349,7 @@ export function hideTextBox(owner = 'stage') {
   box.classList.remove('show');
   box.style.transform = 'translateY(100%)';
   box.style.display = 'none';
+  bumpBoxToken(box); // 作废排队中的落位，别把它又"放"回来
   if (arrow) arrow.style.display = 'none';
 }
 
@@ -1279,12 +1292,16 @@ export function renderIncubatorView() {
         </div>
       </div>`;
     } else if (hasEgg) {
-      const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
-      const usedValid = !isNaN(used) && used >= 0;
+      let used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
+      if (!Number.isFinite(used) || used < 0) {
+        // 存档里程比蛋的起点还小（旧档/回滚）：从当前里程重新起算，别一次判熟
+        s.hatchStart = gameData.stats?.walkDistance || 0;
+        used = 0;
+        saveGame();
+      }
       // 随从（龙/火）辅效果：蛋的里程需求降低
       const need = (s.hatchDuration || 0) * (window.__followerBoostMechanic?.('hatchDist', 1) ?? 1);
-      const shouldBeReady = (!usedValid || (used >= need)) && !s.hatched;
-      if (shouldBeReady) {
+      if (used >= need && !s.hatched) {
         s.hatched = true;
         saveGame();
         updateIncubatorBadge();
@@ -1473,11 +1490,16 @@ export function updateIncubatorTimers() {
     const s = incubators[i];
     if (!s || s.eggIndex == null) return;
     if (s.hatched) { changed = true; return; }
-    const used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
-    const usedValid = !isNaN(used) && used >= 0;
+    let used = (gameData.stats?.walkDistance || 0) - s.hatchStart;
+    if (!Number.isFinite(used) || used < 0) {
+      // 存档里程比蛋的起点还小（旧档/回滚）：从当前里程重新起算，别一次判熟
+      s.hatchStart = gameData.stats?.walkDistance || 0;
+      used = 0;
+      saveGame();
+    }
     // 随从（龙/火）辅效果：蛋的里程需求降低
     const need = (s.hatchDuration || 0) * (window.__followerBoostMechanic?.('hatchDist', 1) ?? 1);
-    if (!usedValid || (used + 100) >= need) {
+    if ((used + 100) >= need) {
       s.hatched = true;
       saveGame();
       changed = true;
@@ -1485,9 +1507,9 @@ export function updateIncubatorTimers() {
     }
     const full = s.hatchDuration || 1;
     // 绝对里程刻度：与列表渲染一致（宽度 = 里程 / 最长里程）
-    const pct = usedValid ? Math.min(100, Math.max(0, used / maxDur * 100)) : 0;
+    const pct = Math.min(100, Math.max(0, used / maxDur * 100));
     const boostPct = Math.min(100, Math.max(0, (full - need) / maxDur * 100));
-    const remain = usedValid ? Math.max(0, Math.ceil((need - used) / PX_PER_METER)) : Math.ceil(need / PX_PER_METER);
+    const remain = Math.max(0, Math.ceil((need - used) / PX_PER_METER));
     const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
     const fill = wrap.querySelector('.incubator-progress-fill');
     const txt = wrap.querySelector('.incubator-progress-text');
