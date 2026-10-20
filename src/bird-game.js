@@ -370,7 +370,7 @@ function finish(win) {
   clearInterval(_timer);
   _timer = null;
   _g.coins = win ? _g.level.coins : 0;   // 只有整盘消完才给气球，失败一场空
-  if (_g.onFinish) { try { _g.onFinish(_g.coins); } catch (e) { console.error('[鸟了个鸟] 结算出错：', e); } }
+  if (_g.onFinish) { try { _g.onFinish(_g.coins, win); } catch (e) { console.error('[鸟了个鸟] 结算出错：', e); } }
   playMahjongSfx('ui');
   showResult(win);
 }
@@ -381,12 +381,11 @@ function showResult(win) {
   _cardEls.clear();   // 牌堆元素要被结果面板顶掉，缓存跟着清
   board.innerHTML = `
     <div class="bg-result">
-      <p class="bg-result-title">${win ? '全部抵消完成' : '槽位满了'}</p>
-      <p class="bg-result-line">抵消 ${_g.groups}/${_g.deck.length / 3} 组</p>
+      <p class="game-result-title">${win ? '全部抵消完成' : '槽位满了'}</p>
       ${win
-        ? `<p class="bg-result-coins"><img src="${COIN_ICON}" alt="">+${_g.coins} 气球</p>`
-        : '<p class="bg-result-coins none">没消完，这局没有气球</p>'}
-      <div class="bg-result-btns">
+        ? `<p class="game-result-coins"><img src="${COIN_ICON}" alt="">+${_g.coins} 气球</p>`
+        : '<p class="game-result-coins none">没消完，这局没有气球</p>'}
+      <div class="game-result-btns">
         <span class="catch-confirm-btn" data-bg="again">再来一局</span>
         <span class="catch-confirm-btn" data-bg="back">返回</span>
       </div>

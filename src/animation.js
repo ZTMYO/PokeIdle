@@ -180,6 +180,24 @@ export function restoreCatchAnim() {
   // 移除丢球角色动画状态（回到默认最后一帧）
   const tc = $('animThrowChar');
   if (tc) { tc.classList.remove('throwing'); }
+  // 复位丢球期间写死的舞台尺寸，让 encounterView / catchStage 回到 CSS 的铺满规则。
+  // 否则残留的固定像素底边会让主角背影在下次遭遇（尺寸不同）时浮空，或被文字框盖住
+  const view = $('encounterView');
+  if (view) {
+    view.style.position = '';
+    view.style.left = '';
+    view.style.top = '';
+    view.style.width = '';
+    view.style.height = '';
+  }
+  const stageEl = $('catchStage');
+  if (stageEl) {
+    stageEl.style.position = '';
+    stageEl.style.left = '';
+    stageEl.style.top = '';
+    stageEl.style.width = '';
+    stageEl.style.height = '';
+  }
   // 清理精灵球残留（可能在上一次捕捉动画后未被清除）
   const ball = $('animBall');
   if (ball) {

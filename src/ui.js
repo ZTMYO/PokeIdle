@@ -278,10 +278,23 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', followerDexView:'随从图鉴', hatchView:'孵化', hatchAllView:'孵化全部', evoView:'进化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', dispatchView:'派遣', casinoView:'游戏厅', casinoGameView:'21 点', casinoPenguinView:'跳企鹅', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', itemBoxView:'道具盒', musicView:'音乐', followerView:'随从', activityView:'限时活动', memoryView:'宝可翻牌', birdView:'鸟了个鸟', flowView:'宝可连线', eventsView:'全服事件' };
-    title.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${names[chromeId]||''}`;
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', followerDexView:'随从图鉴', hatchView:'孵化', hatchAllView:'孵化全部', evoView:'进化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', dispatchView:'派遣', casinoView:'游戏厅', casinoGameView:'21 点', casinoPenguinView:'跳企鹅', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', itemBoxView:'道具盒', musicView:'音乐', followerView:'随从', activityView:'限时活动', memoryView:'宝可翻牌', guessView:'猜宝可梦', birdView:'鸟了个鸟', flowView:'宝可连线', sweetView:'甜蜜工坊', eventsView:'全服事件' };
+    title.innerHTML = backTitleHtml(names[chromeId]||'');
     title.dataset.action = 'back';
   }
+}
+
+// 标题栏「返回箭头 + 文字」的固定写法
+function backTitleHtml(text) {
+  return `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${text || ''}`;
+}
+
+// 标题文案由数据决定时（如限时活动里各活动名不同），由页面自己调这个改标题
+export function setViewTitle(text) {
+  const t = $('appTitle');
+  if (!t) return;
+  t.innerHTML = backTitleHtml(text);
+  t.dataset.action = 'back';
 }
 
 // ---------- 底部文字框 ----------
@@ -1260,11 +1273,6 @@ export function renderIncubatorView() {
   // 野生遭遇期间允许保留孵蛋入口：点击时优先切回遭遇画面处理；
   // 仅在 NPC 对战 / 孵蛋演出自身进行中时真正禁用，避免复用 encounterView 互相覆盖。
   const hatchLocked = phase === 'battle' || isEggShowActive();
-  // 基准里程 = 当前最长蛋的原始里程：进度条按里程比例渲染，黄色段宽度 = 实际免掉的里程
-  let maxDur = 1;
-  for (const s of incubators) {
-    if (s && s.eggIndex != null && !s.hatched && (s.hatchDuration || 0) > maxDur) maxDur = s.hatchDuration;
-  }
   let html = '';
   for (let i = 0; i < Math.min(incubators.length, 8); i++) {
     const s = incubators[i];
@@ -1317,9 +1325,10 @@ export function renderIncubatorView() {
         continue;
       }
       const full = s.hatchDuration || 1;
-      // 绝对里程刻度：宽度 = 里程 / 最长里程。绿色=已走，黄色=随从免掉的里程（从绿色末端延伸）
-      const pct = Math.min(100, Math.max(0, used / maxDur * 100));
-      const boostPct = Math.min(100, Math.max(0, (full - need) / maxDur * 100));
+      // 每颗蛋按自己的总里程归一化：条子都能从 0 走到满，与「还需」线性对应
+      // 绿色=已走，黄色=随从免掉的里程（从绿色末端延伸）
+      const pct = Math.min(100, Math.max(0, used / full * 100));
+      const boostPct = Math.min(100, Math.max(0, (full - need) / full * 100));
       const remain = Math.max(0, Math.ceil((need - used) / PX_PER_METER));
       const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
       html += `<div class="incubator-row">
@@ -1480,11 +1489,6 @@ export function updateIncubatorTimers() {
   if (!list) return;
   const incubators = gameData.incubators || [];
   let changed = false;
-  // 基准里程 = 当前最长蛋的原始里程（与列表渲染一致）
-  let maxDur = 1;
-  for (const s of incubators) {
-    if (s && s.eggIndex != null && !s.hatched && (s.hatchDuration || 0) > maxDur) maxDur = s.hatchDuration;
-  }
   list.querySelectorAll('.incubator-progress-wrap[data-slot]').forEach(wrap => {
     const i = parseInt(wrap.dataset.slot);
     const s = incubators[i];
@@ -1506,9 +1510,9 @@ export function updateIncubatorTimers() {
       return;
     }
     const full = s.hatchDuration || 1;
-    // 绝对里程刻度：与列表渲染一致（宽度 = 里程 / 最长里程）
-    const pct = Math.min(100, Math.max(0, used / maxDur * 100));
-    const boostPct = Math.min(100, Math.max(0, (full - need) / maxDur * 100));
+    // 与列表渲染一致：按这颗蛋自己的总里程归一化
+    const pct = Math.min(100, Math.max(0, used / full * 100));
+    const boostPct = Math.min(100, Math.max(0, (full - need) / full * 100));
     const remain = Math.max(0, Math.ceil((need - used) / PX_PER_METER));
     const distStr = remain >= 1000 ? `${(remain / 1000).toFixed(1)}公里` : `${remain}米`;
     const fill = wrap.querySelector('.incubator-progress-fill');

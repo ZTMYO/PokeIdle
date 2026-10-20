@@ -179,15 +179,24 @@ window.__nextEncounter = (idx, shiny = false) => {
 window.__activity = () => import('./activity.js').then(m => { const d = m.activityDebug(); console.log(d); return d; });
 
 // 开发预览活动（不动服务器那份配置）：__act('poke-flip', { hours: 24, payload: { seed: 7 } })
-//   __act()                看当前预览与可用活动
-//   __act(null)            取消预览
+//   一个活动一份，可以同时挂多个，互不覆盖
+//   __act()                看当前挂着哪些预览与可用活动
+//   __act(null)            清掉全部预览
 //   __act(id, { reset:true })  重开一份存档槽（气球/进度清零）
 //   __act(id, { open:true })   登记后直接打开活动页（宝可连线：__act('flow-link', { open:true })）
+//   __actAll()             一次性把全部活动都挂上预览，挨个调 UI
 window.__act = (id, opts) => import('./activity.js').then(m => {
   if (id === undefined) { const d = m.activityDebug(); console.log(d); return d; }
   const r = m.setDevPreview(id, opts || {});
   if (id && opts?.open) m.openActivityById(id);
   return r;
+});
+
+// 一次性开启全部限时活动（本地预览），方便挨个调 UI：__actAll({ hours: 48 })
+window.__actAll = (opts) => import('./activity.js').then(m => {
+  const ids = m.previewAllActivities(opts || {});
+  console.log(`[限时活动] 已开启全部 ${ids.length} 个活动预览：${ids.join(' / ')}；用 __act(null) 清掉`);
+  return ids;
 });
 
 window.__refreshAll = () => {

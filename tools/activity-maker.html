@@ -168,9 +168,10 @@ function inputFmt(ms) {
 }
 
 // 粘贴的已有清单：支持整份 {"list":[...]}、只有 [...], 或单条活动对象
+// 已到期的（to 早于现在）直接剔除，不再写回清单
 function parseExisting(raw) {
   const t = raw.trim();
-  if (!t) return [];
+  if (!t) return { list: [], dropped: 0 };
   let data;
   try { data = JSON.parse(t); }
   catch (e) { throw new Error(`粘贴的内容不是合法 JSON：${e.message}`); }
@@ -185,7 +186,9 @@ function parseExisting(raw) {
       throw new Error(`第 ${i + 1} 条活动缺少 id / from / to`);
     }
   });
-  return list;
+  const now = Date.now();
+  const kept = list.filter(a => Number(a.to) > now);
+  return { list: kept, dropped: list.length - kept.length };
 }
 
 function syncExistingHint() {
@@ -193,8 +196,10 @@ function syncExistingHint() {
   const raw = $('existing').value.trim();
   if (!raw) { el.textContent = '未粘贴：将生成全新清单'; el.style.color = ''; return; }
   try {
-    const list = parseExisting(raw);
-    el.textContent = `已识别 ${list.length} 条，新活动会追加到末尾`;
+    const { list, dropped } = parseExisting(raw);
+    el.textContent = dropped
+      ? `已识别 ${list.length} 条，剔除 ${dropped} 条已到期的；新活动会追加到末尾`
+      : `已识别 ${list.length} 条，新活动会追加到末尾`;
     el.style.color = '';
   } catch (e) {
     el.textContent = e.message;
@@ -208,7 +213,7 @@ function syncExistingHint() {
 const NO_SEED = new Set(['bird-stack', 'guess-name']);
 function build() {
   const f = readForm();
-  const base = parseExisting(f.existing);
+  const { list: base } = parseExisting(f.existing);   // 已到期的活动在这里就被剔除了
   const from = f.startAt ? new Date(f.startAt).getTime() : Date.now();
   if (!Number.isFinite(from)) throw new Error('开始时间格式不对');
   const to = from + f.hours * 3600 * 1000;

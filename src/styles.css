@@ -2147,9 +2147,8 @@ html.mobile-app #quitHide { display: none !important; }
 }
 .act-badge img { width: 14px; height: 14px; flex-shrink: 0; image-rendering: pixelated; }
 .act-left { flex: 0 0 auto; font-size: 10px; opacity: .8; font-variant-numeric: tabular-nums; }
-.act-body { flex: 1; min-height: 0; color: var(--ui-color); }
+.act-body { flex: 1; min-height: 0; color: var(--ui-color); text-align: center; }
 .act-body p { margin: 0 0 8px; font-size: 11px; line-height: 1.6; }
-.act-body { text-align: center; }
 .act-body .act-anim { object-fit: contain; image-rendering: pixelated; }
 /* 活动页：目标图当主视觉，下面是四档（每档一行：奖励 + 状态，当前档带槽位） */
 .act-hero { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 6px; }
@@ -2162,7 +2161,6 @@ html.mobile-app #quitHide { display: none !important; }
   padding: 7px 9px;
 }
 .act-rules { font-size: 10px; line-height: 1.75; opacity: .85; text-align: left; margin: 0 0 8px; }
-.act-actions { display: flex; justify-content: center; padding: 0 0 10px; }
 .act-tiers { display: flex; flex-direction: column; gap: 6px; padding: 0 2px 6px; text-align: left; }
 .act-tier {
   border: 1px solid rgba(var(--ui-color-rgb), 0.3);
@@ -2491,15 +2489,15 @@ html.mobile-app #quitHide { display: none !important; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   text-align: center; color: var(--ui-color);
 }
-.mg-result-title { font-size: 15px; font-weight: 700; margin: 0; }
-.mg-result-line { font-size: 11px; margin: 0; opacity: .85; }
-.mg-result-coins {
+/* 小游戏结算页共用：标题 + 气球数 + 两个按钮（外层定位各自见 .mg/.bg/.sw-result） */
+.game-result-title { font-size: 15px; font-weight: 700; margin: 0; }
+.game-result-coins {
   display: flex; align-items: center; gap: 4px;
   font-size: 13px; font-weight: 700; margin: 2px 0 0;
 }
-.mg-result-coins img { width: 18px; height: 18px; image-rendering: pixelated; }
-.mg-result-coins.none { font-size: 11px; font-weight: 600; opacity: .75; }
-.mg-result-btns { display: flex; gap: 10px; margin-top: 4px; }
+.game-result-coins img { width: 18px; height: 18px; image-rendering: pixelated; }
+.game-result-coins.none { font-size: 11px; font-weight: 600; opacity: .75; }
+.game-result-btns { display: flex; gap: 10px; margin-top: 4px; }
 
 /* === 鸟了个鸟：叠成一堆的鸟，点开进槽位凑三只抵消 === */
 .bg-head {
@@ -2541,12 +2539,6 @@ html.mobile-app #quitHide { display: none !important; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   text-align: center; color: var(--ui-color);
 }
-.bg-result-title { font-size: 15px; font-weight: 700; margin: 0; }
-.bg-result-line { font-size: 11px; margin: 0; opacity: .85; }
-.bg-result-coins { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; margin: 2px 0 0; }
-.bg-result-coins img { width: 18px; height: 18px; image-rendering: pixelated; }
-.bg-result-coins.none { font-size: 11px; font-weight: 600; opacity: .75; }
-.bg-result-btns { display: flex; gap: 10px; margin-top: 4px; }
 
 /* === 宝可连线：按住成对宝可梦拖出线，铺满全盘且互不交叉 === */
 .fl-stage {
@@ -2733,12 +2725,8 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   text-align: center; color: var(--ui-color);
 }
-.sw-result-title { font-size: 15px; font-weight: 700; margin: 0; }
-.sw-result-coins { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; margin: 2px 0 0; }
-.sw-result-coins img { width: 18px; height: 18px; image-rendering: pixelated; }
-.sw-result-btns { display: flex; gap: 10px; margin-top: 4px; }
-/* 结算页就这两个按钮，按手机的点击尺寸放大一档 */
-.sw-result-btns .catch-confirm-btn { padding: 7px 18px; font-size: 11.5px; }
+/* 小游戏结算页就这两个按钮，按手机的点击尺寸放大一档 */
+.game-result-btns .catch-confirm-btn { padding: 7px 18px; font-size: 11.5px; }
 
 /* 有音乐时压缩时间区域（上挤），app 图标位置保持不动 */
 #phoneView.has-music .phone-clock { padding: 0 0 2px; }
@@ -5769,7 +5757,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   visibility: hidden;
 }
 
-/* 重置存档（二次点击确认） */
+/* 角色与存档：一行标签 + 右侧按钮 */
 .reset-save-row {
   display: flex;
   align-items: center;
@@ -5793,11 +5781,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   .reset-save-btn:hover { background: rgba(var(--ui-color-rgb),0.1); }
 }
 .reset-save-btn:active { transform: scale(0.96); }
-.reset-save-btn.confirm {
-  color: #fff;
-  background: var(--ui-color);
-  border-color: var(--ui-color);
-}
 
 /* === 启动画面 === */
 #splash {

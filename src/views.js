@@ -1338,20 +1338,9 @@ export function renderSettings(container, s) {
     });
   });
   container.querySelector('#toggleBattleMusic')?.addEventListener('click', toggleBattleMusic);
-  // 重置存档：二次点击确认，防误触
-  container.querySelector('#resetSaveBtn')?.addEventListener('click', (e) => {
-    const btn = e.currentTarget;
-    if (!btn.classList.contains('confirm')) {
-      btn.classList.add('confirm');
-      btn.textContent = '确定重置？';
-      clearTimeout(btn._t);
-      btn._t = setTimeout(() => {
-        btn.classList.remove('confirm');
-        btn.textContent = '重置';
-      }, 3000);
-      return;
-    }
-    resetSave();
+  // 重置存档：点一下弹文字框确认，防误触
+  container.querySelector('#resetSaveBtn')?.addEventListener('click', () => {
+    showConfirmBar('确定要重置存档吗？当前进度会被清空，无法找回。', () => resetSave());
   });
   // 刷新游戏：先保存再重载，等效 Ctrl+R 调试刷新
   container.querySelector('#reloadGameBtn')?.addEventListener('click', () => {

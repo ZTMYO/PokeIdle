@@ -59,13 +59,24 @@ export const APPS = [
     open: () => import('./events-view.js').then((m) => m.showEventsView()) },
 ];
 
+// 表里没有的活动回退到气球
+const ACT_ICONS = {
+  'mass-bounty': 'icon-station',
+  'voyage': 'icon-voyage',
+  'poke-flip': 'icon-poke-flip',
+  'bird-stack': 'icon-bird-stack',
+  'flow-link': 'icon-flow-link',
+  'guess-name': 'icon-guess-name',
+  'sweet-workshop': 'icon-sweet-shop',
+};
+
 // 限时活动：每个活动各占一个图标（id 前缀 act: + 活动 id，桌面位置各记各的）。
 // 活动结束这个 id 就成了未知应用，会被布局对账清掉，下次再开回到列表末尾
 function activityApp(appId, actId, name) {
   return {
     id: appId,
     name,
-    icon: 'icon-activity',
+    icon: ACT_ICONS[actId] || 'icon-activity',
     open: () => import('./activity.js').then((m) => m.openActivityById(actId)),
   };
 }

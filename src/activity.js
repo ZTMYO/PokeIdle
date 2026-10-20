@@ -2,7 +2,7 @@
 // 服务端只发"开关 + 时间段 + 参数"（GET /api/activity/），玩法写在 src/activities.js 里。
 // 手机首页时钟左侧会多出一个入口按钮，活动窗口内点开进容器；到点自己消失。
 // 拉不到清单（离线 / 服务器挂了）就当没有活动，主游戏完全不受影响。
-import { $, showView, showConfirmBar, getCurrentView, isDualLayout } from './ui.js';
+import { $, showView, showConfirmBar, getCurrentView, isDualLayout, setViewTitle } from './ui.js';
 import { gameData, saveGame, addSystemLog, pushNav, popNav, rollGender } from './state.js';
 import { grantItem } from './items.js';
 import { ITEM_NAMES } from './config.js';
@@ -92,32 +92,53 @@ const DEV_PREVIEW = DEV ? (Object.keys(ACTIVITIES)[0] || null) : null;
 
 // 开发用的"本地预览活动"：把某个活动当成正在开，用假窗口 + 可覆盖的 payload，
 // 这样开发新玩法时不用去改服务器上那份真实活动。控制台：__act('poke-flip')
+// 一个 id 一份，互不覆盖，可以同时挂多个活动一起调
 const DEV_KEY = 'pokeidle_activity_dev';
-function devPreview() {
-  if (!DEV) return null;
+function devPreviews() {
+  if (!DEV) return {};
   try {
     const o = JSON.parse(localStorage.getItem(DEV_KEY) || 'null');
-    return o && o.id && ACTIVITIES[o.id] ? o : null;
-  } catch (_) { return null; }
+    if (!o || typeof o !== 'object') return {};
+    const out = {};
+    for (const [id, v] of Object.entries(o)) if (v && ACTIVITIES[id]) out[id] = v;
+    return out;
+  } catch (_) { return {}; }
 }
+function devPreview(id) { return id ? (devPreviews()[id] || null) : null; }
 // 登记 / 取消本地预览（登记时刻存下来：重载刷新不会因为窗口变了把活动存档槽重置）
+// 传 null 清掉全部
 export function setDevPreview(id, opts = {}) {
+  const all = devPreviews();
   if (!id) {
     localStorage.removeItem(DEV_KEY);
-    console.log('[限时活动] 本地预览已取消');
+    console.log('[限时活动] 本地预览已全部取消');
   } else if (!ACTIVITIES[id]) {
     console.log(`[限时活动] 不认识这个活动：${id}；可用：${Object.keys(ACTIVITIES).join(' / ')}`);
     return null;
   } else {
-    const old = devPreview();
-    const keepFrom = opts.reset || old?.id !== id ? 0 : old.from;
-    const o = { id, from: keepFrom || Date.now(), hours: Number(opts.hours) || 24, payload: opts.payload || {} };
-    localStorage.setItem(DEV_KEY, JSON.stringify(o));
-    console.log(`[限时活动] 本地预览：${id}（${o.hours} 小时，payload ${JSON.stringify(o.payload)}）${opts.reset ? '，存档槽已重置' : ''}`);
+    const old = all[id];
+    const keepFrom = opts.reset || !old ? 0 : old.from;
+    all[id] = { id, from: keepFrom || Date.now(), hours: Number(opts.hours) || 24, payload: opts.payload || {} };
+    localStorage.setItem(DEV_KEY, JSON.stringify(all));
+    console.log(`[限时活动] 本地预览：${id}（${all[id].hours} 小时，payload ${JSON.stringify(all[id].payload)}）${opts.reset ? '，存档槽已重置' : ''}；当前挂着 ${Object.keys(all).join(' / ')}`);
   }
   refreshEntry();
   if (_open) reopenActivity();
-  return devPreview();
+  return devPreview(id);
+}
+// 一次性把所有活动都登记成本地预览（挨个调 UI 用）：控制台 __actAll()
+// opts.hours 统一窗口时长；opts.payloads 可按 id 单独给 payload（不给就用缺省，种子回退到开始时刻）
+export function previewAllActivities(opts = {}) {
+  const all = devPreviews();
+  const hours = Number(opts.hours) || 24;
+  const from = Date.now();
+  const payloads = opts.payloads || {};
+  const ids = Object.keys(ACTIVITIES);
+  for (const id of ids) all[id] = { id, from, hours, payload: payloads[id] || {} };
+  localStorage.setItem(DEV_KEY, JSON.stringify(all));
+  refreshEntry();
+  if (_open) reopenActivity();
+  return ids;
 }
 // 本地预览的假窗口：开始时刻固定，结束按 hours 顺延，免得开发到一半活动"过期"
 function devWin(di) {
@@ -126,21 +147,21 @@ function devWin(di) {
 }
 // 某个活动此刻是否在窗口内（不发奖励，只判断）；本地预览的那个也算
 export function activityActive(id) {
-  return activeActivities().some(a => a.id === id) || (devPreview() || {}).id === id;
+  return activeActivities().some(a => a.id === id) || !!devPreview(id);
 }
 
 // 某个活动当前这一期的开始时刻（不在窗口内返回 0）：给"一开跑就要重置"的模块当标记用
 export function activityFrom(id) {
   const a = activeActivities().find(x => x.id === id);
   if (a) return a.from;
-  const di = devPreview();
-  return di && di.id === id ? devWin(di).from : 0;
+  const di = devPreview(id);
+  return di ? devWin(di).from : 0;
 }
 
 // 这个 id 该用哪条记录：本地预览优先（同一个 id 也走假窗口和覆盖后的 payload）
 function entryOf(id) {
-  const di = devPreview();
-  if (di && di.id === id) return { id, payload: di.payload || {}, dev: true };
+  const di = devPreview(id);
+  if (di) return { id, payload: di.payload || {}, dev: true };
   return (_list || []).find(x => x.id === id) || { id, payload: {} };
 }
 
@@ -164,7 +185,7 @@ export function activityDebug() {
       return el ? '亮着' : '未渲染（手机页未打开/无活动）';
     })(),
     开发预览: DEV_PREVIEW,
-    本地预览: devPreview(),
+    本地预览: devPreviews(),
   };
 }
 function hhmmss(ms) {
@@ -204,7 +225,7 @@ function previewWin() {
   return _previewWin;
 }
 function winOf(a, id) {
-  if (a && a.dev) return devWin(devPreview() || {});
+  if (a && a.dev) return devWin(devPreview(id) || {});
   if (a && a.from) return { from: a.from, to: a.to };
   if (id !== DEV_PREVIEW) return null;
   return previewWin();
@@ -227,10 +248,12 @@ export function activityEntries() {
   const out = activeActivities()
     .filter((a) => readyOf(a.id, ACTIVITIES[a.id]))
     .map((a) => ({ id: a.id, name: ACTIVITIES[a.id].name || '限时活动' }));
-  const di = devPreview();
-  const extra = di && ACTIVITIES[di.id] ? di.id : DEV_PREVIEW;
-  if (extra && ACTIVITIES[extra] && readyOf(extra, ACTIVITIES[extra]) && !out.some((e) => e.id === extra)) {
-    out.unshift({ id: extra, name: ACTIVITIES[extra].name || '限时活动' });
+  // 本地预览（可同时挂多个）排在最前；一份都没有时用 DEV_PREVIEW 占个位，方便调样式
+  const dev = Object.keys(devPreviews());
+  for (const id of (dev.length ? dev : (DEV_PREVIEW ? [DEV_PREVIEW] : []))) {
+    if (ACTIVITIES[id] && readyOf(id, ACTIVITIES[id]) && !out.some((e) => e.id === id)) {
+      out.unshift({ id, name: ACTIVITIES[id].name || '限时活动' });
+    }
   }
   return out;
 }
@@ -294,7 +317,7 @@ function openActivity(id) {
   _bodyTimer = setInterval(() => {
     const cur = (_list || []).find(x => x.id === _open);
     if (!_openWin || serverNow() >= _openWin.to) { closeActivity(); return; } // 到点：自动退回首页
-    if (_open !== DEV_PREVIEW && !cur && !(devPreview() || {}).id) { closeActivity(); return; }   // 被下架：同上
+    if (_open !== DEV_PREVIEW && !cur && !devPreview(_open)) { closeActivity(); return; }   // 被下架：同上
     if (!readyOf(_open, _openMod)) { closeActivity(); return; }               // 条件不满足了：收起
     tickActivity();
   }, 1000);
@@ -408,6 +431,8 @@ function paintActivity() {
     let t = _openMod.name || '限时活动';
     try { if (_openMod.title) t = _openMod.title(ctx) || t; } catch (e) { console.error('[限时活动] title 出错：', e); }
     titleEl.textContent = t;
+    // 顶栏只放活动名（标题栏放不下"大量悬赏-皮卡丘"这种长文案）
+    if ($('activityView')?.style.display !== 'none') setViewTitle(_openMod.name || '限时活动');
   }
   const badgeEl = $('activityBadge');
   if (badgeEl) {

@@ -333,7 +333,7 @@ function finish() {
   _g.done = true;
   _g.drag = null;
   _g.coins = _g.lv.coins;
-  if (_g.onFinish) { try { _g.onFinish(_g.coins); } catch (e) { console.error('[宝可连线] 结算出错：', e); } }
+  if (_g.onFinish) { try { _g.onFinish(_g.coins, true); } catch (e) { console.error('[宝可连线] 结算出错：', e); } }
   playMahjongSfx('ui');
   playWinFx();
 }
@@ -366,10 +366,9 @@ function showResult() {
   const el = document.createElement('div');
   el.className = 'bg-result fl-result';
   el.innerHTML = `
-    <p class="bg-result-title">全部连接完成</p>
-    <p class="bg-result-line">${_g.lv.name} · ${_g.n}×${_g.n}</p>
-    <p class="bg-result-coins"><img src="${COIN_ICON}" alt="">+${_g.coins} 气球</p>
-    <div class="bg-result-btns">
+    <p class="game-result-title">全部连接完成</p>
+    <p class="game-result-coins"><img src="${COIN_ICON}" alt="">+${_g.coins} 气球</p>
+    <div class="game-result-btns">
       <span class="catch-confirm-btn" data-fl="again">再来一局</span>
       <span class="catch-confirm-btn" data-fl="back">返回</span>
     </div>`;

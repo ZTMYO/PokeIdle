@@ -506,6 +506,12 @@ function bindEvents() {
     playMahjongSfx('ui');
     hint();
   };
+  const back = $('gsBack');
+  if (back) back.onclick = () => {
+    if (!_g) return;
+    playMahjongSfx('ui');
+    leaveGuessGame();
+  };
 }
 
 export function startGuessGame(opts = {}) {

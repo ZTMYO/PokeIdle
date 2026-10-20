@@ -5,7 +5,6 @@
 // 一局的随机（牌面顺序、金卡）用本地随机就够 —— 这里没有"全服同一份奖励"的问题，价格是固定的。
 import { $, showView, getCurrentView, tryLoadImage } from './ui.js';
 import { pushNav, popNav, allPokemon } from './state.js';
-import { foldFamilies } from './items.js';
 import { playMahjongSfx } from './audio.js';
 
 // 三档牌桌：对数 / 列数 / 通关基础币 / 时限（秒）/ 最多翻牌次数（一次 = 翻开两张）
@@ -18,18 +17,20 @@ export const levelOf = (id) => MG_LEVELS.find(l => l.id === id) || MG_LEVELS[1];
 
 let _g = null;   // 当前这一局
 
-// 简单档固定这几只：颜色区别大的经典宝可梦，认得清、配得快
-const EASY_FACES = ['0025', '0004', '0007', '0001', '0039', '0094'];   // 皮卡丘 / 小火龙 / 杰尼龟 / 妙蛙种子 / 胖丁 / 耿鬼
+// 牌面池：都是大家眼熟的经典宝可梦，颜色和轮廓区别大，好认好配
+const MG_FACES = [
+  '0001', '0004', '0007', '0025', '0035', '0039', '0052', '0054', '0059', '0068',
+  '0094', '0095', '0130', '0132', '0133', '0143', '0149', '0150',
+  '0151', '0152', '0155', '0158', '0255', '0258', '0448',
+];
+// 妙蛙种子 / 小火龙 / 杰尼龟 / 皮卡丘 / 皮皮 / 胖丁 / 喵喵 / 可达鸭 / 风速狗 / 怪力 /
+// 耿鬼 / 大岩蛇 / 暴鲤龙 / 百变怪 / 伊布 / 卡比兽 / 快龙 / 超梦 /
+// 梦幻 / 菊草叶 / 火球鼠 / 小锯鳄 / 火稚鸡 / 水跃鱼 / 路卡利欧
 
-// 牌面：简单档用固定那几张；其余档先按家族聚类（同一只宝可梦的各种形态算一簇，
-// 阿尔宙斯那种不会两个变体同时上桌），再随机挑 n 簇、每簇随机取一个形态 —— 和大量出没同一套规则
-function pickFaces(n, lv) {
-  if (lv?.id === 'easy') {
-    const fixed = EASY_FACES.map(i => allPokemon.find(p => String(p.index) === i)).filter(p => p?.icon);
-    if (fixed.length >= n) return fixed.slice(0, n);
-  }
-  const groups = foldFamilies(allPokemon.filter(p => p.icon));
-  return shuffled(groups).slice(0, n).map(g => g[Math.floor(Math.random() * g.length)]);
+// 牌面：每局从池子里随机挑 n 只，各档都只出这一批（换局就换面孔，不碰图鉴里那些生僻的）
+function pickFaces(n) {
+  const pool = MG_FACES.map(i => allPokemon.find(p => String(p.index) === i)).filter(p => p?.icon);
+  return shuffled(pool).slice(0, n);
 }
 function shuffled(arr) {
   const a = arr.slice();
@@ -44,7 +45,7 @@ export function startMemoryGame(opts = {}) {
   const view = $('memoryView');
   if (!view) return;
   const lv = levelOf(opts.level);
-  const faces = pickFaces(lv.pairs, lv);
+  const faces = pickFaces(lv.pairs);
   if (faces.length < lv.pairs) return;
   _g = {
     lv,
@@ -197,7 +198,7 @@ function finish(reason) {
   } else {
     _g.coins = 0;
   }
-  if (_g.onFinish) { try { _g.onFinish(_g.coins); } catch (e) { console.error('[宝可翻牌] 结算出错：', e); } }
+  if (_g.onFinish) { try { _g.onFinish(_g.coins, reason === 'clear'); } catch (e) { console.error('[宝可翻牌] 结算出错：', e); } }
   if (reason !== 'leave') {   // 中途退出：静默作废，别在离开时还响一声
     playMahjongSfx('ui');
     showResult(reason);
@@ -214,12 +215,11 @@ function showResult(reason) {
   board.style.gridTemplateRows = '1fr';
   board.innerHTML = `
     <div class="mg-result">
-      <p class="mg-result-title">${reason === 'clear' ? '全部配对完成' : reason === 'tries' ? '翻牌次数用完了' : '时间到了'}</p>
-      <p class="mg-result-line">${_g.lv.name} · 配对 ${_g.matched}/${_g.lv.pairs} · 翻牌 ${_g.tries} 次</p>
+      <p class="game-result-title">${reason === 'clear' ? '全部配对完成' : reason === 'tries' ? '翻牌次数用完了' : '时间到了'}</p>
       ${reason === 'clear'
-        ? `<p class="mg-result-coins"><img src="./items/goods/balloon-cyan.png" alt="">+${_g.coins} 气球</p>`
-        : '<p class="mg-result-coins none">没翻完，这局没有气球</p>'}
-      <div class="mg-result-btns">
+        ? `<p class="game-result-coins"><img src="./items/goods/balloon-cyan.png" alt="">+${_g.coins} 气球</p>`
+        : '<p class="game-result-coins none">没翻完，这局没有气球</p>'}
+      <div class="game-result-btns">
         <span class="catch-confirm-btn" data-mg="again">再来一局</span>
         <span class="catch-confirm-btn" data-mg="back">返回</span>
       </div>

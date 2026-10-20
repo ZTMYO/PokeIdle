@@ -235,6 +235,8 @@ const shopItemsOf = (ctx) => (
 );
 
 const coinsOf = ctx => Math.max(0, Math.round(Number(ctx.slot && ctx.slot.coins) || 0));
+// 统计行：难度档上方那一行，仿猜宝可梦的"已答对 N 题"
+const clearedRow = ctx => `<div class="act-own">已通关 <b>${Number(ctx.slot.cleared) || 0}</b> 局</div>`;
 function boughtOf(ctx) {
   if (!ctx.slot.bought || typeof ctx.slot.bought !== 'object') ctx.slot.bought = {};
   return ctx.slot.bought;
@@ -317,6 +319,56 @@ function buyShopItem(ctx, id) {
     ctx.save();
     ctx.refresh();
   });
+}
+
+// 币类小游戏顶栏那格：气球图标接个数字（翻牌 / 鸟了个鸟 / 连线 / 甜蜜工坊 / 猜宝可梦共用）
+const coinBadge = (ctx) => `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`;
+
+// 币类小游戏统一的每秒巡检：币数 / 兑换状态 / 计分 / 难度有变化才重画
+// scoreKey 是计分字段名（通关数 cleared、答对数 solved）
+function coinTick(root, ctx, scoreKey) {
+  const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${Number(ctx.slot[scoreKey]) || 0}|${ctx.slot.level || ''}`;
+  if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
+}
+
+// 翻牌 / 鸟了个鸟 / 连线 / 甜蜜工坊四个活动的外壳一样：
+// 规则文案 + 通关统计 + 难度档 + 兑换所，点难度直接开局，结算回币。
+// 各活动只传自己的难度数据、属性名、规则文案和游戏模块。
+function coinGame({ name, levels, levelOf, attr, rules, levelDesc, start }) {
+  const dsKey = attr.replace(/-([a-z])/g, (_, c) => c.toUpperCase());   // 'bg-level' → 'bgLevel'
+  return {
+    name,
+    badge: coinBadge,
+
+    render(ctx) {
+      const lv = levelOf(ctx.slot.level || 'normal');
+      return `
+        <div class="act-card act-rules">${rules}</div>
+        ${clearedRow(ctx)}
+        <div class="act-levels">${levels.map(l => `<span class="act-level${l.id === lv.id ? ' on' : ''}" data-${attr}="${l.id}">${l.name}<em>${levelDesc(l)}</em></span>`).join('')}</div>
+        <div class="act-shop">${shopItemsOf(ctx).map(it => shopRowHtml(ctx, it)).join('')}</div>`;
+    },
+
+    mount(root, ctx) {
+      root.querySelectorAll(`[data-${attr}]`).forEach((el) => el.addEventListener('click', () => {
+        const id = el.dataset[dsKey];
+        ctx.slot.level = id;
+        ctx.save();
+        // 结算回调：币记账，页面的数字等回来时重画
+        start(id, (coins, cleared) => {
+          ctx.slot.coins = coinsOf(ctx) + coins;
+          if (cleared) ctx.slot.cleared = (Number(ctx.slot.cleared) || 0) + 1;
+          ctx.save();
+        });
+      }));
+      root.querySelectorAll('[data-buy]').forEach((btn) => {
+        btn.addEventListener('click', () => buyShopItem(ctx, btn.dataset.buy));
+      });
+    },
+
+    // 每秒看一眼：币数/兑换状态/通关数/难度有变化才重画
+    tick(root, ctx) { coinTick(root, ctx, 'cleared'); },
+  };
 }
 
 // ===== 航海寻宝（id: voyage）：用船票起航，转盘抽里程，边开边打捞拼图 =====
@@ -874,7 +926,6 @@ export const ACTIVITIES = {
   // seed 决定"固定哪一只（全野池随机、去神兽）+ 四档奖励"，改 seed 就整份重摇
   'mass-bounty': {
     name: '大量悬赏',
-    icon: './items/goods/balloon-red.png',   // 背包入口用的气球（每个活动一个颜色）
 
     // 页头标题：活动名 + 当前目标（"大量悬赏-皮卡丘"）
     title(ctx) {
@@ -946,199 +997,58 @@ export const ACTIVITIES = {
   // ---- 宝可翻牌（poke-flip）：靠配对翻牌赚气球，换道具（每样限一次）----
   // 服务器 activity.json 里加一条 { "id": "poke-flip", "from": …, "to": …,
   //   "payload": { "seed": …, "eggSpecies": "0133" } }
-  'poke-flip': {
+  'poke-flip': coinGame({
     name: '宝可翻牌',
-    icon: BALLOON_ICON,
-
-    // 顶栏中间那格：气球就一个图标接一个数字（和标题、剩余时间同一行，不占正文高度）
-    badge(ctx) { return `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`; },
-
-    render(ctx) {
-      const lv = levelOf(ctx.slot.level || 'normal');
-      return `
-        <div class="act-card act-rules">点击卡片翻开，相同图案的配对，将所有卡片两两配对后获得气球奖励。<br>翻得次数越少、难度越高，获得的气球越多。<br>
-          气球可以兑换下面的奖励，每样限一次。</div>
-        <div class="act-levels">${MG_LEVELS.map(l => `<span class="act-level${l.id === lv.id ? ' on' : ''}" data-level="${l.id}">${l.name}<em>${l.time}秒 · ${l.tries}次</em></span>`).join('')}</div>
-        <div class="act-actions"><span class="catch-confirm-btn" id="actPlay">开始游戏</span></div>
-        <div class="act-shop">${SHOP_ITEMS.map(it => shopRowHtml(ctx, it)).join('')}</div>`;
-    },
-
-    mount(root, ctx) {
-      root.querySelectorAll('[data-level]').forEach((el) => el.addEventListener('click', () => {
-        ctx.slot.level = el.dataset.level;
-        ctx.save();
-        ctx.refresh();
-      }));
-      const play = root.querySelector('#actPlay');
-      if (play) play.addEventListener('click', () => {
-        import('./memory-game.js').then(m => m.startMemoryGame({
-          level: ctx.slot.level || 'normal',
-          // 结算回调：币记账，页面的数字等回来时重画
-          onFinish: (coins) => {
-            ctx.slot.coins = coinsOf(ctx) + coins;
-            ctx.save();
-          },
-        }));
-      });
-      root.querySelectorAll('[data-buy]').forEach((btn) => {
-        btn.addEventListener('click', () => buyShopItem(ctx, btn.dataset.buy));
-      });
-    },
-
-    // 每秒看一眼：币数/兑换状态有变化才重画
-    tick(root, ctx) {
-      const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${ctx.slot.level || ''}`;
-      if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
-    },
-  },
+    levels: MG_LEVELS,
+    levelOf,
+    attr: 'level',
+    rules: '点击卡片翻开，相同图案的配对，将所有卡片两两配对后获得气球奖励。<br>翻得次数越少、难度越高，获得的气球越多。<br>气球可以兑换下面的奖励，每样限一次。',
+    levelDesc: l => `${l.time}秒 · ${l.tries}次`,
+    start: (level, onFinish) => import('./memory-game.js').then(m => m.startMemoryGame({ level, onFinish })),
+  }),
 
   // ---- 鸟了个鸟（bird-stack）：把叠成一堆的鸟点进槽位，凑三只抵消，换道具（每样限一次）----
   // 服务器 activity.json 里加一条 { "id": "bird-stack", "from": …, "to": … }
-  'bird-stack': {
+  'bird-stack': coinGame({
     name: '鸟了个鸟',
-    icon: './items/goods/balloon-teal.png',
-
-    badge(ctx) { return `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`; },
-
-    render(ctx) {
-      const lv = bgLevelOf(ctx.slot.level || 'normal');
-      return `
-        <div class="act-card act-rules">点击没被压住的鸟，把它放进下面的槽位，凑齐三只一样的自动抵消。<br>
-          槽位放满 7 个就算输，整盘消完才有气球，难度越高给得越多。<br>
-          气球可以兑换下面的奖励，每样限一次。</div>
-        <div class="act-levels">${BG_LEVELS.map(l => `<span class="act-level${l.id === lv.id ? ' on' : ''}" data-bg-level="${l.id}">${l.name}<em>${l.birds} 种 · ${l.layers.reduce((s, x) => s + x.n, 0)} 只</em></span>`).join('')}</div>
-        <div class="act-actions"><span class="catch-confirm-btn" id="actPlay">开始游戏</span></div>
-        <div class="act-shop">${shopItemsOf(ctx).map(it => shopRowHtml(ctx, it)).join('')}</div>`;
-    },
-
-    mount(root, ctx) {
-      root.querySelectorAll('[data-bg-level]').forEach((el) => el.addEventListener('click', () => {
-        ctx.slot.level = el.dataset.bgLevel;
-        ctx.save();
-        ctx.refresh();
-      }));
-      const play = root.querySelector('#actPlay');
-      if (play) play.addEventListener('click', () => {
-        import('./bird-game.js').then(m => m.startBirdGame({
-          level: ctx.slot.level || 'normal',
-          // 结算回调：币记账，页面的数字等回来时重画
-          onFinish: (coins) => {
-            ctx.slot.coins = coinsOf(ctx) + coins;
-            ctx.save();
-          },
-        }));
-      });
-      root.querySelectorAll('[data-buy]').forEach((btn) => {
-        btn.addEventListener('click', () => buyShopItem(ctx, btn.dataset.buy));
-      });
-    },
-
-    // 每秒看一眼：币数/兑换状态/难度有变化才重画
-    tick(root, ctx) {
-      const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${ctx.slot.level || ''}`;
-      if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
-    },
-  },
+    levels: BG_LEVELS,
+    levelOf: bgLevelOf,
+    attr: 'bg-level',
+    rules: '点击没被压住的鸟，把它放进下面的槽位，凑齐三只一样的自动抵消。<br>槽位放满 7 个就算输，整盘消完才有气球，难度越高给得越多。<br>气球可以兑换下面的奖励，每样限一次。',
+    levelDesc: l => `${l.birds} 种 · ${l.layers.reduce((s, x) => s + x.n, 0)} 只`,
+    start: (level, onFinish) => import('./bird-game.js').then(m => m.startBirdGame({ level, onFinish })),
+  }),
 
   // ---- 宝可连线（flow-link）：拖出成对宝可梦之间的线，铺满全盘，换道具（每样限一次）----
   // 服务器 activity.json 里加一条 { "id": "flow-link", "from": …, "to": … }
-  'flow-link': {
+  'flow-link': coinGame({
     name: '宝可连线',
-    icon: './items/goods/balloon-pink.png',
-
-    badge(ctx) { return `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`; },
-
-    render(ctx) {
-      const lv = flowLevelOf(ctx.slot.level || 'normal');
-      return `
-        <div class="act-card act-rules">连接成对的宝可梦并给格子铺上颜色，铺满全盘即可通关；不同连线不能交叉。<br>通关获得气球，可以兑换下面的奖励，每样限一次。</div>
-        <div class="act-levels">${FLOW_LEVELS.map(l => `<span class="act-level${l.id === lv.id ? ' on' : ''}" data-flow-level="${l.id}">${l.name}<em>${l.size}×${l.size} · ${l.flows} 对</em></span>`).join('')}</div>
-        <div class="act-actions"><span class="catch-confirm-btn" id="actPlay">开始游戏</span></div>
-        <div class="act-shop">${shopItemsOf(ctx).map(it => shopRowHtml(ctx, it)).join('')}</div>`;
-    },
-
-    mount(root, ctx) {
-      root.querySelectorAll('[data-flow-level]').forEach((el) => el.addEventListener('click', () => {
-        ctx.slot.level = el.dataset.flowLevel;
-        ctx.save();
-        ctx.refresh();
-      }));
-      const play = root.querySelector('#actPlay');
-      if (play) play.addEventListener('click', () => {
-        import('./flow-game.js').then(m => m.startFlowGame({
-          level: ctx.slot.level || 'normal',
-          // 结算回调：币记账，页面的数字等回来时重画
-          onFinish: (coins) => {
-            ctx.slot.coins = coinsOf(ctx) + coins;
-            ctx.save();
-          },
-        }));
-      });
-      root.querySelectorAll('[data-buy]').forEach((btn) => {
-        btn.addEventListener('click', () => buyShopItem(ctx, btn.dataset.buy));
-      });
-    },
-
-    // 每秒看一眼：币数/兑换状态/难度有变化才重画
-    tick(root, ctx) {
-      const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${ctx.slot.level || ''}`;
-      if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
-    },
-  },
+    levels: FLOW_LEVELS,
+    levelOf: flowLevelOf,
+    attr: 'flow-level',
+    rules: '连接成对的宝可梦并给格子铺上颜色，铺满全盘即可通关；不同连线不能交叉。<br>通关获得气球，可以兑换下面的奖励，每样限一次。',
+    levelDesc: l => `${l.size}×${l.size} · ${l.flows} 对`,
+    start: (level, onFinish) => import('./flow-game.js').then(m => m.startFlowGame({ level, onFinish })),
+  }),
 
   // ---- 甜蜜工坊（sweet-workshop）：照顾客点单做冰激凌，按时机出货赚气球，换道具（每样限一次）----
   // 服务器 activity.json 里加一条 { "id": "sweet-workshop", "from": …, "to": … }
-  'sweet-workshop': {
+  'sweet-workshop': coinGame({
     name: '甜蜜工坊',
-    icon: './items/goods/balloon-cream.png',
-
-    badge(ctx) { return `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`; },
-
-    render(ctx) {
-      const lv = swLevelOf(ctx.slot.level || 'normal');
-      return `
-        <div class="act-card act-rules">照着顾客订单制作冰激凌，先选冰激凌再选糖饰，确认后按时机点击按钮出货。<br>
-          出货越完美给的气球越多。困难模式需要按照顾客要求的顺序堆叠冰激凌。做错了需丢弃后重做。
-          气球可以兑换下面的奖励，每样限一次。</div>
-        <div class="act-levels">${SW_LEVELS.map(l => `<span class="act-level${l.id === lv.id ? ' on' : ''}" data-sw-level="${l.id}">${l.name}<em>最高 ${l.perfect} 气球</em></span>`).join('')}</div>
-        <div class="act-shop">${shopItemsOf(ctx).map(it => shopRowHtml(ctx, it)).join('')}</div>`;
-    },
-
-    mount(root, ctx) {
-      const startGame = (level) => {
-        import('./sweet-game.js').then(m => m.startSweetGame({
-          level,
-          // 结算回调：币记账，页面的数字等回来时重画
-          onFinish: (coins) => {
-            ctx.slot.coins = coinsOf(ctx) + coins;
-            ctx.save();
-          },
-        }));
-      };
-      root.querySelectorAll('[data-sw-level]').forEach((el) => el.addEventListener('click', () => {
-        ctx.slot.level = el.dataset.swLevel;
-        ctx.save();
-        startGame(el.dataset.swLevel);
-      }));
-      root.querySelectorAll('[data-buy]').forEach((btn) => {
-        btn.addEventListener('click', () => buyShopItem(ctx, btn.dataset.buy));
-      });
-    },
-
-    // 每秒看一眼：币数/兑换状态/难度有变化才重画
-    tick(root, ctx) {
-      const key = `${coinsOf(ctx)}|${Object.keys(boughtOf(ctx)).sort().join(',')}|${ctx.slot.level || ''}`;
-      if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
-    },
-  },
+    levels: SW_LEVELS,
+    levelOf: swLevelOf,
+    attr: 'sw-level',
+    rules: '照着顾客订单制作冰激凌，先选冰激凌再选糖饰，确认后按时机点击按钮出货。<br>出货越完美给的气球越多。困难模式需要按照顾客要求的顺序堆叠冰激凌。做错了需丢弃后重做。气球可以兑换下面的奖励，每样限一次。',
+    levelDesc: l => `最高 ${l.perfect} 气球`,
+    start: (level, onFinish) => import('./sweet-game.js').then(m => m.startSweetGame({ level, onFinish })),
+  }),
 
   // ---- 猜宝可梦（guess-name）：独立小游戏页，从候选字里拼出宝可梦名字，答对累加气球 ----
   // 服务器 activity.json 里加一条 { "id": "guess-name", "from": …, "to": … }
   'guess-name': {
     name: '猜宝可梦',
-    icon: COIN_ICONS['guess-name'],
 
-    badge(ctx) { return `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`; },
+    badge: coinBadge,
 
     ready() { return guessReady(); },
 
@@ -1191,7 +1101,6 @@ export const ACTIVITIES = {
   // 数值（里程权重/门槛/零钱/速度）都是客户端常量，见文件顶部 VOYAGE_*
   'voyage': {
     name: '航海寻宝',
-    icon: './items/goods/ticket.png',
 
     badge(ctx) { return `<img src="./items/goods/ticket.png" alt="">${ctx.count('ticket')}`; },
 

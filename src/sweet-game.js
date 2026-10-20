@@ -538,7 +538,7 @@ function finish() {
   clearInterval(_timer); _timer = null;
   cancelAnimationFrame(_qteRaf); _qteRaf = null;
   cancelAnimationFrame(_custRaf); _custRaf = null;
-  if (_g.onFinish) { try { _g.onFinish(_g.coins); } catch (e) { console.error('[甜蜜工坊] 结算出错：', e); } }
+  if (_g.onFinish) { try { _g.onFinish(_g.coins, true); } catch (e) { console.error('[甜蜜工坊] 结算出错：', e); } }
   playMahjongSfx('ui');
   paint();
 }
@@ -546,10 +546,10 @@ function finish() {
 function resultHtml() {
   return `
     <div class="sw-result">
-      <p class="sw-result-title">营业结束</p>
-      <p class="sw-result-coins"><img src="${COIN_ICON}" alt="">+${_g.coins} 气球</p>
-      <div class="sw-result-btns">
-        <span class="catch-confirm-btn" data-sw="again">再来一轮</span>
+      <p class="game-result-title">营业结束</p>
+      <p class="game-result-coins"><img src="${COIN_ICON}" alt="">+${_g.coins} 气球</p>
+      <div class="game-result-btns">
+        <span class="catch-confirm-btn" data-sw="again">再来一局</span>
         <span class="catch-confirm-btn" data-sw="back">返回</span>
       </div>
     </div>`;

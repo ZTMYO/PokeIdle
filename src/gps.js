@@ -99,6 +99,16 @@ function computeMarkerPos(g) {
   return { onRoad, currentRoad, activeA, activeB, markerIdx, markerX, markerY, markerAngle, markerUsable };
 }
 
+// 保留的事件点目标是否仍对应活跃事件：事件结束但骑行未到点时，目标降级为普通点
+function eventTargetAlive(g) {
+  if (!g.massTarget) return false;
+  const [ea, eb] = g.massTarget.edge;
+  const match = (ev) => !!ev && !!ev.edge
+    && ((ev.edge[0] === ea && ev.edge[1] === eb) || (ev.edge[0] === eb && ev.edge[1] === ea))
+    && Math.abs(ev.t - g.massTarget.t) < 1e-6;
+  return match(getMassOutbreak()) || match(getTwist());
+}
+
 // 剩余里程/时间（与 render 同一套逻辑，供导航推进时增量更新底部信息）
 function computeRouteRemain(g) {
   const hasDest = g.destIdx != null || g.massTarget != null;
@@ -462,9 +472,11 @@ function advanceSegment() {
     g.remainPx = (g.path[g.seg] === ea && g.path[g.seg + 1] === eb)
       ? g.totalPx - fromA // a→b 方向：事件点之后还剩到 eb 的距离
       : fromA;            // b→a 方向：事件点之后还剩到 ea 的距离
+    // 事件若已结束（骑行途中到期）则不算停在事件点，避免地图残留事件提示
+    const targetAlive = eventTargetAlive(g);
     g.destIdx = null;
     g.massTarget = null;
-    g.massArrived = true;
+    g.massArrived = targetAlive;
     // 抵达大量出没事件点：立即结束骑行状态（场景是自行车场景时直接切成走路，
     // 场景画面保持自行车道不变，恢复正常走路/遭遇，事件宝可梦才能滚向主角进战斗）
     road.setBike(false);
@@ -824,7 +836,10 @@ function render() {
       const isTwist = tw && g.massTarget.edge
         && g.massTarget.edge[0] === tw.edge[0] && g.massTarget.edge[1] === tw.edge[1]
         && Math.abs(g.massTarget.t - tw.t) < 1e-6;
-      roamHint = roadInfo ? `${roadInfo.num}#道路（${roadInfo.name}）→${isTwist ? '时空扭曲' : '大量出没'}` : '';
+      // 事件已结束（骑行途中到期）时目标降级为普通点：只报所在道路
+      roamHint = roadInfo
+        ? (eventTargetAlive(g) ? `${roadInfo.num}#道路（${roadInfo.name}）→${isTwist ? '时空扭曲' : '大量出没'}` : `${roadInfo.num}#道路（${roadInfo.name}）`)
+        : '';
     } else if (g.massArrived) {
       // 已停在事件点：不再是"前往某地区"，提示事件进行中
       const isTwist = inTwistZone();

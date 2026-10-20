@@ -149,16 +149,11 @@ export function endMassOutbreak() {
   gameData.massOutbreak = null;
   // 事件结束：先换算事件边上的剩余语义再取消目标，避免残留的"到事件点剩余"被当普通路段读导致瞬移
   if (gameData.gps) {
-    normalizeMassRemainToEnd(gameData.gps);
-    const hadMassTarget = !!gameData.gps.massTarget;
-    gameData.gps.massTarget = null;
-    gameData.gps.massArrived = false;
-    // 骑行途中事件结束：目的地改成路线终点，继续骑完再下车；直接下车会把玩家丢在半路
-    if (hadMassTarget && road.isManualBike()) {
-      const path = gameData.gps.path;
-      const last = path && path.length ? path[path.length - 1] : null;
-      if (last != null) gameData.gps.destIdx = last;
-      else road.setManualBike(false);
+    // 骑行途中事件结束：保留事件点目标，继续骑到原事件点再下车（到点由 gps 推进逻辑自动下车）
+    if (!(gameData.gps.massTarget && road.isManualBike())) {
+      normalizeMassRemainToEnd(gameData.gps);
+      gameData.gps.massTarget = null;
+      gameData.gps.massArrived = false;
     }
   }
   saveGame();
@@ -449,15 +444,11 @@ export function endTwist() {
   addSystemLog('twist_end', {});
   gameData.twist = null;
   if (gameData.gps) {
-    normalizeMassRemainToEnd(gameData.gps);
-    const hadMassTarget = !!gameData.gps.massTarget;
-    gameData.gps.massTarget = null;
-    gameData.gps.massArrived = false;
-    if (hadMassTarget && road.isManualBike()) {
-      const path = gameData.gps.path;
-      const last = path && path.length ? path[path.length - 1] : null;
-      if (last != null) gameData.gps.destIdx = last;
-      else road.setManualBike(false);
+    // 与大量出没一致：骑行途中事件结束则保留事件点目标，骑到原事件点再下车
+    if (!(gameData.gps.massTarget && road.isManualBike())) {
+      normalizeMassRemainToEnd(gameData.gps);
+      gameData.gps.massTarget = null;
+      gameData.gps.massArrived = false;
     }
   }
   saveGame();
