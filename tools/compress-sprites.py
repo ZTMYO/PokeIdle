@@ -9,19 +9,16 @@
 #   python tools/compress-sprites.py --longest 160   最长边缩到 160px（默认 160）
 #   python tools/compress-sprites.py --only 0991-铁包袱.gif,1023-铁头壳.gif
 #
-# 备份放在 tools/sprite-backup/<时间戳>/；压缩完想回退就把备份拷回去。
+# 压缩直接就地替换（不留备份；要回退请用 git）。
 import argparse
 import io
 import os
-import shutil
 import sys
-import time
 
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGES = os.path.join(ROOT, 'src', 'pokemon-data', 'images')
-BACKUP = os.path.join(ROOT, 'tools', 'sprite-backup')
 
 
 def frames_of(path):
@@ -92,7 +89,6 @@ def main():
         print(f'没有超过 {args.max}KB 的 gif（{IMAGES}）')
         return
     print(f'待处理 {len(files)} 个（阈值 {args.max}KB，最长边 → {args.longest}px）{"，预览模式" if not args.apply else ""}')
-    stamp = time.strftime('%Y%m%d-%H%M%S')
     total_before = total_after = 0
     for p in files:
         before = os.path.getsize(p)
@@ -107,15 +103,11 @@ def main():
         print(f'  {flag} {os.path.basename(p)}  {before/1048576:.1f}MB → {len(data)/1024:.0f}KB  '
               f'({size[0]}x{size[1]}, {n} 帧)')
         if args.apply and len(data) < before:
-            os.makedirs(os.path.join(BACKUP, stamp), exist_ok=True)
-            shutil.copy2(p, os.path.join(BACKUP, stamp, os.path.basename(p)))
             with open(p, 'wb') as out:
                 out.write(data)
     print(f'合计 {total_before/1048576:.1f}MB → {total_after/1048576:.1f}MB'
           f'（省 {(total_before-total_after)/1048576:.1f}MB）')
-    if args.apply:
-        print(f'原图备份：{os.path.join(BACKUP, stamp)}')
-    else:
+    if not args.apply:
         print('以上只是预览。确认后加 --apply 真正压缩。')
 
 

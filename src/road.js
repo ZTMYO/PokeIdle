@@ -399,10 +399,20 @@ export function pause() {
 
 export function resume() {
   if (active) return;
+  if (_fishingLock) return; // 钓鱼期间道路锁死，其他流程的 resume 一律忽略
   if (!canvas || !pattern) return;
   clock.resume(); // 重置时间戳与余数：暂停时长不计入推进，也不会一次性补一大段
   active = true;
   rafId = requestAnimationFrame(_frame);
+}
+
+// ---- 钓鱼锁：钓鱼全程（含等待上钩）道路必须静止，期间忽略任何 resume ----
+let _fishingLock = false;
+export function lockForFishing() { _fishingLock = true; }
+/** 收杆时释放锁；resumeRoad 为真才把路面放回滚动（战斗中保持暂停，交给 goIdle） */
+export function unlockFishing(resumeRoad) {
+  _fishingLock = false;
+  if (resumeRoad) resume();
 }
 
 export function setSpeed(spd) {

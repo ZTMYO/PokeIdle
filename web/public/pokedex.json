@@ -2087,7 +2087,7 @@
         "index": "0026-2",
         "name": "雷丘",
         "name_en": "Raichu",
-        "image": "pokemon-data/images/0026-2-超级雷丘Ｘ.png",
+        "image": "pokemon-data/images/0026-2-超级雷丘Ｘ.gif",
         "icon": "pokemon-data/icon/0026-2-超级雷丘Ｘ.png",
         "types": [
             "电"
@@ -2126,7 +2126,7 @@
         "index": "0026-3",
         "name": "雷丘",
         "name_en": "Raichu",
-        "image": "pokemon-data/images/0026-3-超级雷丘Ｙ.png",
+        "image": "pokemon-data/images/0026-3-超级雷丘Ｙ.gif",
         "icon": "pokemon-data/icon/0026-3-超级雷丘Ｙ.png",
         "types": [
             "电"
@@ -31926,7 +31926,7 @@
         "index": "0609-1",
         "name": "水晶灯火灵",
         "name_en": "Chandelure",
-        "image": "pokemon-data/images/0609-1-超级水晶灯火灵.png",
+        "image": "pokemon-data/images/0609-1-超级水晶灯火灵.gif",
         "icon": "pokemon-data/icon/0609-1-超级水晶灯火灵.png",
         "types": [
             "幽灵",
@@ -34430,7 +34430,7 @@
         "index": "0658-2",
         "name": "甲贺忍蛙",
         "name_en": "Greninja",
-        "image": "pokemon-data/images/0658-2-超级甲贺忍蛙.png",
+        "image": "pokemon-data/images/0658-2-超级甲贺忍蛙.gif",
         "icon": "pokemon-data/icon/0658-2-超级甲贺忍蛙.png",
         "types": [
             "水",
@@ -52526,13 +52526,13 @@
         "index": "0982",
         "name": "土龙节节",
         "name_en": "Dudunsparce",
-        "image": "pokemon-data/images/0982-土龙节节.gif",
-        "icon": "pokemon-data/icon/0982-土龙节节.png",
+        "image": "pokemon-data/images/0982-土龙节节-二节.gif",
+        "icon": "pokemon-data/icon/0982-土龙节节-二节.png",
         "types": [
             "一般"
         ],
-        "pinyin": "TuLongJieJie",
-        "pinyinInitials": "TLJJ",
+        "pinyin": "TuLongJieJieErJie",
+        "pinyinInitials": "TLJJEJ",
         "catchRate": 0.35,
         "genus": "地蛇宝可梦",
         "description": "这只宝可梦用坚硬的尾巴在地下深处的基岩中钻孔筑巢。巢穴的长度可达六英里以上。",
@@ -52557,7 +52557,46 @@
         "eggGroup": [
             "陆上群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "土龙节节-二节"
+    },
+    {
+        "index": "0982-1",
+        "name": "土龙节节",
+        "name_en": "Dudunsparce",
+        "image": "pokemon-data/images/0982-1-土龙节节-三节.gif",
+        "icon": "pokemon-data/icon/0982-1-土龙节节-三节.png",
+        "types": [
+            "一般"
+        ],
+        "pinyin": "TuLongJieJieSanJie",
+        "pinyinInitials": "TLJJSJ",
+        "catchRate": 0.35,
+        "genus": "地蛇宝可梦",
+        "description": "这只宝可梦用坚硬的尾巴在地下深处的基岩中钻孔筑巢。巢穴的长度可达六英里以上。",
+        "height": 36,
+        "weight": 392,
+        "stats": [
+            125,
+            100,
+            80,
+            85,
+            75,
+            55
+        ],
+        "rarity": 0.7006,
+        "legend": false,
+        "region": "帕底亚",
+        "foods": [
+            1,
+            5
+        ],
+        "genderRate": 4,
+        "eggGroup": [
+            "陆上群"
+        ],
+        "noEggGroup": false,
+        "form": "土龙节节-三节"
     },
     {
         "index": "0983",

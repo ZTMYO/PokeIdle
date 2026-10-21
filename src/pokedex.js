@@ -498,7 +498,7 @@ export function setupPokedexSearch() {
     for (const p of matched) {
       html += `<div class="pokedex-dropdown-item" data-index="${p.index}">
         <span class="dd-idx">#${p.index}</span>
-        <span class="dd-name">${p.name}</span>
+        <span class="dd-name">${p.form || p.name}</span>
       </div>`;
     }
     dropdown.innerHTML = html;

@@ -274,7 +274,10 @@ export function showView(id) {
     if (tc) tc.classList.remove('throwing');
   }
   const title = $('appTitle');
-  if (chromeId === 'idleView' || chromeId === 'encounterView' || chromeId === 'introView') {
+  // 双屏下下屏停在手机首页只是待机态（上屏照常挂机/遭遇），没有上一级可返回：
+  // 标题回「口袋挂机」且不给点，免得在上屏遭遇时点它把遭遇退掉
+  const standby = mobileDual && chromeId === 'phoneView';
+  if (standby || chromeId === 'idleView' || chromeId === 'encounterView' || chromeId === 'introView') {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {

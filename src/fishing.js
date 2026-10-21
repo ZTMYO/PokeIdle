@@ -128,6 +128,7 @@ async function startFishing() {
   // 取消预定的遇敌，钓鱼期间不遇敌
   if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
   pauseBuffCountdown(); // 钓鱼（等待上钩）期间 buff 暂停计时，钓完恢复
+  road.lockForFishing(); // 全程锁死路面，其他流程的 resume 不会让道路滚动
   road.pause();
   spawnFloatingItems();
 
@@ -213,7 +214,7 @@ function finishFishing(silent = false) {
   setFishing(false);
   // 战斗中道路保持暂停（由 goIdle 统一恢复）
   setIdleCharacter('walk');            // 姿势必须收回走路：动画收尾被战斗打断时不会卡在动作帧
-  if (phase === 'idle') road.resume();   // 路面恢复交给战斗/goIdle 统一处理
+  road.unlockFishing(phase === 'idle'); // 释放钓鱼锁，仅 idle 时放回滚动（战斗中交给 goIdle）
   if (!silent) {
     // 有 buff 被暂停 → 恢复倒计时（由 buff 接管后续遇敌调度）；否则正常安排下次遇敌
     if (!resumeBuffCountdown()) scheduleNextEncounter();
