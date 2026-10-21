@@ -54,7 +54,7 @@ function _resize() {
   canvas.height = h * dpr;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
-  ctx = canvas.getContext('2d',{willReadFrequently:true});
+  ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
   ctx.imageSmoothingEnabled = false;
   containerWidth = w;
@@ -66,7 +66,7 @@ function _resize() {
   _draw();
 }
 
-function _drawPatternData(offsetX, pd) {
+function _drawPatternData(offsetX, pd, clipL, clipR) {
   if (!ctx || !img || !pd) return;
   const tiles = pd.tiles;
   if (!tiles || tiles.length === 0) return;
@@ -74,9 +74,16 @@ function _drawPatternData(offsetX, pd) {
   const cols = tiles[0].length;
   // 偏移对齐设备像素网格后直接用 float offsetX 绘制（imageSmoothingEnabled=false 下浏览器会 floor 坐标）
   const ox = snapPx(offsetX);
+  // 只画与可视区相交的列：图案整条可宽达数千像素，可见区往往只有十几格，
+  // 全画等于每帧白画大半屏；两侧各多留一列兜住取整误差
+  let c0 = Math.floor((clipL - ox) / TILE) - 1;
+  let c1 = Math.ceil((clipR - ox) / TILE) + 1;
+  if (c0 < 0) c0 = 0;
+  if (c1 > cols - 1) c1 = cols - 1;
   for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const tile = tiles[r][c];
+    const row = tiles[r];
+    for (let c = c0; c <= c1; c++) {
+      const tile = row[c];
       if (!tile) continue;
       ctx.drawImage(img, tile.col * SRC_TILE, tile.row * SRC_TILE, SRC_TILE, SRC_TILE,
                     ox + c * TILE, r * TILE, TILE, TILE);
@@ -110,7 +117,7 @@ function _draw() {
     if (oldPw > 0) {
       const oldCopies = Math.ceil((containerWidth + speed) / oldPw) + 2;
       for (let i = 0; i < oldCopies; i++) {
-        _drawPatternData(oldOffset + i * oldPw, pattern);
+        _drawPatternData(oldOffset + i * oldPw, pattern, 0, cut);
       }
     }
     ctx.restore();
@@ -123,7 +130,7 @@ function _draw() {
     if (newPw > 0) {
       const newCopies = Math.ceil((containerWidth + cut + speed) / newPw) + 2;
       for (let i = 0; i < newCopies; i++) {
-        _drawPatternData(cut + i * newPw, _transition.pattern);
+        _drawPatternData(cut + i * newPw, _transition.pattern, cut, containerWidth);
       }
     }
     ctx.restore();
@@ -133,7 +140,7 @@ function _draw() {
     const exact = scrollX + _scrollFraction;
     const copies = Math.ceil(containerWidth / patternWidth) + 1;
     for (let i = 0; i < copies; i++) {
-      _drawPatternData(-exact + i * patternWidth, pattern);
+      _drawPatternData(-exact + i * patternWidth, pattern, 0, containerWidth);
     }
   }
 }

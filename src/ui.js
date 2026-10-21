@@ -150,7 +150,7 @@ export function showView(id) {
   }
   // 离开导航页时若仍停在「待选骑行目的地」（点了背包自行车、未选目的地就退出/返回/切换页面）：
   // 放弃待选并恢复进入待选前的导航，保证下次进入导航页是正常状态，不会卡在选择骑行目的地。
-  // 选好目的地后 pendingBike 已被 consumePendingBike 清空，不会误恢复。
+  // 选好目的地并成功上车后 pendingBike 已被清空，不会误恢复。
   if (id !== 'gpsView' && $('gpsView')?.style.display === 'flex' && gameData?.gps?.pendingBike) {
     import('./gps.js').then(m => m.abandonBikeTarget());
   }

@@ -416,7 +416,7 @@ const VOYAGE_SEG_SECONDS = 8;                  // 单段航行时长（别让玩
 const VOYAGE_HOLD_MS = 900;                    // 转盘停稳后停一会儿再开船，让玩家看清抽到的里程
 const VOYAGE_PICS = 7;                         // 拼图底图张数：本地随机分一张，只决定外观
 const VOYAGE_COLS = 4, VOYAGE_ROWS = 3;        // 12 格；底图按百分比切片，格子宽度自适应容器
-const VOYAGE_WATER = { src: 16, col: 16, row: 57 };   // terrain-tileset 里那块水纹
+const VOYAGE_WATER = { src: 16, col: 5, row: 23 };   // terrain-tileset 里那块水纹
 
 // 存档槽补齐默认值（槽本身由总线按活动窗口重置）
 function voyageSlot(ctx) {

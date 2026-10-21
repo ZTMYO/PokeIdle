@@ -513,7 +513,7 @@ function advanceSegment() {
 // 规划前往指定地区的路线（手动选择目的地 / 漫游自动下一站共用）
 // 改目的地时按当前道路上的真实位置重算：比较“折返到起点”与“继续到终点”两条候选，取更短者。
 function planRoute(toIdx) {
-  if (road.isManualBike()) return; // 骑行中禁止改选目的地（防中途换站/漫游无限续）
+  if (road.isManualBike()) return false; // 骑行中禁止改选目的地（防中途换站/漫游无限续）
   const g = gameData.gps;
   if (g.pendingBike) { g.pendingBike = false; g.bikePrevNav = null; } // 待选中经其他入口导航（悬赏前往/漫游）：取消待选与快照，按普通走路导航
   const fromIdx = g.curIdx;
@@ -525,7 +525,7 @@ function planRoute(toIdx) {
   if (!hasActiveSegment(g) && fromIdx === toIdx) {
     clearRouteAt(fromIdx);
     render();
-    return;
+    return false;
   }
 
   if (!hasActiveSegment(g)) {
@@ -533,7 +533,7 @@ function planRoute(toIdx) {
     if (path.length < 2) {
       clearRouteAt(path[0] ?? fromIdx);
       render();
-      return;
+      return false;
     }
     g.curIdx = fromIdx;
     g.destIdx = toIdx;
@@ -541,7 +541,7 @@ function planRoute(toIdx) {
     g.seg = 0;
     newSegment();
     render();
-    return;
+    return true;
   }
 
   const a = g.path[g.seg];
@@ -553,19 +553,22 @@ function planRoute(toIdx) {
   const backward = buildRouteCandidate(a, b, walkedPx, toIdx);
   const best = backward.costPx < forward.costPx ? backward : forward;
   applyRouteCandidate(best, toIdx);
+  return g.destIdx != null; // 规划失败（clearRouteAt 清空目标）时为 false
 }
 
 // ===== 事件点导航（大量出没 / 时空扭曲共用） =====
 // 目标是一个"边中间点"（事件点）而非地区节点：最后一段走事件边，走到事件点即到达。
 // 到达后结束导航但保留当前段进度，主角精确停在事件点（道路中间），不会瞬移回节点。
+// 返回 true = 已建立（或已处于）事件点导航目标：骑行入口据此决定是否上车
 function planEventRoute(getEvent, inZone) {
-  if (road.isManualBike()) return; // 骑行中禁止改选事件点
+  if (road.isManualBike()) return false; // 骑行中禁止改选事件点
   const ev = getEvent();
-  if (!ev) return;
+  if (!ev) return false; // 事件已结束（残留的旧标记）：不建立目标
   const g = gameData.gps;
+  if (g.pendingBike) { g.pendingBike = false; g.bikePrevNav = null; } // 待选中经事件点导航：取消待选与快照
   // 点击事件点导航：自动关闭漫游，保证到达事件点后自动停下（不被漫游接续下一站）
   if (g.roamEnabled) g.roamEnabled = false;
-  if (inZone()) return; // 已在事件路段，无需导航
+  if (inZone()) return false; // 已在事件路段，无需导航
 
   const [ea, eb] = ev.edge;
   const edgePx = DIST_MATRIX[ea][eb] * PX_PER_UNIT;
@@ -593,7 +596,7 @@ function planEventRoute(getEvent, inZone) {
         road.setManualBike(false); // 已站在事件点：同样自动下车（骑行中不遇敌）
         render();
         saveGame();
-        return;
+        return false; // 已站在事件点：无需导航，也不必上车骑行
       }
       // 事件点在前方则沿当前方向继续走，已走过则折返；走完 distToEvent 即到达事件点
       const goForward = walkedPx <= fromStart;
@@ -608,7 +611,7 @@ function planEventRoute(getEvent, inZone) {
       g.remainPx = distToEvent;
       render();
       saveGame();
-      return;
+      return true;
     }
   }
 
@@ -644,7 +647,7 @@ function planEventRoute(getEvent, inZone) {
     const c = fromNode(g.curIdx);
     startEventRoute(c.tail, c.entryFrom, c.entryEnd, null, null);
     saveGame();
-    return;
+    return true;
   }
 
   // 在途：比较"继续到段终点再导航"与"折返到段起点再导航"，取更短者
@@ -661,16 +664,17 @@ function planEventRoute(getEvent, inZone) {
     startEventRoute([b, a, ...bwd.tail.slice(1)], b, a, walkedPx, curEdgePx);
   }
   saveGame();
+  return true;
 }
 
 // 大量出没事件点导航入口
 export function planMassRoute() {
-  planEventRoute(getMassOutbreak, inMassZone);
+  return planEventRoute(getMassOutbreak, inMassZone);
 }
 
 // 时空扭曲事件点导航入口
 export function planTwistRoute() {
-  planEventRoute(getTwist, inTwistZone);
+  return planEventRoute(getTwist, inTwistZone);
 }
 
 
@@ -798,6 +802,26 @@ export function abandonBikeTarget() {
   saveGame();
 }
 
+// 外部入口：前往某条道路两端中离当前最近的一端（事件页弹框「前往」）
+export function navigateToNearestEnd(ea, eb) {
+  const g = gameData?.gps;
+  const a = Number(ea);
+  const b = Number(eb);
+  if (!g || !Number.isInteger(a) || !Number.isInteger(b)) return;
+  // 到某端点的真实路程：站在节点上即路径开销；在途则比较「继续到段终点」与「折返到段起点」
+  const costTo = (X) => {
+    if (!hasActiveSegment(g)) return pathCostPx(findPath(g.curIdx, X));
+    const s = g.path[g.seg];
+    const t = g.path[g.seg + 1];
+    const edgePx = g.totalPx || (DIST_MATRIX[s][t] * PX_PER_UNIT);
+    const remainPx = Math.max(0, Math.min(g.remainPx || 0, edgePx));
+    const walkedPx = Math.max(0, edgePx - remainPx);
+    return Math.min(remainPx + pathCostPx(findPath(t, X)), walkedPx + pathCostPx(findPath(s, X)));
+  };
+  planRoute(costTo(a) <= costTo(b) ? a : b);
+  saveGame();
+}
+
 // 外部入口：自动规划前往指定地区的路线（地区悬赏页「前往」按钮）
 export function navigateToRegion(toIdx) {
   const idx = Number(toIdx);
@@ -887,16 +911,24 @@ export function refreshGpsRender() {
 // 导航页底部大量出没跑马灯（已移除）：事件信息改为悬停大量出没标记时 tooltip 显示，
 // 由 ui.js 的 setupFoodTooltip 事件委托统一处理，gps.js 无需维护定时器。
 
-// 待选骑行目的地状态：玩家在地图上选好目的地（节点/大量出没点）后消耗 1 个自行车并进入骑行。
-// 返回 true = 已消耗（调用方需接着上车骑行）；false = 非待选状态或无货（无货时仅取消待选，按普通走路导航处理）
-function consumePendingBike() {
-  const g = gameData.gps;
-  if (g.pendingBike !== true) return false;
-  g.pendingBike = false;
-  g.bikePrevNav = null; // 已选好新目的地并开始骑行：旧导航快照不再需要
+// 消耗 1 个自行车道具：成功返回 true
+function spendBike() {
   if ((gameData.items['bike'] || 0) <= 0) return false;
   gameData.items['bike']--;
   updateBackpack('bike');
+  return true;
+}
+
+// 待选骑行目的地入口统一处理：先规划目的地，规划成功才消耗自行车并上车。
+// 规划失败（目的地无效/事件已结束）不扣车、不上车，避免出现「骑着车却没有目的地」的僵尸骑行。
+// 返回 true = 当前处于待选骑行状态并已处理，调用方直接 return
+function startBikeIfPending(plan) {
+  const g = gameData.gps;
+  if (g.pendingBike !== true) return false;
+  const ok = plan();
+  if (ok && spendBike()) road.setManualBike(true);
+  render();
+  saveGame();
   return true;
 }
 
@@ -934,13 +966,7 @@ export function showGpsView() {
       const g = gameData.gps;
       closeDestDialog();
       if (road.isManualBike()) return;
-      if (consumePendingBike()) {
-        planRoute(idx);
-        road.setManualBike(true); // 选好目的地才上车骑行
-        render();
-        saveGame();
-        return;
-      }
+      if (startBikeIfPending(() => planRoute(idx))) return;
       if (!isNaN(idx) && !(g.destIdx == null && !hasActiveSegment(g) && idx === g.curIdx)) {
         planRoute(idx);
         saveGame();
@@ -954,13 +980,7 @@ export function showGpsView() {
       closeDestDialog();
       if (road.isManualBike()) return;
       const go = isMass ? planMassRoute : planTwistRoute;
-      if (consumePendingBike()) {
-        go();
-        road.setManualBike(true); // 选好目的地才上车骑行
-        render();
-        saveGame();
-        return;
-      }
+      if (startBikeIfPending(go)) return;
       go();
       return;
     }
@@ -1000,13 +1020,7 @@ export function showGpsView() {
     const mass = e.target.closest('.gps-mass-marker');
     if (mass) {
       if (road.isManualBike()) return;
-      if (consumePendingBike()) {
-        planMassRoute();
-        road.setManualBike(true); // 选好目的地才上车骑行
-        render();
-        saveGame();
-        return;
-      }
+      if (startBikeIfPending(planMassRoute)) return;
       planMassRoute();
       return;
     }
@@ -1014,13 +1028,7 @@ export function showGpsView() {
     const twist = e.target.closest('.gps-twist-marker');
     if (twist) {
       if (road.isManualBike()) return;
-      if (consumePendingBike()) {
-        planTwistRoute();
-        road.setManualBike(true); // 选好目的地才上车骑行
-        render();
-        saveGame();
-        return;
-      }
+      if (startBikeIfPending(planTwistRoute)) return;
       planTwistRoute();
       return;
     }
@@ -1030,13 +1038,7 @@ export function showGpsView() {
       const idx = Number(node.dataset.region);
       const g = gameData.gps;
       if (road.isManualBike()) return;
-      if (consumePendingBike()) {
-        planRoute(idx);
-        road.setManualBike(true); // 选好目的地才上车骑行
-        render();
-        saveGame();
-        return;
-      }
+      if (startBikeIfPending(() => planRoute(idx))) return;
       if (!isNaN(idx) && !(g.destIdx == null && !hasActiveSegment(g) && idx === g.curIdx)) {
         planRoute(idx);
         saveGame();

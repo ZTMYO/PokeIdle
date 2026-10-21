@@ -7,11 +7,14 @@ import { pushNav, getRoadNumForEdge } from './state.js';
 import { REGION_CYCLE } from './config.js';
 import { allSlots, hasSchedule, serverNow } from './server-events.js';
 import { pokeOfSlot, spotOfSlot } from './events.js';
-import { eventMapSvg } from './gps.js';
+import { eventMapSvg, navigateToNearestEnd, showGpsView } from './gps.js';
 
 const WIN_HOURS = 6;       // 只画从现在起 6 小时
 const PX_PER_HOUR = 50;     // 时间轴比例
 const MIN_BAR_H = 14;       // 太短的事件也要放得下一行字
+
+// 标题右侧导航图标（纸飞机样式），与悬赏页同款
+const GO_ICON = '<svg viewBox="0 0 1024 1024" width="13" height="13" aria-hidden="true"><path d="M123.92 555.9a32 32 0 0 1-14.82-60.38l719.19-374.9a32 32 0 0 1 29.59 56.76l-719.2 374.89a31.87 31.87 0 0 1-14.76 3.63z"/><path d="M608.6 957.7a32 32 0 0 1-30.6-41.27l234.64-776.34a32 32 0 0 1 61.26 18.52L639.22 935a32 32 0 0 1-30.62 22.7zM505.92 580.44c-0.68 0-1.36 0-2.05-0.07l-381.46-24.12a32 32 0 1 1 4-63.88l381.5 24.13a32 32 0 0 1-2 63.94z"/><path d="M608.14 957.32a32 32 0 0 1-30.87-23.63L475 556.82a32 32 0 1 1 61.77-16.76L639 916.93a32 32 0 0 1-22.51 39.26 31.61 31.61 0 0 1-8.35 1.13z"/></svg>';
 
 const hhmm = (ms) => {
   const d = new Date(ms);
@@ -140,13 +143,22 @@ function openSpotPopup(kind, slot) {
   el.id = 'evpMapMask';
   el.className = 'evp-map-mask';
   el.innerHTML = `<div class="evp-map-box">
-      <div class="evp-map-title">${kind === 'twist' ? '时空扭曲' : '大量出没'}${name ? ` · ${name}` : ''}</div>
+      <div class="evp-map-head">
+        <span class="evp-map-title">${kind === 'twist' ? '时空扭曲' : '大量出没'}${name ? ` · ${name}` : ''}</span>
+        <button class="evp-map-go" data-evp-go aria-label="前往最近的一端" title="导航到这条路最近的一端">${GO_ICON}</button>
+      </div>
       <div class="evp-map-time">${hhmm(slot.from)}–${hhmm(slot.to)}${slot.from <= serverNow() ? ' · 进行中' : ''}</div>
       <div class="evp-map-svg">${eventMapSvg(spot.edge, spot.t, kind)}</div>
       <div class="evp-map-where">出现位置：${where}</div>
       <div class="evp-map-hint">点击任意处关闭</div>
     </div>`;
-  el.addEventListener('click', closeSpotPopup);
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-evp-go]')) {
+      navigateToNearestEnd(ea, eb);
+      showGpsView();
+    }
+    closeSpotPopup();
+  });
   view.appendChild(el);
 }
 

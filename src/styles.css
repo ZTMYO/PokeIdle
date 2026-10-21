@@ -13,7 +13,7 @@
   --console-body: #e8dcc0;
   --console-border: #c4b692;
   --console-shadow: #b8a88a;
-  --phone-box: #e8dcc0;   /* 合集窗口底色：亮色下跟机身同色，暗色下要提亮才分得出来 */
+  --phone-box: #e8dcc0;
   --splash-text: #e8dcc0;
   --item-bg: rgba(255,255,255,0.15);
   --item-hover-bg: rgba(255,255,255,0.32);
@@ -22,7 +22,7 @@
   --mj-label-color: #2f6a4a;
 }
 
-/* 夜间模式：覆盖核心主题变量（深绿掌机调，外壳稍亮、内部屏幕更暗），开关入口在设置页 */
+/* 夜间模式：覆盖核心主题变量 */
 [data-theme="dark"] {
   --color-text: #dfe7e1;
   --color-muted: #8da69a;
@@ -2828,6 +2828,12 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   color: var(--ui-color, #376d56);
   text-align: center;
 }
+.evp-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
 .evp-map-title { font-size: 11.5px; font-weight: 700; }
 .evp-map-time { font-size: 9px; opacity: 0.65; margin-top: 1px; }
 .evp-map-svg { margin: 4px 0; aspect-ratio: 320 / 176; }
@@ -4444,7 +4450,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   gap: 4px;
   margin-bottom: 3px;
 }
-.bounty-go {
+.bounty-go, .evp-map-go {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4454,8 +4460,8 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   cursor: pointer;
   transition: opacity 0.15s;
 }
-.bounty-go svg { display: block; fill: currentColor; }
-.bounty-go:active { opacity: 0.6; transform: translateY(1px); }
+.bounty-go svg, .evp-map-go svg { display: block; fill: currentColor; }
+.bounty-go:active, .evp-map-go:active { opacity: 0.6; transform: translateY(1px); }
 .bounty-go:disabled {
   opacity: 0.35;
   cursor: default;

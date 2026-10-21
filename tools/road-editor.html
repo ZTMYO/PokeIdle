@@ -184,7 +184,7 @@
       width: 32px;
       height: 32px;
       background-image: url('./terrain-tileset.png');
-      background-size: 2816px 2208px;
+      background-size: 512px 768px;
       image-rendering: pixelated;
       cursor: pointer;
       background-color: var(--screen);
@@ -712,7 +712,7 @@
     const TILESET = './terrain-tileset.png';
     const TILE = 32;
     const PAL_TILE = 16;
-    const PAL_COLS = 88, PAL_ROWS = 69;
+    const PAL_COLS = 16, PAL_ROWS = 24;
 
     // ==================== 状态 ====================
     let sel = null;
@@ -1083,7 +1083,7 @@
     // 在主编辑区手绘 164×314 像素（2 倍放大显示），瓦片面板选瓦片贴图，导出 24-bit BMP
     const SIDEW = 164, SIDEH = 314, SIDE_TILE = 16;
     let sideOff = null, sideCtx = null;
-    let sideBrush = { mode: 'paint', size: 2, color: '#3a775e', tile: { col: 1, row: 0 } };
+    let sideBrush = { mode: 'paint', size: 2, color: '#3a775e', tile: { col: 10, row: 0 } };
     let sbPainting = false;
 
     function isSidebarActive() { return $('sidebarEditor').style.display !== 'none'; }
