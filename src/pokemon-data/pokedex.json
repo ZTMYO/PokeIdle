@@ -23417,7 +23417,7 @@
         "index": "0445-2",
         "name": "烈咬陆鲨",
         "name_en": "Garchomp",
-        "image": "pokemon-data/images/0445-2-超级烈咬陆鲨Ｚ.png",
+        "image": "pokemon-data/images/0445-2-超级烈咬陆鲨Ｚ.gif",
         "icon": "pokemon-data/icon/0445-2-超级烈咬陆鲨Ｚ.png",
         "types": [
             "龙"
@@ -25699,7 +25699,7 @@
         "index": "0491-1",
         "name": "达克莱伊",
         "name_en": "Darkrai",
-        "image": "pokemon-data/images/0491-1-超级达克莱伊.png",
+        "image": "pokemon-data/images/0491-1-超级达克莱伊.gif",
         "icon": "pokemon-data/icon/0491-1-超级达克莱伊.png",
         "types": [
             "恶"
@@ -28606,7 +28606,7 @@
         "index": "0545-1",
         "name": "蜈蚣王",
         "name_en": "Scolipede",
-        "image": "pokemon-data/images/0545-1-超级蜈蚣王.png",
+        "image": "pokemon-data/images/0545-1-超级蜈蚣王.gif",
         "icon": "pokemon-data/icon/0545-1-超级蜈蚣王.png",
         "types": [
             "虫",
@@ -29498,7 +29498,7 @@
         "index": "0560-1",
         "name": "头巾混混",
         "name_en": "Scrafty",
-        "image": "pokemon-data/images/0560-1-超级头巾混混.png",
+        "image": "pokemon-data/images/0560-1-超级头巾混混.gif",
         "icon": "pokemon-data/icon/0560-1-超级头巾混混.png",
         "types": [
             "恶",
@@ -31697,7 +31697,7 @@
         "index": "0604-1",
         "name": "麻麻鳗鱼王",
         "name_en": "Eelektross",
-        "image": "pokemon-data/images/0604-1-超级麻麻鳗鱼王.png",
+        "image": "pokemon-data/images/0604-1-超级麻麻鳗鱼王.gif",
         "icon": "pokemon-data/icon/0604-1-超级麻麻鳗鱼王.png",
         "types": [
             "电"
@@ -35655,7 +35655,7 @@
         "index": "0668-2",
         "name": "火炎狮",
         "name_en": "Pyroar",
-        "image": "pokemon-data/images/0668-2-超级火炎狮.png",
+        "image": "pokemon-data/images/0668-2-超级火炎狮.gif",
         "icon": "pokemon-data/icon/0668-2-超级火炎狮.png",
         "types": [
             "火",
@@ -37009,7 +37009,7 @@
         "index": "0678-2",
         "name": "超能妙喵",
         "name_en": "Meowstic",
-        "image": "pokemon-data/images/0678-2-超级超能妙喵.png",
+        "image": "pokemon-data/images/0678-2-超级超能妙喵.gif",
         "icon": "pokemon-data/icon/0678-2-超级超能妙喵.png",
         "types": [
             "超能"
@@ -37434,7 +37434,7 @@
         "index": "0687-1",
         "name": "乌贼王",
         "name_en": "Malamar",
-        "image": "pokemon-data/images/0687-1-超级乌贼王.png",
+        "image": "pokemon-data/images/0687-1-超级乌贼王.gif",
         "icon": "pokemon-data/icon/0687-1-超级乌贼王.png",
         "types": [
             "恶",
@@ -37551,7 +37551,7 @@
         "index": "0689-1",
         "name": "龟足巨铠",
         "name_en": "Barbaracle",
-        "image": "pokemon-data/images/0689-1-超级龟足巨铠.png",
+        "image": "pokemon-data/images/0689-1-超级龟足巨铠.gif",
         "icon": "pokemon-data/icon/0689-1-超级龟足巨铠.png",
         "types": [
             "岩石",
@@ -37669,7 +37669,7 @@
         "index": "0691-1",
         "name": "毒藻龙",
         "name_en": "Dragalge",
-        "image": "pokemon-data/images/0691-1-超级毒藻龙.png",
+        "image": "pokemon-data/images/0691-1-超级毒藻龙.gif",
         "icon": "pokemon-data/icon/0691-1-超级毒藻龙.png",
         "types": [
             "毒",
@@ -39009,7 +39009,7 @@
         "index": "0718-3",
         "name": "基格尔德",
         "name_en": "Zygarde",
-        "image": "pokemon-data/images/0718-3-超级基格尔德.png",
+        "image": "pokemon-data/images/0718-3-超级基格尔德.gif",
         "icon": "pokemon-data/icon/0718-3-超级基格尔德.png",
         "types": [
             "龙",
@@ -41338,7 +41338,7 @@
         "index": "0768-1",
         "name": "具甲武者",
         "name_en": "Golisopod",
-        "image": "pokemon-data/images/0768-1-超级具甲武者.png",
+        "image": "pokemon-data/images/0768-1-超级具甲武者.gif",
         "icon": "pokemon-data/icon/0768-1-超级具甲武者.png",
         "types": [
             "虫",
@@ -43949,7 +43949,7 @@
         "index": "0807-1",
         "name": "捷拉奥拉",
         "name_en": "Zeraora",
-        "image": "pokemon-data/images/0807-1-超级捷拉奥拉.png",
+        "image": "pokemon-data/images/0807-1-超级捷拉奥拉.gif",
         "icon": "pokemon-data/icon/0807-1-超级捷拉奥拉.png",
         "types": [
             "电"
@@ -53177,7 +53177,7 @@
         "index": "0998-1",
         "name": "戟脊龙",
         "name_en": "Baxcalibur",
-        "image": "pokemon-data/images/0998-1-超级戟脊龙.png",
+        "image": "pokemon-data/images/0998-1-超级戟脊龙.gif",
         "icon": "pokemon-data/icon/0998-1-超级戟脊龙.png",
         "types": [
             "龙",
