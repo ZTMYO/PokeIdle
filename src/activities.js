@@ -13,6 +13,7 @@ import { BG_LEVELS, bgLevelOf } from './bird-game.js';
 import { FLOW_LEVELS, flowLevelOf } from './flow-game.js';
 import { GUESS_LEVELS, guessLevelOf, guessReady } from './guess-game.js';
 import { SW_LEVELS, swLevelOf } from './sweet-game.js';
+import { TH_LEVELS, thLevelOf, UNOWN_INDEX } from './treasure-game.js';
 
 const TIERS = 4;      // 四档：进化道具 / 薄荷·王冠 / 大师球·闪耀护符 / 闪光蛋
 const PER_TIER = 3;   // 每档交 3 只（payload.perTier 可覆盖），四档共 12 只
@@ -206,6 +207,7 @@ const COIN_ICONS = {
   'flow-link': './items/goods/balloon-pink.png',
   'guess-name': './items/goods/balloon-lime.png',
   'sweet-workshop': './items/goods/balloon-cream.png',
+  'treasure-hunt': './items/goods/balloon-indigo.png',
 };
 const coinIcon = (ctx) => COIN_ICONS[ctx && ctx.id] || BALLOON_ICON;
 // 兑换表：价格按"一周活动能换完"配（合计 4250）；每样限一次，所以不用怕刷。
@@ -228,10 +230,15 @@ const BIRD_SHOP_ITEMS = SHOP_ITEMS.map(it => (
 const SWEET_SHOP_ITEMS = SHOP_ITEMS.map(it => (
   it.id === 'egg' ? { id: 'alcremie', price: 1500, qty: 1, alcremie: true } : it
 ));
+// 符文寻踪单独一份兑换表：最后那颗蛋换成随机形态的未知图腾
+const TH_SHOP_ITEMS = SHOP_ITEMS.map(it => (
+  it.id === 'egg' ? { id: 'unown', price: 1500, qty: 1, unown: true } : it
+));
 const shopItemsOf = (ctx) => (
   ctx.id === 'bird-stack' ? BIRD_SHOP_ITEMS
     : ctx.id === 'sweet-workshop' ? SWEET_SHOP_ITEMS
-      : SHOP_ITEMS
+      : ctx.id === 'treasure-hunt' ? TH_SHOP_ITEMS
+        : SHOP_ITEMS
 );
 
 const coinsOf = ctx => Math.max(0, Math.round(Number(ctx.slot && ctx.slot.coins) || 0));
@@ -280,8 +287,23 @@ function sweetEgg(ctx) {
   }
   return ctx.slot.alcremie;
 }
+// 符文寻踪那颗蛋：随机一只未知图腾，个体全满（不走闪光）。
+// 形态用本机随机（不挂活动种子）：同一场活动，各玩家换到的字母都不一样
+const UNOWN_EGG_LABEL = '随机未知图腾的蛋';
+function unownEgg(ctx) {
+  if (!ctx.slot.unown) {
+    ctx.slot.unown = {
+      species: UNOWN_INDEX[Math.floor(Math.random() * UNOWN_INDEX.length)],
+      ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
+      shiny: false,
+    };
+    ctx.save();
+  }
+  return ctx.slot.unown;
+}
 function shopName(ctx, item) {
   if (item.alcremie) return ALCREMIE_EGG_LABEL;
+  if (item.unown) return UNOWN_EGG_LABEL;
   if (item.egg) return eggLabel(shopEgg(ctx).species);
   return item.name || ITEM_NAMES[shopGrantOf(ctx, item)] || item.id;
 }
@@ -289,8 +311,9 @@ function shopRowHtml(ctx, item) {
   const bought = !!boughtOf(ctx)[item.id];
   const can = !bought && coinsOf(ctx) >= item.price;
   const icon = item.alcremie ? eggIconHtml(ALCREMIE_SPECIES, 24, ALCREMIE_EGG_LABEL)
-    : item.egg ? eggIconHtml(shopEgg(ctx).species)
-      : itemIconHtml(shopGrantOf(ctx, item));
+    : item.unown ? eggIconHtml(unownEgg(ctx).species, 24, UNOWN_EGG_LABEL)
+      : item.egg ? eggIconHtml(shopEgg(ctx).species)
+        : itemIconHtml(shopGrantOf(ctx, item));
   return `
     <div class="act-shop-row${bought ? ' done' : ''}">
       ${icon}
@@ -308,6 +331,9 @@ function buyShopItem(ctx, id) {
     if (bought[item.id] || coinsOf(ctx) < item.price) { ctx.refresh(); return; }
     if (item.alcremie) {
       ctx.grantEgg(ALCREMIE_SPECIES, sweetEgg(ctx));
+    } else if (item.unown) {
+      const egg = unownEgg(ctx);
+      ctx.grantEgg(egg.species, egg);
     } else if (item.egg) {
       const egg = shopEgg(ctx);
       ctx.grantEgg(egg.species, egg);
@@ -1041,6 +1067,18 @@ export const ACTIVITIES = {
     rules: '照着顾客订单制作冰激凌，先选冰激凌再选糖饰，确认后按时机点击按钮出货。<br>出货越完美给的气球越多。困难模式需要按照顾客要求的顺序堆叠冰激凌。做错了需丢弃后重做。气球可以兑换下面的奖励，每样限一次。',
     levelDesc: l => `最高 ${l.perfect} 气球`,
     start: (level, onFinish) => import('./sweet-game.js').then(m => m.startSweetGame({ level, onFinish })),
+  }),
+
+  // ---- 符文寻踪（treasure-hunt）：点格子探测报步数，挖出全部未知图腾赚气球，换道具（每样限一次）----
+  // 服务器 activity.json 里加一条 { "id": "treasure-hunt", "from": …, "to": … }
+  'treasure-hunt': coinGame({
+    name: '符文寻踪',
+    levels: TH_LEVELS,
+    levelOf: thLevelOf,
+    attr: 'th-level',
+    rules: '目标是挖出全部符文。点格子探测离最近<b>未挖出</b>符文的步数（曼哈顿距离）；挖到一个符文后，其余已探测格子的数字也会重算。<br>探测次数用尽即结束，按已挖到的情况给气球奖励。气球可兑换下方奖励，每样限一次。',
+    levelDesc: l => `${l.count} 个 · ${l.max ? `${l.max} 次` : '不限次数'}`,
+    start: (level, onFinish) => import('./treasure-game.js').then(m => m.startTreasureGame({ level, onFinish })),
   }),
 
   // ---- 猜宝可梦（guess-name）：独立小游戏页，从候选字里拼出宝可梦名字，答对累加气球 ----

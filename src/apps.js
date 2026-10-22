@@ -68,6 +68,7 @@ const ACT_ICONS = {
   'flow-link': 'icon-flow-link',
   'guess-name': 'icon-guess-name',
   'sweet-workshop': 'icon-sweet-shop',
+  'treasure-hunt': 'icon-magnifier',   // 放大镜
 };
 
 // 限时活动：每个活动各占一个图标（id 前缀 act: + 活动 id，桌面位置各记各的）。

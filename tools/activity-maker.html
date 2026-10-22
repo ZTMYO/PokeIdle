@@ -69,6 +69,7 @@
         <option value="voyage">航海寻宝</option>
         <option value="guess-name">猜宝可梦</option>
         <option value="sweet-workshop">甜蜜工坊</option>
+        <option value="treasure-hunt">符文寻踪</option>
       </select>
     </div>
     <div class="row" id="rowPerTier">
@@ -210,7 +211,8 @@ function syncExistingHint() {
 // 所有随机都由 payload.seed 决定：客户端用同一个 seed 定"固定哪一只"（全野池随机、去神兽）
 // 和四档奖励 —— 全服完全一致，改 seed 就换一只、换一份奖励，不用读排期。
 // 鸟了个鸟、猜宝可梦不读种子：玩法与奖励都写死在客户端，payload 直接不带 seed。
-const NO_SEED = new Set(['bird-stack', 'guess-name']);
+// 符文寻踪同理：图腾位置本机随机，兑换所那颗未知图腾蛋也是本机随机。
+const NO_SEED = new Set(['bird-stack', 'guess-name', 'treasure-hunt']);
 function build() {
   const f = readForm();
   const { list: base } = parseExisting(f.existing);   // 已到期的活动在这里就被剔除了
@@ -221,7 +223,7 @@ function build() {
   const payload = {};
   if (!NO_SEED.has(f.kind)) payload.seed = (from ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
   if (f.kind === 'mass-bounty') payload.perTier = f.perTier;
-  if (f.egg && f.kind !== 'guess-name' && f.kind !== 'sweet-workshop') payload.eggSpecies = f.egg.padStart(4, '0');
+  if (f.egg && f.kind !== 'guess-name' && f.kind !== 'sweet-workshop' && f.kind !== 'treasure-hunt') payload.eggSpecies = f.egg.padStart(4, '0');
   if (Object.keys(payload).length) item.payload = payload;
   return { text: JSON.stringify({ list: base.concat([item]) }, null, 2), from, to, baseCount: base.length };
 }
@@ -251,7 +253,9 @@ $('gen').addEventListener('click', async () => {
               ? '猜宝可梦：不需要种子，题目与奖励都写死在客户端；难度由玩家在活动页自选'
               : k === 'sweet-workshop'
                 ? '甜蜜工坊：薄荷/道具/王冠/大师球由 payload.seed 摇；那颗霜奶仙蛋的外观每位玩家各自随机，不吃种子'
-                : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
+                : k === 'treasure-hunt'
+                  ? '符文寻踪：不需要种子，图腾位置与兑换所那颗未知图腾蛋都是本机随机；难度由玩家在活动页自选'
+                  : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
   } catch (e) {
     $('genHint').textContent = `生成失败：${e.message}（点「生成」重试）`;
   } finally { btn.disabled = false; }

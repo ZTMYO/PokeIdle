@@ -2499,6 +2499,56 @@ html.mobile-app #quitHide { display: none !important; }
 .game-result-coins.none { font-size: 11px; font-weight: 600; opacity: .75; }
 .game-result-btns { display: flex; gap: 10px; margin-top: 4px; }
 
+/* === 符文寻踪：点格子探测报步数，数字越小离符文越近 === */
+.th-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 2px 2px 6px; font-size: 10.5px; color: var(--ui-color); opacity: .9;
+}
+.th-head #thFound, .th-head #thProbe { flex: none; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ui-color); }
+.th-head #thMsg {
+  flex: 1; min-width: 0; text-align: center; font-weight: 700; color: var(--ui-color-dark);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.th-board {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: grid; gap: 3px; padding: 2px;
+  justify-content: center; align-content: center;   /* 格子尺寸固定：各档居中摆 */
+}
+.th-cell {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px; background: var(--item-bg); border: 1px solid var(--item-border);
+  cursor: pointer; font-size: 11px; font-weight: 700; line-height: 1;
+  color: rgba(255,255,255,.95);
+  transition: transform .07s, filter .12s;
+}
+.th-cell:hover:not(.dug) { filter: brightness(1.12); }
+.th-cell:active:not(.dug) { transform: scale(.9); }
+/* 已探测：步数越小绿色越浓 */
+.th-cell[data-band="1"] { background: #24563f; border-color: #1b4230; }
+.th-cell[data-band="2"] { background: #376d56; border-color: #2b5945; }
+.th-cell[data-band="3"] { background: #4f8a6e; border-color: #3f7459; }
+.th-cell[data-band="4"] { background: #8ac4aa; border-color: #73b096; color: #1d4937; }
+.th-cell[data-band="5"] { background: #b9ddca; border-color: #a3cdb8; color: #24563f; }
+/* 挖出的符文：浅色底衬托贴图 */
+.th-cell.dug { cursor: default; background: var(--phone-box); border-color: var(--item-border); animation: none; }
+/* 夜间反过来：越近越亮，深绿在暗屏上分辨不出 */
+[data-theme="dark"] .th-cell[data-band="1"] { background: #5cb48d; border-color: #4aa37c; color: #0e1a13; }
+[data-theme="dark"] .th-cell[data-band="2"] { background: #3e8a68; border-color: #34765a; }
+[data-theme="dark"] .th-cell[data-band="3"] { background: #2f6b4f; border-color: #275a42; }
+[data-theme="dark"] .th-cell[data-band="4"] { background: #235340; border-color: #1c4433; }
+[data-theme="dark"] .th-cell[data-band="5"] { background: #1a3d2f; border-color: #143224; }
+.th-cell img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; animation: th-pop .3s cubic-bezier(.34,1.56,.64,1); }
+@keyframes th-pop { from { transform: scale(.2); } to { transform: scale(1); } }
+.th-cell.th-win { animation: th-win .42s cubic-bezier(.34,1.56,.64,1) both; animation-delay: calc(var(--th-d, 0) * 45ms); }
+@keyframes th-win { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.th-result {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  text-align: center; color: var(--ui-color);
+}
+.th-rank { font-size: 10px; opacity: .75; margin: 0; }
+
 /* === 鸟了个鸟：叠成一堆的鸟，点开进槽位凑三只抵消 === */
 .bg-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;

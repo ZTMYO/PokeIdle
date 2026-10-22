@@ -1,7 +1,7 @@
 // ===== 图鉴模块 =====
 import { ITEM_NAMES } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, _pokedexSortBy, _pokedexSortDir, pad, pushNav, setPokedexInLogView, setPokedexSortBy, setPokedexSortDir, dexUnlocked, dexShinyOwned, isPokemon } from './state.js';
-import { $, showView, tryLoadPokemonImage, tryLoadImage, setupFoodTooltip, logicViewport, popupBounds, watchOutsidePress } from './ui.js';
+import { $, showView, getCurrentView, tryLoadPokemonImage, tryLoadImage, setupFoodTooltip, logicViewport, popupBounds, watchOutsidePress } from './ui.js';
 import { TYPE_COLORS, BERRY_ICONS, BERRY_NAMES } from './items.js';
 import { startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { acquireEntries, loadAcquire } from './acquire.js';
@@ -215,6 +215,7 @@ function renderPokedexLogsPage(idx) {
 
 export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
   setupFoodTooltip();
+  bindPokedexDetailSwipe(); // 详情页手势切上下一只（只需绑一次）
   const idx = String(pokemonIndex);
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
   const logs = gameData.encounterLogs[idx];
@@ -378,6 +379,73 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
     head?.addEventListener('click', () => setPokedexZoom(false));
   }
 }
+
+// ---- 详情页切上一只 / 下一只 ----
+// 与列表同一筛选池、同一排序顺序取相邻个体，到头 / 到尾不动。
+// 只走「认得」的条目：没解锁的详情页是空的，滑进去没意义
+function canNavPokedexDetail() {
+  return _curDetailIdx != null && _logsIdx == null
+    && getCurrentView() === 'pokedexView' && $('pokedexView')?.style.display !== 'none';
+}
+function navPokedexDetail(dir) {
+  if (!canNavPokedexDetail()) return false;
+  const pool = pokedexFilteredSorted().sorted
+    .filter(p => dexKnown(p.index, (gameData.pokedex?.[p.index]?.seen) || 0));
+  const i = pool.findIndex(p => p.index === _curDetailIdx);
+  if (i < 0) return false;
+  const j = i + dir;
+  if (j < 0 || j >= pool.length) return false;
+  // 切只不改动「返回列表时的滚动位置」：showEncounterLogs 会按从列表进入重记一次，先存后还原
+  const list = $('pokedexList');
+  const saved = list?.dataset.savedScroll;
+  showEncounterLogs(pool[j].index);
+  if (list && saved != null) list.dataset.savedScroll = saved;
+  return true;
+}
+
+// 手机：详情页左右滑动切上下一只（电脑端走方向键，鼠标拖拽不参与）
+// 用 touch 事件：详情内容纵向可滚动，指针事件会被浏览器判定成滚动后发 pointercancel，收不到收尾
+let _dexDetailSwipeBound = false;
+let _dexSwipeNavAt = 0; // 刚滑动切过只：吞掉紧随其后的一次 click，避免顺带把大图放大
+function bindPokedexDetailSwipe() {
+  const list = $('pokedexList');
+  if (!list || _dexDetailSwipeBound) return;
+  _dexDetailSwipeBound = true;
+  let sx = 0, sy = 0, st = 0, tracking = false;
+  list.addEventListener('touchstart', (e) => {
+    tracking = false;
+    if (e.touches.length !== 1) return; // 双指缩放不参与
+    if (!canNavPokedexDetail()) return;
+    if (list.classList.contains('pokedex-zoom')) return; // 大图放大态：这一下是收起
+    if (e.target.closest('input, textarea, button')) return; // 从输入框 / 按钮起手不当滑动
+    const t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; st = Date.now(); tracking = true;
+  }, { passive: true });
+  list.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Date.now() - st > 800) return; // 长按不是滑动
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // 纵向滚动 / 位移太小
+    if (navPokedexDetail(dx < 0 ? 1 : -1)) _dexSwipeNavAt = Date.now();
+  }, { passive: true });
+  list.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+  // 滑动收尾的那一下 click 不进详情内容，否则滑到大图上会顺手把图放大
+  list.addEventListener('click', (e) => {
+    if (Date.now() - _dexSwipeNavAt < 400) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+}
+
+// 电脑：详情页左右方向键切上下一只
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (navPokedexDetail(e.key === 'ArrowRight' ? 1 : -1)) e.preventDefault();
+});
 
 export function restorePokedex() {
   stopShinySparkleLoop(); // 离开图鉴详情：停止闪光粒子循环
@@ -879,14 +947,8 @@ function showPokedexContextMenu(x, y) {
   _pokedexCtxUnwatch = watchOutsidePress(menu, hidePokedexContextMenu);
 }
 
-export function showPokedex() {
-  pushNav('pokedexView');
-  const list = $('pokedexList');
-  if (!list) return;
-  delete list.dataset.savedHtml;
-  // 盒子 / 列表视图：容器类驱动表头与网格布局
-  $('pokedexView')?.classList.toggle('pokedex-box', _pokedexBoxView);
-  syncPokedexBoxRows();
+// 图鉴列表当前的筛选 + 排序结果；列表渲染与详情页切上下一只共用同一池子，保证顺序一致
+function pokedexFilteredSorted() {
   const caughtMap = gameData.pokedex || {};
   const regionLabel = $('pokedexRegionLabel')?.textContent || '';
   const regionFilter = regionLabel === '全部地区' ? '' : regionLabel;
@@ -902,14 +964,6 @@ export function showPokedex() {
   else if (sh === 'normal') filtered = filtered.filter(p => !dexShinyOwned(p.index));
   // 属性筛选：含有目标属性的宝可梦都筛出来（单属性/双属性均可命中）
   if (_pokedexType) filtered = filtered.filter(p => (p.types || []).includes(_pokedexType));
-  // 更新捕获进度
-  const progEl = $('pokedexProgress');
-  if (progEl) {
-    const total = filtered.length;
-    const seen = filtered.filter(p => (caughtMap[p.index]?.seen||0) > 0).length;
-    const unlocked = filtered.filter(p => dexUnlocked(p.index)).length;
-    progEl.textContent = `已相遇 ${seen}/${total}  ·  已解锁 ${unlocked}/${total}`;
-  }
   // 排序（by=null 时按默认图鉴编号 index 升序）
   const sortBy = _pokedexSortBy;
   const sorted = [...filtered].sort((a, b) => {
@@ -932,6 +986,27 @@ export function showPokedex() {
     }
     return (va - vb) * _pokedexSortDir;
   });
+  return { filtered, sorted };
+}
+
+export function showPokedex() {
+  pushNav('pokedexView');
+  const list = $('pokedexList');
+  if (!list) return;
+  delete list.dataset.savedHtml;
+  // 盒子 / 列表视图：容器类驱动表头与网格布局
+  $('pokedexView')?.classList.toggle('pokedex-box', _pokedexBoxView);
+  syncPokedexBoxRows();
+  const caughtMap = gameData.pokedex || {};
+  const { filtered, sorted } = pokedexFilteredSorted();
+  // 更新捕获进度
+  const progEl = $('pokedexProgress');
+  if (progEl) {
+    const total = filtered.length;
+    const seen = filtered.filter(p => (caughtMap[p.index]?.seen||0) > 0).length;
+    const unlocked = filtered.filter(p => dexUnlocked(p.index)).length;
+    progEl.textContent = `已相遇 ${seen}/${total}  ·  已解锁 ${unlocked}/${total}`;
+  }
   let html = '';
   if (_pokedexBoxView) {
     for (const p of sorted) html += pokedexBoxHtml(p, caughtMap);
