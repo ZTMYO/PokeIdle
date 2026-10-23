@@ -1,7 +1,7 @@
 // 训练 App：训练场 —— 把宝可梦放进训练槽，按真实时间挂机自动获得经验（不消耗糖果）
 // 页面为 tile 地图铺满 + 告示牌入口：点击告示牌弹出配置/数据面板
 // 训练中的宝可梦会以像素图标在场地上随机走动
-import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar } from './ui.js';
+import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar, hideFoodTip } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog, ensureGender, genderBadge, effIvTotal, ivOf } from './state.js';
 import {
   TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, MAX_LEVEL,
@@ -293,11 +293,13 @@ function render() {
   drawField(box.querySelector('.train-field-canvas'));
   box.querySelector('.train-box-sign')?.addEventListener('click', (e) => {
     e.stopPropagation(); // 避免触发表层关闭监听
+    hideFoodTip();
     closeBoard();
     openStockPanel();
   });
   box.querySelector('.train-board-sign')?.addEventListener('click', (e) => {
     e.stopPropagation(); // 避免触发表层关闭监听后又被打开
+    hideFoodTip();
     closeStockPanel();
     if (boardOpen()) closeBoard();
     else openBoard();

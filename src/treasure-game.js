@@ -242,7 +242,7 @@ function showResult() {
   const board = $('thBoard');
   if (!board) return;
   const t = $('thMsg');
-  if (t) t.textContent = '';
+  if (t) t.textContent = _g.lv.name;   // 顶栏中间改成显示本局难度
   board.style.gridTemplateColumns = '1fr';
   board.style.gridAutoRows = '';
   const head = _g.win

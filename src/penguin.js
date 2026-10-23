@@ -270,8 +270,8 @@ function settleRound(kind, keepStage) {
   const net = profit - _stake;
   const money = `${net >= 0 ? '+' : ''}${formatNum(net)}`;
   // 走满全程只报净盈亏；落水文案本身已经很长，不再接后缀
-  const netText = kind === 'drown' ? '' : (kind === 'full' ? `${money} 游戏币` : money);
-  _lastResult = `${text} ${money} 游戏币`;
+  const netText = kind === 'drown' ? '' : (kind === 'full' ? `${money} 游戏币` : `（净 ${money}）`);
+  _lastResult = kind === 'cash' ? `${text}（净 ${money}）` : `${text} ${money} 游戏币`;
   _settle = { text, net, netText, action };
   _phase = 'settle';
   delete gameData._penguinRound; // 已结算：下次进来是新的下注页

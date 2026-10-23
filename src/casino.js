@@ -158,7 +158,11 @@ function renderScene() {
   hideFoodTip(); // 换楼层后原热区没了，坐标下压着的却是新热区，tooltip 会带着旧文案留在屏上
   const scene = _floor === 2 ? SCENE_FLOOR2 : SCENE_FLOOR1;
   const hots = _floor === 2
-    ? SCENE_ARCADE.map((r, i) => hotHtml(i === 0 ? 'casino-hot-penguin' : '', i === 0 ? '跳企鹅' : '敬请期待', r)).join('')
+    ? SCENE_ARCADE.map((r, i) => {
+        if (i === 0) return hotHtml('casino-hot-penguin', '跳企鹅', r);
+        if (i === 1) return hotHtml('casino-hot-voltorb', '电球翻牌', r);
+        return hotHtml('', '敬请期待', r);
+      }).join('')
       + hotHtml('casino-hot-down', '下楼', SCENE_STAIRS_DOWN)
     : hotHtml('casino-hot-bj', '21 点', SCENE_HOT)
       + hotHtml('casino-hot-mj', '口袋麻将', SCENE_MAHJONG)
@@ -181,6 +185,7 @@ function renderScene() {
   box.querySelector('.casino-hot-up')?.addEventListener('click', () => { _floor = 2; renderScene(); });
   box.querySelector('.casino-hot-down')?.addEventListener('click', () => { _floor = 1; renderScene(); });
   box.querySelector('.casino-hot-penguin')?.addEventListener('click', () => import('./penguin.js').then((m) => m.showPenguinView()));
+  box.querySelector('.casino-hot-voltorb')?.addEventListener('click', () => import('./voltorb.js').then((m) => m.showVoltorbView()));
   drawScene(box.querySelector('.casino-scene-canvas'), scene);
 }
 
@@ -697,18 +702,27 @@ function fmtHistoryTime(ts) {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// source: 'bj' 21点 | 'mj' 麻将 | 'pg' 跳企鹅
+// source: 'bj' 21点 | 'mj' 麻将 | 'pg' 跳企鹅 | 'vf' 电球翻牌
 export function showCasinoHistoryView(source) {
   pushNav('casinoHistoryView');
   const content = $('casinoHistoryContent');
   if (!content) return;
   const isMj = source === 'mj';
   const isPg = source === 'pg';
-  const records = (isPg ? gameData.penguinRecords : isMj ? gameData.mahjongRecords : gameData.casinoRecords) || [];
-  const title = isPg ? '跳企鹅战绩' : isMj ? '口袋麻将战绩' : '21点战绩';
+  const isVf = source === 'vf';
+  const records = (isVf ? gameData.voltorbRecords : isPg ? gameData.penguinRecords : isMj ? gameData.mahjongRecords : gameData.casinoRecords) || [];
+  const title = isVf ? '电球翻牌战绩' : isPg ? '跳企鹅战绩' : isMj ? '口袋麻将战绩' : '21点战绩';
   const CN = ['零', '一', '二', '三', '四'];
-  // 徽章（仿抽卡记录 tier 色块）：21点按输赢上色；麻将按名次上色
   const badge = r => {
+    if (isVf) {
+      const b = {
+        cash: { text: '收手', bg: '#d4850a' },
+        bust: { text: '爆雷', bg: '#b5544e' },
+        cap: { text: '封顶', bg: '#d4850a' },
+        clear: { text: '全清', bg: '#d4850a' },
+      }[r.action];
+      return b || { text: '一局', bg: '#7a8a8a' };
+    }
     if (isPg) return r.action === 'win' ? { text: '提现', bg: '#d4850a' } : { text: '落水', bg: '#b5544e' };
     if (isMj) {
       const colors = ['#d4850a', '#8a8a8a', '#b87333', '#5a5a5a'];
@@ -724,7 +738,7 @@ export function showCasinoHistoryView(source) {
     ${records.map(r => {
     const time = fmtHistoryTime(r.time);
     const b = badge(r);
-    const note = isPg ? `${r.steps} 跳 · 下注 ${formatNum(r.bet)}` : isMj ? `下注 ${formatNum(r.stake)} 档` : r.result;
+    const note = isVf ? `×${r.chain} · 下注 ${formatNum(r.bet)}` : isPg ? `${r.steps} 跳 · 下注 ${formatNum(r.bet)}` : isMj ? `下注 ${formatNum(r.stake)} 档` : r.result;
     const color = r.net > 0 ? '#d4850a' : r.net < 0 ? '#b5544e' : 'rgba(255,255,255,0.45)';
     return `<div class="rec-row">
         <span class="rec-time">${time}</span>

@@ -233,12 +233,15 @@ function refreshDataStats() {
   const cs = wlStat(gameData.casinoRecords || [], false);
   const mj = wlStat(gameData.mahjongRecords || [], true);
   const pg = wlStat(gameData.penguinRecords || [], true);
+  const vf = wlStat(gameData.voltorbRecords || [], true);
   $('dataCasinoWL').textContent = `胜 ${cs.w} / 负 ${cs.l} / 平 ${cs.p}`;
   $('dataCasinoNet').textContent = `${cs.net > 0 ? '+' : ''}${formatNum(cs.net)} 币`;
   $('dataMjWL').textContent = `胜 ${mj.w} / 负 ${mj.l} / 平 ${mj.p}`;
   $('dataMjNet').textContent = `${mj.net > 0 ? '+' : ''}${formatNum(mj.net)} 币`;
   $('dataPgWL').textContent = `胜 ${pg.w} / 负 ${pg.l} / 平 ${pg.p}`;
   $('dataPgNet').textContent = `${pg.net > 0 ? '+' : ''}${formatNum(pg.net)} 币`;
+  $('dataVfWL').textContent = `胜 ${vf.w} / 负 ${vf.l} / 平 ${vf.p}`;
+  $('dataVfNet').textContent = `${vf.net > 0 ? '+' : ''}${formatNum(vf.net)} 币`;
   const earnedEl = $('dataEarned');
   if (earnedEl) {
     // 只列基础道具：进化道具/专属道具/薄荷加起来上百种，一行一个铺不开
@@ -361,6 +364,8 @@ export function showDataView() {
       <div class="stat-row"><span>麻将 净盈亏</span><span id="dataMjNet"></span></div>
       <div class="stat-row"><span>跳企鹅 胜/负/平</span><span id="dataPgWL"></span></div>
       <div class="stat-row"><span>跳企鹅 净盈亏</span><span id="dataPgNet"></span></div>
+      <div class="stat-row"><span>电球翻牌 胜/负/平</span><span id="dataVfWL"></span></div>
+      <div class="stat-row"><span>电球翻牌 净盈亏</span><span id="dataVfNet"></span></div>
       <div class="stat-row"><span>卡册收集进度</span><span id="dataCardPct"></span></div>
 
       <div class="stat-section">道具累计获得</div>
@@ -608,6 +613,12 @@ export function renderSystemLogs() {
           : log.details.winner === 'draw' ? '流局'
             : ['对家', '左家', '右家'][log.details.winner - 1] + ' 胡牌';
         desc = `麻将：${t} ${p > 0 ? '+' + p : p} 糖果`;
+        break;
+      }
+      case 'voltorb': {
+        const p = log.details.profit;
+        const t = { cash: '收手', bust: '爆雷', cap: '封顶', clear: '全清' }[log.details.action] || '一局';
+        desc = `电球翻牌：${t} ${p > 0 ? '+' + p : p} 游戏币`;
         break;
       }
       default:
@@ -2380,16 +2391,19 @@ const TUTORIAL_SECTIONS = [
   {
     title: '游戏厅',
     html: `<p>在<b>手机</b>桌面打开<b>游戏厅</b>应用。点击前台区域可以用<b>糖果</b>兑换<b>游戏币</b>（<b>${COIN_RATE} 糖果 = 1 游戏币</b>），柜台处选择兑换档位即可。</p>`
-      + `<p>一层是赌桌区，从左上角的<b>楼梯</b>上二层是游戏机区。游戏厅目前提供：<b>21点</b>与<b>跳企鹅</b>（详见「<b>小游戏</b>」章节）、<b>口袋麻将</b>（详见「<b>口袋麻将</b>」章节），<b>抽卡机</b>（详见「<b>抽卡机</b>」章节）。</p>`,
+      + `<p>一层是赌桌区，从左上角的<b>楼梯</b>上二层是游戏机区。游戏厅目前提供：<b>21点</b>、<b>跳企鹅</b>与<b>电球翻牌</b>（详见「<b>小游戏</b>」章节）、<b>口袋麻将</b>（详见「<b>口袋麻将</b>」章节），<b>抽卡机</b>（详见「<b>抽卡机</b>」章节）。</p>`,
   },
   {
     title: '小游戏',
-    html: `<p>在<b>手机</b>桌面打开<b>游戏厅</b>应用：<b>21点</b>在一层赌桌，<b>跳企鹅</b>在二层游戏机区第一台机器。</p>`
+    html: `<p>在<b>手机</b>桌面打开<b>游戏厅</b>应用：<b>21点</b>在一层赌桌，<b>跳企鹅</b>和<b>电球翻牌</b>在二层游戏机区第一、第二台机器。</p>`
       + `<p><b>21点</b>：与庄家比点数更接近 <b>21</b> 且不爆牌；A 可算 <b>1 或 11</b>、J/Q/K 计 <b>10</b>。可<b>要牌</b>补一张、<b>停牌</b>交给庄家、<b>加倍</b>再押一份只补 1 张。庄家不足 <b>${DEALER_STAND}</b> 必须继续要牌；<b>黑杰克</b>（前两张即 21）按 <b>${BJ_MULT} 倍</b>赔付，双方黑杰克平局返还。</p>`
       + `<p><b>跳企鹅</b>：下注后点「<b>前进</b>」让冰砌鹅跳到下一块浮冰，每跳有 <b>${Math.round(PENGUIN_BREAK_CHANCE * 100)}%</b> 概率踩碎浮冰掉进水里（第一跳同样有风险），掉下去本局注额就没了。每站住一次可提现金额 <b>×${PENGUIN_MULT}</b>，点「<b>提现</b>」随时落袋，跳到最右（共 <b>${PENGUIN_STEPS}</b> 跳）自动结算。各跳数对应的提现倍率：</p>`
       + tutorialTable(
         Array.from({ length: PENGUIN_STEPS }, (_, i) => [`${i + 1} 跳`, `×${Math.pow(PENGUIN_MULT, i + 1).toFixed(2)}`]),
-        ['跳数', '提现倍率'], ['auto', 'auto']),
+        ['跳数', '提现倍率'], ['auto', 'auto'])
+      + `<p><b>电球翻牌</b>：在游戏厅二楼<b>第二台</b>游戏机。5×5 牌阵，每行每列都写着「数值合计」和「雷电球数量」。翻开 ×2 / ×3 会连乘连锁，翻到雷电球本局归零；随时可以收手，按连锁档位拿游戏币。</p>`
+      + `<p>每局重新下注、重新发牌；连锁最高 <b>3 倍</b>封顶。还有 ×2 / ×3 没挖出来就提前收手，会按剩余高价值比例打折（最多扣 <b>30%</b>）；全部挖完自动结算，不打折。</p>`
+      + `<p><b>标记</b>：右键格子，选择 1 / 2 / 3 / 雷电球做笔记；不消耗翻牌次数，也不会翻牌。</p>`,
   },
   {
     title: '口袋麻将',

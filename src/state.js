@@ -318,6 +318,7 @@ export function getDefaultSave() {
     casinoRecords: [],   // 21点战绩（滑动窗口 50 条）：{ time, bet, action, result, net }
     mahjongRecords: [],  // 麻将战绩（滑动窗口 50 条，整场一条）：{ time, net, rank, stake }
     penguinRecords: [],  // 跳企鹅战绩（滑动窗口 50 条）：{ time, bet, steps, action, result, net }
+    voltorbRecords: [],  // 电球翻牌战绩（滑动窗口 50 条）：{ time, bet, chain, action, result, net }
     bounty: null, // 地区悬赏：{ date: 'YYYY-MM-DD', rewards: [{ pokemon, candy, claimed }] }，由 bounty.js 管理
     tmUnlocked: {}, // 招式机解锁：{ 招式id: 解锁时间 }，由 tm.js 管理
     tmShop: null,   // 商店今日招式机货架：{ date, ids }，由 tm.js 管理

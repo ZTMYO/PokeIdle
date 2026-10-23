@@ -396,7 +396,11 @@ function buildPlayerTeam() {
           const m = entry.moves[i];
           return m && _data.moves[m] && _data.moves[m].effect.kind !== 'unimplemented' ? m : null;
         })
-      : chooseMoves(_learnset[entry.species] || {}, entry.level, _data, { types: pd ? pd.types : [], includeTm: true, allowEgg: true }); // 对战对手不受玩家解锁限制
+      : chooseMoves(_learnset[entry.species] || {}, entry.level || 1, _data, {
+          types: pd ? pd.types : [],
+          tmIds: new Set(Object.keys(gameData.tmUnlocked || {}).map(Number)),
+          allowEgg: entry.source === 'egg',
+        }); // 与仓库详情页的自动配招保持一致：只算已解锁的招式机，蛋招式仅孵蛋个体可用
     return (() => {
       const mon = createMon(pd, entry.level || 1, effIvs(entry), entry.nature, moveIds); // 王冠练过的个体值按有效值进战斗
       mon.shiny = !!entry.shiny; // 战斗大图按闪光贴图（_shiny 后缀）加载

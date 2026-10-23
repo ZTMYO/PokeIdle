@@ -8,6 +8,7 @@ import { playMahjongSfx } from './audio.js';
 const TRAY_MAX = 7;
 const COIN_ICON = './items/goods/balloon-teal.png';   // 本活动的代币气球（和活动页那颗同一色）
 
+
 // 鸟池：按进化系分组，同一局里一个家族最多出一只（波波和比比鸟摆一起会认混）。
 // 每档只写"要几种鸟"，具体抽谁每局现摇 —— 这样池子里每只都有机会上场。
 const BIRD_FAMILIES = [
@@ -77,8 +78,8 @@ const HALF = 0.25;   // 摆牌时四周各留 1/4 格给错位
 const PAD = 0.75;    // 棋盘比网格多出来的余量（格）：左 1/4 + 右 1/2
 const MIN_COLS = 5;  // 网格最少几列几行，再少最挤的那一层就摆不开
 const MIN_ROWS = 3;
-const TRAY_GAP = 4;  // 槽位之间的间距，要和 CSS 里 .bg-tray 的 gap 保持一致
-const SIDE_PAD = 10; // 槽位那一行左右各留的空，别贴着屏幕边
+const TRAY_GAP = 3;  // 槽位之间的间距，要和 CSS 里 .bg-tray 的 gap 保持一致
+const SIDE_PAD = 4; // 槽位那一行左右各留的空，别贴着屏幕边
 
 const rndInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
@@ -202,8 +203,8 @@ function grid() {
   // 得把 stage 自己的内边距刨掉，不然棋盘会顶出容器、压到下面的槽位上
   const w = stage.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
   const h = stage.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
-  const boxW = Math.max(120, w - 6);
-  const boxH = Math.max(72, h - 6);
+  const boxW = Math.max(120, w - 2);
+  const boxH = Math.max(72, h - 1);
   // 三个上限里取最小的：装得下最挤那一层、别撑爆装牌区、底下槽位排开别贴屏幕边
   const bySlot = Math.floor((w - SIDE_PAD * 2 - TRAY_GAP * (TRAY_MAX - 1)) / TRAY_MAX);
   const bySpace = Math.min(Math.floor(boxW / (MIN_COLS + PAD)), Math.floor(boxH / (MIN_ROWS + PAD)));

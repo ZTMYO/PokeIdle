@@ -262,10 +262,10 @@ function encPokeAlivePhase() {
   return phase === 'idle' || isStageOccupied();
 }
 
-// 谁在推进这只图标：上屏正常显示时跟着路面（世界步进器），上屏被顶掉/停摆时改用等待定时器。
+// 谁在推进这只图标：路面在走就跟着路面（世界步进器），路面停摆时改用等待定时器。
 // 两者只能有一个在推，否则双屏下会两倍速滑向主角
 function encPokeWorldDriven() {
-  return isIdleStageVisible() && road.isActive() && !road.isBike() && !_fishing;
+  return road.isActive() && !road.isBike() && !_fishing;
 }
 
 function spawnEncounterPoke(poke, shiny, cb) {

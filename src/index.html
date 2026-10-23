@@ -9,7 +9,7 @@
     (function () {
       var SITE = 'https://pokeidle.shiliu.space';
       // 版本号由 tools/sync-version.mjs 改写：经典脚本这里 import 不了 build-info.js
-      var APP_VER = '1.20.3';
+      var APP_VER = '1.20.4';
       var VER_TEXT = '（v' + APP_VER + '）';
       var lines = [], box = null, detail = null, detailToggle = null, detailOpen = false;
 
@@ -957,6 +957,11 @@
             <!-- 跳企鹅（二楼游戏机） -->
             <div id="casinoPenguinView" class="view-fixed" style="display:none;">
               <div id="casinoPenguinContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
+            </div>
+
+            <!-- 电球翻牌（二楼游戏机） -->
+            <div id="casinoVoltorbView" class="view-fixed" style="display:none;">
+              <div id="casinoVoltorbContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
             </div>
 
             <!-- 口袋麻将（独立页） -->
