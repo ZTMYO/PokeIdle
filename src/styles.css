@@ -7594,6 +7594,58 @@ html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
   font-weight: 700;
   color: var(--ui-color-dark);
 }
+/* 免责声明：进游戏前盖满屏，黑底红字，点「继续」才收起 */
+.intro-declare {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 24px;
+  background: #000;
+  text-align: center;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+.intro-declare.out { opacity: 0; }
+.intro-declare-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: #e74c3c;
+}
+.intro-declare-text {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 2;
+  max-width: 460px;
+  color: #e74c3c;
+}
+.intro-declare-site {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #e74c3c;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.intro-declare-go {
+  margin-top: 6px;
+  padding: 8px 28px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #e74c3c;
+  background: none;
+  border: 2px solid #e74c3c;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.intro-declare-go:active { background: rgba(231, 76, 60, 0.18); }
 /* 剧情结束后的开机过渡：screen-wrapper 从底部向上收缩为正方形（顶部固定、底边上移），随后恢复 UI 进入 splash */
 .screen-wrapper.boot-collapse {
   transition: height 0.9s cubic-bezier(0.45, 0, 0.2, 1);

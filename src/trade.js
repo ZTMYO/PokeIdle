@@ -476,8 +476,9 @@ function offerCard(o) {
   const traded = !!o.traded;
   const ignored = !!o.ignored;
   const count = eligible(o).length;
-  // 无可直接交换个体时，若背包里的道具（经验糖果 / 王冠）够把某只补成合格，按钮只显示「可培养」（不可点击，只作提示）
+  // 无可直接交换个体时，若背包里的道具（经验糖果 / 王冠）够把某只补成合格，按钮显示「可培养」并可直接去仓库找它
   const cultList = cultivable(o);
+  const canCult = !traded && count === 0 && cultList.length > 0;
 
   // 需求连成一句话：想要 Lv30以上 ，攻击 ≥ 26 的雌性皮卡丘
   const wantParts = [
@@ -499,7 +500,7 @@ function offerCard(o) {
         <div class="npc-sprite" style="${npcPos}"></div>
         <button class="trade-give" style="animation-delay:${jumpDelay}s" data-give-detail="${o.id}" title="查看${givePoke.form || givePoke.name}详情">${giveIcon}</button>
         <div class="trade-text">${wantText}</div>
-        <button class="trade-btn${traded ? ' done' : (count === 0 && !cultList.length) ? ' locked' : ''}" data-offer="${o.id}"${traded || count === 0 ? ' disabled' : ''}>${traded ? '已交换' : count > 0 ? '交换' : cultList.length ? '可培养' : '未拥有'}</button>
+        <button class="trade-btn${traded ? ' done' : (count === 0 && !cultList.length) ? ' locked' : ''}" data-offer="${o.id}"${canCult ? ' data-cult="1"' : ''}${traded || (count === 0 && !cultList.length) ? ' disabled' : ''}>${traded ? '已交换' : count > 0 ? '交换' : cultList.length ? '可培养' : '未拥有'}</button>
       </div>
       <div class="trade-footer">
         <span class="trade-npc-name">${npc.name}</span>
@@ -910,9 +911,12 @@ function refreshTradeButtons() {
     const traded = !!o.traded;
     const count = eligible(o).length;
     const cultCount = cultivable(o).length;
+    const canCult = !traded && count === 0 && cultCount > 0;
     btn.className = `trade-btn${traded ? ' done' : (count === 0 && cultCount === 0) ? ' locked' : ''}`;
-    btn.disabled = traded || count === 0;
+    btn.disabled = traded || (count === 0 && cultCount === 0);
     btn.textContent = traded ? '已交换' : count > 0 ? '交换' : cultCount > 0 ? '可培养' : '未拥有';
+    if (canCult) btn.dataset.cult = '1';
+    else delete btn.dataset.cult;
   });
 }
 window.addEventListener('roster-changed', refreshTradeButtons);
@@ -922,6 +926,25 @@ document.addEventListener('click', e => {
   if (!content || $('tradeView').style.display !== 'flex') return;
 
   const offerBtn = e.target.closest('[data-offer]');
+  // 「可培养」：没有直接合格的个体，跳去仓库并按需求物种名预填搜索
+  if (offerBtn && !offerBtn.disabled && offerBtn.dataset.cult === '1') {
+    const o = (gameData.trades?.offers || []).find(x => x.id === offerBtn.dataset.offer);
+    const wantPoke = o && getPokemonByIndex(o.want.species);
+    const wantIndex = String(wantPoke?.index || o?.want.species || '');
+    if (wantIndex) {
+      const tc = $('tradeContent');
+      if (tc) _tradeListScroll = tc.scrollTop;
+      pauseTradeRefresh(); // 查看仓库期间冻结刷新倒计时
+      import('./roster.js').then(m => m.showRosterSearch(wantIndex, () => {
+        resumeTradeRefresh();
+        showView('tradeView');
+        renderTrade();
+        const back = $('tradeContent');
+        if (back) back.scrollTop = _tradeListScroll;
+      }));
+      return;
+    }
+  }
   if (offerBtn && !offerBtn.disabled) {
     const tc = $('tradeContent');
     if (tc) { _tradeListScroll = tc.scrollTop; tc.scrollTop = 0; } // 记住列表位置，子页面从顶部开始

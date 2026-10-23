@@ -2621,6 +2621,9 @@ export function showDeclarationView() {
     <div style="font-size:11px;line-height:1.9;">
       <p style="margin:6px 0;"><b>作者</b>：@ZTMYO</p>
       <p style="margin:6px 0;"><b>项目地址</b>：<span id="declarationLink" style="text-decoration:underline;cursor:pointer;">github.com/ZTMYO/PokeIdle</span></p>
+      <p style="margin:12px 0 4px;padding-top:8px;border-top:1px dashed rgba(var(--ui-color-rgb),0.2);"><b>免费游玩 · 禁止倒卖</b></p>
+      <p style="margin:4px 0;">本游戏<b>完全免费</b>，作者未在任何渠道出售或授权出售。凡以「付费下载 / 激活码 / 会员 / 代充 / 众筹」等名义向你收费的，均与作者无关，<b>请勿付款</b>并向平台举报。</p>
+      <p style="margin:4px 0;">任何人不得将本游戏（含改名、换图标后的版本）打包售卖、网盘付费下载或引流变现。</p>
       <p style="margin:12px 0 4px;padding-top:8px;border-top:1px dashed rgba(var(--ui-color-rgb),0.2);"><b>版权声明</b></p>
       <p style="margin:4px 0;">宝可梦（Pokémon）及其相关角色、名称、标志、音乐、插图与动画，版权均归 Nintendo / Creatures Inc. / GAME FREAK inc. / The Pokémon Company 所有。</p>
       <p style="margin:4px 0;">本项目为个人学习与娱乐交流的粉丝作品，<b>非官方游戏，与官方无任何关联</b>，不用于任何商业用途。</p>

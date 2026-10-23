@@ -25,6 +25,14 @@ const ASK_LINE = '准备好了吗？这就出发吧！';
 const PHONE_LINE = SCRIPT.findIndex(l => l.includes('特制手机')) + 1;
 const CHOICE_LINE = SCRIPT.findIndex(l => l.includes('再次开启旅行如何')) + 1;
 
+// 进入游戏前先亮一屏免责声明
+const DECLARE_HTML = `
+  <div class="intro-declare-title">重要声明</div>
+  <div class="intro-declare-text">本游戏完全免费，作者从未在任何渠道出售或授权出售。若你是花钱买到的，请立即向平台举报并申请退款。也请勿转售、改名传播或用于任何商业用途。</div>
+  <div class="intro-declare-site" id="introDeclareSite">唯一官方渠道：https://pokeidle.shiliu.space/</div>
+  <button type="button" class="intro-declare-go" id="introDeclareGo">我已了解，继续</button>
+`;
+
 // ===== tile 场景=====
 const SCENE_TILESET = './terrain/terrain-tileset.png';
 const SCENE_TILE = 24;
@@ -104,7 +112,7 @@ function renderTileScene() {
 }
 
 let _onDone = null;
-let _step = 0; // 0=选角色；1..SCRIPT.length=逐句剧情；之后为询问句
+let _step = 0; // 0=免责声明/选角色；1..SCRIPT.length=逐句剧情；之后为询问句
 let _choiceOpen = false; // 询问句按钮已显示（替代三角箭头）
 let _birchTimer = null;  // 小田卷走位后亮箭头的延时定时器，快速连点时需清理避免箭头残留
 
@@ -124,12 +132,36 @@ export function startIntro(onDone) {
       <div class="intro-player-wrap" id="introPlayerWrap"><div class="intro-player" id="introPlayer"></div></div>
       <div class="intro-birch-wrap" id="introBirchWrap"><div class="intro-birch" id="introBirch"></div></div>
     </div>
+    <div class="intro-declare" id="introDeclare">${DECLARE_HTML}</div>
   `;
   iv.querySelectorAll('.intro-pick-btn').forEach(btn => {
     btn.addEventListener('click', () => chooseGender(btn.dataset.gender));
   });
+  // 声明层：官网地址可点（系统浏览器打开），只有「继续」按钮能收起声明
+  iv.querySelector('#introDeclareSite').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openExternal('https://pokeidle.shiliu.space/');
+  });
+  iv.querySelector('#introDeclareGo').addEventListener('click', () => dismissDeclare());
   document.body.classList.remove('booting'); // 界面风格已切好，剧情页可以露出来了
   showView('introView');
+  hideIntroText();
+}
+
+// Tauri 下用系统浏览器打开外链，浏览器里退回新标签页
+function openExternal(url) {
+  if (window.__POKEIDLE_MOBILE__?.openExternal) window.__POKEIDLE_MOBILE__.openExternal(url);
+  else if (window.__TAURI__?.opener?.openUrl) window.__TAURI__.opener.openUrl(url);
+  else window.open(url, '_blank');
+}
+
+// 点「继续」后收起整屏声明，再进选角色
+function dismissDeclare() {
+  const el = $('introDeclare');
+  if (!el || el.dataset.closing) return;
+  el.dataset.closing = '1';
+  el.classList.add('out');
+  setTimeout(() => el.remove(), 220);
   showIntroText('欢迎来到宝可梦的世界！选择你的角色。', false, true);
 }
 
