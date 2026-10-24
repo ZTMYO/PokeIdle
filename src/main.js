@@ -257,6 +257,8 @@ function goBack() {
   if ($('birdView')?.style.display === 'flex') { import('./bird-game.js').then(m => m.leaveBirdGame()); return; }
   // 宝可连线：返回 = 本局作废（不给气球）并回活动页
   if ($('flowView')?.style.display === 'flex') { import('./flow-game.js').then(m => m.leaveFlowGame()); return; }
+  // 电力输送：返回 = 本局作废（不给气球）并回活动页
+  if ($('powerFlowView')?.style.display === 'flex') { import('./power-flow.js').then(m => m.leavePowerFlowGame()); return; }
   // 猜宝可梦：返回 = 回活动页（气球在答对时就记过了，不用结算）
   if ($('guessView')?.style.display === 'flex') { import('./guess-game.js').then(m => m.leaveGuessGame()); return; }
   // 甜蜜工坊：返回 = 结算这一轮（币照给）并回活动页

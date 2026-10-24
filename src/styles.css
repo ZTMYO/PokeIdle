@@ -13243,3 +13243,94 @@ html.power-save .screen *:not(.walk-gif)::after {
   animation-iteration-count: 1 !important;
 }
 
+/* === 电力输送（限时活动小游戏）：旋转导线，把电肚蛙的电送到洛托姆 === */
+#powerFlowView {
+  --pf-power: #DBB538;
+  padding: 2px 4px 4px;
+}
+.pf-stage {
+  flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+  padding: 2px 0;
+}
+.pf-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), 1fr);
+  grid-template-rows: repeat(var(--n, 4), 1fr);
+  width: 300px; height: 300px; gap: 0;
+  background-color: rgba(var(--ui-color-rgb), 0.06);
+  background-image:
+    linear-gradient(to right, rgba(var(--ui-color-rgb), 0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(var(--ui-color-rgb), 0.16) 1px, transparent 1px);
+  border: 1px solid rgba(var(--ui-color-rgb), 0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+.pf-cell {
+  position: relative; min-width: 0; min-height: 0; padding: 0; border: 0;
+  overflow: hidden; background: transparent; cursor: pointer;
+}
+.pf-cell:active { background: rgba(var(--ui-color-rgb), 0.08); }
+.pf-cell.fixed { cursor: default; background: rgba(255,255,255,.12); }
+.pf-cell.fixed:active { background: rgba(255,255,255,.12); }
+.pf-cell.fixed.hint::before {
+  content: ''; position: absolute; top: 5px; right: 5px; width: 4px; height: 4px;
+  border-radius: 50%; background: var(--ui-color-dark); opacity: .85; z-index: 2;
+}
+.pf-rot {
+  position: absolute; inset: 0; display: block;
+  transform-origin: 50% 50%;
+  transition: transform .16s cubic-bezier(.2,.7,.2,1);
+  pointer-events: none;
+}
+.pf-rot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.pf-wire { fill: none; stroke: var(--ui-color-dark); stroke-width: 12; stroke-linecap: round; }
+.pf-joint { fill: var(--ui-color-dark); }
+.pf-cell.live .pf-wire { animation: pf-current .45s ease-out both; animation-delay: calc(var(--d, 0) * 55ms); }
+.pf-cell.live .pf-joint { animation: pf-current-joint .45s ease-out both; animation-delay: calc(var(--d, 0) * 55ms); }
+.pf-cell.live::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px;
+  margin: -3.5px; border-radius: 50%; background: var(--phone-box); pointer-events: none;
+  z-index: 2; opacity: 0;
+  animation: pf-spark .5s ease-out both; animation-delay: calc(var(--d, 0) * 55ms);
+}
+@keyframes pf-current {
+  0% { stroke: var(--ui-color-dark); }
+  35% { stroke: var(--phone-box); }
+  65%, 100% { stroke: var(--pf-power); }
+}
+@keyframes pf-current-joint {
+  0% { fill: var(--ui-color-dark); }
+  35% { fill: var(--phone-box); }
+  65%, 100% { fill: var(--pf-power); }
+}
+@keyframes pf-spark {
+  0% { opacity: 0; transform: scale(.2); }
+  30% { opacity: 1; transform: scale(1.35); }
+  100% { opacity: 0; transform: scale(.4); }
+}
+.pf-icon {
+  position: absolute; inset: 10%; display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.pf-actor {
+  position: relative; z-index: 1; display: block;
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  image-rendering: pixelated;
+}
+.pf-cell.target .pf-actor { filter: brightness(.72) saturate(.85); transition: filter .4s; }
+.pf-cell.target.win .pf-actor { filter: none; animation: pf-happy .5s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pf-happy { 0%, 100% { transform: translateY(0) scale(1); } 45% { transform: translateY(-4px) scale(1.12); } }
+.pf-board.done {
+  background-image: none;
+  background-color: var(--screen-bg);
+  border-color: transparent;
+}
+.pf-board.done .pf-cell { visibility: hidden; }
+.pf-result {
+  position: absolute; inset: -1px; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  background: var(--screen-bg); text-align: center; color: var(--ui-color);
+}
+

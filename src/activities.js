@@ -11,6 +11,7 @@ import { ITEM_NAMES, EVO_PRICES, eggSprite, ALCREMIE_DECOS, ALCREMIE_FLAVORS } f
 import { MG_LEVELS, levelOf } from './memory-game.js';
 import { BG_LEVELS, bgLevelOf } from './bird-game.js';
 import { FLOW_LEVELS, flowLevelOf } from './flow-game.js';
+import { PF_LEVELS, pfLevelOf } from './power-flow.js';
 import { GUESS_LEVELS, guessLevelOf, guessReady } from './guess-game.js';
 import { SW_LEVELS, swLevelOf } from './sweet-game.js';
 import { TH_LEVELS, thLevelOf, UNOWN_INDEX } from './treasure-game.js';
@@ -347,7 +348,7 @@ function buyShopItem(ctx, id) {
   });
 }
 
-// 币类小游戏顶栏那格：气球图标接个数字（翻牌 / 鸟了个鸟 / 连线 / 甜蜜工坊 / 猜宝可梦共用）
+// 币类小游戏顶栏那格：气球图标接个数字
 const coinBadge = (ctx) => `<img src="${coinIcon(ctx)}" alt="">${coinsOf(ctx)}`;
 
 // 币类小游戏统一的每秒巡检：币数 / 兑换状态 / 计分 / 难度有变化才重画
@@ -357,8 +358,7 @@ function coinTick(root, ctx, scoreKey) {
   if (root.dataset.key !== key) { root.dataset.key = key; ctx.refresh(); }
 }
 
-// 翻牌 / 鸟了个鸟 / 连线 / 甜蜜工坊四个活动的外壳一样：
-// 规则文案 + 通关统计 + 难度档 + 兑换所，点难度直接开局，结算回币。
+// 小游戏类活动共用外壳：规则文案 + 通关统计 + 难度档 + 兑换所。
 // 各活动只传自己的难度数据、属性名、规则文案和游戏模块。
 function coinGame({ name, levels, levelOf, attr, rules, levelDesc, start }) {
   const dsKey = attr.replace(/-([a-z])/g, (_, c) => c.toUpperCase());   // 'bg-level' → 'bgLevel'
@@ -1057,6 +1057,18 @@ export const ACTIVITIES = {
     start: (level, onFinish) => import('./flow-game.js').then(m => m.startFlowGame({ level, onFinish })),
   }),
 
+
+  // ---- 电力输送（power-flow）：旋转导线，把电肚蛙的电送到洛托姆，换道具（每样限一次）----
+  // 服务器 activity.json 加一条 { "id": "power-flow", "from": …, "to": … }
+  'power-flow': coinGame({
+    name: '电力输送',
+    levels: PF_LEVELS,
+    levelOf: pfLevelOf,
+    attr: 'pf-level',
+    rules: '点击导线让它旋转，把电肚蛙的电送到没电的洛托姆。电肚蛙和洛托姆连通即可通关获得气球奖励。<br>气球可以兑换下面的奖励，每样限一次。',
+    levelDesc: l => `${l.n}×${l.n} · ${l.coins} 气球`,
+    start: (level, onFinish) => import('./power-flow.js').then(m => m.startPowerFlowGame({ level, onFinish })),
+  }),
   // ---- 甜蜜工坊（sweet-workshop）：照顾客点单做冰激凌，按时机出货赚气球，换道具（每样限一次）----
   // 服务器 activity.json 里加一条 { "id": "sweet-workshop", "from": …, "to": … }
   'sweet-workshop': coinGame({

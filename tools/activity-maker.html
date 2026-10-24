@@ -66,6 +66,7 @@
         <option value="poke-flip">宝可翻牌</option>
         <option value="bird-stack">鸟了个鸟</option>
         <option value="flow-link">宝可连线</option>
+        <option value="power-flow">电力输送</option>
         <option value="voyage">航海寻宝</option>
         <option value="guess-name">猜宝可梦</option>
         <option value="sweet-workshop">甜蜜工坊</option>
@@ -210,9 +211,9 @@ function syncExistingHint() {
 
 // 所有随机都由 payload.seed 决定：客户端用同一个 seed 定"固定哪一只"（全野池随机、去神兽）
 // 和四档奖励 —— 全服完全一致，改 seed 就换一只、换一份奖励，不用读排期。
-// 鸟了个鸟、猜宝可梦不读种子：玩法与奖励都写死在客户端，payload 直接不带 seed。
+// 鸟了个鸟、电力输送、猜宝可梦不读种子：玩法与奖励都写死在客户端，payload 直接不带 seed。
 // 符文寻踪同理：图腾位置本机随机，兑换所那颗未知图腾蛋也是本机随机。
-const NO_SEED = new Set(['bird-stack', 'guess-name', 'treasure-hunt']);
+const NO_SEED = new Set(['bird-stack', 'power-flow', 'guess-name', 'treasure-hunt']);
 function build() {
   const f = readForm();
   const { list: base } = parseExisting(f.existing);   // 已到期的活动在这里就被剔除了
@@ -223,7 +224,7 @@ function build() {
   const payload = {};
   if (!NO_SEED.has(f.kind)) payload.seed = (from ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
   if (f.kind === 'mass-bounty') payload.perTier = f.perTier;
-  if (f.egg && f.kind !== 'guess-name' && f.kind !== 'sweet-workshop' && f.kind !== 'treasure-hunt') payload.eggSpecies = f.egg.padStart(4, '0');
+  if (f.egg && f.kind !== 'power-flow' && f.kind !== 'guess-name' && f.kind !== 'sweet-workshop' && f.kind !== 'treasure-hunt') payload.eggSpecies = f.egg.padStart(4, '0');
   if (Object.keys(payload).length) item.payload = payload;
   return { text: JSON.stringify({ list: base.concat([item]) }, null, 2), from, to, baseCount: base.length };
 }
@@ -249,6 +250,8 @@ $('gen').addEventListener('click', async () => {
           ? '宝可连线：奖励固定的几件货由 payload.seed 摇，改它换一份；难度由玩家在活动页自选'
           : k === 'voyage'
             ? '航海寻宝：拼图底图、碎片落点、每格奖励与航段里程都由 payload.seed 摇，改它换一份；数值写死在客户端'
+            : k === 'power-flow'
+              ? '电力输送：不需要种子，棋盘本机随机；难度由玩家在活动页自选'
             : k === 'guess-name'
               ? '猜宝可梦：不需要种子，题目与奖励都写死在客户端；难度由玩家在活动页自选'
               : k === 'sweet-workshop'

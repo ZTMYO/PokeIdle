@@ -66,6 +66,7 @@ const ACT_ICONS = {
   'poke-flip': 'icon-poke-flip',
   'bird-stack': 'icon-bird-stack',
   'flow-link': 'icon-flow-link',
+  'power-flow': 'icon-power-flow',   // 电力输送：闪电图标
   'guess-name': 'icon-guess-name',
   'sweet-workshop': 'icon-sweet-shop',
   'treasure-hunt': 'icon-magnifier',   // 放大镜
