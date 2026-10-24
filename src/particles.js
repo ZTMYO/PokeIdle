@@ -67,6 +67,7 @@ function _createParticles(w, h, color, shape, sizeMult, alphaMult) {
 
 function _draw() {
   if (!ctx || !canvas) return;
+  if (document.documentElement.classList.contains('power-save')) { stop(); return; }
   const isIdleView = isIdleStageVisible();
   if (!isIdleView) {
     if (canvas) ctx?.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
@@ -117,6 +118,7 @@ function _draw() {
 // start(color, shape, opts)：opts.sizeMult / opts.alphaMult 可整体缩放粒子尺寸与透明度
 export function start(color, shape, opts = {}) {
   if (active) return;
+  if (document.documentElement.classList.contains('power-save')) return;
   const container = $('screen');
   if (!container) return;
 

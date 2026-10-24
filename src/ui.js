@@ -587,6 +587,7 @@ function startGetItemAnim(el, yOffset) {
 export function setIdleCharacter(state, itemKey) {
   const el = $('walkGif');
   if (!el) return;
+  if (_getItemRaf) { cancelAnimationFrame(_getItemRaf); _getItemRaf = null; }
   el.className = 'walk-gif';
   el.style.backgroundImage = '';
   el.style.backgroundSize = '';

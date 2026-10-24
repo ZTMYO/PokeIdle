@@ -1,7 +1,7 @@
 // ===== 宝可梦仓库 =====
 // 查看当前拥有的每只宝可梦个体（个体值/闪光/来源/在仓状态），
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
-import { $, showView, getCurrentView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, updateStats, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea, watchOutsidePress } from './ui.js';
+import { $, showView, getCurrentView, getAppChannelView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, updateStats, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea, watchOutsidePress } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase, dexUnlocked, ivOf, effIvTotal, effPerfectCount, applyCrown, IV_STATS } from './state.js';
 import { TYPE_COLORS, typeIconColor, pokemonSourceBadge, itemIconSrc, MINT_KEYS } from './items.js';
 import { evolutionRows, applyEvolution, condItems, moveCondText, evoPreEvos, evolutionData, loadEvolution, stoneSources } from './evolution.js';
@@ -102,6 +102,7 @@ let _detailReturnFn = null; // 从悬赏提交/交换选择列表进入详情时
 let _detailJumpedToPokedex = false; // 详情页跳转图鉴中（返回键应先回详情页，再按来源返回）
 let _detailEvoAllowed = false; // 详情页是否允许「改性格 / 点进化」：只有从宝可梦 app 列表点行进来才允许；进化链本身各处都展示，挑一只来用的入口只是不给操作
 let _picker = null; // 选取模式：配队/训练/限时活动点击空位跳转仓库选择，{ mode:'team'|'train'|'activity', slot, from, exclude[] }
+let _crownPickFrom = null; // 背包王冠入口：选中个体进详情后，返回要回到「选择宝可梦使用王冠」列表而非仓库列表
 let _renderSeq = 0; // 列表分片渲染版本号：新一轮渲染作废旧一轮，避免快速切换筛选时乱序
 let _rosterIconObs = null; // 列表图标懒加载观察器：滚动进入视口（含预载带）才加载，避免大仓库并发请求打爆资源
 let _boxView = false;      // 盒子（网格）视图：右键菜单切换，选择记到 localStorage
@@ -355,7 +356,9 @@ function renderList() {
             ? `选择要上交的宝可梦 · 共 ${pool.length} 只`
             : _picker.mode === 'expcandy'
               ? `选择宝可梦使用经验糖果 · 共 ${pool.length} 只`
-              : `选择放入饲育屋 · 共 ${pool.length} 只`;
+              : _picker.mode === 'crown'
+                ? `选择宝可梦使用王冠 · 共 ${pool.length} 只`
+                : `选择放入饲育屋 · 共 ${pool.length} 只`;
     } else if (_batchRelease) {
       prog.textContent = '请点击选中你要放生的宝可梦';
     } else {
@@ -1698,6 +1701,7 @@ function showRosterDetail(id) {
   const lastLog = latestLogLine(String(p.originSpecies || p.species), p.obtainedAt);
   const list = $('rosterList');
   if (!list) return;
+  const crownClickable = _detailEvoAllowed || _crownPickFrom != null; // 背包王冠入口：面板关掉后还能点「个体值」重开
   list.innerHTML = `
     <div style="font-size:13px;font-weight:700;padding:4px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
       <span><span id="rosterNickSpan">${rosterName(p)}</span><button class="roster-nick-btn" id="rosterNickBtn" title="改名"><svg t="1786243847045" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13"><path d="M138.666667 810.666667V213.333333c0-41.216 33.450667-74.666667 74.666666-74.666666h469.333334v64H213.333333a10.666667 10.666667 0 0 0-10.666666 10.666666v597.333334c0 5.888 4.778667 10.666667 10.666666 10.666666h597.333334a10.666667 10.666667 0 0 0 10.666666-10.666666V352h64V810.666667A74.666667 74.666667 0 0 1 810.666667 885.333333H213.333333A74.666667 74.666667 0 0 1 138.666667 810.666667z" fill="currentColor"></path><path d="M444.330667 540.032L856.362667 128l45.226666 45.226667-411.989333 412.032-45.226667-45.226667z" fill="currentColor"></path></svg></button>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>' : ''}<span class="roster-detail-lv${_detailEvoAllowed ? ' can-use' : ''}" id="rosterDetailLv"${_detailEvoAllowed ? ' data-exp-candy-open' : ''}>${dGSpan}Lv${p.level || 1}</span></span>
@@ -1722,7 +1726,7 @@ function showRosterDetail(id) {
     </div>
     <div class="roster-detail-block">
       <div class="roster-detail-title-row">
-        <div class="roster-detail-title${_detailEvoAllowed ? ' can-use' : ''}"${_detailEvoAllowed ? ' data-crown-open' : ''}>个体值 <span style="opacity:0.6;">${ivSum(p)}/186${crownedCount(p) ? ` · 王冠 ${crownedCount(p)}` : ''}</span></div>
+        <div class="roster-detail-title${crownClickable ? ' can-use' : ''}"${crownClickable ? ' data-crown-open' : ''}>个体值 <span style="opacity:0.6;">${ivSum(p)}/186${crownedCount(p) ? ` · 王冠 ${crownedCount(p)}` : ''}</span></div>
         <button class="roster-release${p.locked ? ' locked' : ''}" data-release>放生</button>
       </div>
       <div class="roster-iv-flex">
@@ -2501,6 +2505,18 @@ function latestLogLine(idx, obtainedAt) {
 // 详情页返回列表
 export function restoreRosterList() {
   stopShinySparkleLoop();
+  closeCrownPanel(); // 面板挂在屏幕上而不是列表里，不主动关会残留在列表上
+  // 背包王冠入口：返回 = 回到「选择宝可梦使用王冠」列表（可接着给别的宝可梦用），退出选取才回背包来源页
+  if (_crownPickFrom != null) {
+    const from = _crownPickFrom;
+    _crownPickFrom = null;
+    _detailId = null;
+    _detailJumpedToPokedex = false;
+    _detailEvoAllowed = false;
+    _detailReturnFn = null;
+    showRosterPicker({ mode: 'crown', from });
+    return;
+  }
   if (_detailId == null) return;
   _detailJumpedToPokedex = false;
   _detailEvoAllowed = false; // 退出详情就关掉改性格/进化的开关，别漏给下一次别的入口
@@ -2602,16 +2618,25 @@ export function isRosterPicking() {
 // 进入选取模式；picker.from 为返回目标视图（teamView / trainView）
 export function showRosterPicker(picker) {
   _picker = picker || null;
+  _crownPickFrom = null;
   _detailFromView = null;
   showRosterView(true); // 选取模式不压栈：返回由配队/训练页的返回链处理
-  // 经验糖果：标题栏替换为「经验糖果」（与仓库列表同款页面，仅标题不同）
-  if (picker?.mode === 'expcandy') {
+  // 背包入口：标题栏替换为道具名（与仓库列表同款页面，仅标题不同）
+  const pickerTitle = picker?.mode === 'expcandy' ? '经验糖果' : '';
+  if (pickerTitle) {
     const t = $('appTitle');
     if (t) {
-      t.innerHTML = '<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> 经验糖果';
+      t.innerHTML = `<svg style="width:16px;height:16px;vertical-align:middle;fill:var(--ui-color);transform:translateY(-1px);" viewBox="0 0 1024 1024"><use xlink:href="#icon-back"/></svg> ${pickerTitle}`;
       t.dataset.action = 'back';
     }
   }
+}
+
+// 反向入口：背包点王冠 → 挑宝可梦使用（正门在个体详情页点「个体值」标题）
+export function openCrownPicker(key) {
+  if ((gameData.items[key] || 0) <= 0) return; // 库存 0 不响应，不跳转宝可梦列表
+  const from = getAppChannelView() || getCurrentView();
+  showRosterPicker({ mode: 'crown', from });
 }
 
 // 返回按钮：离开选取模式并恢复来源页（配队/训练重新渲染）
@@ -2622,11 +2647,11 @@ export function leaveRosterPicker() {
   else if (p?.mode === 'team') import('./team.js').then(m => m.restoreTeamView());
   else if (p?.mode === 'train') import('./train.js').then(m => m.showTrainView());
   else if (p?.mode === 'nursery') import('./nursery.js').then(m => m.showNurseryView());
-  else if (p?.mode === 'expcandy') {
+  else if (p?.mode === 'expcandy' || p?.mode === 'crown') {
     const target = fromWithEncounterGuard(p?.from);
     showView(target);
-    // 从仓库列表页进入经验糖果（背包全局显示，可在仓库直接点）：返回后仍停留仓库列表，
-    // showView 只切视图不重渲染，这里按普通模式重绘列表，清除「选择宝可梦使用经验糖果」提示
+    // 从仓库列表页进入（背包全局显示，可在仓库直接点）：返回后仍停留仓库列表，
+    // showView 只切视图不重渲染，这里按普通模式重绘列表，清除选取提示
     if (target === 'rosterView') renderList();
   }
   else showView(p?.from || 'idleView');
@@ -2649,10 +2674,24 @@ function pickRow(rid) {
   else if (p.mode === 'activity') import('./activity.js').then(m => m.pickForActivity(rid, p.slot));
   else if (p.mode === 'nursery') import('./nursery.js').then(m => m.addToNursery(rid, p.slot));
   else if (p.mode === 'expcandy') import('./exp-candy.js').then(m => m.useExpCandyOn(rid, false, p.from));
+  else if (p.mode === 'crown') openCrownForPick(rid, p.from);
+}
+
+// 背包反向入口选中后：落到该个体详情页并直接弹王冠面板（与详情页点「个体值」标题一致）。
+// 返回回到「选择宝可梦使用王冠」列表（同经验糖果用完回选取列表），退出选取才回背包来源页
+function openCrownForPick(rid, from) {
+  _picker = null; // 详情页由仓库详情逻辑接管返回，不留选取态给 goBack 的选取判断
+  _crownPickFrom = from || null;
+  _detailFromView = null;
+  _detailReturnFn = null;
+  _detailEvoAllowed = false; // 挑一只来用的入口，不给改性格/进化
+  showRosterDetail(rid);
+  openCrownPanel();
 }
 
 export function showRosterView(noNav, opts) {
   const o = opts || {};
+  _crownPickFrom = null; // 回到仓库列表即退出王冠选取流程，避免状态残留到下一次进详情
   // 进入前不在仓库视图 = 从其它页面重新进入列表（手机菜单、背包经验糖果等）
   const fromOtherView = getCurrentView() !== 'rosterView';
   // 正常入口压栈（返回回来源页）；选取/子流程模式传 true 跳过，避免污染导航栈

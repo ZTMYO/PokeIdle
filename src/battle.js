@@ -285,6 +285,12 @@ function spawnEncounterPoke(poke, shiny, cb) {
   // 后台挂机（不在主界面 / 页面不可见）：不做滚动动画，直接进入遇敌（同拾取道具的后台直收逻辑，
   // 且后台 RAF 不推进，动画会永远停在原地）
   if (isPageHidden() || !isIdleStageVisible()) {
+    if (road.isBike()) {
+      // 骑行中不能遇敌：直接作废这只，避免下车后凭空冒出一场
+      gameData.wildEncounter = null;
+      scheduleNextEncounter();
+      return;
+    }
     if (cb) cb();
     return;
   }
@@ -341,6 +347,7 @@ function startEncPokeWait() {
     const dt = Math.max(0, (now - last) / 1000);
     last = now;
     if (!_encPokeEl) { stopEncPokeWait(); return; }
+    if (road.isBike()) { stopEncPokeWait(); return; }
     // 上屏交回（占用结束，或世界重新推进这只）：停表，交给步进器 / 立刻开战
     if (!isStageOccupied() || encPokeWorldDriven()) { stopEncPokeWait(); fireEncPokeIfReady(); return; }
     _encPokeX = Math.max(_encPokeCharX, _encPokeX - road.getPxPerSec() * dt);
@@ -365,6 +372,7 @@ function hitEncounterPoke() {
 // 脚下等着的那只：上屏腾出来了就开战（对战中也能开，遭遇和对战互不干扰）
 function fireEncPokeIfReady() {
   if (!_encPokeWaiting) return;
+  if (road.isBike()) return; // 骑行中不遇敌：脚下这只留着，下车后再开
   const cb = _encPokeCb;
   const snap = _encPokeSnapshot;
   _encPokeWaiting = false;
@@ -406,6 +414,12 @@ function _encPokeStep(spd) {
 
 // 每帧渲染：显隐与位置；游戏被占用 / 图标丢失的收尾也在这里
 function _encPokeRender() {
+  // 骑行中不遇敌：图标隐藏并冻结，等下车后再恢复推进/开战
+  if (road.isBike()) {
+    if (_encPokeEl) _encPokeEl.style.display = 'none';
+    stopEncPokeWait();
+    return;
+  }
   // 上屏被别的流程占着（NPC 对战 / 孵蛋演出在下屏）：这只不清理、照常推进 —— 撞到主角就开战，
   // 遭遇与它们并存（各走各的状态，见 setEncPhase）。世界在走就由步进器推，画面被顶掉时用等待定时器
   if (isStageOccupied() && !inMassZone() && !inTwistZone()) {
@@ -430,8 +444,6 @@ function _encPokeRender() {
   if (!_encPokeEl) { despawnEncounterPoke(); scheduleNextEncounter(); return; }
   // 离开主界面：隐藏图标、位置冻结（回来继续滚）
   if (!isIdleStageVisible()) { _encPokeEl.style.display = 'none'; return; }
-  // 骑车时隐藏图标：骑行中不遇敌，图标不该显示在路边
-  if (road.isBike()) { _encPokeEl.style.display = 'none'; return; }
   _encPokeEl.style.display = '';
   _encPokeEl.style.left = road.snapPx(_encPokeX) + 'px'; // 对齐设备像素：像素材质不因小数偏移反复重采样
 }
@@ -1554,7 +1566,7 @@ export async function catchUpEncounters(secs, buffRemainingMs) {
   const stepMs = total > 0 ? (secs * 1000) / total : 0;
   try {
     for (let i = 0; i < total; i++) {
-      if (phase !== 'idle') break; // 玩家切走/进入战斗等其他流程：中止剩余补算
+      if (phase !== 'idle' || road.isBike()) break; // 玩家切走/进入战斗/开始骑行：中止剩余补算
       setSimClock(startAt + Math.round(i * stepMs));
       const poke = resolveEncounterPoke();
       if (!poke) break;

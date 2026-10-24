@@ -220,6 +220,7 @@ export function restoreCatchAnim() {
 // opts: { cls: 额外类名, scale: 粒子尺寸与飞行距离倍率 }
 function _sparkleBurst(view, target, opts) {
   if (!view || view.style.display === 'none') return;
+  if (document.documentElement.classList.contains('power-save')) return;
   const scale = opts?.scale || 1;
   const cls = opts?.cls || '';
   // 以 target 中心为爆发点；target 不可见时退回 view 上部

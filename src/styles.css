@@ -3170,10 +3170,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 @keyframes phoneJiggle { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
 #phoneView.editing .phone-app { animation: phoneJiggle 0.3s ease-in-out infinite; }
 #phoneView.editing .phone-app:active { transform: none; }   /* 编辑态别缩放，免得和抖动打架 */
-/* 编辑态手势全给拖拽；翻页这时是 phone.js 手动写 scrollLeft 跟手的，
-   吸附会一路把人往回拽，所以这里必须关掉 */
 #phoneView.editing .phone-pages { touch-action: none; scroll-snap-type: none; }
-/* 拖起来那格：本尊藏起来，原位画个和图标同尺寸的方形虚框占着（不补位、也没有名字条那种长框） */
 .phone-app.dragging { pointer-events: none; }
 #phoneView.editing .phone-app.dragging { animation: none; }
 .phone-app.dragging > * { visibility: hidden; }
@@ -3198,9 +3195,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   border-radius: 12px;
 }
 .phone-folder-box.drag-into { outline: 2px solid var(--ui-color); outline-offset: 2px; }
-/* 拖拽裁剪层：铺满手机应用屏、挂在屏内（与手机页同一层叠上下文，幽灵才不会被网格盖住）。
-   选择器带 #appScreen 是为了压过 html.ui-classic 那条 `.app-screen > * { pointer-events: auto }`，
-   否则经典布局下这层会接管整个屏的命中测试，elementFromPoint 就再也拿不到磁贴了 */
 #appScreen > .phone-drag-layer {
   position: absolute;
   inset: 0;
@@ -3215,8 +3209,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   opacity: 0.9;
 }
 .phone-drag-ghost .phone-app-icon { box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); }
-/* 空位占位：每格都要有个 DOM，网格才不会把后面的图标往前补（这就是"永不补位"）。
-   平时是张透明的 38×38 方框，编辑态里画成虚线格，和图标一样大、一样对齐 */
 .phone-blank {
   width: 38px;
   height: 38px;
@@ -3226,7 +3218,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   pointer-events: none;
 }
 #phoneView.editing .phone-blank { border-color: rgba(var(--ui-color-rgb), 0.45); }
-/* 拖拽落点就在这格空位上：提亮实心，明确"松手放这儿" */
 #phoneView.editing .phone-blank.cue-on {
   border-color: var(--ui-color);
   background: rgba(var(--ui-color-rgb), 0.16);
@@ -13245,4 +13236,10 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 [data-theme="dark"] .vf-mark-menu button { background: #29483a; border-color: #3f6a55; color: #dfe7e1; }
 [data-theme="dark"] .vf-mark-menu button.sel { background: #376d56; border-color: #5cb48d; color: #fff; }
 [data-theme="dark"] .vf-mark-menu button.vf-menu-clear { color: #e07b73; }
+
+html.power-save .screen *:not(.walk-gif),
+html.power-save .screen *:not(.walk-gif)::before,
+html.power-save .screen *:not(.walk-gif)::after {
+  animation-iteration-count: 1 !important;
+}
 

@@ -113,7 +113,7 @@ function stageHtml() {
     if (i <= _step && i !== vis) cls.push('done');   // 走过的置灰，企鹅脚下那块不动
     if (i === _step + 1 && _phase === 'play' && !_busy && i !== _brokenAt) cls.push('next');
     if (i === _brokenAt) cls.push('broken');
-    const fh = 10 + (i % 3);   // 冰面高低错落
+    const fh = 10 + (i % 3);
     floes.push(`<div class="${cls.join(' ')}" data-i="${i}" style="left:${floeX(i).toFixed(2)}%;height:${fh}px;margin-top:${-fh / 2}px">
         <span class="pg-half l"></span><span class="pg-half r"></span>
       </div>`);
@@ -148,7 +148,6 @@ function patchPlay() {
     cashBtn.textContent = `提现 ${formatNum(cashOf(_step))}`;
     cashBtn.removeAttribute('disabled');
   }
-  // 浮冰：走过的置灰，下一块闪烁提示
   box.querySelectorAll('.pg-floe').forEach((el) => {
     const i = +el.dataset.i;
     el.classList.toggle('done', i <= _step && i !== _vis);
@@ -170,7 +169,7 @@ function bind(box) {
   box.querySelector('#pgForward')?.addEventListener('click', onForward);
   box.querySelector('#pgCash')?.addEventListener('click', onCash);
   box.querySelector('#pgAgain')?.addEventListener('click', nextRound);
-  box.querySelector('#casinoHistoryBtn')?.addEventListener('click', () => showCasinoHistoryView('pg')); // 下注页的通用「战绩」按钮
+  box.querySelector('#casinoHistoryBtn')?.addEventListener('click', () => showCasinoHistoryView('pg'));
 }
 
 // ---------- 玩法 ----------
@@ -202,17 +201,16 @@ async function onForward() {
   const target = _step + 1;
   const penguin = box?.querySelector('.pg-penguin');
   const floe = box?.querySelector(`.pg-floe[data-i="${target}"]`);
-  box?.querySelectorAll('.pg-actions .pg-btn').forEach((b) => b.setAttribute('disabled', '')); // 锁住底部两块
+  box?.querySelectorAll('.pg-actions .pg-btn').forEach((b) => b.setAttribute('disabled', ''));
   // 摘掉旧的动画类并强制重排：不重绘时同一个类再 add 一次，CSS 动画不会重播
   penguin?.classList.remove('jump', 'land');
   floe?.classList.remove('land');
   if (penguin) penguin.style.left = `${floeX(target).toFixed(2)}%`;   // 平移在滞空期完成
   void box?.offsetWidth;
-  penguin?.classList.add('jump', 'land');   // 起跳；落地时随冰块一起沉
-  floe?.classList.add('land');              // 落点冰块被踩得往下一沉
+  penguin?.classList.add('jump', 'land');
+  floe?.classList.add('land');
   playMahjongSfx('draw');
   await sleep(340);
-  // 落地判定
   if (Math.random() < PENGUIN_BREAK_CHANCE) {
     _vis = target;
     _brokenAt = target;
@@ -231,7 +229,7 @@ async function onForward() {
     settleRound('drown', true);   // 保持现场：碎冰与倒地的企鹅都不重绘
     return;
   }
-  // 站住了：刷新金额与按钮（不重绘，冰块的落地动画才播得完）
+  // 站住了：刷新金额与按钮
   _step = target;
   _vis = target;
   gameData._penguinRound = { stake: _stake, step: _step };

@@ -15,11 +15,29 @@ let scrollX = 0;
 let speed = ROAD_SPEED_WALK;
 let rafId = null;
 let active = false;
+let _lastFrameAt = 0; // 省电模式限帧用：上次真正绘制的时间戳
+const POWER_SAVE_FRAME_MS = 1000 / 30;
+const DUAL_APP_FRAME_MS = 1000 / 15; // 双屏且下屏开着 App：上屏降到 15fps
 
 let containerWidth = 0;
 let roadHeight = 0;
 let patternWidth = 0;
 let _dpr = 1; // 设备像素比（_resize 时刷新），用于把绘制坐标对齐设备像素网格
+const POWER_SAVE_DPR = 1.5; // 省电模式下的像素比上限：高 DPI 屏降填充率，仍保留基本清晰度
+
+function _renderDpr() {
+  const raw = window.devicePixelRatio || 1;
+  return document.documentElement.classList.contains('power-save') ? Math.min(raw, POWER_SAVE_DPR) : raw;
+}
+
+// 省电模式下的绘制间隔；双屏下屏开着 App 时，上屏只是背景，进一步降频
+function _renderFrameMs() {
+  const root = document.documentElement;
+  if (!root.classList.contains('power-save')) return 0;
+  const dual = root.classList.contains('ui-mobile') || root.classList.contains('ui-dual');
+  if (dual && root.dataset.view && root.dataset.view !== 'phoneView') return DUAL_APP_FRAME_MS;
+  return POWER_SAVE_FRAME_MS;
+}
 
 // 坐标对齐到设备像素网格：缩放/像素比非整数时，带小数的偏移会让花纹的采样相位逐帧变化，
 // 滚动时表现为"波纹"；对齐后每帧都是整数设备像素平移，画面相位稳定
@@ -48,7 +66,7 @@ function _resize() {
   if (!parent) return;
   const w = parent.clientWidth;
   const h = _transition ? _transition.roadHeight : pattern.height * TILE;
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = _renderDpr();
   _dpr = dpr;
   canvas.width = w * dpr;
   canvas.height = h * dpr;
@@ -65,6 +83,12 @@ function _resize() {
   // canvas.width 赋值会清空画布，暂停状态下 _frame 不会重绘，需立即补画一帧
   _draw();
 }
+
+// 省电开关切换：按新 DPR 重建画布并立即补画
+window.addEventListener('power-save-changed', () => {
+  _lastFrameAt = 0;
+  _resize();
+});
 
 function _drawPatternData(offsetX, pd, clipL, clipR) {
   if (!ctx || !img || !pd) return;
@@ -171,8 +195,17 @@ function _stepWorld() {
   }
 }
 
-function _frame() {
+function _frame(now = 0) {
   if (!active) return;
+
+  // 省电模式：隔帧绘制到约 30fps；双屏下屏开着 App 时上屏降到 15fps。
+  // 世界步由 clock 按真实时间兑换，速度/遇敌/掉落不受影响
+  const frameMs = _renderFrameMs();
+  if (frameMs && now - _lastFrameAt < frameMs) {
+    rafId = requestAnimationFrame(_frame);
+    return;
+  }
+  _lastFrameAt = now;
 
   // 本帧要推进的世界步数：60 步/秒。高刷屏多数帧是 0 步（只重绘），低刷屏一帧补多步；
   // 页面隐藏/长停摆不在这里补（走挂机补算）

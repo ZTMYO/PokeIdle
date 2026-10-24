@@ -1073,6 +1073,7 @@ export function renderSettings(container, s) {
   const backgroundService = s.backgroundService === true; // 后台常驻（仅安卓包有这个能力）
   const battleMusic = s.battleMusic !== false;
   const darkMode = s.darkMode || false;
+  const powerSave = s.powerSave || false;
   const uiMobile = getUiMode() !== 'classic'; // 双屏布局（手游模式/桌面双屏），存档未设置时按平台取默认
   // 捕捉条件表格：各遇敌类型行，策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
@@ -1225,6 +1226,18 @@ export function renderSettings(container, s) {
       </div>
 
       <div class="settings-group">
+        <div class="settings-group-title">性能</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">省电模式</div>
+          <div class="toggle-switch" id="togglePowerSave">
+            <div class="toggle-track ${powerSave ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        <div class="cf-hint" style="padding:0 4px 4px;">场景帧率降低，适合长时间前台挂机</div>
+      </div>
+
+      <div class="settings-group">
         <div class="settings-group-title">声音</div>
         <div class="auto-catch-row">
           <div class="auto-catch-label">音乐</div>
@@ -1325,6 +1338,7 @@ export function renderSettings(container, s) {
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
   container.querySelector('#toggleDarkMode')?.addEventListener('click', toggleDarkMode);
+  container.querySelector('#togglePowerSave')?.addEventListener('click', togglePowerSave);
   container.querySelector('#toggleUiMode')?.addEventListener('click', toggleUiMode);
   // 窗口倍率下拉：展开/收起（同一时刻只开一个）
   const scaleSel = container.querySelector('#windowScaleSelect');
@@ -1761,6 +1775,7 @@ function ensureSettings() {
   if (gameData.settings.sfxEnabled == null) gameData.settings.sfxEnabled = true;
   if (gameData.settings.backgroundService == null) gameData.settings.backgroundService = false;
   if (gameData.settings.darkMode == null) gameData.settings.darkMode = false; // 夜间模式（默认关闭）
+  if (gameData.settings.powerSave == null) gameData.settings.powerSave = false; // 省电模式（默认关闭）
 }
 
 // 夜间模式开关：立即应用到根元素 data-theme（样式层已定义深色变量覆盖），并持久化
@@ -1769,6 +1784,17 @@ export function toggleDarkMode() {
   gameData.settings.darkMode = !gameData.settings.darkMode;
   document.documentElement.dataset.theme = gameData.settings.darkMode ? 'dark' : 'light';
   applyWindowBg();
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
+
+// 省电模式：限制场景刷新并停掉循环动画，不改动游戏逻辑
+export function togglePowerSave() {
+  ensureSettings();
+  gameData.settings.powerSave = !gameData.settings.powerSave;
+  document.documentElement.classList.toggle('power-save', !!gameData.settings.powerSave);
+  window.dispatchEvent(new CustomEvent('power-save-changed'));
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
@@ -2084,11 +2110,11 @@ const TUTORIAL_SECTIONS = [
         ['钓鱼', '钓到道具时有概率给 1 件'],
         ['对战', '战胜NPC后有概率掉落'],
       ], ['渠道', '给什么'], [32, 'auto'])
-      + `<p><b>经验糖果</b>、<b>薄荷</b>、<b>王冠</b>都是对单只宝可梦使用，入口在<b>手机→宝可梦</b>点开某只的详情页，点对应字段打开面板：</p>`
+      + `<p><b>经验糖果</b>、<b>薄荷</b>、<b>王冠</b>都是对单只宝可梦使用，入口在<b>手机→宝可梦</b>点开某只的详情页，点对应字段打开面板；<b>经验糖果</b>与<b>王冠</b>还可反过来用——直接点底部背包里的道具，再挑一只宝可梦：</p>`
       + tutorialTable([
         ['经验糖果', '点<b>等级</b>行；也可在底部背包直接点经验糖果，再挑一只宝可梦'],
         ['薄荷', '点<b>性格</b>行，换成对应薄荷的性格'],
-        ['王冠', '点<b>个体值</b>标题，把选中的维度练到 31'],
+        ['王冠', '点<b>个体值</b>标题，把选中的维度练到 31；也可在背包第二页点王冠，挑一只宝可梦后直接打开面板'],
       ], ['道具', '使用入口'], [56, 'auto'])
       + `<b>道具盒</b>里能查看持有数与来源，大多数道具都可在<b>商店</b>出售。</p>`,
   },
@@ -2307,7 +2333,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p><b>薄荷</b>可以把宝可梦的<b>性格</b>改成对应性格：在<b>宝可梦详情页</b>点<b>性格</b>，选一颗薄荷吃掉就改好了。</p>`
       + `<p><b>王冠</b>可以把宝可梦的<b>个体值</b>练满：在<b>宝可梦详情页</b>点<b>个体值标题</b>打开面板，<b>银色王冠</b>练满一维、<b>金色王冠</b>六维一起练满（该维已是 V、或六维全满时按钮置灰）。</p>`
       + `<p>王冠练满的是<b>这一只的能力</b>，<b>不会遗传给后代</b>——繁育按原始个体值算。</p>`
-      + `<p>两者都要从<b>宝可梦</b>列表进详情才可用；获取渠道详见「<b>道具</b>」章节。</p>`,
+      + `<p>两者都要从<b>宝可梦</b>列表进详情才可用；其中<b>王冠</b>还能在<b>背包第二页</b>点王冠使用。获取渠道详见「<b>道具</b>」章节。</p>`,
   },
   {
     title: '孵蛋器',
@@ -2516,7 +2542,7 @@ const TUTORIAL_SUMMARIES = {
   '训练': '挂机就长经验，别忘备够爱吃的树果。',
   '对战': 'NPC的等级受到队伍等级的影响。',
   '经验糖果': '经验糖果无法直接购买。',
-  '培育修正': '薄荷改性格、王冠练个体值，都在详情页。',
+  '培育修正': '薄荷改性格、王冠练个体值，都在详情页；王冠还可在背包第二页直接点。',
   '招式': '招式机买一次永久解锁，能学的宝可梦直接学会。',
   '配招': '出门前配好 4 招，自动配招不一定是最合适的。',
   '进化': '条件齐了在详情页点一下就能进化。',
@@ -2621,6 +2647,9 @@ export function showDeclarationView() {
     <div style="font-size:11px;line-height:1.9;">
       <p style="margin:6px 0;"><b>作者</b>：@ZTMYO</p>
       <p style="margin:6px 0;"><b>项目地址</b>：<span id="declarationLink" style="text-decoration:underline;cursor:pointer;">github.com/ZTMYO/PokeIdle</span></p>
+      <p style="margin:12px 0 4px;padding-top:8px;border-top:1px dashed rgba(var(--ui-color-rgb),0.2);"><b>免费游玩 · 禁止倒卖</b></p>
+      <p style="margin:4px 0;">本游戏<b>完全免费</b>，作者未在任何渠道出售或授权出售。凡以「付费下载 / 激活码 / 会员 / 代充 / 众筹」等名义向你收费的，均与作者无关，<b>请勿付款</b>并向平台举报。</p>
+      <p style="margin:4px 0;">任何人不得将本游戏（含改名、换图标后的版本）打包售卖、网盘付费下载或引流变现。</p>
       <p style="margin:12px 0 4px;padding-top:8px;border-top:1px dashed rgba(var(--ui-color-rgb),0.2);"><b>版权声明</b></p>
       <p style="margin:4px 0;">宝可梦（Pokémon）及其相关角色、名称、标志、音乐、插图与动画，版权均归 Nintendo / Creatures Inc. / GAME FREAK inc. / The Pokémon Company 所有。</p>
       <p style="margin:4px 0;">本项目为个人学习与娱乐交流的粉丝作品，<b>非官方游戏，与官方无任何关联</b>，不用于任何商业用途。</p>

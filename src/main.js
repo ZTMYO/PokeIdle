@@ -17,7 +17,7 @@ import { helperTick, showBerryView, catchUpHelper } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch, isPokedexLogsPage, backFromPokedexLogs } from './pokedex.js';
-import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease } from './roster.js';
+import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease, openCrownPicker } from './roster.js';
 import { isTradeInDetail, restoreTradeList, showTradeView } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs, showAchievementView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, refreshPhoneBadges, updatePhoneBadge, isPhoneEditing, exitEdit, showIncubatorView } from './phone.js';
@@ -349,6 +349,11 @@ function onBagClick(itemKey) {
       import('./exp-candy.js').then(m => m.openExpCandyPicker());
       return;
     }
+    // 遇敌中可点击王冠：同经验糖果，打开仓库选取宝可梦使用
+    if (itemKey === 'silver-crown' || itemKey === 'golden-crown') {
+      openCrownPicker(itemKey);
+      return;
+    }
     // 遇敌中不可点击自行车（与甜甜蜜/护符同规则，防止误触放弃当前宝可梦）
     if (gameData.settings?.autoCatch) {
       // 遇敌过滤设为"暂停"的遭遇：停在战斗页等玩家手动丢球，不受自动选球配置限制
@@ -367,12 +372,13 @@ function onBagClick(itemKey) {
     return;
   }
   if (phase !== 'idle') return;
-  // 钓鱼中禁止使用 buff/骑行道具/经验糖果（会与暂停的道路/角色状态冲突，经验糖果会打开选取页打断流程）
-  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike' || itemKey === 'exp-candy')) return;
-  // 骑行中禁止使用增益道具（骑行速度已封顶且不遇敌，buff 无收益还浪费）；经验糖果不打断骑行，允许使用
+  const isCrown = itemKey === 'silver-crown' || itemKey === 'golden-crown';
+  // 钓鱼中禁止使用 buff/骑行道具/经验糖果/王冠（会与暂停的道路/角色状态冲突，经验糖果/王冠会打开选取页打断流程）
+  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike' || itemKey === 'exp-candy' || isCrown)) return;
+  // 骑行中禁止使用增益道具（骑行速度已封顶且不遇敌，buff 无收益还浪费）；经验糖果/王冠不打断骑行，允许使用
   if (road.isManualBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
-  // 钓鱼等待中禁止使用自行车/经验糖果（会与即将开始的钓鱼动画冲突）
-  if ((itemKey === 'bike' || itemKey === 'exp-candy') && isFishingPending()) return;
+  // 钓鱼等待中禁止使用自行车/经验糖果/王冠（会与即将开始的钓鱼动画冲突）
+  if ((itemKey === 'bike' || itemKey === 'exp-candy' || isCrown) && isFishingPending()) return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
   else if (itemKey === 'shiny-charm') {
     if (honeyBuffActive) return;
@@ -396,6 +402,9 @@ function onBagClick(itemKey) {
   } else if (itemKey === 'exp-candy') {
     // 经验糖果：打开仓库选择目标宝可梦使用（库存为 0 时弹提示）
     import('./exp-candy.js').then(m => m.openExpCandyPicker());
+  } else if (isCrown) {
+    // 王冠：反向入口，打开仓库选取宝可梦使用（正门在个体详情页点「个体值」标题）
+    openCrownPicker(itemKey);
   }
 }
 
@@ -930,6 +939,8 @@ async function init() {
   applyWindowScale(gameData?.settings?.windowScale);
   // 应用夜间模式
   if (gameData.settings?.darkMode) document.documentElement.dataset.theme = 'dark';
+  // 省电模式：限帧与停动画都靠根节点状态类
+  document.documentElement.classList.toggle('power-save', !!gameData.settings?.powerSave);
   applyWindowBg(); // 安卓窗口底色（状态栏那条）跟着主题走
   // 界面风格：未设置时按平台取默认；手游的开场剧情仍按单屏演，剧情结束再切双屏
   const targetUiMode = getUiMode();

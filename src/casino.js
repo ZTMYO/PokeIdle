@@ -61,7 +61,7 @@ const SCENE_FLOOR2 = {
 // 楼梯：一层左上角第 1 列的 1~3 行上楼，二层左上角第 1 列的 1~2 行下楼
 const SCENE_STAIRS_UP = { x: 0, y: 0, w: TILE, h: 3 * TILE };
 const SCENE_STAIRS_DOWN = { x: 0, y: 0, w: TILE, h: 2 * TILE };
-// 二层的四台游戏机（左上 / 右上 / 左下 / 右下，结构相同，还没做玩法）
+// 二层的四台游戏机（左上 / 右上 / 左下 / 右下，结构相同）
 const SCENE_ARCADE = [
   { x: 1 * TILE, y: 2 * TILE, w: 4 * TILE, h: 3 * TILE },
   { x: 6 * TILE, y: 2 * TILE, w: 4 * TILE, h: 3 * TILE },
@@ -301,7 +301,6 @@ function flyPile(container) {
   if (!coins.length) return;
   const sr = source.getBoundingClientRect();
   const dr = dest.getBoundingClientRect();
-  // 飞向赢方堆旁边（右偏 18px），垂直对齐并逐枚叠成新摞
   const dx = dr.left + dr.width + 10 - sr.left - sr.width / 2;
   const dy = dr.top - sr.top;
 
@@ -401,7 +400,6 @@ function renderTable() {
   const playerCards = _player.map((c, i) =>
     cardHtml(c, _dealAnim === 'player' && i === _player.length - 1, false, _bustFlag === 1 ? bustStyles(i) : '')).join('');
   // 对局中庄家只显示明牌点数（暗牌不计入）；结算后显示全部
-  // 庄家已亮出的牌（暗牌除外）：庄家每摸一张，总点数实时更新
   const dealerShow = dealerFaceDown ? _dealer.slice(1) : _dealer;
   const playerVal = handValue(_player);
   const playerSoft = handIsSoft(_player);
@@ -664,7 +662,7 @@ function settleRound() {
   }
 
   gameData.items['casinoCoin'] += profit;
-  const net = profit - _stake; // 净盈亏
+  const net = profit - _stake;
   _lastResult = net === 0 ? text : `${text} ${net > 0 ? '+' + formatNum(net) : formatNum(net)} 游戏币`;
   _settleMsg = { text, net };
   addSystemLog('casino', { action, stake: _stake, profit: net, player: pv, dealer: dv });
