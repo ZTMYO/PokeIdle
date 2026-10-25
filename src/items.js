@@ -577,10 +577,11 @@ export function rollCandyMult() {
 
 // 道具入库：背包/统计/日志统一处理（qty 支持糖果翻倍掉落）
 // from 是来源标签（如 '派遣' / '悬赏'），日志渲染成「【派遣】获得 糖果 ×120」，方便看清来源
-export function grantItem(itemKey, qty = 1, from = null) {
+// silent=true 时只入包/记统计，不写 item_gain（调用方已有更完整的结算日志）
+export function grantItem(itemKey, qty = 1, from = null, silent = false) {
   gameData.items[itemKey] = (gameData.items[itemKey] || 0) + qty;
   gameData.stats.totalItemsEarned[itemKey] = (gameData.stats.totalItemsEarned[itemKey] || 0) + qty;
-  addSystemLog('item_gain', { item: itemKey, qty, from: from || null });
+  if (!silent) addSystemLog('item_gain', { item: itemKey, qty, from: from || null });
   updateBackpack(itemKey);
   // 独立掉落提示：获得道具时显示「精灵球 + 1」/「糖果 ×5」，短暂停留后自动隐藏
   const hint = $('statDropHint');

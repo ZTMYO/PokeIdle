@@ -10,6 +10,7 @@
 import { DEV } from './build-info.js';
 
 const HOT_BASE = 'https://pokeidle.shiliu.space/api/hot';
+const SITE = 'https://pokeidle.shiliu.space';
 const CACHE = 'pokeidle-hot';
 const MANIFEST_KEY = '/__hot__.json';   // 缓存里存"已应用"的 { gen, files: { 相对路径: hash } }
 const META_KEY = 'pokeidle_hot_v1';     // 资源状态记录：{ app, gen, at, applied, added }，设置页显示"资源 月-日 时:分 · N 个文件"
@@ -20,7 +21,6 @@ const SKIP = new Set(['res-manifest.json', 'sw.js', 'build-info.js']);
 
 let _busy = false;       // 正在下载/应用，防重入
 let _checking = false;   // 进游戏时那次静默比对
-let _failStreak = 0;     // 连续几次有文件没下全，用来提示玩家别再反复点
 
 // 轻提示：复用全局提示条，1.6 秒自动收；动态引入避免和 ui.js 成环
 function toast(msg) {
@@ -175,6 +175,46 @@ function askUpdate(changes, onYes, onNo) {
   };
 }
 
+function openDownload() {
+  const m = window.__POKEIDLE_MOBILE__;
+  if (m && m.openExternal) {
+    try { m.openExternal(SITE); return; } catch (_) {}
+  }
+  if (window.__TAURI__?.opener?.openUrl) {
+    try { window.__TAURI__.opener.openUrl(SITE); return; } catch (_) {}
+  }
+  let win = null;
+  try { win = window.open(SITE, '_blank'); } catch (_) {}
+  if (win) return;
+  try { location.href = SITE; } catch (_) {}
+}
+
+// 热更失败：文案压到一行，引导玩家去官网下载最新安装包
+export function showFailure() {
+  const el = hotOverlay();
+  el.onclick = null;
+  el.innerHTML = `
+    <div class="hot-box">
+      <div class="hot-title">更新失败</div>
+      <div class="hot-text">请下载最新安装包更新</div>
+      <div class="hot-btns">
+        <span class="catch-confirm-btn" data-hot="later">稍后</span>
+        <a class="catch-confirm-btn" data-hot="download" href="${SITE}" target="_blank" rel="noopener">下载最新版</a>
+      </div>
+    </div>`;
+  el.onclick = (e) => {
+    const btn = e.target.closest('[data-hot]');
+    if (!btn) return;
+    e.stopPropagation();
+    if (btn.dataset.hot !== 'download') { hideOverlay(); return; }
+    const bridge = window.__POKEIDLE_MOBILE__?.openExternal || window.__TAURI__?.opener?.openUrl;
+    if (!bridge) return;   // 浏览器：交给 <a> 自己开
+    e.preventDefault();
+    openDownload();
+    hideOverlay();
+  };
+}
+
 function showProgress() {
   const el = hotOverlay();
   el.onclick = null;
@@ -243,11 +283,9 @@ async function applyChanges(changes) {
     const { cache, applied, loaded, done, total } = await download(changes, ui);
     if (done !== total) {
       hideOverlay();
-      _failStreak++;
-      toast(_failStreak >= 3 ? '多次更新失败，请检查网络后再试' : `有 ${total - done} 个文件没下载成功，稍后重试`);
+      showFailure();
       return;
     }
-    _failStreak = 0;
     Object.assign(applied.files, loaded);
     await writeApplied(cache, changes.gen || applied.gen, applied.files);
     lsSet(META_KEY, JSON.stringify({ app: changes.app || '', gen: changes.gen, at: Date.now(), applied: Object.keys(applied.files).length, pending: 0, added: done }));
@@ -256,7 +294,7 @@ async function applyChanges(changes) {
   } catch (e) {
     console.warn('[热更] 应用更新出错：', e && e.message);
     hideOverlay();
-    toast('更新失败，请稍后重试');
+    showFailure();
   } finally {
     _busy = false;
   }

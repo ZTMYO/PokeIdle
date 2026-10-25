@@ -209,6 +209,7 @@ const COIN_ICONS = {
   'guess-name': './items/goods/balloon-lime.png',
   'sweet-workshop': './items/goods/balloon-cream.png',
   'treasure-hunt': './items/goods/balloon-indigo.png',
+  'power-flow': './items/goods/balloon-yellow.png',
 };
 const coinIcon = (ctx) => COIN_ICONS[ctx && ctx.id] || BALLOON_ICON;
 // 兑换表：价格按"一周活动能换完"配（合计 4250）；每样限一次，所以不用怕刷。
@@ -1059,7 +1060,7 @@ export const ACTIVITIES = {
 
 
   // ---- 电力输送（power-flow）：旋转导线，把电肚蛙的电送到洛托姆，换道具（每样限一次）----
-  // 服务器 activity.json 加一条 { "id": "power-flow", "from": …, "to": … }
+  // 服务器 activity.json 加一条 { "id": "power-flow", "from": …, "to": …, "payload": { "seed": …, "eggSpecies": "…" } }
   'power-flow': coinGame({
     name: '电力输送',
     levels: PF_LEVELS,

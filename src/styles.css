@@ -12764,7 +12764,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 .hot-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
 .hot-text { font-size: 11px; line-height: 1.7; opacity: 0.9; margin-bottom: 12px; }
 .hot-btns { display: flex; justify-content: center; gap: 12px; }
-.hot-btns .catch-confirm-btn { font-size: 12px; padding: 5px 18px; }
+.hot-btns .catch-confirm-btn { display: inline-block; font-size: 12px; padding: 5px 18px; text-decoration: none; }
 .hot-bar {
   height: 6px;
   border-radius: 3px;

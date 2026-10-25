@@ -386,9 +386,9 @@ function doClaimBounty(regionIdx, bi) {
   // 活动期间：原糖果/道具一律不发，只发船票
   const vt = voyageTicketReward();
   if (vt) {
-    grantItem(vt.item, vt.qty, '悬赏');
+    grantItem(vt.item, vt.qty, '悬赏', true);
   } else if (b.item) {
-    grantItem(b.item, b.qty || 1, '悬赏'); // 给了道具就不再给糖果
+    grantItem(b.item, b.qty || 1, '悬赏', true); // 给了道具就不再给糖果
   } else {
     gameData.items.candy = (gameData.items.candy || 0) + b.candy;
     gameData.stats.totalItemsEarned.candy = (gameData.stats.totalItemsEarned.candy || 0) + b.candy;

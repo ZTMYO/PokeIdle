@@ -537,7 +537,7 @@ function closePicker() {
   }
 }
 
-// ---------- 告示牌：每日果子需求，用库存树果兑换糖果（类似悬赏） ----------
+// ---------- 告示牌：每日果子需求，用库存树果出售换糖果（类似悬赏） ----------
 function boardHost() {
   let host = $('berryBoardHost');
   if (!host) {
@@ -555,7 +555,7 @@ function boardDemandHtml(d, k, stock) {
   const have = stock[d.type] || 0;
   const done = !!d.claimed;
   const canTrade = !done && have >= d.qty;
-  const btnText = done ? '已兑换' : canTrade ? '兑换' : '库存不足';
+  const btnText = done ? '已出售' : canTrade ? '出售' : '库存不足';
   return `
     <div class="board-demand${done ? ' claimed' : ''}">
       <img class="berry-icon" data-src="${BERRY_DIR}${icon}" data-tip="${name}" alt="" />

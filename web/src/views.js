@@ -443,30 +443,30 @@ export function renderSystemLogs() {
         desc = `${log.details.from ? `【${log.details.from}】` : ''}获得 ${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty}`;
         break;
       case 'achievement_claim':
-        desc = `【成就】领取 ${log.details.tiers} 级奖励，糖果 ×${log.details.candy}`;
+        desc = `【成就】领取 ${log.details.tiers} 级奖励，获得 糖果 ×${log.details.candy}`;
         break;
       case 'tm_unlock':
-        desc = `【招式】解锁 ${log.details.move}（消耗${log.details.cost}糖果${log.details.learned ? `，${log.details.learned} 只学会` : ''}）`;
+        desc = `【招式】解锁 ${log.details.move}（消耗 ${log.details.cost} 糖果${log.details.learned ? `，${log.details.learned} 只学会` : ''}）`;
         break;
       case 'item_use':
-        desc = `${log.details.auto ? '[自动] ' : ''}使用了${ITEM_NAMES[log.details.item] || log.details.item}`;
+        desc = `${log.details.auto ? '[自动] ' : ''}使用了 ${ITEM_NAMES[log.details.item] || log.details.item}`;
         break;
       case 'fishing':
-        desc = `钓鱼获得 ${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}`;
+        desc = `钓鱼获得 ${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty}`;
         break;
       case 'shop_purchase':
-        desc = `商店兑换${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（消耗${log.details.cost}糖果）`;
+        desc = `商店兑换 ${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty}（消耗 ${log.details.cost} 糖果）`;
         break;
       case 'shop_sell':
-        desc = `商店出售${ITEM_NAMES[log.details.item] || log.details.item}×${log.details.qty}（获得${log.details.gain}糖果）`;
+        desc = `商店出售 ${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty}（获得 ${log.details.gain} 糖果）`;
         break;
       case 'encounter':
         desc = log.details.source === 'fishing'
-          ? ` 钓鱼上钩了 ${log.details.shiny ? '闪光' : ''}${logName(log)}`
+          ? `钓鱼上钩了 ${log.details.shiny ? '闪光' : ''}${logName(log)}`
           : `遇到 ${log.details.shiny ? '闪光' : ''}${logName(log)}`;
         break;
       case 'pokemon_caught':
-        desc = `${log.details.auto ? '[自动] ' : ''}收服了${log.details.shiny ? '闪光' : ''}${logName(log)}`;
+        desc = `${log.details.auto ? '[自动] ' : ''}收服了 ${log.details.shiny ? '闪光' : ''}${logName(log)}`;
         break;
       case 'player_fled':
         desc = log.details.auto ? '[自动] 你逃走了' : '你逃走了';
@@ -482,15 +482,15 @@ export function renderSystemLogs() {
         break;
       case 'bounty_claim':
         desc = log.details.item
-          ? `完成地区悬赏，获得${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty || 1}`
-          : `完成地区悬赏，获得糖果 ×${log.details.candy}`;
+          ? `完成地区悬赏，获得 ${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty || 1}`
+          : `完成地区悬赏，获得 糖果 ×${log.details.candy}`;
         break;
       case 'save_failed':
         desc = '存档写入失败，该进度可能没能保存';
         break;
       case 'crown_use': {
         const cn = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: '特防', spe: '速度' };
-        desc = `对${logName(log)}使用王冠，练满了 ${(log.details.stats || []).map(k => cn[k] || k).join('、')}`;
+        desc = `对 ${logName(log)} 使用王冠，练满了 ${(log.details.stats || []).map(k => cn[k] || k).join('、')}`;
         break;
       }
       case 'berry_helper':
@@ -500,19 +500,19 @@ export function renderSystemLogs() {
         desc = '树果帮手服务结束';
         break;
       case 'berry_plant':
-        desc = `种植了${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}`;
+        desc = `种植了 ${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}`;
         break;
       case 'berry_harvest':
         desc = `收获 ${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]} ×${log.details.qty}`;
         break;
       case 'berry_trade':
-        desc = `交付${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}×${log.details.qty}，获得糖果 ×${log.details.candy}`;
+        desc = `出售 ${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]} ×${log.details.qty}，获得 糖果 ×${log.details.candy}`;
         break;
       case '战斗':
         desc = typeof log.details === 'string' ? log.details : '未知战斗记录';
         break;
       case 'trade':
-        desc = `与「${log.details.npcName}」交换：送出${logName({ details: { pokemon: log.details.take } })}，换得${log.details.shiny ? '闪光' : ''}${logName({ details: { pokemon: log.details.give } })}`;
+        desc = `与「${log.details.npcName}」交换：送出 ${logName({ details: { pokemon: log.details.take } })}，换得 ${log.details.shiny ? '闪光' : ''}${logName({ details: { pokemon: log.details.give } })}`;
         break;
       case 'mixer': {
         const berryNames = (log.details.recipe || []).map(i => BERRY_NAMES[BERRY_ICONS[i]] || BERRY_ICONS[i]).join('、');
@@ -528,7 +528,7 @@ export function renderSystemLogs() {
         break;
       }
       case 'mass_outbreak_start':
-        desc = `${logName(log)}大量出没`;
+        desc = `${logName(log)} 大量出没`;
         break;
       case 'mass_outbreak_end':
         desc = '大量出没结束';
@@ -555,7 +555,7 @@ export function renderSystemLogs() {
         desc = `叫醒了偷懒的 ${logName(log)}`;
         break;
       case 'train_feed':
-        desc = `${logName(log)} 吃掉一颗${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]}补充饱食度`;
+        desc = `${logName(log)} 吃掉一颗 ${BERRY_NAMES[BERRY_ICONS[log.details.berry]] || BERRY_ICONS[log.details.berry]} 补充饱食度`;
         break;
       case 'exp_candy_use':
         desc = `${logName(log)} 使用 ${log.details.qty} 颗经验糖果升至 Lv${log.details.level}`;
@@ -574,7 +574,7 @@ export function renderSystemLogs() {
       case 'nursery_breed_start': {
         const na = getPokemonByIndex(String(log.details.a));
         const nb = getPokemonByIndex(String(log.details.b));
-        desc = `开始繁殖 ${na ? na.name : '#' + log.details.a} × ${nb ? nb.name : '#' + log.details.b}`;
+        desc = `开始繁殖 ${na ? (na.form || na.name) : '#' + log.details.a} × ${nb ? (nb.form || nb.name) : '#' + log.details.b}`;
         break;
       }
       case 'nursery_egg':
@@ -584,22 +584,22 @@ export function renderSystemLogs() {
         desc = `${logName(log)} 出发派遣 ${log.details.duration / 60} 小时`;
         break;
       case 'dispatch_done':
-        desc = `${logName(log)} 完成派遣，带回${(log.details.rewards || []).map(r => `${ITEM_NAMES[r.key] || r.key}×${r.qty}`).join('、')}`;
+        desc = `${logName(log)} 完成派遣，带回 ${(log.details.rewards || []).map(r => `${ITEM_NAMES[r.key] || r.key} ×${r.qty}`).join('、')}`;
         break;
       case 'pokemon_release':
-        desc = `放生了${log.details.shiny ? '闪光' : ''}${logName(log)}`;
+        desc = `放生了 ${log.details.shiny ? '闪光' : ''}${logName(log)}`;
         break;
       case 'buff_expired':
-        desc = `${ITEM_NAMES[log.details.item] || log.details.item}的效果结束了`;
+        desc = `${ITEM_NAMES[log.details.item] || log.details.item} 的效果结束了`;
         break;
       case 'bike_ride':
         desc = '开始骑自行车';
         break;
       case 'bike_stop':
-        desc = '自行车骑行结束';
+        desc = '结束骑自行车';
         break;
       case 'auto_refill':
-        desc = `[自动] 补了${ITEM_NAMES[log.details.ball || log.details.item] || '道具'} ×1（消耗${log.details.cost}糖果）`;
+        desc = `[自动] 补了 ${ITEM_NAMES[log.details.ball || log.details.item] || '道具'} ×1（消耗 ${log.details.cost} 糖果）`;
         break;
       case 'casino': {
         const p = log.details.profit;
