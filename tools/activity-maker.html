@@ -71,6 +71,7 @@
         <option value="guess-name">猜宝可梦</option>
         <option value="sweet-workshop">甜蜜工坊</option>
         <option value="treasure-hunt">符文寻踪</option>
+        <option value="seal-slide">海豹滑冰</option>
       </select>
     </div>
     <div class="row" id="rowPerTier">
@@ -213,7 +214,8 @@ function syncExistingHint() {
 // 和四档奖励 —— 全服完全一致，改 seed 就换一只、换一份奖励，不用读排期。
 // 鸟了个鸟、猜宝可梦不读种子：玩法与奖励都写死在客户端，payload 直接不带 seed。
 // 符文寻踪同理：图腾位置本机随机，兑换所那颗未知图腾蛋也是本机随机。
-const NO_SEED = new Set(['bird-stack', 'guess-name', 'treasure-hunt']);
+// 海豹滑冰的盘面也是本机随机，不带 seed。
+const NO_SEED = new Set(['bird-stack', 'guess-name', 'treasure-hunt', 'seal-slide']);
 function build() {
   const f = readForm();
   const { list: base } = parseExisting(f.existing);   // 已到期的活动在这里就被剔除了
@@ -258,7 +260,9 @@ $('gen').addEventListener('click', async () => {
                 ? '甜蜜工坊：薄荷/道具/王冠/大师球由 payload.seed 摇；那颗霜奶仙蛋的外观每位玩家各自随机，不吃种子'
                 : k === 'treasure-hunt'
                   ? '符文寻踪：不需要种子，图腾位置与兑换所那颗未知图腾蛋都是本机随机；难度由玩家在活动页自选'
-                  : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
+                  : k === 'seal-slide'
+                    ? '海豹滑冰：棋盘本机随机，兑换所随机货跟着活动生成；难度由玩家在活动页自选'
+                    : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
   } catch (e) {
     $('genHint').textContent = `生成失败：${e.message}（点「生成」重试）`;
   } finally { btn.disabled = false; }

@@ -70,6 +70,7 @@ const ACT_ICONS = {
   'guess-name': 'icon-guess-name',
   'sweet-workshop': 'icon-sweet-shop',
   'treasure-hunt': 'icon-magnifier',   // 放大镜
+  'seal-slide': 'icon-seal-slide',     // 雪花
 };
 
 // 限时活动：每个活动各占一个图标（id 前缀 act: + 活动 id，桌面位置各记各的）。

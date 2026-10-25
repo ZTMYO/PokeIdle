@@ -265,6 +265,8 @@ function goBack() {
   if ($('sweetView')?.style.display === 'flex') { import('./sweet-game.js').then(m => m.leaveSweetGame()); return; }
   // 符文寻踪：返回 = 本局作废（不给气球）并回活动页
   if ($('treasureView')?.style.display === 'flex') { import('./treasure-game.js').then(m => m.leaveTreasureGame()); return; }
+  // 海豹滑冰：返回 = 本局作废（不给气球）并回活动页
+  if ($('sealView')?.style.display === 'flex') { import('./seal-slide.js').then(m => m.leaveSealGame()); return; }
   const target = popNav();
   // 手游双屏：弹回舞台页时下半屏若还停在 app 页面，退回手机首页
   if (isDualLayout() && isStageView(target) && getAppChannelView() !== 'phoneView') {

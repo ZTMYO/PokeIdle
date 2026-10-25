@@ -321,6 +321,7 @@ function plotHtml(p, i) {
 
 function pickerHtml() {
   const canAfford = (gameData.items.candy || 0) >= PLANT_COST;
+  const stock = ensureBerryFarm().stock || {};
   return `
     <div class="berry-picker">
       <div class="berry-picker-head">
@@ -332,6 +333,7 @@ function pickerHtml() {
         ${BERRY_ICONS.map((f, i) => `
           <div class="berry-pick-opt${canAfford ? '' : ' no-candy'}" data-type="${i}">
             <img class="berry-icon" data-src="${BERRY_DIR}${f}" data-tip="${BERRY_NAMES[f]}" alt="" />
+            <span class="berry-pick-count">×${stock[i] || 0}</span>
           </div>`).join('')}
       </div>
     </div>`;

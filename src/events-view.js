@@ -8,10 +8,13 @@ import { REGION_CYCLE } from './config.js';
 import { allSlots, hasSchedule, serverNow } from './server-events.js';
 import { pokeOfSlot, spotOfSlot } from './events.js';
 import { eventMapSvg, navigateToNearestEnd, showGpsView } from './gps.js';
+import { fetchPresenceStats } from './telemetry.js';
 
 const WIN_HOURS = 6;       // 只画从现在起 6 小时
 const PX_PER_HOUR = 50;     // 时间轴比例
 const MIN_BAR_H = 14;       // 太短的事件也要放得下一行字
+let _presence = null;      // 打开页面时拉到的在线/事件人数
+let _liveTimer = null;     // 中间人数轮播
 
 // 标题右侧导航图标（纸飞机样式），与悬赏页同款
 const GO_ICON = '<svg viewBox="0 0 1024 1024" width="13" height="13" aria-hidden="true"><path d="M123.92 555.9a32 32 0 0 1-14.82-60.38l719.19-374.9a32 32 0 0 1 29.59 56.76l-719.2 374.89a31.87 31.87 0 0 1-14.76 3.63z"/><path d="M608.6 957.7a32 32 0 0 1-30.6-41.27l234.64-776.34a32 32 0 0 1 61.26 18.52L639.22 935a32 32 0 0 1-30.62 22.7zM505.92 580.44c-0.68 0-1.36 0-2.05-0.07l-381.46-24.12a32 32 0 1 1 4-63.88l381.5 24.13a32 32 0 0 1-2 63.94z"/><path d="M608.14 957.32a32 32 0 0 1-30.87-23.63L475 556.82a32 32 0 1 1 61.77-16.76L639 916.93a32 32 0 0 1-22.51 39.26 31.61 31.61 0 0 1-8.35 1.13z"/></svg>';
@@ -46,6 +49,7 @@ export function showEventsView() {
   pushNav('eventsView');
   showView('eventsView');
   renderEventsView();
+  loadPresence();   // 只在打开页面时拉一次，之后不轮询
   if (showEventsView._t) clearInterval(showEventsView._t);
   showEventsView._t = setInterval(() => {   // 停留期间让"现在"和条的位置跟着走
     if ($('eventsView')?.style.display === 'none') { clearInterval(showEventsView._t); showEventsView._t = null; return; }
@@ -53,10 +57,55 @@ export function showEventsView() {
   }, 60000);
 }
 
+async function loadPresence() {
+  const p = await fetchPresenceStats();
+  if (!p) return;
+  _presence = p;
+  if ($('eventsView')?.style.display !== 'none') paintLive();
+}
+
+// 中间那格：只轮播当前正在开的事件 + 在线人数
+function paintLive() {
+  clearInterval(_liveTimer);
+  _liveTimer = null;
+  const el = $('evpLive');
+  if (!el) return;
+  const now = serverNow();
+  const slotOf = (kind) => allSlots(kind).find((s) => now >= s.from && now < s.to);
+  const massSlot = slotOf('mass');
+  const twistSlot = slotOf('twist');
+  const items = [];
+  if (massSlot && Number.isFinite(_presence?.mass) && String(_presence.massFrom) === String(massSlot.from)) {
+    items.push({ cls: 'mass', text: `${_presence.mass} 人正在大量出没` });
+  }
+  if (twistSlot && Number.isFinite(_presence?.twist) && String(_presence.twistFrom) === String(twistSlot.from)) {
+    items.push({ cls: 'twist', text: `${_presence.twist} 人正在时空扭曲` });
+  }
+  if (Number.isFinite(_presence?.online)) items.push({ cls: 'online', text: `${_presence.online} 人在线` });
+  if (!items.length) { el.textContent = ''; return; }
+  let i = 0;
+  const show = () => {
+    const it = items[i++ % items.length];
+    el.textContent = it.text;
+    el.className = `evp-live ${it.cls}`;
+    void el.offsetWidth;   // 重播淡入
+    el.classList.add('in');
+  };
+  show();
+  if (items.length > 1) {
+    _liveTimer = setInterval(() => {
+      if ($('eventsView')?.style.display === 'none') { clearInterval(_liveTimer); _liveTimer = null; return; }
+      show();
+    }, 4000);
+  }
+}
+
 function renderEventsView() {
   const box = $('eventsContent');
   if (!box) return;
   if (!hasSchedule()) {
+    clearInterval(_liveTimer);
+    _liveTimer = null;
     box.innerHTML = '<div class="roster-empty">还没有拿到全服排期<br>联网后自动同步</div>';
     return;
   }
@@ -96,13 +145,14 @@ function renderEventsView() {
   };
 
   box.innerHTML = `<div class="evp-inner">`
-    + `<div class="evp-sides"><span class="${running('mass') ? 'on' : ''}">大量出没</span><span class="${running('twist') ? 'on' : ''}">时空扭曲</span></div>`
+    + `<div class="evp-sides"><span class="${running('mass') ? 'on' : ''}">大量出没</span><div class="evp-live" id="evpLive"></div><span class="${running('twist') ? 'on' : ''}">时空扭曲</span></div>`
     + `<div class="evp-canvas" style="height:${canvasH}px">`
     + `<div class="evp-axis mass"></div><div class="evp-axis twist"></div>`
     + `<div class="evp-now"></div>`
     + laneHtml('mass', 'left')
     + laneHtml('twist', 'right')
     + `</div>`;
+  paintLive();
   // 位置自适应：先按引线锚点摆，撞上上一个就往下推；引线跟着文字走
   for (const side of ['left', 'right']) {
     let cursor = 0;

@@ -20,6 +20,12 @@ try {
 } catch (_) {
   console.warn('[server] 未找到 ../src/config.js，事件参数改用内置兜底值');
 }
+let APP_VERSION = '';
+try {
+  APP_VERSION = (await import('../src/build-info.js')).APP_VERSION || '';
+} catch (_) {
+  console.warn('[server] 未找到 ../src/build-info.js，版本公告改用环境变量 LATEST_VERSION');
+}
 
 const { MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, REGION_CYCLE } = CFG;
 
@@ -31,6 +37,12 @@ const MIN_BEATS = 2;        // 两次心跳才算在线：随机刷 id 只能骗
 const RATE_MS = 10000;      // 单 IP 最快 10 秒一次（客户端节奏 60 秒）
 const RATE_BURST = 6;
 const MAX_BODY = 128;
+const MAX_SEEN = 5000;      // 同时跟踪的安装标识上限
+const MAX_RATE = 20000;     // 限流表上限
+const MAX_TRACKED = 100000; // 每日/累计标识上限
+const MAX_INFLIGHT = 256;   // 同时处理的请求上限
+const MAX_HOT_INFLIGHT = 64;      // 同时在传的热更文件
+const MAX_HOT_PER_IP = 8;         // 单个 IP 同时在传的热更文件（客户端自己 4 并发）
 // 资源热更：客户端要的文件都放 DATA_DIR/hot/ 下（按原相对路径摆），manifest.json 是清单。
 // 路径用查询参数传（路由是精确匹配，不改成前缀匹配，免得动到别的路由）
 const HOT_DIR = path.join(DATA_DIR, 'hot');
@@ -41,6 +53,33 @@ const HOT_MIME = {
   '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml',
   '.ttf': 'font/ttf', '.woff2': 'font/woff2',
 };
+let hotInflight = 0;
+const hotByIp = new Map();
+let _hotManifest = { mtime: 0, raw: null, gz: null };
+function hotManifest() {
+  const file = path.join(HOT_DIR, 'manifest.json');
+  try {
+    const st = fs.statSync(file);
+    if (_hotManifest.mtime !== st.mtimeMs) {
+      const raw = fs.readFileSync(file);
+      _hotManifest = { mtime: st.mtimeMs, raw, gz: zlib.gzipSync(raw) };
+    }
+    return _hotManifest;
+  } catch (_) {
+    return null;
+  }
+}
+function hotBegin(ip) {
+  if (hotInflight >= MAX_HOT_INFLIGHT || (hotByIp.get(ip) || 0) >= MAX_HOT_PER_IP) return false;
+  hotInflight++;
+  hotByIp.set(ip, (hotByIp.get(ip) || 0) + 1);
+  return true;
+}
+function hotEnd(ip) {
+  hotInflight = Math.max(0, hotInflight - 1);
+  const n = (hotByIp.get(ip) || 1) - 1;
+  if (n > 0) hotByIp.set(ip, n); else hotByIp.delete(ip);
+}
 
 const ORIGINS = new Set([
   'tauri://localhost', 'http://tauri.localhost', 'https://tauri.localhost',
@@ -51,10 +90,10 @@ const ORIGINS = new Set([
 if (!SALT) console.warn('[server] 未设置 TELEMETRY_SALT（仅限本地调试）');
 
 // ---- 版本公告 ----
-// 客户端每次心跳带上自己的版本（`安装标识|版本`），服务端记下见过的最新一份，
-// 并在响应里告诉这个客户端"你是不是旧的" —— 设置页据此显示（可更新）。
+// 最新版本由发布时上传的 src/build-info.js 或环境变量 LATEST_VERSION 决定；
+// 客户端上报的版本只用来判断"它是不是旧的"，服务端不再回写，避免被伪造版本号污染。
 
-const PIN_VER = process.env.LATEST_VERSION || '';
+const PIN_VER = process.env.LATEST_VERSION || APP_VERSION;
 const VER_RE = /^\d+(\.\d+){1,3}$/;
 function cmpVer(a, b) { // 逐段数字比较，第三段就是补丁号
   const pa = String(a).split('.').map(Number);
@@ -66,13 +105,7 @@ function cmpVer(a, b) { // 逐段数字比较，第三段就是补丁号
   return 0;
 }
 function latestVersion() {
-  if (PIN_VER) return PIN_VER;
-  syncVersionFile();
-  return db.version;
-}
-function noteVersion(ver) {
-  if (PIN_VER || !VER_RE.test(ver || '')) return;
-  if (!db.version || cmpVer(ver, db.version) > 0) { db.version = ver; save(); }
+  return PIN_VER || null;
 }
 // ---- 限时活动 ----
 // 只发"开关 + 时间段 + 参数"，玩法在客户端（和全服事件同构）。
@@ -132,6 +165,12 @@ function syncVersionFile() {
     else if (v && typeof v.ver === 'string') db.version = v.ver;   // 兼容老格式 { ver, stamp }
   } catch (_) { /* 文件不存在或内容坏了：保持内存里的值 */ }
 }
+function writeAtomic(file, data) {
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, data);
+  try { fs.renameSync(tmp, file); }
+  catch (_) { fs.rmSync(file, { force: true }); fs.renameSync(tmp, file); }
+}
 function save() {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -140,7 +179,7 @@ function save() {
     const days = {};
     for (const k of Object.keys(db.days).sort()) days[k] = [...db.days[k]].sort();
     db.total = [...totalSet].sort();
-    fs.writeFileSync(DB_FILE, JSON.stringify({ days, total: db.total, version: db.version }));
+    writeAtomic(DB_FILE, JSON.stringify({ days, total: db.total, version: db.version }));
   } catch (e) { console.error('[server] 落盘失败:', e.message); }
 }
 function load() {
@@ -170,14 +209,45 @@ function load() {
   if (Object.keys(db.days).length || totalSet.size) save();
 }
 
-// 真实客户端 IP：反代后 socket 里全是 127.0.0.1，取 X-Forwarded-For 第一跳；直连时用 socket
-const ipOf = (req) => (String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
+// 真实客户端 IP：优先取 X-Forwarded-For 的最后一跳（$proxy_add_x_forwarded_for 会把 nginx
+// 看到的真实地址追加在末尾），绝不取第一跳 —— 那是客户端可以随便伪造的；
+// 没有 XFF 时才退回 X-Real-IP（nginx 若配置了覆盖写入就是真实地址）。
+const ipOf = (req) => {
+  const hops = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (hops.length) return hops[hops.length - 1];
+  const real = String(req.headers['x-real-ip'] || '').trim();
+  return real || req.socket.remoteAddress || '?';
+};
 const hashOf = (id) => crypto.createHash('sha256').update(SALT + id).digest('hex').slice(0, 24);
 function onlineCount() {
   const cut = Date.now() - ONLINE_TTL;
   let n = 0;
   for (const v of seen.values()) if (v.beats >= MIN_BEATS && v.last >= cut) n++;
   return n;
+}
+// 当前正在开的事件段起点（上一场残留的事件标识不算进这一场）
+function activeSlotFrom(kind, now = Date.now()) {
+  const slot = (mergedSchedule(now)[kind] || []).find((s) => now >= s.from && now < s.to);
+  return slot ? String(slot.from) : '';
+}
+// 心跳里带的事件标识：只认当前正在开的这一段
+function zoneOf(raw, now = Date.now()) {
+  const m = /^(mass|twist):(\d{10,})$/.exec(String(raw || ''));
+  if (!m) return '';
+  return activeSlotFrom(m[1], now) === m[2] ? `${m[1]}:${m[2]}` : '';
+}
+function presenceCounts(now = Date.now()) {
+  const cut = now - ONLINE_TTL;
+  const massFrom = activeSlotFrom('mass', now);
+  const twistFrom = activeSlotFrom('twist', now);
+  let mass = 0;
+  let twist = 0;
+  for (const v of seen.values()) {
+    if (v.beats < MIN_BEATS || v.last < cut) continue;
+    if (massFrom && v.zone === `mass:${massFrom}`) mass++;
+    else if (twistFrom && v.zone === `twist:${twistFrom}`) twist++;
+  }
+  return { mass, twist, massFrom: massFrom || null, twistFrom: twistFrom || null };
 }
 function prune() {
   const cut = Date.now() - ONLINE_TTL;
@@ -238,7 +308,7 @@ function loadEvents() {
 function saveEvents() {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(EVENT_FILE, JSON.stringify({ days: eventDb.days }));
+    writeAtomic(EVENT_FILE, JSON.stringify({ days: eventDb.days }));
   } catch (e) { console.warn('[server] 事件排期落盘失败', e.message); }
 }
 
@@ -291,6 +361,7 @@ function allowOrigin(req) {
   const origin = req.headers.origin;
   return origin && ORIGINS.has(origin) ? { 'Access-Control-Allow-Origin': origin } : {};
 }
+let inflight = 0;
 
 // 路由表：加功能就往这里加一条 { method, path, handle(req, res, body) }
 const ROUTES = [
@@ -300,21 +371,23 @@ const ROUTES = [
     handle(req, res, body) {
       const ip = ipOf(req);
       const now = Date.now();
+      if (!rate.has(ip) && rate.size >= MAX_RATE) return json(res, 429, { ok: false }, allowOrigin(req));
       const r = rate.get(ip) || { n: 0, ts: 0 };
       if (now - r.ts > RATE_MS) { r.n = 1; r.ts = now; }
       else if (++r.n > RATE_BURST) { rate.set(ip, r); return json(res, 429, { ok: false }, allowOrigin(req)); }
       rate.set(ip, r);
 
-      // body 是 `安装标识|版本`；老客户端还会多带一段版本戳，忽略即可
-      const [id, ver] = body.trim().split('|');
+      // body 是 `安装标识|版本[|事件标识]`；老客户端多带的版本戳会被 zoneOf 忽略
+      const [id, ver, zoneRaw] = body.trim().split('|');
       if (!/^[0-9a-f]{16,64}$/.test(id || '')) return json(res, 400, { ok: false }, allowOrigin(req));
-      if (ver) noteVersion(ver);
       const h = hashOf(id);
+      const zone = zoneOf(zoneRaw, now);
       const cur = seen.get(h);
-      if (cur) { cur.last = now; cur.beats++; } else seen.set(h, { last: now, beats: 1 });
+      if (!cur && seen.size >= MAX_SEEN) return json(res, 503, { ok: false }, allowOrigin(req));
+      if (cur) { cur.last = now; cur.beats++; cur.zone = zone; } else seen.set(h, { last: now, beats: 1, zone });
       rollDay();
-      if (today.size < 500000) today.add(h);
-      if (totalSet.size < 500000) totalSet.add(h);
+      if (today.size < MAX_TRACKED) today.add(h);
+      if (totalSet.size < MAX_TRACKED) totalSet.add(h);
       // 不回统计值：客户端不需要，也少一个被探测的口子；只回报版本，设置页据此提示可更新
       const latest = latestVersion();
       json(res, 200, { ok: true, update: isOutdated(ver), latest: latest || null }, allowOrigin(req));
@@ -325,7 +398,7 @@ const ROUTES = [
     path: '/api/telemetry/stats',
     handle(req, res) {
       rollDay();
-      json(res, 200, { online: onlineCount(), today: today.size, total: totalSet.size }, {
+      json(res, 200, { online: onlineCount(), ...presenceCounts(), today: today.size, total: totalSet.size }, {
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=10', // 官网读数由这层缓存兜住
       });
@@ -358,23 +431,23 @@ const ROUTES = [
     method: 'GET',
     path: '/healthz',
     handle(req, res) {
-      json(res, 200, { ok: true, online: onlineCount(), today: today.size, total: totalSet.size }, { 'Cache-Control': 'no-store' });
+      json(res, 200, { ok: true, online: onlineCount(), ...presenceCounts(), today: today.size, total: totalSet.size, latest: latestVersion() }, { 'Cache-Control': 'no-store' });
     },
   },
   {
     method: 'GET',
     path: '/api/hot/manifest.json',
     handle(req, res) {
-      let body;
-      try { body = fs.readFileSync(path.join(HOT_DIR, 'manifest.json')); } catch (_) { return json(res, 404, { ok: false }); }
+      const m = hotManifest();
+      if (!m) return json(res, 404, { ok: false });
       // no-store：清单绝不能被中间层缓存（否则刚推的更新会被缓存里的旧清单/旧 404 挡住）
-      const head = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store', 'Vary': 'Accept-Encoding' };
+      const head = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store', 'Vary': 'Accept-Encoding', 'X-Content-Type-Options': 'nosniff' };
       if (/gzip/.test(req.headers['accept-encoding'] || '')) {
         res.writeHead(200, { ...head, 'Content-Encoding': 'gzip' });
-        return res.end(zlib.gzipSync(body));
+        return res.end(m.gz);
       }
       res.writeHead(200, head);
-      res.end(body);
+      res.end(m.raw);
     },
   },
   {
@@ -387,17 +460,35 @@ const ROUTES = [
       if (!rel || rel.includes('..') || rel.startsWith('.')) return json(res, 400, { ok: false });
       const file = path.join(HOT_DIR, rel);
       if (file !== HOT_DIR && !file.startsWith(HOT_DIR + path.sep)) return json(res, 400, { ok: false });
-      let body;
-      try { body = fs.readFileSync(file); } catch (_) { return json(res, 404, { ok: false }); }
+      const ip = ipOf(req);
+      if (!hotBegin(ip)) return json(res, 429, { ok: false }, { 'Retry-After': '5' });
+      let done = false;
+      const finish = () => { if (done) return; done = true; hotEnd(ip); };
+      res.on('close', finish);
+      let st;
+      try { st = fs.statSync(file); } catch (_) { finish(); return json(res, 404, { ok: false }); }
+      if (!st.isFile()) { finish(); return json(res, 404, { ok: false }); }
       // 绝不加 max-age：中间层（nginx/CDN）一缓存就会出现"刚传的新文件被读成旧版，
       // 客户端哈希校验不过→反复弹更新"。客户端自己会把文件存进 CacheStorage，不需要 HTTP 缓存。
-      res.writeHead(200, { 'Content-Type': HOT_MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
-      res.end(body);
+      res.writeHead(200, {
+        'Content-Type': HOT_MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+        'Content-Length': st.size,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      const stream = fs.createReadStream(file);
+      res.on('close', () => stream.destroy());
+      stream.on('error', () => { try { res.destroy(); } catch (_) {} });
+      stream.pipe(res);
     },
   },
 ];
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
+  if (inflight >= MAX_INFLIGHT) return json(res, 503, { ok: false }, { 'Retry-After': '1' });
+  inflight++;
+  res.on('close', () => { inflight = Math.max(0, inflight - 1); });
   const method = req.method || 'GET';
   // 末尾斜杠归一化：反代（nginx）常把 /api/events 301 成 /api/events/，两边都要能命中路由
   const url = ((req.url || '').split('?')[0].replace(/\/+$/, '')) || '/';
@@ -420,7 +511,17 @@ http.createServer((req, res) => {
     return;
   }
   route.handle(req, res, '');
-}).listen(PORT, '127.0.0.1', () => console.log(`[server] 127.0.0.1:${PORT}`));
+});
+server.headersTimeout = 15000;
+server.requestTimeout = 30000;
+server.keepAliveTimeout = 5000;
+server.maxConnections = 512;
+server.maxHeadersCount = 100;
+server.on('clientError', (err, socket) => {
+  if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+});
+load(); // 读回已有统计，否则每次重启都会从零覆盖 stats.json
+server.listen(PORT, '127.0.0.1', () => console.log(`[server] 127.0.0.1:${PORT}`));
 
 loadEvents(); // 先读回已有排期（重启不能换掉当天已发的排期）
 tickEvents(); // 没有今天的那份就现建（DATA_DIR 不存在会一并创建）

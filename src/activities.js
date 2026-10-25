@@ -15,6 +15,7 @@ import { PF_LEVELS, pfLevelOf } from './power-flow.js';
 import { GUESS_LEVELS, guessLevelOf, guessReady } from './guess-game.js';
 import { SW_LEVELS, swLevelOf } from './sweet-game.js';
 import { TH_LEVELS, thLevelOf, UNOWN_INDEX } from './treasure-game.js';
+import { SL_LEVELS, slLevelOf } from './seal-slide.js';
 
 const TIERS = 4;      // 四档：进化道具 / 薄荷·王冠 / 大师球·闪耀护符 / 闪光蛋
 const PER_TIER = 3;   // 每档交 3 只（payload.perTier 可覆盖），四档共 12 只
@@ -210,6 +211,7 @@ const COIN_ICONS = {
   'sweet-workshop': './items/goods/balloon-cream.png',
   'treasure-hunt': './items/goods/balloon-indigo.png',
   'power-flow': './items/goods/balloon-yellow.png',
+  'seal-slide': './items/goods/balloon-blue.png',
 };
 const coinIcon = (ctx) => COIN_ICONS[ctx && ctx.id] || BALLOON_ICON;
 // 兑换表：价格按"一周活动能换完"配（合计 4250）；每样限一次，所以不用怕刷。
@@ -1092,6 +1094,18 @@ export const ACTIVITIES = {
     rules: '目标是挖出全部符文。点格子探测离最近<b>未挖出</b>符文的步数（曼哈顿距离）；挖到一个符文后，其余已探测格子的数字也会重算。<br>探测次数用尽即结束，按已挖到的情况给气球奖励。气球可兑换下方奖励，每样限一次。',
     levelDesc: l => `${l.count} 个 · ${l.max ? `${l.max} 次` : '不限次数'}`,
     start: (level, onFinish) => import('./treasure-game.js').then(m => m.startTreasureGame({ level, onFinish })),
+  }),
+
+  // ---- 海豹滑冰（seal-slide）：点宝可梦，再点同排/同列格子，滑到冰墙/冰岩怪停下，收集精灵球 ----
+  // 服务器 activity.json 里加一条 { "id": "seal-slide", "from": …, "to": … }
+  'seal-slide': coinGame({
+    name: '海豹滑冰',
+    levels: SL_LEVELS,
+    levelOf: slLevelOf,
+    attr: 'sl-level',
+    rules: '点宝可梦，再点同一行/列的格子；它会滑到障碍才停（精灵球不算障碍）。让海豹球拾取所有精灵球即可通关获得气球奖励，步数用完失败。<br>气球可兑换下方奖励，每样限一次。',
+    levelDesc: l => `${l.targets} 颗精灵球`,
+    start: (level, onFinish) => import('./seal-slide.js').then(m => m.startSealGame({ level, onFinish })),
   }),
 
   // ---- 猜宝可梦（guess-name）：独立小游戏页，从候选字里拼出宝可梦名字，答对累加气球 ----

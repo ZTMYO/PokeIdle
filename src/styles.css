@@ -2549,6 +2549,143 @@ html.mobile-app #quitHide { display: none !important; }
 }
 .th-rank { font-size: 10px; opacity: .75; margin: 0; }
 
+/* === 海豹滑冰：点宝可梦，再点同排/同列格子，滑到冰墙或冰岩怪停下 === */
+#sealView {
+  position: relative;
+  padding: 4px 6px;
+  gap: 3px;
+  --sl-cell: #d9eef3;
+  --sl-alt: #c9e6ed;
+  --sl-line: #a8cbd4;
+  --sl-wall: #7b98a2;
+  --sl-wall-line: #5f7a84;
+}
+[data-theme="dark"] #sealView {
+  --sl-cell: #1b3a42;
+  --sl-alt: #17343b;
+  --sl-line: #2e5a64;
+  --sl-wall: #33545d;
+  --sl-wall-line: #24444c;
+}
+.sl-head {
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 2px; font-size: 8.5px; color: var(--ui-color); opacity: .9;
+}
+.sl-head #slSteps, .sl-head #slBalls {
+  flex: none; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ui-color);
+}
+.sl-actions { flex: 1; display: flex; justify-content: center; align-items: center; gap: 3px; }
+.sl-level {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 700; color: var(--ui-color); white-space: nowrap;
+}
+.sl-level[hidden], #slBalls[hidden] { display: none; }
+.sl-actions[hidden] { display: none; }
+.sl-btn {
+  padding: 1px 4px;
+  border: 1px solid var(--ui-color-dark);
+  border-radius: 2px;
+  background: var(--screen-light);
+  color: var(--ui-color-dark);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sl-btn.off { opacity: .35; pointer-events: none; }
+.sl-board {
+  flex: 1; min-height: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  touch-action: manipulation;
+}
+.sl-board.done { align-items: center; }
+.sl-grid {
+  position: relative;
+  display: grid;
+  box-sizing: border-box;
+  background: var(--sl-cell);
+  outline: 1px solid var(--sl-line);
+  outline-offset: 0;
+}
+.sl-cell {
+  position: relative;
+  border: 1px solid var(--sl-line);
+  background: var(--sl-cell);
+  cursor: pointer;
+}
+.sl-cell:nth-child(odd) { background: var(--sl-alt); }
+.sl-cell.wall { background: var(--sl-wall); border-color: var(--sl-wall-line); }
+.sl-ball {
+  position: absolute; left: 50%; top: 50%;
+  width: 45%; height: 45%;
+  transform: translate(-50%, -50%);
+  object-fit: contain; image-rendering: pixelated; pointer-events: none;
+}
+.sl-cell.target.done { background: #b9e3d8; }
+.sl-cell.target.done .sl-ball { display: none; }
+.sl-piece {
+  position: absolute;
+  display: flex; align-items: center; justify-content: center;
+  transition: left .2s linear, top .2s linear;
+  z-index: 5; cursor: pointer; overflow: visible;
+}
+.sl-grid.no-trans .sl-piece { transition: none; }
+.sl-piece.sel { z-index: 6; }
+.sl-foot {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  width: 58%;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #3f9bd8;
+  pointer-events: none;
+}
+.sl-piece.sel .sl-foot { display: block; }
+[data-theme="dark"] .sl-foot { background: #6fc3ef; }
+.sl-sprite {
+  display: none;
+  object-fit: none;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+  max-width: none; max-height: none;
+  transform-origin: center;
+  pointer-events: none;
+}
+.sl-sprite.on { display: block; }
+.sl-result {
+  width: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  text-align: center; color: var(--ui-color);
+}
+.sl-result-sub { font-size: 10px; opacity: .78; margin: 0; }
+#slOverlay[hidden] { display: none !important; }
+.vf-overlay.sl-overlay {
+  justify-content: center;
+  gap: 10px;
+  padding: 0;
+}
+.vf-res-actions.sl-overlay-actions {
+  position: static;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.sl-overlay-actions .casino-btn {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.65);
+  font-size: 10px;
+  padding: 3px 10px;
+}
+.sl-overlay-actions [hidden] { display: none !important; }
+.game-result-title.fail { color: #ff7b7b; }
+
 /* === 鸟了个鸟：叠成一堆的鸟，点开进槽位凑三只抵消 === */
 .bg-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
@@ -2817,6 +2954,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
         每个时段拉一根引线出来（线上名字、线下时间），位置由 JS 自适应避让 ===== */
 .evp-inner { position: relative; padding: 6px 0 14px; }
 .evp-sides {
+  position: relative;
   display: flex;
   justify-content: space-between;
   font-size: 9.5px;
@@ -2827,6 +2965,26 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 }
 .evp-sides span { opacity: 0.5; }
 .evp-sides span.on { opacity: 1; font-weight: 800; }   /* 正在开的那一类标题加粗 */
+.evp-live {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 9px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  opacity: 0.72;
+  pointer-events: none;
+}
+.evp-live.mass { color: var(--ui-color); }
+.evp-live.twist { color: #8c5290; }
+.evp-live.online { opacity: 0.5; }
+.evp-live.in { animation: evp-live-in 0.3s ease; }
+@keyframes evp-live-in {
+  from { transform: translate(-50%, 2px); }
+  to { transform: translate(-50%, 0); }
+}
+[data-theme="dark"] .evp-live.twist { color: #c4a6dd; }
 .evp-canvas { position: relative; }
 /* 两条轴：中间留 6px 缝隙，重叠的两段并排不打架 */
 .evp-axis {
@@ -3562,7 +3720,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   padding: 4px 0;
   cursor: pointer;
   transition: transform 0.12s;
@@ -3574,6 +3732,12 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   width: 26px;
   height: 26px;
   image-rendering: pixelated;
+}
+.berry-pick-count {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ui-color);
 }
 
 .berry-picker-note {
