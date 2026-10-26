@@ -5,6 +5,7 @@ import { BETS, renderBetAreaCommon, showCasinoHistoryView } from './casino.js';
 import { gameData, saveGame, pushNav, formatNum, addSystemLog } from './state.js';
 import { $, showView, updateStats, showConfirmBar } from './ui.js';
 import { playMahjongSfx } from './audio.js';
+import { showRulesPanel } from './rules-panel.js';
 
 const BOARDS = [
   [6, 2, 7],
@@ -96,7 +97,7 @@ function renderBetPage() {
   const balance = coinOf();
   const holder = { bet: _bet, lastResult: _lastResult };
   const startText = balance <= 0 ? '请在柜台兑换游戏币再来' : '开始翻牌';
-  const html = renderBetAreaCommon(balance, holder, 'vfStart', startText);
+  const html = renderBetAreaCommon(balance, holder, 'vfStart', startText, { rulesId: 'vfRules' });
   _bet = holder.bet;
   return html;
 }
@@ -189,6 +190,7 @@ function bind(box) {
   }
   box.querySelector('#vfStart')?.addEventListener('click', startRound);
   box.querySelector('#casinoHistoryBtn')?.addEventListener('click', () => showCasinoHistoryView('vf'));
+  box.querySelector('#vfRules')?.addEventListener('click', showVoltorbRules);
   box.querySelector('#vfQuit')?.addEventListener('click', onCash);
   if (!box._vfDelegated) {
     box._vfDelegated = true;
@@ -215,6 +217,14 @@ function bind(box) {
       openMarkMenu(i);
     });
   }
+}
+
+function showVoltorbRules() {
+  showRulesPanel('casinoVoltorbContent', '电球翻牌规则', `
+    <div class="game-rule-row"><b>牌阵</b><span>5×5 牌阵，每行每列标出数值合计和雷电球数量。</span></div>
+    <div class="game-rule-row"><b>翻牌</b><span>翻开 ×2 / ×3 会连乘；翻到雷电球本局归零。</span></div>
+    <div class="game-rule-row"><b>收手</b><span>随时收手按连锁结算；提前收手最多扣 ${Math.round(EARLY_PENALTY * 100)}%；全清或封顶 ×${CAP} 不打折。</span></div>
+    <div class="game-rule-row"><b>标记</b><span>右键格子标记 1 / 2 / 3 / 雷电球，不消耗翻牌次数。</span></div>`);
 }
 
 // ---------- 玩法 ----------

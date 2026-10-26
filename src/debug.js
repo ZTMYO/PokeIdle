@@ -7,6 +7,7 @@
 //   __addEgg(25)                      添加宝可梦蛋（6V）
 //   __addPoke(25) / __addShinyPoke(25) 写入 6V / 闪光精灵
 //   __addPokeLv(25, 50)               写入指定等级
+//   __completeCards()                 直接集齐卡册（60/60）
 //   __unlockAllPokedex(true)          解锁全图鉴（含闪光）
 //   __nextEncounter(25, true)         指定下次遇敌（用后即焚）
 //   __refreshAll()                    一键刷新：对战/交换/大量出没/时空扭曲/悬赏/商店每日限量货
@@ -139,6 +140,12 @@ window.__addPoke = idx => addDebugPoke(idx, false);
 window.__addShinyPoke = idx => addDebugPoke(idx, true);
 window.__addPokeLv = (idx, lv) => addDebugPoke(idx, false, lv);
 window.__addShinyPokeLv = (idx, lv) => addDebugPoke(idx, true, lv);
+
+// 调试：直接集齐卡册
+window.__completeCards = async () => {
+  const m = await import('./album.js');
+  return m.debugCompleteCardAlbum();
+};
 
 // 一键解锁全图鉴（含变体）。默认只解锁普通记录，传 true 额外把闪光也标记为已见/已捕获
 window.__unlockAllPokedex = async (withShiny = false) => {

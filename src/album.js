@@ -1,7 +1,7 @@
 // ===== 卡册 =====
 // 卡册：缩略图网格，点已拥有的卡放大预览，可拖拽看 3D 角度，点遮罩关闭。
 import { $, showView, viewportToLogic } from './ui.js';
-import { gameData, pushNav } from './state.js';
+import { gameData, pushNav, saveGame } from './state.js';
 
 const CARDS_PER_PAGE = 12;  // 4列 × 3行
 
@@ -46,6 +46,34 @@ export async function getCardCollectionStats() {
   const collected = gameData.collectedCards;
   const owned = _allCards.filter(c => collected[c.filename]).length;
   return { owned, total: _allCards.length };
+}
+
+// 调试：直接集齐卡册（window.__completeCards）
+export async function debugCompleteCardAlbum() {
+  ensureCards();
+  await loadPools();
+  if (!_allCards.length) {
+    console.warn('__completeCards: 卡池没有加载到卡片');
+    return { owned: 0, total: 0, added: 0 };
+  }
+  const now = Date.now();
+  let added = 0;
+  for (const card of _allCards) {
+    if (gameData.collectedCards[card.filename]) continue;
+    gameData.collectedCards[card.filename] = {
+      tier: card.tier, cnName: card.cnName, enName: card.enName, obtainedAt: now,
+    };
+    added++;
+  }
+  await saveGame();
+  window.dispatchEvent(new CustomEvent('album-updated'));
+  if ($('albumView')?.style.display === 'flex') {
+    _currentPage = 0;
+    renderAlbum();
+  }
+  const result = { owned: _allCards.length, total: _allCards.length, added };
+  console.log(`__completeCards: 卡册已集齐 ${result.owned}/${result.total}（新增 ${added} 张）`);
+  return result;
 }
 
 export async function showAlbumView() {

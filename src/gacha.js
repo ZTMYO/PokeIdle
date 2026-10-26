@@ -5,6 +5,7 @@
 import { $, showView, updateStats } from './ui.js';
 import { gameData, saveGame, pushNav, addSystemLog } from './state.js';
 import { GACHA_DRAW_COST, GACHA_DUP_REFUND, GACHA_TIER_WEIGHT } from './config.js';
+import { playSpinSfx, playMahjongSfx } from './audio.js';
 
 const DRAW_COST = GACHA_DRAW_COST;
 const DUP_REFUND = GACHA_DUP_REFUND;
@@ -376,6 +377,7 @@ function bindEvents(box) {
       // 翻面动画结束后 → 进入滚动阶段
       setTimeout(() => {
         _phase = 'rolling';
+        playSpinSfx('spin2');
         renderGacha();
       }, ROLL_FLIP_MS);
       break;
@@ -485,6 +487,7 @@ function doLock() {
   const rs = _rollState;
   cancelAnimationFrame(rs.rafId);
   rs.locked = true;
+  playMahjongSfx('ui');
 
   // 找最接近视口中央的牌索引
   const centerPx = rs.containerW / 2;
@@ -585,6 +588,7 @@ function onCardFlip(el) {
   _results[idx].revealed = true;
   _phase = 'done';
   el.classList.add('flipped');
+  playMahjongSfx('ui');
 
   // 翻面动画 520ms 后显示信息面板
   setTimeout(() => renderGacha(), 520);

@@ -5,6 +5,7 @@ import { FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER
 import { gameData, allPokemon, getPokemonByIndex, phase, saveGame, pushNav, popNav } from './state.js';
 import { $, showView, isOnGameView, updateBackpack, updateStats, tryLoadImage, tryLoadPokemonIcon, consoleLayerStyle } from './ui.js';
 import { TYPE_COLORS } from './items.js';
+import { playSpinSfx } from './audio.js';
 import * as road from './road.js';
 import { fourDirGeom, fourDirSrc, fourDirAnim, fourDirStaticAnim, fourDirDelay, fourDirFitBox, fourDirFitContent, fourDirRowBox, DIR_ROW } from './four-dir.js';
 
@@ -691,6 +692,7 @@ function doDraw() {
   result.dex = recordFollowerDraw(result.index);      // 抽出即入图鉴（与最后带谁走无关）
   _drawResult = result;
   _drawPhase = 'rolling';
+  playSpinSfx('spin2');
   // 结果持久化：未选跟随/放走就退出时，重启后仍可恢复结果页
   gameData.followerPending = { index: result.index, name: result.name, tier: result.tier, dex: result.dex };
   saveGame();
@@ -718,6 +720,7 @@ function doDrawMulti() {
   _multiSel = 0;
   _drawResult = results[0];
   _drawPhase = 'multi-rolling';
+  playSpinSfx('spin2');
   // 待处理标记存完整 5 只（multi 区分单抽/5连抽），中途退出可完整恢复
   gameData.followerPending = {
     multi: true,

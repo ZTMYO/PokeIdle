@@ -47,6 +47,9 @@ let _actx = null;
 let _userGestured = false; // 是否已获得用户手势（浏览器 autoplay 解除后才创建 AudioContext）
 const _gainNodes = { region: null, overlay: null, sfx: null };
 const _trackGain = { region: 1, overlay: 1, sfx: 1 }; // 每路当前的响度补偿系数
+let _loopSfx = null; // Web Audio 循环音效：{ source, gain }
+const _spinBuffers = new Map();
+const _spinLoading = new Map();
 
 function ensureCtx() {
   // 无用户手势时浏览器禁止 AudioContext 启动，创建即输出 "not allowed to start" 且无法拦截：
@@ -139,6 +142,7 @@ function applyVolume() {
   vol('region', regionAudio);
   vol('overlay', overlayAudio);
   vol('sfx', sfxAudio);
+  if (_loopSfx) _loopSfx.gain.gain.value = _volume;
 }
 
 // 把该继续播放的曲目接回去：被系统挂起、或被自动播放策略拦下后调用
@@ -161,6 +165,7 @@ function pauseAudioForBackground() {
   if (!regionAudio.paused) regionAudio.pause();
   if (!overlayAudio.paused) overlayAudio.pause();
   if (!sfxAudio.paused) sfxAudio.pause();
+  stopLoopSfx();
 }
 
 // 任何用户交互时补播被拦截的音频；音效/覆盖曲播放中不打断
@@ -469,14 +474,84 @@ function flushPendingShiny() {
 
 // ---------- 麻将 / 游戏厅瞬发音效 ----------
 // 短促音效不打断背景音乐，单独 Audio 叠加；归类「音效」开关（_sfxEnabled），独立于音乐开关
-export function playMahjongSfx(name) {
-  if (!_sfxEnabled) return;
-  if (document.hidden) return; // 页面不可见：不在后台响
-  if (_splashLocked || _bulkQuiet) return; // splash/批量结算期间禁声
-  const url = `./audio/mahjong/${encodeURIComponent(name)}.mp3`;
+function playShortSfx(url, { loop = false } = {}) {
+  if (!_sfxEnabled) return null;
+  if (document.hidden) return null; // 页面不可见：不在后台响
+  if (_splashLocked || _bulkQuiet) return null; // splash/批量结算期间禁声
   const a = new Audio(url);
+  a.loop = !!loop;
   a.volume = _volume;
   a.play().catch(() => {});
+  return a;
+}
+
+export function playMahjongSfx(name) {
+  return playShortSfx(`./audio/mahjong/${encodeURIComponent(name)}.mp3`);
+}
+
+const SPIN_FILES = { spin1: 'spin1.wav', spin2: 'spin2.mp3', stop: 'stop.wav', win: 'win.wav' };
+
+function spinUrl(name) {
+  const file = SPIN_FILES[name] || `${name}.mp3`;
+  return `./audio/spin/${encodeURIComponent(file)}`;
+}
+
+function stopLoopSfx() {
+  if (!_loopSfx) return;
+  try { _loopSfx.source.stop(); } catch (_) {}
+  try { _loopSfx.source.disconnect(); _loopSfx.gain.disconnect(); } catch (_) {}
+  _loopSfx = null;
+}
+
+function loadSpinBuffer(name) {
+  const ctx = ensureCtx();
+  if (!ctx) return Promise.resolve(null);
+  if (_spinBuffers.has(name)) return Promise.resolve(_spinBuffers.get(name));
+  if (_spinLoading.has(name)) return _spinLoading.get(name);
+  const p = fetch(spinUrl(name))
+    .then(r => r.arrayBuffer())
+    .then(ab => ctx.decodeAudioData(ab))
+    .then(buf => { _spinBuffers.set(name, buf); return buf; })
+    .catch(() => null)
+    .finally(() => _spinLoading.delete(name));
+  _spinLoading.set(name, p);
+  return p;
+}
+
+// 进入老虎机前预解码：首次按停也能走采样级循环，不依赖 HTMLAudio 的 loop 间隙
+export function preloadSpinSfx(name = 'spin1') {
+  loadSpinBuffer(name);
+}
+
+function startSpinLoop(name) {
+  const ctx = ensureCtx();
+  const buffer = _spinBuffers.get(name);
+  if (!ctx || !buffer) return null;
+  stopLoopSfx();
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  const gain = ctx.createGain();
+  gain.gain.value = _volume;
+  source.connect(gain);
+  gain.connect(ctx.destination);
+  source.start(0);
+  _loopSfx = { source, gain };
+  return { pause: stopLoopSfx };
+}
+
+export function playSpinSfx(name, opts = {}) {
+  if (opts.loop) {
+    if (!_sfxEnabled || document.hidden || _splashLocked || _bulkQuiet) return null;
+    const loop = startSpinLoop(name);
+    if (loop) return loop;
+    loadSpinBuffer(name);
+  }
+  return playShortSfx(spinUrl(name), opts);
+}
+
+export function playCasinoSfx(name) {
+  return playShortSfx(`./audio/casino/${encodeURIComponent(name)}.wav`);
 }
 
 // 停止胜利音效并恢复背景曲（图鉴对话框交互后调用）
@@ -620,7 +695,10 @@ export function setMusicEnabled(on) {
 export function isMusicEnabled() { return _musicEnabled; }
 
 // 音效开关（设置页声音分组）：只控制短促效果音（闪光登场、麻将/21点等），独立于音乐开关
-export function setSfxEnabled(on) { _sfxEnabled = on !== false; }
+export function setSfxEnabled(on) {
+  _sfxEnabled = on !== false;
+  if (!_sfxEnabled) stopLoopSfx();
+}
 
 // 战斗音乐开关（设置页切换）：关闭后 playBattle 直接忽略，战斗期间地区曲不受影响
 export function setBattleMusic(on) { _battleMusic = on !== false; }

@@ -165,6 +165,12 @@ function _pickNextRoad() {
 function goBack() {
   stopVictory(); // 任何返回离开当前视图：若胜利/抓捕音效还在播则立即停止（无播放时无副作用）
   if (closeShareCardIfOpen()) return; // 分享图预览开着：返回只关预览层，不穿透到底层页面
+  if (document.getElementById('gameRulesOverlay')) { document.getElementById('gameRulesOverlay').remove(); return; }
+  if (document.getElementById('tutorialSearchPanel') || document.getElementById('tutorialCtxMenu')) {
+    document.getElementById('tutorialSearchPanel')?.remove();
+    document.getElementById('tutorialCtxMenu')?.remove();
+    return;
+  }
   // 经验糖果使用场景浮层：返回 = 取消并关闭场景（按进入来源回详情页/主界面）
   if ($('expCandyView')?.style.display === 'flex') {
     import('./exp-candy.js').then(m => m.cancelExpCandyScene());
@@ -265,6 +271,8 @@ function goBack() {
   if ($('sweetView')?.style.display === 'flex') { import('./sweet-game.js').then(m => m.leaveSweetGame()); return; }
   // 符文寻踪：返回 = 本局作废（不给气球）并回活动页
   if ($('treasureView')?.style.display === 'flex') { import('./treasure-game.js').then(m => m.leaveTreasureGame()); return; }
+  // 老虎机：返回 = 回游戏厅（奖励在转动时已入账）
+  if ($('slotMachineView')?.style.display === 'flex') { import('./slot-machine.js').then(m => m.leaveSlotMachineGame()); return; }
   // 海豹滑冰：返回 = 本局作废（不给气球）并回活动页
   if ($('sealView')?.style.display === 'flex') { import('./seal-slide.js').then(m => m.leaveSealGame()); return; }
   const target = popNav();
@@ -337,7 +345,10 @@ const isModalLocked = () =>
   $('expCandyView')?.style.display === 'flex' ||
   (isBatchReleasing() && $('rosterView')?.style.display === 'flex');
 
+const slotWheelLocked = () => !!window.__SLOT_WHEEL_LOCK__;
+
 function onBagClick(itemKey) {
+  if (slotWheelLocked()) return;
   // 告别场景中锁定背包：禁止点击任何道具
   if (isGoodbyeActive()) return;
   if (phase === 'encounter') {
@@ -757,6 +768,7 @@ function setupShortcuts() {
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (window.__introActive) return;
+    if (slotWheelLocked()) return;
     const key = e.key.toLowerCase();
     // 全屏场景锁定：字母快捷键一律不响应防误触跳页；Esc 放行（走 goBack 逐级安全退出场景）
     // 战斗中同样禁用字母键（跳页会打断对局），Esc 保留用于撤退
@@ -1385,6 +1397,7 @@ async function init() {
     btn?.addEventListener('click', () => {
       // 全屏确认场景（告别/派遣结算）锁定：顶部导航全部禁用
       if (isModalLocked()) return;
+      if (slotWheelLocked()) return;
       // 战斗中锁定：仅允许进入设置（返回仍回战斗页），其余页面一律拦截；
       // 中途退出战斗只能通过战斗页的标题栏返回按钮撤退
       if (isBattleActive()) {
@@ -1410,6 +1423,7 @@ async function init() {
   // 跳转时同步 prevView，保证标题栏返回按钮也回到挂机/战斗页。
   const footerNav = (open) => () => {
     if (isModalLocked()) return; // 全屏确认场景锁定：底部三区禁止点击跳转
+    if (slotWheelLocked()) return;
     if (isBattleActive()) return; // 战斗中锁定：底部三区同样禁止点击跳转
     open(); // 打开目标页，返回目标由导航栈记录（从哪来回哪去）
   };
@@ -1420,6 +1434,7 @@ async function init() {
   // 标题栏返回逻辑：点击 appTitle 与鼠标后侧键（button 4）共用
   const handleAppTitleBack = () => {
     if ($('appTitle').dataset.action !== 'back') return;
+    if (slotWheelLocked()) return;
     // 经验糖果使用场景尚未结算时：返回 = 取消并关闭场景（结算后只能点「确定」退出，标题返回维持锁定）
     if ($('expCandyView')?.style.display === 'flex' && $('expCandyBox')?.style.display !== 'flex') {
       import('./exp-candy.js').then(m => m.cancelExpCandyScene());

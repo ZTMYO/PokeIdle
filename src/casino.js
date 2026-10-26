@@ -139,12 +139,26 @@ export function showCasinoView() {
   playCasino();
   _floor = 1; // 每次进游戏厅都从一层开始
   renderScene();
+  refreshSlotMachineGate();
   // 首次进游戏厅：依次指一下赌桌 / 麻将桌 / 抽卡机 / 兑换
   import('./guide.js').then((m) => m.maybeShowGuide('casino'));
 }
 
 // 游戏厅首页：仿训练/饲育屋整页场景布局 + 各楼层热区（data-tip 走游戏统一 tooltip，点击跳转对应玩法）
 let _floor = 1; // 当前楼层：1=营业厅 2=游戏机区
+let _cardStats = null; // 卡册收集进度：3 号机门禁用
+
+function refreshSlotMachineGate() {
+  import('./album.js').then(m => m.getCardCollectionStats()).then((stats) => {
+    _cardStats = stats;
+    if (_floor === 2 && $('casinoView')?.style.display === 'flex') renderScene();
+  }).catch(() => {});
+}
+
+window.addEventListener('album-updated', () => {
+  _cardStats = null;
+  if ($('casinoView')?.style.display === 'flex') refreshSlotMachineGate();
+});
 
 // 热区元素：cls 用于绑定点击（没有玩法的只给 cls 之外的空串），tip 走统一 tooltip
 function hotHtml(cls, tip, r) {
@@ -161,6 +175,10 @@ function renderScene() {
     ? SCENE_ARCADE.map((r, i) => {
         if (i === 0) return hotHtml('casino-hot-penguin', '跳企鹅', r);
         if (i === 1) return hotHtml('casino-hot-voltorb', '电球翻牌', r);
+        if (i === 2) {
+          const open = _cardStats && _cardStats.total > 0 && _cardStats.owned >= _cardStats.total;
+          return hotHtml('casino-hot-slot', open ? '老虎机' : '卡册集齐后开放', r);
+        }
         return hotHtml('', '敬请期待', r);
       }).join('')
       + hotHtml('casino-hot-down', '下楼', SCENE_STAIRS_DOWN)
@@ -186,6 +204,7 @@ function renderScene() {
   box.querySelector('.casino-hot-down')?.addEventListener('click', () => { _floor = 1; renderScene(); });
   box.querySelector('.casino-hot-penguin')?.addEventListener('click', () => import('./penguin.js').then((m) => m.showPenguinView()));
   box.querySelector('.casino-hot-voltorb')?.addEventListener('click', () => import('./voltorb.js').then((m) => m.showVoltorbView()));
+  box.querySelector('.casino-hot-slot')?.addEventListener('click', () => import('./slot-machine.js').then((m) => m.showSlotMachineView()));
   drawScene(box.querySelector('.casino-scene-canvas'), scene);
 }
 
@@ -339,7 +358,7 @@ function renderCasino() {
 
 // 下注区（21 点 / 口袋麻将共用）：点击式刻度条（自制，非原生 range）+ 开始对局 dock 贴底
 // holder: { bet, lastResult }——余额不足时自动回落到可承受档位并写回 holder.bet
-export function renderBetAreaCommon(balance, holder, startId, startText) {
+export function renderBetAreaCommon(balance, holder, startId, startText, opts = {}) {
   // 余额不足以维持当前档位时，自动落到可承受的最高档位
   const maxAffIdx = BETS.findIndex(b => b > balance);
   const sliderMax = maxAffIdx === -1 ? BETS.length - 1 : maxAffIdx - 1;
@@ -358,6 +377,7 @@ export function renderBetAreaCommon(balance, holder, startId, startText) {
       <div class="casino-bet-body">
         <div class="casino-bet-label-row">
           <div class="casino-bet-label">选择下注档位</div>
+          ${opts.rulesId ? `<button class="casino-history-btn casino-rules-btn" id="${opts.rulesId}">规则</button>` : ''}
           <button class="casino-history-btn" id="casinoHistoryBtn">战绩</button>
         </div>
         <div class="casino-bet-slider${disabled ? ' disabled' : ''}">

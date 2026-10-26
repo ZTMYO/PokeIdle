@@ -4,6 +4,7 @@
 import { $, showView, getCurrentView, tryLoadImage } from './ui.js';
 import { pushNav, popNav } from './state.js';
 import { playMahjongSfx } from './audio.js';
+import { fourDirGeom, fourDirSrc, fourDirAnim, fourDirDelay, DIR_ROW } from './four-dir.js';
 
 export const PF_LEVELS = [
   { id: 'easy', name: '简单', n: 4, coins: 40, mode: 'path', hints: 4 },
@@ -16,36 +17,14 @@ const COIN_ICON = './items/goods/balloon-yellow.png';
 const N = 1, E = 2, S = 4, W = 8;
 const OPP = { [N]: S, [E]: W, [S]: N, [W]: E };
 const EDGE = { [N]: [50, 0], [E]: [100, 50], [S]: [50, 100], [W]: [0, 50] };
-// 4dir 待机帧按方向导出的 GIF：电肚蛙/洛托姆都朝自己格子的导线方向
-const ART = {
-  source: {
-    w: 47, h: 45, oy: -5,   // 4dir 帧内容比画布中心低约 5px，抬高让肚子对准导线
-    dirs: {
-      down: './items/power-flow/bellibolt-down.gif',
-      right: './items/power-flow/bellibolt-right.gif',
-      up: './items/power-flow/bellibolt-up.gif',
-      left: './items/power-flow/bellibolt-left.gif',
-    },
-  },
-  targetOff: {
-    w: 38, h: 35,
-    dirs: {
-      down: './items/power-flow/rotom-off-down.gif',
-      right: './items/power-flow/rotom-off-right.gif',
-      up: './items/power-flow/rotom-off-up.gif',
-      left: './items/power-flow/rotom-off-left.gif',
-    },
-  },
-  targetOn: {
-    w: 38, h: 35,
-    dirs: {
-      down: './items/power-flow/rotom-on-down.gif',
-      right: './items/power-flow/rotom-on-right.gif',
-      up: './items/power-flow/rotom-on-up.gif',
-      left: './items/power-flow/rotom-on-left.gif',
-    },
+const ACTOR_ART = {
+  source: { geom: fourDirGeom(939), oy: -5 },
+  target: {
+    geom: fourDirGeom(479),
+    offSrc: './pokemon-data/pokemon-4dir/off/0479-洛托姆.png',
   },
 };
+let _actorTicker = null;
 
 let _g = null;
 
@@ -334,30 +313,60 @@ function dirKeyOf(cell) {
   return 'left';
 }
 
-function fitActor(el, art, dir) {
-  const src = art.dirs[dir] || art.dirs.down;
+function fitActor(el, key, dir) {
+  const art = ACTOR_ART[key];
+  if (!art?.geom) return;
+  const anim = fourDirAnim(art.geom, 'idle');
+  const on = el.closest('.pf-cell')?.classList.contains('win');
+  const src = (key === 'target' && !on) ? art.offSrc : fourDirSrc(art.geom, 'idle');
   if (el.dataset.src !== src) {
     el.dataset.src = src;
     tryLoadImage(el, src);
   }
   const icon = el.closest('.pf-icon');
   const box = Math.max(20, Math.min(icon?.clientWidth || 48, icon?.clientHeight || 48) * .98);
-  const k = Math.max(.1, box / Math.max(art.w, art.h));
-  el.style.width = `${art.w * k}px`;
-  el.style.height = `${art.h * k}px`;
-  el.style.transform = art.oy ? `translateY(${art.oy * k}px)` : '';
+  const k = Math.max(.1, box / Math.max(anim.w, anim.h));
+  const row = DIR_ROW[dir] ?? 0;
+  el.style.width = `${anim.w}px`;
+  el.style.height = `${anim.h}px`;
+  el.style.maxWidth = 'none';
+  el.style.maxHeight = 'none';
+  el.style.objectFit = 'none';
+  el.style.transformOrigin = 'center';
+  el.style.setProperty('--pf-k', k);
+  el.style.transform = `scale(${k})`;
+  el.style.position = 'relative';
+  el.style.top = `${(art.oy || 0) * k}px`;
+  el.style.objectPosition = `0px -${row * anim.h}px`;
+  el.__pf = { row, frame: 0, next: 0 };
+}
+
+function startActorTicker() {
+  if (_actorTicker) return;
+  _actorTicker = setInterval(() => {
+    if (!_g) return;
+    const board = $('pfBoard');
+    if (!board) return;
+    const now = performance.now();
+    board.querySelectorAll('.pf-actor').forEach((el) => {
+      const art = ACTOR_ART[el.dataset.actor];
+      const state = el.__pf;
+      if (!art?.geom || !state || now < state.next) return;
+      const anim = fourDirAnim(art.geom, 'idle');
+      el.style.objectPosition = `-${state.frame * anim.w}px -${state.row * anim.h}px`;
+      state.next = now + fourDirDelay(anim, state.frame);
+      state.frame = (state.frame + 1) % anim.n;
+    });
+  }, 60);
 }
 
 function mountActors() {
   const sourceEl = $('pfBoard')?.querySelector('[data-actor="source"]');
   const targetEl = $('pfBoard')?.querySelector('[data-actor="target"]');
   if (!sourceEl || !targetEl) return;
-  const sourceDir = dirKeyOf(_g.cells[_g.source]);
-  const targetDir = dirKeyOf(_g.cells[_g.target]);
-  const targetArt = targetEl.closest('.pf-cell')?.classList.contains('win')
-    ? ART.targetOn : ART.targetOff;
-  fitActor(sourceEl, ART.source, sourceDir);
-  fitActor(targetEl, targetArt, targetDir);
+  fitActor(sourceEl, 'source', dirKeyOf(_g.cells[_g.source]));
+  fitActor(targetEl, 'target', dirKeyOf(_g.cells[_g.target]));
+  startActorTicker();
 }
 
 function layoutBoard() {
@@ -429,9 +438,11 @@ function finishGame() {
   const finished = _g;
   _g.fxTimer = setTimeout(() => {
     if (_g !== finished) return;
-    const targetActor = targetEl?.querySelector('.pf-actor');
-    if (targetActor) fitActor(targetActor, ART.targetOn, dirKeyOf(_g.cells[_g.target]));
-    if (targetEl) targetEl.classList.add('win');
+    if (targetEl) {
+      targetEl.classList.add('win');
+      const targetActor = targetEl.querySelector('.pf-actor');
+      if (targetActor) fitActor(targetActor, 'target', dirKeyOf(_g.cells[_g.target]));
+    }
     _g.fxTimer = setTimeout(() => { if (_g === finished) showResult(); }, 800);
   }, maxDist * 55 + 520);
 }
@@ -488,6 +499,7 @@ export function startPowerFlowGame(opts = {}) {
 
 export function leavePowerFlowGame() {
   if (!_g) return;
+  if (_actorTicker) { clearInterval(_actorTicker); _actorTicker = null; }
   if (_g.fxTimer) clearTimeout(_g.fxTimer);
   _g.done = true;
   _g = null;

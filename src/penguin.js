@@ -4,7 +4,8 @@
 import { PENGUIN_STEPS, PENGUIN_BREAK_CHANCE, PENGUIN_MULT } from './config.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, formatNum, addSystemLog } from './state.js';
 import { $, showView, updateStats, tryLoadImage } from './ui.js';
-import { playMahjongSfx } from './audio.js';
+import { playMahjongSfx, playCasinoSfx } from './audio.js';
+import { showRulesPanel } from './rules-panel.js';
 import { BETS, renderBetAreaCommon, showCasinoHistoryView } from './casino.js';
 
 // ---------- 对局状态 ----------
@@ -70,7 +71,7 @@ function renderBetPage() {
   const balance = coinOf();
   const holder = { bet: _bet, lastResult: _lastResult };
   const startText = balance <= 0 ? '请在柜台兑换游戏币再来' : '开始跳';
-  const html = renderBetAreaCommon(balance, holder, 'pgStart', startText);
+  const html = renderBetAreaCommon(balance, holder, 'pgStart', startText, { rulesId: 'pgRules' });
   _bet = holder.bet; // 同步自动回落的档位
   return html;
 }
@@ -170,6 +171,14 @@ function bind(box) {
   box.querySelector('#pgCash')?.addEventListener('click', onCash);
   box.querySelector('#pgAgain')?.addEventListener('click', nextRound);
   box.querySelector('#casinoHistoryBtn')?.addEventListener('click', () => showCasinoHistoryView('pg'));
+  box.querySelector('#pgRules')?.addEventListener('click', showPenguinRules);
+}
+
+function showPenguinRules() {
+  showRulesPanel('casinoPenguinContent', '跳企鹅规则', `
+    <div class="game-rule-row"><b>下注</b><span>选择档位后开始；每跳（含第一跳）有 ${Math.round(PENGUIN_BREAK_CHANCE * 100)}% 概率踩碎浮冰，掉水本局归零。</span></div>
+    <div class="game-rule-row"><b>前进</b><span>每站住一次，提现倍率 ×${PENGUIN_MULT}；随时可提现，走满 ${PENGUIN_STEPS} 跳自动结算。</span></div>
+    <div class="game-rule-row"><b>提现</b><span>按当前倍率结算游戏币，掉水不退注额。</span></div>`);
 }
 
 // ---------- 玩法 ----------
@@ -252,6 +261,7 @@ function onCash() {
 // ---------- 结算 ----------
 function settleRound(kind, keepStage) {
   if (_phase === 'settle') return;
+  if (kind === 'cash') playCasinoSfx('cash');
   let profit = 0;
   let text = '';
   let action = 'lose';

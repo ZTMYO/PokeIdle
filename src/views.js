@@ -621,6 +621,11 @@ export function renderSystemLogs() {
         desc = `电球翻牌：${t} ${p > 0 ? '+' + p : p} 游戏币`;
         break;
       }
+      case 'slot-machine': {
+        const rs = (log.details.rewards || []).map(r => `${r.name} ×${r.qty}`).join('、');
+        desc = `老虎机：消耗 ${log.details.cost} 游戏币${rs ? `，获得 ${rs}` : '，未中奖'}`;
+        break;
+      }
       default:
         desc = `未知事件 (${log.type})`;
     }
@@ -2100,6 +2105,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>挂机时主角会拾取到道具，稀有度从低到高如下：</p>` + tutorialTable(ITEM_DROP_ROWS, ['道具', '概率（秒/个）'], [52, 'auto'])
       + `<p>拾取<b>糖果</b>时还有概率一次获得更多：×2、×5、×50 甚至一次 <b>×100</b> 颗。</p>`
       + `<p><b>球</b>（精灵球 / 高级球 / 大师球）与<b>增益</b>（甜甜蜜 / 闪耀护符）：挂机拾取、商店兑换、NPC 对战掉落。</p>`
+      + `<p><b>老虎机</b>也能转出树果、糖果、游戏币、球、进化石和补给箱道具（详见「<b>老虎机</b>」章节）。</p>`
       + `<p><b>神秘蛋</b>挂机也能捡到；<b>自行车</b>离开自行车道时获得；两者都能在商店兑换。</p>`
       + `<p><b>糖果</b>是货币，<b>经验糖果</b>累计放生一定宝可梦或对战获胜后获得，给宝可梦加经验，<b>招式机</b>在商店兑换，永久解锁招式，<b>树果</b>来自农场——详见对应章节。</p>`
       + `<p><b>进化道具</b>、<b>薄荷</b>与<b>王冠</b>不能在路上拾取，只有这几条渠道：</p>`
@@ -2109,6 +2115,7 @@ const TUTORIAL_SECTIONS = [
         ['派遣', '时长越长给的概率越高'],
         ['钓鱼', '钓到道具时有概率给 1 件'],
         ['对战', '战胜NPC后有概率掉落'],
+        ['老虎机', '有概率获得进化石和王冠'],
       ], ['渠道', '给什么'], [32, 'auto'])
       + `<p><b>经验糖果</b>、<b>薄荷</b>、<b>王冠</b>都是对单只宝可梦使用，入口在<b>手机→宝可梦</b>点开某只的详情页，点对应字段打开面板；<b>经验糖果</b>与<b>王冠</b>可在背包第二页使用：</p>`
       + tutorialTable([
@@ -2152,7 +2159,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '糖果',
-    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托、完成悬赏、对战、成就、派遣、出售道具等获得，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子、解锁<b>派遣</b>格子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
+    html: `<p><b>糖果</b>是本游戏的唯一货币，通过挂机掉落、钓鱼、完成委托、完成悬赏、对战、成就、派遣、出售道具、老虎机等获得，用于解锁<b>孵蛋器</b>槽位、<b>农场</b>购买种子、解锁<b>派遣</b>格子，也可在<b>商店</b>兑换道具（详见「<b>商店</b>」章节）。</p>`
       + `<p>注意区分道具<b>经验糖果</b>：它不是货币，而是给宝可梦直接加经验的消耗品，主要从 NPC 对战掉落、悬赏中档发放与放生返还的经验池产出（详见「<b>经验糖果</b>」章节）。</p>`
   },
   {
@@ -2383,7 +2390,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '树果',
     html: `<p><b>树果</b>是<b>农场</b>收获的作物，也是<b>树果混合器</b>的唯一原料，更是宝可梦爱吃的食物。</p>`
-      + `<p>获取：种下种子、浇水养护，成熟后收获（详见「<b>农场</b>」章节）。</p>`
+      + `<p>获取：种下种子、浇水养护，成熟后收获（详见「<b>农场</b>」章节）；也可从老虎机转盘获得（详见「<b>老虎机</b>」章节）。</p>`
       + `<p>用途：作为配方制成<b>树果方块</b>（详见「<b>树果方块</b>」章节），喂食训练中的宝可梦（详见「<b>训练</b>」章节），在树果委托出售换糖果（详见「<b>农场</b>」章节），作为宝可梦繁殖的消耗品（详见「<b>培育</b>」章节）。</p>`,
   },
   {
@@ -2417,7 +2424,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '游戏厅',
     html: `<p>在<b>手机</b>桌面打开<b>游戏厅</b>应用。点击前台区域可以用<b>糖果</b>兑换<b>游戏币</b>（<b>${COIN_RATE} 糖果 = 1 游戏币</b>），柜台处选择兑换档位即可。</p>`
-      + `<p>一层是赌桌区，从左上角的<b>楼梯</b>上二层是游戏机区。游戏厅目前提供：<b>21点</b>、<b>跳企鹅</b>与<b>电球翻牌</b>（详见「<b>小游戏</b>」章节）、<b>口袋麻将</b>（详见「<b>口袋麻将</b>」章节），<b>抽卡机</b>（详见「<b>抽卡机</b>」章节）。</p>`,
+      + `<p>一层是赌桌区，从左上角的<b>楼梯</b>上二层是游戏机区。游戏厅目前提供：<b>21点</b>、<b>跳企鹅</b>、<b>电球翻牌</b>（详见「<b>小游戏</b>」章节）、<b>老虎机</b>（详见「<b>老虎机</b>」章节）、<b>口袋麻将</b>（详见「<b>口袋麻将</b>」章节），<b>抽卡机</b>（详见「<b>抽卡机</b>」章节）。</p>`,
   },
   {
     title: '小游戏',
@@ -2430,8 +2437,6 @@ const TUTORIAL_SECTIONS = [
       + `<p><b>电球翻牌</b>：在游戏厅二楼<b>第二台</b>游戏机。5×5 牌阵，每行每列都写着「数值合计」和「雷电球数量」。翻开 ×2 / ×3 会连乘连锁，翻到雷电球本局归零；随时可以收手，按连锁档位拿游戏币。</p>`
       + `<p>每局重新下注、重新发牌；连锁最高 <b>3 倍</b>封顶。还有 ×2 / ×3 没挖出来就提前收手，会按剩余高价值比例打折（最多扣 <b>30%</b>）；全部挖完自动结算，不打折。</p>`
       + `<p><b>标记</b>：右键格子，选择 1 / 2 / 3 / 雷电球做笔记；不消耗翻牌次数，也不会翻牌。</p>`
-      + `<p><b>电力输送</b>：在限时活动里进入。点击导线顺时针旋转，把电肚蛙的电送到没电的洛托姆；两只连通即通关，不用接通所有格子。</p>`
-      + `<p><b>海豹滑冰</b>：在限时活动里进入。点宝可梦，再点同一行/列的格子滑行；让海豹球停在所有精灵球上即可，步数用完即停；看过答案后本关不计奖励。</p>`,
   },
   {
     title: '口袋麻将',
@@ -2458,6 +2463,22 @@ const TUTORIAL_SECTIONS = [
         ['SR（超稀有）', '8%'],
       ], ['品级', '概率'], ['auto', 'auto'])
       + `<p>已收集的卡片可在<b>卡册</b>应用中查看，点击缩略图可放大预览。</p>`,
+  },
+  {
+    title: '老虎机',
+    html: `<p>在游戏厅二楼<b>第三台</b>游戏机进入，卡册集齐 <b>60/60</b> 后开放；每转消耗 <b>10</b> 游戏币。</p>`
+      + `<p>三个转轮可以点转轮或点底部「停止」手动停下，不操作也会自动停。2 个相同抽 <b>1</b> 次转盘，3 个相同抽 <b>3</b> 次，其余不中奖。</p>`
+      + `<p>概率固定，无保底、无动态调整：2 同 <b>51.55%</b>、3 同 <b>6.88%</b>，任意中奖 <b>58.42%</b>。单轮图案权重：</p>`
+      + tutorialTable([
+        ['树果', '34%'],
+        ['糖果', '28%'],
+        ['精灵球', '19%'],
+        ['高级球', '8%'],
+        ['游戏币', '4%'],
+        ['补给箱', '4%'],
+        ['进化石', '3%'],
+      ], ['图案', '单轮权重'], ['auto', 'auto'])
+      + `<p>中奖后从对应奖池的 <b>8</b> 个随机格子中停 <b>1</b> 格，每格 <b>1/8</b>。补给箱按权重开经验糖果、甜甜蜜、神秘蛋、球、进化石、王冠、大师球、闪耀护符等。</p>`,
   },
   {
     title: '随从',
@@ -2555,6 +2576,7 @@ const TUTORIAL_SUMMARIES = {
   '小游戏': '富贵险中求。',
   '口袋麻将': '玩法借鉴自原子碰将，只有对对胡。',
   '抽卡机': '单纯收集卡牌，无特殊作用。',
+  '老虎机': '卡册集齐后开放。',
   '随从': '不知道干什么的时候可以抽一只随从。',
   '派遣': '离线也计入派遣时长。',
   '自动操作': '好好设置一下，解放双手必备。',
@@ -2591,6 +2613,189 @@ function claimTutorialReward(idx) {
   updateStats();
   window.dispatchEvent(new Event('tutorial-rewards-changed')); // 通知手机红点即时刷新
   return true;
+}
+
+
+let _tutorialClickGuard = null;
+let _tutorialSuppressUntil = 0;
+
+function escapeTutorialText(text) {
+  return String(text).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+}
+
+function highlightTutorialKeyword(root, keyword) {
+  if (!root || !keyword) return;
+  const kw = keyword.toLowerCase();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    const low = text.toLowerCase();
+    if (!low.includes(kw)) continue;
+    const frag = document.createDocumentFragment();
+    let start = 0;
+    while (true) {
+      const i = low.indexOf(kw, start);
+      if (i < 0) { frag.appendChild(document.createTextNode(text.slice(start))); break; }
+      frag.appendChild(document.createTextNode(text.slice(start, i)));
+      const mark = document.createElement('mark');
+      mark.textContent = text.slice(i, i + kw.length);
+      frag.appendChild(mark);
+      start = i + kw.length;
+    }
+    node.replaceWith(frag);
+  }
+}
+
+function setupTutorialSearch(render) {
+  const view = $('tutorialView');
+  if (!view) return;
+  view.querySelector('#tutorialSearchPanel')?.remove();
+  view.querySelector('#tutorialCtxMenu')?.remove();
+  if (_tutorialClickGuard) view.removeEventListener('click', _tutorialClickGuard, true);
+  _tutorialClickGuard = (e) => {
+    if (Date.now() < _tutorialSuppressUntil) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+  view.addEventListener('click', _tutorialClickGuard, true);
+
+  const index = TUTORIAL_SECTIONS.map((sec, idx) => {
+    if (!tutorialSectionVisible(idx)) return null;
+    const div = document.createElement('div');
+    div.innerHTML = touchText(sec.html);
+    const text = div.textContent.replace(/\s+/g, ' ').trim();
+    return { idx, title: sec.title, sentences: [sec.title, ...text.split(/[。！？；\n]/).map(x => x.trim()).filter(Boolean)] };
+  }).filter(Boolean);
+
+  const closeCtx = () => view.querySelector('#tutorialCtxMenu')?.remove();
+  const closeSearch = () => view.querySelector('#tutorialSearchPanel')?.remove();
+
+  const openSearch = () => {
+    closeCtx();
+    closeSearch();
+    const panel = document.createElement('div');
+    panel.className = 'tutorial-search-panel';
+    panel.id = 'tutorialSearchPanel';
+    panel.innerHTML = `
+      <div class="tutorial-search-row">
+        <input class="tutorial-search-input" id="tutorialSearchInput" placeholder="搜索教程" autocomplete="off">
+        <button class="tutorial-search-close" id="tutorialSearchClose">✕</button>
+      </div>
+      <div class="tutorial-search-drop" id="tutorialSearchDrop" hidden></div>`;
+    view.appendChild(panel);
+    const input = panel.querySelector('#tutorialSearchInput');
+    const drop = panel.querySelector('#tutorialSearchDrop');
+    let deb = null;
+    const runSearch = () => {
+      const q = input.value.trim();
+      const kw = q.toLowerCase();
+      if (!kw) { drop.hidden = true; drop.innerHTML = ''; return; }
+      const results = [];
+      const seen = new Set();
+      for (const sec of index) {
+        for (const sent of sec.sentences) {
+          if (!sent.toLowerCase().includes(kw)) continue;
+          const key = `${sec.idx}|${sent}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          results.push({ idx: sec.idx, title: sec.title, sent });
+        }
+      }
+      if (!results.length) {
+        drop.innerHTML = `<div class="tutorial-search-empty">没有找到包含「${escapeTutorialText(q)}」的内容</div>`;
+      } else {
+        drop.innerHTML = results.slice(0, 20).map(r => {
+          const i = r.sent.toLowerCase().indexOf(kw);
+          const s = Math.max(0, i - 8);
+          const e = Math.min(r.sent.length, i + kw.length + 14);
+          const frag = `${s > 0 ? '…' : ''}${escapeTutorialText(r.sent.slice(s, i))}<mark>${escapeTutorialText(r.sent.slice(i, i + kw.length))}</mark>${escapeTutorialText(r.sent.slice(i + kw.length, e))}${e < r.sent.length ? '…' : ''}`;
+          return `<div class="tutorial-search-item" data-idx="${r.idx}"><span class="tutorial-search-title">${escapeTutorialText(r.title)}</span><span class="tutorial-search-text">${frag}</span></div>`;
+        }).join('');
+      }
+      drop.hidden = false;
+    };
+    input.addEventListener('input', () => {
+      clearTimeout(deb);
+      deb = setTimeout(runSearch, 120);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeSearch();
+        return;
+      }
+      if (e.key === 'Enter') {
+        drop.querySelector('.tutorial-search-item')?.click();
+      }
+    });
+    panel.querySelector('#tutorialSearchClose').addEventListener('click', closeSearch);
+    drop.addEventListener('mousedown', e => e.preventDefault());
+    drop.addEventListener('click', (e) => {
+      const item = e.target.closest('.tutorial-search-item');
+      if (!item) return;
+      const kw = input.value.trim();
+      render(Number(item.dataset.idx));
+      highlightTutorialKeyword($('tutorialContent'), kw);
+      closeSearch();
+    });
+    setTimeout(() => input.focus(), 0);
+  };
+
+  const showCtx = (x, y) => {
+    closeCtx();
+    closeSearch();
+    const menu = document.createElement('div');
+    menu.className = 'tutorial-ctx-menu';
+    menu.id = 'tutorialCtxMenu';
+    menu.innerHTML = '<div class="tutorial-ctx-item" id="tutorialCtxSearch">搜索</div>';
+    view.appendChild(menu);
+    const rect = view.getBoundingClientRect();
+    menu.style.left = `${Math.max(2, Math.min(rect.width - 64, x - rect.left))}px`;
+    menu.style.top = `${Math.max(2, Math.min(rect.height - 30, y - rect.top))}px`;
+    menu.querySelector('#tutorialCtxSearch').addEventListener('click', openSearch);
+  };
+
+  let pressTimer = null;
+  let pressX = 0;
+  let pressY = 0;
+  const clearPress = () => { clearTimeout(pressTimer); pressTimer = null; };
+
+  view.oncontextmenu = (e) => {
+    if (e.target.closest('#tutorialSearchPanel, #tutorialCtxMenu')) return;
+    e.preventDefault();
+    showCtx(e.clientX, e.clientY);
+  };
+  view.onpointerdown = (e) => {
+    if (e.target.closest('#tutorialSearchPanel, #tutorialCtxMenu')) return;
+    closeCtx();
+    closeSearch();
+    if (e.pointerType === 'mouse') return;
+    pressX = e.clientX;
+    pressY = e.clientY;
+    clearPress();
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      _tutorialSuppressUntil = Date.now() + 500;
+      showCtx(pressX, pressY);
+    }, 550);
+  };
+  view.onpointermove = (e) => {
+    if (pressTimer && (Math.abs(e.clientX - pressX) > 8 || Math.abs(e.clientY - pressY) > 8)) clearPress();
+  };
+  view.onpointerup = clearPress;
+  view.onpointercancel = clearPress;
+  view.onkeydown = (e) => {
+    if (e.key !== 'Escape') return;
+    if (!view.querySelector('#tutorialSearchPanel, #tutorialCtxMenu')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeSearch();
+    closeCtx();
+  };
 }
 
 export function showTutorialView() {
@@ -2633,6 +2838,7 @@ export function showTutorialView() {
     e.preventDefault();
     list.scrollTop += e.deltaY * 0.35;
   };
+  setupTutorialSearch(render);
   render(0);
   showView('tutorialView');
 }
