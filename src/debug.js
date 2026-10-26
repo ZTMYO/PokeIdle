@@ -7,7 +7,7 @@
 //   __addEgg(25)                      添加宝可梦蛋（6V）
 //   __addPoke(25) / __addShinyPoke(25) 写入 6V / 闪光精灵
 //   __addPokeLv(25, 50)               写入指定等级
-//   __completeCards()                 直接集齐卡册（60/60）
+//   __completeCards()                 直接集齐卡册
 //   __unlockAllPokedex(true)          解锁全图鉴（含闪光）
 //   __nextEncounter(25, true)         指定下次遇敌（用后即焚）
 //   __refreshAll()                    一键刷新：对战/交换/大量出没/时空扭曲/悬赏/商店每日限量货

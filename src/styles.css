@@ -13517,6 +13517,7 @@ html.power-save .screen *:not(.walk-gif)::after {
   color: var(--ui-color);
 }
 .slot-top {
+  position: relative;
   min-height: 18px;
   display: flex;
   align-items: center;
@@ -13524,6 +13525,20 @@ html.power-save .screen *:not(.walk-gif)::after {
   gap: 4px;
   font-size: 9px;
   font-weight: 700;
+}
+.slot-headline {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - 76px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 12px;
+  pointer-events: none;
 }
 .casino-rules-btn { left: 8px; right: auto; }
 .slot-rules {
@@ -13598,27 +13613,49 @@ html.power-save .screen *:not(.walk-gif)::after {
   opacity: .72;
 }
 .slot-cost img { width: 12px; height: 12px; image-rendering: pixelated; }
-.slot-result {
-  min-height: 30px;
+.slot-betbar {
+  flex: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   gap: 1px;
-  text-align: center;
+  padding: 1px 0;
 }
-.slot-result-title { font-size: 10px; font-weight: 800; }
-.slot-result-items {
+.slot-bet-opts {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px 6px;
-  min-height: 11px;
-  font-size: 8px;
-  font-weight: 700;
+  gap: 3px;
+  width: 100%;
 }
-.slot-rw { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
-.slot-rw img { width: 12px; height: 12px; object-fit: contain; image-rendering: pixelated; }
+.slot-bet-opt {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0 1px;
+  border: 1px solid rgba(var(--ui-color-rgb), .3);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ui-color);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.slot-bet-opt.sel {
+  border-color: var(--ui-color);
+  background: var(--ui-color);
+  color: var(--screen-bg-light);
+}
+.slot-bet-opt:disabled { opacity: .3; cursor: default; }
+.slot-bet-opt.sel:disabled { opacity: .8; }
+.slot-bet-mult {
+  align-self: center;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 10px;
+  opacity: .72;
+  white-space: nowrap;
+}
 .slot-app .bottom-dock { margin: auto -3px 0; }
 
 .slot-wheel-overlay {
@@ -13641,7 +13678,7 @@ html.power-save .screen *:not(.walk-gif)::after {
   position: absolute;
   left: 4px;
   bottom: 34px;
-  width: 66px;
+  width: 48px;
   height: 0;
   pointer-events: none;
 }
@@ -13649,11 +13686,12 @@ html.power-save .screen *:not(.walk-gif)::after {
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 66px;
+  width: 48px;
   height: 18px;
   display: flex;
   align-items: center;
-  gap: 2px;
+  justify-content: flex-start;
+  gap: 3px;
   padding: 0 3px;
   border: 1px solid rgba(255, 255, 255, .2);
   border-radius: 3px;
@@ -13675,6 +13713,8 @@ html.power-save .screen *:not(.walk-gif)::after {
   will-change: transform;
 }
 .slot-wheel-rotor svg { width: 100%; height: 100%; display: block; }
+.slot-wheel-rotor path { transition: filter .18s ease; }
+.slot-wheel-rotor path.slot-wheel-hit { filter: brightness(.78); }
 .slot-wheel-rotor image { image-rendering: pixelated; }
 .slot-wheel-pointer {
   position: absolute;
@@ -13735,18 +13775,6 @@ html.power-save .screen *:not(.walk-gif)::after {
   justify-content: center;
   flex: none;
 }
-.slot-wheel-btn {
-  padding: 3px 14px;
-  border: 1px solid #f3ead2;
-  border-radius: 999px;
-  background: transparent;
-  color: #f3ead2;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.slot-wheel-btn:disabled { opacity: .45; cursor: default; }
 .slot-rules:disabled { opacity: .45; cursor: default; }
 .game-rules-overlay {
   position: absolute;
