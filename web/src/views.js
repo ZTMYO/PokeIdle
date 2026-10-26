@@ -623,7 +623,7 @@ export function renderSystemLogs() {
       }
       case 'slot-machine': {
         const rs = (log.details.rewards || []).map(r => `${r.name} ×${r.qty}`).join('、');
-        desc = `老虎机：消耗 ${log.details.cost} 游戏币${rs ? `，获得 ${rs}` : '，未中奖'}`;
+        desc = `老虎机：${rs ? `获得 ${rs}` : '未中奖'}`;
         break;
       }
       default:
@@ -2141,7 +2141,7 @@ const TUTORIAL_SECTIONS = [
         ['大师球', `<b>${CATCH_RATES['master-ball'] * 100}</b>%`],
       ], ['球种', '捕获率'], [48, 'auto'])
       + `<p>捕获率 = 球种基础率 × 宝可梦捕获率 × 丢球加成。高级球还额外附加 <b>${(ULTRA_BALL_ADD * 100)}%</b> 绝对捕获率，对捕获率低的<b>稀有/神兽</b>增幅更明显，抓神兽建议用高级球。</p>`
-      + `<p>每一次捕捉失败后宝可梦都有几率<b>挣脱逃跑</b>（首球 <b>${FLEE_CHANCE * 100}</b>%，每多丢一球 <b>+${FLEE_CHANCE_INC * 100}</b>%，上限 <b>${FLEE_CHANCE_MAX * 100}</b>%）。</p>`
+      + `<p>每一次捕捉失败后宝可梦都有概率<b>挣脱逃跑</b>（首球 <b>${FLEE_CHANCE * 100}</b>%，每多丢一球 <b>+${FLEE_CHANCE_INC * 100}</b>%，上限 <b>${FLEE_CHANCE_MAX * 100}</b>%）。</p>`
       + `<p>当逃跑率达到上限后，每多丢一球捕获率 <b>+${Math.round(CATCH_BONUS_INC * 100)}</b>%，无上限。</p>`
       + `<p>也可主动点击"逃跑"按钮逃离宝可梦。</p>`,
   },
@@ -2466,16 +2466,16 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '老虎机',
-    html: `<p>在游戏厅二楼<b>第三台</b>游戏机进入，卡册集齐 <b>60/60</b> 后开放；每转消耗 <b>10</b> 游戏币。</p>`
+    html: `<p>在游戏厅二楼<b>第三台</b>游戏机进入，卡册集齐后开放；每转消耗 <b>10</b> 游戏币。</p>`
       + `<p>三个转轮可以点转轮或点底部「停止」手动停下，不操作也会自动停。2 个相同抽 <b>1</b> 次转盘，3 个相同抽 <b>3</b> 次，其余不中奖。</p>`
-      + `<p>概率固定，无保底、无动态调整：2 同 <b>51.55%</b>、3 同 <b>6.88%</b>，任意中奖 <b>58.42%</b>。单轮图案权重：</p>`
+      + `<p>概率固定，无保底、无动态调整：2 同 <b>51.34%</b>、3 同 <b>7.63%</b>，任意中奖 <b>58.97%</b>。单轮图案权重：</p>`
       + tutorialTable([
-        ['树果', '34%'],
-        ['糖果', '28%'],
-        ['精灵球', '19%'],
-        ['高级球', '8%'],
-        ['游戏币', '4%'],
-        ['补给箱', '4%'],
+        ['糖果', '36%'],
+        ['精灵球', '30%'],
+        ['树果', '12%'],
+        ['游戏币', '8%'],
+        ['高级球', '6%'],
+        ['补给箱', '5%'],
         ['进化石', '3%'],
       ], ['图案', '单轮权重'], ['auto', 'auto'])
       + `<p>中奖后从对应奖池的 <b>8</b> 个随机格子中停 <b>1</b> 格，每格 <b>1/8</b>。补给箱按权重开经验糖果、甜甜蜜、神秘蛋、球、进化石、王冠、大师球、闪耀护符等。</p>`,
@@ -2670,7 +2670,12 @@ function setupTutorialSearch(render) {
     return { idx, title: sec.title, sentences: [sec.title, ...text.split(/[。！？；\n]/).map(x => x.trim()).filter(Boolean)] };
   }).filter(Boolean);
 
-  const closeCtx = () => view.querySelector('#tutorialCtxMenu')?.remove();
+  const closeCtx = () => {
+    const menu = document.getElementById('tutorialCtxMenu');
+    if (!menu) return;
+    if (menu.__outside) document.removeEventListener('pointerdown', menu.__outside, true);
+    menu.remove();
+  };
   const closeSearch = () => view.querySelector('#tutorialSearchPanel')?.remove();
 
   const openSearch = () => {
@@ -2745,17 +2750,27 @@ function setupTutorialSearch(render) {
     setTimeout(() => input.focus(), 0);
   };
 
-  const showCtx = (x, y) => {
+  const showCtx = (x, y, above = false) => {
     closeCtx();
     closeSearch();
     const menu = document.createElement('div');
     menu.className = 'tutorial-ctx-menu';
     menu.id = 'tutorialCtxMenu';
     menu.innerHTML = '<div class="tutorial-ctx-item" id="tutorialCtxSearch">搜索</div>';
-    view.appendChild(menu);
-    const rect = view.getBoundingClientRect();
-    menu.style.left = `${Math.max(2, Math.min(rect.width - 64, x - rect.left))}px`;
-    menu.style.top = `${Math.max(2, Math.min(rect.height - 30, y - rect.top))}px`;
+    document.body.appendChild(menu);
+    const rect = menu.getBoundingClientRect();
+    let left = above ? x - rect.width / 2 : x + 4;
+    let top = above ? y - rect.height - 10 : y + 4;
+    if (top < 4) top = y + 14;
+    left = Math.max(4, Math.min(window.innerWidth - rect.width - 4, left));
+    top = Math.max(4, Math.min(window.innerHeight - rect.height - 4, top));
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    const outside = (e) => {
+      if (!menu.contains(e.target)) closeCtx();
+    };
+    menu.__outside = outside;
+    document.addEventListener('pointerdown', outside, true);
     menu.querySelector('#tutorialCtxSearch').addEventListener('click', openSearch);
   };
 
@@ -2780,7 +2795,7 @@ function setupTutorialSearch(render) {
     pressTimer = setTimeout(() => {
       pressTimer = null;
       _tutorialSuppressUntil = Date.now() + 500;
-      showCtx(pressX, pressY);
+      showCtx(pressX, pressY, true);
     }, 550);
   };
   view.onpointermove = (e) => {
@@ -2841,6 +2856,7 @@ export function showTutorialView() {
   setupTutorialSearch(render);
   render(0);
   showView('tutorialView');
+  import('./guide.js').then((m) => m.maybeShowGuide('tutorial'));
 }
 
 // ===== 版权声明 =====

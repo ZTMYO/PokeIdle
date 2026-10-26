@@ -339,6 +339,7 @@ export function getDefaultSave() {
     detailGuideSeen: false, // 详情页道具引导（等级/性格/个体值 三步）是否已看过
     nurseryGuideSeen: false, // 饲育屋引导（纸箱/告示牌）是否已看过
     casinoGuideSeen: false,  // 游戏厅引导（赌桌/麻将桌/抽卡机/兑换）是否已看过
+    tutorialGuideSeen: false, // 教程搜索引导是否已看过
     trainGuideSeen: false,   // 训练场引导（纸箱/告示牌）是否已看过
     farmGuideSeen: false,    // 农场引导（纸箱/告示牌/地块）是否已看过
     // 手机桌面布局：数组元素是 { app: 'gps' } 或 { folder: ['berry','mixer'] }，顺序即桌面顺序

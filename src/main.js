@@ -1202,16 +1202,6 @@ async function init() {
     // 恢复树果混合 QTE 进行中状态：重连后直接接着进度玩（不给重置机会）
     if (sessionState.qteState) setQteState(sessionState.qteState);
 
-    // 恢复手动骑行：主存档持久化（上车即存 + 每 30s 自动存档，任何关闭方式都能恢复），
-    // 会话（beforeunload 写入）作兜底；只有离档超过一天（BIKE_RESTORE_MAX_GAP_MS）才不恢复
-    if ((sessionState?.manualBike || gameData.manualBike) && Date.now() - (gameData.stats.lastSaveTime || 0) < BIKE_RESTORE_MAX_GAP_MS) {
-      _silentBikeRestore = true; // 恢复骑行非真实操作，不写"开始骑自行车"日志
-      road.setManualBike(true);
-    } else {
-      // 没恢复骑行（离档超时）：骑行目的地一并收掉，别留僵尸路线（补算还没跑，正好赶在它前面）
-      dropRideRoute();
-    }
-
     // 恢复生效中的增益：会话记录最新，其次主存档的耐久记录
     const buffKeepPaused = willEncounter || !!gameData.wildEncounter;
     restoreHoneyRecord(sessionState?.honeyBuffActive
@@ -1220,9 +1210,6 @@ async function init() {
     restoreCharmRecord(sessionState?.charmBuffActive
       ? { left: sessionState.charmRemaining || 0, paused: sessionState.charmPausedRemaining || 0, count: sessionState._charmEncounterCount || 0 }
       : gameData.buffs?.charm, buffKeepPaused);
-
-    // 恢复角色动画（走/跑取决于 buff 状态）
-    setIdleCharacter('walk');
 
     // 恢复战斗状态
     if (sessionState.phase === 'encounter' && sessionState.encounter) {
@@ -1247,6 +1234,16 @@ async function init() {
       }
     }
   }
+
+  // 手动骑行必须从主存档恢复：大退没有 session 快照时也要生效
+  if ((sessionState?.manualBike || gameData.manualBike) && Date.now() - (gameData.stats.lastSaveTime || 0) < BIKE_RESTORE_MAX_GAP_MS) {
+    _silentBikeRestore = true;
+    road.setManualBike(true);
+  } else {
+    dropRideRoute();
+  }
+  setIdleCharacter('walk');
+
   // 主存档的待开战记录：按同一只继续，不给重摇机会
   if (gameData.wildEncounter && !sessionEncounterRestored) {
     // 这只跨了离线：把它之后的记账时间钉在离线那一刻（pendingOfflineSec 稍后会被补算清零，这里先读）

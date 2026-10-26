@@ -16,7 +16,7 @@ const WHEEL_ROW_H = 21;
 const BERRY_POOL = BERRY_ICONS.map((file, i) => ({
   name: BERRY_NAMES[file] || '树果',
   icon: `./items/berries/${file}`,
-  qty: i % 2 ? 5 : 8,
+  qty: i % 2 ? 1 : 2,
   berry: i,
 }));
 
@@ -49,13 +49,13 @@ const POOLS = {
 };
 
 const SYMBOLS = [
-  { id: 'berry', name: '树果', icon: './items/berries/oran.png', weight: 340, pool: POOLS.berry },
-  { id: 'candy', name: '糖果', icon: './items/goods/candy.png', weight: 280, pool: POOLS.candy },
-  { id: 'coin', name: '游戏币', icon: './items/goods/coin.png', weight: 40, pool: POOLS.coin, iconSize: 34 },
-  { id: 'poke', name: '精灵球', icon: './items/balls/poke-ball.png', weight: 190, pool: POOLS.poke },
-  { id: 'ultra', name: '高级球', icon: './items/balls/ultra-ball.png', weight: 80, pool: POOLS.ultra },
+  { id: 'candy', name: '糖果', icon: './items/goods/candy.png', weight: 360, pool: POOLS.candy },
+  { id: 'poke', name: '精灵球', icon: './items/balls/poke-ball.png', weight: 300, pool: POOLS.poke },
+  { id: 'berry', name: '树果', icon: './items/berries/oran.png', weight: 120, pool: POOLS.berry },
+  { id: 'coin', name: '游戏币', icon: './items/goods/coin.png', weight: 80, pool: POOLS.coin, iconSize: 34 },
+  { id: 'ultra', name: '高级球', icon: './items/balls/ultra-ball.png', weight: 60, pool: POOLS.ultra },
   { id: 'stone', name: '进化石', icon: './items/evo/fire-stone.png', weight: 30, pool: POOLS.stone },
-  { id: 'box', name: '补给箱', icon: './items/berry-trees/box.png', weight: 40, pool: POOLS.box },
+  { id: 'box', name: '补给箱', icon: './items/berry-trees/box.png', weight: 50, pool: POOLS.box },
 ];
 const WEIGHT_TOTAL = SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
 
@@ -182,7 +182,6 @@ function grantSpin(match, symbol, rewards) {
     addReward(summary, reward);
   }
   addSystemLog('slot-machine', {
-    cost: COST,
     match,
     symbol: symbol ? symbol.name : null,
     draws: rewards.length,

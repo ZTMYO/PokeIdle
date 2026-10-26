@@ -2,7 +2,7 @@
 // 第一次进某个页面时挡一层，依次高亮几个入口教玩家怎么用。位置用目标的 offset 布局像素写
 // （高亮环挂在它自己的定位父级里），跟整体缩放无关。新增引导只要往 GUIDES 里加一条。
 import { gameData, saveGame } from './state.js';
-import { logicViewport, popupBounds, consoleScaled, viewportToLogic } from './ui.js';
+import { logicViewport, popupBounds, consoleScaled, viewportToLogic, isMobilePlatform } from './ui.js';
 
 // 气泡与机身左右边缘留的安全区：不留的话贴边时文字会被切掉
 const BUBBLE_PAD = 12;
@@ -44,6 +44,21 @@ const GUIDES = {
       { sel: '.berry-box-sign',   title: '纸箱',   text: '点击看树果库存' },
       { sel: '.berry-board-sign', title: '告示牌', text: '点击看今日的树果委托' },
       { sel: '.berry-frame, .berry-plot-add', title: '地块', text: '点空地种下，点击作物浇水' },
+    ],
+  },
+  // 教程：右键/长按打开搜索
+  tutorial: {
+    flag: 'tutorialGuideSeen',
+    view: 'tutorialView',
+    noRing: true,
+    steps: [
+      {
+        sel: '#tutorialContent .tutorial-title-row',
+        title: '搜索教程',
+        text: isMobilePlatform()
+          ? '长按页面，选择「搜索」查找教程'
+          : '右键页面，选择「搜索」查找教程',
+      },
     ],
   },
   // 游戏厅：场景里几处热区；两张桌子在场景下半部，气泡往上放，另外两个往下放
@@ -97,14 +112,17 @@ function start(cfg, targets) {
     // 宿主固定用最近的那块手机屏：暗场铺满整屏、层级也站在屏幕根上
     // （挂在页面内层容器里会被场地自己的层级压住，宽度也只有场地那么宽）
     const host = el.closest('.screen') || el.offsetParent || el.parentElement || document.body;
-    if (ring.parentElement !== host) { host.appendChild(ring); host.appendChild(bubble); }
-    let ox = el.offsetLeft, oy = el.offsetTop;
-    for (let n = el.offsetParent; n && n !== host; n = n.offsetParent) { ox += n.offsetLeft; oy += n.offsetTop; }
-    const w = el.offsetWidth, h = el.offsetHeight;
-    ring.style.left = `${ox - 4}px`;
-    ring.style.top = `${oy - 4}px`;
-    ring.style.width = `${w + 8}px`;
-    ring.style.height = `${h + 8}px`;
+    if (!cfg.noRing && ring.parentElement !== host) host.appendChild(ring);
+    if (bubble.parentElement !== host) host.appendChild(bubble);
+    if (!cfg.noRing) {
+      let ox = el.offsetLeft, oy = el.offsetTop;
+      for (let n = el.offsetParent; n && n !== host; n = n.offsetParent) { ox += n.offsetLeft; oy += n.offsetTop; }
+      const w = el.offsetWidth, h = el.offsetHeight;
+      ring.style.left = `${ox - 4}px`;
+      ring.style.top = `${oy - 4}px`;
+      ring.style.width = `${w + 8}px`;
+      ring.style.height = `${h + 8}px`;
+    }
     // 文案
     const st = cfg.steps[step];
     bubble.querySelector('.dg-title').textContent = st.title;
