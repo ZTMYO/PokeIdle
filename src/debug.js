@@ -14,7 +14,7 @@
 //   __npcTeam(25, 6, 149)             对战 NPC 全部使用指定精灵
 //   __ppZero()                        清空当前对战双方的 PP（验证「挣扎」兜底）
 import {
-  gameData, allPokemon, getPokemonByIndex, addRosterEntry, saveGame,
+  gameData, allPokemon, getPokemonByIndex, addRosterEntry, addEncounterLog, saveGame,
   ensureGpsState, setLastRegionId, syncGpsPosition, rollGender, rollNature,
 } from './state.js';
 import { REGION_CYCLE } from './config.js';
@@ -120,9 +120,7 @@ async function addDebugPoke(idx, shiny, level = 10) {
   gameData.stats.totalCatches++;
   gameData.stats.totalEggsHatched++;
   // 配套写一条「孵蛋获得」遭遇日志，详情页的日志行才有内容
-  if (!gameData.encounterLogs) gameData.encounterLogs = {};
-  if (!gameData.encounterLogs[poke.index]) gameData.encounterLogs[poke.index] = [];
-  gameData.encounterLogs[poke.index].push({
+  addEncounterLog(poke.index, {
     time: Date.now(),
     shiny,
     result: 'caught',

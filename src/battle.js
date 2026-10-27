@@ -1,5 +1,5 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, setEncounterSource, setEncounterVariant, simNow, setSimClock } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, addEncounterLog, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, setEncounterSource, setEncounterVariant, simNow, setSimClock } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, showTextBoxNow, setIdleCharacter, isOnGameView, isIdleStageVisible, isDualLayout, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive, isEggShowActive, isStageOccupied } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, takeBuffForRenew, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
@@ -939,8 +939,7 @@ export async function throwBall(ballType) {
       });
       setLastObtainedEntryId(entry.id);
       // 记录遭遇日志（score 含个体值加成，需先建档拿到 ivs）
-      if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-      gameData.encounterLogs[idx].push({
+      addEncounterLog(idx, {
         time: encounterStamp(), shiny: currentIsShiny, result: 'caught',
         balls: { ...currentEncounterBalls }, source: _encounterSource,
         charmBuff: charmBuffActive, // 该遭遇是否处于闪耀护符 buff（影响闪光率评分）
@@ -957,8 +956,7 @@ export async function throwBall(ballType) {
       $('fleeBtn').style.display = 'none';
       // 记录遭遇日志
       gameData.stats.totalFlees++;
-      if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-      gameData.encounterLogs[idx].push({
+      addEncounterLog(idx, {
         time: encounterStamp(), shiny: currentIsShiny, result: 'fled',
         balls: { ...currentEncounterBalls }, source: _encounterSource,
         charmBuff: charmBuffActive,
@@ -1066,8 +1064,6 @@ export async function fleeEncounter(isAutoFlee) {
   stopShinySparkleLoop();
   if (!_bgCatch) setEncPhase('fled'); // 立即阻止后续丢球
   const idx = String(currentEncounter.index);
-  if (!gameData.encounterLogs) gameData.encounterLogs = {};
-  if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
   const logEntry = {
     time: encounterStamp(), shiny: currentIsShiny, result: 'fled',
     balls: { ...currentEncounterBalls }, source: _encounterSource,
@@ -1081,7 +1077,7 @@ export async function fleeEncounter(isAutoFlee) {
     }),
   };
   if (!isAutoFlee) logEntry.manual = true;
-  gameData.encounterLogs[idx].push(logEntry);
+  addEncounterLog(idx, logEntry);
   // 自动/手动逃跑都是玩家主动离开：放走宝可梦，不发生精灵逃走动画
   addSystemLog('player_fled', { pokemon: idx, shiny: currentIsShiny, auto: !!isAutoFlee }, encounterStamp());
   if (isOnGameView() && !_bgCatchup) updateTextBox('你逃走了！', false);
@@ -1468,8 +1464,7 @@ export async function autoCatch() {
       if (!_bgCatch) setEncPhase('fled');
       const idx = String(currentEncounter.index);
       addSystemLog('player_fled', { pokemon: idx, shiny: currentIsShiny, auto: true }, encounterStamp());
-      if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-      gameData.encounterLogs[idx].push({
+      addEncounterLog(idx, {
         time: encounterStamp(), shiny: currentIsShiny, result: 'fled',
         balls: { ...currentEncounterBalls }, manual: false, source: _encounterSource,
         charmBuff: charmBuffActive,

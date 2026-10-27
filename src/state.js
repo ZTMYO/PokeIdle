@@ -631,6 +631,61 @@ export async function saveGame() {
   return ok;
 }
 
+// 相遇日志：单物种只留最近 40 条、全档最多 1500 条。每只的「首次捕获」（普通/闪光各一条）
+// 永远保留 —— 遭遇页的首次捕获提示要读它。写入时裁，读档时再兜底裁一次。
+const LOG_KEEP_SPECIES = 40;
+const LOG_KEEP_TOTAL = 1500;
+
+export function addEncounterLog(idx, entry) {
+  if (!gameData) return;
+  if (!gameData.encounterLogs) gameData.encounterLogs = {};
+  const key = String(idx);
+  if (!gameData.encounterLogs[key]) gameData.encounterLogs[key] = [];
+  gameData.encounterLogs[key].push(entry);
+  trimEncounterLogs();
+}
+
+export function trimEncounterLogs() {
+  const logs = gameData && gameData.encounterLogs;
+  if (!logs) return 0;
+  let removed = 0;
+  const keep = new Set();
+  for (const key of Object.keys(logs)) {
+    const arr = Array.isArray(logs[key]) ? logs[key] : [];
+    if (!arr.length) { delete logs[key]; continue; }
+    const firstNormal = arr.find((l) => l && l.result === 'caught' && !l.shiny);
+    const firstShiny = arr.find((l) => l && l.result === 'caught' && l.shiny);
+    if (firstNormal) keep.add(firstNormal);
+    if (firstShiny) keep.add(firstShiny);
+    if (arr.length > LOG_KEEP_SPECIES) {
+      const tail = arr.slice(-LOG_KEEP_SPECIES);
+      for (const first of [firstShiny, firstNormal]) {
+        if (first && !tail.includes(first)) tail.unshift(first);
+      }
+      removed += arr.length - tail.length;
+      logs[key] = tail;
+    }
+  }
+  let total = 0;
+  for (const key of Object.keys(logs)) total += logs[key].length;
+  if (total > LOG_KEEP_TOTAL) {
+    const pack = [];
+    for (const key of Object.keys(logs)) {
+      for (const it of logs[key]) if (!keep.has(it)) pack.push({ key, it, t: (it && it.time) || 0 });
+    }
+    pack.sort((a, b) => a.t - b.t);
+    const dropSet = new Set();
+    for (let i = 0; i < Math.min(pack.length, total - LOG_KEEP_TOTAL); i++) dropSet.add(pack[i].it);
+    for (const key of Object.keys(logs)) {
+      const before = logs[key].length;
+      logs[key] = logs[key].filter((it) => !dropSet.has(it));
+      removed += before - logs[key].length;
+      if (!logs[key].length) delete logs[key];
+    }
+  }
+  return removed;
+}
+
 // 当前遭遇的自定义文案（如钓鱼"上钩了"），写入会话状态以便刷新后沿用
 export let encounterMsg = null;
 export function setEncounterMsg(msg) { encounterMsg = msg; }
