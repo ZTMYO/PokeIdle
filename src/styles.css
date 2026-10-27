@@ -2550,10 +2550,12 @@ html.mobile-app #quitHide { display: none !important; }
 .th-rank { font-size: 10px; opacity: .75; margin: 0; }
 
 /* === 海豹滑冰：点宝可梦，再点同排/同列格子，滑到冰墙或冰岩怪停下 === */
-#sealView {
+#sealView, #arrowView {
   position: relative;
   padding: 4px 6px;
   gap: 3px;
+}
+#sealView {
   --sl-cell: #d9eef3;
   --sl-alt: #c9e6ed;
   --sl-line: #a8cbd4;
@@ -2567,12 +2569,31 @@ html.mobile-app #quitHide { display: none !important; }
   --sl-wall: #33545d;
   --sl-wall-line: #24444c;
 }
+/* 箭头迷宫：石台 + 沙色棋盘，别沿用滑冰场那套冰蓝 */
+#arrowView {
+  --sl-cell: #efe6d2;
+  --sl-alt: #e7dcc4;
+  --sl-line: #c9bca0;
+  --sl-wall: #9a8b73;
+  --sl-wall-line: #7a6d58;
+  --am-arrow: #85745b;
+  --am-arrow-on: #4b3d2b;
+}
+[data-theme="dark"] #arrowView {
+  --sl-cell: #2a251e;
+  --sl-alt: #241f19;
+  --sl-line: #4b4335;
+  --sl-wall: #5d5442;
+  --sl-wall-line: #403929;
+  --am-arrow: #d9cdb2;
+  --am-arrow-on: #fdf7e8;
+}
 .sl-head {
   position: relative;
   display: flex; align-items: center; gap: 6px;
   padding: 0 2px; font-size: 8.5px; color: var(--ui-color); opacity: .9;
 }
-.sl-head #slSteps, .sl-head #slBalls {
+.sl-head #slSteps, .sl-head #slBalls, .sl-head #amRot {
   flex: none; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ui-color);
 }
 .sl-actions { flex: 1; display: flex; justify-content: center; align-items: center; gap: 3px; }
@@ -2685,6 +2706,7 @@ html.mobile-app #quitHide { display: none !important; }
 }
 .sl-overlay-actions [hidden] { display: none !important; }
 .game-result-title.fail { color: #ff7b7b; }
+
 
 /* === 鸟了个鸟：叠成一堆的鸟，点开进槽位凑三只抵消 === */
 .bg-head {

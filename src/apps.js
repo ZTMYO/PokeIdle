@@ -71,6 +71,7 @@ const ACT_ICONS = {
   'sweet-workshop': 'icon-sweet-shop',
   'treasure-hunt': 'icon-magnifier',   // 放大镜
   'seal-slide': 'icon-seal-slide',     // 雪花
+  'arrow-maze': 'icon-arrow-maze',     // 箭头迷宫
 };
 
 // 限时活动：每个活动各占一个图标（id 前缀 act: + 活动 id，桌面位置各记各的）。
