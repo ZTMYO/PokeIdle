@@ -1,4 +1,4 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BUFF_DURATION, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, addEncounterLog, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, setEncounterSource, setEncounterVariant, simNow, setSimClock } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, showTextBoxNow, setIdleCharacter, isOnGameView, isIdleStageVisible, isDualLayout, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive, isEggShowActive, isStageOccupied } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
@@ -152,7 +152,8 @@ export async function tryEncounter() {
 
 // 选择本次遭遇的宝可梦（含树果方块/闪耀护符/闪光等 buff 判定），设置 currentEncounter/currentIsShiny；
 // 返回 null 表示本次不遇敌（当前地区无可用精灵池）。前台 tryEncounter 与后台补算共用同一套判定
-function resolveEncounterPoke() {
+// buffed：这一刻 buff 是否生效。前台调用默认按当前状态，补发时按该场模拟时刻算
+function resolveEncounterPoke(buffed = (honeyBuffActive || charmBuffActive)) {
   // 确保 poke 和 currentEncounter 始终指向同一对象
   // 神兽与强化形态不进普通遇敌池：神兽只从时空扭曲（加权后）与后续的日程型来源出现
   const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p) && !isWildExcluded(p));
@@ -169,13 +170,13 @@ function resolveEncounterPoke() {
     poke = blockTarget;
     setCurrentEncounter(poke);
     setCurrentIsShiny(Math.random() < SHINY_CHANCE);
-  } else if ((legendTarget = rollLegendEncounter())) {
+  } else if ((legendTarget = rollLegendEncounter(buffed))) {
     // 每日神兽池：当天在这个地区现身的某只，现身等级固定 20
     poke = legendTarget;
     setCurrentEncounter(poke);
     setEncounterLevel(LEGEND_LEVEL);
     setCurrentIsShiny(Math.random() < SHINY_CHANCE);
-  } else if ((charmBuffActive || charmGuaranteed) && regionPool.length > 0) {
+  } else if (((buffed && charmBuffActive) || charmGuaranteed) && regionPool.length > 0) {
     // 护符生效中，或保底还没兑现（到期时没用掉、方块/扭曲压过去了）——后者也要在这里兑现
     const roll = Math.random();
     if (charmGuaranteed || roll < CHARM_SHINY_CHANCE) {
@@ -1530,22 +1531,25 @@ export async function catchUpEncounters(secs, buffRemainingMs) {
   if (phase !== 'idle' || _fishing || inMassZone() || inTwistZone() || road.isBike()) return;
   const autoActive = gameData.settings?.autoCatch || gameData.settings?.autoFlee;
   if (!autoActive) return;
-  // 遇敌节奏与 buff 联动：甜甜蜜/护符生效期间 15~30s 一次，平时 120~240s 一次。
-  // 按离开时长内 buff 覆盖的时段分段模拟：隐藏瞬间快照的 buff 剩余时长（buffRemainingMs）
-  // 结合自动续杯判断，短时间挂机（buff 期间离开）也能补出该有的遭遇数
+  // 遇敌节奏与 buff 联动：甜甜蜜/护符生效期间 15~30s 一次，平时 120~240s 一次
   const buffAvg = (BUFF_ENCOUNTER_MIN + BUFF_ENCOUNTER_MAX) / 2;
   const normalAvg = (ENCOUNTER_MIN + ENCOUNTER_MAX) / 2;
-  // 自动续杯开启且有库存：buff 到期会自动续上，近似全程按 buff 节奏生效
-  // 开了补货且糖果够就补得起货，所以"没库存但能补上"也算能续杯
-  const canRenew = (k, refillKey) => (gameData.items[k] || 0) > 0
-    || (gameData.settings?.[refillKey] && (gameData.items.candy || 0) >= (CANDY_EXCHANGE[k] || Infinity));
-  const autoRenew = (gameData.settings?.autoBuffHoney && canRenew('sweet-honey', 'autoRefillHoney')) ||
-                    (gameData.settings?.autoBuffCharm && canRenew('shiny-charm', 'autoRefillCharm'));
+  // buff 能覆盖多久：离开时剩的 + 手里/能补货的瓶数 × 单瓶时长。以前一律当成全程，
+  // 结果几小时的补发全按 buff 节奏算场次、神兽率也全程按加成判，会一次补出一堆神兽
+  const buffStock = (item, autoKey, refillKey) => {
+    if (!gameData.settings?.[autoKey]) return 0;
+    const price = CANDY_EXCHANGE[item] || 0;
+    const buyable = gameData.settings?.[refillKey] && price > 0
+      ? Math.floor((gameData.items.candy || 0) / price) : 0;
+    return (gameData.items[item] || 0) + buyable;
+  };
   let buffSec = 0;
-  if (autoRenew && (honeyBuffActive || charmBuffActive)) {
-    buffSec = secs; // 全程 buff 节奏（续杯不断）
-  } else {
-    buffSec = Math.min((buffRemainingMs || 0) / 1000, secs); // 无续杯：只按离开时刻 buff 剩余覆盖
+  const activeItem = honeyBuffActive ? 'sweet-honey' : (charmBuffActive ? 'shiny-charm' : null);
+  if (activeItem) {
+    const honey = activeItem === 'sweet-honey';
+    const left = Math.max(0, (buffRemainingMs || 0) / 1000);
+    const stock = buffStock(activeItem, honey ? 'autoBuffHoney' : 'autoBuffCharm', honey ? 'autoRefillHoney' : 'autoRefillCharm');
+    buffSec = Math.min(secs, left + stock * BUFF_DURATION);
   }
   const total = Math.min(Math.floor(buffSec / buffAvg) + Math.floor((secs - buffSec) / normalAvg), 2000); // 单次补算上限（防超长后台卡顿）
   if (total <= 0) return;
@@ -1563,7 +1567,8 @@ export async function catchUpEncounters(secs, buffRemainingMs) {
     for (let i = 0; i < total; i++) {
       if (phase !== 'idle' || road.isBike()) break; // 玩家切走/进入战斗/开始骑行：中止剩余补算
       setSimClock(startAt + Math.round(i * stepMs));
-      const poke = resolveEncounterPoke();
+      const buffed = (i * stepMs) / 1000 < buffSec; // 这一刻 buff 还在不在
+      const poke = resolveEncounterPoke(buffed);
       if (!poke) break;
       rollEncounterGender(poke); // 补算不走 showEncounter，这里必须自己掷
       // 补算同样不走 beginEncounter：来源/变体按普通遇敌重置，图鉴「遭遇」也要记一笔——

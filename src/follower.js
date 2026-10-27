@@ -2,7 +2,7 @@
 // 糖果抽卡：抽出一只宝可梦限时跟随，到期即走；同时只能跟 1 只。
 // 属性归类到 9 大增益类，同类去重，双属性两类同时生效、不减半
 import { FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_MAIN, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, FOLLOWER_TIER_ROMAN, FOLLOWER_TYPE_GROUP, FOLLOWER_GROUP_BOOST } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, phase, saveGame, pushNav, popNav } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, phase, saveGame, pushNav, popNav, addSystemLog } from './state.js';
 import { $, showView, isOnGameView, updateBackpack, updateStats, tryLoadImage, tryLoadPokemonIcon, consoleLayerStyle } from './ui.js';
 import { TYPE_COLORS } from './items.js';
 import { playSpinSfx } from './audio.js';
@@ -319,22 +319,37 @@ function bindFollowerDexBtn() {
 // ===== 随从视图（手机 App）=====
 export function showFollowerView() {
   pushNav('followerView');
-  showView('followerView');
-  bindFollowerDexBtn();
+  // 先把这一趟要展示的阶段定好，再切视图：切视图会广播 view-changed，按阶段自愈
   if (gameData?.followerPending && !gameData?.follower) {
-    // 有待处理结果：装回内存展示结果页（重启恢复场景）
+    // 有待处理结果：装回内存展示结果页（重启恢复 / 抽到一半切走再回来）
     restorePendingFollower();
-  } else {
+  } else if (!gameData?.follower) {
     // 正常进入：回到空闲态，避免残留上一轮的滚动/锁定动画
     _drawPhase = 'idle';
     _drawResult = null;
   }
+  showView('followerView');
+  bindFollowerDexBtn();
   renderFollowerView();
 }
+
+// 从别的页面回到随从页（返回键等不经过 showFollowerView 的路径）：
+// 动画阶段如果还停在 rolling / locking，按待处理结果收尾成结果页，别让跑马灯定格在那
+window.addEventListener('view-changed', (e) => {
+  if (e.detail !== 'followerView' || !gameData || gameData.follower) return;
+  if (_drawPhase !== 'rolling' && _drawPhase !== 'locking' && _drawPhase !== 'multi-rolling') return;
+  if (gameData.followerPending) restorePendingFollower();
+  else { _drawPhase = 'idle'; _drawResult = null; }
+  if (followerVisible()) renderFollowerView();
+});
+
+const followerVisible = () => $('followerView')?.style.display === 'flex';
 
 function renderFollowerView() {
   const content = $('followerContent');
   if (!content) return;
+  // 上一次锁定动画被打断时残留的全屏 overlay 先收掉，免得叠在一起
+  document.getElementById('followerLockOverlay')?.remove();
   const f = gameData?.follower;
   const pool = getFollowerPool();
 
@@ -690,6 +705,7 @@ function doDraw() {
   const result = drawCard();
   if (!result) return;
   result.dex = recordFollowerDraw(result.index);      // 抽出即入图鉴（与最后带谁走无关）
+  addSystemLog('follower_draw', { pokemon: result.index, name: result.name, tier: result.tier, star: result.dex.star });
   _drawResult = result;
   _drawPhase = 'rolling';
   playSpinSfx('spin2');
@@ -713,6 +729,7 @@ function doDrawMulti() {
     const r = drawCard();
     if (!r) continue;
     r.dex = recordFollowerDraw(r.index);             // 5 只全部入图鉴，带走的只有 1 只
+    addSystemLog('follower_draw', { pokemon: r.index, name: r.name, tier: r.tier, star: r.dex.star });
     results.push(r);
   }
   if (results.length === 0) return;
@@ -834,10 +851,9 @@ function startFollowerRoll() {
       track.style.transform = `translateX(${tStart + (tFinal - tStart) * k}px)`;
       if (frame >= DURATION) {
         locked = true;
-        // 停在目标格居中 → 直接进锁定放大
-        if ($('followerView')?.style.display !== 'flex') return;
+        // 停在目标格居中 → 直接进锁定放大。切走时只记阶段，回来再按阶段重画
         _drawPhase = 'locking';
-        renderFollowerView();
+        if (followerVisible()) renderFollowerView();
       } else {
         requestAnimationFrame(tick);
       }
@@ -887,9 +903,8 @@ function startMultiRoll() {
           collectMultiPoke(count, results[count]);
           count++;
         }
-        if ($('followerView')?.style.display !== 'flex') return;
         _drawPhase = 'multi-result';
-        renderFollowerView();
+        if (followerVisible()) renderFollowerView();
       } else {
         requestAnimationFrame(tick);
       }

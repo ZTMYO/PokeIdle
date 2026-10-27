@@ -571,6 +571,9 @@ export function renderSystemLogs() {
       case 'gacha':
         desc = `抽到 ${log.details.tier || ''} ${log.details.cnName || log.details.card || ''}${log.details.isNew ? '（新）' : '（重复）'}`;
         break;
+      case 'follower_draw':
+        desc = `抽到 ${log.details.name || '未知'}${log.details.star ? `（★${log.details.star}）` : ''}`;
+        break;
       case 'nursery_breed_start': {
         const na = getPokemonByIndex(String(log.details.a));
         const nb = getPokemonByIndex(String(log.details.b));

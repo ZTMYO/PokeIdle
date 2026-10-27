@@ -3,290 +3,651 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>限时活动生成器</title>
+<title>限时活动排期器</title>
 <style>
   :root {
-    --console-body: #e8dcc0; --console-edge: #b3a27f; --ui-color: #376d56;
-    --ui-color-dark: #24563f; --color-muted: #7c7c7c;
+    --bg: #f3ecd9; --panel: #e8dcc0; --edge: #b3a27f; --paper: #fffdf6;
+    --ink: #1f1f1f; --muted: #7c7c6f; --line: #d9cbab;
+    --green: #376d56; --green-dark: #24563f; --green-soft: #eef6ef;
+    --red: #b23b3b; --red-soft: #ffe1de;
     --mono: "Courier New", ui-monospace, monospace;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 24px; min-height: 100vh; background: #f3ecd9; color: #1f1f1f;
-    font-family: var(--mono); display: flex; justify-content: center;
-  }
-  .wrap { width: 100%; max-width: 680px; }
-  h1 { font-size: 18px; color: var(--ui-color-dark); margin: 0 0 4px; }
-  .note { font-size: 12px; color: var(--color-muted); line-height: 1.7; margin: 0 0 18px; }
-  .panel {
-    background: var(--console-body); border: 3px solid var(--console-edge); border-radius: 4px;
-    padding: 16px 18px;
-  }
-  .row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-  .row > label { flex: 0 0 132px; font-size: 12px; font-weight: 700; color: var(--ui-color-dark); }
-  input[type="number"], input[type="text"], input[type="datetime-local"], select {
-    font: inherit; font-size: 13px; padding: 5px 8px; border: 2px solid var(--console-edge);
-    border-radius: 3px; background: #fffdf6; color: #1f1f1f; width: 130px;
-  }
-  input[type="text"] { width: 200px; }
-  .hint { font-size: 11px; color: var(--color-muted); }
-  button {
-    font: inherit; font-size: 13px; font-weight: 700; padding: 8px 18px; cursor: pointer;
-    color: #eafff4; background: var(--ui-color); border: 2px solid var(--ui-color-dark); border-radius: 3px;
-  }
-  button:hover { background: var(--ui-color-dark); }
-  button.ghost { background: none; color: var(--ui-color-dark); }
-  button.ghost:hover { background: rgba(55,109,86,.12); }
-  textarea {
-    width: 100%; height: 130px; margin-top: 6px; padding: 10px; resize: vertical;
-    font: 12px/1.5 var(--mono); color: #1f1f1f; background: #fffdf6;
-    border: 2px solid var(--console-edge); border-radius: 3px;
-  }
-  #existing { height: 180px; }
-  #json { height: 260px; }
-  .col { flex: 1 1 320px; min-width: 0; }
-  .col textarea { margin-top: 0; }
-  .out { margin-top: 16px; }
-  .out-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .out-head b { font-size: 12px; color: var(--ui-color-dark); }
-  .steps { font-size: 11.5px; color: var(--color-muted); line-height: 1.9; margin: 14px 0 0; padding-left: 18px; }
+  body { margin: 0; padding: 16px 14px 36px; background: var(--bg); color: var(--ink); font-family: var(--mono); }
+  h1 { font-size: 16px; color: var(--green-dark); margin: 0 0 2px; }
+  .note { font-size: 11px; color: var(--muted); margin: 0 0 12px; line-height: 1.55; }
   code { background: rgba(55,109,86,.1); padding: 1px 4px; border-radius: 2px; }
+
+  .app { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 12px; align-items: start; }
+  @media (max-width: 860px) { .app { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 2px solid var(--edge); border-radius: 4px; padding: 10px 11px; }
+  .panel + .panel { margin-top: 10px; }
+  .panel h2 { font-size: 11.5px; margin: 0 0 7px; color: var(--green-dark); display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+  .panel h2 .sub { font-size: 10px; font-weight: 400; color: var(--muted); }
+
+  button { font: inherit; cursor: pointer; }
+  .btn {
+    font-size: 11.5px; font-weight: 700; padding: 5px 12px; border-radius: 3px;
+    color: #eafff4; background: var(--green); border: 2px solid var(--green-dark);
+  }
+  .btn:hover { background: var(--green-dark); }
+  .btn.ghost { background: none; color: var(--green-dark); border-color: var(--edge); }
+  .btn.ghost:hover { background: rgba(55,109,86,.12); border-color: var(--green); }
+  .btn.mini { padding: 2px 7px; font-size: 10.5px; }
+  .btn.danger { color: var(--red); border-color: #d9b3ad; background: none; }
+  .btn.danger:hover { background: var(--red-soft); border-color: var(--red); }
+
+  .field { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+  .field > label { flex: 0 0 44px; font-size: 10.5px; font-weight: 700; color: var(--green-dark); }
+  input[type="number"], input[type="text"], input[type="datetime-local"] {
+    font: inherit; font-size: 11.5px; padding: 3px 5px; border: 2px solid var(--edge);
+    border-radius: 3px; background: var(--paper); color: var(--ink);
+  }
+  input[type="number"] { width: 62px; }
+  input[type="text"] { width: 116px; }
+  input[type="datetime-local"] { width: 172px; }
+  .hint { font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .hint.err { color: var(--red); }
+  textarea {
+    width: 100%; padding: 7px; resize: vertical; font: 10.5px/1.45 var(--mono);
+    background: var(--paper); border: 2px solid var(--edge); border-radius: 3px; color: var(--ink);
+  }
+  #pasteBox { height: 88px; }
+  .quick { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+
+  .toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+  .chips { display: flex; gap: 4px; flex-wrap: wrap; }
+  .chip { font-size: 9.5px; padding: 2px 7px; border-radius: 9px; background: rgba(55,109,86,.13); color: #2c5a45; }
+  .chip.warn { background: var(--red-soft); color: #a3362f; }
+  .spacer { flex: 1 1 auto; }
+
+  .chart { background: var(--paper); border: 2px solid var(--edge); border-radius: 4px; padding: 7px 9px 9px; }
+  .axis { position: relative; height: 13px; margin: 0 0 3px 165px; font-size: 9.5px; color: var(--muted); }
+  .axis span { position: absolute; top: 0; white-space: nowrap; }
+  .gline { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(0,0,0,.07); pointer-events: none; }
+  .gline.edge { background: rgba(55,109,86,.3); }
+  .row { display: flex; align-items: center; gap: 7px; height: 28px; }
+  .row:nth-child(odd) .track { background-color: #faf5e8; }
+  .label { flex: none; width: 158px; font-size: 10px; line-height: 1.2; overflow: hidden; cursor: pointer; border-radius: 2px; }
+  .label:hover b { color: var(--green); text-decoration: underline; }
+  .label b { display: block; font-size: 11px; color: var(--green-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .label .st { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .label .st.live { color: #2f7f52; font-weight: 700; }
+  .label .st.done { color: var(--red); }
+  .row.idle .label b { color: #8b8b7d; font-weight: 400; }
+  select {
+    font: inherit; font-size: 11.5px; padding: 2px 4px; border: 2px solid var(--edge);
+    border-radius: 3px; background: var(--paper); color: var(--ink); width: 140px;
+  }
+  .track {
+    position: relative; flex: 1 1 auto; height: 22px; background-color: #f1e8d3;
+    border: 1px solid var(--line); border-radius: 3px;
+  }
+  .bar {
+    position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 4px;
+    background: #9dbca8; color: #12352a; font-size: 9.5px; line-height: 20px; padding: 0 6px;
+    white-space: nowrap; overflow: hidden; cursor: pointer;
+  }
+  .bar:hover { background: #8bb098; }
+  .bar.live { background: #6ba37f; color: #08251a; }
+  .bar.done { background: #d3c6b4; color: #6d6355; }
+  .bar.sel { background: var(--green-dark); color: #eafff4; box-shadow: 0 0 0 2px #9fe0bf; }
+  .nowline { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--red); opacity: .75; pointer-events: none; }
+  .empty { padding: 16px 4px; font-size: 10.5px; color: var(--muted); }
+
+  .insp { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 5px 12px; }
+  .insp .line { display: flex; align-items: center; gap: 6px; font-size: 10.5px; flex-wrap: wrap; }
+  .insp .line > label { flex: 0 0 54px; font-weight: 700; color: var(--green-dark); }
+  .insp .meta { color: var(--muted); font-size: 10px; }
+  .insp-empty { font-size: 10.5px; color: var(--muted); }
+
+  .out-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+  #json { height: 220px; }
+  .steps { font-size: 10px; color: var(--muted); line-height: 1.7; margin: 6px 0 0; padding-left: 16px; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>限时活动生成器</h1>
-  <p class="note">生成服务端 <code>DATA_DIR/activity.json</code> 的内容。改完存盘即生效（服务端按文件修改时间热读，不用重启）。</p>
+<h1>限时活动排期器</h1>
+<p class="note">「生成排期」接在已有排期后面铺 N 段 48 小时的活动（默认 2 段并行）→ 每个活动一条轴，点条选中后在下面改活动/时间 → 生成 JSON。写进服务端 <code>DATA_DIR/activity.json</code> 即生效。</p>
 
-  <div class="panel">
-    <div class="row">
-      <label>活动</label>
-      <select id="kind">
-        <option value="mass-bounty">大量悬赏</option>
-        <option value="poke-flip">宝可翻牌</option>
-        <option value="bird-stack">鸟了个鸟</option>
-        <option value="flow-link">宝可连线</option>
-        <option value="power-flow">电力输送</option>
-        <option value="voyage">航海寻宝</option>
-        <option value="guess-name">猜宝可梦</option>
-        <option value="sweet-workshop">甜蜜工坊</option>
-        <option value="treasure-hunt">符文寻踪</option>
-        <option value="seal-slide">海豹滑冰</option>
-        <option value="arrow-maze">箭头迷宫</option>
-      </select>
+<div class="app">
+  <div>
+    <div class="panel">
+      <h2>快速排期 <span class="sub">按活动顺序循环填入</span></h2>
+      <div class="field"><label>开始</label><input type="datetime-local" id="qStart" /></div>
+      <div class="field"><label>每段</label><input type="number" id="qDur" min="1" max="720" value="48" /><span class="hint">小时</span></div>
+      <div class="field"><label>并行</label><input type="number" id="qPar" min="1" max="6" value="2" /><span class="hint">个</span></div>
+      <div class="field"><label>活动数</label><input type="number" id="qCount" min="1" max="40" value="10" /><span class="hint">= 5 组</span></div>
+      <button class="btn" id="qGen" style="width:100%;">生成排期</button>
+      <div class="hint" style="margin-top:6px;">并行 2 个 = 每个 0 点同时开两个活动，两天后整组换下一批。<br>已有排期时接在最后一组之后；空的时候用上面的开始时间（默认下一个 0 点）。</div>
     </div>
-    <div class="row" id="rowPerTier">
-      <label>每档只数</label>
-      <input type="number" id="perTier" min="1" max="20" value="3" />
-      <span class="hint">四档（进化道具 / 薄荷·王冠 / 大师球·闪耀护符 / 闪光蛋），每档 3 只、共 12 只</span>
-    </div>
-    <div class="row">
-      <label>开始时间</label>
-      <input type="datetime-local" id="startAt" />
-      <button class="ghost" id="now" style="padding:4px 10px;">现在</button>
-      <span class="hint">留空 = 点「生成」的那一刻</span>
-    </div>
-    <div class="row">
-      <label>持续时长</label>
-      <input type="number" id="hours" min="1" max="720" value="168" />
-      <span class="hint">小时（168 = 一周）</span>
-    </div>
-    <div class="row">
-      <label>闪光蛋物种</label>
-      <input type="text" id="egg" placeholder="留空 = 随机" />
-      <span class="hint">图鉴编号，如 0133（伊布）；大量悬赏第四档、航海寻宝第 10 格，以及宝可翻牌 / 鸟了个鸟 / 宝可连线 / 箭头迷宫兑换所里的闪光蛋都用它</span>
-    </div>
-    <div class="row" style="align-items: flex-start;">
-      <label style="padding-top: 6px;">已有清单</label>
-      <div class="col">
-        <textarea id="existing" spellcheck="false" placeholder='把服务器 activity.json 的全部内容粘进来（{"list":[...]}），也可以只粘 [...]；留空 = 新建。生成时新活动会追加到末尾。'></textarea>
-        <span class="hint" id="existingHint">未粘贴：将生成全新清单</span>
+
+    <div class="panel">
+      <h2>导入清单 <span class="sub">整份 json 或数组</span></h2>
+      <textarea id="pasteBox" spellcheck="false" placeholder='{"list":[{"id":"seal-slide","from":1793000000000,"to":1793100000000}]}'></textarea>
+      <div class="quick" style="margin-top:6px;">
+        <button class="btn mini" id="importBtn">导入</button>
       </div>
-    </div>
-    <div class="row" style="margin: 16px 0 0;">
-      <button id="gen">生成并追加</button>
-      <button class="ghost" id="reset">恢复默认</button>
-      <span class="hint" id="genHint"></span>
+      <div class="hint" id="importHint" style="margin-top:4px;"></div>
     </div>
   </div>
 
-  <div class="out" id="out" hidden>
-    <div class="out-head">
-      <b id="outTitle">生成的 JSON</b>
-      <button class="ghost" id="copy">复制</button>
+  <div>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="chips" id="summary"></div>
+        <span class="spacer"></span>
+        <button class="btn ghost mini" id="append">＋追加一组</button>
+        <button class="btn danger mini" id="clearSchedule">清空排期</button>
+        <button class="btn" id="gen">生成 JSON</button>
+        <button class="btn ghost" id="copy" hidden>复制</button>
+      </div>
+      <div class="chart" id="chart"></div>
     </div>
-    <textarea id="json" spellcheck="false" readonly></textarea>
-    <ol class="steps">
-      <li>把上面这段整个写进服务器的 <code>DATA_DIR/activity.json</code>（跟 <code>stats.json</code> 同一个目录）</li>
-      <li>存盘即可，<b>不用重启</b>服务端</li>
-      <li>验一下：浏览器打开 <code>https://pokeidle.shiliu.space/api/activity/</code>，能看到这条就是生效了</li>
-      <li>玩家端最长 10 分钟（切后台再回前台立刻）出现入口</li>
-    </ol>
+
+    <div class="panel">
+      <h2>选中这段 <span class="sub" id="selName">未选中（点时间轴上的条）</span></h2>
+      <div id="inspector"></div>
+    </div>
+
+    <div class="panel" id="out" hidden>
+      <div class="out-head">
+        <b style="font-size:11px;color:var(--green-dark);" id="outTitle">生成的 JSON</b>
+        <button class="btn ghost mini" id="copy2">复制</button>
+      </div>
+      <textarea id="json" spellcheck="false" readonly></textarea>
+      <ol class="steps">
+        <li>整个写进服务器的 <code>DATA_DIR/activity.json</code>（跟 <code>stats.json</code> 同目录）</li>
+        <li>存盘即生效，不用重启；验一下 <code>https://pokeidle.shiliu.space/api/activity/</code></li>
+        <li>玩家端最长 10 分钟出现变化（切后台再回前台立刻）</li>
+      </ol>
+    </div>
   </div>
 </div>
 
 <script>
-// 固定奖励四档（客户端 src/activities.js 里摇，这里只是说明给作者看）
-//   ① 进化道具 ×1  ② 薄荷/王冠 ×1  ③ 大师球 / 闪耀护符 ×1  ④ 闪光蛋 ×1
-const FORM_KEY = 'pokeidle_activity_form_v1';
+const KEY = 'pokeidle_activity_schedule_v3';
 const $ = (id) => document.getElementById(id);
-const FIELDS = ['kind', 'perTier', 'hours', 'egg', 'startAt', 'existing'];
-const DEFAULTS = { kind: 'mass-bounty', perTier: 3, hours: 168, egg: '', startAt: '', existing: '' };
+const HOUR = 3600e3;
+const DAY = 24 * HOUR;
 
-function readForm() {
-  return {
-    kind: $('kind').value,
-    perTier: Math.max(1, Math.min(20, Number($('perTier').value) || 3)),
-    hours: Math.max(1, Math.min(720, Number($('hours').value) || 168)),
-    egg: $('egg').value.trim(),
-    startAt: $('startAt').value,
-    existing: $('existing').value,
-  };
-}
-function writeForm(f) {
-  $('kind').value = f.kind;
-  $('perTier').value = f.perTier;
-  $('hours').value = f.hours;
-  $('egg').value = f.egg;
-  $('startAt').value = f.startAt;
-  $('existing').value = f.existing;
-}
-function saveForm() { try { localStorage.setItem(FORM_KEY, JSON.stringify(readForm())); } catch (_) {} }
-function loadForm() {
-  try {
-    const f = JSON.parse(localStorage.getItem(FORM_KEY) || 'null');
-    if (f) writeForm({ ...DEFAULTS, ...f });
-  } catch (_) {}
-}
+// 所有活动统一：payload.seed 决定随机内容（目标 / 奖励 / 兑换所的蛋）。
+// 只有两个活动的蛋写死在客户端，不吃 eggSpecies：甜蜜工坊（霜奶仙）、符文寻踪（未知图腾）。
+const ACTS = [
+  { id: 'mass-bounty',    name: '大量悬赏', perTier: true },
+  { id: 'voyage',         name: '航海寻宝' },
+  { id: 'poke-flip',      name: '宝可翻牌' },
+  { id: 'bird-stack',     name: '鸟了个鸟' },
+  { id: 'flow-link',      name: '宝可连线' },
+  { id: 'power-flow',     name: '电力输送' },
+  { id: 'sweet-workshop', name: '甜蜜工坊', eggLocked: '霜奶仙' },
+  { id: 'guess-name',     name: '猜宝可梦' },
+  { id: 'treasure-hunt',  name: '符文寻踪', eggLocked: '未知图腾' },
+  { id: 'seal-slide',     name: '海豹滑冰' },
+  { id: 'arrow-maze',     name: '箭头迷宫' },
+];
+const BY_ID = new Map(ACTS.map((a) => [a.id, a]));
+const actOf = (id) => BY_ID.get(id) || { id, name: id };
+const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+let items = [];          // { uid, id, from, to, payload }
+let selUid = null;
+let seq = 1;
+const uid = () => `u${seq++}`;
+
+const p2 = (n) => String(n).padStart(2, '0');
 function fmt(ms) {
   const d = new Date(ms);
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
-// datetime-local 输入框需要的本地时间格式
+function fmtDay(ms) {
+  const d = new Date(ms);
+  return `${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+}
+function fmtShort(ms) {
+  const d = new Date(ms);
+  return `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
 function inputFmt(ms) {
   const d = new Date(ms);
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+function durText(ms) {
+  const h = ms / HOUR;
+  if (h >= 48 && Math.abs(h % 24) < 1e-6) return `${Math.round(h / 24)} 天`;
+  return `${Math.round(h * 10) / 10} 小时`;
+}
+// 剩余时长：进行中的活动要看还剩多久
+function remainText(ms) {
+  const d = Math.floor(ms / DAY);
+  const h = Math.floor((ms % DAY) / HOUR);
+  const m = Math.floor((ms % HOUR) / 60e3);
+  if (d) return `${d} 天 ${h} 小时`;
+  if (h) return `${h} 小时 ${m} 分`;
+  return `${m} 分`;
+}
+function statusOf(it) {
+  const now = Date.now();
+  if (it.to <= now) return { key: 'done', text: '已结束' };
+  if (it.from <= now) return { key: 'live', text: `进行中 · 剩 ${remainText(it.to - now)}` };
+  return { key: 'wait', text: `未开始 · ${remainText(it.from - now)}后` };
+}
+const randSeed = (from) => (from ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+
+// 从某时刻往后数 N 天，取那天的 0 点；贴着午夜时顺延一天，保证至少 1 小时
+function midnightAfter(t, days) {
+  const d = new Date(t);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return d.getTime();
+}
+function endAtMidnight(from, days) {
+  let to = midnightAfter(from, days);
+  if (to - from < HOUR) to = midnightAfter(from, days + 1);
+  return to;
+}
+function nextMidnight() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+function numOf(id, def, min, max) {
+  return Math.max(min, Math.min(max, Number($(id).value) || def));
 }
 
-// 粘贴的已有清单：支持整份 {"list":[...]}、只有 [...], 或单条活动对象
-// 已到期的（to 早于现在）直接剔除，不再写回清单
-function parseExisting(raw) {
+// ---------- 数据 ----------
+function makeItem(id, from, durMs) {
+  const act = actOf(id);
+  const payload = { seed: randSeed(from) };
+  if (act.perTier) payload.perTier = 3;
+  return { uid: uid(), id, from, to: from + durMs, payload };
+}
+// 换活动：保留种子，按新活动补/删 perTier、限定蛋不要 eggSpecies
+function setItemId(it, id) {
+  const act = actOf(id);
+  it.id = id;
+  const p = { ...(it.payload || {}) };
+  if (!Number.isFinite(Number(p.seed))) p.seed = randSeed(it.from);
+  if (act.perTier) { if (!p.perTier) p.perTier = 3; } else delete p.perTier;
+  if (act.eggLocked) delete p.eggSpecies;
+  it.payload = p;
+}
+
+// 起点：已有排期就接在最后一段之后；空的时候用上面的开始时间（默认下一个 0 点）
+function baseStart() {
+  if (items.length) return Math.max(...items.map((i) => i.to));
+  const v = $('qStart').value;
+  const t = v ? new Date(v).getTime() : NaN;
+  return Number.isFinite(t) ? t : nextMidnight();
+}
+
+function generateSchedule() {
+  const base = baseStart();
+  const durMs = numOf('qDur', 48, 1, 720) * HOUR;
+  const par = numOf('qPar', 2, 1, 6);
+  const count = numOf('qCount', 10, 1, 40);
+  // 每 par 个活动在同一个 0 点一起开、一起结束，然后整组换下一批
+  const startIdx = items.length;   // 活动顺序接着上一次轮，不每次从第一个重来
+  for (let i = 0; i < count; i++) {
+    const act = ACTS[(startIdx + i) % ACTS.length];
+    items.push(makeItem(act.id, base + Math.floor(i / par) * durMs, durMs));
+  }
+  selUid = null;
+  renderAll();
+}
+
+// 在这条泳道的空位里找第一个放得下一段的起点；都满了就接在它自己末尾
+function freeSlot(laneId, durMs) {
+  const base = items.length ? Math.min(...items.map((i) => i.from)) : nextMidnight();
+  const segs = items.filter((i) => i.id === laneId).sort((a, b) => a.from - b.from);
+  let t = base;
+  for (const s of segs) {
+    if (s.to <= t) continue;          // 已经过去
+    if (s.from - t >= durMs) return t; // 空隙够长
+    t = Math.max(t, s.to);
+  }
+  return t;
+}
+
+function addToLane(laneId) {
+  const durMs = numOf('qDur', 48, 1, 720) * HOUR;
+  const it = makeItem(laneId, freeSlot(laneId, durMs), durMs);
+  items.push(it);
+  selUid = it.uid;
+  renderAll();
+}
+
+function appendWave() {
+  const durMs = numOf('qDur', 48, 1, 720) * HOUR;
+  const par = numOf('qPar', 2, 1, 6);
+  const from = baseStart();
+  const startIdx = items.length;
+  for (let j = 0; j < par; j++) {
+    const act = ACTS[(startIdx + j) % ACTS.length];
+    items.push(makeItem(act.id, from, durMs));
+  }
+  selUid = null;
+  renderAll();
+}
+
+// ---------- 渲染 ----------
+function renderChart() {
+  const chart = $('chart');
+  if (!items.length) {
+    chart.innerHTML = '<div class="empty">还没有排期：左边点「生成排期」，或导入已有清单。</div>';
+    return;
+  }
+  const now = Date.now();
+  const t0 = Math.min(...items.map((i) => i.from));
+  const t1 = Math.max(...items.map((i) => i.to));
+  const span = Math.max(t1 - t0, HOUR);
+  const pos = (t) => Math.max(0, Math.min(100, ((t - t0) / span) * 100));
+  // 每个 0 点一条淡分隔线，坐标轴按天标日期；活动起止点再画一条深一点的
+  const days = [];
+  {
+    const d = new Date(t0);
+    d.setHours(0, 0, 0, 0);
+    if (d.getTime() < t0) d.setDate(d.getDate() + 1);
+    while (d.getTime() <= t1 && days.length < 120) {
+      days.push(d.getTime());
+      d.setDate(d.getDate() + 1);
+    }
+  }
+  const labelStep = Math.max(1, Math.ceil(days.length / 12));
+  const axis = `<div class="axis">${days.map((t, i) => {
+    if (i % labelStep) return '';
+    const pct = pos(t);
+    const shift = pct < 2 ? 'none' : pct > 98 ? 'translateX(-100%)' : 'translateX(-50%)';
+    return `<span style="left:${pct}%;transform:${shift}">${fmtDay(t)}</span>`;
+  }).join('')}</div>`;
+  const dayLines = days.map((t) => `<span class="gline" style="left:${pos(t)}%"></span>`).join('');
+  const edgeLines = [...new Set(items.flatMap((i) => [i.from, i.to]))]
+    .map((t) => `<span class="gline edge" style="left:${pos(t)}%"></span>`).join('');
+  const nowLine = now >= t0 && now <= t1 ? `<span class="nowline" style="left:${pos(now)}%"></span>` : '';
+
+  // 一个活动一条轴；导入里出现的未知活动排在后面
+  const lanes = ACTS.map((a) => a.id);
+  for (const it of items) if (!lanes.includes(it.id)) lanes.push(it.id);
+
+  const rows = lanes.map((id) => {
+    const segs = items.filter((i) => i.id === id).sort((a, b) => a.from - b.from);
+    const live = segs.find((s) => s.from <= now && s.to > now);
+    const next = segs.find((s) => s.from > now);
+    let stText = '';
+    let stKey = '';
+    if (live) { stText = `进行中 · 剩 ${remainText(live.to - now)}`; stKey = 'live'; }
+    else if (next) stText = `下次 ${fmtShort(next.from)}`;
+    else if (segs.length) { stText = '已结束'; stKey = 'done'; }
+    const bars = segs.map((it) => {
+      const st = statusOf(it);
+      const left = pos(it.from);
+      const width = Math.max(0.6, pos(it.to) - pos(it.from));
+      const sel = it.uid === selUid;
+      const text = width > 22 ? `${fmtShort(it.from)} → ${fmtShort(it.to)}` : '';
+      return `<div class="bar ${sel ? 'sel' : st.key}" data-uid="${it.uid}" style="left:${left}%;width:${width}%" title="${esc(actOf(id).name)}：${fmt(it.from)} → ${fmt(it.to)}">${text}</div>`;
+    }).join('');
+    return `<div class="row${segs.length ? '' : ' idle'}">
+      <div class="label" data-lane="${esc(id)}" title="点一下在这条泳道的空位加一段">
+        <b>${esc(actOf(id).name)}</b>
+        <span class="st ${stKey}">${stText}</span>
+      </div>
+      <div class="track">${dayLines}${edgeLines}${bars}${nowLine}</div>
+    </div>`;
+  }).join('');
+
+  chart.innerHTML = axis + rows;
+}
+
+function renderSummary() {
+  const now = Date.now();
+  const live = items.filter((i) => i.from <= now && i.to > now);
+  const ended = items.filter((i) => i.to <= now).length;
+  const chips = [`<span class="chip">共 ${items.length} 段</span>`, `<span class="chip">进行中 ${live.length} 段</span>`];
+  if (ended) chips.push(`<span class="chip">已结束 ${ended} 段</span>`);
+  const dupe = [...new Set(items.map((i) => i.id))].filter((id) => items.filter((i) => i.id === id).length > 1);
+  if (dupe.length) chips.push(`<span class="chip warn">同一活动多段：${dupe.map((id) => esc(actOf(id).name)).join('、')}</span>`);
+  $('summary').innerHTML = chips.join('');
+}
+
+function renderInspector() {
+  const it = items.find((i) => i.uid === selUid);
+  $('selName').textContent = it ? `${actOf(it.id).name} · ${fmt(it.from)} → ${fmt(it.to)}` : '未选中（点时间轴上的条）';
+  const box = $('inspector');
+  if (!it) {
+    box.innerHTML = '<div class="insp-empty">在时间轴上点一段，或者在上面的下拉里换活动。</div>';
+    return;
+  }
+  const act = actOf(it.id);
+  const st = statusOf(it);
+  const seedVal = it.payload && it.payload.seed != null ? it.payload.seed : '';
+  const perTier = it.payload && it.payload.perTier ? it.payload.perTier : 3;
+  const egg = it.payload && it.payload.eggSpecies ? it.payload.eggSpecies : '';
+  const actOpts = (() => {
+    const ids = ACTS.map((a) => a.id);
+    if (!ids.includes(it.id)) ids.push(it.id);
+    return ids.map((id) => `<option value="${esc(id)}"${id === it.id ? ' selected' : ''}>${esc(actOf(id).name)}</option>`).join('');
+  })();
+  box.innerHTML = `<div class="insp">
+    <div class="line"><label>活动</label><select id="insAct">${actOpts}</select></div>
+    <div class="line"><label>开始</label><input type="datetime-local" id="insFrom" value="${inputFmt(it.from)}" /></div>
+    <div class="line"><label>结束</label><input type="datetime-local" id="insTo" value="${inputFmt(it.to)}" /></div>
+    <div class="line"><label>结束按时</label>${[1, 2, 3].map((d) => `<button class="btn ghost mini" data-setend="${d}">${d} 天后 0 点</button>`).join('')}</div>
+    <div class="line"><label>整段平移</label>
+      <button class="btn ghost mini" data-shift="-24">← 前移 24h</button>
+      <button class="btn ghost mini" data-shift="24">后移 24h →</button>
+    </div>
+    <div class="line"><label>状态</label><span class="meta">${st.text} · 共 ${durText(it.to - it.from)}</span></div>
+    ${act.perTier ? `<div class="line"><label>每档只数</label><input type="number" id="insPerTier" min="1" max="20" value="${perTier}" /><span class="meta">四档共 ${perTier * 4} 只</span></div>` : ''}
+    ${act.eggLocked
+      ? `<div class="line"><label>闪光蛋</label><span class="meta">固定「${act.eggLocked}」，外观本机随机</span></div>`
+      : `<div class="line"><label>闪光蛋</label><input type="text" id="insEgg" placeholder="留空 = 随机" value="${esc(egg)}" /><span class="meta">编号，如 0133</span></div>`}
+    <div class="line"><label>种子</label><span class="meta">${seedVal}</span><button class="btn ghost mini" id="insSeed">重摇</button></div>
+    <div class="line"><label></label><button class="btn danger mini" id="insDel">删除这一段</button></div>
+  </div>`;
+
+  $('insAct').addEventListener('change', () => {
+    setItemId(it, $('insAct').value);
+    renderAll();
+  });
+  $('insFrom').addEventListener('change', () => {
+    const t = new Date($('insFrom').value).getTime();
+    if (Number.isFinite(t)) { it.from = Math.min(t, it.to - HOUR); renderAll(); }
+  });
+  $('insTo').addEventListener('change', () => {
+    const t = new Date($('insTo').value).getTime();
+    if (Number.isFinite(t)) { it.to = Math.max(t, it.from + HOUR); renderAll(); }
+  });
+  box.querySelectorAll('[data-setend]').forEach((b) => b.addEventListener('click', () => {
+    it.to = endAtMidnight(it.from, Number(b.dataset.setend));
+    renderAll();
+  }));
+  box.querySelectorAll('[data-shift]').forEach((b) => b.addEventListener('click', () => {
+    const d = Number(b.dataset.shift) * HOUR;
+    if (it.from + d < 0) return;
+    it.from += d;
+    it.to += d;
+    renderAll();
+  }));
+  if (act.perTier) $('insPerTier').addEventListener('change', () => {
+    it.payload = { ...(it.payload || {}), perTier: Math.max(1, Math.min(20, Number($('insPerTier').value) || 3)) };
+    renderAll();
+  });
+  if (!act.eggLocked) $('insEgg').addEventListener('change', () => {
+    const v = $('insEgg').value.trim();
+    it.payload = { ...(it.payload || {}) };
+    if (v) it.payload.eggSpecies = v.padStart(4, '0'); else delete it.payload.eggSpecies;
+    renderAll();
+  });
+  $('insSeed').addEventListener('click', () => {
+    it.payload = { ...(it.payload || {}), seed: randSeed(it.from) };
+    renderAll();
+  });
+  $('insDel').addEventListener('click', () => {
+    items = items.filter((i) => i.uid !== it.uid);
+    selUid = null;
+    renderAll();
+  });
+}
+
+function renderAll() {
+  renderChart();
+  renderSummary();
+  renderInspector();
+  save();
+}
+
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({
+      items,
+      q: {
+        start: $('qStart').value, dur: $('qDur').value,
+        par: $('qPar').value, count: $('qCount').value,
+      },
+    }));
+  } catch (_) {}
+}
+function load() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (_) {}
+  if (saved && saved.q) {
+    if (saved.q.start) $('qStart').value = saved.q.start;
+    if (saved.q.dur) $('qDur').value = saved.q.dur;
+    if (saved.q.par) $('qPar').value = saved.q.par;
+    if (saved.q.count) $('qCount').value = saved.q.count;
+  }
+  if (!saved || !Array.isArray(saved.items)) return;
+  items = saved.items.filter((i) => i && typeof i.id === 'string').map((i) => ({
+    uid: uid(), id: i.id,
+    from: Number(i.from) || Date.now(),
+    to: Number(i.to) || Date.now() + 48 * HOUR,
+    payload: i.payload && typeof i.payload === 'object' ? i.payload : { seed: randSeed(Number(i.from) || Date.now()) },
+  }));
+}
+
+// ---------- 交互 ----------
+$('chart').addEventListener('click', (e) => {
+  const lane = e.target.closest('[data-lane]');
+  if (lane) { addToLane(lane.dataset.lane); return; }
+  const bar = e.target.closest('.bar');
+  if (!bar) return;
+  selUid = bar.dataset.uid;
+  renderAll();
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || !selUid) return;
+  items = items.filter((i) => i.uid !== selUid);
+  selUid = null;
+  renderAll();
+  e.preventDefault();
+});
+$('qGen').addEventListener('click', generateSchedule);
+$('append').addEventListener('click', appendWave);
+['qStart', 'qDur', 'qPar', 'qCount'].forEach((id) => $(id).addEventListener('change', save));
+
+function parseList(raw) {
   const t = raw.trim();
-  if (!t) return { list: [], dropped: 0 };
+  if (!t) return [];
   let data;
-  try { data = JSON.parse(t); }
-  catch (e) { throw new Error(`粘贴的内容不是合法 JSON：${e.message}`); }
+  try { data = JSON.parse(t); } catch (err) { throw new Error(`不是合法 JSON：${err.message}`); }
   let list;
   if (Array.isArray(data)) list = data;
   else if (data && typeof data === 'object' && Array.isArray(data.list)) list = data.list;
   else if (data && typeof data === 'object' && typeof data.id === 'string') list = [data];
-  else throw new Error('粘贴的内容里找不到 list 数组');
+  else throw new Error('找不到 list 数组');
   list.forEach((a, i) => {
     if (!a || typeof a !== 'object' || typeof a.id !== 'string'
       || !Number.isFinite(Number(a.from)) || !Number.isFinite(Number(a.to))) {
-      throw new Error(`第 ${i + 1} 条活动缺少 id / from / to`);
+      throw new Error(`第 ${i + 1} 条缺少 id / from / to`);
     }
   });
-  const now = Date.now();
-  const kept = list.filter(a => Number(a.to) > now);
-  return { list: kept, dropped: list.length - kept.length };
+  return list.map((a) => ({
+    uid: uid(), id: a.id, from: Number(a.from), to: Number(a.to),
+    payload: a.payload && typeof a.payload === 'object' ? { ...a.payload } : { seed: randSeed(Number(a.from)) },
+  }));
 }
-
-function syncExistingHint() {
-  const el = $('existingHint');
-  const raw = $('existing').value.trim();
-  if (!raw) { el.textContent = '未粘贴：将生成全新清单'; el.style.color = ''; return; }
+$('importBtn').addEventListener('click', () => {
+  const hint = $('importHint');
   try {
-    const { list, dropped } = parseExisting(raw);
-    el.textContent = dropped
-      ? `已识别 ${list.length} 条，剔除 ${dropped} 条已到期的；新活动会追加到末尾`
-      : `已识别 ${list.length} 条，新活动会追加到末尾`;
-    el.style.color = '';
+    const list = parseList($('pasteBox').value);
+    items = list;
+    selUid = null;
+    hint.classList.remove('err');
+    hint.textContent = `已导入 ${list.length} 段`;
+    renderAll();
   } catch (e) {
-    el.textContent = e.message;
-    el.style.color = '#b23b3b';
+    hint.classList.add('err');
+    hint.textContent = `导入失败：${e.message}`;
   }
-}
-
-// 所有随机都由 payload.seed 决定：客户端用同一个 seed 定"固定哪一只"（全野池随机、去神兽）
-// 和四档奖励 —— 全服完全一致，改 seed 就换一只、换一份奖励，不用读排期。
-// 鸟了个鸟、猜宝可梦不读种子：玩法与奖励都写死在客户端，payload 直接不带 seed。
-// 符文寻踪同理：图腾位置本机随机，兑换所那颗未知图腾蛋也是本机随机。
-// 海豹滑冰、箭头迷宫的盘面也是本机随机，不带 seed。
-const NO_SEED = new Set(['bird-stack', 'guess-name', 'treasure-hunt', 'seal-slide', 'arrow-maze']);
-function build() {
-  const f = readForm();
-  const { list: base } = parseExisting(f.existing);   // 已到期的活动在这里就被剔除了
-  const from = f.startAt ? new Date(f.startAt).getTime() : Date.now();
-  if (!Number.isFinite(from)) throw new Error('开始时间格式不对');
-  const to = from + f.hours * 3600 * 1000;
-  const item = { id: f.kind, from, to };
-  const payload = {};
-  if (!NO_SEED.has(f.kind)) payload.seed = (from ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
-  if (f.kind === 'mass-bounty') payload.perTier = f.perTier;
-  if (f.egg && f.kind !== 'guess-name' && f.kind !== 'sweet-workshop' && f.kind !== 'treasure-hunt') payload.eggSpecies = f.egg.padStart(4, '0');
-  if (Object.keys(payload).length) item.payload = payload;
-  return { text: JSON.stringify({ list: base.concat([item]) }, null, 2), from, to, baseCount: base.length };
-}
-
-$('gen').addEventListener('click', async () => {
-  saveForm();
-  const btn = $('gen');
-  btn.disabled = true;
-  $('genHint').textContent = '正在生成…';
-  try {
-    const { text, from, to, baseCount } = build();
-    $('json').value = text;
-    $('outTitle').textContent = baseCount
-      ? `生成的 JSON（保留原有 ${baseCount} 条，追加 1 条：${fmt(from)} 起，到 ${fmt(to)} 止）`
-      : `生成的 JSON（${fmt(from)} 起，到 ${fmt(to)} 止）`;
-    $('out').hidden = false;
-    const k = $('kind').value;
-    $('genHint').textContent = k === 'mass-bounty'
-      ? '目标与四档奖励都由 payload.seed 决定（目标从全野池随机、去神兽）：改 seed 换一只、换一份奖励'
-      : k === 'poke-flip'
-        ? '宝可翻牌：payload.seed 决定兑换所那颗闪光蛋的物种，改它换一颗'
-        : k === 'flow-link'
-          ? '宝可连线：奖励固定的几件货由 payload.seed 摇，改它换一份；难度由玩家在活动页自选'
-          : k === 'voyage'
-            ? '航海寻宝：拼图底图、碎片落点、每格奖励与航段里程都由 payload.seed 摇，改它换一份；数值写死在客户端'
-            : k === 'power-flow'
-              ? '电力输送：棋盘本机随机；兑换所随机货和那颗闪光蛋由 payload.seed 决定，可用 eggSpecies 指定蛋'
-            : k === 'guess-name'
-              ? '猜宝可梦：不需要种子，题目与奖励都写死在客户端；难度由玩家在活动页自选'
-              : k === 'sweet-workshop'
-                ? '甜蜜工坊：薄荷/道具/王冠/大师球由 payload.seed 摇；那颗霜奶仙蛋的外观每位玩家各自随机，不吃种子'
-                : k === 'treasure-hunt'
-                  ? '符文寻踪：不需要种子，图腾位置与兑换所那颗未知图腾蛋都是本机随机；难度由玩家在活动页自选'
-                  : k === 'seal-slide'
-                    ? '海豹滑冰：棋盘本机随机，兑换所随机货跟着活动生成；难度由玩家在活动页自选'
-                    : k === 'arrow-maze'
-                      ? '箭头迷宫：棋盘本机随机，兑换所随机货和那颗闪光蛋跟着活动生成；难度由玩家在活动页自选'
-                      : '鸟了个鸟：不需要种子，但填了闪光蛋物种会带上 eggSpecies';
-  } catch (e) {
-    $('genHint').textContent = `生成失败：${e.message}（点「生成」重试）`;
-  } finally { btn.disabled = false; }
 });
+$('clearSchedule').addEventListener('click', () => {
+  if (!items.length) return;
+  if (!confirm(`清空全部 ${items.length} 段排期？`)) return;
+  items = [];
+  selUid = null;
+  $('importHint').textContent = '';
+  renderAll();
+});
+
+// 导出时丢掉已结束的：它们对玩家已经不可见，留着只会堆在服务器清单里
+function buildJson() {
+  const now = Date.now();
+  const kept = items.filter((it) => it.to > now).sort((a, b) => a.from - b.from);
+  const list = kept.map((it) => {
+    const out = { id: it.id, from: Math.round(it.from), to: Math.round(it.to) };
+    if (it.payload && Object.keys(it.payload).length) out.payload = it.payload;
+    return out;
+  });
+  return { text: JSON.stringify({ list }, null, 2), kept: kept.length, dropped: items.length - kept.length };
+}
+$('gen').addEventListener('click', () => {
+  if (!items.length) {
+    $('summary').innerHTML = '<span class="chip warn">还没有排期，先点「生成排期」</span>';
+    return;
+  }
+  const { text, kept, dropped } = buildJson();
+  if (!kept) {
+    $('summary').innerHTML = '<span class="chip warn">没有可导出的活动：时间轴上的都已经结束了</span>';
+    $('out').hidden = true;
+    $('copy').hidden = true;
+    return;
+  }
+  $('json').value = text;
+  $('outTitle').textContent = dropped
+    ? `生成的 JSON（保留 ${kept} 段，已排除 ${dropped} 段已结束的）`
+    : `生成的 JSON（${kept} 段）`;
+  $('out').hidden = false;
+  $('copy').hidden = false;
+});
+async function copyJson() {
+  try { await navigator.clipboard.writeText($('json').value); }
+  catch (_) { $('json').select(); document.execCommand('copy'); }
+}
 $('copy').addEventListener('click', async () => {
-  const btn = $('copy');
-  try { await navigator.clipboard.writeText($('json').value); btn.textContent = '已复制'; }
-  catch (_) { $('json').select(); document.execCommand('copy'); btn.textContent = '已复制'; }
-  setTimeout(() => { btn.textContent = '复制'; }, 1200);
+  await copyJson();
+  $('copy').textContent = '已复制';
+  setTimeout(() => { $('copy').textContent = '复制'; }, 1200);
 });
-$('reset').addEventListener('click', () => { writeForm(DEFAULTS); saveForm(); $('out').hidden = true; syncExistingHint(); });
-$('now').addEventListener('click', () => { $('startAt').value = inputFmt(Date.now()); saveForm(); });
-$('existing').addEventListener('input', syncExistingHint);
-FIELDS.forEach(id => $(id).addEventListener('change', saveForm));
-// 「每档只数」只对大量悬赏有意义，其余活动收起来
-function syncRows() { $('rowPerTier').style.display = $('kind').value === 'mass-bounty' ? '' : 'none'; }
-$('kind').addEventListener('change', syncRows);
+$('copy2').addEventListener('click', async () => {
+  await copyJson();
+  $('copy2').textContent = '已复制';
+  setTimeout(() => { $('copy2').textContent = '复制'; }, 1200);
+});
 
-loadForm();
-syncRows();
-syncExistingHint();
+// ---------- 启动 ----------
+load();
+if (!$('qStart').value) $('qStart').value = inputFmt(nextMidnight());
+renderAll();
+setInterval(() => {                                              // 剩余时间 / 现在线每 30 秒刷一次
+  const ae = document.activeElement;
+  if (ae && ae.closest && ae.closest('#chart')) return;          // 正在点下拉时别重建
+  renderChart();
+  renderSummary();
+}, 30e3);
 </script>
 </body>
 </html>

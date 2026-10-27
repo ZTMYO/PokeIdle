@@ -332,11 +332,11 @@ export function ensureLegendPool() {
 }
 
 // 遇敌时掷一次：命中就从当天这个地区的池里抽一只；软保底到点必出
-export function rollLegendEncounter() {
+export function rollLegendEncounter(buffed = (honeyBuffActive || charmBuffActive)) {
   const pool = ensureLegendPool();
   const list = pool.byRegion[getCurrentRegion().name] || [];
   if (!list.length) return null;
-  const rate = (honeyBuffActive || charmBuffActive) ? LEGEND_ENCOUNTER_RATE_BUFF : LEGEND_ENCOUNTER_RATE;
+  const rate = buffed ? LEGEND_ENCOUNTER_RATE_BUFF : LEGEND_ENCOUNTER_RATE;
   if ((gameData.legendPity || 0) < LEGEND_PITY && Math.random() >= rate) {
     gameData.legendPity = (gameData.legendPity || 0) + 1;
     return null;
