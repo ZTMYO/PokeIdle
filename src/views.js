@@ -1318,8 +1318,8 @@ export function renderSettings(container, s) {
           <span class="reset-save-btn" id="reloadGameBtn">刷新</span>
         </div>
         <div class="reset-save-row">
-          <span class="auto-catch-label">保存并退出</span>
-          <span class="reset-save-btn" id="saveExitBtn">保存退出</span>
+          <span class="auto-catch-label">手动保存</span>
+          <span class="reset-save-btn" id="saveBtn">保存</span>
         </div>
         <div class="cf-hint" id="saveTimeHint" style="padding:2px 4px 4px;"></div>
       </div>
@@ -1382,28 +1382,21 @@ export function renderSettings(container, s) {
     saveGame();
     location.reload();
   });
-  // 保存并退出：等这次写盘真的成功再退（写失败就留下，别让玩家带着没保存的进度走）
-  container.querySelector('#saveExitBtn')?.addEventListener('click', async () => {
-    const btn = container.querySelector('#saveExitBtn');
+  // 保存：只落盘，不退出（要退出玩家自己大退）
+  container.querySelector('#saveBtn')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#saveBtn');
     btn.textContent = '保存中…';
     setSaveSuspended(false);
     let ok = false;
     try { ok = await saveGame(); } catch (_) { }
     if (!ok) {
       btn.textContent = '保存失败';
-      flashSaveHint('存档写入失败，先别退出');
-      setTimeout(() => { btn.textContent = '保存退出'; }, 2500);
+      flashSaveHint('存档写入失败');
+      setTimeout(() => { btn.textContent = '保存'; }, 2500);
       return;
     }
     btn.textContent = '已保存 ✓';
-    const mob = window.__POKEIDLE_MOBILE__;
-    if (mob?.exitApp) { setTimeout(() => mob.exitApp(), 300); return; } // 安卓：直接退
-    try {
-      const w = window.__TAURI__?.window?.getCurrentWindow?.();
-      if (w?.close) { await w.close(); return; }
-    } catch (_) { }
-    flashSaveHint('已保存，可以退出游戏了');
-    setTimeout(() => { btn.textContent = '保存退出'; }, 2500);
+    setTimeout(() => { btn.textContent = '保存'; }, 2500);
   });
   // 导出存档：桌面版调 Tauri 命令打开目录选择器；网页版直接下载 JSON 文件。
   // 时间戳保持真实（导入时靠确认框里把 lastSaveTime 顶到最新，见 doApplyImportedSave）

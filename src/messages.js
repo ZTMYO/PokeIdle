@@ -144,6 +144,7 @@ export const PICKUP_RESULTS = ['捡到了', '发现了', '找到了', '翻出了
 
 // 上次构建闲置消息时的数据快照：物品/图鉴/统计/成就/悬赏任一变，文案都需重建以保持同步
 let _msgSnapshot = '';
+let _lastIdleText = '';   // 上一条普通轮播文案：等概率抽样时用来避开连播同一条
 
 // 当前闲置消息依赖数据的稳定字符串快照。
 // 今天的日期键（与 items.js 的 evoDateStr / bounty.js 的 dateStr 同格式）
@@ -207,7 +208,6 @@ export function buildIdleMessages() {
     '高级球对稀有宝可梦有额外捕获加成，抓神兽时更稳。',
     '手机里的导航应用，可以规划前往其他地区的路线。',
     '这是由ZTMYO个人开发的同人游戏。',
-    '这是由ZTMYO个人开发的同人游戏。',
     '详情页能看到进化链，条件齐了就能进化。',
     '完成地区悬赏，能换来糖果或进化道具！',
     '混合器把树果做成树果方块，能吸引特定的宝可梦。',
@@ -241,9 +241,19 @@ export function buildIdleMessages() {
     '在详情页面点击宝可梦图片可放大查看。',
     '招式机买一次所有宝可梦永久解锁这个招式。',
     '孵蛋得到的宝可梦才能解锁蛋招式。',
+    '闪耀护符可以提升遇见闪光宝可梦的几率！',
+    // —— 宝可梦列表 / 筛选（「右键」在触屏设备上会自动换成「长按」）——
+    '宝可梦列表右键可以切换盒子视图。',
+    '宝可梦列表右键能打开高级筛选。',
+    '宝可梦列表右键可以批量放生。',
+    '上锁的宝可梦不会被批量放生。',
+    '图鉴里能翻看每种宝可梦的相遇日志。',
+    '派遣越久越容易带回稀有的进化道具。',
+    '随从的星级越高，增益持续越久。',
+    '树果方块只吸引已解锁的野外物种。',
   ];
-  // 教程指引类分散投入数组：轮播按顺序推进，若连续 push 会连排出现，此处只投开头 1 条
-  msgs.push(guideMsgs[randInt(0, guideMsgs.length - 1)]);
+  // 指引 / 致敬 / 闲聊全部进池：轮播改成等概率抽，不再靠"每次重建只挑几条"控制分布
+  msgs.push(...guideMsgs);
 
 // ——— 原作致敬情怀短句 ———
 const tributeMsgs = [
@@ -268,9 +278,7 @@ const tributeMsgs = [
   '永远保持初次踏上旅途时的那份热忱。',
   '世间万千宝可梦，每一只都值得被铭记。',
 ];
-msgs.push(tributeMsgs[randInt(0, tributeMsgs.length - 1)]);
-// 教程指引第 2 条：夹在致敬与闲聊之间，避免与首尾的指引连排
-msgs.push(guideMsgs[randInt(0, guideMsgs.length - 1)]);
+msgs.push(...tributeMsgs);
 
 // ——— 轻松趣味闲聊 ———
 const chatMsgs = [
@@ -294,7 +302,7 @@ const chatMsgs = [
   '孵化一颗神秘蛋，收获全新的伙伴。',
   '运气正在慢慢积攒，闪光或许马上出现。',
 ];
-msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
+msgs.push(...chatMsgs);
   // ——— 里程碑收集类 ———
   if (caught > 0) {
     if (caught >= total) msgs.push('全部宝可梦都已收录！你当之无愧是宝可梦大师！');
@@ -389,11 +397,9 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
   if ((items['master-ball']||0) > 0) msgs.push(`你有${items['master-ball']}颗大师球！无惧任何宝可梦！`);
   if ((items['candy']||0) > 0) msgs.push(`攒了${items['candy']}颗糖果，去商店看看有什么好东西吧！`);
   if ((items['candy']||0) >= 100) msgs.push(`糖果已经${items['candy']}颗了，兑换一些精灵球如何？`);
-  if ((items['sweet-honey']||0) > 0) msgs.push(`甜甜蜜还剩${items['sweet-honey']}瓶，涂上它会更容易遇到宝可梦！`);
-  if ((items['mystery-egg']||0) > 0) msgs.push(`神秘蛋×${items['mystery-egg']}，孵化看看是什么宝可梦！`);
-  if ((items['mystery-egg']||0) >= 5) msgs.push(`攒了${items['mystery-egg']}颗蛋了，来一次批量孵化吧！`);
-  if ((items['shiny-charm']||0) > 0) msgs.push(`闪耀护符×${items['shiny-charm']}，价值不菲的珍稀道具！`);
-  if ((items['shiny-charm']||0) > 0) msgs.push('闪耀护符可以提升遇见闪光宝可梦的几率！');
+  if ((items['sweet-honey']||0) > 0) msgs.push(`甜甜蜜还剩${items['sweet-honey']}罐，涂上它会更容易遇到宝可梦！`);
+  if ((items['mystery-egg']||0) > 0) msgs.push(`${items['mystery-egg']}个神秘蛋，孵化看看是什么宝可梦！`);
+  if ((items['shiny-charm']||0) > 0) msgs.push(`拥有${items['shiny-charm']}个闪耀护符，价值不菲的珍稀道具！`);
   if ((items['shiny-charm']||0) >= 2) msgs.push(`手握${items['shiny-charm']}个闪耀护符，随时准备迎接奇迹降临！`);
 
   // ——— 成就类 ———
@@ -462,14 +468,9 @@ msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
     }
   }
 
-  // 教程指引第 3 条：落在数组末尾，其后补一条闲聊收尾，
-  // 保证轮播从末尾跳回开头时不会出现两条指引连排
-  msgs.push(guideMsgs[randInt(0, guideMsgs.length - 1)]);
-  msgs.push(chatMsgs[randInt(0, chatMsgs.length - 1)]);
-
   // 加入当前地区氛围文案（由 rotateIdleMessage 按间隔插入，此处不移入）
-  // 触屏设备上把「右键」这类桌面措辞换成触屏说法（与教程页面共用 ui.js 的替换表）
-  setIdleMsgs(msgs.map(touchText));
+  // 触屏设备上把「右键」这类桌面措辞换成触屏说法（与教程页面共用 ui.js 的替换表）；重复文案去重，避免隐含权重
+  setIdleMsgs([...new Set(msgs.map(touchText))]);
 }
 
 // buff 效果轮播文案（闪耀护符 / 树果方块 / 甜甜蜜）：
@@ -544,11 +545,15 @@ export function rotateIdleMessage() {
       return;
     }
   }
-  // 普通消息轮播
+  // 普通消息轮播：从池子里等概率抽一条，只避开上一条，保证每条都有机会播出
   if (_idleMsgs.length === 0) buildIdleMessages();
   if (_idleMsgs.length > 0) {
-    setIdleMsgIdx((_idleMsgIdx + 1) % _idleMsgs.length);
-    $('idleText').textContent = _idleMsgs[_idleMsgIdx];
+    let text = _idleMsgs[randInt(0, _idleMsgs.length - 1)];
+    for (let i = 0; i < 6 && _idleMsgs.length > 1 && text === _lastIdleText; i++) {
+      text = _idleMsgs[randInt(0, _idleMsgs.length - 1)];
+    }
+    _lastIdleText = text;
+    $('idleText').textContent = text;
   }
 }
 
@@ -612,11 +617,11 @@ export function showBuffExpired(kind) {
 export function startIdleRotation() {
   if (_idleMsgTimer) clearInterval(_idleMsgTimer);
   setRegionMsgInterval(0);
-  // 初始显示第一个
+  // 初始也随机一条（与轮播一样等概率）
   buildIdleMessages();
   if (_idleMsgs.length > 0) {
-    setIdleMsgIdx(0);
-    $('idleText').textContent = _idleMsgs[0];
+    _lastIdleText = _idleMsgs[randInt(0, _idleMsgs.length - 1)];
+    $('idleText').textContent = _lastIdleText;
   }
   // 每 10 秒轮换
   setIdleMsgTimer(setInterval(rotateIdleMessage, 10000));

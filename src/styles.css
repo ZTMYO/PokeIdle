@@ -4134,6 +4134,21 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   text-align: center;
   padding: 10px 0 4px;
 }
+/* 标题行 + 右上角「帮助」 */
+.mixer-head { position: relative; display: flex; align-items: center; }
+.mixer-head .mixer-page-title { flex: 1; }
+.mixer-help-btn {
+  position: absolute; right: 2px; top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 7px;
+  font: inherit; font-size: 10px; font-weight: 700;
+  color: var(--ui-color);
+  background: none;
+  border: 1px solid rgba(var(--ui-color-rgb), .45);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.mixer-help-btn:active { transform: translateY(-50%) scale(.94); }
 /* 通用淡入：动画完成后由 JS 加 show 显示 */
 
 .mixer-wrap {
@@ -13830,6 +13845,8 @@ html.power-save .screen *:not(.walk-gif)::after {
   padding: 4px 0;
   overflow-y: auto;
 }
+/* 整段说明用 <p>（树果混合器等）：去掉默认外边距，行距收紧 */
+.game-rules-body p { margin: 0; font-size: 10px; line-height: 1.55; }
 .game-rule-row {
   display: flex;
   align-items: flex-start;

@@ -6,6 +6,7 @@ import { phase, gameData, blockBuffActive, blockRecipe, blockStartWalk, blockQua
 import { BERRY_ICONS, BERRY_NAMES, BERRY_COLORS, findBerryTarget } from './items.js';
 import { BLOCK_DISTANCE, PX_PER_METER, BLOCK_QUALITY } from './config.js';
 import { playObtained } from './audio.js';
+import { showRulesPanel } from './rules-panel.js';
 
 // 制作一个树果方块最多消耗的树果颗数（每种 1 颗）；配方只有 1/2/3 颗三档，选 4 颗没有物种能对上
 const RECIPE_MAX = 3;
@@ -45,10 +46,22 @@ let _qteBaseAngle = 0;     // active 阶段起始角度（度）
 let _qteSpeed = 0;         // 当前轮内指针角速度
 
 // ---------- 页面入口 ----------
+// 进页面先讲机制：树果只吸引「已解锁 + 野外能遇到」的物种
+const MIXER_GUIDE = `
+  <p>选择树果后进入混合小游戏，按得越准品质越高，品质越高越容易遇到目标宝可梦。</p>
+  <p>只有<b>图鉴已解锁</b>的物种才会被吸引：没解锁的配方引不来宝可梦。配方可在图鉴查看。</p>
+  <p>只吸引<b>野外能遇到</b>的物种——神兽、超级/超极巨形态等不在野外的不会出现。</p>`;
+
 export function showMixerView() {
   pushNav('mixerView');
   showView('mixerView');
   render();
+  // 只自动弹一次；之后想看就点页面右上角的「帮助」
+  if (!gameData.mixerGuideSeen && !_qteActive && !qteState && !blockBuffActive) {
+    gameData.mixerGuideSeen = true;
+    saveGame();
+    showRulesPanel('mixerView', '树果混合器', MIXER_GUIDE);
+  }
 }
 
 // ---------- 渲染 ----------
@@ -93,6 +106,7 @@ function render() {
     }
     $('mixerStartBtn')?.addEventListener('click', onStartBtn);
     $('mixerCancelPickBtn')?.addEventListener('click', cancelPick);
+    $('mixerHelpBtn')?.addEventListener('click', () => showRulesPanel('mixerView', '树果混合器', MIXER_GUIDE));
   }
 }
 
@@ -101,7 +115,10 @@ function idleHtml() {
   if (!_pickOpen) {
     return `
       <div class="mixer-wrap">
-        <div class="mixer-page-title">树果混合器</div>
+        <div class="mixer-head">
+          <div class="mixer-page-title">树果混合器</div>
+          <button class="mixer-help-btn" id="mixerHelpBtn">帮助</button>
+        </div>
         <div class="mixer-info">
           <div class="mixer-demo" id="mixerDemo"></div>
         </div>
