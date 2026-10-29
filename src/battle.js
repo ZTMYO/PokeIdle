@@ -1447,6 +1447,11 @@ export async function autoCatch() {
   try {
 
   while (currentEncounter && gameData.settings?.autoCatch && (_encPhase === 'encounter' || _bgCatch)) {
+    // 上一只收尾时 goIdle 可能同步开出脚下排队的下一只：每轮都按当前这只重查过滤，
+    // 否则会把新遇到的闪光/神兽直接沿用上一只的“捕捉”策略自动抓掉
+    const fr = catchFilterResult();
+    if (fr === 'stop') break;
+    if (fr === 'flee') { stopAutoFleeTimer(); await fleeEncounter(true); break; }
     // 智能选球：根据精灵捕获率决定使用哪种球
     const enabledBalls = gameData.settings?.autoCatchBalls || AUTO_CATCH_BALLS_DEFAULT;
     let availableBalls = ['poke-ball', 'ultra-ball', 'master-ball'].filter(b => enabledBalls[b] !== false && (gameData.items[b]||0) > 0);

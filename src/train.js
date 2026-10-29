@@ -39,6 +39,7 @@ const TILESET = './terrain/terrain-tileset.png';
 const BOARD_IMG = './items/berry-trees/board.png';
 const BOX_IMG = './items/berry-trees/box.png';
 const BERRY_DIR = './items/berries/';
+const HEART_CHANCE = 0.3;
 
 // 训练场地图（{col,row} 为 terrain tileset 坐标）
 const TRAIN = {
@@ -392,6 +393,7 @@ function syncWalkers() {
     // 点击（抓取）偷懒的宝可梦：把它叫醒，立即恢复训练
     el.addEventListener('click', (e) => {
       e.stopPropagation();
+      popTrainHearts(el);
       wakeUp(slot, img);
       showWalkerTip(el, slot); // 触屏没有 hover：点一下也把信息显示到顶部条
     });
@@ -584,6 +586,23 @@ function walkerTick(now = Date.now()) {
 // ---------- 告示牌面板（复用农田底部的 picker 弹层） ----------
 function isLazy(slot) {
   return !!slot && !!slot.lazyUntil && Date.now() < slot.lazyUntil;
+}
+
+// 点击宝可梦时概率冒出头顶爱心粒子（培育屋同款）
+function popTrainHearts(el) {
+  if (!el || Math.random() >= HEART_CHANCE) return;
+  el.querySelectorAll('.train-walker-heart-fx').forEach(fx => fx.remove());
+  const fx = document.createElement('div');
+  fx.className = 'train-walker-heart-fx';
+  for (let i = 0; i < 4; i++) {
+    const p = document.createElement('i');
+    p.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11"><use xlink:href="#icon-liked"/></svg>';
+    p.style.left = (Math.random() * 24 - 12) + 'px';
+    p.style.animationDelay = (i * 0.45).toFixed(2) + 's';
+    fx.appendChild(p);
+  }
+  el.appendChild(fx);
+  setTimeout(() => fx.remove(), 3200);
 }
 
 // 点击（抓取）偷懒的宝可梦：清除偷懒状态立即恢复训练

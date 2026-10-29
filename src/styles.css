@@ -6441,7 +6441,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   gap: 1px;
   padding: 1px;
   overflow: hidden; /* 内容再多也不撑破格子 */
-  border: 1px solid transparent;
+  border: 1px solid var(--ui-color);
   background: rgba(var(--ui-color-rgb), 0.06);
   cursor: pointer;
 }
@@ -6497,9 +6497,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .box-gender { display: flex; align-items: center; flex-shrink: 0; }
 .box-gender svg { width: 9px; height: 9px; display: block; }
 
-/* 稀有度色框：普通 / 稀有 / 传说 */
-.roster-box-cell.rar-common { border-color: #7a8a8a; }
-.roster-box-cell.rar-rare { border-color: #4477cc; }
+/* 稀有度边框：普通/稀有统一走图鉴的深绿，传说保留金框 */
 .roster-box-cell.rar-legend { border-color: #d4850a; }
 
 /* 变体色框优先于稀有度：污染（紫）/ RGB（上左青、下右红的分离色边框，配色同 .fx-variant-rgb） */
@@ -6590,10 +6588,10 @@ html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
 .pokedex-box-star { position: absolute; top: 1px; right: 1px; color: var(--ui-color); line-height: 0; }
 .pokedex-box-star .pokedex-star-svg { width: 7px; height: 7px; display: block; }
 
-/* 边框色：未解锁 / 只遇到过都淡灰，已捕获深，神兽金黄 */
+/* 边框色：未解锁 / 只遇到过都淡灰，已捕获用主色，神兽金黄 */
 .pokedex-box-cell.dex-frame-locked { border-color: rgba(var(--ui-color-rgb), 0.18); }
 .pokedex-box-cell.dex-frame-seen { border-color: rgba(var(--ui-color-rgb), 0.18); }
-.pokedex-box-cell.dex-frame-caught { border-color: var(--ui-color-dark); }
+.pokedex-box-cell.dex-frame-caught { border-color: var(--ui-color); }
 .pokedex-box-cell.dex-frame-legend { border-color: #d4850a; }
 /* 未解锁神兽：淡金提示，与已解锁的满色金区分 */
 .pokedex-box-cell.dex-frame-legend.disabled { border-color: rgba(212, 133, 10, 0.4); }
@@ -9553,6 +9551,26 @@ body.booting { visibility: hidden; }
   0%   { opacity: 0; transform: translate(0, 0) scale(0.6); }
   18%  { opacity: 1; }
   100% { opacity: 0; transform: translate(10px, -30px) scale(1.6); }
+}
+/* 点击宝可梦时概率冒出的头顶爱心粒子（培育屋同款） */
+.train-walker-heart-fx {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  z-index: 7;
+  pointer-events: none;
+}
+.train-walker-heart-fx i {
+  position: absolute;
+  font-style: normal;
+  color: #ff6fa5;
+  filter: drop-shadow(0 0 3px rgba(255, 111, 165, .55));
+  animation: nurseryHeart 1.8s ease-out both;
+}
+.train-walker-heart-fx i svg {
+  display: block;
+  width: 11px;
+  height: 11px;
 }
 .train-board-sign {
   position: absolute;

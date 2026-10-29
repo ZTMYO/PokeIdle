@@ -471,13 +471,12 @@ function rowHtml(p) {
     </div>`;
 }
 
-// 盒子视图边框类：变体优先（RGB / 污染），否则按稀有度（普通 / 稀有 / 传说）
+// 盒子视图边框类：变体优先（RGB / 污染），传说金框；普通/稀有统一走图鉴深绿框
 function boxFrameClass(p, poke) {
   if (p.variant === 'rgb') return 'var-rgb';
   if (p.variant === 'polluted') return 'var-polluted';
   if (poke?.legend) return 'rar-legend';
-  if ((poke?.rarity || 0) > 0.6) return 'rar-rare';
-  return 'rar-common';
+  return '';
 }
 
 // 盒子视图单格：顶部个体值条 + 图标（右上角闪光/扭曲角标）+ 底部等级 / 性别
