@@ -369,7 +369,7 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
           img.dataset.shiny = on ? 'true' : 'false';
           shinyBtn.classList.toggle('on', on);
           if (on) startShinySparkleOn($('pokedexView'), img, { cls: 'sm', scale: 0.6 });
-          else stopShinySparkleLoop();
+          else stopShinySparkleLoop($('pokedexView'));
         });
       });
     }
@@ -448,7 +448,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 export function restorePokedex() {
-  stopShinySparkleLoop(); // 离开图鉴详情：停止闪光粒子循环
+  stopShinySparkleLoop($('pokedexView')); // 离开图鉴详情：停止闪光粒子循环
   _logsIdx = null;
   leaveLogsTitle();
   _curDetailIdx = null;

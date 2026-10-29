@@ -3,7 +3,7 @@
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
 import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX, TRADE_VALUE_W, TRADE_VALUE_JITTER, TRADE_GIVE_LEVEL_NONE, TRADE_BASE_FORM_CHANCE, EXP_CANDY_XP, MAX_LEVEL, BREED_ONLY_IDS } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon, ivOf, effIvTotal } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon, ivOf, effIvTotal, rollShinyResult } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage, logicViewport, popupBounds, showConfirmBar, watchOutsidePress } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
@@ -197,14 +197,16 @@ function makeOffer(npc) {
   const giveLevel = want.level
     ? Math.max(1, Math.min(TRADE_GIVE_LEVEL_MAX, Math.round(want.level * (0.8 + Math.random() * 0.8))))
     : randInt(1, TRADE_GIVE_LEVEL_NONE);
+  const shinyRoll = rollShinyResult(window.__followerBoostMechanic?.('tradeShiny', TRADE_SHINY_CHANCE) ?? TRADE_SHINY_CHANCE);
   return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     npc: npc.id,
     want,
     give: {
       species: String(givePoke.index),
-      // 随从增益：trade 类提升交换 NPC 给出闪光的概率
-      shiny: Math.random() < (window.__followerBoostMechanic?.('tradeShiny', TRADE_SHINY_CHANCE) ?? TRADE_SHINY_CHANCE),
+      // 随从增益：trade 类提升交换 NPC 给出闪光的概率；随机闪光再判方闪
+      shiny: shinyRoll.shiny,
+      squareShiny: shinyRoll.squareShiny,
       nature: rollNature(),
       ivs: rollTradeIvs(givePoke.legend === true, want.iv),
       level: giveLevel,
@@ -245,6 +247,7 @@ function makeAuthorOffer() {
   base.give = {
     species: String(givePoke.index),
     shiny: true,
+    squareShiny: false, // 彩蛋锁星闪
     nature: pickAuthorNature(givePoke),
     ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
     level: MAX_LEVEL,
@@ -414,7 +417,7 @@ export function isTradeInDetail() {
   return _tradeMode != null || _tradeDetail != null;
 }
 export function restoreTradeList() {
-  stopShinySparkleLoop(); // 离开详情/选择子页面：停止闪光粒子循环
+  stopShinySparkleLoop($('tradeView')); // 离开详情/选择子页面：停止闪光粒子循环
   _tradeMode = null;
   _tradeDetail = null;
   resumeTradeRefresh(); // 离开选择子页面：恢复刷新倒计时
@@ -614,7 +617,7 @@ function renderGiveDetail(content, offerId) {
     else if (o.give.variant === 'polluted') img.classList.add('fx-variant-polluted');
     tryLoadPokemonImage(img, givePoke, o.give.shiny ? '_shiny' : '').then(() => {
       // 闪光个体：图片周围循环播放星星粒子（与个体详情页同款）
-      if (o.give.shiny) startShinySparkleOn($('tradeView'), img, { cls: 'sm', scale: 0.6 });
+      if (o.give.shiny) startShinySparkleOn($('tradeView'), img, { cls: 'sm', scale: 0.6, squareShiny: !!o.give.squareShiny });
     });
   }
 }
@@ -780,7 +783,7 @@ function doTradeConfirmed(offerId, rid) {
       import('./dispatch.js').then(m => m.removeDispatchByPokemon(rid));
       import('./train.js').then(m => m.removeTrainingByPokemon(rid));
       import('./team.js').then(m => m.removePokemonFromAllTeams(rid));
-      const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, source: 'trade', level: o.give.level || 1, gender: ensureGender(o.give) });
+      const entry = addRosterEntry({ species: o.give.species, shiny: o.give.shiny, squareShiny: o.give.squareShiny, source: 'trade', level: o.give.level || 1, gender: ensureGender(o.give) });
       if (entry) { entry.ivs = o.give.ivs; entry.nature = o.give.nature; setLastObtainedEntryId(entry.id); }
       playCongratulation(); // 交换获得宝可梦 → 祝贺音效
       // 记录交换前的图鉴状态（右上角「已捕获/新发现」按交换前判定，与孵蛋一致）
@@ -813,6 +816,7 @@ function doTradeConfirmed(offerId, rid) {
       gameData.encounterLogs[idx].push({
         time: Date.now(),
         shiny: o.give.shiny,
+        squareShiny: !!o.give.squareShiny,
         result: 'caught',
         balls: {},
         charmBuff: false,

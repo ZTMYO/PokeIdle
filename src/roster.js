@@ -1760,7 +1760,7 @@ function showRosterDetail(id) {
     // 霜奶仙特殊外观优先取组合图（无闪光版），否则闪光取 _shiny
     tryLoadPokemonImage(img, poke, alcremieSuffix(p.variant) || (p.shiny ? '_shiny' : '')).then(() => {
       // 闪光个体：图片周围循环播放星星粒子（详情页图小 → 粒子缩小、飞行更近）
-      if (p.shiny && _detailId === id) startShinySparkleOn($('rosterView'), img, { cls: 'sm', scale: 0.6 });
+      if (p.shiny && _detailId === id) startShinySparkleOn($('rosterView'), img, { cls: 'sm', scale: 0.6, squareShiny: !!p.squareShiny });
     });
   }
   // 点详情大图放大查看（再点收起；点放大后的空白处也收起）
@@ -1831,7 +1831,7 @@ function showRosterDetail(id) {
   });
   // 图鉴：跳转到该宝可梦的图鉴详情页（第 4 层子页），返回键先回详情页
   list.querySelector('[data-pokedex]')?.addEventListener('click', () => {
-    stopShinySparkleLoop();
+    stopShinySparkleLoop($('rosterView'));
     _detailJumpedToPokedex = true;
     import('./pokedex.js').then(m => {
       m.showEncounterLogs(p.species);
@@ -2450,7 +2450,7 @@ function releasePokemon(id) {
       gained = releaseXpOf(p);
       gainedCandies = addReleaseXp(gained);
       committed = true;
-      stopShinySparkleLoop();
+      stopShinySparkleLoop($('rosterView'));
       addSystemLog('pokemon_release', { pokemon: p.species, shiny: !!p.shiny });
       saveGame();
     },
@@ -2470,7 +2470,7 @@ function releasePokemon(id) {
           arr.splice(ri, 1);
           gained = releaseXpOf(p);
           addReleaseXp(gained);
-          stopShinySparkleLoop();
+          stopShinySparkleLoop($('rosterView'));
           addSystemLog('pokemon_release', { pokemon: p.species, shiny: !!p.shiny });
           saveGame();
         }
@@ -2503,7 +2503,7 @@ function latestLogLine(idx, obtainedAt) {
 
 // 详情页返回列表
 export function restoreRosterList() {
-  stopShinySparkleLoop();
+  stopShinySparkleLoop($('rosterView'));
   closeCrownPanel(); // 面板挂在屏幕上而不是列表里，不主动关会残留在列表上
   // 背包王冠入口：返回 = 回到「选择宝可梦使用王冠」列表（可接着给别的宝可梦用），退出选取才回背包来源页
   if (_crownPickFrom != null) {
@@ -2581,7 +2581,7 @@ export function isRosterDetailFromObtain() {
 
 // 从"获得宝可梦→查看详情"进入的详情页按返回：清理详情状态，直接回来源页
 export function leaveRosterDetailToSource() {
-  stopShinySparkleLoop();
+  stopShinySparkleLoop($('rosterView'));
   if (_detailId == null) return;
   _detailId = null;
   _detailReturnFn = null;
@@ -2797,7 +2797,7 @@ export function isRosterDetailFromList() {
 // 从悬赏提交/交换选择列表进入的详情页按返回：清理详情状态，恢复来源列表
 // 列表搜索模式（showRosterSearch，_detailId 为空）同样走此返回，仅跳过详情清理
 export function leaveRosterDetailToList() {
-  stopShinySparkleLoop();
+  stopShinySparkleLoop($('rosterView'));
   const fn = _detailReturnFn;
   _detailReturnFn = null;
   if (_detailId != null) {
@@ -2837,7 +2837,7 @@ export function returnRosterDetailFromPokedex() {
   if (h) h.style.display = '';
   const prog = $('pokedexProgress');
   if (prog) prog.style.display = '';
-  stopShinySparkleLoop();
+  stopShinySparkleLoop($('rosterView'));
   if (_detailId == null) return;
   showView('rosterView');
   showRosterDetail(_detailId);

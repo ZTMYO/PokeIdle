@@ -404,6 +404,7 @@ function buildPlayerTeam() {
     return (() => {
       const mon = createMon(pd, entry.level || 1, effIvs(entry), entry.nature, moveIds); // 王冠练过的个体值按有效值进战斗
       mon.shiny = !!entry.shiny; // 战斗大图按闪光贴图（_shiny 后缀）加载
+      mon.squareShiny = !!entry.squareShiny;
       mon.variant = entry.variant || null; // 时空扭曲外观变体（RGB / 污染）：仅渲染特效
       mon.gender = ensureGender(entry); // 玩家个体性别（旧存档无 gender 字段则按物种比例补 roll 并写回）
       if (entry.nickname) mon.name = entry.nickname; // 玩家昵称覆盖物种名
@@ -431,6 +432,7 @@ async function startNpcBattle(npcId, startAuto = false) {
     const mon = createMon(x.pd, x.level, x.ivs, x.nature, x.moveIds);
     mon.gender = x.gender || rollGender(x.pd.index); // NPC 性别：正常由 buildNpcTeam 缓存，旧缓存缺失时按物种补 roll
     mon.shiny = !!x.shiny; // NPC 闪光：buildNpcTeam 按 SHINY_CHANCE 概率 roll 定（大图/星标/登场特效）
+    mon.squareShiny = !!x.squareShiny;
     fillPp(mon); // 按招式基础 PP 初始化当前 PP
     return { pd: x.pd, mon };
   });
@@ -817,7 +819,7 @@ function renderMon(mon, side, enter) {
   // 闪光个体登场：球落地精灵淡入后单次闪光粒子 + 登场音效（开战首只与中途换人都触发，敌我双方通用）
   if (enter && mon.shiny) {
     entryP.then(() => {
-      burstShinySparkle($('battleContent'), img);
+      burstShinySparkle($('battleContent'), img, { squareShiny: !!mon.squareShiny });
       playShiny();
     });
   }

@@ -5,7 +5,8 @@
 // P_obtain = P_pick × P_shiny × P_catch
 //   P_pick  选中这只宝可梦的概率：普通遭遇=加权随机（含甜甜蜜/护符稀有度加成）、
 //           钓鱼=钓到宝可梦概率 × 稀有/水系池占比、孵蛋=全图鉴均匀
-//   P_shiny 本次闪光与否的概率：基础 1/1000，护符期间 5%（孵化恒为基础率，护符不影响蛋）
+//   P_shiny 本次闪光与否的概率：基础 1/1000，护符期间 5%（孵化恒为基础率，护符不影响蛋）；
+//           方闪再乘 1/16，所以同条件下方闪分数更高
 //   P_catch 捕获运气 = 1 - (1 - r)^N
 //           r = 捕获成功那一下的实时捕获率（含捕获加成，越低越欧）
 //           N = 总丢球数
@@ -23,7 +24,7 @@
 
 import {
   FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CATCH_BONUS_INC,
-  SHINY_CHANCE, CHARM_SHINY_CHANCE, MASS_SHINY_CHANCE, TWIST_SHINY_CHANCE,
+  SHINY_CHANCE, SQUARE_SHINY_CHANCE, CHARM_SHINY_CHANCE, MASS_SHINY_CHANCE, TWIST_SHINY_CHANCE,
   FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_RARE_TOP,
   HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, CATCH_RATES, ULTRA_BALL_ADD,
 } from './config.js';
@@ -92,19 +93,15 @@ function pickProbability(pokemon, source, honeyBuff, charmBuff) {
 }
 
 // ---- P_shiny：本次闪光与否的概率 ----
-function shinyProbability(shiny, charmBuff, source) {
-  if (source === 'mass') {
-    // 大量出没：固定闪光率（不吃护符加成），远高于普通野生
-    return shiny ? MASS_SHINY_CHANCE : (1 - MASS_SHINY_CHANCE);
-  }
-  if (source === 'twist') {
-    // 时空扭曲：固定闪光率（不吃护符加成），同大量出没
-    return shiny ? TWIST_SHINY_CHANCE : (1 - TWIST_SHINY_CHANCE);
-  }
-  if (charmBuff && source !== 'egg') {
-    return shiny ? CHARM_SHINY_CHANCE : (1 - CHARM_SHINY_CHANCE);
-  }
-  return shiny ? SHINY_CHANCE : (1 - SHINY_CHANCE);
+function shinyProbability(shiny, charmBuff, source, squareShiny = false) {
+  let chance;
+  if (source === 'mass') chance = MASS_SHINY_CHANCE;       // 大量出没：固定闪光率（不吃护符）
+  else if (source === 'twist') chance = TWIST_SHINY_CHANCE; // 时空扭曲：固定闪光率（不吃护符）
+  else if (charmBuff && source !== 'egg') chance = CHARM_SHINY_CHANCE;
+  else chance = SHINY_CHANCE;
+  if (!shiny) return 1 - chance;
+  // 方闪是闪光内部的 1/N 分支，概率更低，欧气分更高
+  return chance * (squareShiny ? SQUARE_SHINY_CHANCE : (1 - SQUARE_SHINY_CHANCE));
 }
 
 // ---- 捕获运气 + 逃跑判定运气 ----
@@ -128,8 +125,8 @@ function catchLuck(balls, finalRate) {
 
 // 相遇欧气分：即使没抓住（fled），遇到稀有宝可梦（尤其无 buff 时）本身也是欧气。
 // P_meet = P_pick × P_shiny，即获得评分的前两项（不含捕获运气）。
-export function computeMeetScore({ pokemon, source = 'normal', shiny = false, charmBuff = false, honeyBuff = false }) {
-  const p = pickProbability(pokemon, source, honeyBuff, charmBuff) * shinyProbability(shiny, charmBuff, source);
+export function computeMeetScore({ pokemon, source = 'normal', shiny = false, squareShiny = false, charmBuff = false, honeyBuff = false }) {
+  const p = pickProbability(pokemon, source, honeyBuff, charmBuff) * shinyProbability(shiny, charmBuff, source, squareShiny);
   if (p <= 0 || !isFinite(p)) return 100;
   return Math.min(100, Math.max(0, Math.round(-Math.log10(p) * 10)));
 }
@@ -178,6 +175,7 @@ function ivBonus(ivs, ivRandomKey, guaranteedIvs = 0) {
 //   pokemon    宝可梦对象（含 rarity / catchRate）
 //   source     'normal' 普通遭遇 | 'fishing' 钓鱼 | 'egg' 孵蛋
 //   shiny      是否闪光
+//   squareShiny 是否方闪（仅闪光时生效）
 //   charmBuff  该遭遇是否在闪耀护符 buff 下（护符把闪光率提到 0.8；孵蛋恒 false）
 //   honeyBuff  该遭遇是否在甜甜蜜 buff 下（影响稀有度权重与钓鱼出怪率）
 //   balls      累计已用球 { 'poke-ball': n, 'ultra-ball': n, 'master-ball': n }（含成功那颗）
@@ -205,7 +203,7 @@ export function recordLuck(gd, score) {
 // 护符期间那些闪光场次分数虚高，留着会永久抬高欧气评定。
 // 日志里存了个体/闪光/来源/球数/是否护符，足以按新模型重算；缺 finalRate 与甜甜蜜标记，
 // 用球种 × 物种捕获率近似、按无甜蜜处理——误差远小于"沿用旧分"。
-const SCORE_MODEL_V = 2;
+const SCORE_MODEL_V = 3;
 
 export function migrateEncounterScores(gd) {
   const logs = gd?.encounterLogs;
@@ -218,15 +216,16 @@ export function migrateEncounterScores(gd) {
     for (const l of arr) {
       if (!l || l.v === SCORE_MODEL_V) continue;
       const shiny = !!l.shiny;
+      const squareShiny = !!l.squareShiny;
       const source = l.source || 'normal';
       const charmBuff = !!l.charmBuff;
       if (l.result === 'fled') {
-        l.score = computeMeetScore({ pokemon: poke, source, shiny, charmBuff });
+        l.score = computeMeetScore({ pokemon: poke, source, shiny, squareShiny, charmBuff });
       } else {
         // 用最后一颗用过的球近似当时捕获率（缺 finalRate 与丢球加成，误差在几分之内）
         const ball = ['master-ball', 'ultra-ball', 'poke-ball'].find(b => (l.balls || {})[b] > 0) || 'poke-ball';
         const rate = Math.min(1, (CATCH_RATES[ball] ?? 0.35) * (poke.catchRate ?? 0.5) + (ball === 'ultra-ball' ? ULTRA_BALL_ADD : 0));
-        l.score = computeObtainScore({ pokemon: poke, source, shiny, charmBuff, balls: l.balls || {}, finalRate: rate });
+        l.score = computeObtainScore({ pokemon: poke, source, shiny, squareShiny, charmBuff, balls: l.balls || {}, finalRate: rate });
       }
       l.v = SCORE_MODEL_V;
       changed = true;
@@ -234,9 +233,9 @@ export function migrateEncounterScores(gd) {
   }
   return changed;
 }
-export function computeObtainScore({ pokemon, source = 'normal', shiny = false, charmBuff = false, honeyBuff = false, balls = {}, finalRate = 1, ivs = null, ivRandomKey = null, guaranteedIvs = 0 }) {
+export function computeObtainScore({ pokemon, source = 'normal', shiny = false, squareShiny = false, charmBuff = false, honeyBuff = false, balls = {}, finalRate = 1, ivs = null, ivRandomKey = null, guaranteedIvs = 0 }) {
   const pPick = pickProbability(pokemon, source, honeyBuff, charmBuff);
-  const pShiny = shinyProbability(shiny, charmBuff, source);
+  const pShiny = shinyProbability(shiny, charmBuff, source, squareShiny);
   const { p: pCatch, fleeBonus } = catchLuck(balls, finalRate);
   const p = pPick * pShiny * pCatch;
   if (p <= 0 || !isFinite(p)) return 100 + ivBonus(ivs, ivRandomKey, guaranteedIvs); // 概率下溢 → 顶格欧

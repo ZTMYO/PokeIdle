@@ -2,7 +2,7 @@
 // 把两只宝可梦放进饲育屋配对：满足蛋组条件（雌雄共蛋组 / 百变怪万能配对）即可繁殖。
 // 互斥规则：饲育屋 / 训练 / 配队三方互斥——放入饲育屋自动离开队伍与训练槽，反之亦然。
 import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar, hideConfirmBar, hideFoodTip, eggIconHtml, logicViewport, watchOutsidePress, popupBounds } from './ui.js';
-import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender, genderBadge, rollGender, rollNature, rollSexForm, addSystemLog } from './state.js';
+import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender, genderBadge, rollGender, rollNature, rollSexForm, addSystemLog, rollShinyResult } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { BERRY_ICONS, BERRY_NAMES, pokemonSourceBadge } from './items.js';
 import { ensureBerryFarm } from './berry.js';
@@ -1483,6 +1483,7 @@ function createEggEntry(ea, eb, childSpecies, lockedIv) {
       ivs[k] = Math.floor(Math.random() * 32);
     }
   });
+  const shinyRoll = rollShinyResult(EGG_SHINY_CHANCE);
   return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     kind: 'egg', // 蛋条目：孵化后原地转正为宝可梦
@@ -1495,7 +1496,8 @@ function createEggEntry(ea, eb, childSpecies, lockedIv) {
     ivs,
     ivRandomKey, // 纯随机个体值项（欧气评分只按该项加分）
     nature: rollNature(),
-    shiny: Math.random() < EGG_SHINY_CHANCE,
+    shiny: shinyRoll.shiny,
+    squareShiny: shinyRoll.squareShiny,
     source: 'egg',
     obtainedAt: Date.now(),
     inRoster: true,

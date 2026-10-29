@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, BIKE_PENDING_MAX_GAP_MS, AUTO_CATCH_BALLS_DEFAULT, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, BIKE_PENDING_MAX_GAP_MS, AUTO_CATCH_BALLS_DEFAULT, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS, SHINY_CHANCE, SQUARE_SHINY_CHANCE } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -40,6 +40,7 @@ export let gameData = null;
 export let phase = 'idle'; // idle | encounter | caught | fled（孵蛋/进化演出不占阶段，见 ui.js isEggShowActive / isEvolutionShowActive）
 export let currentEncounter = null;
 export let currentIsShiny = false;
+export let currentIsSquareShiny = false;
 export let encounterLevel = 1; // 当前野生遇敌的等级（1~20，遇敌时随机生成）
 export let encounterBallsUsed = 0;
 export let currentEncounterBalls = {};
@@ -143,7 +144,15 @@ export function setCurrentEncounter(e) {
   encounterLevel = e ? 1 + Math.floor(Math.random() * wildLevelCap(e.index)) : 1;
 }
 export function setEncounterLevel(lv) { encounterLevel = lv; }
-export function setCurrentIsShiny(s) { currentIsShiny = s; }
+export function setCurrentIsShiny(s, squareShiny = false) {
+  currentIsShiny = !!s;
+  currentIsSquareShiny = currentIsShiny && !!squareShiny;
+}
+// 随机闪光判定：闪光后再按 SQUARE_SHINY_CHANCE 判方闪；保底闪光不要用这个
+export function rollShinyResult(chance = SHINY_CHANCE) {
+  if (Math.random() >= chance) return { shiny: false, squareShiny: false };
+  return { shiny: true, squareShiny: Math.random() < SQUARE_SHINY_CHANCE };
+}
 export function setEncounterBallsUsed(n) { encounterBallsUsed = n; }
 export function setCurrentEncounterBalls(b) { currentEncounterBalls = b; }
 export function setGameTick(n) { gameTick = n; }
@@ -229,7 +238,7 @@ export function calcHatchDistance(poke) {
 // 空孵蛋器
 // eggRef：宝可梦蛋（饲育屋产）对应的仓库条目 id；null = 神秘蛋（无对应条目，孵化时随机建档）
 export function emptyIncubator() {
-  return { eggIndex: null, eggRef: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false };
+  return { eggIndex: null, eggRef: null, hatchStart: 0, hatchDuration: 0, hatched: false, isShiny: false, isSquareShiny: false };
 }
 
 // 孵蛋器解锁糖果价格（槽位 0~7，全部需购买，价格递增）
@@ -500,7 +509,7 @@ export function dexShinyOwned(idx) {
 }
 
 // 把一只刚获得的宝可梦加入仓库（捕获/孵蛋/交换时调用）
-export function addRosterEntry({ species, shiny = false, source = 'normal', level = 1, gender, ivs, variant, at = 0, ball = null }) {
+export function addRosterEntry({ species, shiny = false, squareShiny = false, source = 'normal', level = 1, gender, ivs, variant, at = 0, ball = null }) {
   if (!gameData) return null;
   markDexOwned(species, !!shiny); // 任何来源获得即解锁图鉴
   if (!Array.isArray(gameData.roster)) gameData.roster = [];
@@ -512,6 +521,7 @@ export function addRosterEntry({ species, shiny = false, source = 'normal', leve
     // 获得时的物种：详情页那句「获得方式」永远按它翻遭遇日志，之后进化也不跟着变
     originSpecies: String(species),
     shiny: !!shiny,
+    squareShiny: !!shiny && !!squareShiny,
     gender: gender || rollGender(species), // 显式传入的性别优先（如捕获时沿用遭遇性别，避免两次 roll 不一致）
     level, // 捕获/孵化即 Lv1（战斗系统）；野生捕获可传随机等级
     exp: 0, // 经验（对战获得）
@@ -716,6 +726,7 @@ export function saveSessionState(extra) {
       state.encounter = {
         index: currentEncounter.index,
         isShiny: currentIsShiny,
+        squareShiny: currentIsSquareShiny,
         ballsUsed: encounterBallsUsed,
         balls: { ...currentEncounterBalls },
         msg: encounterMsg,

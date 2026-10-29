@@ -15,7 +15,7 @@ import {
 } from './config.js';
 import {
   gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, getMassOutbreak, getTwist, honeyBuffActive, phase,
-  randInt, rand, saveGame, addSystemLog, inMassZone, inTwistZone, normalizeMassRemainToEnd, _fishing, dexUnlocked,
+  randInt, rand, saveGame, addSystemLog, inMassZone, inTwistZone, normalizeMassRemainToEnd, _fishing, dexUnlocked, rollShinyResult,
   getRoadNumForEdge,
 } from './state.js';
 import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView, isIdleStageVisible, isStageOccupied } from './ui.js';
@@ -229,6 +229,7 @@ let _massPokeEl = null;    // 滚动的宝可梦容器 <div>
 let _massPokeX = 0;        // 宝可梦当前 X
 let _massCharX = 0;        // 主角碰撞点 X
 let _massPokeShiny = false; // 本只是否闪光（生成时判定，碰到时复用）
+let _massPokeSquareShiny = false; // 本只是否方闪
 let _massHooked = false; // 已注册到世界步进器（step/render）
 
 function spawnMassPoke() {
@@ -246,9 +247,14 @@ function spawnMassPoke() {
 
   // 闪光判定提前到生成时刻：滚动图标能像交换页面一样用星星标记闪光，
   // 碰到时复用同一判定，保证显示与战斗一致
-  _massPokeShiny = saved ? !!saved.shiny : Math.random() < massShinyChance();
-  if (!saved) {
-    mo.cur = { species: poke.index, shiny: _massPokeShiny };
+  if (saved) {
+    _massPokeShiny = !!saved.shiny;
+    _massPokeSquareShiny = !!saved.squareShiny;
+  } else {
+    const sr = rollShinyResult(massShinyChance());
+    _massPokeShiny = sr.shiny;
+    _massPokeSquareShiny = sr.squareShiny;
+    mo.cur = { species: poke.index, shiny: _massPokeShiny, squareShiny: _massPokeSquareShiny };
     saveGame();
   }
 
@@ -286,6 +292,7 @@ function spawnMassPoke() {
 function despawnMassPoke() {
   if (_massPokeEl) { _massPokeEl.remove(); _massPokeEl = null; }
   _massPokeShiny = false;
+  _massPokeSquareShiny = false;
   // 清除持久化的当前精灵：遭遇后/走过头/离开区域后，下一只重新生成
   if (gameData?.massOutbreak) gameData.massOutbreak.cur = null;
 }
@@ -296,9 +303,10 @@ function hitMassPoke() {
   const mo = gameData?.massOutbreak;
   const poke = mo ? getPokemonByIndex(mo.pokemon) : null;
   const shiny = _massPokeShiny;
+  const squareShiny = _massPokeSquareShiny;
   despawnMassPoke();
   if (!poke) return;
-  startMassEncounter(poke, shiny); // 战斗画面/暂停道路由 showEncounter 处理
+  startMassEncounter(poke, shiny, squareShiny); // 战斗画面/暂停道路由 showEncounter 处理
 }
 
 // 后台挂机（不在主界面）时的后台遭遇：与普通遇敌后台直收一致，到点直接触发战斗。
@@ -308,9 +316,17 @@ function backgroundHitMass() {
   const poke = mo ? getPokemonByIndex(mo.pokemon) : null;
   if (!poke) return;
   const saved = mo.cur;
-  const shiny = saved ? !!saved.shiny : Math.random() < massShinyChance();
+  let shiny, squareShiny;
+  if (saved) {
+    shiny = !!saved.shiny;
+    squareShiny = !!saved.squareShiny;
+  } else {
+    const sr = rollShinyResult(massShinyChance());
+    shiny = sr.shiny;
+    squareShiny = sr.squareShiny;
+  }
   mo.cur = null;
-  startMassEncounter(poke, shiny);
+  startMassEncounter(poke, shiny, squareShiny);
 }
 
 function _massStep(spd) {
@@ -379,6 +395,7 @@ function updateMassSpawner(now) {
     stopMassRaf();
     if (_massPokeEl) { _massPokeEl.remove(); _massPokeEl = null; }
     _massPokeShiny = false;
+    _massPokeSquareShiny = false;
     if (Date.now() >= mo.nextSpawnAt) backgroundHitMass();
     return;
   }
@@ -553,6 +570,7 @@ let _twistPokeEl = null;     // 滚动的宝可梦容器 <div>
 let _twistPokeX = 0;         // 宝可梦当前 X
 let _twistCharX = 0;         // 主角碰撞点 X
 let _twistPokeShiny = false; // 本只是否闪光（生成时判定，碰到时复用）
+let _twistPokeSquareShiny = false; // 本只是否方闪
 let _twistVariant = null;    // 本只外观变体：'rgb' / 'polluted' / null
 let _twistPoke = null;       // 本只宝可梦（生成时选定，碰到时复用，滚动与战斗一致）
 let _twistHooked = false; // 已注册到世界步进器（step/render）
@@ -572,16 +590,19 @@ function spawnTwistPoke() {
 
   if (saved) {
     _twistPokeShiny = !!saved.shiny;
+    _twistPokeSquareShiny = !!saved.squareShiny;
     _twistVariant = saved.variant || null;
   } else {
     // 闪光与变体提前到生成时刻判定：滚动图标与应用与战斗一致
-    _twistPokeShiny = Math.random() < TWIST_SHINY_CHANCE;
+    const sr = rollShinyResult(TWIST_SHINY_CHANCE);
+    _twistPokeShiny = sr.shiny;
+    _twistPokeSquareShiny = sr.squareShiny;
     // 随从（一般/幽灵）辅效果：变体（RGB/污染）出现率按幅度提升
     const rgbChance = window.__followerBoostMechanic?.('twistVariantRate', TWIST_RGB_CHANCE) ?? TWIST_RGB_CHANCE;
     const pollutedChance = window.__followerBoostMechanic?.('twistVariantRate', TWIST_POLLUTED_CHANCE) ?? TWIST_POLLUTED_CHANCE;
     const r = Math.random();
     _twistVariant = r < rgbChance ? 'rgb' : (r < Math.min(1, rgbChance + pollutedChance) ? 'polluted' : null);
-    tw.cur = { species: poke.index, shiny: _twistPokeShiny, variant: _twistVariant };
+    tw.cur = { species: poke.index, shiny: _twistPokeShiny, squareShiny: _twistPokeSquareShiny, variant: _twistVariant };
     saveGame();
   }
 
@@ -620,6 +641,7 @@ function spawnTwistPoke() {
 function despawnTwistPoke() {
   if (_twistPokeEl) { _twistPokeEl.remove(); _twistPokeEl = null; }
   _twistPokeShiny = false;
+  _twistPokeSquareShiny = false;
   _twistVariant = null;
   _twistPoke = null;
   // 清除持久化的当前精灵：遭遇后/走过头/离开区域后，下一只重新生成
@@ -633,10 +655,11 @@ function hitTwistPoke() {
   if (!tw) { despawnTwistPoke(); return; }
   const poke = _twistPoke || pickTwistPoke(tw);
   const shiny = _twistPokeShiny;
+  const squareShiny = _twistPokeSquareShiny;
   const variant = _twistVariant;
   despawnTwistPoke();
   if (!poke) return;
-  startTwistEncounter(poke, shiny, variant);
+  startTwistEncounter(poke, shiny, variant, squareShiny);
 }
 
 // 后台挂机（不在主界面）时的时空扭曲后台遭遇：与大量出没/普通遇敌后台直收一致，
@@ -650,14 +673,22 @@ function backgroundHitTwist() {
     ? getPokemonByIndex(saved.species)
     : getPokemonByIndex(tw.pool[randInt(0, tw.pool.length - 1)]);
   if (!poke) return;
-  const shiny = saved ? !!saved.shiny : Math.random() < TWIST_SHINY_CHANCE;
+  let shiny, squareShiny;
+  if (saved) {
+    shiny = !!saved.shiny;
+    squareShiny = !!saved.squareShiny;
+  } else {
+    const sr = rollShinyResult(TWIST_SHINY_CHANCE);
+    shiny = sr.shiny;
+    squareShiny = sr.squareShiny;
+  }
   let variant = saved ? (saved.variant || null) : null;
   if (!saved) {
     const r = Math.random();
     variant = r < TWIST_RGB_CHANCE ? 'rgb' : (r < TWIST_RGB_CHANCE + TWIST_POLLUTED_CHANCE ? 'polluted' : null);
   }
   tw.cur = null;
-  startTwistEncounter(poke, shiny, variant);
+  startTwistEncounter(poke, shiny, variant, squareShiny);
 }
 
 function _twistStep(spd) {
@@ -723,6 +754,7 @@ function updateTwistSpawner(now) {
     stopTwistRaf();
     if (_twistPokeEl) { _twistPokeEl.remove(); _twistPokeEl = null; }
     _twistPokeShiny = false;
+    _twistPokeSquareShiny = false;
     _twistVariant = null;
     _twistPoke = null;
     if (Date.now() >= tw.nextSpawnAt) backgroundHitTwist();

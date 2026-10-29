@@ -9,7 +9,7 @@
 //   __addPokeLv(25, 50)               写入指定等级
 //   __completeCards()                 直接集齐卡册
 //   __unlockAllPokedex(true)          解锁全图鉴（含闪光）
-//   __nextEncounter(25, true)         指定下次遇敌（用后即焚）
+//   __nextEncounter(25, true)         指定下次遇敌（用后即焚；第三参 true = 方闪）
 //   __refreshAll()                    一键刷新：对战/交换/大量出没/时空扭曲/悬赏/商店每日限量货
 //   __npcTeam(25, 6, 149)             对战 NPC 全部使用指定精灵
 //   __ppZero()                        清空当前对战双方的 PP（验证「挣扎」兜底）
@@ -171,12 +171,12 @@ window.__unlockAllPokedex = async (withShiny = false) => {
 
 // ---------- 战斗 ----------
 // 指定下一次遇敌的宝可梦（__nextEncounter(25) 下次遇皮卡丘；传 true 遇闪光；遇到后自动清空）
-window.__nextEncounter = (idx, shiny = false) => {
-  setDebugNextEncounter(idx, shiny);
+window.__nextEncounter = (idx, shiny = false, squareShiny = false) => {
+  setDebugNextEncounter(idx, shiny, squareShiny);
   const raw = String(idx);
   const dexIdx = /^\d+$/.test(raw) ? raw.padStart(4, '0') : raw;
   const poke = getPokemonByIndex(dexIdx);
-  console.log(`__nextEncounter: 下次遇敌已指定为 ${poke ? poke.name : '#' + idx}${shiny ? '（闪光）' : ''}，用后即焚`);
+  console.log(`__nextEncounter: 下次遇敌已指定为 ${poke ? poke.name : '#' + idx}${shiny ? (squareShiny ? '（方闪）' : '（闪光）') : ''}，用后即焚`);
 };
 
 // 一键刷新：对战/交换/大量出没/时空扭曲/悬赏/商店每日限量货（只重置生成与倒计时，不改变当前位置）

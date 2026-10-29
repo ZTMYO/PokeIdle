@@ -1671,8 +1671,9 @@ html.mobile-app #quitHide { display: none !important; }
   filter: drop-shadow(0 0 2px rgba(255,215,0,0.6));
 }
 
-/* 闪光出场星星粒子 */
-.shiny-sparkle {
+/* 闪光第一段：白色星星；第二段：3D 翻面的空心小卡片 */
+.shiny-sparkle,
+.shiny-card {
   position: absolute;
   pointer-events: none;
   z-index: 6;
@@ -1686,6 +1687,22 @@ html.mobile-app #quitHide { display: none !important; }
   filter: drop-shadow(0 0 3px rgba(255,255,255,0.9));
 }
 .shiny-sparkle.sm::after { font-size: 6px; }
+.shiny-card::after {
+  content: '';
+  display: block;
+  width: var(--card-w, 7px);
+  height: var(--card-h, 9px);
+  border: 1px solid #ffffff;
+  border-radius: 1px;
+  box-sizing: border-box;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.9));
+}
+.shiny-card.sm::after {
+  width: 5px;
+  height: 6.5px;
+}
 
 .catch-msg {
   position: absolute;

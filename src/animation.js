@@ -1,5 +1,5 @@
 // ==================== 捕捉动画函数 ====================
-import { $, fitPokemonImage, getStageSize, tryLoadPokemonImage } from './ui.js';
+import { $, fitPokemonImage, getStageSize, tryLoadPokemonImage, viewportToLogic } from './ui.js';
 import { gameData, rarityLabel } from './state.js';
 
 // 精灵球捕捉动画用的图片（位于 src/items/）
@@ -216,24 +216,27 @@ export function restoreCatchAnim() {
   void pkmn.offsetHeight;
 }
 
-// 闪光星星粒子单次爆发：围绕 view 内 target 元素中心
-// opts: { cls: 额外类名, scale: 粒子尺寸与飞行距离倍率 }
+// 闪光两段粒子：第一段星星爆散，随后炸出第二段 3D 翻牌
+// opts: { cls: 额外类名, scale: 粒子尺寸与飞行距离倍率, squareShiny: 方闪第二段 }
 function _sparkleBurst(view, target, opts) {
   if (!view || view.style.display === 'none') return;
   if (document.documentElement.classList.contains('power-save')) return;
   const scale = opts?.scale || 1;
   const cls = opts?.cls || '';
+  const squareShiny = !!opts?.squareShiny;
   // 以 target 中心为爆发点；target 不可见时退回 view 上部
   let cx, cy;
   if (target && target.offsetWidth > 0 && target.offsetHeight > 0) {
+    // 机身在手机/双屏下会整体缩放：先统一还原成逻辑坐标，再换算成 view 内坐标
     const tr = target.getBoundingClientRect();
     const vr = view.getBoundingClientRect();
-    cx = tr.left - vr.left + tr.width / 2;
-    cy = tr.top - vr.top + tr.height / 2;
+    const tc = viewportToLogic(tr.left + tr.width / 2, tr.top + tr.height / 2);
+    const vc = viewportToLogic(vr.left, vr.top);
+    cx = tc.x - vc.x;
+    cy = tc.y - vc.y;
   } else {
-    const rect = view.getBoundingClientRect();
-    cx = rect.width / 2;
-    cy = rect.height * 0.4;
+    cx = view.clientWidth / 2;
+    cy = view.clientHeight * 0.4;
   }
   const count = 10;
   const particles = [];
@@ -242,15 +245,21 @@ function _sparkleBurst(view, target, opts) {
     el.className = 'shiny-sparkle' + (cls ? ' ' + cls : '');
     el.style.left = cx + 'px';
     el.style.top = cy + 'px';
+    el.style.opacity = '0';
     view.appendChild(el);
     const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.4;
     const dist = (25 + Math.random() * 40) * scale;
     particles.push({ el, dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, delay: Math.random() * 0.12 });
   }
+  let secondBurst = false;
   const startT = performance.now();
   const duration = 700;
   function frame(now) {
     const t = Math.min((now - startT) / duration, 1);
+    if (squareShiny && !secondBurst && t >= 0.45) {
+      secondBurst = true;
+      _cardBurst(view, cx, cy, scale, cls);
+    }
     for (const p of particles) {
       const pt = Math.max(0, Math.min(1, (t - p.delay / (duration / 1000)) / (1 - p.delay / (duration / 1000))));
       if (pt <= 0) { p.el.style.opacity = '0'; continue; }
@@ -268,20 +277,82 @@ function _sparkleBurst(view, target, opts) {
   requestAnimationFrame(frame);
 }
 
-let _shinySparkleTimer = null;
+// 第二段：3D 翻面的空心小卡片，从同一个爆点撒出
+function _cardBurst(view, cx, cy, scale, cls) {
+  if (!view || view.style.display === 'none') return;
+  if (document.documentElement.classList.contains('power-save')) return;
+  const count = 10;
+  const cardBase = cls.includes('sm') ? 5 : 7;
+  const particles = [];
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'shiny-card' + (cls ? ' ' + cls : '');
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+    el.style.opacity = '0';
+    const cw = cardBase * (0.8 + Math.random() * 0.45);
+    const ch = cw * (1.15 + Math.random() * 0.25);
+    el.style.setProperty('--card-w', `${cw.toFixed(1)}px`);
+    el.style.setProperty('--card-h', `${ch.toFixed(1)}px`);
+    view.appendChild(el);
+    const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.4;
+    const dist = (25 + Math.random() * 40) * scale;
+    particles.push({
+      el,
+      dx: Math.cos(angle) * dist,
+      dy: Math.sin(angle) * dist,
+      delay: Math.random() * 0.12,
+      rx: (Math.random() * 2 - 1) * 35,
+      ry: (Math.random() * 2 - 1) * 35,
+      rz: Math.random() * 360,
+      vx: (Math.random() * 2 - 1) * 220,
+      vy: (Math.random() * 2 - 1) * 220,
+      vz: (Math.random() * 2 - 1) * 120,
+    });
+  }
+  const startT = performance.now();
+  const duration = 700;
+  function frame(now) {
+    const t = Math.min((now - startT) / duration, 1);
+    for (const p of particles) {
+      const pt = Math.max(0, Math.min(1, (t - p.delay / (duration / 1000)) / (1 - p.delay / (duration / 1000))));
+      if (pt <= 0) { p.el.style.opacity = '0'; continue; }
+      const ease = 1 - Math.pow(1 - pt, 3);
+      const x = p.dx * ease;
+      const y = p.dy * ease;
+      const pop = pt < 0.25 ? pt / 0.25 * 1.3 : 1.3 - (pt - 0.25) / 0.75 * 1.3;
+      const opacity = pt < 0.6 ? 1 : 1 - (pt - 0.6) / 0.4;
+      const rx = p.rx + p.vx * ease;
+      const ry = p.ry + p.vy * ease;
+      const rz = p.rz + p.vz * ease;
+      p.el.style.transform = `translate(${x}px, ${y}px) perspective(160px) rotateX(${rx.toFixed(1)}deg) rotateY(${ry.toFixed(1)}deg) rotateZ(${rz.toFixed(1)}deg) scale(${Math.max(0, pop)})`;
+      p.el.style.opacity = Math.max(0, opacity);
+    }
+    if (t < 1) requestAnimationFrame(frame);
+    else particles.forEach(p => p.el.remove());
+  }
+  requestAnimationFrame(frame);
+}
+
+// 每个 view 各自一条循环：后台遭遇收尾不能把详情页的粒子一起停掉
+const _shinySparkleTimers = new Map();
+
+function startSparkleLoop(view, target, opts) {
+  if (!view) return;
+  stopShinySparkleLoop(view);
+  _sparkleBurst(view, target, opts);
+  _shinySparkleTimers.set(view, setInterval(() => _sparkleBurst(view, target, opts), 3000));
+}
 
 // 开始循环闪光（间隔 ~3s 爆发一次）
-export function startShinySparkleLoop() {
-  stopShinySparkleLoop();
-  _sparkleBurst($('encounterView'), $('encounterGif'));
-  _shinySparkleTimer = setInterval(() => _sparkleBurst($('encounterView'), $('encounterGif')), 3000);
+export function startShinySparkleLoop(squareShiny = false) {
+  const view = $('encounterView');
+  startSparkleLoop(view, $('encounterGif'), { squareShiny });
 }
 
 // 指定 view 内围绕 target 循环闪光（供个体详情页等复用）
 export function startShinySparkleOn(view, target, opts) {
-  stopShinySparkleLoop();
-  _sparkleBurst(view, target, opts);
-  _shinySparkleTimer = setInterval(() => _sparkleBurst(view, target, opts), 3000);
+  startSparkleLoop(view, target, opts);
 }
 
 // 单次闪光爆发（战斗出场用：闪一下就停，不循环）
@@ -289,12 +360,11 @@ export function burstShinySparkle(view, target, opts) {
   _sparkleBurst(view, target, opts);
 }
 
-// 停止循环闪光
-export function stopShinySparkleLoop() {
-  if (_shinySparkleTimer) {
-    clearInterval(_shinySparkleTimer);
-    _shinySparkleTimer = null;
-  }
+// 停止指定 view 的循环闪光
+export function stopShinySparkleLoop(view) {
+  const timer = _shinySparkleTimers.get(view);
+  if (timer) clearInterval(timer);
+  _shinySparkleTimers.delete(view);
 }
 
 // 告别场景（放生 / 提交悬赏复用）：确认框询问，确认后播放图标缩小动画并显示「再见！xxx」

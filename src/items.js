@@ -1,6 +1,6 @@
 // ===== 道具相关逻辑 =====
-import { ITEM_NAMES, ITEM_DESC, CANDY_EXCHANGE, ITEM_SELL_RATE, ITEM_SELL_OVERRIDE, CANDY_DROP_MULT, SHINY_CHANCE, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER, EVO_PRICES, EVO_EXCLUSIVE_PRICE, EVO_SHOP_DAILY, EVO_SHOP_WEIGHTS, EVO_SHOP_EXCLUSIVE_SLOTS, EVO_SHOP_EXCLUSIVE_WEIGHT, EVO_SHOP_MINT_WEIGHT, EVO_SHOP_CROWNS, MINT_NATURES, MINT_PRICE, BREED_ONLY_IDS, LEGEND_POOL_DIVISOR, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, hatchSprite, alcremieSuffix } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmGuaranteed, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge, dexUnlocked, dexShinyOwned } from './state.js';
+import { ITEM_NAMES, ITEM_DESC, CANDY_EXCHANGE, ITEM_SELL_RATE, ITEM_SELL_OVERRIDE, CANDY_DROP_MULT, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, PX_PER_METER, EVO_PRICES, EVO_EXCLUSIVE_PRICE, EVO_SHOP_DAILY, EVO_SHOP_WEIGHTS, EVO_SHOP_EXCLUSIVE_SLOTS, EVO_SHOP_EXCLUSIVE_WEIGHT, EVO_SHOP_MINT_WEIGHT, EVO_SHOP_CROWNS, MINT_NATURES, MINT_PRICE, BREED_ONLY_IDS, LEGEND_POOL_DIVISOR, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, hatchSprite, alcremieSuffix } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, currentIsSquareShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, encounterMsg, setCurrentEncounter, setEncounterLevel, setEncounterBallsUsed, setCurrentEncounterBalls, setEncounterMsg, setCurrentIsShiny, setPhase, _itemDropActive, honeyBuffActive, charmBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyCountdownInterval, charmCountdownInterval, honeyExpiryTimer, charmExpiryTimer, nextEncounterTimer, _charmEncounterCount, _eggHatching, saveGame, addSystemLog, addIncubatorLog, randInt, rand, getCurrentRegion, setNextEncounterTimer, setItemDropActive, setEggHatching, setIdleMsgIdx, setHoneyBuffActive, setHoneyCountdownEnd, setCharmBuffActive, setCharmGuaranteed, setCharmCountdownEnd, setHoneyPausedRemaining, setCharmPausedRemaining, setCharmEncounterCount, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, calcHatchDistance, getIncubatorUnlockCost, addRosterEntry, rarityLabel, setLastObtainedEntryId, getLastObtainedEntryId, isPokemon, rollGender, ensureGender, genderBadge, dexUnlocked, dexShinyOwned, rollShinyResult } from './state.js';
 import { $, updateTextBox, updateBackpack, updateStats, showView, isOnHatchView, isIdleStageVisible, isPageHidden, fitPokemonImage, tryLoadPokemonImage, setIdleCharacter, renderIncubatorView, updateIncubatorBadge, showConfirmBar, hideConfirmBar, isEvolutionShowActive, isEggShowActive } from './ui.js';
 import { showIdlePickup, showBuffExpired } from './messages.js';
 import { animate, burstShinySparkle } from './animation.js';
@@ -421,6 +421,7 @@ function suspendEncounterForEgg() {
     phase,
     poke: currentEncounter,
     isShiny: currentIsShiny,
+    isSquareShiny: currentIsSquareShiny,
     level: encounterLevel,
     ballsUsed: encounterBallsUsed,
     balls: { ...(currentEncounterBalls || {}) },
@@ -446,7 +447,7 @@ function restoreSuspendedEncounter() {
   if (phase === 'encounter' || phase === 'caught' || phase === 'fled' || phase === 'battle') return true;
   setCurrentEncounter(snap.poke);
   setEncounterLevel(snap.level);
-  setCurrentIsShiny(snap.isShiny);
+  setCurrentIsShiny(snap.isShiny, snap.isSquareShiny);
   setEncounterBallsUsed(snap.ballsUsed);
   setCurrentEncounterBalls({ ...snap.balls });
   setEncounterMsg(snap.msg);
@@ -848,7 +849,8 @@ export function placeEggInIncubator(slotIndex) {
   const poke = pickAnyPokemon();
   if (!poke) return;
 
-  const eggIsShiny = Math.random() < SHINY_CHANCE;
+  const eggRoll = rollShinyResult();
+  const eggIsShiny = eggRoll.shiny;
   const distance = calcHatchDistance(poke);
 
   incubators[slotIndex] = {
@@ -857,6 +859,7 @@ export function placeEggInIncubator(slotIndex) {
     hatchDuration: distance * PX_PER_METER, // 原始所需里程；随从减免在达标判断时动态计算
     hatched: false,
     isShiny: eggIsShiny,
+    isSquareShiny: eggRoll.squareShiny,
   };
 
   saveGame();
@@ -884,6 +887,7 @@ export function placePokemonEggInIncubator(slotIndex, entryId) {
     hatchDuration: distance * PX_PER_METER, // 原始所需里程；随从减免在达标判断时动态计算
     hatched: false,
     isShiny: !!entry.shiny,
+    isSquareShiny: !!entry.squareShiny,
   };
 
   saveGame();
@@ -912,6 +916,8 @@ function applyHatchEntry(slotIndex, presetGender) {
   if (!poke) return;
   const idx = String(poke.index);
   const eggIsShiny = slot.isShiny || false;
+  const eggEntry = slot.eggRef ? (gameData.roster || []).find(r => r.id === slot.eggRef) : null;
+  const eggIsSquareShiny = !!(slot.isSquareShiny || (eggEntry && eggEntry.squareShiny));
 
   if (!gameData.pokedex[idx]) {
     gameData.pokedex[idx] = { seen: 0, caught: 0, lastTime: null, shinySeen: 0, shinyCaught: 0, };
@@ -934,37 +940,37 @@ function applyHatchEntry(slotIndex, presetGender) {
   let entry = null;
   let ivRandomKey = null;
   if (slot.eggRef) {
-    const eggEntry = (gameData.roster || []).find(r => r.id === slot.eggRef);
     if (eggEntry) {
       delete eggEntry.kind;
       delete eggEntry.fav; // 收藏标记只对蛋有意义，转正后清掉
       eggEntry.level = 1;
       eggEntry.inRoster = true;
       eggEntry.obtainedAt = Date.now(); // 获得时间记录为点击孵化完成的时刻，而非放入孵蛋器
+      eggEntry.squareShiny = eggIsSquareShiny;
       ivRandomKey = eggEntry.ivRandomKey || null; // 培育蛋：仅该纯随机项是个体值运气
       entry = eggEntry;
     }
   }
-  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, source: 'egg', gender: presetGender || undefined });
+  if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, squareShiny: eggIsSquareShiny, source: 'egg', gender: presetGender || undefined });
   setLastObtainedEntryId(entry.id);
 
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
   if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
   gameData.encounterLogs[idx].push({
-    time: Date.now(), shiny: eggIsShiny, result: 'caught', balls: {}, source: 'egg', // source 供统计页区分孵蛋/交换/遭遇
+    time: Date.now(), shiny: eggIsShiny, squareShiny: eggIsSquareShiny, result: 'caught', balls: {}, source: 'egg', // source 供统计页区分孵蛋/交换/遭遇
     charmBuff: false, // 闪耀护符不提升孵蛋闪光率（蛋的闪光在放入孵蛋器时已按 1/1000 判定），恒为 false
     score: recordLuck(gameData, computeObtainScore({
-      pokemon: poke, source: 'egg', shiny: eggIsShiny,
+      pokemon: poke, source: 'egg', shiny: eggIsShiny, squareShiny: eggIsSquareShiny,
       charmBuff: false, honeyBuff: false, balls: {}, finalRate: 1,
       ivs: entry.ivs, ivRandomKey,
     })),
   });
 
-  addSystemLog('egg_hatch', { pokemon: poke.index, shiny: eggIsShiny });
+  addSystemLog('egg_hatch', { pokemon: poke.index, shiny: eggIsShiny, squareShiny: eggIsSquareShiny });
   // 孵蛋记录：仅记录时间/名字/性别（性别沿用蛋条目，神秘蛋为建档时 roll 的结果）
   addIncubatorLog({ species: poke.index, gender: entry.gender, shiny: eggIsShiny });
 
-  gameData.incubators[slotIndex] = { eggIndex: null, hatched: false, hatchStart: 0, hatchDuration: 0, isShiny: false };
+  gameData.incubators[slotIndex] = { eggIndex: null, hatched: false, hatchStart: 0, hatchDuration: 0, isShiny: false, isSquareShiny: false };
 }
 
 // ---------- 从孵蛋器取出孵化 ----------
@@ -1013,6 +1019,7 @@ export async function hatchFromIncubator(slotIndex) {
   // 特殊外观（霜奶仙糖饰-口味）跟着蛋条目走，出场时就用组合立绘（没有闪光版）
   const spriteEntry = slot.eggRef ? (gameData.roster || []).find(r => r.id === slot.eggRef) : null;
   const variantSuffix = alcremieSuffix(spriteEntry && spriteEntry.variant);
+  const eggIsSquareShiny = !!(slot.isSquareShiny || (spriteEntry && spriteEntry.squareShiny));
 
   const idx = String(poke.index);
 
@@ -1153,7 +1160,7 @@ export async function hatchFromIncubator(slotIndex) {
   // 闪光蛋：出场动画结束后播放闪光音效并爆发星星粒子（与批量/图鉴同款）；
   // 等闪光音效播完再继续（后续庆祝音乐会紧接着播放，避免两音叠加）
   if (eggIsShiny && isOnHatchView()) {
-    burstShinySparkle($('hatchView'), img, { cls: 'sm', scale: 0.9 });
+    burstShinySparkle($('hatchView'), img, { cls: 'sm', scale: 0.9, squareShiny: eggIsSquareShiny });
     const a = playShiny();
     if (a) {
       await new Promise(r => {
@@ -1311,7 +1318,7 @@ export async function hatchAllFromIncubator() {
     const cellEntry = incubators[slotIdx].eggRef
       ? (gameData.roster || []).find(r => r.id === incubators[slotIdx].eggRef) : null;
     const cellSuffix = alcremieSuffix(cellEntry && cellEntry.variant);
-    cells.push({ slot: slotIdx, poke, eggShiny: !!(incubators[slotIdx].isShiny), stage: cell.firstElementChild, nameEl: cell.lastElementChild, suffix: cellSuffix });
+    cells.push({ slot: slotIdx, poke, eggShiny: !!(incubators[slotIdx].isShiny), eggSquareShiny: !!(incubators[slotIdx].isSquareShiny || (cellEntry && cellEntry.squareShiny)), stage: cell.firstElementChild, nameEl: cell.lastElementChild, suffix: cellSuffix });
   }
   if (!cells.length) {
     setEggHatching(false);
@@ -1332,10 +1339,10 @@ export async function hatchAllFromIncubator() {
   _hatchAllRunning = true;
   bindHatchAllSkip();
   for (let k = 0; k < cells.length; k++) {
-    const { slot, poke, eggShiny, stage, nameEl, suffix } = cells[k];
+    const { slot, poke, eggShiny, eggSquareShiny, stage, nameEl, suffix } = cells[k];
     const cellGender = hatchCellGender(incubators[slot], poke); // 预判性别：动画与建档共用，保证显示一致
     const cellHatchSrc = await resolveHatchSprite(hatchSprite(incubators[slot].eggRef ? poke.types?.[0] : null));
-    await playHatchAllCell(stage, poke, eggShiny, nameEl, cellGender, cellHatchSrc, suffix);
+    await playHatchAllCell(stage, poke, eggShiny, eggSquareShiny, nameEl, cellGender, cellHatchSrc, suffix);
     applyHatchEntry(slot, cellGender); // 名字/闪光星标/性别/粒子已随图片在 playHatchAllCell 内同步出现
     await saveGame(); // 每只完成后落盘，中途崩溃也不丢已孵化结果
     if (k < cells.length - 1) await hatchDelay(180);
@@ -1374,7 +1381,7 @@ function hatchCellGender(slot, poke) {
 // 单个蛋的完整孵出流程：直接从蛋裂一帧开始快速播放破壳动画 → 宝可梦大图从蛋中心缩放出现
 // nameEl 传入后与图片同步显示名字（名字后跟性别图标，闪光时性别左侧追加雪碧图星标）
 // 已点画面跳过：不建蛋壳、不走缩放，直接把大图 + 名字摆出来
-async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender, hatchSrc, suffix) {
+async function playHatchAllCell(stage, poke, eggShiny, eggSquareShiny, nameEl, gender, hatchSrc, suffix) {
   if (!_hatchAllSkip) {
     // 蛋精灵：培育蛋用属性配色版，神秘蛋用基础版（hatch.png 竖排 4 帧）
     const tmp = new Image();
@@ -1424,7 +1431,7 @@ async function playHatchAllCell(stage, poke, eggShiny, nameEl, gender, hatchSrc,
     let nameHtml = `<span>${poke.name}</span>`;
     if (eggShiny) {
       nameHtml += '<svg viewBox="0 0 1024 1024" width="8" height="8" style="flex-shrink:0;color:var(--ui-color);vertical-align:0px;"><use xlink:href="#icon-star"/></svg>';
-      burstShinySparkle($('hatchAllView'), stage, { cls: 'sm', scale: 0.9 }); // 以蛋格为爆点同步爆发
+      burstShinySparkle($('hatchAllView'), stage, { cls: 'sm', scale: 0.9, squareShiny: eggSquareShiny }); // 以蛋格为爆点同步爆发
       playShiny(); // 闪光登场音效（批量无需等待，庆祝在全部播完后统一播放）
     }
     nameHtml += genderBadge(gender, 8);

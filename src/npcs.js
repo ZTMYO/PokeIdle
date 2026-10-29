@@ -1,6 +1,6 @@
 // NPC 挑战：每 20 分钟刷新一波训练家（1 普通 + 2 精英 + 1 馆主 + 1 冠军）
 // 名字/立绘取自 npcs.png 通用形象（与交换页同源）；队伍由各档宝可梦池随机组出，等级按档位固定区间（不跟随玩家）
-import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollLegendIvs, rollNature, rollGender, randInt } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollLegendIvs, rollNature, rollGender, randInt, rollShinyResult } from './state.js';
 import { chooseMoves } from './moves.js';
 import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, BATTLE_TIER_BAND, MAX_LEVEL, EXP_CANDY_DROP, SHINY_CHANCE } from './config.js';
 
@@ -133,8 +133,8 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
       // 神兽个体值同样强化：3 项强制 31，与玩家捕获到的一致
       const ivs = pd.legend === true ? rollLegendIvs() : rollIvs();
       // NPC 也有几率拿出闪光宝可梦（与野生同基础概率，不吃护符加成；同波次内固定不重 roll）
-      const shiny = Math.random() < SHINY_CHANCE;
-      return { species: idx, level, ivs, nature: rollNature(), gender: rollGender(idx), moveIds, shiny };
+      const sr = rollShinyResult(SHINY_CHANCE);
+      return { species: idx, level, ivs, nature: rollNature(), gender: rollGender(idx), moveIds, shiny: sr.shiny, squareShiny: sr.squareShiny };
     });
   }
   // 复用固定队伍数据，仅重算等级（档位固定，队内按序号递减）
@@ -146,5 +146,6 @@ export function buildNpcTeam(npc, data, learnset, maxLv) {
     gender: m.gender,
     moveIds: m.moveIds,
     shiny: m.shiny,
+    squareShiny: !!m.squareShiny,
   }));
 }

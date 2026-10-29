@@ -1223,7 +1223,7 @@ async function init() {
       const poke = getPokemonByIndex(sessionState.encounter.index);
       if (poke) {
         setCurrentEncounter(poke);
-        setCurrentIsShiny(!!sessionState.encounter.isShiny);
+        setCurrentIsShiny(!!sessionState.encounter.isShiny, !!sessionState.encounter.squareShiny);
         setEncounterBallsUsed(sessionState.encounter.ballsUsed || 0);
         setCurrentEncounterBalls(sessionState.encounter.balls || { 'poke-ball': 0, 'ultra-ball': 0, 'master-ball': 0 });
         // 球已从背包扣除（存档已保存），不重复回退；currentEncounterBalls 保留原值以便捕获日志完整记录
