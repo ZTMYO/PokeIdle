@@ -315,6 +315,7 @@ function backgroundHitMass() {
   const mo = gameData?.massOutbreak;
   const poke = mo ? getPokemonByIndex(mo.pokemon) : null;
   if (!poke) return;
+  if (encState()) return; // 上一只还没结算完：别叠第二场（与前台 hitMassPoke 同一条守卫）
   const saved = mo.cur;
   let shiny, squareShiny;
   if (saved) {

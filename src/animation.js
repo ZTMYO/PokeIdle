@@ -1,5 +1,5 @@
 // ==================== 捕捉动画函数 ====================
-import { $, fitPokemonImage, getStageSize, tryLoadPokemonImage, viewportToLogic } from './ui.js';
+import { $, fitPokemonImage, getStageSize, tryLoadPokemonImage } from './ui.js';
 import { gameData, rarityLabel } from './state.js';
 
 // 精灵球捕捉动画用的图片（位于 src/items/）
@@ -45,14 +45,16 @@ export async function setupCatchAnim(ballType) {
   // 重置丢球角色（始终可见，移除丢球动画状态）
   throwChar.classList.remove('throwing');
 
-  // 舞台基准：以屏幕内层（screenInner）真实内容区为准（首次布局后缓存，
-  // 避免从设置页等切回瞬间 encounterView/screenInner 布局未稳定取到收缩值，
-  // 曾实测内容区被收缩为 248×211 导致宝可梦/精灵球像素定位整体偏移）。
-  // 这里同时强制 encounterView 与 catchStage 铺满舞台，保证坐标系一致
-  const { w: stageW, h: stageH } = getStageSize();
+  // 舞台基准：以屏幕内层真实内容区为准。遇敌视图可见时直接量它自己，
+  // 避免 getStageSize 的窗口级缓存在布局切换后仍是旧尺寸（手游双屏会整体改布局）。
+  const view = $('encounterView');
+  view.style.width = '';
+  view.style.height = '';
+  const fallback = getStageSize();
+  const stageW = view.clientWidth || fallback.w;
+  const stageH = view.clientHeight || fallback.h;
   // 强制遭遇视图与动画舞台铺满舞台尺寸（inline 显式定位，不依赖 CSS inset 兼容性），
   // 使宝可梦/精灵球等绝对定位子元素的定位基准与舞台一致
-  const view = $('encounterView');
   view.style.position = 'absolute';
   view.style.left = '0';
   view.style.top = '0';
@@ -92,9 +94,12 @@ export async function setupCatchAnim(ballType) {
   const pkmnOrigY = stageH * 0.58 - pkmnH;
 
   // 把宝可梦从 CSS 居中改为像素定位，供动画操纵
-  // 需同时停掉 encGrow 动画（both 填充的 translateX(-50%) 会覆盖内联 transform，导致图片左移半个身位）
+  // 需同时停掉 encGrow 动画；CSS 用左右 0 + auto 外边距居中，这里改成 left 定位。
   pkmn.style.animation = 'none';
   pkmn.style.position = 'absolute';
+  pkmn.style.right = 'auto';
+  pkmn.style.margin = '0';
+  pkmn.style.bottom = 'auto';
   pkmn.style.left = pkmnOrigX + 'px';
   pkmn.style.top = pkmnOrigY + 'px';
   pkmn.style.transform = 'none';
@@ -124,6 +129,9 @@ export function playFleeAnim(duration = 1000) {
   pkmn.style.position = '';
   pkmn.style.left = '';
   pkmn.style.top = '';
+  pkmn.style.right = '';
+  pkmn.style.bottom = '';
+  pkmn.style.margin = '';
   pkmn.style.animation = 'none';
   pkmn.style.zIndex = '';
   pkmn.style.transform = '';
@@ -152,14 +160,14 @@ export function playFleeAnim(duration = 1000) {
     const rightEdge = host && host.width > 0 ? host.right : window.innerWidth;
     dx = rightEdge + Math.max(20, w * 0.2) - start.left;
   }
-  // 保持水平居中的 translateX(-50%)，叠加水平翻转 + 向终点平移
+  // 水平居中由 CSS 的左右 0 + auto 外边距负责，这里只叠加水平翻转 + 向终点平移
   // 第一步：瞬间完成 2D 水平翻转（scaleX(-1)，不做缩放插值，避免"3D 翻转"观感）
   pkmn.style.transition = 'none';
-  pkmn.style.transform = 'translateX(-50%) scaleX(-1)';
+  pkmn.style.transform = 'scaleX(-1)';
   void pkmn.offsetWidth;
   // 第二步：匀速平移到终点（不用缓动；scaleX(-1) 位于位移外层会镜像水平位移，故 dx 取负才能向右移动）
   pkmn.style.transition = `transform ${duration}ms linear`;
-  pkmn.style.transform = `translateX(-50%) scaleX(-1) translate(${-dx}px, ${dy}px)`;
+  pkmn.style.transform = `scaleX(-1) translate(${-dx}px, ${dy}px)`;
   // 动画结束后保持终点位置（不清理 transform），由下次 renderEncounterScene 重置，避免弹回原位
   return new Promise(resolve => setTimeout(resolve, duration));
 }
@@ -171,6 +179,9 @@ export function restoreCatchAnim() {
   pkmn.style.position = '';
   pkmn.style.left = '';
   pkmn.style.top = '';
+  pkmn.style.right = '';
+  pkmn.style.bottom = '';
+  pkmn.style.margin = '';
   pkmn.style.transform = '';
   pkmn.style.opacity = '';
   pkmn.style.zIndex = '';
@@ -227,13 +238,12 @@ function _sparkleBurst(view, target, opts) {
   // 以 target 中心为爆发点；target 不可见时退回 view 上部
   let cx, cy;
   if (target && target.offsetWidth > 0 && target.offsetHeight > 0) {
-    // 机身在手机/双屏下会整体缩放：先统一还原成逻辑坐标，再换算成 view 内坐标
+    // main.js 已把 console 内的 getBoundingClientRect 统一还原成逻辑坐标，
+    // 这里直接相减即可；再调 viewportToLogic 会按整机缩放比重复除一次，粒子会偏向左上
     const tr = target.getBoundingClientRect();
     const vr = view.getBoundingClientRect();
-    const tc = viewportToLogic(tr.left + tr.width / 2, tr.top + tr.height / 2);
-    const vc = viewportToLogic(vr.left, vr.top);
-    cx = tc.x - vc.x;
-    cy = tc.y - vc.y;
+    cx = tr.left + tr.width / 2 - vr.left;
+    cy = tr.top + tr.height / 2 - vr.top;
   } else {
     cx = view.clientWidth / 2;
     cy = view.clientHeight * 0.4;

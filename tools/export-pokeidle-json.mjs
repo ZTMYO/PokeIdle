@@ -12,6 +12,21 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'bot', 'astrbot_plugin_pokeidle_query', 'data', 'pokeidle.json');
 const VER = '1.21.3';
 const readJSON = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8'));
+// 闪光立绘文件名：<名>_shiny.<ext>（与插件 _image_urls 的拼法一致）
+function shinyPath(rel) {
+  const i = rel.lastIndexOf('.');
+  return i > 0 ? `${rel.slice(0, i)}_shiny${rel.slice(i)}` : '';
+}
+// 立绘原始宽高（GIF/PNG 头）：卡片按比例给 `#宽px #高px`，不然宽体型的宝可梦会被 1:1 压扁
+function imageSize(rel) {
+  if (!rel) return null;
+  try {
+    const buf = fs.readFileSync(path.join(ROOT, 'src', rel));
+    if (buf.length > 10 && buf.toString('ascii', 0, 3) === 'GIF') return [buf.readUInt16LE(6), buf.readUInt16LE(8)];
+    if (buf.length > 24 && buf.readUInt32BE(0) === 0x89504e47) return [buf.readUInt32BE(16), buf.readUInt32BE(20)];
+  } catch (_) { /* 文件缺失就不给尺寸，客户端退回 1:1 */ }
+  return null;
+}
 const dex = readJSON('src/pokemon-data/pokedex.json');
 const moveDoc = readJSON('src/pokemon-data/moves.json');
 const learnset = readJSON('src/pokemon-data/learnset.json');
@@ -252,6 +267,8 @@ const pokemon = dex.map(p => {
     display: displayName(p),
     image: p.image || '',
     icon: p.icon || '',
+    imageSize: imageSize(p.image || ''),
+    shinySize: imageSize(shinyPath(p.image || '')),
     en: p.name_en || '',
     pinyin: p.pinyin || '',
     initials: p.pinyinInitials || '',

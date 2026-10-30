@@ -756,13 +756,21 @@ html.mobile-app #quitHide { display: none !important; }
   from { transform: translate(48px, -28px); }
   to   { transform: translate(0, 0); }
 }
-/* 敌人出现：纯缩放放大（从远到近），与左上/右上 UI 入场同时开始 */
 #encounterView .encounter-gif {
+  /* 不用 translateX(-50%)：Android WebView 在图片尺寸未就绪时会按旧宽度解析百分比位移，
+     导致立绘偏右，等丢球改成像素定位才回中。absolute + 左右 0 + auto 外边距，
+     宽度变化后也会重新居中 */
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  transform: none;
+  transform-origin: 50% 100%;
   animation: encGrow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes encGrow {
-  from { transform: translateX(-50%) scale(0.6); }
-  to   { transform: translateX(-50%) scale(1); }
+  from { transform: scale(0.6); }
+  to   { transform: scale(1); }
 }
 /* 遇敌期间文字框慢速升起，主角背影同步被"顶起" */
 #screen.encounter-intro .text-box {
@@ -6254,6 +6262,8 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .roster-header .pokedex-star, .roster-row .pokedex-star { width: 8px; padding-right: 0; }
 /* 仓库行闪光星与变体圆环共用一个类（pokedex-star-svg），统一 8px 尺寸 */
 .roster-row .pokedex-star svg { width: 8px; height: 8px; display: block; fill: currentColor; }
+/* 方闪那枚右上带小星，竖向被小星占掉一截：放大 1px 让主星看起来和 ★ 一样大 */
+.roster-row .pokedex-star svg.pokedex-sq-svg { width: 9px; height: 9px; }
 /* 仓库编号列加宽至与图鉴页一致并禁止换行，容纳 8 字符扩展编号（#0025-10/#0773-17） */
 .roster-header .pokedex-idx, .roster-row .pokedex-idx { width: 58px; white-space: nowrap; }
 .roster-header .roster-icon, .roster-row .roster-icon { width: 20px; }
@@ -6496,6 +6506,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 }
 .box-badges { position: absolute; top: 0; right: 0; display: flex; }
 .box-badges .pokedex-star-svg { width: 7px; height: 7px; display: block; }
+.box-badges .pokedex-star-svg.pokedex-sq-svg { width: 8px; height: 8px; }
 
 /* 底部等级 / 性别 */
 .box-foot {

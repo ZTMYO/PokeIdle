@@ -198,7 +198,7 @@ function currentFilterPool() {
         return adv.legend === 'legend' ? isLegend : !isLegend;
       });
     }
-    if (adv.shiny) pool = pool.filter(p => adv.shiny === 'shiny' ? !!p.shiny : !p.shiny);
+    if (adv.shiny) pool = pool.filter(p => adv.shiny === 'square' ? !!p.squareShiny : adv.shiny === 'shiny' ? !!p.shiny : !p.shiny);
     if (adv.variant) pool = pool.filter(p => {
       if (adv.variant === 'none') return !p.variant;
       return p.variant === adv.variant;
@@ -1993,7 +1993,7 @@ function advFilterHtml() {
           ${chip('legend', '', '不限')}${chip('legend', 'normal', '普通')}${chip('legend', 'legend', '神兽')}
         </div></div>
         <div class="adv-group"><div class="adv-group-name">闪光</div><div class="adv-chips">
-          ${chip('shiny', '', '不限')}${chip('shiny', 'normal', '非闪光')}${chip('shiny', 'shiny', '闪光')}
+          ${chip('shiny', '', '不限')}${chip('shiny', 'normal', '非闪光')}${chip('shiny', 'shiny', '闪光')}${chip('shiny', 'square', '方闪')}
         </div></div>
         <div class="adv-group"><div class="adv-group-name">特效</div><div class="adv-chips">
           ${chip('variant', '', '不限')}${chip('variant', 'none', '无特效')}${chip('variant', 'rgb', 'RGB')}${chip('variant', 'polluted', '污染')}
@@ -2250,6 +2250,7 @@ function advFilterBadges(F) {
   if (F.legend === 'legend') parts.push({ k: 'legend', t: '神兽' });
   if (F.shiny === 'normal') parts.push({ k: 'shiny', t: '非闪光' });
   if (F.shiny === 'shiny') parts.push({ k: 'shiny', t: '闪光' });
+  if (F.shiny === 'square') parts.push({ k: 'shiny', t: '方闪' });
   if (F.variant === 'none') parts.push({ k: 'variant', t: '无特效' });
   if (F.variant === 'rgb') parts.push({ k: 'variant', t: 'RGB' });
   if (F.variant === 'polluted') parts.push({ k: 'variant', t: '污染' });
