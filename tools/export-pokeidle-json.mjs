@@ -269,7 +269,7 @@ const pokemon = dex.map(p => {
     description: p.description || '',
     foods: (p.foods || []).map(i => BERRY_NAMES[BERRY_FILES[i]] || `树果#${i}`),
     gender: genderText(Number(p.genderRate)),
-    eggGroups: p.noEggGroup ? ['未发现蛋组（不能繁育）'] : (p.eggGroup || []),
+    eggGroups: p.noEggGroup ? ['未发现蛋组'] : (p.eggGroup || []),
     noEggGroup: !!p.noEggGroup,
     evolveOut: out.map(e => ({ to: e.to, name: nameOf(e.to), cond: condText(e.cond) })),
     evolveIn: inc.map(e => ({ from: e.from, name: nameOf(e.from), cond: condText(e.cond) })),

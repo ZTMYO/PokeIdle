@@ -766,6 +766,14 @@ function onIntroMusicClick() {
 // 组合键、输入框聚焦、确认框弹出、开场剧情期间均不响应，避免误触打断流程
 function setupShortcuts() {
   document.addEventListener('keydown', (e) => {
+    // 老板键：Ctrl+W 收回托盘，等同点系统托盘图标收起；任何页面、输入框、弹窗下都生效
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.code === 'KeyW' || e.key.toLowerCase() === 'w')) {
+      const invoke = window.__TAURI__?.core?.invoke;
+      if (!invoke) return; // 网页版没有托盘，交给浏览器自己处理
+      e.preventDefault();
+      invoke('hide_to_tray').catch(() => {});
+      return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (window.__introActive) return;
     if (slotWheelLocked()) return;
