@@ -18,6 +18,13 @@ const learnset = readJSON('src/pokemon-data/learnset.json');
 const acquire = readJSON('src/pokemon-data/acquire.json');
 const evo = readJSON('src/pokemon-data/evolution.json');
 const moves = moveDoc.moves;
+// 从 items.js 读取道具图标映射（纯对象字面量，运行时会求值）
+const itemsSrc = fs.readFileSync(path.join(ROOT, 'src', 'items.js'), 'utf8');
+const iconsAt = itemsSrc.indexOf('export const ITEM_ICONS = {');
+const iconsEnd = iconsAt >= 0 ? itemsSrc.indexOf(String.fromCharCode(10) + '};', iconsAt) : -1;
+const ITEM_ICONS = iconsAt >= 0 && iconsEnd > iconsAt
+  ? Function('return (' + itemsSrc.slice(itemsSrc.indexOf('{', iconsAt), iconsEnd + 2) + ')')()
+  : {};
 
 const BERRY_FILES = ['aspear.png', 'cheri.png', 'chesto.png', 'leppa.png', 'lum.png', 'tamato.png', 'oran.png', 'pecha.png', 'rawst.png', 'sitrus.png', 'figy.png', 'wiki.png'];
 const BERRY_NAMES = {
@@ -244,6 +251,7 @@ const pokemon = dex.map(p => {
     name: p.name,
     display: displayName(p),
     image: p.image || '',
+    icon: p.icon || '',
     en: p.name_en || '',
     pinyin: p.pinyin || '',
     initials: p.pinyinInitials || '',
@@ -290,6 +298,7 @@ const moveList = Object.values(moves).map(mv => {
     tm: tmIds.has(id),
     effect: effectText(mv),
     learners: learners.get(id) || [],
+    catIcon: ({ '物理': 'tools/bot-icons/move-physical.png', '特殊': 'tools/bot-icons/move-special.png', '变化': 'tools/bot-icons/move-status.png' })[mv.category] || '',
   };
 }).sort((a, b) => a.id - b.id);
 
@@ -389,6 +398,7 @@ const itemList = [...allKeys].map(key => {
   return {
     key,
     name: ITEM_NAMES[key] || key,
+    icon: ITEM_ICONS[key] ? 'items/' + ITEM_ICONS[key] : (evo.stoneIcons && evo.stoneIcons[key] ? 'items/evo/stones/' + evo.stoneIcons[key] + '.png' : ''),
     effect: itemEffect(key),
     shop: price.shop,
     sell: price.sell,
@@ -401,6 +411,7 @@ const itemList = [...allKeys].map(key => {
 const berries = BERRY_FILES.map(f => ({
   name: BERRY_NAMES[f],
   file: f,
+  icon: 'items/berries/' + f,
   effect: BERRY_DESC[f],
   use: '农场、混合器、训练、繁育；树果委托出售 8 糖果/颗',
   source: '农场种植收获、老虎机',
