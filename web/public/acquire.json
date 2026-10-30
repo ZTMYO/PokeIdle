@@ -25123,7 +25123,7 @@
                     "type": "breed",
                     "parents": [
                         "0669-2",
-                        "0670-3",
+                        "0670-2",
                         "0671-2"
                     ]
                 }
@@ -25156,7 +25156,7 @@
                     "type": "breed",
                     "parents": [
                         "0669-3",
-                        "0670-4",
+                        "0670-3",
                         "0671-3"
                     ]
                 }
@@ -25189,7 +25189,7 @@
                     "type": "breed",
                     "parents": [
                         "0669-4",
-                        "0670-5",
+                        "0670-4",
                         "0671-4"
                     ]
                 }
@@ -25261,37 +25261,6 @@
         },
         {
             "index": "0670-2",
-            "name": "花叶蒂-永恒之花",
-            "region": "卡洛斯",
-            "legend": false,
-            "methods": [
-                {
-                    "type": "wild",
-                    "region": "卡洛斯"
-                },
-                {
-                    "type": "tree",
-                    "region": "卡洛斯"
-                },
-                {
-                    "type": "twist"
-                },
-                {
-                    "type": "trade"
-                },
-                {
-                    "type": "egg_shop"
-                },
-                {
-                    "type": "breed",
-                    "parents": [
-                        "0670-2"
-                    ]
-                }
-            ]
-        },
-        {
-            "index": "0670-3",
             "name": "花叶蒂-白",
             "region": "卡洛斯",
             "legend": false,
@@ -25323,7 +25292,7 @@
             ]
         },
         {
-            "index": "0670-4",
+            "index": "0670-3",
             "name": "花叶蒂-蓝",
             "region": "卡洛斯",
             "legend": false,
@@ -25355,7 +25324,7 @@
             ]
         },
         {
-            "index": "0670-5",
+            "index": "0670-4",
             "name": "花叶蒂-黄",
             "region": "卡洛斯",
             "legend": false,
@@ -25387,7 +25356,38 @@
             ]
         },
         {
-            "index": "0670-7",
+            "index": "0670-5",
+            "name": "花叶蒂-永恒之花",
+            "region": "卡洛斯",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "wild",
+                    "region": "卡洛斯"
+                },
+                {
+                    "type": "tree",
+                    "region": "卡洛斯"
+                },
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "breed",
+                    "parents": [
+                        "0670-5"
+                    ]
+                }
+            ]
+        },
+        {
+            "index": "0670-6",
             "name": "超级花叶蒂",
             "region": "卡洛斯",
             "legend": false,
@@ -25397,7 +25397,7 @@
                 },
                 {
                     "type": "evolve",
-                    "from": "0670",
+                    "from": "0670-5",
                     "item": "花叶蒂进化石"
                 }
             ]
@@ -25467,7 +25467,7 @@
                 },
                 {
                     "type": "evolve",
-                    "from": "0670-3",
+                    "from": "0670-2",
                     "cond": {
                         "item": "光之石"
                     }
@@ -25491,7 +25491,7 @@
                 },
                 {
                     "type": "evolve",
-                    "from": "0670-4",
+                    "from": "0670-3",
                     "cond": {
                         "item": "光之石"
                     }
@@ -25515,7 +25515,7 @@
                 },
                 {
                     "type": "evolve",
-                    "from": "0670-5",
+                    "from": "0670-4",
                     "cond": {
                         "item": "光之石"
                     }

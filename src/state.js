@@ -125,9 +125,33 @@ function migrateCrownKeys(g) {
   }
 }
 
+// 旧档：花叶蒂一族的形态编号重排过（白/蓝/黄各前移一位、永恒之花 → -5、超级 → -6）。
+// 存档里到处都是物种编号（图鉴计数、相遇日志、队伍与盒子、蛋、派遣/悬赏/交换…），整棵换一遍，跑过一次就记在 saveRev 上
+const SPECIES_REINDEX = { '0670-2': '0670-5', '0670-3': '0670-2', '0670-4': '0670-3', '0670-5': '0670-4', '0670-7': '0670-6' };
+const SAVE_REV = 1;
+function migrateSpeciesReindex(g) {
+  if (!g || typeof g !== 'object' || (g.saveRev || 0) >= SAVE_REV) return g;
+  const walk = (node) => {
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) node[i] = walk(node[i]);
+      return node;
+    }
+    if (node && typeof node === 'object') {
+      const entries = Object.entries(node);
+      const out = entries.some(([k]) => SPECIES_REINDEX[k]) ? {} : node;
+      for (const [k, v] of entries) out[SPECIES_REINDEX[k] || k] = walk(v);
+      return out;
+    }
+    return typeof node === 'string' ? (SPECIES_REINDEX[node] || node) : node;
+  };
+  const out = walk(g);
+  out.saveRev = SAVE_REV;
+  return out;
+}
+
 export function setGameData(d) {
-  gameData = d;
-  if (d && typeof d === 'object') migrateCrownKeys(d);
+  gameData = migrateSpeciesReindex(d);
+  if (gameData && typeof gameData === 'object') migrateCrownKeys(gameData);
 }
 export function setPhase(p) { phase = p; }
 // 野池等级上限表（编号 → 最高等级）：evolution.js 读表后灌进来
@@ -713,6 +737,7 @@ export function saveSessionState(extra) {
   try {
     const state = {
       _savedAt: Date.now(),
+      saveRev: SAVE_REV,
       phase,
       honeyBuffActive,
       honeyPausedRemaining,
@@ -758,6 +783,10 @@ export function restoreSessionState() {
   let state;
   try { state = JSON.parse(raw); } catch (_) { return; }
   if (!state) return;
+  // 老会话没记存档版本：压屏遭遇的编号按旧编号表换掉（会话很短，只会撞上跨版本更新的那一瞬间）
+  if (!state.saveRev && state.encounter && SPECIES_REINDEX[state.encounter.index]) {
+    state.encounter.index = SPECIES_REINDEX[state.encounter.index];
+  }
 
   // 返回恢复所需的 state 快照，由调用方处理
   return state;

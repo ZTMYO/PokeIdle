@@ -35967,47 +35967,8 @@
         "index": "0670-2",
         "name": "花叶蒂",
         "name_en": "Floette",
-        "image": "pokemon-data/images/0670-2-花叶蒂-永恒之花.gif",
-        "icon": "pokemon-data/icon/0670-2-花叶蒂-永恒之花.png",
-        "types": [
-            "妖精"
-        ],
-        "pinyin": "HuaYeDiYongHengZhiHua",
-        "pinyinInitials": "HYDYHZH",
-        "catchRate": 0.62,
-        "genus": "单朵宝可梦",
-        "description": "会培育花朵当作自己的武器来用。 越是开得美丽的花，蕴藏着的力量就越强大。",
-        "height": 2,
-        "weight": 9,
-        "stats": [
-            74,
-            65,
-            67,
-            125,
-            128,
-            92
-        ],
-        "rarity": 0.4747,
-        "legend": false,
-        "region": "卡洛斯",
-        "foods": [
-            4,
-            7,
-            10
-        ],
-        "genderRate": 8,
-        "eggGroup": [
-            "妖精群"
-        ],
-        "noEggGroup": false,
-        "form": "花叶蒂-永恒之花"
-    },
-    {
-        "index": "0670-3",
-        "name": "花叶蒂",
-        "name_en": "Floette",
-        "image": "pokemon-data/images/0670-3-花叶蒂-白.gif",
-        "icon": "pokemon-data/icon/0670-3-花叶蒂-白.png",
+        "image": "pokemon-data/images/0670-2-花叶蒂-白.gif",
+        "icon": "pokemon-data/icon/0670-2-花叶蒂-白.png",
         "types": [
             "妖精"
         ],
@@ -36042,11 +36003,11 @@
         "form": "花叶蒂-白"
     },
     {
-        "index": "0670-4",
+        "index": "0670-3",
         "name": "花叶蒂",
         "name_en": "Floette",
-        "image": "pokemon-data/images/0670-4-花叶蒂-蓝.gif",
-        "icon": "pokemon-data/icon/0670-4-花叶蒂-蓝.png",
+        "image": "pokemon-data/images/0670-3-花叶蒂-蓝.gif",
+        "icon": "pokemon-data/icon/0670-3-花叶蒂-蓝.png",
         "types": [
             "妖精"
         ],
@@ -36081,11 +36042,11 @@
         "form": "花叶蒂-蓝"
     },
     {
-        "index": "0670-5",
+        "index": "0670-4",
         "name": "花叶蒂",
         "name_en": "Floette",
-        "image": "pokemon-data/images/0670-5-花叶蒂-黄.gif",
-        "icon": "pokemon-data/icon/0670-5-花叶蒂-黄.png",
+        "image": "pokemon-data/images/0670-4-花叶蒂-黄.gif",
+        "icon": "pokemon-data/icon/0670-4-花叶蒂-黄.png",
         "types": [
             "妖精"
         ],
@@ -36120,11 +36081,50 @@
         "form": "花叶蒂-黄"
     },
     {
-        "index": "0670-7",
+        "index": "0670-5",
         "name": "花叶蒂",
         "name_en": "Floette",
-        "image": "pokemon-data/images/0670-7-超级花叶蒂.png",
-        "icon": "pokemon-data/icon/0670-7-超级花叶蒂.png",
+        "image": "pokemon-data/images/0670-5-花叶蒂-永恒之花.gif",
+        "icon": "pokemon-data/icon/0670-5-花叶蒂-永恒之花.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "HuaYeDiYongHengZhiHua",
+        "pinyinInitials": "HYDYHZH",
+        "catchRate": 0.62,
+        "genus": "单朵宝可梦",
+        "description": "会培育花朵当作自己的武器来用。 越是开得美丽的花，蕴藏着的力量就越强大。",
+        "height": 2,
+        "weight": 9,
+        "stats": [
+            74,
+            65,
+            67,
+            125,
+            128,
+            92
+        ],
+        "rarity": 0.4747,
+        "legend": false,
+        "region": "卡洛斯",
+        "foods": [
+            4,
+            7,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群"
+        ],
+        "noEggGroup": false,
+        "form": "花叶蒂-永恒之花"
+    },
+    {
+        "index": "0670-6",
+        "name": "花叶蒂",
+        "name_en": "Floette",
+        "image": "pokemon-data/images/0670-6-超级花叶蒂.png",
+        "icon": "pokemon-data/icon/0670-6-超级花叶蒂.png",
         "types": [
             "妖精"
         ],
