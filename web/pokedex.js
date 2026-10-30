@@ -384,6 +384,27 @@ function loadAcqData() {
 let DEX_BY_IDX = new Map();
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const dexName = (i) => { const p = DEX_BY_IDX.get(String(i)); return p ? (p.form || p.name) : `#${i}`; };
+// 亲本只写物种名：本体编号在数据里带着默认形态名，繁育名单里不该出现「霜奶仙-草莓糖饰-奶香香草」
+const parentOf = (i) => {
+  const p = DEX_BY_IDX.get(String(i));
+  if (!p) return `#${i}`;
+  return String(i).includes('-') ? (p.form || p.name) : p.name;
+};
+// 霜奶仙的形态名带着口味，进化链上只写糖饰那一段（霜奶仙-爱心糖饰）
+const chainName = (i) => {
+  const p = DEX_BY_IDX.get(String(i));
+  if (!p) return `#${i}`;
+  const f = p.form || p.name;
+  const m = /^霜奶仙-(.+?糖饰)-/.exec(f);
+  return m ? `霜奶仙-${m[1]}` : f;
+};
+// 搅拌规则：霜奶仙一族的进化链底下写给玩家看
+const STIR_RULE_HTML = `<div class="pk-stir-rule"><b>搅拌规则</b>：小仙奶 + 糖饰进化时，口味由方向和圈数决定<br>
+顺时针：&lt;5 圈 奶香香草 · 5~7 圈 奶香抹茶 · ≥7 圈 奶香薄荷<br>
+逆时针：&lt;5 圈 奶香红钻 · 5~7 圈 奶香雪盐 · ≥7 圈 奶香柠檬<br>
+来回搅（两个方向都过 0.6 圈）：&lt;5 圈 焦糖综合 · 5~7 圈 红钻综合 · ≥7 圈 三色综合<br>
+净转满 3 圈点亮「完成」才进进化演出；中途继续转就能换口味。<br>
+任意糖饰的霜奶仙都能用极巨汤超极巨化。</div>`;
 // 雌雄异形的两条形态压成一条（轻飘飘-雄性/雌性）：同一个编号、同一个名字的两条只占一个名额
 function parentNames(list) {
   const arr = (list || []).map(String);
@@ -392,7 +413,7 @@ function parentNames(list) {
   for (const i of arr) {
     const base = i.split('-')[0];
     const sib = isSexForm(i) && arr.some((o) => o !== i && o.split('-')[0] === base && isSexForm(o));
-    if (!sib) { out.push(dexName(i)); continue; }
+    if (!sib) { out.push(parentOf(i)); continue; }
     if (done.has(base)) continue;
     done.add(base);
     const b = DEX_BY_IDX.get(base);
@@ -484,10 +505,20 @@ function methodDetail(p, m, type) {
   return '';
 }
 // 进化链：从这只沿反向边回到族根，再往下铺它这一支的后代，每级带图标与条件
+// 霜奶仙 63 个口味里只有「奶香香草」在进化数据里有边；其余口味看链条时挂到同糖饰的奶香香草节点上
+function alcremieVanillaIndex(i) {
+  const p = DEX_BY_IDX.get(String(i));
+  const m = /^霜奶仙-(.+?糖饰)-(.+)$/.exec((p && p.form) || '');
+  if (!m) return null;
+  if (m[2] === '奶香香草') return String(i);
+  for (const q of DEX_BY_IDX.values()) if (q.form === `霜奶仙-${m[1]}-奶香香草`) return q.index;
+  return null;
+}
+
 function evolveChainHtml(idx) {
   if (!EVO) return '';
   const E = EVO.edges || {}, stones = EVO.stones || {}, srcOf = EVO.stoneSource || {};
-  const self = String(idx);
+  const self = alcremieVanillaIndex(idx) || String(idx);   // 口味形态挂到同糖饰的奶香香草节点
   // stoneSource 支持数组：雄雌同编号的形态共用一枚石头
   const srcList = (k) => (Array.isArray(srcOf[k]) ? srcOf[k] : [srcOf[k] == null ? String(k).split('-')[0] : srcOf[k]]).map(String);
   const preds = new Map();
@@ -501,9 +532,10 @@ function evolveChainHtml(idx) {
     return f.startsWith(n + '-') ? f.slice(n.length + 1) : '';
   };
   // 某一级的下一级 = 普通边 + 挂在它身上的专属石头形态（cond 传原始条件，交给 conn 排版）
+  // 多来源的强化形态只挂在第一个来源上，免得树里重复几十次
   const childrenOf = (i) => [
     ...Object.keys(E[i] || {}).map((k) => ({ id: k, cond: E[i][k] })),
-    ...Object.keys(stones).filter((k) => srcList(k).includes(String(i))).map((k) => ({ id: k, cond: { item: stones[k] } })),
+    ...Object.keys(stones).filter((k) => srcList(k)[0] === String(i)).map((k) => ({ id: k, cond: { item: stones[k] } })),
   ];
   // 族根：沿反向边往上走（同后缀优先，与游戏 familyRoot 同规则；石头形态先回挂靠形态）
   let cur = self, guard = 0;
@@ -522,7 +554,7 @@ function evolveChainHtml(idx) {
   // 不依赖固定列宽，所以再长的链也只换行，不会把容器撑出横向滚动条
   const nodeCell = (i) => {
     const isSelf = String(i) === self;
-    return `<span class="pk-node${isSelf ? ' self' : ''}">${iconSpanHtml(i, 26)}<span class="pk-stage-name">${esc(dexName(i))}</span></span>`;
+    return `<span class="pk-node${isSelf ? ' self' : ''}">${iconSpanHtml(i, 26)}<span class="pk-stage-name">${esc(chainName(i))}</span></span>`;
   };
   const conn = (glyph, cond) => {
     const txt = condHtml(cond);
@@ -568,7 +600,9 @@ function evolveChainHtml(idx) {
   const more = count >= 40 ? '<div class="pk-tree-more">…还有更多形态未展开</div>' : '';
   const cols = 2 * maxDepth + 1;
   const body = `<div class="pk-tree" style="grid-template-columns:repeat(${cols},max-content)">${parts.join('')}</div>`;
-  return `<div class="pk-chain"><span class="pk-chain-label">进化链</span><div class="pk-tree-scroll">${body}</div>${more}</div>`;
+  // 霜奶仙这一族：链条上只列糖饰，9 种口味靠进化时的搅拌决定，把规则写清楚
+  const stir = String(root) === '0868' ? STIR_RULE_HTML : '';
+  return `<div class="pk-chain"><span class="pk-chain-label">进化链</span><div class="pk-tree-scroll">${body}</div>${more}${stir}</div>`;
 }
 
 // 从某只沿反向边回到族根，返回 [族根, …, 这一只]（同后缀优先）

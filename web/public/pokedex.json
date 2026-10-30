@@ -3461,9 +3461,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
+            4,
             6,
-            8,
-            10
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -4883,9 +4883,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            2,
-            4,
-            11
+            0,
+            6,
+            7
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -5038,9 +5038,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
+            0,
             5,
-            9
+            7
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -5237,8 +5237,8 @@
         "legend": false,
         "region": "关都",
         "foods": [
-            2,
-            11
+            6,
+            9
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -5314,9 +5314,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            3,
-            5,
-            9
+            0,
+            6,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -6888,7 +6888,7 @@
         "legend": false,
         "region": "关都",
         "foods": [
-            7,
+            2,
             11
         ],
         "genderRate": 4,
@@ -7269,8 +7269,8 @@
         "legend": false,
         "region": "关都",
         "foods": [
-            6,
-            9
+            7,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -7307,8 +7307,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            5,
-            11
+            6,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -8746,8 +8746,8 @@
         "legend": false,
         "region": "关都",
         "foods": [
-            1,
-            9
+            7,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -13160,9 +13160,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            5,
+            2,
             6,
-            10
+            7
         ],
         "genderRate": 6,
         "eggGroup": [
@@ -14392,8 +14392,8 @@
         "region": "丰缘",
         "foods": [
             2,
-            5,
-            6
+            7,
+            9
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -14549,7 +14549,7 @@
         "foods": [
             2,
             5,
-            9
+            6
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -14701,9 +14701,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            4,
-            10
+            2,
+            5,
+            9
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -14859,9 +14859,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
+            0,
             3,
-            4,
-            7
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -14935,9 +14935,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            3,
-            9
+            2,
+            5,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -14974,9 +14974,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
+            0,
             1,
-            2,
-            4
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15013,9 +15013,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            3,
-            11
+            6,
+            7,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15052,9 +15052,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
+            1,
             5,
-            11
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15091,9 +15091,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            7,
-            8
+            1,
+            3,
+            4
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15129,9 +15129,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            4,
-            5
+            5,
+            6,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15208,7 +15208,7 @@
         "foods": [
             0,
             4,
-            6
+            5
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15284,9 +15284,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            6,
-            9,
-            11
+            3,
+            4,
+            7
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15324,8 +15324,8 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            6,
+            2,
+            3,
             10
         ],
         "genderRate": 4,
@@ -15402,9 +15402,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            1,
-            10
+            6,
+            9,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15442,9 +15442,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            2,
-            9,
-            11
+            0,
+            6,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15521,9 +15521,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            3,
-            6
+            1,
+            2,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15599,8 +15599,8 @@
         "region": "丰缘",
         "foods": [
             4,
-            7,
-            10
+            5,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15678,8 +15678,8 @@
         "region": "丰缘",
         "foods": [
             0,
-            6,
-            7
+            1,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15717,9 +15717,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
+            0,
             1,
-            2,
-            3
+            4
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15836,9 +15836,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            3,
-            4,
-            10
+            0,
+            6,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15915,9 +15915,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            5,
-            6,
-            9
+            3,
+            4,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -15994,9 +15994,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            2,
-            8,
-            9
+            1,
+            5,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -16032,9 +16032,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            2,
+            0,
             3,
-            7
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -16107,9 +16107,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            1,
-            7
+            3,
+            4,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -16223,8 +16223,8 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            3,
-            4,
+            2,
+            8,
             9
         ],
         "genderRate": 4,
@@ -16262,9 +16262,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            1,
-            8,
-            9
+            0,
+            5,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -16340,8 +16340,8 @@
         "region": "丰缘",
         "foods": [
             1,
-            5,
-            10
+            3,
+            11
         ],
         "genderRate": 2,
         "eggGroup": [
@@ -16416,9 +16416,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            2,
-            5,
-            8
+            1,
+            8,
+            10
         ],
         "genderRate": 6,
         "eggGroup": [],
@@ -16452,9 +16452,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            7,
+            3,
             8,
-            10
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -16490,9 +16490,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
+            0,
             1,
-            8,
-            10
+            7
         ],
         "genderRate": 6,
         "eggGroup": [
@@ -16727,9 +16727,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            5,
+            7,
             8,
-            11
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -16881,9 +16881,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            3,
-            8,
-            10
+            0,
+            5,
+            7
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -16998,9 +16998,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            3,
-            8,
-            9
+            2,
+            4,
+            5
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17111,9 +17111,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            2,
-            4,
-            8
+            1,
+            8,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17150,8 +17150,8 @@
         "region": "丰缘",
         "foods": [
             2,
-            3,
-            10
+            4,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17187,9 +17187,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            2,
             9,
-            10
+            10,
+            11
         ],
         "genderRate": 0,
         "eggGroup": [
@@ -17226,8 +17226,8 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
             2,
+            9,
             10
         ],
         "genderRate": 8,
@@ -17266,9 +17266,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            5,
-            10
+            6,
+            7,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17305,9 +17305,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            1,
-            7,
-            8
+            3,
+            8,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17382,8 +17382,8 @@
         "region": "丰缘",
         "foods": [
             0,
-            5,
-            7
+            6,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17496,9 +17496,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            2,
-            7,
-            9
+            4,
+            6,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17574,9 +17574,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            1,
-            2,
-            9
+            4,
+            7,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17729,9 +17729,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            3,
-            7,
-            10
+            6,
+            10,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17804,9 +17804,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
+            1,
             2,
-            6
+            3
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17843,9 +17843,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            2,
-            3,
-            5
+            0,
+            4,
+            6
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17884,8 +17884,8 @@
         "region": "丰缘",
         "foods": [
             2,
-            4,
-            5
+            9,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -17961,9 +17961,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            1,
-            4
+            5,
+            8,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -18040,9 +18040,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            4,
-            5,
-            8
+            0,
+            2,
+            3
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -18312,9 +18312,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            6,
-            11
+            3,
+            7,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -18388,9 +18388,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            3,
-            4,
-            8
+            6,
+            8,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -18469,8 +18469,8 @@
         "region": "丰缘",
         "foods": [
             0,
-            6,
-            9
+            3,
+            6
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -18545,9 +18545,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            5,
-            6,
-            11
+            2,
+            3,
+            7
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -18622,9 +18622,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            1,
-            2
+            5,
+            6,
+            11
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -18698,9 +18698,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            1,
-            3,
-            4
+            0,
+            6,
+            7
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -18930,9 +18930,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            1,
-            9,
-            11
+            0,
+            4,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -18968,9 +18968,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            0,
-            2,
-            3
+            1,
+            7,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -19081,9 +19081,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            6,
-            10,
-            11
+            3,
+            4,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -19158,9 +19158,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            4,
-            6,
-            11
+            0,
+            2,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -19388,8 +19388,8 @@
         "region": "丰缘",
         "foods": [
             1,
-            6,
-            7
+            5,
+            6
         ],
         "genderRate": 4,
         "eggGroup": [],
@@ -19423,9 +19423,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
+            1,
             6,
-            8,
-            10
+            7
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -19540,9 +19540,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            1,
+            2,
             3,
-            11
+            5
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -19580,9 +19580,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            9,
-            10,
-            11
+            0,
+            1,
+            2
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -19660,7 +19660,7 @@
         "foods": [
             1,
             5,
-            6
+            7
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -19809,9 +19809,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            1,
-            5,
-            7
+            0,
+            2,
+            6
         ],
         "genderRate": 6,
         "eggGroup": [
@@ -19847,9 +19847,9 @@
         "legend": false,
         "region": "丰缘",
         "foods": [
-            6,
-            7,
-            8
+            1,
+            9,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -29133,8 +29133,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
-            4,
+            1,
+            2,
             8
         ],
         "genderRate": 4,
@@ -29249,8 +29249,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            6,
-            8
+            1,
+            3
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -29640,8 +29640,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
+            1,
             4,
-            5,
             9
         ],
         "genderRate": 4,
@@ -32332,8 +32332,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
-            1
+            10,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -35991,8 +35991,8 @@
         "legend": false,
         "region": "卡洛斯",
         "foods": [
-            0,
-            5,
+            4,
+            7,
             10
         ],
         "genderRate": 8,
@@ -36030,9 +36030,9 @@
         "legend": false,
         "region": "卡洛斯",
         "foods": [
-            2,
-            4,
-            9
+            0,
+            5,
+            10
         ],
         "genderRate": 8,
         "eggGroup": [
@@ -36070,8 +36070,8 @@
         "region": "卡洛斯",
         "foods": [
             2,
-            5,
-            11
+            4,
+            9
         ],
         "genderRate": 8,
         "eggGroup": [
@@ -36108,9 +36108,9 @@
         "legend": false,
         "region": "卡洛斯",
         "foods": [
-            4,
-            7,
-            10
+            2,
+            5,
+            11
         ],
         "genderRate": 8,
         "eggGroup": [
@@ -36147,9 +36147,9 @@
         "legend": false,
         "region": "卡洛斯",
         "foods": [
-            2,
-            4,
-            5
+            1,
+            6,
+            9
         ],
         "genderRate": 8,
         "eggGroup": [
@@ -39287,8 +39287,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            7,
-            8
+            1,
+            11
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -39439,8 +39439,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            1,
-            11
+            0,
+            10
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -39554,7 +39554,7 @@
         "region": "阿罗拉",
         "foods": [
             0,
-            10
+            11
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -41171,8 +41171,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            4,
-            11
+            6,
+            10
         ],
         "genderRate": 6,
         "eggGroup": [
@@ -42182,8 +42182,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            0,
-            6
+            1,
+            8
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -42221,7 +42221,7 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            1,
+            3,
             8
         ],
         "genderRate": -1,
@@ -42261,7 +42261,7 @@
         "region": "阿罗拉",
         "foods": [
             3,
-            8
+            7
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -42299,8 +42299,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            3,
-            7
+            1,
+            10
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -42338,8 +42338,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            1,
-            10
+            2,
+            7
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -42377,8 +42377,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            2,
-            7
+            4,
+            8
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -42416,8 +42416,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            4,
-            8
+            0,
+            4
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -42455,8 +42455,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            0,
-            4
+            4,
+            11
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -42531,7 +42531,7 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            6,
+            2,
             10
         ],
         "genderRate": 4,
@@ -42649,7 +42649,7 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            3,
+            0,
             6
         ],
         "genderRate": 4,
@@ -42688,8 +42688,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            1,
-            3
+            7,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -42726,8 +42726,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            2,
-            10
+            1,
+            3
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -42881,8 +42881,8 @@
         "legend": false,
         "region": "阿罗拉",
         "foods": [
-            0,
-            11
+            3,
+            6
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -44111,8 +44111,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
-            1,
+            4,
+            5,
             9
         ],
         "genderRate": 1,
@@ -44150,8 +44150,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            10,
-            11
+            5,
+            7,
+            10
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -44265,9 +44266,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            3,
-            7
+            4,
+            10,
+            11
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -44304,8 +44305,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
+            3,
             4,
-            10
+            9
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -44419,9 +44421,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            2,
-            5,
-            8
+            3,
+            7,
+            11
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -44458,8 +44460,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
+            0,
             4,
-            7
+            8
         ],
         "genderRate": 1,
         "eggGroup": [
@@ -44573,9 +44576,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
-            6,
-            7
+            3,
+            4,
+            5
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -44649,8 +44652,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            5,
-            7,
+            2,
+            3,
             9
         ],
         "genderRate": 4,
@@ -44687,7 +44690,7 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            5,
+            2,
             9,
             10
         ],
@@ -44802,9 +44805,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            4,
-            9
+            5,
+            6,
+            7
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -44841,9 +44844,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            3,
-            4,
-            9
+            1,
+            5,
+            6
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -44957,7 +44960,7 @@
         "region": "伽勒尔",
         "foods": [
             4,
-            7,
+            5,
             10
         ],
         "genderRate": 4,
@@ -45032,9 +45035,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
             1,
-            6
+            7,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -45107,9 +45110,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
-            2,
-            8
+            5,
+            6,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -45183,9 +45186,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            2,
-            6,
-            8
+            3,
+            5,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -45301,9 +45304,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            5,
-            6
+            7,
+            8,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -45376,7 +45379,7 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
+            1,
             5,
             7
         ],
@@ -45415,9 +45418,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            2,
             4,
-            5
+            8,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -45531,9 +45534,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            4,
-            6
+            7,
+            8,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -45728,9 +45731,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
+            2,
             4,
-            10,
-            11
+            6
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -45963,9 +45966,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            5,
-            7,
-            11
+            6,
+            9,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -46039,9 +46042,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            2,
-            6,
-            10
+            5,
+            7,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [],
@@ -46193,9 +46196,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            4,
-            8,
-            10
+            7,
+            9,
+            11
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -46308,9 +46311,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
-            6,
-            10
+            1,
+            2,
+            4
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -46385,9 +46388,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            5,
-            7,
-            8
+            1,
+            4,
+            6
         ],
         "genderRate": -1,
         "eggGroup": [
@@ -46462,9 +46465,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
+            0,
             2,
-            9,
-            10
+            4
         ],
         "genderRate": 8,
         "eggGroup": [
@@ -46500,9 +46503,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
             2,
-            10
+            6,
+            8
         ],
         "genderRate": 8,
         "eggGroup": [
@@ -46616,9 +46619,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            2,
-            8
+            0,
+            9,
+            11
         ],
         "genderRate": 0,
         "eggGroup": [
@@ -46656,9 +46659,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            4,
-            5
+            5,
+            7,
+            11
         ],
         "genderRate": 0,
         "eggGroup": [
@@ -47003,8 +47006,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            3,
-            7,
+            2,
+            10,
             11
         ],
         "genderRate": 8,
@@ -47018,8 +47021,8 @@
         "index": "0869",
         "name": "霜奶仙",
         "name_en": "Alcremie",
-        "image": "pokemon-data/images/0869-霜奶仙.gif",
-        "icon": "pokemon-data/icon/0869-霜奶仙.png",
+        "image": "pokemon-data/images/0869-霜奶仙-草莓糖饰-奶香香草.gif",
+        "icon": "pokemon-data/icon/0869-霜奶仙-草莓糖饰-奶香香草.png",
         "types": [
             "妖精"
         ],
@@ -47050,14 +47053,2447 @@
             "妖精群",
             "不定形群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-奶香香草"
     },
     {
         "index": "0869-1",
         "name": "霜奶仙",
         "name_en": "Alcremie",
-        "image": "pokemon-data/images/0869-1-超极巨化霜奶仙.gif",
-        "icon": "pokemon-data/icon/0869-1-超极巨化霜奶仙.png",
+        "image": "pokemon-data/images/0869-1-霜奶仙-草莓糖饰-焦糖综合.gif",
+        "icon": "pokemon-data/icon/0869-1-霜奶仙-草莓糖饰-焦糖综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianCaoMeiTangShiJiaoTangZongHe",
+        "pinyinInitials": "SNXCMTSJTZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            7,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-焦糖综合"
+    },
+    {
+        "index": "0869-2",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-2-霜奶仙-草莓糖饰-奶香红钻.gif",
+        "icon": "pokemon-data/icon/0869-2-霜奶仙-草莓糖饰-奶香红钻.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianCaoMeiTangShiNaiXiangHongZuan",
+        "pinyinInitials": "SNXCMTSNXHZ",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            6,
+            7
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-奶香红钻"
+    },
+    {
+        "index": "0869-3",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-3-霜奶仙-草莓糖饰-红钻综合.gif",
+        "icon": "pokemon-data/icon/0869-3-霜奶仙-草莓糖饰-红钻综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianCaoMeiTangShiHongZuanZongHe",
+        "pinyinInitials": "SNXCMTSHZZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            8
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-红钻综合"
+    },
+    {
+        "index": "0869-4",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-4-霜奶仙-草莓糖饰-奶香抹茶.gif",
+        "icon": "pokemon-data/icon/0869-4-霜奶仙-草莓糖饰-奶香抹茶.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianCaoMeiTangShiNaiXiangMaCha",
+        "pinyinInitials": "SNXCMTSNXMC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            7
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-奶香抹茶"
+    },
+    {
+        "index": "0869-5",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-5-霜奶仙-草莓糖饰-奶香柠檬.gif",
+        "icon": "pokemon-data/icon/0869-5-霜奶仙-草莓糖饰-奶香柠檬.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianCaoMeiTangShiNaiXiangNingMeng",
+        "pinyinInitials": "SNXCMTSNXNM",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            3,
+            7
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-奶香柠檬"
+    },
+    {
+        "index": "0869-6",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-6-霜奶仙-草莓糖饰-奶香雪盐.gif",
+        "icon": "pokemon-data/icon/0869-6-霜奶仙-草莓糖饰-奶香雪盐.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianCaoMeiTangShiNaiXiangXueYan",
+        "pinyinInitials": "SNXCMTSNXXY",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            4,
+            5
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-奶香雪盐"
+    },
+    {
+        "index": "0869-7",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-7-霜奶仙-草莓糖饰-奶香薄荷.gif",
+        "icon": "pokemon-data/icon/0869-7-霜奶仙-草莓糖饰-奶香薄荷.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianCaoMeiTangShiNaiXiangBoHe",
+        "pinyinInitials": "SNXCMTSNXBH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            5,
+            9,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-奶香薄荷"
+    },
+    {
+        "index": "0869-8",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-8-霜奶仙-草莓糖饰-三色综合.gif",
+        "icon": "pokemon-data/icon/0869-8-霜奶仙-草莓糖饰-三色综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianCaoMeiTangShiSanSeZongHe",
+        "pinyinInitials": "SNXCMTSSSZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            4,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-草莓糖饰-三色综合"
+    },
+    {
+        "index": "0869-9",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-9-霜奶仙-爱心糖饰-奶香香草.gif",
+        "icon": "pokemon-data/icon/0869-9-霜奶仙-爱心糖饰-奶香香草.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiNaiXiangXiangCao",
+        "pinyinInitials": "SNXAXTSNXXC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            4,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-奶香香草"
+    },
+    {
+        "index": "0869-10",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-10-霜奶仙-爱心糖饰-焦糖综合.gif",
+        "icon": "pokemon-data/icon/0869-10-霜奶仙-爱心糖饰-焦糖综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiJiaoTangZongHe",
+        "pinyinInitials": "SNXAXTSJTZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            4,
+            7
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-焦糖综合"
+    },
+    {
+        "index": "0869-11",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-11-霜奶仙-爱心糖饰-奶香红钻.gif",
+        "icon": "pokemon-data/icon/0869-11-霜奶仙-爱心糖饰-奶香红钻.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiNaiXiangHongZuan",
+        "pinyinInitials": "SNXAXTSNXHZ",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            5,
+            6
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-奶香红钻"
+    },
+    {
+        "index": "0869-12",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-12-霜奶仙-爱心糖饰-红钻综合.gif",
+        "icon": "pokemon-data/icon/0869-12-霜奶仙-爱心糖饰-红钻综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiHongZuanZongHe",
+        "pinyinInitials": "SNXAXTSHZZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            6,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-红钻综合"
+    },
+    {
+        "index": "0869-13",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-13-霜奶仙-爱心糖饰-奶香抹茶.gif",
+        "icon": "pokemon-data/icon/0869-13-霜奶仙-爱心糖饰-奶香抹茶.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiNaiXiangMaCha",
+        "pinyinInitials": "SNXAXTSNXMC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            3,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-奶香抹茶"
+    },
+    {
+        "index": "0869-14",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-14-霜奶仙-爱心糖饰-奶香柠檬.gif",
+        "icon": "pokemon-data/icon/0869-14-霜奶仙-爱心糖饰-奶香柠檬.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiNaiXiangNingMeng",
+        "pinyinInitials": "SNXAXTSNXNM",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            5
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-奶香柠檬"
+    },
+    {
+        "index": "0869-15",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-15-霜奶仙-爱心糖饰-奶香雪盐.gif",
+        "icon": "pokemon-data/icon/0869-15-霜奶仙-爱心糖饰-奶香雪盐.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiNaiXiangXueYan",
+        "pinyinInitials": "SNXAXTSNXXY",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            6,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-奶香雪盐"
+    },
+    {
+        "index": "0869-16",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-16-霜奶仙-爱心糖饰-奶香薄荷.gif",
+        "icon": "pokemon-data/icon/0869-16-霜奶仙-爱心糖饰-奶香薄荷.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiNaiXiangBoHe",
+        "pinyinInitials": "SNXAXTSNXBH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            3,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-奶香薄荷"
+    },
+    {
+        "index": "0869-17",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-17-霜奶仙-爱心糖饰-三色综合.gif",
+        "icon": "pokemon-data/icon/0869-17-霜奶仙-爱心糖饰-三色综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianAiXinTangShiSanSeZongHe",
+        "pinyinInitials": "SNXAXTSSSZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            5,
+            8
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-爱心糖饰-三色综合"
+    },
+    {
+        "index": "0869-18",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-18-霜奶仙-野莓糖饰-奶香香草.gif",
+        "icon": "pokemon-data/icon/0869-18-霜奶仙-野莓糖饰-奶香香草.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiNaiXiangXiangCao",
+        "pinyinInitials": "SNXYMTSNXXC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            2
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-奶香香草"
+    },
+    {
+        "index": "0869-19",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-19-霜奶仙-野莓糖饰-焦糖综合.gif",
+        "icon": "pokemon-data/icon/0869-19-霜奶仙-野莓糖饰-焦糖综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiJiaoTangZongHe",
+        "pinyinInitials": "SNXYMTSJTZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            6
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-焦糖综合"
+    },
+    {
+        "index": "0869-20",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-20-霜奶仙-野莓糖饰-奶香红钻.gif",
+        "icon": "pokemon-data/icon/0869-20-霜奶仙-野莓糖饰-奶香红钻.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiNaiXiangHongZuan",
+        "pinyinInitials": "SNXYMTSNXHZ",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            8,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-奶香红钻"
+    },
+    {
+        "index": "0869-21",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-21-霜奶仙-野莓糖饰-红钻综合.gif",
+        "icon": "pokemon-data/icon/0869-21-霜奶仙-野莓糖饰-红钻综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiHongZuanZongHe",
+        "pinyinInitials": "SNXYMTSHZZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            3
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-红钻综合"
+    },
+    {
+        "index": "0869-22",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-22-霜奶仙-野莓糖饰-奶香抹茶.gif",
+        "icon": "pokemon-data/icon/0869-22-霜奶仙-野莓糖饰-奶香抹茶.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiNaiXiangMaCha",
+        "pinyinInitials": "SNXYMTSNXMC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            8
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-奶香抹茶"
+    },
+    {
+        "index": "0869-23",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-23-霜奶仙-野莓糖饰-奶香柠檬.gif",
+        "icon": "pokemon-data/icon/0869-23-霜奶仙-野莓糖饰-奶香柠檬.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiNaiXiangNingMeng",
+        "pinyinInitials": "SNXYMTSNXNM",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            6
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-奶香柠檬"
+    },
+    {
+        "index": "0869-24",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-24-霜奶仙-野莓糖饰-奶香雪盐.gif",
+        "icon": "pokemon-data/icon/0869-24-霜奶仙-野莓糖饰-奶香雪盐.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiNaiXiangXueYan",
+        "pinyinInitials": "SNXYMTSNXXY",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            8,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-奶香雪盐"
+    },
+    {
+        "index": "0869-25",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-25-霜奶仙-野莓糖饰-奶香薄荷.gif",
+        "icon": "pokemon-data/icon/0869-25-霜奶仙-野莓糖饰-奶香薄荷.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiNaiXiangBoHe",
+        "pinyinInitials": "SNXYMTSNXBH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            9,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-奶香薄荷"
+    },
+    {
+        "index": "0869-26",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-26-霜奶仙-野莓糖饰-三色综合.gif",
+        "icon": "pokemon-data/icon/0869-26-霜奶仙-野莓糖饰-三色综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianYeMeiTangShiSanSeZongHe",
+        "pinyinInitials": "SNXYMTSSSZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            7
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-野莓糖饰-三色综合"
+    },
+    {
+        "index": "0869-27",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-27-霜奶仙-幸运草糖饰-奶香香草.gif",
+        "icon": "pokemon-data/icon/0869-27-霜奶仙-幸运草糖饰-奶香香草.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiNaiXiangXiangCao",
+        "pinyinInitials": "SNXXYCTSNXXC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-奶香香草"
+    },
+    {
+        "index": "0869-28",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-28-霜奶仙-幸运草糖饰-焦糖综合.gif",
+        "icon": "pokemon-data/icon/0869-28-霜奶仙-幸运草糖饰-焦糖综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiJiaoTangZongHe",
+        "pinyinInitials": "SNXXYCTSJTZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            3,
+            4
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-焦糖综合"
+    },
+    {
+        "index": "0869-29",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-29-霜奶仙-幸运草糖饰-奶香红钻.gif",
+        "icon": "pokemon-data/icon/0869-29-霜奶仙-幸运草糖饰-奶香红钻.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiNaiXiangHongZuan",
+        "pinyinInitials": "SNXXYCTSNXHZ",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-奶香红钻"
+    },
+    {
+        "index": "0869-30",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-30-霜奶仙-幸运草糖饰-红钻综合.gif",
+        "icon": "pokemon-data/icon/0869-30-霜奶仙-幸运草糖饰-红钻综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiHongZuanZongHe",
+        "pinyinInitials": "SNXXYCTSHZZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            7
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-红钻综合"
+    },
+    {
+        "index": "0869-31",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-31-霜奶仙-幸运草糖饰-奶香抹茶.gif",
+        "icon": "pokemon-data/icon/0869-31-霜奶仙-幸运草糖饰-奶香抹茶.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiNaiXiangMaCha",
+        "pinyinInitials": "SNXXYCTSNXMC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-奶香抹茶"
+    },
+    {
+        "index": "0869-32",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-32-霜奶仙-幸运草糖饰-奶香柠檬.gif",
+        "icon": "pokemon-data/icon/0869-32-霜奶仙-幸运草糖饰-奶香柠檬.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiNaiXiangNingMeng",
+        "pinyinInitials": "SNXXYCTSNXNM",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-奶香柠檬"
+    },
+    {
+        "index": "0869-33",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-33-霜奶仙-幸运草糖饰-奶香雪盐.gif",
+        "icon": "pokemon-data/icon/0869-33-霜奶仙-幸运草糖饰-奶香雪盐.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiNaiXiangXueYan",
+        "pinyinInitials": "SNXXYCTSNXXY",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-奶香雪盐"
+    },
+    {
+        "index": "0869-34",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-34-霜奶仙-幸运草糖饰-奶香薄荷.gif",
+        "icon": "pokemon-data/icon/0869-34-霜奶仙-幸运草糖饰-奶香薄荷.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiNaiXiangBoHe",
+        "pinyinInitials": "SNXXYCTSNXBH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            8
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-奶香薄荷"
+    },
+    {
+        "index": "0869-35",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-35-霜奶仙-幸运草糖饰-三色综合.gif",
+        "icon": "pokemon-data/icon/0869-35-霜奶仙-幸运草糖饰-三色综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingYunCaoTangShiSanSeZongHe",
+        "pinyinInitials": "SNXXYCTSSSZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-幸运草糖饰-三色综合"
+    },
+    {
+        "index": "0869-36",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-36-霜奶仙-花朵糖饰-奶香香草.gif",
+        "icon": "pokemon-data/icon/0869-36-霜奶仙-花朵糖饰-奶香香草.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiNaiXiangXiangCao",
+        "pinyinInitials": "SNXHDTSNXXC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            4
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-奶香香草"
+    },
+    {
+        "index": "0869-37",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-37-霜奶仙-花朵糖饰-焦糖综合.gif",
+        "icon": "pokemon-data/icon/0869-37-霜奶仙-花朵糖饰-焦糖综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiJiaoTangZongHe",
+        "pinyinInitials": "SNXHDTSJTZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            4
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-焦糖综合"
+    },
+    {
+        "index": "0869-38",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-38-霜奶仙-花朵糖饰-奶香红钻.gif",
+        "icon": "pokemon-data/icon/0869-38-霜奶仙-花朵糖饰-奶香红钻.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiNaiXiangHongZuan",
+        "pinyinInitials": "SNXHDTSNXHZ",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            5
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-奶香红钻"
+    },
+    {
+        "index": "0869-39",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-39-霜奶仙-花朵糖饰-红钻综合.gif",
+        "icon": "pokemon-data/icon/0869-39-霜奶仙-花朵糖饰-红钻综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiHongZuanZongHe",
+        "pinyinInitials": "SNXHDTSHZZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            4
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-红钻综合"
+    },
+    {
+        "index": "0869-40",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-40-霜奶仙-花朵糖饰-奶香抹茶.gif",
+        "icon": "pokemon-data/icon/0869-40-霜奶仙-花朵糖饰-奶香抹茶.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiNaiXiangMaCha",
+        "pinyinInitials": "SNXHDTSNXMC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            6,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-奶香抹茶"
+    },
+    {
+        "index": "0869-41",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-41-霜奶仙-花朵糖饰-奶香柠檬.gif",
+        "icon": "pokemon-data/icon/0869-41-霜奶仙-花朵糖饰-奶香柠檬.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiNaiXiangNingMeng",
+        "pinyinInitials": "SNXHDTSNXNM",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            3,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-奶香柠檬"
+    },
+    {
+        "index": "0869-42",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-42-霜奶仙-花朵糖饰-奶香雪盐.gif",
+        "icon": "pokemon-data/icon/0869-42-霜奶仙-花朵糖饰-奶香雪盐.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiNaiXiangXueYan",
+        "pinyinInitials": "SNXHDTSNXXY",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            3,
+            7
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-奶香雪盐"
+    },
+    {
+        "index": "0869-43",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-43-霜奶仙-花朵糖饰-奶香薄荷.gif",
+        "icon": "pokemon-data/icon/0869-43-霜奶仙-花朵糖饰-奶香薄荷.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiNaiXiangBoHe",
+        "pinyinInitials": "SNXHDTSNXBH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            9,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-奶香薄荷"
+    },
+    {
+        "index": "0869-44",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-44-霜奶仙-花朵糖饰-三色综合.gif",
+        "icon": "pokemon-data/icon/0869-44-霜奶仙-花朵糖饰-三色综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuaDuoTangShiSanSeZongHe",
+        "pinyinInitials": "SNXHDTSSSZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            4,
+            6
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-花朵糖饰-三色综合"
+    },
+    {
+        "index": "0869-45",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-45-霜奶仙-星星糖饰-奶香香草.gif",
+        "icon": "pokemon-data/icon/0869-45-霜奶仙-星星糖饰-奶香香草.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiNaiXiangXiangCao",
+        "pinyinInitials": "SNXXXTSNXXC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            4,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-奶香香草"
+    },
+    {
+        "index": "0869-46",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-46-霜奶仙-星星糖饰-焦糖综合.gif",
+        "icon": "pokemon-data/icon/0869-46-霜奶仙-星星糖饰-焦糖综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiJiaoTangZongHe",
+        "pinyinInitials": "SNXXXTSJTZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            5
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-焦糖综合"
+    },
+    {
+        "index": "0869-47",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-47-霜奶仙-星星糖饰-奶香红钻.gif",
+        "icon": "pokemon-data/icon/0869-47-霜奶仙-星星糖饰-奶香红钻.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiNaiXiangHongZuan",
+        "pinyinInitials": "SNXXXTSNXHZ",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            7,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-奶香红钻"
+    },
+    {
+        "index": "0869-48",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-48-霜奶仙-星星糖饰-红钻综合.gif",
+        "icon": "pokemon-data/icon/0869-48-霜奶仙-星星糖饰-红钻综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiHongZuanZongHe",
+        "pinyinInitials": "SNXXXTSHZZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            4,
+            8
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-红钻综合"
+    },
+    {
+        "index": "0869-49",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-49-霜奶仙-星星糖饰-奶香抹茶.gif",
+        "icon": "pokemon-data/icon/0869-49-霜奶仙-星星糖饰-奶香抹茶.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiNaiXiangMaCha",
+        "pinyinInitials": "SNXXXTSNXMC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            4,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-奶香抹茶"
+    },
+    {
+        "index": "0869-50",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-50-霜奶仙-星星糖饰-奶香柠檬.gif",
+        "icon": "pokemon-data/icon/0869-50-霜奶仙-星星糖饰-奶香柠檬.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiNaiXiangNingMeng",
+        "pinyinInitials": "SNXXXTSNXNM",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            8,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-奶香柠檬"
+    },
+    {
+        "index": "0869-51",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-51-霜奶仙-星星糖饰-奶香雪盐.gif",
+        "icon": "pokemon-data/icon/0869-51-霜奶仙-星星糖饰-奶香雪盐.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiNaiXiangXueYan",
+        "pinyinInitials": "SNXXXTSNXXY",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            3,
+            6
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-奶香雪盐"
+    },
+    {
+        "index": "0869-52",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-52-霜奶仙-星星糖饰-奶香薄荷.gif",
+        "icon": "pokemon-data/icon/0869-52-霜奶仙-星星糖饰-奶香薄荷.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiNaiXiangBoHe",
+        "pinyinInitials": "SNXXXTSNXBH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            2
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-奶香薄荷"
+    },
+    {
+        "index": "0869-53",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-53-霜奶仙-星星糖饰-三色综合.gif",
+        "icon": "pokemon-data/icon/0869-53-霜奶仙-星星糖饰-三色综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianXingXingTangShiSanSeZongHe",
+        "pinyinInitials": "SNXXXTSSSZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            2,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-星星糖饰-三色综合"
+    },
+    {
+        "index": "0869-54",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-54-霜奶仙-蝴蝶结糖饰-奶香香草.gif",
+        "icon": "pokemon-data/icon/0869-54-霜奶仙-蝴蝶结糖饰-奶香香草.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiNaiXiangXiangCao",
+        "pinyinInitials": "SNXHDJTSNXXC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            6,
+            11
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-奶香香草"
+    },
+    {
+        "index": "0869-55",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-55-霜奶仙-蝴蝶结糖饰-焦糖综合.gif",
+        "icon": "pokemon-data/icon/0869-55-霜奶仙-蝴蝶结糖饰-焦糖综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiJiaoTangZongHe",
+        "pinyinInitials": "SNXHDJTSJTZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            5,
+            6,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-焦糖综合"
+    },
+    {
+        "index": "0869-56",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-56-霜奶仙-蝴蝶结糖饰-奶香红钻.gif",
+        "icon": "pokemon-data/icon/0869-56-霜奶仙-蝴蝶结糖饰-奶香红钻.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiNaiXiangHongZuan",
+        "pinyinInitials": "SNXHDJTSNXHZ",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            3,
+            5,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-奶香红钻"
+    },
+    {
+        "index": "0869-57",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-57-霜奶仙-蝴蝶结糖饰-红钻综合.gif",
+        "icon": "pokemon-data/icon/0869-57-霜奶仙-蝴蝶结糖饰-红钻综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiHongZuanZongHe",
+        "pinyinInitials": "SNXHDJTSHZZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            4,
+            5
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-红钻综合"
+    },
+    {
+        "index": "0869-58",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-58-霜奶仙-蝴蝶结糖饰-奶香抹茶.gif",
+        "icon": "pokemon-data/icon/0869-58-霜奶仙-蝴蝶结糖饰-奶香抹茶.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiNaiXiangMaCha",
+        "pinyinInitials": "SNXHDJTSNXMC",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            1,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-奶香抹茶"
+    },
+    {
+        "index": "0869-59",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-59-霜奶仙-蝴蝶结糖饰-奶香柠檬.gif",
+        "icon": "pokemon-data/icon/0869-59-霜奶仙-蝴蝶结糖饰-奶香柠檬.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiNaiXiangNingMeng",
+        "pinyinInitials": "SNXHDJTSNXNM",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            2,
+            5,
+            8
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-奶香柠檬"
+    },
+    {
+        "index": "0869-60",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-60-霜奶仙-蝴蝶结糖饰-奶香雪盐.gif",
+        "icon": "pokemon-data/icon/0869-60-霜奶仙-蝴蝶结糖饰-奶香雪盐.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiNaiXiangXueYan",
+        "pinyinInitials": "SNXHDJTSNXXY",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            6,
+            7,
+            9
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-奶香雪盐"
+    },
+    {
+        "index": "0869-61",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-61-霜奶仙-蝴蝶结糖饰-奶香薄荷.gif",
+        "icon": "pokemon-data/icon/0869-61-霜奶仙-蝴蝶结糖饰-奶香薄荷.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiNaiXiangBoHe",
+        "pinyinInitials": "SNXHDJTSNXBH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            5,
+            6
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-奶香薄荷"
+    },
+    {
+        "index": "0869-62",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-62-霜奶仙-蝴蝶结糖饰-三色综合.gif",
+        "icon": "pokemon-data/icon/0869-62-霜奶仙-蝴蝶结糖饰-三色综合.png",
+        "types": [
+            "妖精"
+        ],
+        "pinyin": "ShuangNaiXianHuDieJieTangShiSanSeZongHe",
+        "pinyinInitials": "SNXHDJTSSSZH",
+        "catchRate": 0.56,
+        "genus": "鲜奶油宝可梦",
+        "description": "它会把自己用鲜奶油 装饰过的树果送给 自己信任的训练家。",
+        "height": 3,
+        "weight": 5,
+        "stats": [
+            65,
+            60,
+            75,
+            110,
+            121,
+            64
+        ],
+        "rarity": 0.6132,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            2,
+            10
+        ],
+        "genderRate": 8,
+        "eggGroup": [
+            "妖精群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "霜奶仙-蝴蝶结糖饰-三色综合"
+    },
+    {
+        "index": "0869-63",
+        "name": "霜奶仙",
+        "name_en": "Alcremie",
+        "image": "pokemon-data/images/0869-63-超极巨化霜奶仙.gif",
+        "icon": "pokemon-data/icon/0869-63-超极巨化霜奶仙.png",
         "types": [
             "妖精"
         ],
@@ -47080,8 +49516,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            7
+            4,
+            6
         ],
         "genderRate": 8,
         "eggGroup": [
@@ -47196,9 +49632,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            0,
+            2,
             6,
-            11
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -47236,9 +49672,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            7,
-            9,
-            11
+            3,
+            6,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -47312,7 +49748,7 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
+            2,
             3
         ],
         "genderRate": 4,
@@ -47349,8 +49785,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            2,
-            3
+            1,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -47388,8 +49824,8 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            9
+            0,
+            1
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -47507,8 +49943,8 @@
         "region": "伽勒尔",
         "foods": [
             6,
-            7,
-            9
+            8,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -47548,7 +49984,7 @@
         "region": "伽勒尔",
         "foods": [
             0,
-            5,
+            1,
             6
         ],
         "genderRate": 4,
@@ -47587,9 +50023,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            2,
-            6,
-            7
+            4,
+            7,
+            10
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -47927,9 +50363,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            5,
-            7,
-            10
+            0,
+            2,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -47967,9 +50403,9 @@
         "legend": false,
         "region": "伽勒尔",
         "foods": [
-            1,
-            2,
-            9
+            5,
+            7,
+            8
         ],
         "genderRate": 4,
         "eggGroup": [
@@ -52588,8 +55024,8 @@
         "legend": false,
         "region": "帕底亚",
         "foods": [
-            1,
-            5
+            8,
+            9
         ],
         "genderRate": 4,
         "eggGroup": [

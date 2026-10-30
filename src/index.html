@@ -9,7 +9,7 @@
     (function () {
       var SITE = 'https://pokeidle.shiliu.space';
       // 版本号由 tools/sync-version.mjs 改写：经典脚本这里 import 不了 build-info.js
-      var APP_VER = '1.21.4';
+      var APP_VER = '1.21.5';
       var VER_TEXT = '（v' + APP_VER + '）';
       var lines = [], box = null, detail = null, detailToggle = null, detailOpen = false;
 
@@ -1286,6 +1286,34 @@
                 <div class="catch-confirm-btns">
                   <span id="evoDoneOk" class="catch-confirm-btn">确定</span>
                 </div>
+              </div>
+            </div>
+            <!-- 搅拌（霜奶仙进化前）：绕圈拖动把奶油打发，打发好点「完成」再播进化演出 -->
+            <div id="stirView" style="display:none;">
+              <div class="stir-head">
+                <span class="stir-name">搅拌</span>
+                <span class="stir-turns" id="stirTurns">0.0 / 3 圈</span>
+              </div>
+              <div class="stir-board" id="stirBoard">
+                <div class="stir-bowl" id="stirBowl">
+                  <div class="stir-cream" id="stirCream">
+                    <svg class="stir-swirl" id="stirSwirl" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                  </div>
+                  <svg class="stir-ring" viewBox="0 0 120 120" aria-hidden="true">
+                    <circle class="stir-ring-bg" cx="60" cy="60" r="55"></circle>
+                    <circle class="stir-ring-fg" pathLength="1" cx="60" cy="60" r="55"></circle>
+                  </svg>
+                  <!-- 打蛋器：原点在蛋头中心，靠 JS 摆到手指下面、手柄朝碗外 -->
+                  <svg class="stir-whisk" id="stirWhisk" viewBox="-20 -34 40 68" aria-hidden="true">
+                    <rect x="-3" y="-32" width="6" height="22" rx="3"></rect>
+                    <ellipse cx="0" cy="0" rx="11" ry="14"></ellipse>
+                    <ellipse cx="0" cy="0" rx="5.5" ry="9.5"></ellipse>
+                  </svg>
+                </div>
+              </div>
+              <div class="stir-sub" id="stirSub">按住碗沿，绕圈拖动</div>
+              <div class="stir-foot">
+                <button class="stir-btn" id="stirDone" type="button">完成</button>
               </div>
             </div>
           </div>

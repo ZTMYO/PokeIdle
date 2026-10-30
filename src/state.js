@@ -126,7 +126,7 @@ function migrateCrownKeys(g) {
 }
 
 // 存档结构版本：每加一条读档迁移就 +1，跑过的版本记在 saveRev 上
-const SAVE_REV = 2;
+const SAVE_REV = 4;
 
 // rev 1：花叶蒂一族的形态编号重排过（白/蓝/黄各前移一位、永恒之花 → -5、超级 → -6）。
 // 存档里到处都是物种编号（图鉴计数、相遇日志、队伍与盒子、蛋、派遣/悬赏/交换…），整棵换一遍
@@ -165,12 +165,45 @@ function migrateGenders(g) {
   }
 }
 
+// rev 3：霜奶仙 63 种糖饰×口味原来是 variant 贴图变体，现在接成独立形态编号
+function migrateAlcremie(g) {
+  for (const e of g.roster || []) {
+    if (!e || typeof e !== 'object' || String(e.species) !== '0869' || !e.variant) continue;
+    const idx = ALCREMIE_FORM_INDEX.get(String(e.variant));
+    if (!idx) continue;
+    e.species = idx;
+    e.originSpecies = idx;
+    e.variant = null;
+  }
+}
+
+// rev 4：霜奶仙形态编号前移一位（原 0869-2…-64 → 0869-1…-63），整棵存档里的编号跟着换
+const shiftAlcremieIdx = (s) => {
+  const m = /^0869-(d+)$/.exec(String(s));
+  if (!m) return s;
+  const n = Number(m[1]);
+  return n >= 2 ? `0869-${n - 1}` : s;
+};
+function migrateAlcremieIndex(g) {
+  const walk = (node) => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (node && typeof node === 'object') {
+      const out = {};
+      for (const [k, v] of Object.entries(node)) out[shiftAlcremieIdx(k)] = walk(v);
+      return out;
+    }
+    return typeof node === 'string' ? shiftAlcremieIdx(node) : node;
+  };
+  return walk(g);
+}
+
 function migrateSave(g) {
   if (!g || typeof g !== 'object') return g;
   const rev = g.saveRev || 0;
   if (rev >= SAVE_REV) return g;
   const out = rev < 1 ? migrateSpeciesReindex(g) : g;
   if (rev < 2) migrateGenders(out);
+  if (rev < 3) migrateAlcremie(out);
   out.saveRev = SAVE_REV;
   return out;
 }

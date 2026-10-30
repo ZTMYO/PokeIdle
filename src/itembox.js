@@ -6,7 +6,7 @@ import { itemDetailOf } from './items.js';
 import { showDetailCard, hideDetailCard } from './item-detail.js';
 import { gameData, pushNav } from './state.js';
 import { ensureBerryFarm } from './berry.js';
-import { ITEM_NAMES, CANDY_EXCHANGE, EVO_PRICES } from './config.js';
+import { ITEM_NAMES, CANDY_EXCHANGE, EVO_PRICES, FORM_ITEM_KEYS } from './config.js';
 import { BERRY_ICONS, BERRY_NAMES, itemIconSrc, evoIconSrc, evoExclusivePool, MINT_KEYS, ensureEvoMeta, BASIC_ITEM_ORDER } from './items.js';
 
 const BERRY_DIR = './items/berries/';
@@ -45,11 +45,13 @@ let _all = [];       // 四类合并，搜索结果用
 
 function buildGroups() {
   const basicKeys = BASIC_ITEM_ORDER.concat(Object.keys(CANDY_EXCHANGE).filter((k) => !EVO_PRICES[k] && !BASIC_ITEM_ORDER.includes(k)));
+  // 糖饰虽然按通用价位算，但只服务霜奶仙一组形态，陈列到「专属」页签
+  const evoKeys = Object.keys(EVO_PRICES).filter((k) => !FORM_ITEM_KEYS.includes(k));
   _groups = {
     basic: itemsOf(basicKeys, itemIconSrc, (k) => ITEM_NAMES[k] || k),
     berry: itemsOf(BERRY_ICONS.map((_, i) => `berry:${i}`), (k) => BERRY_DIR + BERRY_ICONS[Number(k.slice(6))], (k) => BERRY_NAMES[BERRY_ICONS[Number(k.slice(6))]] || '树果'),
-    evo: itemsOf(Object.keys(EVO_PRICES), evoIconSrc, (k) => ITEM_NAMES[k] || k),
-    stone: itemsOf(evoExclusivePool(), evoIconSrc, (k) => k),
+    evo: itemsOf(evoKeys, evoIconSrc, (k) => ITEM_NAMES[k] || k),
+    stone: itemsOf([...evoExclusivePool(), ...FORM_ITEM_KEYS], evoIconSrc, (k) => ITEM_NAMES[k] || k),
     mint: itemsOf(MINT_KEYS, itemIconSrc, (k) => k),
   };
   _all = ['basic', 'berry', 'evo', 'stone', 'mint'].flatMap((k) => _groups[k]);

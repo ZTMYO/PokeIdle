@@ -1365,6 +1365,8 @@ html.mobile-app #quitHide { display: none !important; }
   .incubator-log-btn:hover { background: rgba(var(--ui-color-rgb),0.12); }
 }
 .incubator-log-btn.disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+/* 图鉴头部这颗只当入口用，比孵蛋器那颗再小一档 */
+#pokedexLogsBtn { flex-shrink: 0; white-space: nowrap; margin-left: 0; padding: 1px 4px; }
 
 /* 宝可梦蛋列表（挑蛋入槽） */
 
@@ -12869,6 +12871,105 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 .ib-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ib-qty { flex: 0 0 auto; opacity: 0.6; font-size: 10px; font-variant-numeric: tabular-nums; }
 .ib-empty { padding: 18px 0; text-align: center; opacity: 0.5; font-size: 11px; }
+
+/* === 搅拌（霜奶仙进化前）===
+   跟着活动小游戏的排版走：顶部一行状态、中间一块 board 吃掉剩余高度、底部按钮。
+   碗的尺寸由 JS 按 board 的可用空间算（不写 vh/vmin，双屏下也不会顶出屏幕）。
+   碗里是奶白色的鲜奶油；糖饰只给进度环和打蛋器上色，打发完成后再摆到奶油上。
+   进度写进 --p（0~1），糖饰色写进 --accent。 */
+#stirView {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  flex-direction: column;
+  padding: 4px 6px;
+  gap: 2px;
+  overflow: hidden;
+  background: var(--screen-bg);
+  color: var(--ui-color);
+  --p: 0;
+  --accent: #e2698a;
+  user-select: none;
+}
+.stir-head {
+  flex: none;
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 10.5px;
+  padding: 0 2px;
+}
+.stir-name { font-weight: 700; letter-spacing: 2px; }
+.stir-turns { font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.85; }
+/* 中间这块吃掉剩余高度，碗在里面等比取最小边，不会溢出 */
+.stir-board {
+  flex: 1; min-height: 0;
+  touch-action: none;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.stir-bowl {
+  position: relative;
+  border-radius: 50%;
+  background: rgba(var(--ui-color-rgb), 0.08);
+  touch-action: none;
+  cursor: grab;
+}
+.stir-bowl:active { cursor: grabbing; }
+.stir-ring { position: absolute; inset: -5%; width: 110%; height: 110%; transform: rotate(-90deg); pointer-events: none; }
+.stir-ring-bg { fill: none; stroke: rgba(var(--ui-color-rgb), 0.16); stroke-width: 2.5; }
+.stir-ring-fg {
+  fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round;
+  stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--p));
+}
+/* 鲜奶油：奶白色（小仙奶就是这个色），不是糖饰的颜色 */
+.stir-cream {
+  position: absolute; left: 50%; top: 50%;
+  width: 100%; height: 100%;
+  transform: translate(-50%, -50%) scale(calc(0.42 + var(--p) * 0.58)) rotate(calc(var(--p) * 40deg));
+  border-radius: 49% 51% 50% 50% / 50% 49% 51% 50%;
+  background: #fffdf6;
+  transition: transform 80ms linear;
+  pointer-events: none;
+}
+#stirView.done .stir-cream { animation: stir-puff 620ms ease-out; }
+@keyframes stir-puff {
+  0% { transform: translate(-50%, -50%) scale(calc(0.42 + var(--p) * 0.58)) rotate(40deg); }
+  45% { transform: translate(-50%, -50%) scale(calc(0.6 + var(--p) * 0.4 + 0.1)) rotate(52deg); }
+  100% { transform: translate(-50%, -50%) scale(calc(0.42 + var(--p) * 0.58)) rotate(40deg); }
+}
+/* 螺纹：奶油里按当前口味上色，跟着搅拌一起转（糖饰不在这里摆，等进化演出投掷） */
+.stir-swirl {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  transform: rotate(calc(var(--spin, 0) * 1deg)) scaleX(var(--dir, 1));
+  pointer-events: none;
+  overflow: visible;
+}
+.stir-whisk {
+  position: absolute; left: 50%; top: 50%;
+  width: 19%; height: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  overflow: visible;
+  transition: opacity 200ms;
+}
+/* 打蛋器只用界面主色：糖饰色留给进度环，口味色留给奶油螺纹 */
+.stir-whisk rect { fill: var(--ui-color); opacity: 0.55; }
+.stir-whisk ellipse { fill: none; stroke: var(--ui-color); stroke-width: 2.6; opacity: 0.7; }
+#stirView.done .stir-whisk { opacity: 0; }
+.stir-sub { flex: none; font-size: 10px; opacity: 0.7; text-align: center; min-height: 13px; }
+.stir-foot { flex: none; display: flex; justify-content: center; padding: 2px 0 4px; }
+.stir-btn {
+  padding: 3px 22px;
+  font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 2px;
+  color: var(--ui-color);
+  background: transparent;
+  border: 1px solid var(--ui-color);
+  border-radius: 6px;
+  opacity: 0.4;
+  cursor: default;
+  transition: opacity 160ms, background 160ms;
+}
+.stir-btn.on { opacity: 1; cursor: pointer; background: rgba(var(--ui-color-rgb), 0.12); }
 
 /* === 进化演出 ===
    图层都在 #evoView 里；底色由 JS 每帧算，这里只管形状与模糊。 */

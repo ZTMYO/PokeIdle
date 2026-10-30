@@ -342,6 +342,7 @@ const isModalLocked = () =>
   $('hatchView')?.style.display === 'flex' ||
   $('hatchAllView')?.style.display === 'flex' ||
   $('evoView')?.style.display === 'flex' ||
+  $('stirView')?.style.display === 'flex' ||
   $('expCandyView')?.style.display === 'flex' ||
   (isBatchReleasing() && $('rosterView')?.style.display === 'flex');
 

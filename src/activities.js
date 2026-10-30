@@ -7,7 +7,7 @@
 import { getPokemonByIndex, gameData, allPokemon, isPowerForm, isPokemon, isWildExcluded, POKEMON_NATURES } from './state.js';
 import { tryLoadImage, tryLoadPokemonImage, showConfirmBar } from './ui.js';
 import { itemIconSrc, MINT_KEYS, pickFamilyBySeed } from './items.js';
-import { ITEM_NAMES, EVO_PRICES, eggSprite, ALCREMIE_DECOS, ALCREMIE_FLAVORS } from './config.js';
+import { ITEM_NAMES, EVO_PRICES, eggSprite, ALCREMIE_DECOS, ALCREMIE_FLAVORS, ALCREMIE_FORM_INDEX } from './config.js';
 import { MG_LEVELS, levelOf } from './memory-game.js';
 import { BG_LEVELS, bgLevelOf } from './bird-game.js';
 import { FLOW_LEVELS, flowLevelOf } from './flow-game.js';
@@ -232,9 +232,10 @@ const SHOP_ITEMS = [
 const BIRD_SHOP_ITEMS = SHOP_ITEMS.map(it => (
   it.id === 'crown' ? { id: 'mystery', price: 300, qty: 1, icon: 'mystery-egg' } : it
 ));
-// 甜蜜工坊单独一份兑换表：最后那颗蛋换成指定外观的霜奶仙
+// 甜蜜工坊单独一份兑换表：400 档换成随机糖饰，最后那颗蛋换成指定外观的霜奶仙
 const SWEET_SHOP_ITEMS = SHOP_ITEMS.map(it => (
-  it.id === 'egg' ? { id: 'alcremie', price: 1500, qty: 1, alcremie: true } : it
+  it.id === 'stone' ? { id: 'sweet', price: it.price, qty: 1, icon: ALCREMIE_DECOS[0] }
+    : it.id === 'egg' ? { id: 'alcremie', price: 1500, qty: 1, alcremie: true } : it
 ));
 // 符文寻踪单独一份兑换表：最后那颗蛋换成随机形态的未知图腾
 const TH_SHOP_ITEMS = SHOP_ITEMS.map(it => (
@@ -254,12 +255,14 @@ function boughtOf(ctx) {
   if (!ctx.slot.bought || typeof ctx.slot.bought !== 'object') ctx.slot.bought = {};
   return ctx.slot.bought;
 }
-// 随机货最终给哪个道具：种子只挂在"活动 + 商品 id"上，不掺购买顺序 ——
-// 所以能提前算出来直接摆给玩家看，领取时拿到的也必然是同一个
+// 甜蜜工坊这场活动摇到的糖饰：只挂活动种子，全服同一种
+const sweetDecoOf = (ctx) => ALCREMIE_DECOS[Math.floor(rngFrom((seedOf(ctx) ^ strSeed('sweet-deco')) >>> 0)() * ALCREMIE_DECOS.length)];
+// 随机货最终给哪个道具：种子只挂在「活动 + 商品 id」上，不掺购买顺序，所以能提前算给玩家看
 function shopGrantOf(ctx, item) {
   const r = rngFrom((seedOf(ctx) ^ strSeed(item.id)) >>> 0);
   if (item.id === 'mint') return MINT_KEYS[Math.floor(r() * MINT_KEYS.length)];
   if (item.id === 'stone') return EVO_REWARD_POOL[Math.floor(r() * EVO_REWARD_POOL.length)];
+  if (item.id === 'sweet') return sweetDecoOf(ctx);
   if (item.id === 'crown') return CROWN_POOL[Math.floor(r() * CROWN_POOL.length)];
   if (item.id === 'rare') return RARE_POOL[Math.floor(r() * RARE_POOL.length)];
   return item.icon;   // 固定货
@@ -272,21 +275,19 @@ function shopEgg(ctx) {
   }
   return ctx.slot.egg;
 }
-// 甜蜜工坊那颗蛋：霜奶仙，随机一种糖饰-口味外观，个体全满、固定雌性（不走闪光）
-// 外观用本机随机（不挂活动种子）：同一场活动，各玩家换到的形态都不一样
+// 甜蜜工坊那颗蛋：随机一只霜奶仙，6V、固定雌性、不闪光。
+// 形态按本机随机（各玩家不同），默认的草莓糖饰-奶香香草不在池子里
 const ALCREMIE_SPECIES = '0869';
-const ALCREMIE_EGG_LABEL = '限定霜奶仙的蛋';
-// 草莓糖饰-奶香香草就是基础立绘那张（默认形态），活动蛋只从其余 62 种里摇
-const ALCREMIE_DEFAULT = '草莓糖饰-奶香香草';
-const ALCREMIE_POOL = ALCREMIE_DECOS
-  .flatMap(d => ALCREMIE_FLAVORS.map(f => `${d}-${f}`))
-  .filter(v => v !== ALCREMIE_DEFAULT);
+const ALCREMIE_EGG_LABEL = '随机霜奶仙的蛋';
+const ALCREMIE_EGG_POOL = ALCREMIE_DECOS
+  .flatMap((d) => ALCREMIE_FLAVORS.map((f) => `${d}-${f}`))
+  .filter((v) => v !== '草莓糖饰-奶香香草');
 function sweetEgg(ctx) {
   if (!ctx.slot.alcremie) {
     ctx.slot.alcremie = {
       ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
       gender: 'female',
-      variant: ALCREMIE_POOL[Math.floor(Math.random() * ALCREMIE_POOL.length)],
+      species: ALCREMIE_FORM_INDEX.get(ALCREMIE_EGG_POOL[Math.floor(Math.random() * ALCREMIE_EGG_POOL.length)]) || ALCREMIE_SPECIES,
       shiny: false,
     };
     ctx.save();
@@ -336,7 +337,7 @@ function buyShopItem(ctx, id) {
   ctx.confirm(`花 ${item.price} 个气球换「${shopName(ctx, item)}」？`, () => {
     if (bought[item.id] || coinsOf(ctx) < item.price) { ctx.refresh(); return; }
     if (item.alcremie) {
-      ctx.grantEgg(ALCREMIE_SPECIES, sweetEgg(ctx));
+      ctx.grantEgg((sweetEgg(ctx) || {}).species || ALCREMIE_SPECIES, sweetEgg(ctx));
     } else if (item.unown) {
       const egg = unownEgg(ctx);
       ctx.grantEgg(egg.species, egg);

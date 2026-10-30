@@ -3,7 +3,7 @@
 // 版面照游戏屏幕来：整张青绿卡 + 一圈深绿细边，平面色块与分割线，没有渐变。
 // 素材只用游戏自己的：精灵图（路径取图鉴里的 image 字段）、app 图标、内联 SVG 图标（#icon-star 等）。
 import { tryLoadImage, isMobilePlatform } from './ui.js';   // 贴图走游戏自己的加载器：多通道 + 缓存，PC WebView 上才不会漏图
-import { alcremieSuffix } from './config.js';
+import { alcremieSuffix, alcremieShinySrc } from './config.js';
 
 const W = 1080;
 const H = 1080;
@@ -148,7 +148,7 @@ function spritePaths(m) {
   // 霜奶仙特殊外观：糖饰 × 口味 的组合图（没有闪光版），优先于 _shiny
   const deco = alcremieSuffix(m.variant);
   if (deco) push(...withExt(base.replace(/(\.[a-z]+)$/i, `${deco}$1`)));
-  else if (m.shiny) push(...withExt(base.replace(/(\.[a-z]+)$/i, '_shiny$1')));
+  else if (m.shiny) push(...withExt(alcremieShinySrc({ form: m.spriteName }) || base.replace(/(\.[a-z]+)$/i, '_shiny$1')));
   push(...withExt(base));
   return out;
 }

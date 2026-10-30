@@ -20,9 +20,10 @@ export function loadEvolution() {
         _data = d;
         // 强化形态名单（141 条）：只靠 form 名判断会漏掉"原始回归 / 合体 / 王形态"那批，这里按 stones 收口
         setPowerForms(Object.keys(d.stones || {}));
-        // 路边池的排除名单：在 edges 里当目标、自己又没有出边，且不在 wildKeep 里的那些
+        // 路边池的排除名单：在 edges 里当目标、自己又没有出边，且不在 wildKeep 里的那些；
+        // 另加 wildExclude 补充名单（霜奶仙的糖饰形态只从进化/活动来，不摆进野池）
         const keep = new Set(d.wildKeep || []);
-        const excluded = [];
+        const excluded = [...(d.wildExclude || [])];
         for (const row of Object.values(d.edges || {})) {
           for (const to of Object.keys(row)) {
             if (keep.has(to) || (d.edges || {})[to]) continue;

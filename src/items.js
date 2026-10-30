@@ -57,6 +57,11 @@ export const ITEM_ICONS = {
   '冰之石': 'evo/ice-stone.png', '月之石': 'evo/moon-stone.png', '日之石': 'evo/sun-stone.png', '光之石': 'evo/shiny-stone.png',
   '暗之石': 'evo/dusk-stone.png', '觉醒之石': 'evo/dawn-stone.png',
   '联系绳': 'evo/linking-cord.png', '奇异石': 'evo/strange-stone.png', '心之石': 'evo/heart-stone.png',
+  // 7 种糖饰（小仙奶进化用）：图沿用冰淇淋活动那套，副本放在 evo/sweets/
+  '草莓糖饰': 'evo/sweets/strawberry-sweet.png', '爱心糖饰': 'evo/sweets/heart-sweet.png',
+  '野莓糖饰': 'evo/sweets/berry-sweet.png', '幸运草糖饰': 'evo/sweets/clover-sweet.png',
+  '花朵糖饰': 'evo/sweets/flower-sweet.png', '星星糖饰': 'evo/sweets/star-sweet.png',
+  '蝴蝶结糖饰': 'evo/sweets/ribbon-sweet.png',
   // 21 种薄荷共用 6 张图（items/mints/），按提升的能力分组：mint_0 攻击 / 1 防御 / 2 特攻 / 3 特防 / 4 速度 / 5 中性
   '怕寂寞薄荷': 'mints/mint_0.png', '固执薄荷': 'mints/mint_0.png', '顽皮薄荷': 'mints/mint_0.png', '勇敢薄荷': 'mints/mint_0.png',
   '大胆薄荷': 'mints/mint_1.png', '淘气薄荷': 'mints/mint_1.png', '乐天薄荷': 'mints/mint_1.png', '悠闲薄荷': 'mints/mint_1.png',

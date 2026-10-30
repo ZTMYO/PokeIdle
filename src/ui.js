@@ -1,7 +1,7 @@
 // ===== UI 管理 =====
 import { phase, currentEncounter, gameData, saveGame, _fishing, _eggHatching, _navStack } from './state.js';
 import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getTwist, getRoadNumForEdge, getPokemonByIndex, isPokemon, genderBadge } from './state.js';
-import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER, eggSprite } from './config.js';
+import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER, eggSprite, alcremieShinySrc } from './config.js';
 import { formatLogTime } from './pokedex.js';
 import * as road from './road.js';
 
@@ -53,7 +53,7 @@ export function showNowPlaying(title, artist) {
 
 // ---------- 视图切换 ----------
 // 全部全屏视图 id：显示切换与"记录返回来源"共用同一份列表
-const VIEW_IDS = ['idleView','introView','phoneView','musicView','pokedexView','encounterView','hatchView','hatchAllView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','casinoPenguinView','casinoVoltorbView','slotMachineView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','itemBoxView','followerView','followerDexView','dispatchView','evoView','activityView','memoryView','guessView','birdView','flowView','powerFlowView','sweetView','eventsView','treasureView','sealView','arrowView'];
+const VIEW_IDS = ['idleView','introView','phoneView','musicView','pokedexView','encounterView','hatchView','hatchAllView','gpsView','bountyView','dataView','achievementView','shopView','settingsView','tutorialView','declarationView','systemLogView','incubatorView','incubatorEggView','mixerView','berryView','rosterView','moveEditView','tradeView','battleView','teamView','trainView','nurseryView','casinoView','casinoGameView','casinoPenguinView','casinoVoltorbView','slotMachineView','mahjongView','gachaView','gachaHistoryView','casinoHistoryView','albumView','itemBoxView','followerView','followerDexView','dispatchView','evoView','stirView','activityView','memoryView','guessView','birdView','flowView','powerFlowView','sweetView','eventsView','treasureView','sealView','arrowView'];
 const CASINO_VIEWS = new Set(['casinoView', 'casinoGameView', 'casinoPenguinView', 'casinoVoltorbView', 'slotMachineView', 'mahjongView', 'gachaView', 'gachaHistoryView', 'casinoHistoryView']);
 // 舞台类视图 = 游戏画面（挂机/遇敌），其余都是下屏的应用类
 const STAGE_VIEWS = new Set(['idleView', 'encounterView']);
@@ -281,7 +281,7 @@ export function showView(id) {
     title.innerHTML = '口袋挂机';
     title.dataset.action = '';
   } else {
-    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', followerDexView:'随从图鉴', hatchView:'孵化', hatchAllView:'孵化全部', evoView:'进化', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', dispatchView:'派遣', casinoView:'游戏厅', casinoGameView:'21 点', casinoPenguinView:'跳企鹅', casinoVoltorbView:'电球翻牌', slotMachineView:'老虎机', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', itemBoxView:'道具盒', musicView:'音乐', followerView:'随从', activityView:'限时活动', memoryView:'宝可翻牌', guessView:'猜宝可梦', birdView:'鸟了个鸟', flowView:'宝可连线', powerFlowView:'电力输送', sweetView:'甜蜜工坊', eventsView:'全服事件', treasureView:'符文寻踪', sealView:'海豹滑冰', arrowView:'箭头迷宫' };
+    const names = { phoneView:'手机', pokedexView:'图鉴', gpsView:'导航', bountyView:'地区悬赏', dataView:'统计', achievementView:'成就', shopView:'商店', settingsView:'设置', tutorialView:'教程', declarationView:'版权声明', systemLogView:'系统日志', incubatorView:'孵蛋器', incubatorEggView:'放入蛋', followerDexView:'随从图鉴', hatchView:'孵化', hatchAllView:'孵化全部', evoView:'进化', stirView:'搅拌', mixerView:'混合器', berryView:'农场', rosterView:'宝可梦', moveEditView:'配招', tradeView:'交换', battleView:'对战', teamView:'配队', trainView:'训练', nurseryView:'饲育屋', dispatchView:'派遣', casinoView:'游戏厅', casinoGameView:'21 点', casinoPenguinView:'跳企鹅', casinoVoltorbView:'电球翻牌', slotMachineView:'老虎机', mahjongView:'口袋麻将', gachaView:'抽卡机', gachaHistoryView:'抽卡记录', casinoHistoryView:'战绩记录', albumView:'卡册', itemBoxView:'道具盒', musicView:'音乐', followerView:'随从', activityView:'限时活动', memoryView:'宝可翻牌', guessView:'猜宝可梦', birdView:'鸟了个鸟', flowView:'宝可连线', powerFlowView:'电力输送', sweetView:'甜蜜工坊', eventsView:'全服事件', treasureView:'符文寻踪', sealView:'海豹滑冰', arrowView:'箭头迷宫' };
     title.innerHTML = backTitleHtml(names[chromeId]||'');
     title.dataset.action = 'back';
   }
@@ -452,9 +452,10 @@ export function isPageHidden() {
 }
 
 // 进化演出是否正在播（按视图判断）：演出不接管游戏阶段，挂机世界照常跑，
-// 只有"别在演出上再叠一层动画/演出"的地方需要它
+// 只有"别在演出上再叠一层动画/演出"的地方需要它。
+// 搅拌（stirView）是霜奶仙进化的前置步骤，同样算"进化流程占着这块屏"
 export function isEvolutionShowActive() {
-  return $('evoView')?.style.display === 'flex';
+  return $('evoView')?.style.display === 'flex' || $('stirView')?.style.display === 'flex';
 }
 
 // 孵蛋演出（动画进行中 / 孵完还停在结果页）是否开着。与进化演出同一套口径：**演出不占游戏阶段** ——
@@ -868,6 +869,14 @@ export function tryLoadPokemonImage(img, poke, suffix) {
   function tryLoad(ext) {
     const ip = `./pokemon-data/images/${idx}-${name}${suffix}.${ext}`;
     return tryLoadImage(img, ip).then(ok => { if (ok) fitPokemonImage(img); return ok; });
+  }
+  // 霜奶仙同糖饰各口味共用一张闪光图
+  const shared = suffix === '_shiny' ? alcremieShinySrc(poke) : '';
+  if (shared) {
+    return tryLoadImage(img, shared)
+      .then(ok => { if (ok) fitPokemonImage(img); return ok; })
+      .then(ok => ok ? true : tryLoad(primaryExt))
+      .then(ok => ok ? true : tryLoad(fallbackExt));
   }
   return tryLoad(primaryExt).then(ok => ok ? true : tryLoad(fallbackExt));
 }

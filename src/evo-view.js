@@ -2,6 +2,7 @@
 // 约 6.5~7.4 秒，点画面跳过：登场 → 道具注入 → 能量汇聚转白剪影 → 剪影交替 6 拍 → 收束 → 新形态浮现。
 // 全部按 render(t) 纯函数渲染，暂停 / 跳过 / 重播只是换一个 t。
 import { getPokemonByIndex, phase } from './state.js';
+import { alcremieShinySrc } from './config.js';
 import { TYPE_COLORS, itemIconSrc } from './items.js';
 import { $, showView, tryLoadPokemonImage, setIdleCharacter } from './ui.js';
 import * as road from './road.js';
@@ -534,5 +535,7 @@ export async function playEvolution({ from, to, items = [], shiny = false, varia
 // 预加载失败时的兜底路径：按 编号-形态名 拼
 function fallbackSrc(idx, suff) {
   const p = getPokemonByIndex(String(idx));
+  const shared = suff === '_shiny' ? alcremieShinySrc(p) : '';
+  if (shared) return shared;
   return `./pokemon-data/images/${idx}-${(p && (p.form || p.name)) || idx}${suff}.gif`;
 }

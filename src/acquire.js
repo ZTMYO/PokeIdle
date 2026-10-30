@@ -24,6 +24,12 @@ export function loadAcquire() {
 }
 
 const nameOf = (idx) => { const p = getPokemonByIndex(String(idx)); return p ? (p.form || p.name) : `#${idx}`; };
+// 亲本只写物种名：本体编号（如 0869 霜奶仙）在数据里带着默认形态名，繁育名单里不该出现「霜奶仙-草莓糖饰-奶香香草」
+const parentOf = (idx) => {
+  const p = getPokemonByIndex(String(idx));
+  if (!p) return `#${idx}`;
+  return String(idx).includes('-') ? (p.form || p.name) : p.name;
+};
 // 雌雄异形的两条形态压成一条（轻飘飘-雄性/雌性）：同一个编号、同一个名字的两条只占一个名额
 const parentNames = (list) => {
   const arr = (list || []).map(String);
@@ -33,7 +39,7 @@ const parentNames = (list) => {
   for (const idx of arr) {
     const base = idx.split('-')[0];
     const sib = isSexForm(idx) && arr.some(o => o !== idx && o.split('-')[0] === base && isSexForm(o));
-    if (!sib) { out.push(nameOf(idx)); continue; }
+    if (!sib) { out.push(parentOf(idx)); continue; }
     if (done.has(base)) continue;
     done.add(base);
     out.push(`${getPokemonByIndex(idx).name}-雄性/雌性`);
@@ -60,7 +66,11 @@ export function acquireEntries(idx) {
       return { label, text };
     }
     // 强化形态带挂靠道具：途径写清"由谁 + 哪颗道具"
-    if (type === 'evolve') return { label, text: `由 ${nameOf(m.from)}${m.item ? ` · ${m.item}` : ''}` };
+    if (type === 'evolve') {
+      const it = m.item || (m.cond && m.cond.item);
+      const itemText = Array.isArray(it) ? it.join(' + ') : it;
+      return { label, text: `由 ${nameOf(m.from)}${itemText ? ` · ${itemText}` : ''}` };
+    }
     return { label, text: '' };
   });
   // 并进交换后可能出现两条同标签，去重

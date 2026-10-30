@@ -17,6 +17,12 @@ function shinyPath(rel) {
   const i = rel.lastIndexOf('.');
   return i > 0 ? `${rel.slice(0, i)}_shiny${rel.slice(i)}` : '';
 }
+// 霜奶仙同糖饰的 9 种口味共用一张闪光图，卡片取这张
+const ALCREMIE_DECOS = ['草莓糖饰', '爱心糖饰', '野莓糖饰', '幸运草糖饰', '花朵糖饰', '星星糖饰', '蝴蝶结糖饰'];
+function sharedShinyPath(p) {
+  const deco = ALCREMIE_DECOS.find((d) => String(p.form || '').includes(d));
+  return deco ? `pokemon-data/images/0869-霜奶仙-${deco}_shiny.gif` : '';
+}
 // 立绘原始宽高（GIF/PNG 头）：卡片按比例给 `#宽px #高px`，不然宽体型的宝可梦会被 1:1 压扁
 function imageSize(rel) {
   if (!rel) return null;
@@ -266,9 +272,10 @@ const pokemon = dex.map(p => {
     name: p.name,
     display: displayName(p),
     image: p.image || '',
+    shinyImage: sharedShinyPath(p),
     icon: p.icon || '',
     imageSize: imageSize(p.image || ''),
-    shinySize: imageSize(shinyPath(p.image || '')),
+    shinySize: imageSize(sharedShinyPath(p) || shinyPath(p.image || '')),
     en: p.name_en || '',
     pinyin: p.pinyin || '',
     initials: p.pinyinInitials || '',

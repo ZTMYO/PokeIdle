@@ -6,8 +6,9 @@ import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushN
 import { TYPE_COLORS, typeIconColor, pokemonSourceBadge, itemIconSrc, MINT_KEYS } from './items.js';
 import { evolutionRows, applyEvolution, condItems, moveCondText, evoPreEvos, evolutionData, loadEvolution, stoneSources } from './evolution.js';
 import { playEvolution } from './evo-view.js';
+import { playStir } from './stir-view.js';
 import { matchPinyinPartial, describeLogEntry } from './pokedex.js';
-import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL, MINT_NATURES, ITEM_NAMES, alcremieSuffix } from './config.js';
+import { REGION_CYCLE, EXP_CANDY_XP, RELEASE_XP_RATE, MAX_LEVEL, MINT_NATURES, ITEM_NAMES, alcremieSuffix, evoShortName, ALCREMIE_DECOS, ALCREMIE_FORM_INDEX } from './config.js';
 import { showGoodbyeConfirm, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { chooseMoves, fallbackMoves } from './moves.js';
 import { NATURES } from './battle-core.js';
@@ -1239,7 +1240,8 @@ function evoBlockHtml(p, rows) {
     const tid = String(r.targets[0]);
     const tp = getPokemonByIndex(tid);
     const known = (gameData.pokedex?.[tid]?.seen || 0) > 0 || dexUnlocked(tid);
-    const name = known && tp ? (tp.form || tp.name) : '？？？';
+    // 霜奶仙的形态名带着口味，这一栏只写到糖饰（霜奶仙-爱心糖饰）
+    const name = known && tp ? (evoShortName(tp) || tp.form || tp.name) : '？？？';
     const iconId = known ? tid : null;
     const conds = [];
     if (r.cond.lv) conds.push({ text: `Lv${r.cond.lv}`, ok: !r.unmet.lv });
@@ -1333,8 +1335,9 @@ function lineInheritedIds(species) {
 function startEvolution(id, row) {
   const p = (gameData.roster || []).find((r) => r.id === id);
   if (!p || !row.ok) return;
-  const to = row.targets[0];   // 分支已经拆成多行，一行就一个目标
-  const target = getPokemonByIndex(String(to));
+  // 一行一个目标；霜奶仙这条会在搅拌后按口味改写
+  let to = row.targets[0];
+  let target = getPokemonByIndex(String(to));
   const from = getPokemonByIndex(String(p.species));
   const costs = [...condItems(row.cond)];
   if (row.cond.candy) costs.push(`${row.cond.candy} 糖果`);
@@ -1343,8 +1346,9 @@ function startEvolution(id, row) {
   const costText = costs.length ? `消耗 ${costs.join(' + ')}，` : '';
   // 目标没解锁就不点破名字，详情页里显示 ？？？
   const seenTarget = (gameData.pokedex?.[to]?.seen || 0) > 0 || dexUnlocked(to);
+  const toName = target ? (evoShortName(target) || target.form || target.name) : String(to);
   const ask = seenTarget
-    ? `${costText}${who}进化为${target ? (target.form || target.name) : '新的形态'}？`
+    ? `${costText}${who}进化为${toName}？`
     : `${costText}确定进化${who}？`;
   showConfirmBar(ask, () => {
     const fromIdx = String(p.species);                 // 演出要按"进化前"的形态开场，先记下来
@@ -1358,14 +1362,26 @@ function startEvolution(id, row) {
       applyEvolution(p, to, row.cond);
     };
     // 演出可点屏跳过；演完（或直接播不了）再结算，然后回到已经变了的那只详情
-    playEvolution({
+    const startShow = () => playEvolution({
       from: { idx: fromIdx, name: from ? (from.form || from.name) : fromIdx, types: (from && from.types) || [] },
-      to: { idx: String(to), name: target ? (target.form || target.name) : String(to), types: (target && target.types) || [] },
+      to: { idx: String(to), name: toName, types: (target && target.types) || [] },
       items: condItems(row.cond),
       shiny,
       variant: p.variant || null,   // RGB / 污染特效：演出贴图也要带出来
       onFinish: () => { commit(); showRosterDetail(id); },
     });
+    // 霜奶仙：先搅拌（方向+圈数决定口味），再按口味定最终形态
+    const deco = ALCREMIE_DECOS.find((d) => condItems(row.cond).includes(d));
+    if (deco) {
+      playStir({
+        deco,
+        onDone: (flavor) => {
+          const tid = ALCREMIE_FORM_INDEX.get(`${deco}-${flavor}`);
+          if (tid) { to = tid; target = getPokemonByIndex(tid); }
+          startShow();
+        },
+      });
+    } else startShow();
   }, null, { overlay: true });
 }
 

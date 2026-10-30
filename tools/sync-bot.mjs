@@ -44,6 +44,12 @@ const displayName = (p) => (p && (p.form || p.name)) || '';
 const idxParts = (k) => { const m = String(k).match(/^(\d+)(?:-(\d+))?$/); return m ? [Number(m[1]), m[2] === undefined ? -1 : Number(m[2])] : [Infinity, 0]; };
 const cmpIdx = (a, b) => idxParts(a)[0] - idxParts(b)[0] || idxParts(a)[1] - idxParts(b)[1];
 const nameOf = (i) => displayName(byIdx.get(String(i))) || `#${i}`;
+// 亲本只写物种名：本体编号带着默认形态名（霜奶仙-草莓糖饰-奶香香草），名单里不该出现
+const parentOf = (i) => {
+  const p = byIdx.get(String(i));
+  if (!p) return `#${i}`;
+  return String(i).includes('-') ? (p.form || p.name) : p.name;
+};
 const rarityText = (r) => (r <= 0.2 ? '常见' : r <= 0.4 ? '一般' : r <= 0.6 ? '稀有' : r <= 0.8 ? '罕见' : '极稀有');
 const pct = (x) => `${+(x * 100).toFixed(1)}%`;
 function genderText(rate) {
@@ -87,8 +93,8 @@ function methodText(m, p) {
     case 'easter_imiti': return '彩蛋 伊美蒂（百变怪，10% 6V）';
     case 'breed': {
       const parts = [];
-      if (m.parents && m.parents.length) parts.push(`亲本：${m.parents.map(nameOf).join('、')}`);
-      if (m.parentsIncense && m.parentsIncense.length) parts.push(`需开熏香：${m.parentsIncense.map(nameOf).join('、')}`);
+      if (m.parents && m.parents.length) parts.push(`亲本：${m.parents.map(parentOf).join('、')}`);
+      if (m.parentsIncense && m.parentsIncense.length) parts.push(`需开熏香：${m.parentsIncense.map(parentOf).join('、')}`);
       if (m.note) parts.push(m.note);
       return parts.length ? `繁育（${parts.join('；')}）` : '繁育';
     }
@@ -388,15 +394,15 @@ function zipDir(dir) {
     for (const e of fs.readdirSync(abs, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       if (e.name === '__pycache__') continue;
       const a = path.join(abs, e.name);
-      const r = `${rel}\\${e.name}`;
+      const r = `${rel}/${e.name}`;
       if (e.isDirectory()) { walk(a, r); }
       else entries.push({ name: r, data: fs.readFileSync(a) });
     }
   };
   const base = path.basename(dir);
-  entries.push({ name: base + '\\', data: null });
+  entries.push({ name: `${base}/`, data: null });
   walk(dir, base);
-  entries.sort((a, b) => (a.name === base + '\\' ? -1 : b.name === base + '\\' ? 1 : 0));
+  entries.sort((a, b) => (a.name === `${base}/` ? -1 : b.name === `${base}/` ? 1 : 0));
   // 根目录条目必须排最前：AstrBot 解压按首条目建目录
   const ordered = [entries[0], ...entries.slice(1)];
   const chunks = [];

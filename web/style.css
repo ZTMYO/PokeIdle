@@ -1932,4 +1932,13 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 .pk-bar { font-size: 11px; color: var(--ui-color); }
 .pk-stage-name { font-size: 11px; color: var(--color-text); white-space: nowrap; }
 .pk-tree-more { font-size: 10px; color: var(--color-muted); margin-top: 4px; }
+/* 霜奶仙的搅拌规则：小字说明块，别撑出卡片宽度 */
+.pk-stir-rule {
+  margin-top: 10px; padding: 8px 10px;
+  border: 1px solid var(--console-border); border-radius: 6px;
+  font-size: 11px; line-height: 1.8; color: var(--color-muted);
+  max-width: 100%;
+}
+.pk-stir-rule b { color: var(--ui-color-dark); font-weight: 700; }
+
 .dex-error { padding: 30px 0; text-align: center; color: #a33; }

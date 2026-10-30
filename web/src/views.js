@@ -451,7 +451,7 @@ export function renderSystemLogs() {
         desc = `【招式】解锁 ${log.details.move}（消耗 ${log.details.cost} 糖果${log.details.learned ? `，${log.details.learned} 只学会` : ''}）`;
         break;
       case 'item_use':
-        desc = `${log.details.auto ? '[自动] ' : ''}使用了 ${ITEM_NAMES[log.details.item] || log.details.item}`;
+        desc = `${log.details.auto ? '[自动] ' : ''}使用了 ${ITEM_NAMES[log.details.item] || log.details.item}${log.details.qty > 1 ? ` ×${log.details.qty}` : ''}`;
         break;
       case 'fishing':
         desc = `钓鱼获得 ${ITEM_NAMES[log.details.item] || log.details.item} ×${log.details.qty}`;
@@ -1151,6 +1151,7 @@ export function renderSettings(container, s) {
             <span class="ball-check ${autoBuffHoney ? 'on' : ''}" id="toggleBuffHoney">${autoBuffHoney ? '☑' : '☐'}甜甜蜜</span>
             <span class="ball-check ${autoBuffCharm ? 'on' : ''}" id="toggleBuffCharm">${autoBuffCharm ? '☑' : '☐'}闪耀护符</span>
           </div>
+          <div class="settings-sub-title" style="opacity:0.55;font-weight:400;padding-top:2px;">后台补发也按这个设置续杯，同样扣道具</div>
         </div>
         <div class="filter-panel">
           <div class="settings-sub-title">捕捉条件</div>

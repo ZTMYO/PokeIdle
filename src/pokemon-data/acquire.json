@@ -1,7 +1,7 @@
 {
     "meta": {
         "source": "generate-acquire.mjs（evolution-study）从 pokedex.json + evolution.json 推导，规则与游戏代码一致",
-        "dexTotal": 1431,
+        "dexTotal": 1493,
         "note": "methods 是数组：一个形态可能有多种获取方式；编号含形态后缀（如 0006-1）"
     },
     "sources": [
@@ -32736,7 +32736,7 @@
         },
         {
             "index": "0869",
-            "name": "霜奶仙",
+            "name": "霜奶仙-草莓糖饰-奶香香草",
             "region": "伽勒尔",
             "legend": false,
             "methods": [
@@ -32753,13 +32753,1605 @@
                     "type": "evolve",
                     "from": "0868",
                     "cond": {
-                        "item": "奇异石"
+                        "item": "草莓糖饰"
                     }
                 }
             ]
         },
         {
             "index": "0869-1",
+            "name": "霜奶仙-草莓糖饰-焦糖综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "草莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-2",
+            "name": "霜奶仙-草莓糖饰-奶香红钻",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "草莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-3",
+            "name": "霜奶仙-草莓糖饰-红钻综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "草莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-4",
+            "name": "霜奶仙-草莓糖饰-奶香抹茶",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "草莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-5",
+            "name": "霜奶仙-草莓糖饰-奶香柠檬",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "草莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-6",
+            "name": "霜奶仙-草莓糖饰-奶香雪盐",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "草莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-7",
+            "name": "霜奶仙-草莓糖饰-奶香薄荷",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "草莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-8",
+            "name": "霜奶仙-草莓糖饰-三色综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "草莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-9",
+            "name": "霜奶仙-爱心糖饰-奶香香草",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    }
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-10",
+            "name": "霜奶仙-爱心糖饰-焦糖综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-11",
+            "name": "霜奶仙-爱心糖饰-奶香红钻",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-12",
+            "name": "霜奶仙-爱心糖饰-红钻综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-13",
+            "name": "霜奶仙-爱心糖饰-奶香抹茶",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-14",
+            "name": "霜奶仙-爱心糖饰-奶香柠檬",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-15",
+            "name": "霜奶仙-爱心糖饰-奶香雪盐",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-16",
+            "name": "霜奶仙-爱心糖饰-奶香薄荷",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-17",
+            "name": "霜奶仙-爱心糖饰-三色综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "爱心糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-18",
+            "name": "霜奶仙-野莓糖饰-奶香香草",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    }
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-19",
+            "name": "霜奶仙-野莓糖饰-焦糖综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-20",
+            "name": "霜奶仙-野莓糖饰-奶香红钻",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-21",
+            "name": "霜奶仙-野莓糖饰-红钻综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-22",
+            "name": "霜奶仙-野莓糖饰-奶香抹茶",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-23",
+            "name": "霜奶仙-野莓糖饰-奶香柠檬",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-24",
+            "name": "霜奶仙-野莓糖饰-奶香雪盐",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-25",
+            "name": "霜奶仙-野莓糖饰-奶香薄荷",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-26",
+            "name": "霜奶仙-野莓糖饰-三色综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "野莓糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-27",
+            "name": "霜奶仙-幸运草糖饰-奶香香草",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    }
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-28",
+            "name": "霜奶仙-幸运草糖饰-焦糖综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-29",
+            "name": "霜奶仙-幸运草糖饰-奶香红钻",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-30",
+            "name": "霜奶仙-幸运草糖饰-红钻综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-31",
+            "name": "霜奶仙-幸运草糖饰-奶香抹茶",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-32",
+            "name": "霜奶仙-幸运草糖饰-奶香柠檬",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-33",
+            "name": "霜奶仙-幸运草糖饰-奶香雪盐",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-34",
+            "name": "霜奶仙-幸运草糖饰-奶香薄荷",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-35",
+            "name": "霜奶仙-幸运草糖饰-三色综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "幸运草糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-36",
+            "name": "霜奶仙-花朵糖饰-奶香香草",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    }
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-37",
+            "name": "霜奶仙-花朵糖饰-焦糖综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-38",
+            "name": "霜奶仙-花朵糖饰-奶香红钻",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-39",
+            "name": "霜奶仙-花朵糖饰-红钻综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-40",
+            "name": "霜奶仙-花朵糖饰-奶香抹茶",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-41",
+            "name": "霜奶仙-花朵糖饰-奶香柠檬",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-42",
+            "name": "霜奶仙-花朵糖饰-奶香雪盐",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-43",
+            "name": "霜奶仙-花朵糖饰-奶香薄荷",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-44",
+            "name": "霜奶仙-花朵糖饰-三色综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "花朵糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-45",
+            "name": "霜奶仙-星星糖饰-奶香香草",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    }
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-46",
+            "name": "霜奶仙-星星糖饰-焦糖综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-47",
+            "name": "霜奶仙-星星糖饰-奶香红钻",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-48",
+            "name": "霜奶仙-星星糖饰-红钻综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-49",
+            "name": "霜奶仙-星星糖饰-奶香抹茶",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-50",
+            "name": "霜奶仙-星星糖饰-奶香柠檬",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-51",
+            "name": "霜奶仙-星星糖饰-奶香雪盐",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-52",
+            "name": "霜奶仙-星星糖饰-奶香薄荷",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-53",
+            "name": "霜奶仙-星星糖饰-三色综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "星星糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-54",
+            "name": "霜奶仙-蝴蝶结糖饰-奶香香草",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    }
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-55",
+            "name": "霜奶仙-蝴蝶结糖饰-焦糖综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-56",
+            "name": "霜奶仙-蝴蝶结糖饰-奶香红钻",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-57",
+            "name": "霜奶仙-蝴蝶结糖饰-红钻综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-58",
+            "name": "霜奶仙-蝴蝶结糖饰-奶香抹茶",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-59",
+            "name": "霜奶仙-蝴蝶结糖饰-奶香柠檬",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-60",
+            "name": "霜奶仙-蝴蝶结糖饰-奶香雪盐",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-61",
+            "name": "霜奶仙-蝴蝶结糖饰-奶香薄荷",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-62",
+            "name": "霜奶仙-蝴蝶结糖饰-三色综合",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0868",
+                    "cond": {
+                        "item": "蝴蝶结糖饰"
+                    },
+                    "note": "口味由搅拌方向与圈数决定"
+                }
+            ]
+        },
+        {
+            "index": "0869-63",
             "name": "超极巨化霜奶仙",
             "region": "伽勒尔",
             "legend": false,
