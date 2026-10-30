@@ -552,9 +552,13 @@ function evolveChainHtml(idx) {
   }
   // 一行一层：主干（根 → 本只）排在一行，行内可自然换行；其余分支各自成行、按挂下来的层数缩进。
   // 不依赖固定列宽，所以再长的链也只换行，不会把容器撑出横向滚动条
+  // 正在看的如果是某个口味（不是奶香香草），在糖饰节点后面把口味标出来
+  const selfForm = (DEX_BY_IDX.get(String(idx)) || {}).form || '';
+  const selfFlavor = (/^霜奶仙-(.+?糖饰)-(.+)$/.exec(selfForm) || [])[2] || '';
   const nodeCell = (i) => {
     const isSelf = String(i) === self;
-    return `<span class="pk-node${isSelf ? ' self' : ''}">${iconSpanHtml(i, 26)}<span class="pk-stage-name">${esc(chainName(i))}</span></span>`;
+    const extra = isSelf && selfFlavor && selfFlavor !== '奶香香草' ? `（${selfFlavor}）` : '';
+    return `<span class="pk-node${isSelf ? ' self' : ''}">${iconSpanHtml(i, 26)}<span class="pk-stage-name">${esc(chainName(i) + extra)}</span></span>`;
   };
   const conn = (glyph, cond) => {
     const txt = condHtml(cond);

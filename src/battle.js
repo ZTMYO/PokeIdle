@@ -153,7 +153,8 @@ export async function tryEncounter() {
 // 选择本次遭遇的宝可梦（含树果方块/闪耀护符/闪光等 buff 判定），设置 currentEncounter/currentIsShiny；
 // 返回 null 表示本次不遇敌（当前地区无可用精灵池）。前台 tryEncounter 与后台补算共用同一套判定
 // buffed：这一刻 buff 是否生效。前台调用默认按当前状态，补发时按该场模拟时刻算
-function resolveEncounterPoke(buffed = (honeyBuffActive || charmBuffActive)) {
+function resolveEncounterPoke(buffed = (honeyBuffActive || charmBuffActive),
+  buffItem = honeyBuffActive ? 'sweet-honey' : charmBuffActive ? 'shiny-charm' : null) {
   // 确保 poke 和 currentEncounter 始终指向同一对象
   // 神兽与强化形态不进普通遇敌池：神兽只从时空扭曲（加权后）与后续的日程型来源出现
   const regionPool = allPokemon.filter(p => p.region === getCurrentRegion().name && !p.legend && !isPowerForm(p) && !isWildExcluded(p));
@@ -178,7 +179,7 @@ function resolveEncounterPoke(buffed = (honeyBuffActive || charmBuffActive)) {
     setEncounterLevel(LEGEND_LEVEL);
     const sr = rollShinyResult();
     setCurrentIsShiny(sr.shiny, sr.squareShiny);
-  } else if (((buffed && charmBuffActive) || charmGuaranteed) && regionPool.length > 0) {
+  } else if (((buffed && buffItem === 'shiny-charm') || charmGuaranteed) && regionPool.length > 0) {
     // 护符生效中，或保底还没兑现（到期时没用掉、方块/扭曲压过去了）——后者也要在这里兑现
     const roll = Math.random();
     if (charmGuaranteed || roll < CHARM_SHINY_CHANCE) {
@@ -1582,16 +1583,21 @@ export async function autoCatch() {
 
 export async function catchUpEncounters(secs, buffRemainingMs) {
   if (!bgCatchupEnabled()) return; // 后台补发开关关闭时（如安卓沿用离线暂停哲学）不做任何遇敌补算
-  // 先取「切走那一刻」的 buff 余量，再同步到期：回前台这一下续的杯不算进停摆窗口
-  const snapSec = Math.max(0, (buffRemainingMs || 0) / 1000);
+  // 「离开那一刻 buff 还剩多少」：快照优先；没有快照就把绝对到期时刻回推到离开时刻。
+  // 以前这里取的是「现在还剩多少」，离开期间已经过期的会算成 0 —— 整段停摆就被当成全程无 buff，
+  // 自动续杯自然也不会模拟，表现就是开着护符补发出一堆普通宝可梦。
+  // 回推值按一瓶时长封顶：期间定时器可能已经续过杯，绝对时刻会变成新的到期点。
+  const hideAt = Date.now() - secs * 1000;
+  const leftAtHide = (endMs) => (endMs > 0 ? Math.min(BUFF_DURATION, Math.max(0, endMs - hideAt) / 1000) : 0);
+  const honeyLeft = honeyPausedRemaining > 0 ? honeyPausedRemaining : leftAtHide(honeyCountdownEnd);
+  const charmLeft = charmPausedRemaining > 0 ? charmPausedRemaining : leftAtHide(charmCountdownEnd);
+  const simItem = (honeyBuffActive || honeyLeft > 0) ? 'sweet-honey'
+    : (charmBuffActive || charmLeft > 0) ? 'shiny-charm' : null;
+  const snapSec = Math.min(BUFF_DURATION, Math.max(0, (buffRemainingMs || 0) / 1000));
   const buffLeftSec = snapSec > 0 ? snapSec
-    : honeyPausedRemaining > 0 ? honeyPausedRemaining
-      : charmPausedRemaining > 0 ? charmPausedRemaining
-        : honeyBuffActive && honeyCountdownEnd > 0 ? Math.max(0, honeyCountdownEnd - Date.now()) / 1000
-          : charmBuffActive && charmCountdownEnd > 0 ? Math.max(0, charmCountdownEnd - Date.now()) / 1000
-            : 0;
-  const charmExpiredBefore = charmCountdownEnd > 0 && charmCountdownEnd <= Date.now();
-  const honeyExpiredBefore = honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now();
+    : simItem === 'sweet-honey' ? honeyLeft
+      : simItem === 'shiny-charm' ? charmLeft
+        : 0;
   syncBuffExpiry(); // 恢复前先同步 buff 到期状态（过期自动续杯）：与是否补遭遇无关，
                     // 骑行/钓鱼等暂停补算的守卫会提前 return，若不在此处先同步，骑行中后台到期的 buff 会漏续杯
   if (_bgCatchup || _bgCatch) return;
@@ -1601,9 +1607,7 @@ export async function catchUpEncounters(secs, buffRemainingMs) {
   // 遇敌节奏与 buff 联动：buff 期间 15~30s 一次，平时 120~240s 一次
   const buffAvg = (BUFF_ENCOUNTER_MIN + BUFF_ENCOUNTER_MAX) / 2;
   const normalAvg = (ENCOUNTER_MIN + ENCOUNTER_MAX) / 2;
-  const activeItem = honeyBuffActive ? 'sweet-honey' : (charmBuffActive ? 'shiny-charm' : null);
-  // 回前台这一下已经续过杯：finally 里别再续一次（否则白烧一瓶）
-  const renewedAtReturn = (charmBuffActive && charmExpiredBefore) || (honeyBuffActive && honeyExpiredBefore);
+  const activeItem = simItem;   // 这段窗口里真正在跑的瓶子（按离开时算，回前台续的杯不算）
   // 离开时确实有 buff 在跑，才按自动续杯接着烧（一瓶 = BUFF_DURATION 秒）。
   // 这里只算"要续几瓶"，真扣道具放到补算结束后按实际模拟到的时刻结算（撞上暂停时不多扣）
   let buffSec = Math.min(secs, buffLeftSec);
@@ -1658,7 +1662,7 @@ export async function catchUpEncounters(secs, buffRemainingMs) {
         pending = null;
       } else {
         const buffed = (i * stepMs) / 1000 < buffSec; // 这一刻 buff 还在不在
-        poke = resolveEncounterPoke(buffed);
+        poke = resolveEncounterPoke(buffed, simItem);
         if (!poke) break;
       }
       rollEncounterGender(poke); // 补算不走 showEncounter，这里必须自己掷

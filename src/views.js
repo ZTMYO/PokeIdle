@@ -1084,6 +1084,9 @@ export function renderSettings(container, s) {
   const battleMusic = s.battleMusic !== false;
   const darkMode = s.darkMode || false;
   const powerSave = s.powerSave || false;
+  const idleBackground = s.idleBackground === true;
+  const bgTime = s.idleBackgroundTime || 'auto';   // 背景时段：auto=跟随系统时间
+  const skyErr = (() => { try { return localStorage.getItem('skybg_last_error') || ''; } catch (_) { return ''; } })();
   const uiMobile = getUiMode() !== 'classic'; // 双屏布局（手游模式/桌面双屏），存档未设置时按平台取默认
   // 捕捉条件表格：各遇敌类型行，策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
@@ -1228,6 +1231,21 @@ export function renderSettings(container, s) {
           </div>
         </div>
         <div class="auto-catch-row">
+          <div class="auto-catch-label">挂机背景</div>
+          <div class="toggle-switch" id="toggleIdleBackground">
+            <div class="toggle-track ${idleBackground ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        <div class="auto-catch-row" style="display:block;padding-bottom:2px;">
+          <div class="auto-catch-label" style="margin-bottom:4px;">背景时段</div>
+          <div class="adv-chips" id="bgTimeChips">
+            ${[["auto", "默认"], ["day", "白天"], ["dusk", "黄昏"], ["night", "夜晚"]].map(([v, t]) =>
+              `<span class="adv-chip${bgTime === v ? " sel" : ""}" data-bgtime="${v}">${t}</span>`).join("")}
+          </div>
+        </div>
+        <div class="cf-hint" style="padding:0 4px 4px;">天空随系统时间切换白天/黄昏/夜晚；省电模式下自动停用${skyErr ? `　上次出错：${skyErr}` : ''}</div>
+        <div class="auto-catch-row">
           <div class="auto-catch-label">${isMobilePlatform() ? '手游模式' : '双屏模式'}</div>
           <div class="toggle-switch" id="toggleUiMode">
             <div class="toggle-track ${uiMobile ? 'on' : ''}"></div>
@@ -1349,6 +1367,11 @@ export function renderSettings(container, s) {
   container.querySelector('#toggleAutoFlee')?.addEventListener('click', toggleAutoFlee);
   container.querySelector('#toggleWindowPinned')?.addEventListener('click', toggleWindowPinned);
   container.querySelector('#toggleDarkMode')?.addEventListener('click', toggleDarkMode);
+  container.querySelector('#toggleIdleBackground')?.addEventListener('click', toggleIdleBackground);
+  container.querySelector('#bgTimeChips')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-bgtime]');
+    if (chip) setIdleBackgroundTime(chip.dataset.bgtime);
+  });
   container.querySelector('#togglePowerSave')?.addEventListener('click', togglePowerSave);
   container.querySelector('#toggleUiMode')?.addEventListener('click', toggleUiMode);
   // 窗口倍率下拉：展开/收起（同一时刻只开一个）
@@ -1780,6 +1803,8 @@ function ensureSettings() {
   if (gameData.settings.backgroundService == null) gameData.settings.backgroundService = false;
   if (gameData.settings.darkMode == null) gameData.settings.darkMode = false; // 夜间模式（默认关闭）
   if (gameData.settings.powerSave == null) gameData.settings.powerSave = false; // 省电模式（默认关闭）
+  if (gameData.settings.idleBackground == null) gameData.settings.idleBackground = false; // 挂机页视差背景（默认关闭）
+  if (gameData.settings.idleBackgroundTime == null) gameData.settings.idleBackgroundTime = 'auto'; // 背景时段（默认跟随系统时间）
 }
 
 // 夜间模式开关：立即应用到根元素 data-theme（样式层已定义深色变量覆盖），并持久化
@@ -1793,6 +1818,25 @@ export function toggleDarkMode() {
   saveGame();
 }
 
+// 背景时段：auto 跟随系统时间，其余强制某一档（日出日落都归黄昏档）
+export function setIdleBackgroundTime(v) {
+  ensureSettings();
+  gameData.settings.idleBackgroundTime = ['auto', 'day', 'dusk', 'night'].includes(v) ? v : 'auto';
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
+// 挂机背景：只影响挂机页的视差天空，关掉后回到原来的纯色底
+export function toggleIdleBackground() {
+  ensureSettings();
+  const on = gameData.settings.idleBackground !== true;
+  gameData.settings.idleBackground = on;
+  // 打开时才初始化背景（关闭时连素材都不解码）
+  window.dispatchEvent(new CustomEvent('idle-bg-changed'));   // 开/关都要通知：关掉时让背景顺手清熔断标记
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
 // 省电模式：限制场景刷新并停掉循环动画，不改动游戏逻辑
 export function togglePowerSave() {
   ensureSettings();

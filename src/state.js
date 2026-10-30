@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, BIKE_PENDING_MAX_GAP_MS, AUTO_CATCH_BALLS_DEFAULT, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS, SHINY_CHANCE, SQUARE_SHINY_CHANCE } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, BIKE_PENDING_MAX_GAP_MS, AUTO_CATCH_BALLS_DEFAULT, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS, SHINY_CHANCE, SQUARE_SHINY_CHANCE, ALCREMIE_FORM_INDEX } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -126,7 +126,7 @@ function migrateCrownKeys(g) {
 }
 
 // 存档结构版本：每加一条读档迁移就 +1，跑过的版本记在 saveRev 上
-const SAVE_REV = 4;
+const SAVE_REV = 5;
 
 // rev 1：花叶蒂一族的形态编号重排过（白/蓝/黄各前移一位、永恒之花 → -5、超级 → -6）。
 // 存档里到处都是物种编号（图鉴计数、相遇日志、队伍与盒子、蛋、派遣/悬赏/交换…），整棵换一遍
@@ -165,6 +165,18 @@ function migrateGenders(g) {
   }
 }
 
+function creditFormDex(g, idx, shiny) {
+  g.pokedex = g.pokedex || {};
+  const key = String(idx);
+  const d = g.pokedex[key];
+  if (!d) {
+    g.pokedex[key] = { seen: 1, caught: 0, lastTime: null, shinySeen: shiny ? 1 : 0, shinyCaught: 0, owned: 1, shinyOwned: shiny ? 1 : 0 };
+    return;
+  }
+  if (!((d.owned || 0) > 0)) { d.owned = 1; if (!(d.seen || 0)) d.seen = 1; }
+  if (shiny && !((d.shinyOwned || 0) > 0)) d.shinyOwned = 1;
+}
+
 // rev 3：霜奶仙 63 种糖饰×口味原来是 variant 贴图变体，现在接成独立形态编号
 function migrateAlcremie(g) {
   for (const e of g.roster || []) {
@@ -174,12 +186,13 @@ function migrateAlcremie(g) {
     e.species = idx;
     e.originSpecies = idx;
     e.variant = null;
+    creditFormDex(g, idx, !!e.shiny);   // 图鉴记账跟着个体换到新形态，否则该形态显示未解锁
   }
 }
 
 // rev 4：霜奶仙形态编号前移一位（原 0869-2…-64 → 0869-1…-63），整棵存档里的编号跟着换
 const shiftAlcremieIdx = (s) => {
-  const m = /^0869-(d+)$/.exec(String(s));
+  const m = /^0869-(\d+)$/.exec(String(s));
   if (!m) return s;
   const n = Number(m[1]);
   return n >= 2 ? `0869-${n - 1}` : s;
@@ -197,6 +210,22 @@ function migrateAlcremieIndex(g) {
   return walk(g);
 }
 
+// rev 5：早期接入霜奶仙形态时，旧蛋孵化出的个体只换了 species、图鉴没记一笔 → 按仓库补解锁；
+// 同时把孵化槽的 eggIndex 与仓库蛋条目对齐（老蛋是 0869 + variant，换编号后槽位还指着旧编号）
+function repairAlcremieDex(g) {
+  const forms = new Set([...ALCREMIE_FORM_INDEX.values()].filter((i) => i !== '0869'));
+  for (const e of g.roster || []) {
+    if (!e || typeof e !== 'object' || !forms.has(String(e.species))) continue;
+    creditFormDex(g, e.species, !!e.shiny);
+  }
+  const byId = new Map((g.roster || []).map((r) => [r.id, r]));
+  for (const slot of g.incubators || []) {
+    if (!slot || !slot.eggRef) continue;
+    const egg = byId.get(slot.eggRef);
+    if (egg && egg.species && slot.eggIndex !== egg.species) slot.eggIndex = egg.species;
+  }
+}
+
 function migrateSave(g) {
   if (!g || typeof g !== 'object') return g;
   const rev = g.saveRev || 0;
@@ -204,6 +233,8 @@ function migrateSave(g) {
   const out = rev < 1 ? migrateSpeciesReindex(g) : g;
   if (rev < 2) migrateGenders(out);
   if (rev < 3) migrateAlcremie(out);
+  else if (rev < 4) migrateAlcremieIndex(out);
+  if (rev < 5) repairAlcremieDex(out);
   out.saveRev = SAVE_REV;
   return out;
 }
@@ -437,7 +468,7 @@ export function getDefaultSave() {
     // 手机桌面布局：数组元素是 { app: 'gps' } 或 { folder: ['berry','mixer'] }，顺序即桌面顺序
     // （App 的定义在 apps.js；这里只存位置，缺的应用渲染时自动补到末尾）
     phoneLayout: [],
-    settings: { autoCatch: false, autoFlee: true, windowPinned: true, backgroundService: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, autoRefill: false, autoRefillHoney: false, autoRefillCharm: false, autoRefillBalls: { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false }, autoRefillOrder: ['poke-ball', 'ultra-ball', 'master-ball'], catchFilter: { rows: { normal: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, normalShiny: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, legend: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, legendShiny: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false } } }, gender: 'brendan', powerSave: false, musicVolume: 0.6, musicEnabled: true },
+    settings: { autoCatch: false, autoFlee: true, windowPinned: true, backgroundService: false, autoCatchBalls: { 'poke-ball': true, 'ultra-ball': true, 'master-ball': false }, shinyStop: false, legendStop: false, autoBuffHoney: false, autoBuffCharm: false, autoRefill: false, autoRefillHoney: false, autoRefillCharm: false, autoRefillBalls: { 'poke-ball': true, 'ultra-ball': false, 'master-ball': false }, autoRefillOrder: ['poke-ball', 'ultra-ball', 'master-ball'], catchFilter: { rows: { normal: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, normalShiny: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, legend: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false }, legendShiny: { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false } } }, gender: 'brendan', powerSave: false, idleBackground: false, idleBackgroundTime: 'auto', musicVolume: 0.6, musicEnabled: true },
   };
 }
 

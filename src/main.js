@@ -34,6 +34,7 @@ import { retreatBattle, isBattleActive, isBattleSettled, restoreBattleTier, clea
 import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, closeTeamEdit, isTeamPicking, leaveTeamPick, showTeamView } from './team.js';
 import { showCasinoView } from './casino.js';
 import * as road from './road.js';
+import { startSkyBg, skyBootGuard } from './sky-bg.js';
 import { initBackgroundCatchup, startBackgroundCatchup, notifyAppState, bgCatchupEnabled, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds, bgPeekAccum, bgTakeStatSeconds } from './background-catchup.js';
 import { startEventRefresh } from './server-events.js';
 import { startActivityRefresh } from './activity.js';
@@ -1177,6 +1178,8 @@ async function init() {
     startIdleRotation();
     showView('idleView');
     road.start();
+    skyBootGuard();   // 上次开背景没跑稳就自动关掉，防止反复卡在启动
+    if (gameData?.settings?.idleBackground === true) startSkyBg(true);   // 视差背景默认关，开了才初始化
 
     // 随从跟随状态在重启后重建：road.start() 清空了 road-layer，需重挂随从 DOM；
     // 同时恢复上次未处理的抽卡结果（未选跟随/放走就退出），重进随从页可继续处理

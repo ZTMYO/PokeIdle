@@ -444,6 +444,44 @@ html.mobile-app #quitHide { display: none !important; }
   image-rendering: pixelated;
 }
 
+/* === 挂机页视差背景 ===
+   天空/远山/树线/云由 canvas 画（src/sky-bg.js）：占住路面以上的整块空屏，
+   只按系统时间换色板；路面那一条用同色系遮罩染色，昼夜切换时天空和路面一起变。 */
+.sky-canvas {
+  /* 尺寸由 JS 按舞台高度写死 px：canvas 是替换元素，只给 top/bottom 时
+     浏览器可能按 height 属性取高，会和 JS 回写形成每帧翻倍 */
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  z-index: 1;
+  display: block;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.sky-tint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 72px;
+  z-index: 32;
+  pointer-events: none;
+  opacity: 0;
+  transition: background-color 1.2s linear, opacity 1.2s linear;
+}
+/* 文案要压在天上：背景是定位元素，流内文字不抬层会被盖住 */
+#idleView .idle-text {
+  position: relative;
+  z-index: 2;
+}
+/* 黄昏/夜晚天空变暗：文案换亮色 + 描边阴影，深绿字在夜色里看不清 */
+#idleView.sky-dark-text .idle-text {
+  color: #eef4ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+
 /* 时空扭曲期间滚动道路变暗：canvas 整层降亮度，突出紫色氛围与滚动精灵 */
 #screen.twist-active .road-layer .road-canvas {
   filter: brightness(0.65) saturate(0.85);
