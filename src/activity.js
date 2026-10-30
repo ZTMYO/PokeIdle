@@ -1,6 +1,6 @@
 // ===== 限时活动总线 =====
 // 服务端只发"开关 + 时间段 + 参数"（GET /api/activity/），玩法写在 src/activities.js 里。
-// 手机首页时钟左侧会多出一个入口按钮，活动窗口内点开进容器；到点自己消失。
+// 手机桌面会多出对应活动的图标（每个活动一个），活动窗口内点开进容器；到点自己消失。
 // 拉不到清单（离线 / 服务器挂了）就当没有活动，主游戏完全不受影响。
 import { $, showView, showConfirmBar, getCurrentView, isDualLayout, setViewTitle } from './ui.js';
 import { gameData, saveGame, addSystemLog, pushNav, popNav, rollGender } from './state.js';
@@ -473,7 +473,7 @@ function paintLeft(ctx) {
 
 // 开机：先吃缓存再拉最新；之后每分钟看一眼（到点就收摊），每 10 分钟对一次表
 export function startActivityRefresh() {
-  // 入口是手机第三页那些活动图标（点击由 apps.js 里各自的 open 处理），这里只管状态刷新
+  // 入口是手机桌面的活动图标（点击由 apps.js 里各自的 open 处理），这里只管状态刷新
   refreshEntry();
   loadActivitiesFromCache();
   loadActivities(true);

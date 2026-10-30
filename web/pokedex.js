@@ -400,19 +400,29 @@ function parentNames(list) {
   }
   return out;
 }
-// 条件 → 中文（只列玩家要满足的条件）
-function condText(cond) {
+// 条件拆成一段一段（可带样式类）：性别要单独上色，其他场合直接拼成文字
+function condParts(cond) {
   const c = cond || {};
   const bits = [];
-  if (c.lv) bits.push(`达到 Lv${c.lv}`);
-  if (c.item) bits.push(`使用${Array.isArray(c.item) ? c.item.join(' 和 ') : c.item}`); // 多件道具是"都要"，不是二选一（游戏里逐件检查）
-  if (c.nature) bits.push(`性格 ${Array.isArray(c.nature) ? c.nature.join('/') : c.nature}`);
+  const push = (text, cls) => bits.push({ text, cls });
+  if (c.gender) push(c.gender === 'female' ? '♀ 雌性' : '♂ 雄性', `pk-sex ${c.gender}`);
+  if (c.lv) push(`达到 Lv${c.lv}`);
+  if (c.item) push(`使用${Array.isArray(c.item) ? c.item.join(' 和 ') : c.item}`); // 多件道具是"都要"，不是二选一（游戏里逐件检查）
+  if (c.nature) push(`性格 ${Array.isArray(c.nature) ? c.nature.join('/') : c.nature}`);
   // 招式条件是"带在身上"而不是"学过就行"；「X属性招式」本身就是完整说法，不再套「」招式
-  if (c.move) bits.push(/属性招式$/.test(c.move) ? `携带${c.move}` : `携带「${c.move}」招式`);
-  if (c.region) bits.push(`在${c.region}地区进化`);
-  if (c.candy) bits.push(`消耗 ${c.candy} 糖果`);
-  if (c.coin) bits.push(`消耗 ${c.coin} 游戏币`);
-  return bits.join(' · ');
+  if (c.move) push(/属性招式$/.test(c.move) ? `携带${c.move}` : `携带「${c.move}」招式`);
+  if (c.region) push(`在${c.region}地区进化`);
+  if (c.candy) push(`消耗 ${c.candy} 糖果`);
+  if (c.coin) push(`消耗 ${c.coin} 游戏币`);
+  return bits;
+}
+// 条件 → 中文（纯文本）
+function condText(cond) {
+  return condParts(cond).map((b) => b.text).join(' · ');
+}
+// 条件 → HTML：性别符号上色，其余文字照常转义
+function condHtml(cond) {
+  return condParts(cond).map((b) => (b.cls ? `<span class="${b.cls}">${esc(b.text)}</span>` : esc(b.text))).join(' · ');
 }
 // 交换出现概率：按 trade.js 的规则实算
 let _tradeFams = null;
@@ -490,10 +500,10 @@ function evolveChainHtml(idx) {
     const f = (q && q.form) || '', n = (q && q.name) || '';
     return f.startsWith(n + '-') ? f.slice(n.length + 1) : '';
   };
-  // 某一级的下一级 = 普通边 + 挂在它身上的专属石头形态
+  // 某一级的下一级 = 普通边 + 挂在它身上的专属石头形态（cond 传原始条件，交给 conn 排版）
   const childrenOf = (i) => [
-    ...Object.keys(E[i] || {}).map((k) => ({ id: k, cond: condText(E[i][k]) })),
-    ...Object.keys(stones).filter((k) => srcList(k).includes(String(i))).map((k) => ({ id: k, cond: condText({ item: stones[k] }) })),
+    ...Object.keys(E[i] || {}).map((k) => ({ id: k, cond: E[i][k] })),
+    ...Object.keys(stones).filter((k) => srcList(k).includes(String(i))).map((k) => ({ id: k, cond: { item: stones[k] } })),
   ];
   // 族根：沿反向边往上走（同后缀优先，与游戏 familyRoot 同规则；石头形态先回挂靠形态）
   let cur = self, guard = 0;
@@ -514,8 +524,11 @@ function evolveChainHtml(idx) {
     const isSelf = String(i) === self;
     return `<span class="pk-node${isSelf ? ' self' : ''}">${iconSpanHtml(i, 26)}<span class="pk-stage-name">${esc(dexName(i))}</span></span>`;
   };
-  const conn = (glyph, cond) => `<span class="pk-conn"><span class="pk-arrow">${glyph}</span>`
-    + (cond ? `<span class="pk-cond">${esc(cond)}</span><span class="pk-arrow">→</span>` : '') + '</span>';
+  const conn = (glyph, cond) => {
+    const txt = condHtml(cond);
+    return `<span class="pk-conn"><span class="pk-arrow">${glyph}</span>`
+      + (txt ? `<span class="pk-cond">${txt}</span><span class="pk-arrow">→</span>` : '') + '</span>';
+  };
   // 根在左、分支向右的横向树：节点占列 2d+1、连接符占列 2d，整块不换行交给外层横向滚动
   const root = pathOf(self)[0];
   const cells = new Map();

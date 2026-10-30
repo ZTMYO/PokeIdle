@@ -68,3 +68,5 @@ tools/hot-baseline.json
 # 热更手工上传的暂存（tools/deploy-res.mjs --local 生成）
 hot-upload/
 hot-upload.tar.gz
+
+bot

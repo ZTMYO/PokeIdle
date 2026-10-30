@@ -1925,6 +1925,9 @@ nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; position: r
 .pk-node.self .pk-stage-name { font-weight: 700; color: var(--ui-color-darker); }
 .pk-conn { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .pk-cond { font-size: 10px; color: var(--color-muted); }
+.pk-cond .pk-sex { font-weight: 700; }
+.pk-cond .pk-sex.female { color: #d1427c; }
+.pk-cond .pk-sex.male { color: #2b78c7; }
 .pk-arrow { font-size: 11px; color: var(--ui-color); }
 .pk-bar { font-size: 11px; color: var(--ui-color); }
 .pk-stage-name { font-size: 11px; color: var(--color-text); white-space: nowrap; }
