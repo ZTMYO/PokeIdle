@@ -905,10 +905,10 @@ async function init() {
   };
   window.addEventListener('resize', onViewportChanged);
   window.visualViewport?.addEventListener('resize', onViewportChanged);
-  // 设置页切换「手游模式」后：重新布局 + 道路重算画布尺寸（canvas 宽度随容器变化）
+  // 设置页切换「手游模式」后：重新布局 + 舞台重排（道路画布/随从/遭遇贴图都按新容器重算）
   window.addEventListener('ui-mode-changed', () => {
     fitLayout();
-    import('./road.js').then(m => m.refreshSize());
+    setTimeout(() => relayoutStage(), 60);
   });
 
   // 系统托盘走路动画（异步加载，失败不影响主流程）

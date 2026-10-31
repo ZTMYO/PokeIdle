@@ -465,11 +465,20 @@ html.mobile-app #quitHide { display: none !important; }
   right: 0;
   bottom: 0;
   height: 72px;
-  z-index: 32;
+  /* 只盖路面画布；路面上的精灵在下面用同一套颜色变换，避免大体型随从上半截漏出原色 */
+  z-index: 6;
   pointer-events: none;
   opacity: 0;
-  transition: background-color 1.2s linear, opacity 1.2s linear;
 }
+/* 夜色/黄昏：路面精灵和路面用同一套线性颜色变换（见 sky-bg 的 skyTintFilter），
+   这样随从/遇敌图标超出路面边带的部分也不会露出原色 */
+#screen.sky-dim .walk-gif,
+#screen.sky-dim .follower-road,
+#screen.sky-dim .mass-poke,
+#screen.sky-dim .item-fly {
+  filter: url(#skyTintFilter);
+}
+
 /* 文案要压在天上：背景是定位元素，流内文字不抬层会被盖住 */
 #idleView .idle-text {
   position: relative;
@@ -12245,7 +12254,7 @@ body.booting { visibility: hidden; }
 /* 挂机页跟随宝可梦（主角身后行走） */
 .follower-road {
   position: absolute;
-  z-index: 5;
+  z-index: 7;  /* 要压在 .sky-tint(6) 上面，靠滤镜一起压暗 */
   pointer-events: none;
   image-rendering: pixelated;
 }

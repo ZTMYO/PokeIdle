@@ -25,6 +25,7 @@ let _lastDrawAt = 0;
 let containerWidth = 0;
 let roadHeight = 0;
 let patternWidth = 0;
+let _containerRo = null; // 监听路面容器尺寸（切小窗/分屏/回到挂机页时重算画布）
 let _dpr = 1; // 设备像素比（_resize 时刷新），用于把绘制坐标对齐设备像素网格
 const POWER_SAVE_DPR = 1.5; // 省电模式下的像素比上限：高 DPI 屏降填充率，仍保留基本清晰度
 
@@ -415,6 +416,11 @@ export function start(spd) {
     active = true;
     rafId = requestAnimationFrame(_frame);
   }
+
+  // 容器尺寸变化（切小窗 / 分屏 / 旋转）就重算画布：离页时容器宽为 0 的那次由 _resize 自己跳过，
+  // 回到挂机页容器重新有宽会再触发一次，不会一直按旧尺寸画
+  if (!_containerRo && typeof ResizeObserver !== 'undefined') _containerRo = new ResizeObserver(() => _resize());
+  if (_containerRo) { _containerRo.disconnect(); _containerRo.observe(container); }
 
   window.addEventListener('resize', _resize);
 }

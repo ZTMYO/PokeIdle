@@ -719,10 +719,15 @@ export function spawnItemDrop(itemKey, opts = {}) {
 
   function refreshGeometry() {
     if (window.innerWidth === _geomW && window.innerHeight === _geomH) return;
+    // 舞台被遭遇页 / 别的 app 页盖住时主角和路面都没有布局，量到的是全 0：
+    // 先别把新尺寸记下来，等回到可见再重算，否则道具会被摆到负坐标（看着偏上或偏下）
+    const s2 = screen.getBoundingClientRect();
+    const c2 = charEl.getBoundingClientRect();
+    if (s2.width === 0 || c2.width === 0) return;
     _geomW = window.innerWidth;
     _geomH = window.innerHeight;
-    sRect = screen.getBoundingClientRect();
-    cRect = charEl.getBoundingClientRect();
+    sRect = s2;
+    cRect = c2;
     charLeft = cRect.left - sRect.left;
     rRect = roadEl ? roadEl.getBoundingClientRect() : cRect;
     itemY = (rRect.top - sRect.top) + 24;
@@ -812,10 +817,16 @@ export function spawnItemDrop(itemKey, opts = {}) {
   }
 
   // 每帧渲染（不推进世界）：写位置与显隐
+  let _stageShown = false;
   function render() {
     if (!active) return;
+    const shown = isIdleStageVisible() && road.isActive();
+    // 舞台刚回来（遭遇结束 / 从别的页面切回）：强制重新量一次几何，
+    // 离页期间量到的全 0 不能留着用
+    if (shown && !_stageShown) { _geomW = 0; _geomH = 0; }
+    _stageShown = shown;
     refreshGeometry();
-    if (!isIdleStageVisible() || !road.isActive()) {
+    if (!shown) {
       el.style.display = 'none';
       return;
     }

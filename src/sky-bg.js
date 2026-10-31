@@ -55,6 +55,7 @@ let _art = null;           // 当前色板渲染出的图层
 let _artKey = '';
 let _off = null;           // 上次的开关状态（只在变化时改 display）
 let _stageW = 0, _stageH = 0, _stageRO = null; // 舞台尺寸缓存：每帧读 clientWidth 会强制同步布局
+let _dimFuncs = null; // 路面精灵的颜色变换参数（feFuncR/G/B）
 
 // ---------- 解码 ----------
 const b64bytes = (b64) => {
@@ -243,6 +244,7 @@ const buildArt = (pal) => {
     _tint.style.backgroundColor = `rgb(${Math.round(t[0])},${Math.round(t[1])},${Math.round(t[2])})`;
     _tint.style.opacity = String(Math.max(0, Math.min(1, t[3])));
   }
+  applyDimFilter(pal.tint);
   // 只有夜晚/扭曲才把文案换成亮色；黄昏沿用白天的配色
   if (_idle) _idle.classList.toggle('sky-dark-text', pal.name === 'night' || pal.name === 'twist');
 };
@@ -282,6 +284,7 @@ const paint = () => {
     _canvas.style.display = off ? 'none' : '';
     if (_tint) _tint.style.display = off ? 'none' : '';
     if (off && _idle) _idle.classList.remove('sky-dark-text');
+    if (off && (_screen || (_screen = $('screen')))) _screen.classList.remove('sky-dim');
   }
   if (off) return;
   // 不在挂机页就不画：切到图鉴/商店时别白烧一帧
@@ -364,8 +367,25 @@ const die = (e) => {
   _dead = true;
   if (_canvas) _canvas.style.display = 'none';
   if (_tint) _tint.style.display = 'none';
+  if (_screen || (_screen = $('screen'))) _screen.classList.remove('sky-dim');
   console.warn('[sky-bg] 挂机背景已停用：', e);
 };
+// 路面精灵按和路面遮罩同一套线性变换压暗：c' = (1-a)c + a*t
+const applyDimFilter = (t) => {
+  const a = Math.max(0, Math.min(1, (t && t[3]) || 0));
+  const scr = _screen || (_screen = $('screen'));
+  if (scr) scr.classList.toggle('sky-dim', a > 0);
+  if (!_dimFuncs) {
+    const f = document.getElementById('skyTintFilter');
+    _dimFuncs = f ? [...f.querySelectorAll('feFuncR,feFuncG,feFuncB')] : [];
+  }
+  if (_dimFuncs.length !== 3) return;
+  _dimFuncs.forEach((fn, i) => {
+    fn.setAttribute('slope', String(1 - a));
+    fn.setAttribute('intercept', String((a * ((t && t[i]) || 0) / 255).toFixed(4)));
+  });
+};
+
 const draw = () => {
   if (_dead) return;
   try { paint(); } catch (e) { die(e); }

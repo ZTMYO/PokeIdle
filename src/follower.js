@@ -24,6 +24,7 @@ let _followerEl = null;       // 跟随宝可梦 DOM 元素
 let _followerRoadGeom = null; // 路上随从的四向几何表
 let _followerFootOffset = 0;  // 四向素材画布顶到脚底的距离（已乘缩放），用于和主角落地对齐
 let _followerRightEdge = 0;   // 随从右向内容右边界到画布左缘的距离（已乘缩放），用于贴边定位
+let _posKey = '';             // 上次成功定位时的窗口尺寸：切小窗/旋转变了要重定位
 
 // 变体（index 含 -）没有四向素材
 function followerGeom(index) {
@@ -1431,17 +1432,18 @@ function charTransformShift(el) {
   }
 }
 
-// 随从定位：贴在主角左侧，脚底与主角对齐
+// 随从定位：贴在主角左侧，脚底与主角对齐。返回是否真的量到了布局
 function positionFollowerOnRoad() {
   const el = $('followerRoad');
-  if (!el) return;
+  if (!el) return false;
   const charEl = $('walkGif');
   const screen = $('screen');
-  if (!charEl || !screen) return;
+  if (!charEl || !screen) return false;
   const sRect = screen.getBoundingClientRect();
   const cRect = charEl.getBoundingClientRect();
-  // 主角/屏幕无布局时跳过（全 0 坐标会把随从写到屏幕外），可见后由动画帧兜底重定位
-  if (cRect.width === 0 || cRect.height === 0 || sRect.width === 0 || sRect.height === 0) return;
+  // 主角/屏幕无布局（遭遇页盖住挂机页、切到别的 app 页）时跳过：
+  // 量到的是全 0，写进去就把随从摆到屏幕外；等舞台回来由动画帧按尺寸变化重定位
+  if (cRect.width === 0 || cRect.height === 0 || sRect.width === 0 || sRect.height === 0) return false;
   // #screen 有 3px 边框：绝对定位以 padding box 为原点，rect 是 border box，需补偿
   const originX = sRect.left + screen.clientLeft;
   const originY = sRect.top + screen.clientTop;
@@ -1451,6 +1453,8 @@ function positionFollowerOnRoad() {
   el.style.left = (charLeft - FOLLOWER_GAP - _followerRightEdge) + 'px';
   const charBottomRel = cRect.bottom - shift.y - originY;
   el.style.top = (charBottomRel - _followerFootOffset) + 'px';
+  _posKey = `${window.innerWidth}x${window.innerHeight}`;
+  return true;
 }
 
 function removeFollowerFromRoad() {
@@ -1458,6 +1462,7 @@ function removeFollowerFromRoad() {
   _followerRoadGeom = null;
   _followerFootOffset = 0;
   _followerRightEdge = 0;
+  _posKey = '';
   if (_followerEl) {
     _followerEl.remove();
     _followerEl = null;
@@ -1487,8 +1492,10 @@ function startRoadFourDirAnim(img, geom) {
     const hide = !isOnGameView() || phase !== 'idle';
     _followerEl.style.display = hide ? 'none' : '';
     if (hide) { _followerAnimRaf = requestAnimationFrame(advance); return; }
-    // 可见兜底：此前定位时主角/屏幕无布局被跳过，或布局后位置仍无效（越界），重算一次
-    if (!_followerEl.style.left || !_followerEl.style.top) positionFollowerOnRoad();
+    // 可见兜底：此前定位时主角/屏幕无布局被跳过（遭遇页盖着、切到别的页面），
+    // 或窗口尺寸变了（切小窗/分屏/旋转）→ 重算一次；尺寸记在上次"真正量到布局"的那次
+    if (!_followerEl.style.left || !_followerEl.style.top
+        || _posKey !== `${window.innerWidth}x${window.innerHeight}`) positionFollowerOnRoad();
     const wg = $('walkGif');
     const stopped = wg ? (wg.classList.contains('get-item') || wg.classList.contains('fishing')) : false;
     // 主角背对镜头钓鱼（水域在路面从下往上第一行，fishing.js 里 row < 3 用前 4 帧）时随从也转背面
