@@ -566,7 +566,6 @@ function renderGiveDetail(content, offerId) {
         <button class="trade-check-roster" data-trade-roster>仓库情况</button>
         <span class="encounter-owned-wrap" id="tradeGiveOwnedWrap" style="display:none;">
           <svg class="encounter-owned" viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-owned" /></svg>
-          <span class="encounter-tooltip" id="tradeGiveOwnedTip"></span>
         </span>
       </span>
     </div>
@@ -588,24 +587,21 @@ function renderGiveDetail(content, offerId) {
         <div class="roster-iv-bars">${bars}</div>
       </div>
     </div>`;
-  // 已捕获标记：右上角 owned 图标（普通/闪光分开），hover 显示首次捕获时间
+  // 已捕获标记：右上角 owned 图标（普通/闪光分开），悬停/点一下显示首次捕获时间
   const ownedWrap = $('tradeGiveOwnedWrap');
   if (ownedWrap) {
     const entry = gameData.pokedex[String(o.give.species)];
     const hasCaught = entry && (o.give.shiny ? entry.shinyCaught > 0 : entry.caught > 0);
     ownedWrap.style.display = hasCaught ? '' : 'none';
     if (hasCaught) {
-      const tip = $('tradeGiveOwnedTip');
-      if (tip) {
-        const logs = (gameData.encounterLogs || {})[String(o.give.species)] || [];
-        const first = logs.find(l => l.result === 'caught' && !!l.shiny === !!o.give.shiny);
-        if (first && first.time) {
-          const d = new Date(first.time);
-          const pad = n => String(n).padStart(2, '0');
-          tip.textContent = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        } else {
-          tip.textContent = '首次捕获：较早前';
-        }
+      const logs = (gameData.encounterLogs || {})[String(o.give.species)] || [];
+      const first = logs.find(l => l.result === 'caught' && !!l.shiny === !!o.give.shiny);
+      if (first && first.time) {
+        const d = new Date(first.time);
+        const pad = n => String(n).padStart(2, '0');
+        ownedWrap.dataset.tip = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } else {
+        ownedWrap.dataset.tip = '首次捕获：较早前';
       }
     }
   }

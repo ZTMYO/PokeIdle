@@ -548,20 +548,20 @@ export function showTradeReceive({ poke, shiny = false, variant = null, isNew = 
   // 右上角精简信息：已捕获图标（按交换前判定）/ 新发现 / 稀有度
   if (right) {
     const ownedWrap = right.querySelector('.encounter-owned-wrap');
-    const tipEl = right.querySelector('.encounter-tooltip');
     const rarityEl = right.querySelector('.encounter-catch-rate');
     const newLabel = right.querySelector('.encounter-new-label');
     right.style.display = '';
     if (ownedWrap) ownedWrap.style.display = wasOwned ? '' : 'none';
-    if (tipEl) {
+    if (ownedWrap) {
+      // 首次捕获时间走全局 data-tip：手机点一下（合成 mouseover）也能弹
       const logs = (gameData.encounterLogs || {})[String(poke.index)] || [];
       const first = logs.find(l => l.result === 'caught' && !!l.shiny === shiny);
       if (first && first.time) {
         const d = new Date(first.time);
         const pad = n => String(n).padStart(2, '0');
-        tipEl.textContent = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        ownedWrap.dataset.tip = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       } else {
-        tipEl.textContent = '首次捕获：较早前';
+        ownedWrap.dataset.tip = '首次捕获：较早前';
       }
     }
     if (rarityEl) rarityEl.textContent = '稀有度 ' + rarityLabel(poke.rarity ?? 0.5);

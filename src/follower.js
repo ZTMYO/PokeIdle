@@ -1417,6 +1417,20 @@ function renderFollowerOnRoad() {
   updateFollowerVisibility();
 }
 
+// 主角贴图某些姿势带 transform 位移（钓鱼 translate(-10,15)、捡道具/骑车 translateX）：
+// rect 含变形，直接把随从贴在 rect 上，钓鱼结束回走路后就会一直偏低。取掉位移按布局位贴边
+function charTransformShift(el) {
+  try {
+    const t = getComputedStyle(el).transform;
+    if (!t || t === 'none') return { x: 0, y: 0 };
+    const nums = t.slice(t.indexOf('(') + 1, -1).split(',').map(Number);
+    const is3d = t.startsWith('matrix3d');
+    return { x: nums[is3d ? 12 : 4] || 0, y: nums[is3d ? 13 : 5] || 0 };
+  } catch (_) {
+    return { x: 0, y: 0 };
+  }
+}
+
 // 随从定位：贴在主角左侧，脚底与主角对齐
 function positionFollowerOnRoad() {
   const el = $('followerRoad');
@@ -1431,10 +1445,11 @@ function positionFollowerOnRoad() {
   // #screen 有 3px 边框：绝对定位以 padding box 为原点，rect 是 border box，需补偿
   const originX = sRect.left + screen.clientLeft;
   const originY = sRect.top + screen.clientTop;
+  const shift = charTransformShift(charEl);
   // 锚主角贴图左缘，随从按内容右边界贴边，骑车贴图更宽也不顶到车轮
-  const charLeft = cRect.left - originX;
+  const charLeft = cRect.left - shift.x - originX;
   el.style.left = (charLeft - FOLLOWER_GAP - _followerRightEdge) + 'px';
-  const charBottomRel = cRect.bottom - originY;
+  const charBottomRel = cRect.bottom - shift.y - originY;
   el.style.top = (charBottomRel - _followerFootOffset) + 'px';
 }
 
@@ -1476,11 +1491,13 @@ function startRoadFourDirAnim(img, geom) {
     if (!_followerEl.style.left || !_followerEl.style.top) positionFollowerOnRoad();
     const wg = $('walkGif');
     const stopped = wg ? (wg.classList.contains('get-item') || wg.classList.contains('fishing')) : false;
+    // 主角背对镜头钓鱼（水域在路面从下往上第一行，fishing.js 里 row < 3 用前 4 帧）时随从也转背面
+    const backView = stopped && !!wg && wg.classList.contains('fishing') && road.getFishingRow() < 3;
     const now = performance.now();
     const a = stopped ? idle : walk;
     useSheet(stopped ? idleAnim : 'walk');
     const n = Math.max(1, a.n);
-    const row = stopped ? DIR_ROW.down : DIR_ROW.right;
+    const row = stopped ? (backView ? DIR_ROW.up : DIR_ROW.down) : DIR_ROW.right;
     if (now >= nextAt) {
       if (frame >= n) frame = 0;
       img.style.objectPosition = `-${frame * a.w}px -${row * a.h}px`;

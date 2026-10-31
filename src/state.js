@@ -745,15 +745,25 @@ function reportSaveResult(ok) {
   )).catch(() => {});
 }
 
-export async function saveGame() {
-  if (!gameData) return;
-  if (_saveSuspended) return;
+// 一场遭遇会连着存好几次：合并成"标脏 + 单飞 + 最小间隔"，同一批只写一次。
+// await saveGame() 仍会等到落盘；退出/切后台用 flushSave 跳过间隔。
+const SAVE_MIN_GAP = 500;
+let _saving = null;        // 正在跑的批次：dirty 清空前一直复用
+let _saveDirty = false;
+let _saveLastAt = 0;       // 上次写盘完成时刻
+let _saveNoDelay = false;  // flushSave：跳过最小间隔
+let _saveWake = null;      // 正在等间隔时 flushSave 提前唤醒
+let _saveLastOk = true;
+
+function snapshotSave() {
   gameData.stats.lastSaveTime = Date.now();
   syncBuffRecord();
   syncGpsPosition();
-  const s = JSON.stringify(gameData);
-  // 按平台定主通道：手机端写应用文件、桌面端写应用数据目录、网页端只有 localStorage。
-  // 另外两条通道照写当兜底（启动时按 lastSaveTime 取最新），主通道失败才提醒
+  return JSON.stringify(gameData);
+}
+
+async function writeSnapshot(s) {
+  // 按平台定主通道：手机端写应用文件、桌面端写应用数据目录、网页端只有 localStorage
   const mobile = window.__POKEIDLE_MOBILE__;
   let primaryOk = null;
   if (mobile?.writeSave) {
@@ -762,10 +772,50 @@ export async function saveGame() {
     try { await window.__TAURI__.core.invoke('save_game_data', { data: s }); primaryOk = true; } catch (_) { primaryOk = false; }
   }
   let lsOk = false;
-  try { localStorage.setItem('pokemon_idle_save', s); lsOk = true; } catch (_) {}
+  // 主通道已落盘就不再同步写 localStorage（WebView 里是阻塞写）；主通道失败时才用它兜底
+  if (primaryOk !== true) {
+    try { localStorage.setItem('pokemon_idle_save', s); lsOk = true; } catch (_) {}
+  }
   const ok = primaryOk === null ? lsOk : primaryOk;
   reportSaveResult(ok);
   return ok;
+}
+
+async function drainSaves() {
+  try {
+    while (_saveDirty) {
+      const wait = _saveLastAt + SAVE_MIN_GAP - Date.now();
+      if (!_saveNoDelay && wait > 0) {
+        await new Promise((r) => {
+          const t = setTimeout(done, wait);
+          function done() { clearTimeout(t); _saveWake = null; r(); }
+          _saveWake = done;
+        });
+      }
+      _saveDirty = false;
+      _saveNoDelay = false;
+      _saveLastOk = await writeSnapshot(snapshotSave());
+      _saveLastAt = Date.now();
+    }
+  } finally {
+    _saving = null;
+  }
+  return _saveLastOk;
+}
+
+export function saveGame() {
+  if (!gameData) return Promise.resolve(false);
+  if (_saveSuspended) return Promise.resolve(false);
+  _saveDirty = true;
+  if (!_saving) _saving = drainSaves();
+  return _saving;
+}
+
+// 退出 / 切后台：不等最小间隔，立刻把当前状态写掉
+export function flushSave() {
+  _saveNoDelay = true;
+  _saveWake?.();
+  return saveGame();
 }
 
 // 相遇日志：单物种只留最近 40 条、全档最多 1500 条。每只的「首次捕获」（普通/闪光各一条）

@@ -1198,19 +1198,18 @@ export async function hatchFromIncubator(slotIndex) {
 
   // 已拥有标记（普通/闪光分开）：抓到过或进化/孵蛋得到过
   const alreadyOwned = eggIsShiny ? dexShinyOwned(idx) : dexUnlocked(idx);
-  $('hatchOwnedWrap').style.display = alreadyOwned ? '' : 'none';
+  const hatchOwnedWrap = $('hatchOwnedWrap');
+  hatchOwnedWrap.style.display = alreadyOwned ? '' : 'none';
   if (alreadyOwned) {
-    const tipEl = $('hatchOwnedTip');
-    if (tipEl) {
-      const logs = (gameData.encounterLogs || {})[idx] || [];
-      const first = logs.find(l => l.result === 'caught' && !!l.shiny === eggIsShiny);
-      if (first && first.time) {
-        const d = new Date(first.time);
-        const pad = n => String(n).padStart(2, '0');
-        tipEl.textContent = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      } else {
-        tipEl.textContent = '首次捕获：较早前';
-      }
+    // 首次捕获时间走全局 data-tip：手机点一下也能弹
+    const logs = (gameData.encounterLogs || {})[idx] || [];
+    const first = logs.find(l => l.result === 'caught' && !!l.shiny === eggIsShiny);
+    if (first && first.time) {
+      const d = new Date(first.time);
+      const pad = n => String(n).padStart(2, '0');
+      hatchOwnedWrap.dataset.tip = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } else {
+      hatchOwnedWrap.dataset.tip = '首次捕获：较早前';
     }
   }
   $('hatchCatchRate').innerHTML = '稀有度 ' + rarityLabel(poke.rarity ?? 0.5);

@@ -4,10 +4,10 @@ window.__POKEIDLE_BOOTED__ = true;
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
 import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
-import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, getPokemonByIndex, trimEncounterLogs, ensureGpsState, restoreSessionState, flushBuffRecord, markBuffStateRestored, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
+import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, flushSave, getPokemonByIndex, trimEncounterLogs, ensureGpsState, restoreSessionState, flushBuffRecord, markBuffStateRestored, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
 import { migrateEncounterScores } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
-import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyWindowBg, isEvolutionShowActive, isEggShowActive, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView, relayoutStage } from './ui.js';
+import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyWindowBg, isEvolutionShowActive, isEggShowActive, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, setupOwnedTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView, relayoutStage } from './ui.js';
 import { spawnItemDrop, hasActiveDrop, activateHoney, activateShinyCharm, restoreHoneyRecord, restoreCharmRecord, grantItem, cancelItemDrop, rollCandyMult, ensureEvoMeta, renewBuffLater } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
 import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, settleStaleEncounter, ensureEncounterTextBox, setEncounterAt, syncBattleMusic, encState, setEncPhase, autoCatch, healStuckBuffPause } from './battle.js';
@@ -945,20 +945,27 @@ async function init() {
   const candidates = [];
   // 每个来源各自解析：某一档损坏（半截 JSON）只丢它自己，不能连累其它好档
   const pushCandidate = (raw) => {
-    if (!raw) return;
+    if (!raw) return false;
     try {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.items) candidates.push(parsed);
+      if (parsed && parsed.items) { candidates.push(parsed); return true; }
     } catch (_) {}
+    return false;
   };
   if (window.__TAURI__?.core?.invoke) {
     try { pushCandidate(await window.__TAURI__.core.invoke('load_game_data')); } catch (_) {}
   }
-  try { pushCandidate(await window.__POKEIDLE_MOBILE__?.readSave()); } catch (_) {}
-  // 移动端备份档：主档缺失/损坏时才可能胜出
-  try { pushCandidate(await window.__POKEIDLE_MOBILE__?.readSaveBackup?.()); } catch (_) {}
-  // 移动端外部目录镜像：内部档丢了（清数据/写坏）时靠它
-  try { pushCandidate(await window.__POKEIDLE_MOBILE__?.readSaveMirror?.()); } catch (_) {}
+  // 主档能解析就不读备份/镜像（只可能更旧），少读少解析两份存档
+  if (window.__POKEIDLE_MOBILE__?.readSave) {
+    let mainOk = false;
+    try { mainOk = pushCandidate(await window.__POKEIDLE_MOBILE__.readSave()); } catch (_) {}
+    if (!mainOk) {
+      // 移动端备份档：主档缺失/损坏时才可能胜出
+      try { pushCandidate(await window.__POKEIDLE_MOBILE__.readSaveBackup?.()); } catch (_) {}
+      // 移动端外部目录镜像：内部档丢了（清数据/写坏）时靠它
+      try { pushCandidate(await window.__POKEIDLE_MOBILE__.readSaveMirror?.()); } catch (_) {}
+    }
+  }
   try { pushCandidate(localStorage.getItem('pokemon_idle_save')); } catch (_) {}
   if (candidates.length > 0) {
     candidates.sort((a, b) => (b.stats?.lastSaveTime || 0) - (a.stats?.lastSaveTime || 0));
@@ -1012,6 +1019,7 @@ async function init() {
   ensureMassInitEvents(); // 大量出没事件：初始化下次生成时间
   ensureTwistInit();      // 时空扭曲事件：初始化下次生成时间
   setupFoodTooltip(); // 游戏内自制 tooltip 委托：全局激活，配招/战斗等所有页面 hover 可用
+  setupOwnedTooltip(); // 遭遇页「已拥有」图标：手机点一下也能看首次捕获时间
   updateBountyBadge(); // 初始化标题栏悬赏红点
   updatePhoneBadge(); // 初始化标题栏手机聚合红点
 
@@ -1168,7 +1176,7 @@ async function init() {
       if (isDualLayout()) closeAppArea();
       // 底部背包/统计栏与顶部按钮的恢复由 startSplashDrop 统一处理（splash 显示后淡入，避免闪现）
       // 首次 splash（开场剧情结束后的首个开机动画）不静音：未白镇开场曲顺势延续
-      saveGame().then(() => { beginGameplay(); startSplashDrop(null, false); });
+      flushSave().then(() => { beginGameplay(); startSplashDrop(null, false); });
     });
   } else {
     // 老玩家启动：splash 动画期间全局禁声。必须在 beginGameplay（恢复会话可能同步触发
@@ -1551,7 +1559,7 @@ async function init() {
   document.querySelector('.control-btn.close')?.addEventListener('click', async () => {
     // 触发窗口关闭流程：Rust 拦截 close-requested 后弹出二次确认，存档在确认框出现前统一保存
     if (window.__POKEIDLE_MOBILE__) {
-      try { await saveGame(); } catch (_) {}
+      try { await flushSave(); } catch (_) {}
       openQuitDialog();
       return;
     }
@@ -1568,7 +1576,7 @@ async function init() {
   $('quitExit')?.addEventListener('click', async () => {
     closeQuitDialog();
     if (window.__POKEIDLE_MOBILE__) {
-      try { await saveGame(); } catch (_) {}
+      try { await flushSave(); } catch (_) {}
       window.__POKEIDLE_MOBILE__.exitApp();
       return;
     }
@@ -1581,7 +1589,7 @@ async function init() {
   });
 
   window.__POKEIDLE_MOBILE__?.attach({
-    saveNow: () => saveGame(),
+    saveNow: () => flushSave(),
     // 壳里的原生切后台信号：挂机补发用它记账（document.hidden 在 WebView 里不可靠）
     onAppStateChange: (isActive) => notifyAppState(isActive),
     back: () => {
@@ -1599,7 +1607,7 @@ async function init() {
         await win.show();
         await win.setFocus();
       } catch (_) {}
-      try { await saveGame(); } catch (_) {} // 先落盘；存档失败不阻塞确认框弹出
+      try { await flushSave(); } catch (_) {} // 先落盘；存档失败不阻塞确认框弹出
       openQuitDialog();
     }).catch(() => {});
   }

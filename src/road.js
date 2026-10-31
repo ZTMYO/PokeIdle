@@ -18,6 +18,9 @@ let active = false;
 let _lastFrameAt = 0; // 省电模式限帧用：上次真正绘制的时间戳
 const POWER_SAVE_FRAME_MS = 1000 / 30;
 const DUAL_APP_FRAME_MS = 1000 / 15; // 双屏且下屏开着 App：上屏降到 15fps
+// 世界只有 60 步/秒：120Hz 屏多余的帧不用重画。阈值 95Hz，60/90Hz 一帧不跳
+const MIN_DRAW_MS = 1000 / 95;
+let _lastDrawAt = 0;
 
 let containerWidth = 0;
 let roadHeight = 0;
@@ -213,7 +216,13 @@ function _frame(now = 0) {
     rafId = requestAnimationFrame(_frame);
     return;
   }
+  // 非省电模式下也压到 60fps：高刷屏多出来的帧没有新内容可画
+  if (!frameMs && now - _lastDrawAt < MIN_DRAW_MS) {
+    rafId = requestAnimationFrame(_frame);
+    return;
+  }
   _lastFrameAt = now;
+  _lastDrawAt = now;
 
   // 本帧要推进的世界步数：60 步/秒。高刷屏多数帧是 0 步（只重绘），低刷屏一帧补多步；
   // 页面隐藏/长停摆不在这里补（走挂机补算）
@@ -224,7 +233,10 @@ function _frame(now = 0) {
     if (!active) break; // 某一步触发了暂停（拾取道具/进入战斗）：本帧剩余步数作废
   }
 
-  _draw();
+  // 舞台被别的页面盖住：画布不重绘，但渲染钩子要跑——它们负责把滚到一半的图标藏起来
+  const idleEl = $('idleView');
+  const stageHidden = !!idleEl && idleEl.style.display === 'none';
+  if (!stageHidden) _draw();
 
   if (_transition && _transition.remaining <= 0) {
     // 过渡完成，切到新道路。小数部分移入 _scrollFraction 保持连续

@@ -54,6 +54,7 @@ let _clouds = null;        // 云的初始位置/层速（只算一次）
 let _art = null;           // 当前色板渲染出的图层
 let _artKey = '';
 let _off = null;           // 上次的开关状态（只在变化时改 display）
+let _stageW = 0, _stageH = 0, _stageRO = null; // 舞台尺寸缓存：每帧读 clientWidth 会强制同步布局
 
 // ---------- 解码 ----------
 const b64bytes = (b64) => {
@@ -284,15 +285,16 @@ const paint = () => {
   }
   if (off) return;
   // 不在挂机页就不画：切到图鉴/商店时别白烧一帧
-  if (!_idle || _idle.style.display === 'none' || !_idle.clientWidth) return;
+  if (!_idle || _idle.style.display === 'none') return;
 
-  // 尺寸只从 #screenInner 量，绝不读 canvas 自己：canvas 是替换元素，
-  // 只写 top/bottom 时高度会跟着 height 属性走，再回写就每帧翻倍。
-  const stage = _stage || (_stage = $('screenInner') || $('screen'));
-  const stageW = stage ? stage.clientWidth : 0;
-  const stageH = stage ? stage.clientHeight : 0;
-  const cssW = Math.max(0, stageW | 0);
-  const cssH = Math.max(0, (stageH | 0) - ROAD_H);
+  // 尺寸走 ResizeObserver 缓存，别每帧读 clientWidth（强制同步布局）；
+  // 也别读 canvas 自己：只写 top/bottom 时高度会跟着 height 属性走，回写会每帧翻倍
+  if (!_stageW || !_stageH) {
+    if (!_stage) _stage = $('screenInner') || $('screen');
+    if (_stage) { _stageW = _stage.clientWidth; _stageH = _stage.clientHeight; }
+  }
+  const cssW = Math.max(0, _stageW | 0);
+  const cssH = Math.max(0, (_stageH | 0) - ROAD_H);
   if (cssW <= 0 || cssH <= 0) return;
   const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
   if (cssW !== _w || cssH !== _h || dpr !== _dpr) {
@@ -384,6 +386,16 @@ function initSkyBg() {
     _idle = $('idleView');
     _tint = $('skyTint');
     _stage = $('screenInner') || $('screen');
+    // 舞台尺寸只在布局变化时量：旋转、切经典/双屏布局都会触发
+    if ('ResizeObserver' in window && _stage) {
+      _stageRO?.disconnect();
+      _stageRO = new ResizeObserver(() => {
+        if (!_stage) return;
+        _stageW = _stage.clientWidth;
+        _stageH = _stage.clientHeight;
+      });
+      _stageRO.observe(_stage);
+    }
     if (!_canvas) {
       _canvas = $('skyCanvas');
       if (!_canvas) return;

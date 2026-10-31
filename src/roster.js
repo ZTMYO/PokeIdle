@@ -375,42 +375,41 @@ function renderList() {
   }
   // 排序
   const sorted = sortPool(pool);
-  // 渲染行（复用图鉴 .pokedex-entry 样式）：分片插入 + 分片懒加载图标，
-  // 避免几百条一次性 innerHTML 与全量图片请求长时间阻塞主线程
   _renderSeq++;
   const seq = _renderSeq;
   list.innerHTML = '';
   if (sorted.length === 0) {
+    _vRows = null;
     const hasFilter = _picker || _batchRelease || !!_advFilter
       || _srcFilter || _legendFilter || _shinyFilter || _variantFilter || _typeFilter || _regionFilter
       || !!($('rosterSearchInput')?.value || '').trim();
     list.innerHTML = `<div class="roster-empty">${hasFilter ? '没有匹配的宝可梦' : '仓库空空如也，去捕获一些宝可梦吧'}</div>`;
+  } else if (!_boxView) {
+    vStart(list, sorted);
   } else {
+    // 盒子视图是网格项，留白会破坏 grid 排布，仍走分片铺满
+    _vRows = null;
     let i = 0;
-    const CHUNK = 40;
+    let chunk = 40;        // 每帧行数：按上一帧耗时自适应，慢机上自动缩小
+    const BUDGET_MS = 8;   // 单帧渲染预算：别把上屏的动画挤掉
     const step = () => {
       if (seq !== _renderSeq || !list.isConnected) return; // 已被新一轮渲染取代或列表已卸载
       const view = $('rosterView');
       if (view && view.style.display === 'none') return; // 视图已隐藏：暂停分片，避免后台继续抢图片 I/O
+      const t0 = performance.now();
       const rows = [];
-      const end = Math.min(i + CHUNK, sorted.length);
-      for (; i < end; i++) {
-        const p = sorted[i];
-        const sel = _batchRelease && _batchSelected.has(p.id);
-        const html = _boxView ? boxHtml(p) : rowHtml(p);
-        rows.push(html.replace('<div class="pokedex-entry roster-row',
-          `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}`));
+      const end = Math.min(i + chunk, sorted.length);
+      for (; i < end; i++) rows.push(rosterRowHtml(sorted[i]));
+      // 先拼进临时容器再逐行 append：只给新增的这几十行挂观察器
+      const tmp = document.createElement('div');
+      tmp.innerHTML = rows.join('');
+      for (const el of Array.from(tmp.children)) {
+        list.appendChild(el);
+        observeRowIcon(el);
       }
-      const before = list.querySelectorAll('.roster-icon-img').length;
-      list.insertAdjacentHTML('beforeend', rows.join(''));
-      const imgs = list.querySelectorAll('.roster-icon-img');
-      for (let k = before; k < imgs.length; k++) {
-        const poke = getPokemonByIndex(imgs[k].dataset.icon);
-        if (poke?.icon) {
-          // 进入视口（含预载带）才请求；滚动经过时由观察器回调加载
-          observeRosterIcon(imgs[k]);
-        }
-      }
+      const dt = performance.now() - t0;
+      if (dt > BUDGET_MS) chunk = Math.max(12, Math.floor(chunk * 0.7));
+      else if (dt < BUDGET_MS / 2) chunk = Math.min(64, chunk + 8);
       if (i < sorted.length) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -455,6 +454,86 @@ function observeRosterIcon(img) {
     return;
   }
   _rosterIconObs.observe(img);
+}
+
+function observeRowIcon(el) {
+  const img = el.querySelector('.roster-icon-img');
+  if (!img) return;
+  const poke = getPokemonByIndex(img.dataset.icon);
+  if (poke?.icon) observeRosterIcon(img);
+}
+
+// ---------- 列表视图：虚拟滚动 ----------
+// 只渲染滚动位置附近的行，上下留白撑出滚动条高度（总高度 = 行数 × 行高）
+const ROW_OVERSCAN = 8;
+let _vRows = null;                 // 当前列表数据
+let _vPadTop = null, _vPadBot = null;
+let _vStart = -1, _vEnd = -1;
+let _vRowH = 30;                   // 行高：首次渲染后按实测值校正（批量放生会切成 24px）
+let _vProbed = false;
+let _vBound = false;
+let _vRaf = 0;
+
+function rosterRowHtml(p) {
+  const sel = _batchRelease && _batchSelected.has(p.id);
+  const html = _boxView ? boxHtml(p) : rowHtml(p);
+  return html.replace('<div class="pokedex-entry roster-row',
+    `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}`);
+}
+
+function vFill(force) {
+  const list = $('rosterList');
+  if (!list || !_vRows || !_vRows.length) return;
+  // 详情页会把整个列表内容换掉：留白已不是列表的子节点，别再往里插行
+  if (!_vPadTop || !_vPadBot || _vPadTop.parentNode !== list || _vPadBot.parentNode !== list) return;
+  const total = _vRows.length;
+  const viewH = list.clientHeight || 300;
+  const start = Math.max(0, Math.floor(list.scrollTop / _vRowH) - ROW_OVERSCAN);
+  const end = Math.min(total, Math.ceil((list.scrollTop + viewH) / _vRowH) + ROW_OVERSCAN);
+  if (!force && start === _vStart && end === _vEnd) return;
+  _vStart = start; _vEnd = end;
+  // 只换两段留白之间的行节点
+  let n = _vPadTop.nextSibling;
+  while (n && n !== _vPadBot) { const next = n.nextSibling; n.remove(); n = next; }
+  _vPadTop.style.height = (start * _vRowH) + 'px';
+  _vPadBot.style.height = ((total - end) * _vRowH) + 'px';
+  const rows = [];
+  for (let i = start; i < end; i++) rows.push(rosterRowHtml(_vRows[i]));
+  const tmp = document.createElement('div');
+  tmp.innerHTML = rows.join('');
+  for (const el of Array.from(tmp.children)) {
+    list.insertBefore(el, _vPadBot);
+    observeRowIcon(el);
+  }
+  // 行高按实测校正一次；视图藏着时量不到，留给下次可见
+  if (!_vProbed) {
+    const first = _vPadTop.nextElementSibling;
+    const h = first && first !== _vPadBot ? first.getBoundingClientRect().height : 0;
+    if (h > 0) {
+      _vProbed = true;
+      if (Math.abs(h - _vRowH) > 0.5) { _vRowH = h; _vStart = _vEnd = -1; vFill(true); }
+    }
+  }
+}
+
+function vStart(list, sorted) {
+  _vRows = sorted;
+  _vStart = _vEnd = -1;
+  _vProbed = false;
+  if (!_vBound) {
+    _vBound = true;
+    list.addEventListener('scroll', () => {
+      if (!_vRows || _vRaf) return;
+      _vRaf = requestAnimationFrame(() => { _vRaf = 0; vFill(false); });
+    }, { passive: true });
+    window.addEventListener('resize', () => { if (_vRows) vFill(true); });
+  }
+  list.innerHTML = '';
+  _vPadTop = document.createElement('div');
+  _vPadBot = document.createElement('div');
+  list.appendChild(_vPadTop);
+  list.appendChild(_vPadBot);
+  vFill(true);
 }
 
 function rowHtml(p) {
@@ -1687,6 +1766,7 @@ document.addEventListener('keydown', (e) => {
 
 function showRosterDetail(id) {
   _renderSeq++; // 详情页直接覆盖列表内容：作废未完成的分片渲染，防止 rAF 分片把列表行追加到详情下方
+  _vRows = null; // 虚拟列表同时作废：这个容器现在归详情页
   const p = (gameData.roster || []).find(r => r.id === id);
   if (!p) return;
   const fromList = _detailId == null; // 只有首次从列表进来才记位置，详情内切上下一只不能覆盖掉
@@ -2752,6 +2832,8 @@ export function showRosterView(noNav, opts) {
   syncAdvFilterUi(); // 恢复高级筛选预览条状态（搜索行显隐）
   renderList();
   showView('rosterView');
+  // 渲染时视图还藏着（clientHeight 为 0），按可见高度补一次窗口，别让底部留白
+  if (!_boxView) vFill(true);
   // 重新进入列表：渲染那一刻图标还在懒加载、行高没成型，浏览器会把滚动夹到较小值，
   // 等两帧高度稳定后按记录回位（同一视图内重绘不受影响，别干扰正常浏览）
   if (fromOtherView) restoreListScroll(Number(listEl?.dataset.savedScroll || 0));

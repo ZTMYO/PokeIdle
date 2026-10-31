@@ -112,6 +112,22 @@ function startClock() {
   setInterval(tick, 1000);
 }
 
+// 歌名超宽时启动跑马灯，只在换曲/布局变化时量一次宽度
+let _mqTitle = '';   // 量过宽度的曲名：没显示时量不到，不记，等回来补
+function syncPhoneMusicScroll() {
+  const wrap = $('phoneMusicTitleWrap');
+  const titleEl = $('phoneMusicTitle');
+  if (!wrap || !titleEl) return;
+  if (!wrap.clientWidth) { wrap.classList.remove('scrolling'); return; } // 手机页没显示，等回来再量
+  _mqTitle = titleEl.textContent;
+  const overflow = titleEl.scrollWidth > wrap.clientWidth;
+  wrap.classList.remove('scrolling');
+  if (!overflow) return;
+  wrap.style.setProperty('--marquee', (wrap.clientWidth - titleEl.scrollWidth) + 'px');
+  void titleEl.offsetWidth; // 让移除生效并带上新距离，再挂类重启动画：换歌后从起点开始滚
+  wrap.classList.add('scrolling');
+}
+
 // 时间下方显示当前地区音乐：标题变化才写 DOM，波形仅在地区曲实际发声时跳动
 function updatePhoneMusic() {
   const el = $('phoneMusic');
@@ -123,14 +139,23 @@ function updatePhoneMusic() {
   // 音乐开着就常驻这条（暂停时也能点进去换歌）；音乐总开关关掉、或还没播过曲子时收起
   if (!isMusicEnabled() || !info.title) {
     if (pv) pv.classList.remove('has-music');
+    $('phoneMusicTitleWrap')?.classList.remove('scrolling');
     return;
   }
+  const wasOn = !!pv && pv.classList.contains('has-music');
   if (pv) pv.classList.add('has-music');
   const titleEl = $('phoneMusicTitle');
-  if (titleEl && titleEl.textContent !== info.title) titleEl.textContent = info.title;
+  const changed = !!titleEl && titleEl.textContent !== info.title;
+  if (changed) titleEl.textContent = info.title;
   const eq = $('phoneMusicEq');
   if (eq) eq.classList.toggle('on', info.playing);
+  // 换曲或音乐栏刚展开时量宽度；手机页没显示就等回首页补
+  const visible = !!pv && pv.style.display !== 'none';
+  if (visible && (changed || !wasOn || _mqTitle !== info.title)) requestAnimationFrame(syncPhoneMusicScroll);
 }
+
+window.addEventListener('resize', () => { syncPhoneMusicScroll(); });
+window.addEventListener('view-changed', (e) => { if (e.detail === 'phoneView') syncPhoneMusicScroll(); });
 
 export function showPhoneView() {
   showPhoneHome();
@@ -193,6 +218,7 @@ export function showPhoneHome() {
   // 手游双屏：显示到下半屏应用容器（不改当前页）；经典布局等同整屏切换
   showAppView('phoneView');
   $('phoneContent')?._syncPage?.();   // 显示后再归位一次（隐藏时容器宽为 0，滚不到目标页）
+  syncPhoneMusicScroll();             // 回到首页再量一次歌名宽度（隐藏期间量不到）
   // 下半屏停在首页就是把当前页记成首页：入口高亮跟着走，返回按钮随之置灰
   if (isDualLayout()) syncViewChrome('phoneView');
 }

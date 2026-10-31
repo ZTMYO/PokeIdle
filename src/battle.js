@@ -878,20 +878,17 @@ export function renderEncounterScene(poke) {
     const hasOwned = currentIsShiny ? dexShinyOwned(poke.index) : dexUnlocked(poke.index);
     ownedWrap.style.display = hasOwned ? '' : 'none';
     if (hasOwned) {
-      const tip = $('encounterOwnedTip');
-      if (tip) {
-        // 首次捕获时间：取该形态第一条 caught 日志；进化/孵蛋得到的没有
-        const logs = (gameData.encounterLogs || {})[String(poke.index)] || [];
-        const first = logs.find(l => l.result === 'caught' && !!l.shiny === currentIsShiny);
-        if (first && first.time) {
-          const d = new Date(first.time);
-          const pad = n => String(n).padStart(2, '0');
-          tip.textContent = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        } else if (first) {
-          tip.textContent = '首次捕获：较早前';
-        } else {
-          tip.textContent = '不是亲手捕捉到的，没有捕获记录';
-        }
+      // 首次捕获时间：走全局 data-tip，手机点一下也能弹
+      const logs = (gameData.encounterLogs || {})[String(poke.index)] || [];
+      const first = logs.find(l => l.result === 'caught' && !!l.shiny === currentIsShiny);
+      if (first && first.time) {
+        const d = new Date(first.time);
+        const pad = n => String(n).padStart(2, '0');
+        ownedWrap.dataset.tip = `首次捕获：${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } else if (first) {
+        ownedWrap.dataset.tip = '首次捕获：较早前';
+      } else {
+        ownedWrap.dataset.tip = '不是亲手捕捉到的，没有捕获记录';
       }
     }
   }

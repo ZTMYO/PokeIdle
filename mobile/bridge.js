@@ -40,17 +40,25 @@ function readSaveMirror() {
 
 // 写入串行化：存档由 30 秒周期与多个事件同时触发，并发写会互相截断
 let writeChain = Promise.resolve();
+// 上一次写出去的内容：有它就不必每次先读一遍 2MB 旧档做比较
+let _lastWritten = null;
+let _writeCount = 0;
+// 备份与外部镜像降频：主档每次都写，二者每 6 次（约数分钟）跟一次
+const COPY_EVERY = 6;
 
 function writeSave(data) {
   writeChain = writeChain.catch(() => {}).then(async () => {
-    const current = await readFileText(SAVE_PATH);
-    if (current && current !== data) {
-      await Filesystem.writeFile({
-        path: BACKUP_PATH,
-        data: current,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
-      });
+    const copy = _writeCount % COPY_EVERY === 0;
+    if (copy) {
+      const current = _lastWritten != null ? _lastWritten : await readFileText(SAVE_PATH);
+      if (current && current !== data) {
+        await Filesystem.writeFile({
+          path: BACKUP_PATH,
+          data: current,
+          directory: Directory.Data,
+          encoding: Encoding.UTF8,
+        });
+      }
     }
     await Filesystem.writeFile({
       path: SAVE_PATH,
@@ -59,12 +67,16 @@ function writeSave(data) {
       encoding: Encoding.UTF8,
     });
     // 顺手镜像一份到外部私有目录：写失败不影响主档
-    await Filesystem.writeFile({
-      path: SAVE_PATH,
-      data,
-      directory: Directory.External,
-      encoding: Encoding.UTF8,
-    }).catch(() => {});
+    if (copy) {
+      await Filesystem.writeFile({
+        path: SAVE_PATH,
+        data,
+        directory: Directory.External,
+        encoding: Encoding.UTF8,
+      }).catch(() => {});
+    }
+    _lastWritten = data;
+    _writeCount++;
   });
   return writeChain;
 }

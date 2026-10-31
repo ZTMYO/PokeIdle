@@ -17,6 +17,7 @@ let _pokedexLegend = 'all'; // 二级：all=不限 | normal(普通) | legend(神
 let _pokedexShiny = 'all';  // 二级：all=不限 | normal(非闪光) | shiny(闪光)
 let _pokedexType = '';     // 属性筛选（''=全部）
 let _pokedexBoxView = false; // 盒子（网格）视图：右键菜单切换，选择记到 localStorage
+let _pokedexRenderSeq = 0;  // 列表分片渲染的序号：新一轮渲染要顶掉上一轮没跑完的分片
 try { _pokedexBoxView = localStorage.getItem('pokedexBoxView') === '1'; } catch (e) {}
 
 // 「图鉴认不认这一条」：遇到过，或已经获得过——孵蛋 / 交换 / 彩蛋 / 进化得到的常常没在野外遇见过
@@ -167,6 +168,7 @@ export function backFromPokedexLogs() {
 function renderPokedexLogsPage(idx) {
   const list = $('pokedexList');
   if (!list) return;
+  _pokedexRenderSeq++;   // 顶掉还没跑完的列表分片：这个容器现在归日志页
   _logsIdx = idx;
   enterLogsTitle();
   let html = '';
@@ -205,6 +207,7 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
   const displayName = known ? (poke?.form || poke?.name || `#${pokemonIndex}`) : '？？？';
   const list = $('pokedexList');
   if (!list) return;
+  _pokedexRenderSeq++;   // 顶掉还没跑完的列表分片：这个容器现在归详情页
 
   setPokedexInLogView(true);
   // 从详情进日志页：记住详情滚动位置，返回时回到原处；从列表进详情：保存列表滚动并滚到顶部
@@ -438,11 +441,18 @@ export function restorePokedex() {
   const progEl = $('pokedexProgress');
   if (progEl) progEl.style.display = '';
   showPokedex();
-  // 恢复滚动位置（列表容器的滚动）
+  // 恢复滚动位置（列表容器的滚动）：分片还在铺行，高度没成型前写会被夹住，多试几帧
   const pl = $('pokedexList');
   if (pl && pl.dataset.savedScroll) {
     const top = Number(pl.dataset.savedScroll);
-    requestAnimationFrame(() => requestAnimationFrame(() => { pl.scrollTop = top; }));
+    let tries = 0;
+    const apply = () => {
+      const next = $('pokedexList');
+      if (!next) return;
+      next.scrollTop = top;
+      if (Math.abs(next.scrollTop - top) > 1 && ++tries < 60) requestAnimationFrame(apply);
+    };
+    requestAnimationFrame(apply);
   }
 }
 
@@ -809,11 +819,15 @@ window.addEventListener('roster-changed', () => {
   const list = $('pokedexList');
   const top = list ? list.scrollTop : 0;
   showPokedex();
-  // 同上：渲染里会把列表滚动清零，等两帧高度成型后写回
-  requestAnimationFrame(() => requestAnimationFrame(() => {
+  // 分片渲染期间高度还没成型，写一次会被浏览器夹住：反复试到位置站住
+  let tries = 0;
+  const apply = () => {
     const next = $('pokedexList');
-    if (next) next.scrollTop = top;
-  }));
+    if (!next) return;
+    next.scrollTop = top;
+    if (Math.abs(next.scrollTop - top) > 1 && ++tries < 60) requestAnimationFrame(apply);
+  };
+  requestAnimationFrame(apply);
 });
 
 // ===== 盒子（网格）视图 =====
@@ -971,7 +985,6 @@ export function showPokedex() {
   pushNav('pokedexView');
   const list = $('pokedexList');
   if (!list) return;
-  delete list.dataset.savedHtml;
   // 盒子 / 列表视图：容器类驱动表头与网格布局
   $('pokedexView')?.classList.toggle('pokedex-box', _pokedexBoxView);
   syncPokedexBoxRows();
@@ -985,21 +998,17 @@ export function showPokedex() {
     const unlocked = filtered.filter(p => dexUnlocked(p.index)).length;
     progEl.textContent = `已相遇 ${seen}/${total}  ·  已解锁 ${unlocked}/${total}`;
   }
-  let html = '';
-  if (_pokedexBoxView) {
-    for (const p of sorted) html += pokedexBoxHtml(p, caughtMap);
-  } else {
-    for (const p of sorted) {
-      const entry = caughtMap[p.index];
-      const seen = entry?.seen || 0;
-      const caught = entry?.caught || 0;
-      const shinySeen = entry?.shinySeen || 0;
-      const shinyCaught = entry?.shinyCaught || 0;
-      // 星标按「持有过」给：进化得到的形态也算拥有
-      const shinyTag = dexUnlocked(p.index) ? (dexShinyOwned(p.index) ? STAR_FILLED : STAR_OUTLINE) : '';
-      // 获得过（哪怕没在野外遇见过）就显示真名——与详情页同一口径
-      const known = dexKnown(p.index, seen);
-      html += `<div class="pokedex-entry${known ? '' : ' disabled'}" data-index="${p.index}" data-seen="${known ? '1' : '0'}">
+  const rowHtmlFor = (p) => {
+    const entry = caughtMap[p.index];
+    const seen = entry?.seen || 0;
+    const caught = entry?.caught || 0;
+    const shinySeen = entry?.shinySeen || 0;
+    const shinyCaught = entry?.shinyCaught || 0;
+    // 星标按「持有过」给：进化得到的形态也算拥有
+    const shinyTag = dexUnlocked(p.index) ? (dexShinyOwned(p.index) ? STAR_FILLED : STAR_OUTLINE) : '';
+    // 获得过（哪怕没在野外遇见过）就显示真名——与详情页同一口径
+    const known = dexKnown(p.index, seen);
+    return `<div class="pokedex-entry${known ? '' : ' disabled'}" data-index="${p.index}" data-seen="${known ? '1' : '0'}">
       <span class="pokedex-star">${shinyTag}</span>
       <span class="pokedex-idx">#${p.index}</span>
       <span class="pokedex-name">${known ? p.name : '？？？'}</span>
@@ -1008,10 +1017,29 @@ export function showPokedex() {
       <span class="pokedex-stat">${shinySeen}</span>
       <span class="pokedex-stat">${shinyCaught}</span>
     </div>`;
+  };
+  // 分片渲染：上千行一次 innerHTML 会在切页那一刻占住主线程（双屏下上屏跟着掉帧）
+  const seq = ++_pokedexRenderSeq;
+  const box = _pokedexBoxView;
+  list.innerHTML = '';
+  let i = 0;
+  const step = () => {
+    if (seq !== _pokedexRenderSeq || !list.isConnected) return;
+    const rows = [];
+    const end = Math.min(i + 120, sorted.length);
+    for (; i < end; i++) rows.push(box ? pokedexBoxHtml(sorted[i], caughtMap) : rowHtmlFor(sorted[i]));
+    const tmp = document.createElement('div');
+    tmp.innerHTML = rows.join('');
+    for (const el of Array.from(tmp.children)) {
+      list.appendChild(el);
+      if (box) {
+        const img = el.querySelector('.pokedex-box-icon');
+        if (img) observePokedexIcon(img);
+      }
     }
-  }
-  list.innerHTML = html;
-  if (_pokedexBoxView) list.querySelectorAll('.pokedex-box-icon').forEach(observePokedexIcon);
+    if (i < sorted.length) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
   // 点击条目弹出遭遇日志（仅已看到过的）
   list.onclick = (e) => {
     const entry = e.target.closest('.pokedex-entry');

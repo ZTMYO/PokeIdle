@@ -1758,3 +1758,18 @@ export function setupFoodTooltip() {
   // 滚出/切页时隐藏
   document.addEventListener('scroll', hideFoodTip, true);
 }
+
+// 已拥有图标：手机点一下显示首次捕获提示（不依赖合成的 mouseover）
+let _ownedTipInit = false;
+export function setupOwnedTooltip() {
+  if (_ownedTipInit) return;
+  _ownedTipInit = true;
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.clientX && !e.clientY) return;
+    const at = document.elementFromPoint(e.clientX, e.clientY);
+    const wrap = (at && at.closest && at.closest('.encounter-owned-wrap'))
+      || (e.target && e.target.closest && e.target.closest('.encounter-owned-wrap'));
+    if (!wrap || !wrap.dataset.tip) return;
+    showFoodTip(wrap.dataset.tip, e.clientX, e.clientY);
+  }, true);
+}
