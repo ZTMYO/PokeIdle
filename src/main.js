@@ -10,7 +10,7 @@ import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwis
 import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyWindowBg, isEvolutionShowActive, isEggShowActive, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView, relayoutStage } from './ui.js';
 import { spawnItemDrop, hasActiveDrop, activateHoney, activateShinyCharm, restoreHoneyRecord, restoreCharmRecord, grantItem, cancelItemDrop, rollCandyMult, ensureEvoMeta, renewBuffLater } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
-import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, settleStaleEncounter, ensureEncounterTextBox, setEncounterAt, syncBattleMusic, encState, setEncPhase, autoCatch } from './battle.js';
+import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, settleStaleEncounter, ensureEncounterTextBox, setEncounterAt, syncBattleMusic, encState, setEncPhase, autoCatch, healStuckBuffPause } from './battle.js';
 import { startIdleRotation } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
 import { helperTick, showBerryView, catchUpHelper } from './berry.js';
@@ -586,6 +586,9 @@ async function onGameTick() {
   if (!nextEncounterTimer && !gameData.wildEncounter && !isFishingPending() && !inMassZone() && !inTwistZone() && !road.isBike()) {
     scheduleNextEncounter();
   }
+
+  // buff 暂停态兜底自愈：没有该暂停的场景却还挂着暂停余量 → 恢复（防止某条收尾路径漏了 resume）
+  healStuckBuffPause();
 
   // 骑行 / 蹲扭曲点期间到期的自动续杯：等离开那儿回到挂机再续上
   renewBuffLater();

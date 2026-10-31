@@ -1557,6 +1557,24 @@ html.mobile-app #quitHide { display: none !important; }
 }
 .catch-stage .anim-ball.visible { opacity: 1; }
 
+/* 吸收粒子层：画在精灵球下面（z-index 低于球），看起来是被球吞进去 */
+.catch-stage .absorb-fx {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+}
+.catch-stage .absorb-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 1px;
+  will-change: transform, opacity;
+}
 /* 丢球角色（左下角，不被文字框遮住，默认显最后一帧） */
 .anim-throw-char {
   position: absolute;
@@ -5233,15 +5251,22 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   font-weight: 700;
 }
 /* 来源筛选三级菜单：一级=来源，二级=普通/神兽，三级=闪光（hover 逐级展开） */
-#rosterFilterDropdown, #trainPickSrcFilterDropdown, #teamPickSrcFilterDropdown, #dispatchPickSrcFilterDropdown { max-height: none; overflow: visible; padding: 2px 0; }
+#rosterFilterDropdown, #trainPickSrcFilterDropdown, #teamPickSrcFilterDropdown, #dispatchPickSrcFilterDropdown {
+  max-height: none;
+  overflow: visible;
+  padding: 2px 0;
+  /* 按内容收窄：以前跟着触发按钮撑满，箭头被顶到行尾，三级菜单只好往左翻 */
+  min-width: 0;
+  width: max-content;
+}
 /* 图鉴解锁/稀有度/闪光筛选三级菜单（同仓库样式） */
-#pokedexStatusDropdown { max-height: none; overflow: visible; padding: 2px 0; }
+#pokedexStatusDropdown { max-height: none; overflow: visible; padding: 2px 0; min-width: 0; width: max-content; }
 .roster-filter-item {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  justify-content: flex-start;   /* 箭头紧跟文字，别拉到行尾 */
+  gap: 4px;
   padding: 2px 5px;
   font-size: 9px;
   color: var(--ui-color);
@@ -5255,7 +5280,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 }
 .roster-filter-src,
 .roster-filter-leaf {
-  flex: 1;
+  flex: 0 0 auto;
   cursor: pointer;
 }
 /* 选中态：整行背景高亮（优先于 hover），与 .region-dropdown-item.active 视觉一致 */

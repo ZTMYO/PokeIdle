@@ -1654,9 +1654,11 @@ export function handleHoneyExpired() {
   clearHoneyCountdown();
   $('idleText').textContent = '✦ 甜甜蜜的效果渐渐褪去了';
   if (away) {
-    // 停摆窗口里到期：保留到期时刻，回前台的补发会按「离开时还剩多少」重建这段并模拟续杯
+    // 停摆窗口里到期：保留到期时刻，回前台的补发会按「离开时还剩多少」重建这段并模拟续杯。
+    // 这里必须落盘：主存档里的 buff 记录要跟着清掉，否则刷新后会把已经到期的增益"复活"
     _buffRenewPending = true;
     setHoneyExpiryTimer(null);
+    saveGame();
     return;
   }
   setHoneyCountdownEnd(0);
@@ -1685,9 +1687,11 @@ export function handleCharmExpired() {
   clearCharmCountdown();
   showBuffExpired('charm');
   if (away) {
-    // 停摆窗口里到期：保留到期时刻（保底也留着），回前台的补发重建这段 buff 并按时间线续杯
+    // 停摆窗口里到期：保留到期时刻（保底也留着），回前台的补发重建这段 buff 并按时间线续杯。
+    // 同样要落盘清掉旧记录，避免刷新后复活已到期的护符
     _buffRenewPending = true;
     setCharmExpiryTimer(null);
+    saveGame();
     return;
   }
   // 保底不随到期作废：方块/扭曲期间普通遭遇被压着，60 秒里可能一次都用不上，留到下一只普通遭遇兑现

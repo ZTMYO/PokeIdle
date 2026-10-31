@@ -209,6 +209,8 @@ export function restoreCatchAnim() {
     stageEl.style.width = '';
     stageEl.style.height = '';
   }
+  // 清掉吸收粒子层的残留（动画中途被打断时定时器可能还没跑到）
+  $('catchStage')?.querySelector('.absorb-fx')?.replaceChildren();
   // 清理精灵球残留（可能在上一次捕捉动画后未被清除）
   const ball = $('animBall');
   if (ball) {
@@ -630,18 +632,102 @@ export async function animThrow(stage, ball, ballType, stageW, stageH, pkmnOrigY
   setBallImage(ball, ballType, 'open');
 }
 
-// === 阶段2：宝可梦吸收入球 ===
+// 从立绘取几个代表色给粒子用；取不到（跨域/未加载）就用兜底色
+function absorbPalette(img) {
+  const fallback = ['#ffffff', '#ffe9a8', '#9fe0ff', '#ffd0e8'];
+  try {
+    const c = document.createElement('canvas');
+    c.width = 24;
+    c.height = 24;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data;
+    const buckets = new Map();
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 200) continue;
+      const r = d[i], gg = d[i + 1], b = d[i + 2];
+      if (r > 244 && gg > 244 && b > 244) continue;   // 跳过近白底
+      const key = `${r >> 5},${gg >> 5},${b >> 5}`;
+      const e = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+      e.n++; e.r += r; e.g += gg; e.b += b;
+      buckets.set(key, e);
+    }
+    const top = [...buckets.values()].sort((a, b2) => b2.n - a.n).slice(0, 4)
+      .map(e => `rgb(${Math.round(e.r / e.n)},${Math.round(e.g / e.n)},${Math.round(e.b / e.n)})`);
+    return top.length ? top : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+// 粒子消散：立绘内部随机位置起手，带一点外扩弧线收进球心（画在球下面，看起来是被吞进去）
+function spawnAbsorbParticles(stage, box, ballCX, ballCY, colors) {
+  if (!stage || !(box.w > 0) || !(box.h > 0)) return;
+  let layer = stage.querySelector('.absorb-fx');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.className = 'absorb-fx';
+    stage.appendChild(layer);
+  }
+  layer.innerHTML = '';
+  for (let i = 0; i < 36; i++) {
+    const size = 2 + Math.round(Math.random() * 3);
+    const el = document.createElement('div');
+    el.className = 'absorb-dot';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.background = colors[i % colors.length];
+    const sx = box.x + Math.random() * box.w;
+    const sy = box.y + Math.random() * box.h;
+    const ex = ballCX + (Math.random() - 0.5) * 2;   // 终点就是球心，只留 1px 抖动
+    const ey = ballCY + (Math.random() - 0.5) * 2;
+    const mx = (sx + ex) / 2 + (Math.random() - 0.5) * 26;   // 先外扩再收束
+    const my = (sy + ey) / 2 + (Math.random() - 0.5) * 26;
+    const h = size / 2;
+    el.style.transform = `translate(${sx - h}px, ${sy - h}px)`;
+    layer.appendChild(el);
+    el.animate([
+      { transform: `translate(${sx - h}px, ${sy - h}px) scale(1)`, opacity: 0 },
+      { transform: `translate(${sx - h}px, ${sy - h}px) scale(1)`, opacity: 1, offset: 0.14 },
+      { transform: `translate(${mx - h}px, ${my - h}px) scale(.9)`, opacity: 1, offset: 0.55 },
+      { transform: `translate(${ex - h}px, ${ey - h}px) scale(.4)`, opacity: .9, offset: 0.86 },
+      { transform: `translate(${ex - h}px, ${ey - h}px) scale(0)`, opacity: 0 },
+    ], {
+      duration: 280 + Math.random() * 140,
+      delay: Math.random() * 170,
+      easing: 'cubic-bezier(.45,.05,.55,.95)',
+      fill: 'forwards',
+    });
+  }
+  // 全部落进球里之后把图层整个移除（下次吸收会重建），不留任何节点
+  clearTimeout(layer._clearT);
+  layer._clearT = setTimeout(() => { layer.remove(); }, 900);
+}
+
+// === 阶段2：宝可梦吸收入球（散成粒子 → 汇入球心）===
 async function animAbsorb(pkmn, pkmnCX, pkmnCY, ballCX, ballCY) {
   // 宝可梦朝向球的位置收缩
   const dx = ballCX - pkmnCX;
   const dy = ballCY - pkmnCY;
 
-  await animate(500, t => {
-    // ease-in 加速收缩
+  // 粒子从立绘当前的位置起手（用真实布局盒，缩放中的 transform 不影响）
+  const stage = $('catchStage');
+  if (stage) {
+    const sr = stage.getBoundingClientRect();
+    const pr = pkmn.getBoundingClientRect();
+    spawnAbsorbParticles(
+      stage,
+      { x: pr.left - sr.left, y: pr.top - sr.top, w: pr.width, h: pr.height },
+      ballCX, ballCY, absorbPalette(pkmn)
+    );
+  }
+
+  await animate(560, t => {
+    // ease-in 加速收缩；立绘提前淡出，把画面交给粒子
     const ease = t * t;
     const scale = 1 - ease;
     pkmn.style.transform = `translate(${dx * ease}px, ${dy * ease}px) scale(${Math.max(scale, 0)})`;
-    if (t > 0.85) pkmn.style.opacity = '0';
+    if (t > 0.42) pkmn.style.opacity = '0';
   });
   pkmn.style.opacity = '0';
   pkmn.style.transform = `translate(${dx}px, ${dy}px) scale(0)`;
@@ -767,8 +853,14 @@ export async function playCatchSequence(ballType, outcome, breakRound) {
   const ballCY = parseFloat(ball.style.top);
   const pkmnCX = pkmnOrigX + pkmnW / 2;
   const pkmnCY = pkmnOrigY + pkmnH / 2;
+  // 吸收终点取精灵球元素中心：球精灵 32×64 经 object-fit:contain 画成 20×40，元素中心正好是球体中心
+  // （旧值 +12 比球心偏左上 8px，粒子会飘在球左上角）；用矩形求也能跟上缩放/transform
+  const ballBox = ball.getBoundingClientRect();
+  const stageBox = stage.getBoundingClientRect();
+  const ballMidX = ballBox.left - stageBox.left + ballBox.width / 2;
+  const ballMidY = ballBox.top - stageBox.top + ballBox.height / 2;
 
-  await animAbsorb(pkmn, pkmnCX, pkmnCY, ballCX + 12, ballCY + 12);
+  await animAbsorb(pkmn, pkmnCX, pkmnCY, ballMidX, ballMidY);
 
   // ---- 阶段3：下坠 + 弹跳（球落到屏幕统一位置）----
   const groundY = stageH * 0.38; // 统一降落点（上移）

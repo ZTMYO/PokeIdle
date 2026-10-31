@@ -264,11 +264,31 @@
     .preview-frame {
       position: relative;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #skyPreview {
+      display: block;
+      image-rendering: pixelated;
     }
 
     #previewCanvas {
       display: block;
       image-rendering: pixelated;
+    }
+
+    /* 路面染色层：跟游戏里一样，背景换时段时路面一起上色 */
+    .pv-sky-tint {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0;
+      transition: background-color .3s linear, opacity .3s linear;
     }
 
     /* Brendan 覆盖在 Canvas 上 */
@@ -662,7 +682,9 @@
       <div class="preview-title">实时预览</div>
       <div class="preview-screen">
         <div class="preview-frame">
+          <canvas id="skyPreview"></canvas>
           <canvas id="previewCanvas"></canvas>
+          <div class="pv-sky-tint" id="pvSkyTint"></div>
           <div class="preview-brendan walk" id="brendanPreview"></div>
         </div>
       </div>
@@ -673,6 +695,14 @@
         <div class="psep"></div>
         <button class="btn btn-sm btn-active" id="pvFixed">固定</button>
         <button class="btn btn-sm btn-sec" id="pvProb">概率</button>
+        <div class="psep"></div>
+        <select id="pvSkyTime" class="btn btn-sm btn-sec" style="height:22px;padding:0 2px;font-size:10px;">
+          <option value="auto">背景 跟随时间</option>
+          <option value="day">背景 白天</option>
+          <option value="dusk">背景 黄昏</option>
+          <option value="night">背景 夜晚</option>
+          <option value="off">背景 关闭</option>
+        </select>
         <div class="psep"></div>
         <span style="font-size:10px;color:var(--text-muted);">道路自动滚动</span>
       </div>
@@ -730,6 +760,9 @@
     let _dirHandle = null;    // File System Access 目录句柄
 
     const $ = id => document.getElementById(id);
+
+    // 视差背景素材（与游戏同一份数据，tools/ 下放了副本）
+    import { TREES_IMG, CLOUDS_IMG, TREES_MAP, GRASS_IMG, GRASS_MAP, SKY_PALETTES } from './sky-bg-data.js';
 
     // ==================== 瓦片面板 ====================
     const cvs = $('paletteCanvas'), ctx = cvs.getContext('2d');
@@ -999,6 +1032,7 @@
       const speed = previewMode === 'bike' ? 3.0 : previewMode === 'run' ? 1.1 : 0.6;
       scrollX = (scrollX + speed) % (cols * PV_TILE);
       drawRoad();
+      drawSkyPreview(speed);
       requestAnimationFrame(loopPreview);
     }
 
@@ -1034,6 +1068,291 @@
       pvCtx.clearRect(0, 0, w, h);
       drawPattern(-scrollX);
       drawPattern(-scrollX + w);
+    }
+
+    // ==================== 预览：视差背景 ====================
+    // 层级/缩放/速度与游戏 src/sky-bg.js 一致：天空条贴顶、景观贴底、路面同色遮罩，
+    // 编辑器里看到的组合就是挂机页里的样子。
+    const SKY_SCALE = 1.5;
+    const SKY_SKY_H = 40;        // 天空条高度（源像素）
+    const SKY_ART_H = 112;       // 可见景观高度：天空 40 + 山 40 + 林线 16 + 林下地面 16
+    const SKY_FAR_Y = 80;
+    const SKY_NEAR_Y = 57;
+    const SKY_GRASS_Y = 96;
+    const SKY_GRASS_H = 12;
+    const SKY_RIDGE_BASE = 80;
+    const SKY_RIDGE_W = 768;
+    const SKY_SPAN = 288;
+    const SKY_SPEED = { ridge: [0.014, 0.008], far: 0.022, near: 0.12, grass: 0.55, cloud: [0.05, 0.036, 0.024, 0.012] };
+    const SKY_TIME_KEYS = [
+      { h: 0, p: 'night' }, { h: 5, p: 'night' }, { h: 6.5, p: 'dusk' }, { h: 9, p: 'day' },
+      { h: 16, p: 'day' }, { h: 18, p: 'dusk' }, { h: 20, p: 'night' }, { h: 24, p: 'night' },
+    ];
+    const SKY_TINT = { day: [0, 0, 0, 0], dusk: [255, 178, 126, 0.14], night: [20, 32, 72, 0.55] };
+    const SKY_CLOUD_FRAMES = [
+      { x: 0, y: 0, w: 32, h: 32 }, { x: 0, y: 32, w: 16, h: 16 },
+      { x: 0, y: 40, w: 16, h: 8 }, { x: 16, y: 40, w: 16, h: 8 },
+    ];
+
+    const skyCvs = $('skyPreview');
+    const skyCtx = skyCvs.getContext('2d');
+    const skyTintEl = $('pvSkyTint');
+    let skyBands = null, skyRidges = null, skyClouds = null, skyArt = null, skyArtKey = '', skyDist = 0, skyW = 0, skyH = 0;
+
+    const skyB64 = (b64) => {
+      const bin = atob(b64);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    };
+
+    const skyRle = (def) => {
+      const raw = skyB64(def.rle);
+      const px = new Uint8Array(def.w * def.h);
+      let p = 0;
+      for (let i = 0; i < raw.length; i += 2) { px.fill(raw[i + 1], p, p + raw[i]); p += raw[i]; }
+      return { w: def.w, h: def.h, px };
+    };
+
+    const skyMap16 = (def) => {
+      const raw = skyB64(def.b64);
+      const entries = new Uint16Array(def.w * def.h);
+      for (let i = 0; i < entries.length; i++) entries[i] = raw[i * 2] | (raw[i * 2 + 1] << 8);
+      return { w: def.w, h: def.h, entries };
+    };
+
+    // u16 tilemap → 索引带
+    const skyCompose = (tileset, map, y0, y1) => {
+      const W = map.w * 8, H = y1 - y0;
+      const px = new Uint8Array(W * H);
+      const perRow = tileset.w / 8;
+      for (let my = Math.floor(y0 / 8); my < Math.ceil(y1 / 8); my++) {
+        for (let mx = 0; mx < map.w; mx++) {
+          const v = map.entries[my * map.w + mx];
+          const tid = v & 0x3ff, hf = (v >> 10) & 1, vf = (v >> 11) & 1;
+          const tx = (tid % perRow) * 8, ty = Math.floor(tid / perRow) * 8;
+          for (let y = 0; y < 8; y++) {
+            const ay = my * 8 + y;
+            if (ay < y0 || ay >= y1) continue;
+            for (let x = 0; x < 8; x++) {
+              px[(ay - y0) * W + mx * 8 + x] = tileset.px[(ty + (vf ? 7 - y : y)) * tileset.w + (tx + (hf ? 7 - x : x))];
+            }
+          }
+        }
+      }
+      return { w: W, h: H, px };
+    };
+
+    const skyColorize = (band, pal) => {
+      const c = document.createElement('canvas');
+      c.width = band.w; c.height = band.h;
+      const g = c.getContext('2d');
+      const img = g.createImageData(band.w, band.h);
+      const d = img.data;
+      for (let i = 0; i < band.px.length; i++) {
+        const v = band.px[i];
+        if (!v) continue;
+        const col = pal[v] || [255, 0, 255];
+        const o = i * 4;
+        d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+      return c;
+    };
+
+    const skyRandom = (seed) => {
+      let a = seed >>> 0;
+      return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    };
+
+    const skyRidge = (rng, baseY, maxH, peaks) => {
+      const list = [];
+      for (let i = 0; i < peaks; i++) list.push({ x: rng() * SKY_RIDGE_W, h: maxH * (0.45 + rng() * 0.55), w: 18 + rng() * 46 });
+      const ridge = new Float32Array(SKY_RIDGE_W).fill(baseY);
+      for (let x = 0; x < SKY_RIDGE_W; x++) {
+        let top = baseY;
+        for (const p of list) {
+          let d = Math.abs(x - p.x);
+          d = Math.min(d, SKY_RIDGE_W - d);
+          if (d < p.w) {
+            const y = baseY - p.h * Math.pow(1 - d / p.w, 1.25);
+            if (y < top) top = y;
+          }
+        }
+        ridge[x] = top;
+      }
+      return ridge;
+    };
+
+    const skyLerpColor = (a, b, t) => [
+      Math.round(a[0] + (b[0] - a[0]) * t),
+      Math.round(a[1] + (b[1] - a[1]) * t),
+      Math.round(a[2] + (b[2] - a[2]) * t),
+    ];
+
+    const skyPhasePal = (key) => ({
+      name: key,
+      trees: SKY_PALETTES[key].trees,
+      clouds: SKY_PALETTES[key].clouds,
+      grass: SKY_PALETTES[key].grass,
+      tint: SKY_TINT[key],
+    });
+
+    // 跟随系统时间在 白天/黄昏/夜晚 之间插值（日出日落都走黄昏档）
+    const skyPaletteAt = (hours) => {
+      let a = SKY_TIME_KEYS[0], b = SKY_TIME_KEYS[SKY_TIME_KEYS.length - 1];
+      for (let i = 0; i < SKY_TIME_KEYS.length - 1; i++) {
+        if (hours >= SKY_TIME_KEYS[i].h && hours <= SKY_TIME_KEYS[i + 1].h) { a = SKY_TIME_KEYS[i]; b = SKY_TIME_KEYS[i + 1]; break; }
+      }
+      if (a.p === b.p) return { ...skyPhasePal(a.p), id: a.p, fading: false };
+      const t = (hours - a.h) / (b.h - a.h);
+      const pa = skyPhasePal(a.p), pb = skyPhasePal(b.p);
+      return {
+        name: t < 0.5 ? a.p : b.p,
+        trees: pa.trees.map((c, i) => skyLerpColor(c, pb.trees[i] || c, t)),
+        clouds: pa.clouds.map((c, i) => skyLerpColor(c, pb.clouds[i] || c, t)),
+        grass: pa.grass.map((c, i) => skyLerpColor(c, pb.grass[i] || c, t)),
+        tint: pa.tint.map((v, i) => v + (pb.tint[i] - v) * t),
+        id: a.p + '-' + b.p,
+        fading: true,
+      };
+    };
+
+    function skyInit() {
+      if (skyBands) return;
+      const trees = skyRle(TREES_IMG);
+      const tmap = skyMap16(TREES_MAP);
+      const layerA = { w: 32, h: 32, entries: tmap.entries.subarray(0, 1024) };
+      const layerB = { w: 32, h: 32, entries: tmap.entries.subarray(1024) };
+      const grassTiles = skyRle(GRASS_IMG);
+      const gmap = skyMap16(GRASS_MAP);
+      skyBands = {
+        sky: skyCompose(trees, layerA, 0, SKY_SKY_H),
+        far: skyCompose(trees, layerA, SKY_FAR_Y, SKY_ART_H),
+        near: skyCompose(trees, layerB, SKY_NEAR_Y, SKY_ART_H),
+        grass: skyCompose(grassTiles, gmap, SKY_GRASS_Y, SKY_GRASS_Y + SKY_GRASS_H),
+        clouds: skyRle(CLOUDS_IMG),
+      };
+      const rng = skyRandom(0x5ce7e2);
+      skyRidges = [
+        { ridge: skyRidge(rng, SKY_RIDGE_BASE - 2, 20, 9), speed: SKY_SPEED.ridge[0], haze: 0 },
+        { ridge: skyRidge(rng, SKY_RIDGE_BASE - 10, 28, 13), speed: SKY_SPEED.ridge[1], haze: 0.14 },
+      ].sort((a, b) => a.speed - b.speed); // 远的先画
+      skyClouds = [];
+      for (let i = 0; i < 10; i++) {
+        const f = Math.floor(rng() * 4);
+        skyClouds.push({ x: rng() * SKY_SPAN, y: 24 + rng() * 22, frame: f, speed: SKY_SPEED.cloud[f] });
+      }
+    }
+
+    function skyBuildArt(pal) {
+      const ridges = skyRidges.map((r) => {
+        const c = document.createElement('canvas');
+        c.width = SKY_RIDGE_W; c.height = SKY_RIDGE_BASE;
+        const g = c.getContext('2d');
+        const body = skyLerpColor(pal.trees[6], pal.trees[5], r.haze);
+        const bodyStyle = 'rgb(' + body + ')', hiStyle = 'rgb(' + pal.trees[7] + ')';
+        for (let x = 0; x < SKY_RIDGE_W; x++) {
+          const h = Math.floor(r.ridge[x]);
+          const hn = Math.floor(r.ridge[(x + 1) % SKY_RIDGE_W]);
+          const band = hn < h ? 2 : 0;   // 只给受光的左坡打亮
+          if (band) { g.fillStyle = hiStyle; g.fillRect(x, h, 1, band); }
+          g.fillStyle = bodyStyle;
+          g.fillRect(x, h + band, 1, SKY_RIDGE_BASE - h - band);
+        }
+        return c;
+      });
+      skyArt = {
+        sky: skyColorize(skyBands.sky, pal.trees),
+        far: skyColorize(skyBands.far, pal.trees),
+        near: skyColorize(skyBands.near, pal.trees),
+        grass: skyColorize(skyBands.grass, pal.grass),
+        clouds: skyColorize(skyBands.clouds, pal.clouds),
+        ridges,
+        skyLow: pal.trees[5],
+      };
+      const t = pal.tint;
+      skyTintEl.style.backgroundColor = 'rgb(' + Math.round(t[0]) + ',' + Math.round(t[1]) + ',' + Math.round(t[2]) + ')';
+      skyTintEl.style.opacity = String(Math.max(0, Math.min(1, t[3])));
+    }
+
+    const skyTile = (img, srcY, srcH, destY, off) => {
+      const dw = img.width * SKY_SCALE;
+      let x = -(((off % dw) + dw) % dw);
+      for (; x < skyW; x += dw) skyCtx.drawImage(img, 0, srcY, img.width, srcH, x, destY, dw, srcH * SKY_SCALE);
+    };
+
+    // speed：路面每帧推进的像素（与 drawRoad 的滚动同速）
+    function drawSkyPreview(speed) {
+      const mode = $('pvSkyTime').value;
+      const cols = +(pvCvs.dataset.cols) || 10;
+      const rows = +(pvCvs.dataset.rows) || 3;
+      const roadH = rows * PV_TILE;
+      skyTintEl.style.height = roadH + 'px';
+      if (mode === 'off') {
+        skyCvs.style.display = 'none';
+        skyTintEl.style.opacity = '0';
+        return;
+      }
+      skyCvs.style.display = 'block';
+      skyInit();
+
+      const w = cols * PV_TILE;
+      const h = SKY_ART_H * SKY_SCALE;
+      const dpr = window.devicePixelRatio || 1;
+      if (skyW !== w || skyH !== h) {
+        skyW = w; skyH = h;
+        skyCvs.width = Math.round(w * dpr);
+        skyCvs.height = Math.round(h * dpr);
+        skyCvs.style.width = w + 'px';
+        skyCvs.style.height = h + 'px';
+      }
+      skyCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      skyCtx.imageSmoothingEnabled = false;
+
+      skyDist += speed;
+      const now = new Date();
+      const pal = (mode === 'day' || mode === 'dusk' || mode === 'night')
+        ? { ...skyPhasePal(mode), id: 'fix-' + mode, fading: false }
+        : skyPaletteAt(now.getHours() + now.getMinutes() / 60);
+      const key = (pal.fading ? Math.floor((now.getHours() * 60 + now.getMinutes()) / 5) : '') + '|' + pal.id;
+      if (key !== skyArtKey) { skyArtKey = key; skyBuildArt(pal); }
+
+      const landTop = h - SKY_ART_H * SKY_SCALE;
+      const farOff = skyDist * SKY_SPEED.far;
+      const nearOff = skyDist * SKY_SPEED.near;
+
+      skyCtx.fillStyle = 'rgb(' + skyArt.skyLow.join(',') + ')';
+      skyCtx.fillRect(0, 0, w, h);
+      skyTile(skyArt.sky, 0, SKY_SKY_H, 0, farOff);
+      const dw = SKY_RIDGE_W * SKY_SCALE;
+      for (let i = 0; i < skyArt.ridges.length; i++) {
+        const x0 = -((((skyDist * skyRidges[i].speed) % dw) + dw) % dw);
+        for (let xx = x0; xx < w; xx += dw) {
+          skyCtx.drawImage(skyArt.ridges[i], 0, 0, SKY_RIDGE_W, SKY_RIDGE_BASE, xx, landTop, dw, SKY_RIDGE_BASE * SKY_SCALE);
+        }
+      }
+      skyTile(skyArt.far, 0, SKY_ART_H - SKY_FAR_Y, landTop + SKY_FAR_Y * SKY_SCALE, farOff);
+      for (const c of skyClouds) {
+        const f = SKY_CLOUD_FRAMES[c.frame];
+        let x = (c.x + skyDist * c.speed) % SKY_SPAN;
+        if (x < 0) x += SKY_SPAN;
+        x -= f.w;
+        const dy = landTop + c.y * SKY_SCALE;
+        for (let k = -1; k <= 1; k++) {
+          const dx = x + k * SKY_SPAN;
+          if (dx > w || dx + f.w * SKY_SCALE < 0) continue;
+          skyCtx.drawImage(skyArt.clouds, f.x, f.y, f.w, f.h, dx, dy, f.w * SKY_SCALE, f.h * SKY_SCALE);
+        }
+      }
+      skyTile(skyArt.near, 0, SKY_ART_H - SKY_NEAR_Y, landTop + SKY_NEAR_Y * SKY_SCALE, nearOff);
+      skyTile(skyArt.grass, 0, SKY_GRASS_H, h - SKY_GRASS_H * SKY_SCALE, skyDist * SKY_SPEED.grass);
     }
 
     // ==================== 导出 ====================

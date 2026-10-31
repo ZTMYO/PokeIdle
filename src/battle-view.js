@@ -454,6 +454,7 @@ async function startNpcBattle(npcId, startAuto = false) {
   _battleLogs = []; // 新战斗清空上一把的对战记录
   _logCtx = { p: pTeam.map((x) => x.mon.name), e: eTeam.map((x) => x.mon.name), npc: npc.name };
   setPhase('battle'); // 战斗中：主界面道路暂停切段/骑行切换，避免挂机 BGM 覆盖战斗曲
+  import('./battle.js').then(m => m.pauseBuffsForBattle()); // 对战中 buff 暂停计时，结束后再恢复
   // 遭遇与对战现在各走各的状态，开战时不再把进行中的遭遇塞去后台：
   // 它留在上屏继续，玩家照常丢球（战斗结束由 resumeEncounterFlow 收尾）
   _busy = true; // 开场精灵球登场动画期间也禁止刷新/重进战斗
@@ -2803,10 +2804,9 @@ async function battleLoop(battle) {
     if (_activeBattle === battle) _activeBattle = null;
     import('./battle.js').then(m => m.resumePhaseAfterBattle()); // 遭遇还在就回遭遇态，否则回挂机
     road.resume(); // 若进战斗前道路被其他流程暂停（如挂机遇敌）未恢复，回到主界面需恢复滚动
-    // 进战斗前有被打断的野生遭遇：战斗结束后恢复 buff 倒计时与遇敌调度
-    if (battle._hadPendingEncounter) {
-      import('./battle.js').then(m => m.resumeEncounterFlow());
-    }
+    // 战斗结束：恢复 buff 倒计时与遇敌调度。
+    // 遭遇还压在屏上时 resumeEncounterFlow 内部会拒绝恢复，交给遭遇收尾
+    import('./battle.js').then(m => m.resumeEncounterFlow());
     import('./battle.js').then(m => m.fireWaitingEncounter());
   }
 }

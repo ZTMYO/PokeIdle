@@ -475,6 +475,9 @@ function syncBuffExpiry() {
   if (honeyBuffActive && honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now()) handleHoneyExpired();
 }
 
+// 对战（NPC）开始时也暂停 buff：道路已经停摆，buff 再烧就是白烧
+export function pauseBuffsForBattle() { pauseEncounterBuffs(); }
+
 function pauseEncounterBuffs() {
   if (charmBuffActive && charmCountdownEnd > Date.now()) {
     setCharmPausedRemaining(charmCountdownEnd - Date.now());
@@ -1307,7 +1310,21 @@ function cleanupEncounterState() {
 }
 
 // ===== 恢复暂停的 buff 倒计时并重新调度遇敌（goIdle / NPC 对战结束后共用） =====
+// 兜底自愈：没有任何"该暂停"的场景（挂机中、无遭遇/钓鱼/骑行/对战），
+// buff 却还挂着暂停余量 → 恢复倒计时。某些收尾路径被打断时会漏 resume，
+// 玩家会看到倒计时卡住不动（只能靠刷新恢复）
+export function healStuckBuffPause() {
+  if (phase !== 'idle' || encState() || _fishing || road.isBike()) return;
+  const honeyStuck = honeyBuffActive && honeyPausedRemaining > 0 && !(honeyCountdownEnd > 0);
+  const charmStuck = charmBuffActive && charmPausedRemaining > 0 && !(charmCountdownEnd > 0);
+  if (!honeyStuck && !charmStuck) return;
+  resumeEncounterFlow();
+}
+
 export function resumeEncounterFlow() {
+  // 野生遭遇还压着屏（对战结束返回、或收尾没走完）：buff 保持暂停，遇敌调度也交给遭遇收尾。
+  // 否则玩家还在遭遇里，甜甜蜜/护符就开始倒计时了
+  if (encState() === 'encounter' && currentEncounter) return;
   // 恢复闪耀护符倒计时（优先级高于甜甜蜜）
   if (charmBuffActive && charmPausedRemaining > 0) {
     $('idleText').textContent = '✦ 闪耀护符生效中 ✦';
