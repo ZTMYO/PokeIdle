@@ -979,7 +979,9 @@ async function init() {
   // 手游双屏：下半屏默认显示手机首页
   if (isDualLayout()) import('./phone.js').then(m => m.showPhoneHome());
   ensureGpsState(); // 初始化 GPS 状态（默认从丰缘出发）
-  if (gameData.gps.roamEnabled && gameData.gps.destIdx == null) setRoamEnabled(true);
+  // 蹲在事件点上时不要恢复漫游：漫游会重划路线、把 massArrived 清掉，人直接从事件点走开；
+  // 离线补发也靠这个站位（见 catchUpEncounters 的事件区补算）
+  if (gameData.gps.roamEnabled && gameData.gps.destIdx == null && !(inMassZone() || inTwistZone())) setRoamEnabled(true);
   if (!gameData.achievements) gameData.achievements = {}; // 旧存档补齐成就进度
   if (!gameData.collectedCards) gameData.collectedCards = {}; // 旧存档补齐卡牌收集
   if (!gameData.gachaLogs) gameData.gachaLogs = {}; // 旧存档补齐抽卡记录

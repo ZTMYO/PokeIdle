@@ -445,11 +445,11 @@ html.mobile-app #quitHide { display: none !important; }
 }
 
 /* === 挂机页视差背景 ===
-   天空/远山/树线/云由 canvas 画（src/sky-bg.js）：占住路面以上的整块空屏，
-   只按系统时间换色板；路面那一条用同色系遮罩染色，昼夜切换时天空和路面一起变。 */
+   天空/远山/树线/云由 canvas 画（src/sky-bg.js）：占住路面以上的整块空屏；
+   路面那一条用同色系遮罩染色，昼夜切换时天空和路面一起变。 */
 .sky-canvas {
-  /* 尺寸由 JS 按舞台高度写死 px：canvas 是替换元素，只给 top/bottom 时
-     浏览器可能按 height 属性取高，会和 JS 回写形成每帧翻倍 */
+  /* 尺寸由 JS 写死 px：canvas 是替换元素，只给 top/bottom 时高度会跟着
+     height 属性走，和 JS 回写叠成每帧翻倍 */
   position: absolute;
   left: 0;
   top: 0;
@@ -476,10 +476,9 @@ html.mobile-app #quitHide { display: none !important; }
   position: relative;
   z-index: 2;
 }
-/* 黄昏/夜晚天空变暗：文案换亮色 + 描边阴影，深绿字在夜色里看不清 */
+/* 夜晚/扭曲天空变暗：文案换亮色，深绿字在夜色里看不清 */
 #idleView.sky-dark-text .idle-text {
   color: #eef4ff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
 /* 时空扭曲期间滚动道路变暗：canvas 整层降亮度，突出紫色氛围与滚动精灵 */
@@ -1545,6 +1544,17 @@ html.mobile-app #quitHide { display: none !important; }
   display: none;
 }
 .catch-stage.active { display: block; }
+/* 遇敌转场遮罩（src/transition.js）：主题底色盖住 → 遮罩下切遭遇页 → 揭开 */
+.encounter-transition {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 250;
+  pointer-events: none;
+  display: none;
+}
 
 .catch-stage .anim-ball {
   position: absolute;

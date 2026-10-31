@@ -21,7 +21,7 @@ import {
 import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView, isIdleStageVisible, isStageOccupied } from './ui.js';
 import { endCycling } from './audio.js';
 import { MAP_EDGES, showGpsView } from './gps.js';
-import { startMassEncounter, startTwistEncounter, scheduleNextEncounter, encState } from './battle.js';
+import { startMassEncounter, startTwistEncounter, scheduleNextEncounter, encState, isBgCatchupRunning } from './battle.js';
 import { notifyMassStart, notifyMassEnd, massMsgTick, notifyTwistStart, notifyTwistEnd, twistMsgTick } from './messages.js';
 import { pickFamily, pickFamilyBySeed, pickWeightedPokemon } from './items.js';
 import { hasSchedule, activeSlot, nextSlot, serverNow } from './server-events.js';
@@ -333,6 +333,8 @@ function backgroundHitMass() {
 function _massStep(spd) {
   // 世界步：事件宝可梦随路面推进（每步一次，与刷新率无关）
   if (!_massPokeEl) return;
+  // 后台补算正在按事件节奏结算这批遭遇：这只不要撞上去（补算循环自己开战）
+  if (isBgCatchupRunning()) return;
   if (!road.isActive() || road.isBike()) return; // 道路暂停/骑行：原地等待
   _massPokeX = Math.max(_massCharX, _massPokeX - spd);
   if (_massPokeX <= _massCharX) { hitMassPoke(); return; } // 到脚下就撞上来开战（对战/孵蛋演出各走各的，不必等）
@@ -342,6 +344,12 @@ function _massStep(spd) {
 // 每帧渲染：区域/视图守卫、到点生成、写位置
 function _massRender() {
   const mo = gameData?.massOutbreak;
+  // 后台补算正在按事件节奏结算这批遭遇：滚动精灵撤掉让路（cur 留给补算当第一场）
+  if (mo && isBgCatchupRunning()) {
+    stopMassRaf();
+    if (_massPokeEl) { _massPokeEl.remove(); _massPokeEl = null; }
+    return;
+  }
   // 上屏被别的流程占着（NPC 对战 / 孵蛋演出在下屏）时这只也不清理，照常滚、照常撞上来开战；
   // 但正在打的事件遭遇要拦下 —— 那会儿这只已经撞过来开战了，再生成一只会在遭遇没打完时叠第二只
   const occupied = isStageOccupied() && !encState();
@@ -384,6 +392,12 @@ function stopMassRaf() {
 
 function updateMassSpawner(now) {
   const mo = getMassOutbreak();
+  // 后台补算正在结算这一批：滚动精灵撤掉让路，持久化的 cur 留给补算当第一场
+  if (mo && isBgCatchupRunning()) {
+    stopMassRaf();
+    if (_massPokeEl) { _massPokeEl.remove(); _massPokeEl = null; }
+    return;
+  }
   // 上屏被别的流程占着（NPC 对战 / 孵蛋演出）时不算"离页"：这只留在原处照常滚；
   // 正在打的事件遭遇不算（那会儿这只已经撞过来开战了）
   const busy = isStageOccupied() && !encState();
@@ -521,17 +535,26 @@ export function syncTwistTheme() {
 // 主界面时空扭曲氛围遮罩 + 屏幕容器紫色化：
 // 容器变色仅在位于扭曲区域且停留在游戏页（挂机 / 野遇遭遇）时保持；
 // 切到图鉴/商店等其它页面立即恢复原配色（跳变，不做淡出），避免紫色主题外泄
+// 调试预览：临时点亮扭曲氛围若干秒（只改视觉，不动位置/数据/掉落）
+let _twistPreviewUntil = 0;
+export function previewTwistVisual(sec = 8) {
+  _twistPreviewUntil = Date.now() + Math.max(1, sec) * 1000;
+  updateTwistOverlay();
+  return _twistPreviewUntil;
+}
+
 function updateTwistOverlay() {
   const el = $('twistOverlay');
   const zone = inTwistZone();
   const onGame = isOnGameView();
+  const preview = Date.now() < _twistPreviewUntil;
   if (el) {
-    const show = zone && phase === 'idle' && !_fishing;
+    const show = preview || (zone && phase === 'idle' && !_fishing);
     el.classList.toggle('on', show);
   }
   const scr = $('screen');
   if (!scr) return;
-  const active = zone && onGame;
+  const active = preview || (zone && onGame);
   if (scr.classList.contains('twist-active') === active) return;
   // 切离游戏页时禁用过渡实现立即跳变；留在游戏页内进入/离开扭曲区域则平滑过渡
   if (!onGame) scr.classList.add('no-theme-trans');

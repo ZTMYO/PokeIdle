@@ -23,7 +23,7 @@ import { $, updateBackpack, updateStats, renderIncubatorView, updateIncubatorBad
 import { debugClearPp } from './battle-view.js';
 import { refreshBerryView } from './berry.js';
 import { showGpsView } from './gps.js';
-import { forceRefreshMassOutbreak, forceRefreshTwist } from './events.js';
+import { forceRefreshMassOutbreak, forceRefreshTwist, previewTwistVisual } from './events.js';
 import { hasSchedule, activeSlot, nextSlot } from './server-events.js';
 import { setDebugNextEncounter } from './battle.js';
 import { isBattleActive, renderBattleList } from './battle-view.js';
@@ -333,4 +333,17 @@ window.__addEgg = function (speciesIndex) {
   if (isNurseryEggView()) renderEggView();
   console.log(`[调试] 已添加 ${poke.name} 的蛋（6V），可在「饲育屋→纸箱」或「孵蛋器→宝可梦蛋」中查看`);
   return true;
+};
+
+// 遇敌转场预览：依次播放两种转场（格子溶解 / 随机翻格）
+window.__encounterFx = async () => {
+  const { previewEncounterFx } = await import('./transition.js');
+  await previewEncounterFx();
+  console.log('[调试] 转场预览结束');
+};
+
+// 时空扭曲背景预览：临时点亮紫色配色 + 氛围遮罩（仅视觉，不改位置/数据），默认 8 秒
+window.__twistBg = (sec = 8) => {
+  previewTwistVisual(sec);
+  console.log(`[调试] 时空扭曲氛围预览 ${sec}s（只改视觉）`);
 };

@@ -1,7 +1,8 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BUFF_DURATION, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, SQUARE_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, HONEY_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, currentIsSquareShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, addEncounterLog, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, rollShinyResult, setEncounterSource, setEncounterVariant, simNow, setSimClock } from './state.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BUFF_DURATION, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, SQUARE_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, HONEY_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance, AUTO_CATCH_BALLS_DEFAULT, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, ROAD_SPEED_WALK } from './config.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, currentIsSquareShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, getMassOutbreak, pxLeftToEventTarget, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, addEncounterLog, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, rollShinyResult, setEncounterSource, setEncounterVariant, simNow, setSimClock } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, showTextBoxNow, setIdleCharacter, isOnGameView, isIdleStageVisible, isDualLayout, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive, isEggShowActive, isStageOccupied } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
+import { playEncounterTransition } from './transition.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, takeBuffForRenew, clearBuffRenewPending, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
@@ -11,6 +12,7 @@ import { playBattle, endBattle, playVictory, stopVictory, consumeShowCardOnEncou
 import * as road from './road.js';
 import * as particles from './particles.js';
 import { bgCatchupEnabled } from './background-catchup.js';
+import { hasSchedule, serverNow } from './server-events.js';
 
 // 丢球挣脱文案（按摇晃轮数 0~3 分组）
 const BREAK_MSGS = {
@@ -65,6 +67,9 @@ let _encounterGender = 'male';
 // 事件遭遇（大量出没/时空扭曲）已在后台结算的标记：防止 goIdle 与 cleanupEncounterState
 // 两条路径对同一遭遇重复扣减剩余数量（孵蛋挂起期间遭遇被后台结算后又走 goIdle 的场景）
 let _eventEncounterSettled = false;
+// 补算正在按事件节奏结算大量出没遭遇：事件剩余数量由补算自己扣（见 onMassEncounterEnded 调用），
+// goIdle / cleanupEncounterState 两条收尾路径此时不再重复扣减
+let _massCatchupZone = false;
 // 指定下一次遇敌的宝可梦（debug.js 的 window.__nextEncounter 写入，用后即焚）
 let _debugNextEncounter = null;
 export function setDebugNextEncounter(idx, shiny, squareShiny = false) {
@@ -737,8 +742,11 @@ export function showEncounter(poke, opts = {}) {
   road.pause();
   // 显示视觉画面（仅在首页时切换视图；入场"文案顶起主角"动画由 showView 统一处理）
   if (_onHome) {
-    showView('encounterView');
-    $('fleeBtn').style.display = '';
+    // 逐格溶解盖满后再 showView，揭开时遭遇页已经渲染好了
+    playEncounterTransition(() => {
+      showView('encounterView');
+      $('fleeBtn').style.display = '';
+    }, { skip: _bgCatchup });
   }
   // 渲染遭遇画面（名字/图片/类型/标签/文案等）
   // 仅在有自定义文案时写入（如钓鱼"上钩了"）；恢复会话走 showEncounter(poke, true) 时 msg 为 null，
@@ -1214,7 +1222,7 @@ export function goIdle() {
   // 只有确实来自事件的遭遇才扣（endedSource），否则孵蛋等收尾路过这里会白扣一只；
   // 若已被 cleanupEncounterState 后台结算过（孵蛋挂起等场景）则跳过，避免同一遭遇重复扣减
   if (!_eventEncounterSettled) {
-    if (endedSource === 'mass' && inMassZone()) {
+    if (!_massCatchupZone && endedSource === 'mass' && inMassZone()) {
       import('./events.js').then(m => m.onMassEncounterEnded());
     }
     if (endedSource === 'twist' && inTwistZone()) {
@@ -1288,8 +1296,9 @@ function cleanupEncounterState() {
   document.documentElement.style.removeProperty('--ui-color');
   document.documentElement.style.removeProperty('--ui-color-rgb');
   updateStats();
-  // 事件遭遇结束：剩余数量-1（只有事件来源的遭遇才算，普通清理路过事件区域不能白扣）
-  if (endedSource === 'mass' && inMassZone()) {
+  // 事件遭遇结束：剩余数量-1（只有事件来源的遭遇才算，普通清理路过事件区域不能白扣）。
+  // 补算按事件节奏结算的那批由补算自己扣，这里跳过，避免同一场扣两次
+  if (!_massCatchupZone && endedSource === 'mass' && inMassZone()) {
     import('./events.js').then(m => m.onMassEncounterEnded());
   }
   if (endedSource === 'twist' && inTwistZone()) {
@@ -1601,6 +1610,71 @@ export async function autoCatch() {
 // 不播动画不切视图，判定/入账/日志全部复用正常流程，保证数据与前台等效。
 // 补算途中撞上"暂停"即停：主角卡在那只上不前进，剩余停摆时长交回调用方丢弃
 
+// ===== 补算场次表 =====
+// 没有事件区时与旧算法完全一致（整窗按 buff/普通节奏均匀铺开）。
+// 站在大量出没事件点上（或导航终点就是它）时把停摆窗口切成三段：到达前按普通遇敌、
+// 事件存活期间按事件节奏（锁定事件宝可梦、1/200 闪光率、逐只扣 remain），
+// 打光/到期那一刻事件结束，之后回到普通遇敌——与前台「事件区内不刷普通遇敌」一致。
+function massZoneWindow(secs, hideAt, simItem) {
+  const mo = getMassOutbreak();
+  if (!mo) return null;
+  let from = 0;
+  if (!inMassZone()) {
+    // 不在事件点上：只有"导航终点就是这个事件点"才补，按剩余路程折算到达时刻
+    const left = pxLeftToEventTarget(gameData?.gps, ROAD_SPEED_WALK * 60 * 60 * 10);
+    if (left == null) return null;   // 不是去事件点的路上
+    const spd = road.getPxPerSec();
+    if (!(spd > 0)) return null;
+    from = Math.max(0, left) / spd;
+    if (from >= secs) return null; // 这段停摆里到不了事件点
+  }
+  // 事件到期时刻（窗口内）：有排期时 expiresAt 走服务器时间，把本地 hideAt 换算到同一时钟
+  const skew = hasSchedule() ? serverNow() - Date.now() : 0;
+  const expire = Math.min(secs, mo.expiresAt ? (mo.expiresAt - hideAt - skew) / 1000 : secs);
+  if (expire <= from) return null; // 还没走到就到期了
+  // 第一只出现在 max(到达时刻, 存档里记的下次出现时刻)；之后按大量出没节奏（甜甜蜜期间更快）
+  const nextAt = mo.nextSpawnAt ? (mo.nextSpawnAt - hideAt) / 1000 : from;
+  const fast = simItem === 'sweet-honey' || honeyBuffActive || honeyPausedRemaining > 0;
+  const times = [];
+  let remain = mo.remain || 0;
+  let t = Math.max(from, nextAt);
+  let until = expire;
+  while (remain > 0 && t < secs && t < expire && times.length < 200) {
+    times.push(t);
+    remain--;
+    if (remain <= 0) { until = t; break; } // 打光：这一场之后事件结束，剩余时段回到普通遇敌
+    t += fast ? rand(MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX) : rand(MASS_SPAWN_MIN, MASS_SPAWN_MAX);
+  }
+  return times.length ? { from, until, times } : null;
+}
+
+function buildCatchupPlan(secs, hideAt, buffSec, buffAvg, normalAvg, simItem) {
+  const plan = [];
+  const pushNormals = (from, to) => {
+    let t = from;
+    while (plan.length < 2000) {
+      t += (t < buffSec ? buffAvg : normalAvg);
+      if (t >= to) break;
+      plan.push({ t, kind: 'normal' });
+    }
+  };
+  const zone = massZoneWindow(secs, hideAt, simItem);
+  if (!zone) {
+    const total = Math.min(Math.floor(buffSec / buffAvg) + Math.floor((secs - buffSec) / normalAvg), 2000);
+    const stepMs = total > 0 ? (secs * 1000) / total : 0;
+    for (let i = 0; i < total; i++) plan.push({ t: (i * stepMs) / 1000, kind: 'normal' });
+    return plan;
+  }
+  pushNormals(0, zone.from);                            // 走到事件点之前
+  for (const t of zone.times) plan.push({ t, kind: 'mass' });
+  if (zone.until < secs) pushNormals(zone.until, secs);  // 事件结束后的剩余时段
+  return plan;
+}
+
+// 后台补算是否正在跑：events.js 的滚动精灵据此让路（事件遭遇由补算循环自己结算，
+// 否则事件宝可梦会在补算的 await 间隙撞上来开第二场）
+export function isBgCatchupRunning() { return _bgCatchup; }
+
 export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = false) {
   if (!bgCatchupEnabled()) return; // 后台补发开关关闭时（如安卓沿用离线暂停哲学）不做任何遇敌补算
   // 「离开那一刻 buff 还剩多少」：快照优先；没有快照就把绝对到期时刻回推到离开时刻。
@@ -1625,7 +1699,9 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
   syncBuffExpiry(); // 恢复前先同步 buff 到期状态（过期自动续杯）：与是否补遭遇无关，
                     // 骑行/钓鱼等暂停补算的守卫会提前 return，若不在此处先同步，骑行中后台到期的 buff 会漏续杯
   if (_bgCatchup || _bgCatch) return;
-  if (phase !== 'idle' || _fishing || inMassZone() || inTwistZone() || road.isBike()) return;
+  // 大量出没事件区不再整体跳过：站在事件点上（或导航终点就是它）时按事件节奏补，
+  // 详见 buildCatchupPlan。时空扭曲暂不补（变体/外观另有一套，先保持原行为）
+  if (phase !== 'idle' || _fishing || inTwistZone() || road.isBike()) return;
   const autoActive = gameData.settings?.autoCatch || gameData.settings?.autoFlee;
   if (!autoActive) return;
   // 遇敌节奏与 buff 联动：buff 期间 15~30s 一次，平时 120~240s 一次
@@ -1652,7 +1728,9 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
   }
   const renewUse = { 'sweet-honey': 0, 'shiny-charm': 0 };
   const buffLeftover = Math.max(0, buffLeftSec - Math.min(secs, buffLeftSec)); // 停摆窗口走完后原 buff 的剩余
-  const total = Math.min(Math.floor(buffSec / buffAvg) + Math.floor((secs - buffSec) / normalAvg), 2000); // 单次补算上限（防超长后台卡顿）
+  // 场次表：事件区（大量出没）按事件节奏排，其余时段按普通遇敌节奏排；没有事件区时与旧算法完全一致
+  const plan = buildCatchupPlan(secs, hideAt, buffSec, buffAvg, normalAvg, simItem);
+  const total = plan.length;
   if (total <= 0) return;
   // 路上还压着一只没走到主角面前的（刷新/重开后恢复的滚动图标）：把它并进补发的第一场，图标撤掉不再单独开战。
   // 否则补算会另摇一只，紧接着图标那只再开战，两只撞在一起——每日神兽池就一两只，撞上就是同一只神兽连出
@@ -1666,29 +1744,46 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
     gameData.wildEncounter = null;
   }
   _bgCatchup = true;
+  _massCatchupZone = plan.some(s => s.kind === 'mass'); // 事件遭遇的剩余数量由本循环自己扣
   // 逐场结算不播音效、不逐场落盘：一次返回连着结算上百场时既吵又慢，结束时统一保存
   setBulkQuiet(true);
   setSaveSuspended(true);
-  let done = 0, balls = 0, shinies = 0;
+  let done = 0, balls = 0, shinies = 0, massDone = 0;
   let stalledSec = null; // 停摆窗口里真正走过的秒数，全程走完为 null
   const caught = []; // 补算期间捕获成功的宝可梦（含形态名），随汇总日志打印便于核对
-  // 把 total 场按停摆窗口均匀铺开：每场的日志/获得时间写成"当时"，日志页就是一条连续时间线
+  // 每场的日志/获得时间写成"当时"，日志页就是一条连续时间线；时刻来自场次表（事件区按事件节奏）
   const startAt = Date.now() - secs * 1000;
-  const stepMs = total > 0 ? (secs * 1000) / total : 0;
   try {
     for (let i = 0; i < total; i++) {
       if (phase !== 'idle' || road.isBike()) break; // 玩家切走/进入战斗/开始骑行：中止剩余补算
-      setSimClock(startAt + Math.round(i * stepMs));
+      const slot = plan[i];
+      const t = slot.t; // 这一场落在停摆窗口的第几秒
+      // 事件在补算途中被打光/到期：这一段剩下的按普通遇敌收尾（不能整段中止，后面的时段还得算）
+      const kind = slot.kind === 'mass' && getMassOutbreak() ? 'mass' : 'normal';
+      setSimClock(startAt + Math.round(t * 1000));
       let poke;
-      if (pending) {
+      if (pending && kind !== 'mass') {
         // 屏上压着的那只：按图标当时的种类/闪光/等级还原，不重摇
         poke = pending.poke;
         setCurrentEncounter(poke);
         setEncounterLevel(pending.level || encounterLevel);
         setCurrentIsShiny(pending.shiny, pending.squareShiny);
         pending = null;
+      } else if (kind === 'mass') {
+        // 事件宝可梦锁定不变；闪光按大量出没概率另判（不吃闪耀护符）。屏上压着的那只优先复用
+        const mo = getMassOutbreak();
+        poke = getPokemonByIndex(mo.pokemon);
+        if (!poke) break;
+        const saved = mo.cur;
+        setCurrentEncounter(poke);
+        if (saved) {
+          mo.cur = null;
+          setCurrentIsShiny(!!saved.shiny, !!saved.squareShiny);
+        } else {
+          const sr = rollShinyResult(massShinyChance());
+          setCurrentIsShiny(sr.shiny, sr.squareShiny);
+        }
       } else {
-        const t = (i * stepMs) / 1000; // 这一场落在停摆窗口的第几秒
         // 每一瓶护符都自带一次保底闪光（activateShinyCharm 会置 charmGuaranteed）：
         // 补发按瓶推进，进到新的一瓶就把保底重新上膛，否则续十瓶也只兑现一次
         if (simItem === 'shiny-charm' && t >= nextBottleAt) {
@@ -1700,13 +1795,13 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
         if (!poke) break;
       }
       rollEncounterGender(poke); // 补算不走 showEncounter，这里必须自己掷
-      // 补算同样不走 beginEncounter：来源/变体按普通遇敌重置，图鉴「遭遇」也要记一笔——
+      // 补算同样不走 beginEncounter：来源/变体按本场来源重置，图鉴「遭遇」也要记一笔——
       // 漏记会让统计页出现"今日遭遇比累计还多"（补发的捕获进了今日日志，累计却没加）
-      _encounterSource = 'normal';
+      _encounterSource = kind === 'mass' ? 'mass' : 'normal';
       _encounterVariant = null;
-      setEncounterSource('normal');
+      setEncounterSource(_encounterSource);
       setEncounterVariant(null);
-      markEncounterSeen(poke, currentIsShiny, 'normal');
+      markEncounterSeen(poke, currentIsShiny, _encounterSource);
       const ballsBefore = gameData.stats.totalBallsUsed;
       const catchesBefore = gameData.stats.totalCatches;
       const shiny = currentIsShiny;
@@ -1719,7 +1814,7 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
       // 撞上"暂停"（或自动捕捉没能结算：异常 / 没球补不了）：主角停在这只上，后面的停摆时长不再补。
       // 这里打一行控制台，下次玩家再报"只有遇到没有结果"，能直接看出是哪条分支
       if (encState() === 'encounter') {
-        stalledSec = Math.round((i * stepMs) / 1000);
+        stalledSec = Math.round(t);
         console.warn('[挂机补发] 停在未结算的遭遇：', (poke.form || poke.name),
           'filter=', catchFilterResult(), 'autoCatch=', !!gameData.settings?.autoCatch,
           'balls=', JSON.stringify(currentEncounterBalls), 'candy=', gameData.items?.candy || 0);
@@ -1732,6 +1827,12 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
         break;
       }
       done++;
+      // 事件遭遇结算：剩余数量-1，打光即结束事件（之后的时段回到普通遇敌）。
+      // 收尾两条路径（goIdle / cleanupEncounterState）在 _massCatchupZone 期间不再重复扣
+      if (kind === 'mass') {
+        massDone++;
+        await import('./events.js').then(m => m.onMassEncounterEnded()).catch(() => {});
+      }
       balls += gameData.stats.totalBallsUsed - ballsBefore;
       if (shiny) shinies++;
       if (gameData.stats.totalCatches > catchesBefore) caught.push((poke.form || poke.name) + (shiny ? '(闪光)' : ''));
@@ -1751,6 +1852,7 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
     }
   } finally {
     _bgCatchup = false;
+    _massCatchupZone = false;
     setSimClock(0);
     // 补发把这段 buff 真用掉了：从暂停剩余里扣掉；用光的走正常到期（自动续杯会真扣一瓶），
     // 否则会留下一个没有倒计时的“永久 buff”，神兽率一直被按加成判
@@ -1785,10 +1887,10 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
   const renewText = Object.entries(renewUse).filter(([, n]) => n).map(([k, n]) => `${ITEM_NAMES[k]}×${n}`).join('、');
   // 补发结果记一条系统日志：桌面端开不了控制台，玩家只能在这里核对增益有没有被模拟
   if (done > 0) {
-    addSystemLog('catchup', { n: done, shiny: shinies, buffMin: Math.round(Math.min(secs, buffSec) / 60), renew: renewText });
+    addSystemLog('catchup', { n: done, mass: massDone, shiny: shinies, buffMin: Math.round(Math.min(secs, buffSec) / 60), renew: renewText });
   }
-  const result = { done, total, balls, shinies, caught, stalledSec };
-  console.log(`[挂机补发] 遇敌补算 ${done}/${total} 次（消耗球 ${balls}，闪光 ${shinies}${caught.length ? `，捕获 ${caught.join('、')}` : ''}${renewText ? `，补发续杯 ${renewText}` : ''}${stalledSec != null ? `，模拟到 ${stalledSec}s 处遇暂停` : ''}）`);
+  const result = { done, total, balls, shinies, mass: massDone, caught, stalledSec };
+  console.log(`[挂机补发] 遇敌补算 ${done}/${total} 次（消耗球 ${balls}，闪光 ${shinies}${massDone ? `，其中大量出没 ${massDone}` : ''}${caught.length ? `，捕获 ${caught.join('、')}` : ''}${renewText ? `，补发续杯 ${renewText}` : ''}${stalledSec != null ? `，模拟到 ${stalledSec}s 处遇暂停` : ''}）`);
   return result;
 }
 

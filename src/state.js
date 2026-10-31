@@ -1047,6 +1047,20 @@ export function normalizeMassRemainToEnd(g) {
   g.remainPx = g.totalPx - walked;
 }
 
+// 前往事件点（gps.massTarget）还剩多少像素：末段就是事件边，remainPx 的语义是"到事件点的剩余"；
+// 之前的整段按节点距离矩阵换算（pxPerUnit = 1 单位对应的走路像素）。不在去事件点的路上返回 null
+export function pxLeftToEventTarget(g, pxPerUnit) {
+  if (!g || !g.massTarget || !g.path || g.path.length < 2 || !_distMatrix) return null;
+  const last = g.path.length - 2;
+  if (g.seg >= last) return Math.max(0, g.remainPx || 0);
+  let px = Math.max(0, g.remainPx || 0);
+  for (let i = g.seg + 1; i < last; i++) px += (_distMatrix[g.path[i]]?.[g.path[i + 1]] || 0) * pxPerUnit;
+  const [ea, eb] = g.massTarget.edge;
+  const edgePx = (_distMatrix[ea]?.[eb] || 0) * pxPerUnit;
+  const forward = g.path[last] === ea && g.path[last + 1] === eb;
+  return px + edgePx * (forward ? g.massTarget.t : 1 - g.massTarget.t);
+}
+
 // ---------- 当前地区 ----------
 // 在途时按路段进度分归属：前半程归出发端、后半程归目标端，避免方向性矛盾
 export function getCurrentRegion() {

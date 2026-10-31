@@ -699,6 +699,7 @@
         <select id="pvSkyTime" class="btn btn-sm btn-sec" style="height:22px;padding:0 2px;font-size:10px;">
           <option value="auto">背景 跟随时间</option>
           <option value="day">背景 白天</option>
+          <option value="twilight">背景 薄暮</option>
           <option value="dusk">背景 黄昏</option>
           <option value="night">背景 夜晚</option>
           <option value="off">背景 关闭</option>
@@ -1086,9 +1087,10 @@
     const SKY_SPEED = { ridge: [0.014, 0.008], far: 0.022, near: 0.12, grass: 0.55, cloud: [0.05, 0.036, 0.024, 0.012] };
     const SKY_TIME_KEYS = [
       { h: 0, p: 'night' }, { h: 5, p: 'night' }, { h: 6.5, p: 'dusk' }, { h: 9, p: 'day' },
-      { h: 16, p: 'day' }, { h: 18, p: 'dusk' }, { h: 20, p: 'night' }, { h: 24, p: 'night' },
+      { h: 16, p: 'day' }, { h: 17.17, p: 'day' }, { h: 17.33, p: 'twilight' }, { h: 18, p: 'twilight' },
+      { h: 18.17, p: 'dusk' }, { h: 20, p: 'night' }, { h: 24, p: 'night' },
     ];
-    const SKY_TINT = { day: [0, 0, 0, 0], dusk: [255, 178, 126, 0.14], night: [20, 32, 72, 0.55] };
+    const SKY_TINT = { day: [0, 0, 0, 0], dusk: [255, 178, 126, 0.14], night: [20, 32, 72, 0.55], twilight: [255, 158, 178, 0.12] };
     const SKY_CLOUD_FRAMES = [
       { x: 0, y: 0, w: 32, h: 32 }, { x: 0, y: 32, w: 16, h: 16 },
       { x: 0, y: 40, w: 16, h: 8 }, { x: 16, y: 40, w: 16, h: 8 },
@@ -1204,7 +1206,7 @@
       tint: SKY_TINT[key],
     });
 
-    // 跟随系统时间在 白天/黄昏/夜晚 之间插值（日出日落都走黄昏档）
+    // 跟随系统时间在 白天/薄暮/黄昏/夜晚 之间插值（日出日落都走黄昏档）
     const skyPaletteAt = (hours) => {
       let a = SKY_TIME_KEYS[0], b = SKY_TIME_KEYS[SKY_TIME_KEYS.length - 1];
       for (let i = 0; i < SKY_TIME_KEYS.length - 1; i++) {
@@ -1318,7 +1320,7 @@
 
       skyDist += speed;
       const now = new Date();
-      const pal = (mode === 'day' || mode === 'dusk' || mode === 'night')
+      const pal = (mode === 'day' || mode === 'twilight' || mode === 'dusk' || mode === 'night')
         ? { ...skyPhasePal(mode), id: 'fix-' + mode, fading: false }
         : skyPaletteAt(now.getHours() + now.getMinutes() / 60);
       const key = (pal.fading ? Math.floor((now.getHours() * 60 + now.getMinutes()) / 5) : '') + '|' + pal.id;

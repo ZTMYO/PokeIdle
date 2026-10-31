@@ -600,6 +600,7 @@ export function renderSystemLogs() {
       case 'catchup': {
         const d = log.details || {};
         const bits = [`补算 ${d.n || 0} 场`];
+        if (d.mass > 0) bits.push(`其中大量出没 ${d.mass}`);
         if (d.buffMin > 0) bits.push(`增益 ${d.buffMin} 分钟`);
         bits.push(`闪光 ${d.shiny || 0}`);
         if (d.renew) bits.push(`续杯 ${d.renew}`);
@@ -1095,7 +1096,6 @@ export function renderSettings(container, s) {
   const powerSave = s.powerSave || false;
   const idleBackground = s.idleBackground === true;
   const bgTime = s.idleBackgroundTime || 'auto';   // 背景时段：auto=跟随系统时间
-  const skyErr = (() => { try { return localStorage.getItem('skybg_last_error') || ''; } catch (_) { return ''; } })();
   const uiMobile = getUiMode() !== 'classic'; // 双屏布局（手游模式/桌面双屏），存档未设置时按平台取默认
   // 捕捉条件表格：各遇敌类型行，策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
@@ -1249,11 +1249,11 @@ export function renderSettings(container, s) {
         <div class="auto-catch-row" style="display:block;padding-bottom:2px;">
           <div class="auto-catch-label" style="margin-bottom:4px;">背景时段</div>
           <div class="adv-chips" id="bgTimeChips">
-            ${[["auto", "默认"], ["day", "白天"], ["dusk", "黄昏"], ["night", "夜晚"]].map(([v, t]) =>
+            ${[["auto", "默认"], ["day", "白天"], ["twilight", "薄暮"], ["dusk", "黄昏"], ["night", "夜晚"]].map(([v, t]) =>
               `<span class="adv-chip${bgTime === v ? " sel" : ""}" data-bgtime="${v}">${t}</span>`).join("")}
           </div>
         </div>
-        <div class="cf-hint" style="padding:0 4px 4px;">天空随系统时间切换白天/黄昏/夜晚；省电模式下自动停用</div>
+        <div class="cf-hint" style="padding:0 4px 4px;">天空随系统时间切换白天/薄暮/黄昏/夜晚；省电模式下自动停用</div>
         <div class="auto-catch-row">
           <div class="auto-catch-label">${isMobilePlatform() ? '手游模式' : '双屏模式'}</div>
           <div class="toggle-switch" id="toggleUiMode">
@@ -1830,7 +1830,7 @@ export function toggleDarkMode() {
 // 背景时段：auto 跟随系统时间，其余强制某一档（日出日落都归黄昏档）
 export function setIdleBackgroundTime(v) {
   ensureSettings();
-  gameData.settings.idleBackgroundTime = ['auto', 'day', 'dusk', 'night'].includes(v) ? v : 'auto';
+  gameData.settings.idleBackgroundTime = ['auto', 'day', 'twilight', 'dusk', 'night'].includes(v) ? v : 'auto';
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
@@ -1841,7 +1841,7 @@ export function toggleIdleBackground() {
   const on = gameData.settings.idleBackground !== true;
   gameData.settings.idleBackground = on;
   // 打开时才初始化背景（关闭时连素材都不解码）
-  window.dispatchEvent(new CustomEvent('idle-bg-changed'));   // 开/关都要通知：关掉时让背景顺手清熔断标记
+  window.dispatchEvent(new CustomEvent('idle-bg-changed'));
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();

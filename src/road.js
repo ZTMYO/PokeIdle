@@ -65,16 +65,24 @@ function _resize() {
   const parent = canvas.parentElement;
   if (!parent) return;
   const w = parent.clientWidth;
+  // 离开挂机页时容器宽高为 0：这时重建画布只会把后备缓冲清空，
+  // 转场揭开那一刻路面还是空白（随从/主角是 DOM，反而先画出来）
+  if (!w) return;
   const h = _transition ? _transition.roadHeight : pattern.height * TILE;
   const dpr = _renderDpr();
   _dpr = dpr;
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
+  // 尺寸没变就别动画布：给 canvas.width 赋值会清空并重建后备缓冲，
+  // 复合器要晚一帧才拿到新内容，转场揭开时会闪一帧空白路面
+  const nw = Math.round(w * dpr), nh = Math.round(h * dpr);
+  if (!ctx || canvas.width !== nw || canvas.height !== nh) {
+    canvas.width = nw;
+    canvas.height = nh;
+    ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.imageSmoothingEnabled = false;
+  }
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
-  ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-  ctx.imageSmoothingEnabled = false;
   containerWidth = w;
   roadHeight = h;
   if (!_transition) {
