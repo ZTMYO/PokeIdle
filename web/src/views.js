@@ -597,6 +597,15 @@ export function renderSystemLogs() {
       case 'buff_expired':
         desc = `${ITEM_NAMES[log.details.item] || log.details.item} 的效果结束了`;
         break;
+      case 'catchup': {
+        const d = log.details || {};
+        const bits = [`补算 ${d.n || 0} 场`];
+        if (d.buffMin > 0) bits.push(`增益 ${d.buffMin} 分钟`);
+        bits.push(`闪光 ${d.shiny || 0}`);
+        if (d.renew) bits.push(`续杯 ${d.renew}`);
+        desc = `【挂机补发】${bits.join('，')}`;
+        break;
+      }
       case 'bike_ride':
         desc = '开始骑自行车';
         break;
@@ -1831,8 +1840,8 @@ export function toggleIdleBackground() {
   ensureSettings();
   const on = gameData.settings.idleBackground !== true;
   gameData.settings.idleBackground = on;
-  // 默认关闭：打开时才初始化背景（关闭时连素材都不解码）
-  if (on) window.dispatchEvent(new CustomEvent('idle-bg-changed'));
+  // 打开时才初始化背景（关闭时连素材都不解码）
+  window.dispatchEvent(new CustomEvent('idle-bg-changed'));   // 开/关都要通知：关掉时让背景顺手清熔断标记
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
@@ -2220,7 +2229,7 @@ const TUTORIAL_SECTIONS = [
     title: '增益',
     html: `<p><b>甜甜蜜</b>与<b>闪耀护符</b>都是 <b>${BUFF_DURATION}</b> 秒增益，使用后主角进入跑步姿态，跑图速度提升。</p>`
       + `<p><b>闪耀护符</b>额外带保底：<b>使用后的下一只遭遇必定闪光</b>，之后这段时间内继续按提升后的概率判定。</p>`
-      + `<p>保底只在<b>普通野生遭遇</b>触发；大量出没、时空扭曲、树果方块吸引等玩法有各自的固定闪光率，不吃护符的闪光加成。</p>`
+      + `<p>保底只在<b>普通野生遭遇</b>触发；大量出没、时空扭曲、树果方块吸引等玩法有各自的固定闪光率，不吃护符的闪光加成。<b>野遇神兽也不吃</b>：神兽闪光按基础 1/1000 判，护符对它只提高「出神兽」的概率（1/600 → 1/120）。</p>`
       + `<p>骑行中速度以 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，增益的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
       + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`

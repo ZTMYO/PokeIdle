@@ -9,7 +9,7 @@ import { NATURES } from './battle-core.js';
 import { playCongratulation, stopCongratulation, playShiny } from './audio.js';
 import * as road from './road.js';
 import * as particles from './particles.js';
-import { bgPeekAccum } from './background-catchup.js';
+import { bgPeekAccum, bgAway } from './background-catchup.js';
 
 // 宝可梦属性显示颜色（图鉴/战斗页类型标签用）
 export const TYPE_COLORS = {
@@ -539,15 +539,19 @@ export function pickWeightedPokemon(rarityBoost, pool, weightMul) {
   return pickFamily(source, p => Math.pow(Math.max(0.01, 1 - (p.rarity ?? 0.5) * penalty), 3) * (weightMul ? weightMul(p) : 1));
 }
 
-export function pickRandomPokemon() {
+export function pickRandomPokemon(rarityBoost) {
   if (allPokemon.length === 0) return null;
   const region = getCurrentRegion();
   const pool = allPokemon.filter(p => p.region === region.name && !p.legend && !isPowerForm(p) && !isWildExcluded(p)); // 神兽与强化形态不进普通遇敌池
   if (pool.length === 0) return null;
-  let rarityBoost = 0;
-  if (honeyBuffActive) rarityBoost = Math.max(rarityBoost, HONEY_RARITY_BOOST);
-  if (charmBuffActive) rarityBoost = Math.max(rarityBoost, CHARM_RARITY_BOOST);
-  return pickWeightedPokemon(rarityBoost, pool);
+  // 前台按实时 buff；挂机补发按「模拟到这一刻在跑的那瓶」传进来，不能看实时状态
+  let boost = rarityBoost;
+  if (boost == null) {
+    boost = 0;
+    if (honeyBuffActive) boost = Math.max(boost, HONEY_RARITY_BOOST);
+    if (charmBuffActive) boost = Math.max(boost, CHARM_RARITY_BOOST);
+  }
+  return pickWeightedPokemon(boost, pool);
 }
 
 // 孵蛋：全图鉴纯随机，不受地区限制、无稀有度加权（神兽与强化形态除外）
@@ -1623,7 +1627,11 @@ export function takeBuffForRenew(item) {
 
 // 骑行中到期的自动续杯先记账，等下车回到挂机再续：骑行不遇敌，续上就是白烧一瓶
 let _buffRenewPending = false;
-const buffWastedNow = () => road.isBike();
+// 骑行、切后台/最小化：这些时刻到期都不该当场续杯（没有遭遇可吃增益，续上纯浪费）
+const buffWastedNow = () => road.isBike() || bgAway() || isPageHidden();
+// 挂机补发会按时间线自己模拟续杯：接手时清掉待续标记，免得回前台又白烧一瓶
+export function clearBuffRenewPending() { _buffRenewPending = false; }
+
 export function renewBuffLater() {
   if (!_buffRenewPending || buffWastedNow() || phase !== 'idle') return;
   if (charmBuffActive || honeyBuffActive) return; // 另一个还在跑：等它自己到期时再谈续杯
@@ -1641,10 +1649,17 @@ export function useBuffNowOrDefer(item) {
 }
 
 export function handleHoneyExpired() {
+  const away = bgAway() || isPageHidden();
   setHoneyBuffActive(false);
-  setHoneyCountdownEnd(0);
   clearHoneyCountdown();
   $('idleText').textContent = '✦ 甜甜蜜的效果渐渐褪去了';
+  if (away) {
+    // 停摆窗口里到期：保留到期时刻，回前台的补发会按「离开时还剩多少」重建这段并模拟续杯
+    _buffRenewPending = true;
+    setHoneyExpiryTimer(null);
+    return;
+  }
+  setHoneyCountdownEnd(0);
   const wasted = buffWastedNow();
   if (wasted) _buffRenewPending = true;
   if (!wasted && !charmBuffActive && takeBuffForRenew('sweet-honey')) {
@@ -1665,11 +1680,18 @@ export function handleHoneyExpired() {
 }
 
 export function handleCharmExpired() {
+  const away = bgAway() || isPageHidden();
   setCharmBuffActive(false);
-  // 保底不随到期作废：方块/扭曲期间普通遭遇被压着，60 秒里可能一次都用不上，留到下一只普通遭遇兑现
-  setCharmCountdownEnd(0);
   clearCharmCountdown();
   showBuffExpired('charm');
+  if (away) {
+    // 停摆窗口里到期：保留到期时刻（保底也留着），回前台的补发重建这段 buff 并按时间线续杯
+    _buffRenewPending = true;
+    setCharmExpiryTimer(null);
+    return;
+  }
+  // 保底不随到期作废：方块/扭曲期间普通遭遇被压着，60 秒里可能一次都用不上，留到下一只普通遭遇兑现
+  setCharmCountdownEnd(0);
   // 用不上的场合到期：见 handleHoneyExpired 的同款处理
   const wasted = buffWastedNow();
   if (wasted) _buffRenewPending = true;

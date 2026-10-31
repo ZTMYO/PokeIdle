@@ -5,7 +5,7 @@
 // 不然只有天空变暗、路面还是白天会割裂。
 // 只在挂机页画：省电模式、设置里关掉、挂机页不在前台时一律不画。
 import { $ } from './ui.js';
-import { gameData, saveGame } from './state.js';
+import { gameData } from './state.js';
 import * as road from './road.js';
 import { TREES_IMG, CLOUDS_IMG, TREES_MAP, GRASS_IMG, GRASS_MAP, SKY_PALETTES } from './sky-bg-data.js';
 
@@ -52,8 +52,6 @@ let _art = null;           // 当前色板渲染出的图层
 let _artKey = '';
 let _off = null;           // 上次的开关状态（只在变化时改 display）
 let _initTimer = null;     // 延后初始化（别卡在 splash 上）
-let _healthyTimer = null;  // 跑稳之后才撤掉熔断标记
-const GUARD_KEY = 'pokeidle_sky_bg_guard';
 
 // ---------- 解码 ----------
 const b64bytes = (b64) => {
@@ -349,15 +347,6 @@ const paint = () => {
   // 草叶带贴底（底边=路面顶），只露出草叶这一截
   tile(_art.grass, 0, GRASS_H, _h - GRASS_H * SCALE, grassOff);
 
-  // 真正画出来了才撤熔断标记：下次启动看到它还留着 = 上次没跑稳
-  if (_healthyTimer === null) {
-    _healthyTimer = setTimeout(() => {
-      try {
-        localStorage.removeItem(GUARD_KEY);
-        localStorage.removeItem('skybg_last_error');
-      } catch (_) {}
-    }, 4000);
-  }
 };
 
 // 背景挂在路面的渲染钩子上：这里一旦抛异常，road 的 rAF 链会断掉、整局停摆。
@@ -380,16 +369,16 @@ const draw = () => {
 // ---------- 生命周期 ----------
 const stepWorld = (speed) => { _dist += speed; };
 
-export function startSkyBg(fromBoot = false) {
+export function startSkyBg() {
   if (_dead || _initTimer) return;
   // 延后一拍再初始化：splash 落位动画期间别插进来做解码/建画布
   _initTimer = setTimeout(() => {
     _initTimer = null;
-    initSkyBg(fromBoot);
+    initSkyBg();
   }, 1500);
 }
 
-function initSkyBg(fromBoot) {
+function initSkyBg() {
   if (_dead) return;
   try {
     _idle = $('idleView');
@@ -423,37 +412,10 @@ function initSkyBg(fromBoot) {
     // 路面 stop() 会清空步进/渲染钩子，所以每次启动都重挂（Set.add 幂等）
     road.addStepper(stepWorld);
     road.addRender(draw);
-    // 熔断标记只在「开机就带着背景启动」时上：设置页里手动开启不会卡住启动，
-    // 那边挂上标记又因为挂机页被盖住画不出一帧，刷新后会被守卫误判成没跑稳而关掉
-    if (fromBoot) { try { localStorage.setItem(GUARD_KEY, '1'); } catch (_) {} }
   } catch (e) {
     die(e);
   }
 }
 
-// 启动守卫：上次开了背景却没跑稳（卡死 / 强退），这次先自动关掉，别让人反复起不来
-export function skyBootGuard() {
-  try {
-    if (!localStorage.getItem(GUARD_KEY)) return;
-    localStorage.removeItem(GUARD_KEY);
-    if (gameData?.settings?.idleBackground === true) {
-      gameData.settings.idleBackground = false;
-      saveGame();
-      try { localStorage.setItem('skybg_last_error', '上次开启后没跑稳，已自动关闭'); } catch (_) {}
-      console.warn('[sky-bg] 上次开启背景后没跑稳，本次已自动关闭');
-    }
-  } catch (_) {}
-}
-
-// 这一局已经画出过画面（_healthyTimer 有值）：正常关闭/刷新就把熔断标记清掉，
-// 别让「开机 4 秒内就刷新」这种正常操作被当成没跑稳
-window.addEventListener('pagehide', () => {
-  if (_healthyTimer === null) return;
-  try { localStorage.removeItem(GUARD_KEY); } catch (_) {}
-});
-
-// 设置里切换开关：打开才初始化（默认关闭，启动阶段一点活都不干），关掉顺手清熔断标记
-window.addEventListener('idle-bg-changed', () => {
-  if (gameData?.settings?.idleBackground === true) { startSkyBg(); return; }
-  try { localStorage.removeItem(GUARD_KEY); } catch (_) {}
-});
+// 设置里打开开关时才初始化（默认关闭，启动阶段一点活都不干）
+window.addEventListener('idle-bg-changed', () => { startSkyBg(); });

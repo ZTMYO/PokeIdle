@@ -9,6 +9,12 @@ export function bgCatchupEnabled() {
   return BACKGROUND_CATCHUP;
 }
 
+// 是否处在"切后台/最小化"的停摆窗口：这期间 buff 到期不该当场续杯（没有遭遇，续了也是白烧），
+// 余量留给回前台的挂机补发按时间线模拟
+export function bgAway() {
+  return _inBg || _bgSecAccum > 0;
+}
+
 // 隐藏开始时间戳 / 停摆累计秒数 / 停摆时步态(是否骑行) / 停摆时 buff 剩余毫秒快照
 let _hiddenAt = 0;
 let _bgSecAccum = 0;
