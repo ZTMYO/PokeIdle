@@ -51,7 +51,6 @@ let _clouds = null;        // 云的初始位置/层速（只算一次）
 let _art = null;           // 当前色板渲染出的图层
 let _artKey = '';
 let _off = null;           // 上次的开关状态（只在变化时改 display）
-let _initTimer = null;     // 延后初始化（别卡在 splash 上）
 
 // ---------- 解码 ----------
 const b64bytes = (b64) => {
@@ -370,12 +369,9 @@ const draw = () => {
 const stepWorld = (speed) => { _dist += speed; };
 
 export function startSkyBg() {
-  if (_dead || _initTimer) return;
-  // 延后一拍再初始化：splash 落位动画期间别插进来做解码/建画布
-  _initTimer = setTimeout(() => {
-    _initTimer = null;
-    initSkyBg();
-  }, 1500);
+  if (_dead) return;
+  // 立即初始化（解码 + 拼图约十几毫秒）：splash 播放时背景就该在，别再延后
+  initSkyBg();
 }
 
 function initSkyBg() {

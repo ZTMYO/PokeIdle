@@ -699,7 +699,14 @@ export function setSaveSuspended(v) { _saveSuspended = !!v; }
 
 // 生效中的增益随主存档存一份：会话存档只在 beforeunload 写，安卓强杀不落盘，光靠它会白丢一瓶甜甜蜜。
 // left = 生效中剩余毫秒，paused = 遭遇中挂起的余量
+// buff 状态还没从存档恢复之前，任何 saveGame 都不许重写 gameData.buffs：
+// 启动早期的离线结算会在恢复之前存一次盘，那时内存里 buff 还是 false，
+// 一写就把存档里的记录抹掉——表现就是"刷新能恢复、大退出重进变走路"
+let _buffStateReady = false;
+export function markBuffStateRestored() { _buffStateReady = true; }
+
 function syncBuffRecord() {
+  if (!_buffStateReady) return;
   const rec = {};
   if (honeyBuffActive) {
     if (honeyCountdownEnd > 0) rec.honey = { left: Math.max(0, honeyCountdownEnd - Date.now()) };
@@ -714,6 +721,12 @@ function syncBuffRecord() {
     rec.charm = { guaranteed: true, count: _charmEncounterCount || 0 };
   }
   gameData.buffs = (rec.honey || rec.charm) ? rec : null;
+}
+
+// 退出/被杀的"最后一道防线"直接序列化 gameData，必须先同步 buff 记录，
+// 否则刚续上的杯只在内存里：道具数被扣了，存档里的 buffs 还是上一次的旧值
+export function flushBuffRecord() {
+  if (gameData) syncBuffRecord();
 }
 
 // 写盘健康度：主通道（手机文件 / 桌面数据目录 / 网页 localStorage）写失败时说明这次存档没落盘，

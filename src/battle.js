@@ -1601,7 +1601,7 @@ export async function autoCatch() {
 // 不播动画不切视图，判定/入账/日志全部复用正常流程，保证数据与前台等效。
 // 补算途中撞上"暂停"即停：主角卡在那只上不前进，剩余停摆时长交回调用方丢弃
 
-export async function catchUpEncounters(secs, buffRemainingMs) {
+export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = false) {
   if (!bgCatchupEnabled()) return; // 后台补发开关关闭时（如安卓沿用离线暂停哲学）不做任何遇敌补算
   // 「离开那一刻 buff 还剩多少」：快照优先；没有快照就把绝对到期时刻回推到离开时刻。
   // 以前这里取的是「现在还剩多少」，离开期间已经过期的会算成 0 —— 整段停摆就被当成全程无 buff，
@@ -1611,13 +1611,17 @@ export async function catchUpEncounters(secs, buffRemainingMs) {
   const leftAtHide = (endMs) => (endMs > 0 ? Math.min(BUFF_DURATION, Math.max(0, endMs - hideAt) / 1000) : 0);
   const honeyLeft = honeyPausedRemaining > 0 ? honeyPausedRemaining : leftAtHide(honeyCountdownEnd);
   const charmLeft = charmPausedRemaining > 0 ? charmPausedRemaining : leftAtHide(charmCountdownEnd);
-  const simItem = (honeyBuffActive || honeyLeft > 0) ? 'sweet-honey'
+  let simItem = (honeyBuffActive || honeyLeft > 0) ? 'sweet-honey'
     : (charmBuffActive || charmLeft > 0) ? 'shiny-charm' : null;
   const snapSec = Math.min(BUFF_DURATION, Math.max(0, (buffRemainingMs || 0) / 1000));
-  const buffLeftSec = snapSec > 0 ? snapSec
-    : simItem === 'sweet-honey' ? honeyLeft
-      : simItem === 'shiny-charm' ? charmLeft
-        : 0;
+  // 冷启动补的离线段按「无 buff」估：离线期间增益本来就是暂停的（seedBgOfflineSeconds 也这么记），
+  // 不能拿恢复后的倒计时回推——否则整段离线被当成 buff 期，一重进就把手里的瓶子全烧掉
+  const buffLeftSec = offlineAway ? 0
+    : snapSec > 0 ? snapSec
+      : simItem === 'sweet-honey' ? honeyLeft
+        : simItem === 'shiny-charm' ? charmLeft
+          : 0;
+  if (offlineAway) simItem = null;
   syncBuffExpiry(); // 恢复前先同步 buff 到期状态（过期自动续杯）：与是否补遭遇无关，
                     // 骑行/钓鱼等暂停补算的守卫会提前 return，若不在此处先同步，骑行中后台到期的 buff 会漏续杯
   if (_bgCatchup || _bgCatch) return;

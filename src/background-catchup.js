@@ -21,6 +21,7 @@ let _bgSecAccum = 0;
 let _statSecAccum = 0;   // 同一会话里切后台的秒数：补记"挂机时长"用；离线秒数已由 calcOffline 记过，不进这个桶
 let _hiddenIsBike = false;
 let _hiddenBuffRemainingMs = 0;
+let _offlineAway = false;  // 这段停摆是不是"关掉 App/被杀进程"的离线段（离线期间增益暂停，不能当 buff 期补算）
 let _nativeSource = false; // 安卓壳的原生切后台信号已接管，visibilitychange 退场（两个源同时用会打架）
 let _inBg = false;         // 当前是否已判为后台：两个信号源先后到达时只记一次
 
@@ -55,6 +56,13 @@ export function bgTakeBike() {
   return b;
 }
 
+// 读取"这段停摆是否来自离线"并清零
+export function bgTakeOfflineAway() {
+  const v = _offlineAway;
+  _offlineAway = false;
+  return v;
+}
+
 // 读取停摆时 buff 剩余毫秒快照并清零
 export function bgTakeBuffRemainingMs() {
   const m = _hiddenBuffRemainingMs;
@@ -69,6 +77,7 @@ export function seedBgOfflineSeconds(sec, isBike) {
   _bgSecAccum += sec;
   _hiddenIsBike = !!isBike; // 离线期间在骑行：不掉落不遇敌，里程按骑行速度补
   _hiddenBuffRemainingMs = 0; // 离线期间增益暂停（会话恢复按余量续上），补算按无 buff 段估
+  _offlineAway = true;
 }
 
 // 进入后台：挂机态才记停摆起点（顺带快照步态/buff），并通知结算进行中的遭遇

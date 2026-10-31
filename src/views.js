@@ -1253,7 +1253,7 @@ export function renderSettings(container, s) {
               `<span class="adv-chip${bgTime === v ? " sel" : ""}" data-bgtime="${v}">${t}</span>`).join("")}
           </div>
         </div>
-        <div class="cf-hint" style="padding:0 4px 4px;">天空随系统时间切换白天/黄昏/夜晚；省电模式下自动停用${skyErr ? `　上次出错：${skyErr}` : ''}</div>
+        <div class="cf-hint" style="padding:0 4px 4px;">天空随系统时间切换白天/黄昏/夜晚；省电模式下自动停用</div>
         <div class="auto-catch-row">
           <div class="auto-catch-label">${isMobilePlatform() ? '手游模式' : '双屏模式'}</div>
           <div class="toggle-switch" id="toggleUiMode">

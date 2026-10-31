@@ -1706,8 +1706,8 @@
       "rows": [
         [
           {
-            "col": 2,
-            "row": 14,
+            "col": 1,
+            "row": 13,
             "weight": 100
           }
         ],
@@ -1792,31 +1792,31 @@
           {
             "col": 9,
             "row": 16,
-            "weight": 30
-          },
-          {
-            "col": 11,
-            "row": 16,
-            "weight": 20
+            "weight": 10
           },
           {
             "col": 10,
             "row": 16,
-            "weight": 50
+            "weight": 10
+          },
+          {
+            "col": 11,
+            "row": 16,
+            "weight": 10
           }
         ],
         [
           {
             "col": 12,
             "row": 18,
-            "weight": 100
+            "weight": 10
           }
         ],
         [
           {
             "col": 12,
             "row": 19,
-            "weight": 100
+            "weight": 10
           }
         ]
       ]
