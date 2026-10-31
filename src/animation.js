@@ -210,7 +210,8 @@ export function restoreCatchAnim() {
     stageEl.style.height = '';
   }
   // 清掉吸收粒子层的残留（动画中途被打断时定时器可能还没跑到）
-  $('catchStage')?.querySelector('.absorb-fx')?.replaceChildren();
+  const absorbFx = $('catchStage')?.querySelector('.absorb-fx');
+  if (absorbFx) absorbFx.innerHTML = '';
   // 清理精灵球残留（可能在上一次捕捉动画后未被清除）
   const ball = $('animBall');
   if (ball) {

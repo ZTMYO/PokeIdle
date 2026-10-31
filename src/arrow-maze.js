@@ -354,7 +354,8 @@ function renderBoard() {
     + `<img class="sl-sprite idle on" id="amWalkIdle" data-anim="idle" style="${st}" alt="朝北鼻">`
     + `<img class="sl-sprite walk" id="amWalkMove" data-anim="walk" style="${st}" alt="朝北鼻"></div>`;
   grid.innerHTML = cells.join('') + walker;
-  area.replaceChildren(grid);
+  area.innerHTML = '';
+  area.appendChild(grid);
   grid.querySelectorAll('.sl-ball').forEach((img) => tryLoadImage(img, img.dataset.src));
   grid.querySelectorAll('.sl-sprite').forEach((img) => {
     const rel = `pokemon-data/pokemon-4dir/${img.dataset.anim}/${geom.file}`;

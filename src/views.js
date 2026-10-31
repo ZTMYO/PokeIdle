@@ -2558,7 +2558,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>道具方面：便宜的掉得多（精灵球一次能有 <b>10</b> 个），贵重的掉得少。</p>`
       + `<p>派出的宝可梦按<b>主属性</b>侧重带回对应道具（双属性只看第一个）：</p>`
       + tutorialTable(Object.entries(Object.entries(DISPATCH_TYPE_BOOST).reduce((acc, [type, boost]) => {
-        for (const k of Object.keys(boost)) (acc[k] ||= []).push(type);
+        for (const k of Object.keys(boost)) { acc[k] = acc[k] || []; acc[k].push(type); }
         return acc;
       }, {})).map(([k, types]) => [ITEM_NAMES[k] || k, types.join('、')]), ['道具', '属性'], ['auto', 'auto'])
       + `<p>此外每次结算另掷一次<b>进化道具、薄荷或王冠</b>：概率随档位上升（<b>1 小时 ${(DISPATCH_EVO_MAX_CHANCE / 24 * 100).toFixed(1)}%</b> → <b>24 小时 ${Math.round(DISPATCH_EVO_MAX_CHANCE * 100)}%</b>），命中随机带回 <b>1</b> 件。</p>`
@@ -2648,7 +2648,8 @@ const TUTORIAL_SUMMARIES = {
   '状态栏图标': '点击可以隐藏任务栏图标。',
 };
 function tutorialRewards() {
-  return (gameData.tutorialRewards ||= { claimed: [] });
+  if (!gameData.tutorialRewards) gameData.tutorialRewards = { claimed: [] };
+  return gameData.tutorialRewards;
 }
 // 是否还有未领取的教程章节（手机"教程"app 图标与标题栏聚合红点共用）
 // 教程章节的平台适配：桌面专属章节整章不展示；正文与总结的触屏措辞替换见 ui.js 的 touchText

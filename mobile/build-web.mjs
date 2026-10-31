@@ -26,7 +26,7 @@ export async function buildWeb() {
     bundle: true,
     format: 'iife',
     platform: 'browser',
-    target: ['chrome109'],
+    target: ['chrome83'],
     minify: true,
     outfile: join(outDir, 'mobile-bridge.js'),
   });

@@ -540,7 +540,7 @@ html.mobile-app #quitHide { display: none !important; }
    opacity 控制显隐（配合过渡淡入淡出），恢复挂机等退出场景时不再瞬间消失跳变。 */
 .twist-overlay {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 31;
   pointer-events: none;
   opacity: 0;
@@ -1248,7 +1248,7 @@ html.mobile-app #quitHide { display: none !important; }
 }
 .incubator-progress-text {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1917,7 +1917,7 @@ html.mobile-app #quitHide { display: none !important; }
    层级按整个页面的最高档给，否则会被屏内的浮层压住，玩家就没法确认退出了 */
 #quitDialog {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 20000;
   display: none;
   align-items: center;
@@ -2003,7 +2003,7 @@ html.mobile-app #quitHide { display: none !important; }
 /* ===== 导航目的地选择框（点击底部"点击地图选择目的地"弹出） ===== */
 #gpsDestDialog {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 99;
   display: none;
   align-items: center;
@@ -2016,7 +2016,7 @@ html.mobile-app #quitHide { display: none !important; }
 /* ===== 导入存档对比框：左右两列摆两份档，中间箭头表示覆盖方向 ===== */
 #importCmpDialog {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 99;
   display: flex;
   align-items: center;
@@ -2374,7 +2374,7 @@ html.mobile-app #quitHide { display: none !important; }
   .act-body .voyage-go.off:hover { background: #fff; }
 }
 .voyage-toast {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: none;
   flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   background: rgba(0,0,0,0.62); color: #fff;
@@ -2404,7 +2404,7 @@ html.mobile-app #quitHide { display: none !important; }
   image-rendering: pixelated;
 }
 .voyage-cover {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   padding: 2px;
   background: #cfe6f7;
@@ -2476,7 +2476,7 @@ html.mobile-app #quitHide { display: none !important; }
   80% { transform: translateX(3px); }
 }
 /* 答对彩带：从左右下角抛上去再落下 */
-.gs-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 6; }
+.gs-confetti { position: absolute; top: 0; right: 0; bottom: 0; left: 0; overflow: hidden; pointer-events: none; z-index: 6; }
 .gs-confetti i {
   position: absolute; bottom: 0; width: 5px; height: 9px; border-radius: 1px;
   will-change: transform, opacity;
@@ -2539,7 +2539,7 @@ html.mobile-app #quitHide { display: none !important; }
 }
 .mg-card.up .mg-inner { transform: rotateY(180deg); }
 .mg-front, .mg-back {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex; align-items: center; justify-content: center;
   border-radius: 4px;
   backface-visibility: hidden;
@@ -2811,7 +2811,7 @@ html.mobile-app #quitHide { display: none !important; }
   100% { transform: scale(.4); opacity: 0; }
 }
 .bg-result {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   text-align: center; color: var(--ui-color);
 }
@@ -2881,7 +2881,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   background-color: var(--screen-bg);   /* 补上边线位置的颜色，和结算面板连成一片 */
 }
 .fl-board.done .fl-cell { visibility: hidden; }
-.fl-result { inset: -1px; background: var(--screen-bg); border-radius: 3px; }
+.fl-result { top: -1px; right: -1px; bottom: -1px; left: -1px; background: var(--screen-bg); border-radius: 3px; }
 
 /* === 甜蜜工坊：顾客点单，选料做冰激凌，按时机出货 === */
 /* 底部不留白：按钮栏要贴住屏幕下沿；左右的内边距由按钮栏自己用负边距抵消 */
@@ -3110,7 +3110,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .evp-item.now .evp-poke, .evp-item.now .evp-time { font-weight: 700; opacity: 0.95; }
 .evp-map-mask {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 3000;
   display: flex;
   align-items: center;
@@ -3437,14 +3437,14 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .phone-app.drag-into .phone-app-icon::after {
   content: '';
   position: absolute;
-  inset: -3px;
+  top: -3px; right: -3px; bottom: -3px; left: -3px;
   border: 2px solid var(--ui-color);
   border-radius: 12px;
 }
 .phone-folder-box.drag-into { outline: 2px solid var(--ui-color); outline-offset: 2px; }
 #appScreen > .phone-drag-layer {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 4000;
   overflow: hidden;
   pointer-events: none;
@@ -3506,7 +3506,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 /* 合集窗口：整块由 JS 生成，限在手机屏内，正方形（3×3 放满 9 个） */
 .phone-folder-mask {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 3000;
   display: flex;
   align-items: center;
@@ -6107,7 +6107,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 /* === 启动画面 === */
 #splash {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 10000;
   display: none;
   align-items: center;
@@ -6165,7 +6165,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .splash-ring {
   --r: min(86px, 22vh);
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   /* 道具层在主角之上，收缩叠放时不被遮挡 */
   z-index: 1;
   pointer-events: none;
@@ -6275,7 +6275,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .egg-icon-shine::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.92) 50%, transparent 58%);
   background-size: 300% 100%;
   background-repeat: no-repeat;
@@ -6382,7 +6382,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 /* 挡点击的透明层 */
 .dg-blocker {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 10000;
   cursor: pointer;
 }
@@ -6696,7 +6696,7 @@ html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
 #rosterList.roster-zoom > :not(.roster-detail-head) { display: none; }
 #rosterList.roster-zoom .roster-detail-head {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 30;
   display: flex;
   align-items: center;
@@ -6731,7 +6731,7 @@ html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
 #pokedexList.pokedex-zoom > :not(.pokedex-detail-head) { display: none; }
 #pokedexList.pokedex-zoom .pokedex-detail-head {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 30;
   padding: 0;
   background: var(--screen-bg);
@@ -7774,7 +7774,7 @@ html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
 }
 .intro-stage {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
 }
 /* 选角后的 tile 场景画布：铺在底部，角色站其上 */
 #introSceneCanvas {
@@ -7866,7 +7866,7 @@ html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
 /* 免责声明：进游戏前盖满屏，黑底红字，点「继续」才收起 */
 .intro-declare {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -8399,7 +8399,7 @@ body.booting { visibility: hidden; }
 .casino-coin-piles {
   position: absolute;
   left: 8px;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   width: 28px;
   pointer-events: none;
   display: flex;
@@ -8696,7 +8696,7 @@ body.booting { visibility: hidden; }
 /* 自动战斗遮罩：覆盖底部文案区，右下角闪烁提示，点击恢复手动 */
 .b-auto-mask {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   display: none;
   align-items: flex-end;
   justify-content: flex-end;
@@ -8719,7 +8719,7 @@ body.booting { visibility: hidden; }
 /* 对战记录页：全屏覆盖战斗界面（遮住全部按钮 = 锁 UI），滚动列出本次对战日志 */
 .b-log-page {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -10420,7 +10420,7 @@ body.booting { visibility: hidden; }
 }
 #mahjongView .mj-table {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   background:
     radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 64%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
@@ -10436,7 +10436,7 @@ body.booting { visibility: hidden; }
 /* 浮标全幅透明层，高于结算遮罩 */
 #mahjongView .mj-float-layer {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 5;
   pointer-events: none;
 }
@@ -10879,7 +10879,7 @@ body.booting { visibility: hidden; }
 /* 立直环：与牌河网格对齐 */
 #mahjongView .mj-river-ring {
   position: absolute;
-  inset: 3px;
+  top: 3px; right: 3px; bottom: 3px; left: 3px;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(6, 1fr);
@@ -10989,7 +10989,7 @@ body.booting { visibility: hidden; }
 #mahjongView .mj-stack:has(.mj-dora-hit)::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   border-radius: 3px;
   z-index: 99;
   pointer-events: none;
@@ -11198,7 +11198,7 @@ body.booting { visibility: hidden; }
 /* 结算全屏遮罩：半透明盖住整个视口 */
 #mahjongView .mj-result {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 6;
   background: rgba(10, 18, 14, 0.62);
   display: flex;
@@ -11562,7 +11562,7 @@ body.booting { visibility: hidden; }
 .gacha-marquee-item.tier-SR { border-color: #d4850a; }
 .gacha-marquee-item.tier-SR::after {
   content: '';
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(115deg,
     transparent 18%,
     rgba(255,255,255,0.5) 38%,
@@ -11699,7 +11699,7 @@ body.booting { visibility: hidden; }
 /* SR 抽卡扫光 */
 .gacha-card-back.tier-SR::after {
   content: '';
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(115deg,
     transparent 18%,
     rgba(255, 255, 255, 0.6) 38%,
@@ -11756,7 +11756,7 @@ body.booting { visibility: hidden; }
 }
 .tier-badge.tier-SR::after {
   content: '';
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(115deg,
     transparent 20%,
     rgba(255, 220, 100, 0.5) 40%,
@@ -11776,7 +11776,7 @@ body.booting { visibility: hidden; }
 /* NEW 徽章扫光 */
 .new-badge::after {
   content: '';
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(115deg,
     transparent 20%,
     rgba(255,255,255,0.4) 40%,
@@ -11845,7 +11845,7 @@ body.booting { visibility: hidden; }
 /* 总览 SR 扫光 */
 .gacha-summary-card.tier-SR::after {
   content: '';
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   border-radius: 2px;
   background: linear-gradient(115deg,
     transparent 18%,
@@ -11936,7 +11936,7 @@ body.booting { visibility: hidden; }
 .album-card.owned.tier-SR::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   border-radius: 2px;
   background: linear-gradient(115deg,
     transparent 18%,
@@ -11959,7 +11959,7 @@ body.booting { visibility: hidden; }
 /* 挂在 .console 上，边界就是机身：卡片居中且不会跑出机身，尺寸上限由 JS 按机身实际大小算
    （视口单位在机身里会算大） */
 .album-overlay {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: rgba(0,0,0,0.72); display: flex; align-items: center; justify-content: center;
   border-radius: inherit; /* 浏览器模式机身有圆角，遮罩跟着裁 */
   z-index: 1000; touch-action: none; animation: albumFadeIn 0.2s ease;
@@ -12229,7 +12229,7 @@ body.booting { visibility: hidden; }
 .follower-tier-badge.tier-SR::after,
 .follower-tier-badge.tier-UR::after {
   content: '';
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(115deg,
     transparent 20%,
     rgba(255, 220, 100, 0.5) 40%,
@@ -12411,7 +12411,7 @@ body.booting { visibility: hidden; }
 /* 高级筛选浮层面板：遮罩限定在 console 区域内 + 居中面板；配色对齐派遣配置面板（berry-picker）：米黄底 + 深绿字 */
 .adv-filter-overlay {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -12707,7 +12707,7 @@ html.ui-mobile .control-btn.back-btn.inert {
 .screen-wrapper { position: relative; }
 .app-screen {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   margin: 6px 10px; /* 抵消 .screen-wrapper 的 padding：经典布局与舞台屏完全重合 */
   width: auto;
   height: auto;
@@ -12797,7 +12797,7 @@ html.ui-dual .screen-wrapper { /* 内边距沿用经典，舞台高度与单屏�
 html.ui-dual .screen { flex: 1 1 auto; min-height: 0; } /* 舞台：占经典那份高度 */
 html.ui-dual .app-screen { /* 下屏：与单屏模式里 app 页面的可用高度一致 */
   position: relative;
-  inset: auto;
+  top: auto; right: auto; bottom: auto; left: auto;
   margin: 0;
   background: var(--screen-bg); /* 基础规则里是 transparent（经典两屏重合用），双屏下得自己铺底色 */
   flex: 0 0 213px;
@@ -12826,7 +12826,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 #shopView { position: relative; }
 .shop-detail-mask {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 40;
   display: none;
   align-items: center;
@@ -12963,7 +12963,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   cursor: grab;
 }
 .stir-bowl:active { cursor: grabbing; }
-.stir-ring { position: absolute; inset: -5%; width: 110%; height: 110%; transform: rotate(-90deg); pointer-events: none; }
+.stir-ring { position: absolute; top: -5%; right: -5%; bottom: -5%; left: -5%; width: 110%; height: 110%; transform: rotate(-90deg); pointer-events: none; }
 .stir-ring-bg { fill: none; stroke: rgba(var(--ui-color-rgb), 0.16); stroke-width: 2.5; }
 .stir-ring-fg {
   fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round;
@@ -12987,7 +12987,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 }
 /* 螺纹：奶油里按当前口味上色，跟着搅拌一起转（糖饰不在这里摆，等进化演出投掷） */
 .stir-swirl {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   width: 100%; height: 100%;
   transform: rotate(calc(var(--spin, 0) * 1deg)) scaleX(var(--dir, 1));
   pointer-events: none;
@@ -13031,7 +13031,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   /* 手游双屏下机身被缩放，模糊/混合图层会突破 overflow 的裁剪，contain 把绘制框死在这块屏 */
   contain: paint;
 }
-#evoFx { position: absolute; inset: 0; width: 100%; height: 100%; }
+#evoFx { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }
 .evo-glow {
   position: absolute; top: 50%; width: 86%; height: 130%;
   transform: translateY(-50%); opacity: 0;
@@ -13040,7 +13040,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 #evoGlowL { left: -30%; background: radial-gradient(circle closest-side, var(--c1, #4aa8ff) 0%, transparent 72%); }
 #evoGlowR { right: -30%; background: radial-gradient(circle closest-side, var(--c2, #4aa8ff) 0%, transparent 72%); }
 #evoVig {
-  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; opacity: 0;
   background:
     radial-gradient(circle closest-side at 50% 47%, var(--vig-c, #0b1711) 0%, color-mix(in srgb, var(--vig-c, #0b1711) 55%, transparent) 36%, transparent 68%),
     radial-gradient(circle farthest-corner at 50% 47%, transparent 42%, var(--vig-c, #0b1711) 100%);
@@ -13052,7 +13052,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   pointer-events: none; opacity: 0; mix-blend-mode: screen;
 }
 #evoStarBox i {
-  position: absolute; inset: 0; border-radius: 50%; display: block;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: 50%; display: block;
   background: repeating-conic-gradient(from 0deg, var(--star, #4aa8ff) 0 6.5deg, transparent 6.5deg 45deg);
   -webkit-mask-image: radial-gradient(circle closest-side, transparent 5%, #000 32%, rgba(0,0,0,.55) 62%, transparent 82%);
   mask-image: radial-gradient(circle closest-side, transparent 5%, #000 32%, rgba(0,0,0,.55) 62%, transparent 82%);
@@ -13091,12 +13091,12 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   image-rendering: pixelated; pointer-events: none;
   will-change: transform, opacity;
 }
-#evoFlash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#evoFlash { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #fff; opacity: 0; pointer-events: none; }
 
 /* === 分享图预览 === */
 .share-mask {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 12000;
   display: flex;
   align-items: center;
@@ -13143,7 +13143,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 /* === 资源热更：更新进度遮罩（hot-update.js 动态挂到 body） === */
 .hot-mask {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 3000;
   display: none;
   align-items: center;
@@ -13257,7 +13257,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 /* 碎裂：两块冰各自滑开（平时与冰面同色看不出接缝，碎的那一刻撤掉父级裁剪才露出来） */
 .pg-half {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(180deg, #fff 0 42%, rgba(226, 240, 252, 0.92) 42% 100%);
   opacity: 0;
 }
@@ -13414,7 +13414,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   grid-template-rows: repeat(5, 28px);
   gap: 6px;
 }
-.vf-lattice { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.vf-lattice { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0; pointer-events: none; }
 .vf-lattice svg { display: block; width: 100%; height: 100%; overflow: visible; }
 
 .vf-tile {
@@ -13432,9 +13432,9 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   -webkit-touch-callout: none;
 }
 .vf-tile:focus { outline: none; }
-.vf-bezel { position: absolute; inset: 0; background: #d5efe7; border-radius: 2px; padding: 1px; perspective: 180px; }
-.vf-card { position: absolute; inset: 1px; transform-style: preserve-3d; transition: transform .42s cubic-bezier(.2,.7,.2,1); }
-.vf-face { position: absolute; inset: 0; border-radius: 2px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.vf-bezel { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #d5efe7; border-radius: 2px; padding: 1px; perspective: 180px; }
+.vf-card { position: absolute; top: 1px; right: 1px; bottom: 1px; left: 1px; transform-style: preserve-3d; transition: transform .42s cubic-bezier(.2,.7,.2,1); }
+.vf-face { position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: 2px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .vf-hidden {
   background-color: #146b4f;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='20' height='20' fill='%2328a46c'/%3E%3Cg fill='%23188463'%3E%3Crect width='6.667' height='6.667'/%3E%3Crect x='13.333' width='6.667' height='6.667'/%3E%3Crect x='6.667' y='6.667' width='6.667' height='6.667'/%3E%3Crect y='13.333' width='6.667' height='6.667'/%3E%3Crect x='13.333' y='13.333' width='6.667' height='6.667'/%3E%3C/g%3E%3C/svg%3E");
@@ -13452,7 +13452,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 
 .vf-memo {
   position: absolute;
-  inset: 3px;
+  top: 3px; right: 3px; bottom: 3px; left: 3px;
   z-index: 2;
   pointer-events: none;
   display: grid;
@@ -13532,7 +13532,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 .vf-corner:disabled { opacity: .5; cursor: default; }
 
 /* 长按/右键标记菜单 */
-.vf-mark-backdrop { position: absolute; inset: 0; z-index: 20; }
+.vf-mark-backdrop { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; }
 .vf-mark-menu {
   position: absolute;
   z-index: 21;
@@ -13568,7 +13568,7 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 .vf-app.settled .vf-corner { visibility: hidden; }
 .vf-overlay {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -13676,7 +13676,7 @@ html.power-save .screen *:not(.walk-gif)::after {
   border-radius: 50%; background: var(--ui-color-dark); opacity: .85; z-index: 2;
 }
 .pf-rot {
-  position: absolute; inset: 0; display: block;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: block;
   transform-origin: 50% 50%;
   transition: transform .16s cubic-bezier(.2,.7,.2,1);
   pointer-events: none;
@@ -13708,7 +13708,7 @@ html.power-save .screen *:not(.walk-gif)::after {
   100% { opacity: 0; transform: scale(.4); }
 }
 .pf-icon {
-  position: absolute; inset: 10%; display: flex; align-items: center; justify-content: center;
+  position: absolute; top: 10%; right: 10%; bottom: 10%; left: 10%; display: flex; align-items: center; justify-content: center;
   pointer-events: none;
 }
 .pf-actor {
@@ -13729,7 +13729,7 @@ html.power-save .screen *:not(.walk-gif)::after {
 }
 .pf-board.done .pf-cell { visibility: hidden; }
 .pf-result {
-  position: absolute; inset: -1px; z-index: 5;
+  position: absolute; top: -1px; right: -1px; bottom: -1px; left: -1px; z-index: 5;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   background: var(--screen-bg); text-align: center; color: var(--ui-color);
 }
@@ -13893,7 +13893,7 @@ html.power-save .screen *:not(.walk-gif)::after {
 
 .slot-wheel-overlay {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -13973,7 +13973,7 @@ html.power-save .screen *:not(.walk-gif)::after {
   background: #f7f1df;
   z-index: 3;
 }
-.slot-pb-top { position: absolute; inset: 0 0 50% 0; background: #d94b4b; }
+.slot-pb-top { position: absolute; top: 0; right: 0; bottom: 50%; left: 0; background: #d94b4b; }
 .slot-pb-band {
   position: absolute;
   left: 0;
@@ -14011,7 +14011,7 @@ html.power-save .screen *:not(.walk-gif)::after {
 .slot-rules:disabled { opacity: .45; cursor: default; }
 .game-rules-overlay {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 35;
   display: flex;
   flex-direction: column;

@@ -904,7 +904,7 @@
 }
 /* 大面积水系冲浪圆形水波 */.b-water-fx {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 5;
   pointer-events: none;
   overflow: visible; /* 关键：允许圆形从屏幕外面进来 */
@@ -944,7 +944,7 @@
 /* 魔法闪耀：粉色半透明遮罩全屏一闪（中心扩散 → 淡出） */
 .b-fairy-fx {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: 7;
   pointer-events: none;
   background: radial-gradient(circle at 50% 42%, rgba(255, 120, 220, 0.5), rgba(255, 150, 230, 0.3) 55%, rgba(255, 170, 235, 0.12));

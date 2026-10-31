@@ -363,7 +363,8 @@ function renderBoard() {
     </div>`;
   });
   grid.innerHTML = cells.join('') + pieces.join('');
-  area.replaceChildren(grid);
+  area.innerHTML = '';
+  area.appendChild(grid);
 
   grid.querySelectorAll('.sl-ball').forEach(img => tryLoadImage(img, img.dataset.src));
   grid.querySelectorAll('.sl-sprite').forEach((img) => {
