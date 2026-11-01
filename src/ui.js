@@ -167,6 +167,20 @@ export function showView(id) {
     el.classList.toggle('is-active', on); // 供 CSS 定位/调试：当前视图
   });
   if (!VIEW_IDS.includes(id)) console.warn('[view] 页面未注册到 VIEW_IDS：', id); // 漏注册会得到一片空屏
+  // 透明遭遇背景：把挂机页留在地层（只留天空和路面），遭遇页半透明盖上去
+  if (!mobileDual || targetStage) {
+    const seeThrough = id === 'encounterView' && gameData.settings?.seeThroughEncounter === true;
+    const idleEl = $('idleView');
+    if (idleEl) {
+      idleEl.classList.toggle('idle-backdrop', seeThrough);
+      if (seeThrough) {
+        idleEl.style.display = 'flex';
+        idleEl.classList.add('is-active');
+      }
+    }
+    const screenEl = $('screen');
+    if (screenEl) screenEl.classList.toggle('encounter-see-through', seeThrough);
+  }
   // 双屏下两块屏都不留空：上屏无画面顶挂机页，下屏无 app 回手机首页
   if (mobileDual) {
     if (!targetStage && ![...STAGE_VIEWS].some(v => $(v)?.style.display !== 'none')) {
@@ -443,7 +457,10 @@ export function hideConfirmBar() {
 // 道具滚动、遇敌图标、事件宝可梦、文案提醒等都以此判断"在前台演出"还是"后台直收"。
 // 注意与 isPageHidden 分开：页面被切走（最小化/切标签）才算真后台，两者取或
 export function isIdleStageVisible() {
-  return $('idleView')?.style.display !== 'none';
+  // 遭遇页盖在上面时（含"透明遭遇背景"把挂机页留在底下的情况）不算挂机页在前台
+  const idle = $('idleView');
+  const enc = $('encounterView');
+  return !!idle && idle.style.display !== 'none' && (!enc || enc.style.display === 'none');
 }
 
 // 页面是否真的不可见（切标签/最小化）：用于"不播动画直接入账"这类真后台逻辑

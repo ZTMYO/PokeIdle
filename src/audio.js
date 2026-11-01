@@ -174,6 +174,7 @@ function installResumeListener() {
     _userGestured = true; // 首次手势后允许创建 AudioContext（autoplay 已解除）
     if (_pending) { const el = _pending; _pending = null; tryPlay(el); return; }
     resumeAudio();
+    preloadShinySfx(); // 首次手势后顺手把闪光提示音解码好
   };
   document.addEventListener('pointerdown', resume, true);
   document.addEventListener('click', resume, true);
@@ -451,15 +452,62 @@ export function playLevelUp() { playSfx(SFX.levelUp); }
 // 音量在总音量基础上提响一档（闪光登场是重要提示音，0.6 常见设置下会被背景曲盖住）
 // 返回创建的 Audio 实例（splash 锁定或音效关闭时返回 null），供调用方等待播完再衔接后续声音
 let _pendingShiny = false;
+let _shinyAudio = null;
+let _shinyBuffer = null;    // 解码好的 PCM：走 WebAudio 播放，避免和切歌/主线程抢媒体通道
+let _shinyLoading = null;
+let _shinyUntil = 0;        // 这一声预计播完的时刻：期间重复触发不再重放
+
+function getShinyAudio() {
+  if (!_shinyAudio) {
+    _shinyAudio = new Audio(urlFor(SFX.shiny));
+    _shinyAudio.preload = 'auto';
+  }
+  return _shinyAudio;
+}
+
+export function preloadShinySfx() {
+  const ctx = ensureCtx();
+  if (!ctx) return;
+  if (_shinyBuffer || _shinyLoading) return;
+  _shinyLoading = fetch(urlFor(SFX.shiny))
+    .then(r => r.arrayBuffer())
+    .then(ab => ctx.decodeAudioData(ab))
+    .then(buf => { _shinyBuffer = buf; return buf; })
+    .catch(() => null)
+    .finally(() => { _shinyLoading = null; });
+}
+
+function startShinyPlayback() {
+  const ctx = ensureCtx();
+  if (ctx && _shinyBuffer) {
+    const src = ctx.createBufferSource();
+    const g = ctx.createGain();
+    src.buffer = _shinyBuffer;
+    g.gain.value = Math.min(1, _volume * 1.5);
+    src.connect(g);
+    g.connect(ctx.destination);
+    src.start();
+    _shinyUntil = performance.now() + _shinyBuffer.duration * 1000;
+    return src;
+  }
+  // 还没解码完（或没有 AudioContext）：先用 HTMLAudio 顶一声，同时后台准备缓冲
+  preloadShinySfx();
+  const a = getShinyAudio();
+  a.volume = Math.min(1, _volume * 1.5);
+  try { a.currentTime = 0; } catch (_) {}
+  a.play().catch(() => {});
+  _shinyUntil = performance.now() + 1500;
+  return a;
+}
+
 export function playShiny() {
   if (!_sfxEnabled) return null;
   if (document.hidden) return null; // 页面不可见：直接丢弃，不在后台响
   if (_splashLocked || _bulkQuiet) { _pendingShiny = true; return null; } // 禁声期间记下，放行后补播
   _pendingShiny = false;
-  const a = new Audio(urlFor(SFX.shiny));
-  a.volume = Math.min(1, _volume * 1.5);
-  a.play().catch(() => {});
-  return a;
+  // 上一声还没播完：不从头打断重放（同一场遭遇会被转场/刷新恢复重复触发一次）
+  if (performance.now() < _shinyUntil) return null;
+  return startShinyPlayback();
 }
 
 // 消费并播放待补播的闪光提示音（splash 结束时由 setSplashLocked(false) 调用）
@@ -467,9 +515,7 @@ function flushPendingShiny() {
   if (!_pendingShiny) return;
   _pendingShiny = false;
   if (!_sfxEnabled || document.hidden) return;
-  const a = new Audio(urlFor(SFX.shiny));
-  a.volume = Math.min(1, _volume * 1.5);
-  a.play().catch(() => {});
+  startShinyPlayback();
 }
 
 // ---------- 麻将 / 游戏厅瞬发音效 ----------

@@ -1097,6 +1097,7 @@ export function renderSettings(container, s) {
   const idleBackground = s.idleBackground === true;
   const bgTime = s.idleBackgroundTime || 'auto';   // 背景时段：auto=跟随系统时间
   const bgScene = s.idleBackgroundScene || 'random'; // 背景场景：random=进出遭遇时随机
+  const seeThroughEncounter = s.seeThroughEncounter === true; // 遭遇页透出挂机背景
   const uiMobile = getUiMode() !== 'classic'; // 双屏布局（手游模式/桌面双屏），存档未设置时按平台取默认
   // 捕捉条件表格：各遇敌类型行，策略列选中即换底色
   const cfRow = key => (cf.rows && cf.rows[key]) || { action: 'catch', levelMin: 1, levelMax: 20, uncaughtOnly: false };
@@ -1247,6 +1248,7 @@ export function renderSettings(container, s) {
             <div class="toggle-knob"></div>
           </div>
         </div>
+        ${idleBackground ? `
         <div class="auto-catch-row" style="display:block;padding-bottom:2px;">
           <div class="auto-catch-label" style="margin-bottom:4px;">背景时段</div>
           <div class="adv-chips" id="bgTimeChips">
@@ -1261,7 +1263,14 @@ export function renderSettings(container, s) {
               `<span class="adv-chip${bgScene === v ? " sel" : ""}" data-bgscene="${v}">${t}</span>`).join("")}
           </div>
         </div>
-        <div class="cf-hint" style="padding:0 4px 4px;">默认光影随系统时间切换；省电模式下自动停用</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">透明遭遇背景</div>
+          <div class="toggle-switch" id="toggleSeeThroughEncounter">
+            <div class="toggle-track ${seeThroughEncounter ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>` : ''}
+        ${idleBackground ? `<div class="cf-hint" style="padding:0 4px 4px;">默认光影随系统时间切换；省电模式下自动停用</div>` : ''}
         <div class="auto-catch-row">
           <div class="auto-catch-label">${isMobilePlatform() ? '手游模式' : '双屏模式'}</div>
           <div class="toggle-switch" id="toggleUiMode">
@@ -1393,6 +1402,7 @@ export function renderSettings(container, s) {
     const chip = e.target.closest('[data-bgscene]');
     if (chip) setIdleBackgroundScene(chip.dataset.bgscene);
   });
+  container.querySelector('#toggleSeeThroughEncounter')?.addEventListener('click', toggleSeeThroughEncounter);
   container.querySelector('#togglePowerSave')?.addEventListener('click', togglePowerSave);
   container.querySelector('#toggleUiMode')?.addEventListener('click', toggleUiMode);
   // 窗口倍率下拉：展开/收起（同一时刻只开一个）
@@ -1826,6 +1836,7 @@ function ensureSettings() {
   if (gameData.settings.idleBackground == null) gameData.settings.idleBackground = false; // 挂机页视差背景（默认关闭）
   if (gameData.settings.idleBackgroundTime == null) gameData.settings.idleBackgroundTime = 'auto'; // 背景时段（默认跟随系统时间）
   if (gameData.settings.idleBackgroundScene == null) gameData.settings.idleBackgroundScene = 'random'; // 背景场景（默认随机）
+  if (gameData.settings.seeThroughEncounter == null) gameData.settings.seeThroughEncounter = false; // 遭遇页透出挂机背景
 }
 
 // 夜间模式开关：立即应用到根元素 data-theme（样式层已定义深色变量覆盖），并持久化
@@ -1843,6 +1854,14 @@ export function toggleDarkMode() {
 export function setIdleBackgroundTime(v) {
   ensureSettings();
   gameData.settings.idleBackgroundTime = ['auto', 'day', 'twilight', 'dusk', 'night', 'deepnight'].includes(v) ? v : 'auto';
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+}
+// 遭遇页透出挂机背景：半透明挡住挂机页，背景继续可见
+export function toggleSeeThroughEncounter() {
+  ensureSettings();
+  gameData.settings.seeThroughEncounter = gameData.settings.seeThroughEncounter !== true;
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();

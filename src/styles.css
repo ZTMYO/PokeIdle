@@ -595,6 +595,66 @@ html.mobile-app #quitHide { display: none !important; }
   bottom: 0;
   width: 100%;
   height: 100%;
+  /* 独立层叠上下文：否则天空画布(z1)/路面(z5)会盖在遭遇页的遮罩上，
+     透出来的背景反而是原始画面 */
+  z-index: 10;
+}
+
+/* 透明遭遇背景：挂机页留在地层，只保留天空和路面 */
+.idle-backdrop .walk-gif,
+.idle-backdrop .idle-text,
+.idle-backdrop .now-playing,
+.idle-backdrop .twist-overlay { display: none !important; }
+
+/* 遭遇页透底遮罩：一层很淡的白色薄雾压住背景，顶部再叠一条半透明主题色渐隐 */
+#screen.encounter-see-through #encounterView::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+#screen.encounter-see-through #encounterView::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 42%;
+  background: linear-gradient(to bottom, var(--screen-bg), transparent);
+  opacity: 0.5;
+  pointer-events: none;
+}
+/* 夜间模式 / 挂机背景是夜晚、深夜：白雾换成暗色压罩 */
+[data-theme="dark"] #screen.encounter-see-through #encounterView::before,
+html.sky-night-bg #screen.encounter-see-through #encounterView::before {
+  background: rgba(12, 18, 28, 0.42);
+}
+[data-theme="dark"] #screen.encounter-see-through #encounterView::after,
+html.sky-night-bg #screen.encounter-see-through #encounterView::after {
+  background: linear-gradient(to bottom, rgba(12, 18, 28, 0.9), transparent);
+  opacity: 0.5;
+}
+/* 暗色环境里左上名字 / 右侧捕获率稀有度 / 已拥有图标改用亮色，别用主题深色 */
+[data-theme="dark"] #screen.encounter-see-through #encounterView .encounter-name,
+[data-theme="dark"] #screen.encounter-see-through #encounterView .encounter-lv,
+[data-theme="dark"] #screen.encounter-see-through #encounterView .encounter-catch-rate,
+[data-theme="dark"] #screen.encounter-see-through #encounterView .encounter-new-label,
+[data-theme="dark"] #screen.encounter-see-through #encounterView .encounter-owned,
+html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name,
+html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-lv,
+html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-catch-rate,
+html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-new-label,
+html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-owned {
+  color: #eef4ff;
+}
+/* 名字行的闪光星是内联 color，需要 !important 才能盖住；只选中直接子级，别碰到等级里的性别图标 */
+[data-theme="dark"] #screen.encounter-see-through #encounterView .encounter-name > svg,
+html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name > svg {
+  color: #eef4ff !important;
 }
 
 /* === 孵蛋动画（独立页面） === */
@@ -1736,6 +1796,7 @@ html.mobile-app #quitHide { display: none !important; }
   position: absolute;
   pointer-events: none;
   z-index: 6;
+  will-change: transform, opacity;
 }
 .shiny-sparkle::after {
   content: '✦';
@@ -1743,7 +1804,7 @@ html.mobile-app #quitHide { display: none !important; }
   color: #ffffff;
   display: block;
   line-height: 1;
-  filter: drop-shadow(0 0 3px rgba(255,255,255,0.9));
+  text-shadow: 0 0 3px rgba(255,255,255,0.9);
 }
 .shiny-sparkle.sm::after { font-size: 6px; }
 .shiny-card::after {

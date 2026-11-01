@@ -44,6 +44,8 @@ function layout(img, anim, row, k, origin) {
   img.style.objectPosition = `0px -${row * anim.h}px`;
   img.style.maxWidth = 'none';
   img.style.maxHeight = 'none';
+  // 宽体帧在 flex 槽位里会被压成槽宽，不能收缩
+  img.style.flexShrink = '0';
   img.style.transformOrigin = origin;
   img.style.transform = `scale(${k})`;
 }

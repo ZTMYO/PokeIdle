@@ -275,9 +275,9 @@ function syncFollowerBoostHook() {
     if (mechanic === 'massShinyRate') return base * FOLLOWER_MAIN.massShinyMult;
     if (mechanic === 'mysteryEggRate') return base * (1 + FOLLOWER_MAIN.mysteryEggBonus);
     if (mechanic === 'bikeSpeed') return base * (1 + FOLLOWER_MAIN.bikeSpeedBonus);
-    // 特殊路段：水系把倾向推到水域，飞行/妖精推到自行车道
+    // 副效果：特殊路段里本类路段的占比 = 50% + 档位幅度（水系偏水域，飞行/妖精偏车道）
     if (mechanic === 'roadWaterPref') {
-      return act.groups.includes('fishing') ? FOLLOWER_MAIN.roadWaterPref : 1 - FOLLOWER_MAIN.roadWaterPref;
+      return act.groups.includes('fishing') ? 0.5 + boost : 0.5 - boost;
     }
     // 副效果：按幅度放大，减益方向的两条（逃跑率 / 孵蛋里程）取反
     if (mechanic === 'fleeRate' || mechanic === 'hatchDist') return Math.max(0, base * (1 - boost));

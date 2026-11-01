@@ -289,7 +289,10 @@ const buildArt = (pal) => {
   }
   applyDimFilter(pal.tint);
   // 只有夜晚/扭曲才把文案换成亮色；黄昏沿用白天的配色
-  if (_idle) _idle.classList.toggle('sky-dark-text', pal.name === 'night' || pal.name === 'twist' || pal.name === 'deepnight');
+  const darkSky = pal.name === 'night' || pal.name === 'deepnight';
+  if (_idle) _idle.classList.toggle('sky-dark-text', darkSky || pal.name === 'twist');
+  // 遭遇页的透底遮罩跟着夜色走：夜里不用白色薄雾
+  document.documentElement.classList.toggle('sky-night-bg', darkSky);
 };
 
 // 背景种类：森林 / 城镇 / 海边。走路上永远不切，只在遭遇把挂机页盖住的时候换一次，
