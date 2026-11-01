@@ -164,6 +164,7 @@ function updateGpsViewport() {
 
 // 正在骑：手动骑行或路段自带的自行车都算，导航页共用这套锁定
 const isRiding = () => road.isManualBike() || road.isRoadBike();
+let _rideTapCount = 0, _rideTapAt = 0;
 
 function buildMiniMap(g) {
   // 骑行中（已选好目的地）锁定地图：节点/大量出没点不可点击，光标改默认
@@ -882,7 +883,7 @@ function render() {
     <div class="gps-wrap">
       <div class="gps-roam-row">
         ${bikeMode
-          ? `<span class="gps-roam-label">${riding ? '骑行中' : '选择骑行目的地'}</span>`
+          ? `<span class="gps-roam-label"${riding ? ' id="gpsRidingLabel"' : ''}>${riding ? '骑行中' : '选择骑行目的地'}</span>`
           : `<span class="gps-roam-label">漫游</span>
              <div class="toggle-switch" id="gpsRoamToggle">
                <div class="toggle-track${g.roamEnabled ? ' on' : ''}"></div>
@@ -992,6 +993,28 @@ export function showGpsView() {
   // 事件委托：漫游开关 + 点击地图节点选择目的地 / 取消导航
   const el = $('gpsContent');
   el.onclick = (e) => {
+    const rideLabel = e.target.closest('#gpsRidingLabel');
+    if (rideLabel) {
+      const now = Date.now();
+      if (now - _rideTapAt > 1500) _rideTapCount = 0;
+      _rideTapAt = now;
+      _rideTapCount += 1;
+      if (_rideTapCount < 10) return;
+      _rideTapCount = 0;
+      const g = gameData.gps;
+      if ((g.destIdx != null || g.massTarget != null) && hasActiveSegment(g) && g.path.length >= 2) {
+        g.seg = g.path.length - 2;
+        g.remainPx = 0;
+        advanceSegment();
+      }
+      road.setBike(false);
+      road.setManualBike(false);
+      endCycling();
+      setIdleCharacter('walk');
+      saveGame();
+      render();
+      return;
+    }
     const sw = e.target.closest('#gpsRoamToggle');
     if (sw) {
       if (isRiding() || gameData.gps.pendingBike) return; // 骑行相关态已隐藏开关，保险拦截

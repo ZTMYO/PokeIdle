@@ -66,6 +66,7 @@ const encounterStamp = () => _encounterAt || simNow();
 let _encounterGender = 'male';
 // 事件遭遇（大量出没/时空扭曲）已在后台结算的标记：防止 goIdle 与 cleanupEncounterState
 // 两条路径对同一遭遇重复扣减剩余数量（孵蛋挂起期间遭遇被后台结算后又走 goIdle 的场景）
+let _bikeRideBeforeEncounter = false;
 let _eventEncounterSettled = false;
 // 补算正在按事件节奏结算大量出没遭遇：事件剩余数量由补算自己扣（见 onMassEncounterEnded 调用），
 // goIdle / cleanupEncounterState 两条收尾路径此时不再重复扣减
@@ -532,6 +533,7 @@ function markEncounterSeen(poke, shiny, source) {
 }
 
 function beginEncounter(poke, opts = {}) {
+  _bikeRideBeforeEncounter = road.isManualBike();
   _eventEncounterSettled = false; // 新遭遇开始：事件结算标记复位
   _encounterSource = opts.source || 'normal';
   setEncounterSource(_encounterSource); // 同步会话变量：刷新页面恢复遭遇时重建来源
@@ -1034,7 +1036,18 @@ export async function throwBall(ballType) {
     // 否则中途被系统杀掉/大退后再进来就找不到这一场了（安卓强杀不写会话存档，只能靠主存档恢复）。
     // 捕获/逃走分支最后都会走 goIdle，那里也会再清一次。
     if (outcome !== 'continue') gameData.wildEncounter = null;
-    await saveGame(); // 立即存档：扣球 + 判定结果
+    // 事件遭遇在"抓到 / 逃走"落库这一步就扣事件剩余数量，跟判定结果同一次存档：
+    // 否则玩家在收尾动画期间刷新，会留下"已经入袋、事件数量没减"的无限刷事件漏洞
+    if ((outcome === 'caught' || outcome === 'fled') && !_eventEncounterSettled) {
+      if (!_massCatchupZone && _encounterSource === 'mass' && inMassZone()) {
+        await import('./events.js').then(m => m.onMassEncounterEnded()).catch(() => {});
+        _eventEncounterSettled = true;
+      } else if (_encounterSource === 'twist' && inTwistZone()) {
+        await import('./events.js').then(m => m.onTwistEncounterEnded()).catch(() => {});
+        _eventEncounterSettled = true;
+      }
+    }
+    await saveGame(); // 立即存档：扣球 + 判定结果 + 事件剩余数量
 
     // 浏览器后台（页面不可见，rAF 停摆 / 后台补算）：判定已落库，跳过动画直接收尾，
     // 避免丢球动画在后台卡死（切走时正在丢球，回来还停在宝可梦画面）。无动画无文案，直接回主界面
@@ -1215,6 +1228,9 @@ export function goIdle() {
   $('screen').style.borderColor = '';
   $('fleeBtn').style.display = 'none';
   setIdleCharacter('walk');
+  // 进遭遇前在骑车：收尾后恢复骑行（中途任何流程把骑行状态清掉都补回来）
+  if (_bikeRideBeforeEncounter && !road.isManualBike()) road.setManualBike(true);
+  _bikeRideBeforeEncounter = false;
   // 事件遭遇结束：剩余数量-1，未抓完则调度下一只事件宝可梦出现（事件区域内由滚动触发遇敌）；
   // 只有确实来自事件的遭遇才扣（endedSource），否则孵蛋等收尾路过这里会白扣一只；
   // 若已被 cleanupEncounterState 后台结算过（孵蛋挂起等场景）则跳过，避免同一遭遇重复扣减
@@ -1295,11 +1311,13 @@ function cleanupEncounterState() {
   updateStats();
   // 事件遭遇结束：剩余数量-1（只有事件来源的遭遇才算，普通清理路过事件区域不能白扣）。
   // 补算按事件节奏结算的那批由补算自己扣，这里跳过，避免同一场扣两次
-  if (!_massCatchupZone && endedSource === 'mass' && inMassZone()) {
-    import('./events.js').then(m => m.onMassEncounterEnded());
-  }
-  if (endedSource === 'twist' && inTwistZone()) {
-    import('./events.js').then(m => m.onTwistEncounterEnded());
+  if (!_eventEncounterSettled) {
+    if (!_massCatchupZone && endedSource === 'mass' && inMassZone()) {
+      import('./events.js').then(m => m.onMassEncounterEnded());
+    }
+    if (endedSource === 'twist' && inTwistZone()) {
+      import('./events.js').then(m => m.onTwistEncounterEnded());
+    }
   }
   // 事件结算已在后台执行，后续 goIdle 不再重复扣减
   _eventEncounterSettled = true;
