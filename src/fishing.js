@@ -177,7 +177,8 @@ async function startFishing() {
   if (Math.random() < fishPokemonChance) {
     const poke = pickFishingPokemon();
     if (poke) {
-      finishFishing(true);              // 静默收杆：清理钓鱼状态，遇敌调度交给战斗结束后统一处理
+      // 静默收杆并保持收竿姿势：转场揭开前主角不能切回走路动画
+      finishFishing(true, true);
       startFishingEncounter(poke);
       return;
     }
@@ -207,14 +208,14 @@ function abortFishing() {
   if (_fishing) finishFishing();
 }
 
-function finishFishing(silent = false) {
+function finishFishing(silent = false, keepPose = false) {
   _fishedInSegment = true;   // 本路段已钓过，本段不再触发
   _fishingDueTick = 0;
   clearFloatingItems();
   setFishing(false);
-  // 战斗中道路保持暂停（由 goIdle 统一恢复）
-  setIdleCharacter('walk');            // 姿势必须收回走路：动画收尾被战斗打断时不会卡在动作帧
-  road.unlockFishing(phase === 'idle'); // 释放钓鱼锁，仅 idle 时放回滚动（战斗中交给 goIdle）
+  // 上钩进战斗：姿势和路面都保持到转场盖住；收尾由 goIdle 统一恢复
+  if (!keepPose) setIdleCharacter('walk'); // 姿势必须收回走路：动画收尾被战斗打断时不会卡在动作帧
+  road.unlockFishing(!keepPose && phase === 'idle'); // 释放钓鱼锁，仅 idle 时放回滚动
   if (!silent) {
     // 有 buff 被暂停 → 恢复倒计时（由 buff 接管后续遇敌调度）；否则正常安排下次遇敌
     if (!resumeBuffCountdown()) scheduleNextEncounter();

@@ -12507,12 +12507,12 @@ body.booting { visibility: hidden; }
 .adv-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 3px;
 }
 .adv-chip {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: 2px 5px;
   font-size: 10px;
   line-height: 1.3;
   color: var(--ui-color);

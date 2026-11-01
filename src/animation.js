@@ -353,8 +353,17 @@ const _shinySparkleTimers = new Map();
 function startSparkleLoop(view, target, opts) {
   if (!view) return;
   stopShinySparkleLoop(view);
-  _sparkleBurst(view, target, opts);
-  _shinySparkleTimers.set(view, setInterval(() => _sparkleBurst(view, target, opts), 3000));
+  // 遭遇转场会先把遭遇页藏起来再切过去，第一下爆发会被 display:none 挡掉；
+  // 自动捕捉很快丢球，等不到 3 秒那次，所以等页面露出来再起
+  let tries = 0;
+  const timer = setInterval(() => {
+    if (++tries > 40) { clearInterval(timer); _shinySparkleTimers.delete(view); return; }
+    if (!view.isConnected || view.style.display === 'none') return;
+    clearInterval(timer);
+    _sparkleBurst(view, target, opts);
+    _shinySparkleTimers.set(view, setInterval(() => _sparkleBurst(view, target, opts), 3000));
+  }, 120);
+  _shinySparkleTimers.set(view, timer);
 }
 
 // 开始循环闪光（间隔 ~3s 爆发一次）

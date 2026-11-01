@@ -702,7 +702,13 @@
           <option value="twilight">背景 薄暮</option>
           <option value="dusk">背景 黄昏</option>
           <option value="night">背景 夜晚</option>
+          <option value="deepnight">背景 深夜</option>
           <option value="off">背景 关闭</option>
+        </select>
+        <select id="pvSkyScene" class="btn btn-sm btn-sec" style="height:22px;padding:0 2px;font-size:10px;">
+          <option value="forest">场景 森林</option>
+          <option value="town">场景 城市</option>
+          <option value="beach">场景 海边</option>
         </select>
         <div class="psep"></div>
         <span style="font-size:10px;color:var(--text-muted);">道路自动滚动</span>
@@ -763,7 +769,8 @@
     const $ = id => document.getElementById(id);
 
     // 视差背景素材（与游戏同一份数据，tools/ 下放了副本）
-    import { TREES_IMG, CLOUDS_IMG, TREES_MAP, GRASS_IMG, GRASS_MAP, SKY_PALETTES } from './sky-bg-data.js';
+    import { TREES_IMG, CLOUDS_IMG, TREES_MAP, GRASS_IMG, GRASS_MAP, SKY_PALETTES,
+      HOUSES_IMG, HOUSES_MAP, CITY_PALETTES, VILLAGE_PALETTES, BEACH_IMG, BEACH_PALETTES } from './sky-bg-data.js';
 
     // ==================== 瓦片面板 ====================
     const cvs = $('paletteCanvas'), ctx = cvs.getContext('2d');
@@ -1083,14 +1090,18 @@
     const SKY_GRASS_H = 12;
     const SKY_RIDGE_BASE = 80;
     const SKY_RIDGE_W = 768;
+    const SKY_CITY_Y = 72, SKY_CITY_H = 32;
+    const SKY_VILLAGE_Y = 315, SKY_VILLAGE_H = 45;
+    const SKY_SEA_Y = 86, SKY_SEA_H = 26, SKY_ISLAND_Y = 65, SKY_ISLAND_H = 22, SKY_SUN = 46;
     const SKY_SPAN = 288;
     const SKY_SPEED = { ridge: [0.014, 0.008], far: 0.022, near: 0.12, grass: 0.55, cloud: [0.05, 0.036, 0.024, 0.012] };
     const SKY_TIME_KEYS = [
-      { h: 0, p: 'night' }, { h: 5, p: 'night' }, { h: 6.5, p: 'dusk' }, { h: 9, p: 'day' },
+      { h: 0, p: 'deepnight' }, { h: 4, p: 'deepnight' }, { h: 5, p: 'night' },
+      { h: 6.5, p: 'dusk' }, { h: 9, p: 'day' },
       { h: 16, p: 'day' }, { h: 17.17, p: 'day' }, { h: 17.33, p: 'twilight' }, { h: 18, p: 'twilight' },
-      { h: 18.17, p: 'dusk' }, { h: 20, p: 'night' }, { h: 24, p: 'night' },
+      { h: 18.17, p: 'dusk' }, { h: 20, p: 'night' }, { h: 23, p: 'deepnight' }, { h: 24, p: 'deepnight' },
     ];
-    const SKY_TINT = { day: [0, 0, 0, 0], dusk: [255, 178, 126, 0.14], night: [20, 32, 72, 0.55], twilight: [255, 158, 178, 0.12] };
+    const SKY_TINT = { day: [0, 0, 0, 0], dusk: [255, 178, 126, 0.14], night: [20, 32, 72, 0.55], twilight: [255, 158, 178, 0.12], deepnight: [6, 10, 28, 0.62] };
     const SKY_CLOUD_FRAMES = [
       { x: 0, y: 0, w: 32, h: 32 }, { x: 0, y: 32, w: 16, h: 16 },
       { x: 0, y: 40, w: 16, h: 8 }, { x: 16, y: 40, w: 16, h: 8 },
@@ -1099,7 +1110,7 @@
     const skyCvs = $('skyPreview');
     const skyCtx = skyCvs.getContext('2d');
     const skyTintEl = $('pvSkyTint');
-    let skyBands = null, skyRidges = null, skyClouds = null, skyArt = null, skyArtKey = '', skyDist = 0, skyW = 0, skyH = 0;
+    let skyBands = null, skyBeach = null, skyRidges = null, skyClouds = null, skyArt = null, skyArtKey = '', skyDist = 0, skyW = 0, skyH = 0;
 
     const skyB64 = (b64) => {
       const bin = atob(b64);
@@ -1176,9 +1187,10 @@
     const skyRidge = (rng, baseY, maxH, peaks) => {
       const list = [];
       for (let i = 0; i < peaks; i++) list.push({ x: rng() * SKY_RIDGE_W, h: maxH * (0.45 + rng() * 0.55), w: 18 + rng() * 46 });
-      const ridge = new Float32Array(SKY_RIDGE_W).fill(baseY);
+      const ridge = new Float32Array(SKY_RIDGE_W);
       for (let x = 0; x < SKY_RIDGE_W; x++) {
-        let top = baseY;
+        const u = x / SKY_RIDGE_W;
+        let top = baseY - 5 * Math.sin(u * Math.PI * 6) - 3 * Math.sin(u * Math.PI * 10 + 1.1);
         for (const p of list) {
           let d = Math.abs(x - p.x);
           d = Math.min(d, SKY_RIDGE_W - d);
@@ -1198,12 +1210,16 @@
       Math.round(a[2] + (b[2] - a[2]) * t),
     ];
 
+    const skyLerpPal = (a, b, t) => a.map((c, i) => skyLerpColor(c, b[i] || c, t));
     const skyPhasePal = (key) => ({
       name: key,
       trees: SKY_PALETTES[key].trees,
       clouds: SKY_PALETTES[key].clouds,
       grass: SKY_PALETTES[key].grass,
       tint: SKY_TINT[key],
+      city: CITY_PALETTES[key],
+      village: VILLAGE_PALETTES[key],
+      beach: BEACH_PALETTES[key],
     });
 
     // 跟随系统时间在 白天/薄暮/黄昏/夜晚 之间插值（日出日落都走黄昏档）
@@ -1221,6 +1237,13 @@
         clouds: pa.clouds.map((c, i) => skyLerpColor(c, pb.clouds[i] || c, t)),
         grass: pa.grass.map((c, i) => skyLerpColor(c, pb.grass[i] || c, t)),
         tint: pa.tint.map((v, i) => v + (pb.tint[i] - v) * t),
+        city: skyLerpPal(pa.city, pb.city, t),
+        village: skyLerpPal(pa.village, pb.village, t),
+        beach: {
+          sea: skyLerpPal(pa.beach.sea, pb.beach.sea, t),
+          island: skyLerpPal(pa.beach.island, pb.beach.island, t),
+          sun: skyLerpPal(pa.beach.sun, pb.beach.sun, t),
+        },
         id: a.p + '-' + b.p,
         fading: true,
       };
@@ -1234,13 +1257,20 @@
       const layerB = { w: 32, h: 32, entries: tmap.entries.subarray(1024) };
       const grassTiles = skyRle(GRASS_IMG);
       const gmap = skyMap16(GRASS_MAP);
+      const housesTiles = skyRle(HOUSES_IMG);
+      const hmap = skyMap16(HOUSES_MAP);
+      const city = skyCompose(housesTiles, hmap, SKY_CITY_Y, SKY_CITY_Y + SKY_CITY_H);
+      for (let i = 0; i < city.px.length; i++) if (city.px[i] === 4) city.px[i] = 0;
       skyBands = {
         sky: skyCompose(trees, layerA, 0, SKY_SKY_H),
         far: skyCompose(trees, layerA, SKY_FAR_Y, SKY_ART_H),
         near: skyCompose(trees, layerB, SKY_NEAR_Y, SKY_ART_H),
         grass: skyCompose(grassTiles, gmap, SKY_GRASS_Y, SKY_GRASS_Y + SKY_GRASS_H),
         clouds: skyRle(CLOUDS_IMG),
+        city,
+        village: skyCompose(housesTiles, hmap, SKY_VILLAGE_Y, SKY_VILLAGE_Y + SKY_VILLAGE_H),
       };
+      skyBeach = { sea: skyRle(BEACH_IMG.sea), island: skyRle(BEACH_IMG.island), sun: skyRle(BEACH_IMG.sun) };
       const rng = skyRandom(0x5ce7e2);
       skyRidges = [
         { ridge: skyRidge(rng, SKY_RIDGE_BASE - 2, 20, 9), speed: SKY_SPEED.ridge[0], haze: 0 },
@@ -1256,7 +1286,7 @@
     function skyBuildArt(pal) {
       const ridges = skyRidges.map((r) => {
         const c = document.createElement('canvas');
-        c.width = SKY_RIDGE_W; c.height = SKY_RIDGE_BASE;
+        c.width = SKY_RIDGE_W; c.height = SKY_ART_H;
         const g = c.getContext('2d');
         const body = skyLerpColor(pal.trees[6], pal.trees[5], r.haze);
         const bodyStyle = 'rgb(' + body + ')', hiStyle = 'rgb(' + pal.trees[7] + ')';
@@ -1266,7 +1296,7 @@
           const band = hn < h ? 2 : 0;   // 只给受光的左坡打亮
           if (band) { g.fillStyle = hiStyle; g.fillRect(x, h, 1, band); }
           g.fillStyle = bodyStyle;
-          g.fillRect(x, h + band, 1, SKY_RIDGE_BASE - h - band);
+          g.fillRect(x, h + band, 1, SKY_ART_H - h - band);
         }
         return c;
       });
@@ -1275,6 +1305,16 @@
         far: skyColorize(skyBands.far, pal.trees),
         near: skyColorize(skyBands.near, pal.trees),
         grass: skyColorize(skyBands.grass, pal.grass),
+        city: skyColorize(skyBands.city, pal.city || CITY_PALETTES[pal.name] || CITY_PALETTES.day),
+        village: skyColorize(skyBands.village, pal.village || VILLAGE_PALETTES[pal.name] || VILLAGE_PALETTES.day),
+        beach: (() => {
+          const bp = pal.beach || BEACH_PALETTES[pal.name] || BEACH_PALETTES.day;
+          return {
+            sea: skyColorize(skyBeach.sea, bp.sea),
+            island: skyColorize(skyBeach.island, bp.island),
+            sun: skyColorize(skyBeach.sun, bp.sun),
+          };
+        })(),
         clouds: skyColorize(skyBands.clouds, pal.clouds),
         ridges,
         skyLow: pal.trees[5],
@@ -1288,6 +1328,24 @@
       const dw = img.width * SKY_SCALE;
       let x = -(((off % dw) + dw) % dw);
       for (; x < skyW; x += dw) skyCtx.drawImage(img, 0, srcY, img.width, srcH, x, destY, dw, srcH * SKY_SCALE);
+    };
+
+    const skyTileVillage = (img, destY, off) => {
+      const dw = img.width * SKY_SCALE;
+      const dh = img.height * SKY_SCALE;
+      const period = dw * 2;
+      const mod = ((off % period) + period) % period;
+      for (let x = -mod; x < skyW; x += dw) {
+        const flip = (Math.floor((off + x) / dw) & 1) === 1;
+        if (!flip) skyCtx.drawImage(img, x, destY, dw, dh);
+        else {
+          skyCtx.save();
+          skyCtx.translate(x + dw, destY);
+          skyCtx.scale(-1, 1);
+          skyCtx.drawImage(img, 0, 0, dw, dh);
+          skyCtx.restore();
+        }
+      }
     };
 
     // speed：路面每帧推进的像素（与 drawRoad 的滚动同速）
@@ -1320,7 +1378,7 @@
 
       skyDist += speed;
       const now = new Date();
-      const pal = (mode === 'day' || mode === 'twilight' || mode === 'dusk' || mode === 'night')
+      const pal = (mode === 'day' || mode === 'twilight' || mode === 'dusk' || mode === 'night' || mode === 'deepnight')
         ? { ...skyPhasePal(mode), id: 'fix-' + mode, fading: false }
         : skyPaletteAt(now.getHours() + now.getMinutes() / 60);
       const key = (pal.fading ? Math.floor((now.getHours() * 60 + now.getMinutes()) / 5) : '') + '|' + pal.id;
@@ -1330,17 +1388,25 @@
       const farOff = skyDist * SKY_SPEED.far;
       const nearOff = skyDist * SKY_SPEED.near;
 
+      const scene = $('pvSkyScene').value;
       skyCtx.fillStyle = 'rgb(' + skyArt.skyLow.join(',') + ')';
       skyCtx.fillRect(0, 0, w, h);
       skyTile(skyArt.sky, 0, SKY_SKY_H, 0, farOff);
       const dw = SKY_RIDGE_W * SKY_SCALE;
+      if (scene === 'beach') {
+        const sunCss = SKY_SUN * SKY_SCALE;
+        skyCtx.drawImage(skyArt.beach.sun, w * 0.34 - sunCss / 2, landTop + 6 * SKY_SCALE, sunCss, sunCss);
+      }
       for (let i = 0; i < skyArt.ridges.length; i++) {
         const x0 = -((((skyDist * skyRidges[i].speed) % dw) + dw) % dw);
         for (let xx = x0; xx < w; xx += dw) {
-          skyCtx.drawImage(skyArt.ridges[i], 0, 0, SKY_RIDGE_W, SKY_RIDGE_BASE, xx, landTop, dw, SKY_RIDGE_BASE * SKY_SCALE);
+          skyCtx.drawImage(skyArt.ridges[i], 0, 0, SKY_RIDGE_W, SKY_ART_H, xx, landTop, dw, SKY_ART_H * SKY_SCALE);
         }
       }
-      skyTile(skyArt.far, 0, SKY_ART_H - SKY_FAR_Y, landTop + SKY_FAR_Y * SKY_SCALE, farOff);
+      if (scene === 'town') {
+        skyTile(skyArt.city, 0, SKY_CITY_H, landTop + SKY_CITY_Y * SKY_SCALE, farOff);
+      }
+      else if (scene !== 'beach') skyTile(skyArt.far, 0, SKY_ART_H - SKY_FAR_Y, landTop + SKY_FAR_Y * SKY_SCALE, farOff);
       for (const c of skyClouds) {
         const f = SKY_CLOUD_FRAMES[c.frame];
         let x = (c.x + skyDist * c.speed) % SKY_SPAN;
@@ -1353,8 +1419,16 @@
           skyCtx.drawImage(skyArt.clouds, f.x, f.y, f.w, f.h, dx, dy, f.w * SKY_SCALE, f.h * SKY_SCALE);
         }
       }
-      skyTile(skyArt.near, 0, SKY_ART_H - SKY_NEAR_Y, landTop + SKY_NEAR_Y * SKY_SCALE, nearOff);
-      skyTile(skyArt.grass, 0, SKY_GRASS_H, h - SKY_GRASS_H * SKY_SCALE, skyDist * SKY_SPEED.grass);
+      if (scene === 'town') {
+        skyTileVillage(skyArt.village, landTop + (SKY_ART_H - SKY_VILLAGE_H) * SKY_SCALE, nearOff);
+        skyTile(skyArt.grass, 0, SKY_GRASS_H, h - SKY_GRASS_H * SKY_SCALE, skyDist * SKY_SPEED.grass);
+      } else if (scene === 'beach') {
+        skyTile(skyArt.beach.island, 0, SKY_ISLAND_H, landTop + SKY_ISLAND_Y * SKY_SCALE, skyDist * 0.006);
+        skyTile(skyArt.beach.sea, 0, SKY_SEA_H, landTop + SKY_SEA_Y * SKY_SCALE, skyDist * 0.03);
+      } else {
+        skyTile(skyArt.near, 0, SKY_ART_H - SKY_NEAR_Y, landTop + SKY_NEAR_Y * SKY_SCALE, nearOff);
+        skyTile(skyArt.grass, 0, SKY_GRASS_H, h - SKY_GRASS_H * SKY_SCALE, skyDist * SKY_SPEED.grass);
+      }
     }
 
     // ==================== 导出 ====================

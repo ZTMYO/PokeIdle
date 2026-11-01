@@ -1,14 +1,13 @@
-// ===== 挂机页视差背景（pokeemerald 开场 scene_2）=====
-// 六层：天空 / 远山 / 远景林线 / 云 / 近景林线 / 前景草叶带，横向按路面推进距离做视差。
-// 素材是 8bpp 索引图，昼夜只换调色板不换图；色板按系统时间在 白天 / 黄昏 / 夜晚 之间插值，
-// 日出和日落都走黄昏档；时空扭曲时换成紫色天空色板（植被仍绿）。
-// 路面那一条（含主角、路上道具）用同色系半透明遮罩一起染色，
-// 不然只有天空变暗、路面还是白天会割裂。
+// ===== 挂机页视差背景 =====
+// 三种场景（森林 / 城镇 / 海边）× 六套时段色板（白天 / 薄暮 / 黄昏 / 夜晚 / 深夜 / 扭曲）。
+// 素材是索引图，昼夜只换色板不换图；场景只在挂机页被遭遇页盖住时切换。
+// 森林六层：天空 / 远山 / 远景林线 / 云 / 近景林线 / 草叶带，横向按路面推进距离做视差。
+// 路面那一条（含主角、路上道具）用同色系半透明遮罩一起染色。
 // 只在挂机页画：省电模式、设置里关掉、挂机页不在前台时一律不画。
 import { $ } from './ui.js';
 import { gameData } from './state.js';
 import * as road from './road.js';
-import { TREES_IMG, CLOUDS_IMG, TREES_MAP, GRASS_IMG, GRASS_MAP, SKY_PALETTES } from './sky-bg-data.js';
+import { TREES_IMG, CLOUDS_IMG, TREES_MAP, HOUSES_IMG, HOUSES_MAP, GRASS_IMG, GRASS_MAP, SKY_PALETTES, CITY_PALETTES, VILLAGE_PALETTES, BEACH_IMG, BEACH_PALETTES } from './sky-bg-data.js';
 
 const SKY_H = 40;          // 源素材里天空条的高度
 const ART_H = 112;         // 景观可见高度：天空 40 + 山 40 + 林线 16 + 林下地面 16
@@ -22,21 +21,40 @@ const RIDGE_W = 768;       // 山脊周期（比屏幕宽，避免频繁重复�
 const SPAN = 288;          // 精灵周期：256 + 一个精灵宽，等价原版 x > 255 → -32
 const MAX_DPR = 2;         // 背景只喂像素画，2 倍以上纯浪费填充率
 const ROAD_H = 72;         // 路面条高度（.road-layer 的 height）
+const CITY_Y = 72;         // 远处城镇：素材里的天际线起始行
+const CITY_H = 32;         // 到地面线为止，正好是远景树线那一条的高度
+const VILLAGE_Y = 315;     // 近景小屋：素材里那两栋带屋顶的房子的起始行
+const VILLAGE_H = 45;      // 到小屋脚下为止
+// 海边场景（原创素材）：海平线、灯塔、太阳的行位置
+const SEA_Y = 86;
+const SEA_H = 26;          // 海面一直铺到画面底边（和路面接上，不画沙滩）
+const ISLAND_Y = 65;
+const ISLAND_H = 22;
+const SUN_SIZE = 46;
 
 // 每层相对路面推进距离的倍率：路面算 1.0，草叶带最快，林线慢一个数量级，山几乎不动
 const SPEED = { ridge: [0.014, 0.008], far: 0.022, near: 0.12, grass: 0.55, cloud: [0.050, 0.036, 0.024, 0.012] };
 
 // 一天里的相位：日出、日落都走黄昏档；薄暮是日落前约一小时的粉色短窗口
 const TIME_KEYS = [
-  { h: 0, phase: 'night' }, { h: 5, phase: 'night' },
+  { h: 0, phase: 'deepnight' }, { h: 4, phase: 'deepnight' },
+  { h: 5, phase: 'night' },
   { h: 6.5, phase: 'dusk' }, { h: 9, phase: 'day' },
   { h: 16, phase: 'day' }, { h: 17.17, phase: 'day' },
   { h: 17.33, phase: 'twilight' }, { h: 18, phase: 'twilight' },
   { h: 18.17, phase: 'dusk' },
-  { h: 20, phase: 'night' }, { h: 24, phase: 'night' },
+  { h: 20, phase: 'night' }, { h: 23, phase: 'deepnight' }, { h: 24, phase: 'deepnight' },
 ];
 // 路面遮罩：[r, g, b, alpha]，白天不盖
-const TINT = { day: [0, 0, 0, 0], dusk: [255, 178, 126, 0.14], night: [20, 32, 72, 0.55], twist: [132, 62, 196, 0.12], twilight: [255, 158, 178, 0.12] };
+const TINT = { day: [0, 0, 0, 0], dusk: [255, 178, 126, 0.14], night: [20, 32, 72, 0.55], twist: [132, 62, 196, 0.12], twilight: [255, 158, 178, 0.12], deepnight: [6, 10, 28, 0.62] };
+// 星星只属于深夜；夜空素材里的星点用索引 12（暗）/13（亮）
+const STARS = { deepnight: 1 };
+const STAR_PALETTE = (() => {
+  const p = new Array(16).fill(null);
+  p[12] = [168, 180, 214];
+  p[13] = [240, 246, 255];
+  return p;
+})();
 
 const CLOUD_FRAMES = [
   { x: 0, y: 0, w: 32, h: 32 },
@@ -48,7 +66,9 @@ const CLOUD_FRAMES = [
 let _canvas = null, _ctx = null, _tint = null, _idle = null, _stage = null, _screen = null;
 let _w = 0, _h = 0, _dpr = 0, _artTop = 0;
 let _dist = 0;             // 与路面同一套世界距离（px）
+let _seed = 0x5ce7e2;      // 背景种子：山脊、云的形状都由它决定
 let _bands = null;         // 裁剪好的索引带（只保留可见部分）
+let _beachBands = null;    // 海边四层：海面 / 海岸 / 沙滩 / 太阳
 let _ridges = null;        // 山脊高度数组（只算一次）
 let _clouds = null;        // 云的初始位置/层速（只算一次）
 let _art = null;           // 当前色板渲染出的图层
@@ -137,9 +157,11 @@ const makeRidge = (rng, baseY, maxH, peaks) => {
   for (let i = 0; i < peaks; i++) {
     list.push({ x: rng() * RIDGE_W, h: maxH * (0.45 + rng() * 0.55), w: 18 + rng() * 46 });
   }
-  const ridge = new Float32Array(RIDGE_W).fill(baseY);
+  const ridge = new Float32Array(RIDGE_W);
   for (let x = 0; x < RIDGE_W; x++) {
-    let top = baseY;
+    // 低频起伏：峰与峰之间不能是一条笔直的山脊线（频率取贴图宽度的整数倍，拼接无缝）
+    const u = x / RIDGE_W;
+    let top = baseY - 5 * Math.sin(u * Math.PI * 6) - 3 * Math.sin(u * Math.PI * 10 + 1.1);
     for (const p of list) {
       let d = Math.abs(x - p.x);
       d = Math.min(d, RIDGE_W - d);
@@ -154,7 +176,7 @@ const makeRidge = (rng, baseY, maxH, peaks) => {
 };
 
 const buildScene = () => {
-  const rng = mulberry32(0x5ce7e2);   // 固定种子
+  const rng = mulberry32(_seed);
   _ridges = [
     { ridge: makeRidge(rng, RIDGE_BASE - 2, 20, 9), speed: SPEED.ridge[0], haze: 0 },
     { ridge: makeRidge(rng, RIDGE_BASE - 10, 28, 13), speed: SPEED.ridge[1], haze: 0.14 },
@@ -184,6 +206,7 @@ const phasePalette = (key) => ({
   clouds: SKY_PALETTES[key].clouds,
   grass: SKY_PALETTES[key].grass,
   tint: TINT[key],
+  stars: STARS[key] || 0,
 });
 
 // 时刻 + 是否夜间模式 → 插值后的色板。夜间模式直接锁夜晚，
@@ -203,6 +226,15 @@ const paletteAt = (hours, dark) => {
     clouds: lerpPal(pa.clouds, pb.clouds, t),
     grass: lerpPal(pa.grass, pb.grass, t),
     tint: pa.tint.map((v, i) => v + (pb.tint[i] - v) * t),
+    stars: pa.stars + (pb.stars - pa.stars) * t,
+    // 城镇/小屋跟着一起渐变，避免插值到一半整片跳色
+    city: lerpPal(CITY_PALETTES[a.phase], CITY_PALETTES[b.phase], t),
+    village: lerpPal(VILLAGE_PALETTES[a.phase], VILLAGE_PALETTES[b.phase], t),
+    beach: {
+      sea: lerpPal(BEACH_PALETTES[a.phase].sea, BEACH_PALETTES[b.phase].sea, t),
+      island: lerpPal(BEACH_PALETTES[a.phase].island, BEACH_PALETTES[b.phase].island, t),
+      sun: lerpPal(BEACH_PALETTES[a.phase].sun, BEACH_PALETTES[b.phase].sun, t),
+    },
     id: `${a.phase}-${b.phase}`,
     fading: true,
   };
@@ -213,7 +245,7 @@ const buildArt = (pal) => {
   const ridges = _ridges.map((r) => {
     const c = document.createElement('canvas');
     c.width = RIDGE_W;
-    c.height = RIDGE_BASE;
+    c.height = ART_H;
     const g = c.getContext('2d');
     const body = lerpColor(pal.trees[6], pal.trees[5], r.haze);
     const bodyStyle = `rgb(${body})`, hiStyle = `rgb(${pal.trees[7]})`;
@@ -226,7 +258,7 @@ const buildArt = (pal) => {
         g.fillRect(x, h, 1, band);
       }
       g.fillStyle = bodyStyle;
-      g.fillRect(x, h + band, 1, RIDGE_BASE - h - band);
+      g.fillRect(x, h + band, 1, ART_H - h - band);
     }
     return c;
   });
@@ -235,6 +267,17 @@ const buildArt = (pal) => {
     far: colorize(_bands.far, pal.trees),
     near: colorize(_bands.near, pal.trees),
     grass: colorize(_bands.grass, pal.grass),
+    city: colorize(_bands.city, pal.city || CITY_PALETTES[pal.name] || CITY_PALETTES.day),
+    village: colorize(_bands.village, pal.village || VILLAGE_PALETTES[pal.name] || VILLAGE_PALETTES.day),
+    stars: colorize(_bands.stars, STAR_PALETTE),
+    beach: (() => {
+      const bp = pal.beach || BEACH_PALETTES[pal.name] || BEACH_PALETTES.day;
+      return {
+        sea: colorize(_beachBands.sea, bp.sea),
+        island: colorize(_beachBands.island, bp.island),
+        sun: colorize(_beachBands.sun, bp.sun),
+      };
+    })(),
     clouds: colorize(_bands.clouds, pal.clouds),
     ridges,
     skyLow: pal.trees[5],   // 素材 40~80 行之间的天空底色
@@ -246,7 +289,51 @@ const buildArt = (pal) => {
   }
   applyDimFilter(pal.tint);
   // 只有夜晚/扭曲才把文案换成亮色；黄昏沿用白天的配色
-  if (_idle) _idle.classList.toggle('sky-dark-text', pal.name === 'night' || pal.name === 'twist');
+  if (_idle) _idle.classList.toggle('sky-dark-text', pal.name === 'night' || pal.name === 'twist' || pal.name === 'deepnight');
+};
+
+// 背景种类：森林 / 城镇 / 海边。走路上永远不切，只在遭遇把挂机页盖住的时候换一次，
+// 玩家要么在遭遇页、要么在别的页面，看不到画面跳变。
+let _scene = ['forest', 'town', 'beach'][Math.floor(Math.random() * 3)];
+
+const rollScene = () => { _scene = ['forest', 'town', 'beach'][Math.floor(Math.random() * 3)]; };
+
+// 挂机页被遭遇页顶掉的那一刻换背景：此时转场已经把屏幕盖满
+let _sceneWatched = false;
+const watchSceneSwitch = (idle) => {
+  if (!idle || _sceneWatched || !('MutationObserver' in window)) return;
+  _sceneWatched = true;
+  let shown = idle.style.display !== 'none';
+  const obs = new MutationObserver(() => {
+    const now = idle.style.display !== 'none';
+    if (shown && !now) {
+      const enc = $('encounterView');
+      if (enc && enc.style.display !== 'none') rollScene();
+    }
+    shown = now;
+  });
+  obs.observe(idle, { attributes: true, attributeFilter: ['style'] });
+};
+
+// 近景小屋：隔一块水平镜像，避免两栋房子原样重复
+const tileVillage = (img, destY, offCss) => {
+  const dw = img.width * SCALE;
+  const dh = img.height * SCALE;
+  const period = dw * 2;
+  const mod = ((offCss % period) + period) % period;
+  for (let x = -mod; x < _w; x += dw) {
+    const sx = road.snapPx(x);
+    const flip = (Math.floor((offCss + x) / dw) & 1) === 1;
+    if (!flip) {
+      _ctx.drawImage(img, sx, destY, dw, dh);
+    } else {
+      _ctx.save();
+      _ctx.translate(sx + dw, destY);
+      _ctx.scale(-1, 1);
+      _ctx.drawImage(img, 0, 0, dw, dh);
+      _ctx.restore();
+    }
+  }
 };
 
 const tile = (img, srcY, srcH, destY, offCss) => {
@@ -323,7 +410,7 @@ const paint = () => {
   const twist = !!(_screen || (_screen = $('screen')))?.classList.contains('twist-active');
   const pal = twist
     ? { ...phasePalette('twist'), id: 'twist', fading: false }
-    : (forced === 'day' || forced === 'twilight' || forced === 'dusk' || forced === 'night')
+    : (forced === 'day' || forced === 'twilight' || forced === 'dusk' || forced === 'night' || forced === 'deepnight')
       ? { ...phasePalette(forced), id: `fix-${forced}`, fading: false }
       : paletteAt(bucket * 5 / 60, document.documentElement.dataset.theme === 'dark');
   // 相位恒定（纯白天/纯夜晚）时不用每档重算，只有渐变段才跟着档位走
@@ -345,17 +432,45 @@ const paint = () => {
   const dw = RIDGE_W * SCALE;
 
   tile(_art.sky, 0, SKY_H, 0, farOff);
+  if (pal.stars > 0.01) {
+    // 整体呼吸式明暗，不做逐颗闪烁：像素太小，逐颗反而像噪点
+    _ctx.globalAlpha = pal.stars * (0.78 + 0.22 * Math.sin(Date.now() / 640));
+    tile(_art.stars, 0, CITY_Y, 0, farOff);
+    _ctx.globalAlpha = 1;
+  }
   for (let i = 0; i < _art.ridges.length; i++) {
     let x = -((((_dist * _ridges[i].speed) % dw) + dw) % dw);
     for (let xx = road.snapPx(x); xx < _w; xx += dw) {
-      _ctx.drawImage(_art.ridges[i], 0, 0, RIDGE_W, RIDGE_BASE, xx, _artTop, dw, RIDGE_BASE * SCALE);
+      _ctx.drawImage(_art.ridges[i], 0, 0, RIDGE_W, ART_H, xx, _artTop, dw, ART_H * SCALE);
     }
   }
-  tile(_art.far, 0, ART_H - FAR_Y, _artTop + FAR_Y * SCALE, farOff);
-  drawClouds();
-  tile(_art.near, 0, ART_H - NEAR_Y, _artTop + NEAR_Y * SCALE, nearOff);
-  // 草叶带贴底（底边=路面顶），只露出草叶这一截
-  tile(_art.grass, 0, GRASS_H, _h - GRASS_H * SCALE, grassOff);
+  // 设置里可以固定场景；选「随机」才用遭遇里 roll 出来的那套
+  const sceneCfg = s.idleBackgroundScene;
+  const scene = sceneCfg === 'forest' || sceneCfg === 'town' || sceneCfg === 'beach' ? sceneCfg : _scene;
+  if (scene === 'beach') {
+    const sunCss = SUN_SIZE * SCALE;
+    _ctx.drawImage(_art.beach.sun, _w * 0.34 - sunCss / 2, _artTop + 6 * SCALE, sunCss, sunCss);
+    // 远山直接复用森林那两层山脊，海面盖住山脚
+    for (let i = 0; i < _art.ridges.length; i++) {
+      let x = -((((_dist * _ridges[i].speed) % dw) + dw) % dw);
+      for (let xx = road.snapPx(x); xx < _w; xx += dw) {
+        _ctx.drawImage(_art.ridges[i], 0, 0, RIDGE_W, ART_H, xx, _artTop, dw, ART_H * SCALE);
+      }
+    }
+    drawClouds();
+    tile(_art.beach.island, 0, ISLAND_H, _artTop + ISLAND_Y * SCALE, _dist * 0.006);
+    tile(_art.beach.sea, 0, SEA_H, _artTop + SEA_Y * SCALE, _dist * 0.03);
+  } else {
+    const town = scene === 'town';
+    if (town) {
+      tile(_art.city, 0, CITY_H, _artTop + CITY_Y * SCALE, farOff);
+    } else tile(_art.far, 0, ART_H - FAR_Y, _artTop + FAR_Y * SCALE, farOff);
+    drawClouds();
+    if (town) tileVillage(_art.village, _artTop + (ART_H - VILLAGE_H) * SCALE, nearOff);
+    else tile(_art.near, 0, ART_H - NEAR_Y, _artTop + NEAR_Y * SCALE, nearOff);
+    // 草叶带贴底（底边=路面顶），只露出草叶这一截
+    tile(_art.grass, 0, GRASS_H, _h - GRASS_H * SCALE, grassOff);
+  }
 
 };
 
@@ -404,6 +519,7 @@ function initSkyBg() {
   if (_dead) return;
   try {
     _idle = $('idleView');
+    watchSceneSwitch(_idle);
     _tint = $('skyTint');
     _stage = $('screenInner') || $('screen');
     // 舞台尺寸只在布局变化时量：旋转、切经典/双屏布局都会触发
@@ -432,12 +548,31 @@ function initSkyBg() {
       const grassMap = { w: GRASS_MAP.w, h: GRASS_MAP.h, entries: new Uint16Array(GRASS_MAP.w * GRASS_MAP.h) };
       const graw = b64bytes(GRASS_MAP.b64);
       for (let i = 0; i < grassMap.entries.length; i++) grassMap.entries[i] = graw[i * 2] | (graw[i * 2 + 1] << 8);
+      const housesTiles = decodeRle(HOUSES_IMG);
+      const housesMap = { w: HOUSES_MAP.w, h: HOUSES_MAP.h, entries: new Uint16Array(HOUSES_MAP.w * HOUSES_MAP.h) };
+      const hraw = b64bytes(HOUSES_MAP.b64);
+      for (let i = 0; i < housesMap.entries.length; i++) housesMap.entries[i] = hraw[i * 2] | (hraw[i * 2 + 1] << 8);
+      const stars = composeBand(housesTiles, housesMap, 0, CITY_Y);
+      // 只留星点像素（12 暗 / 13 亮），天空部分透明
+      for (let i = 0; i < stars.px.length; i++) if (stars.px[i] !== 12 && stars.px[i] !== 13) stars.px[i] = 0;
+      const city = composeBand(housesTiles, housesMap, CITY_Y, CITY_Y + CITY_H);
+      const village = composeBand(housesTiles, housesMap, VILLAGE_Y, VILLAGE_Y + VILLAGE_H);
+      // 素材里索引 4 是楼与楼之间的天空，做透明；14 窗、15 楼体
+      for (let i = 0; i < city.px.length; i++) if (city.px[i] === 4) city.px[i] = 0;
       _bands = {
         sky: composeBand(trees, layerA, 0, SKY_H),
+        stars,
+        city,
+        village,
         far: composeBand(trees, layerA, FAR_Y, ART_H),
         near: composeBand(trees, layerB, NEAR_Y, ART_H),
         grass: composeBand(grassTiles, grassMap, GRASS_Y, GRASS_Y + GRASS_H),
         clouds: decodeRle(CLOUDS_IMG),
+      };
+      _beachBands = {
+        sea: decodeRle(BEACH_IMG.sea),
+        island: decodeRle(BEACH_IMG.island),
+        sun: decodeRle(BEACH_IMG.sun),
       };
       buildScene();
     }
