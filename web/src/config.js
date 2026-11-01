@@ -587,14 +587,17 @@ export const FOLLOWER_MAIN = {
   twistDexMult: 2,        // 时空扭曲里未解锁宝可梦的权重 ×2
   massShinyMult: 2,       // 大量出没的闪光率 ×2（1/200 → 1/100）
   mysteryEggBonus: 0.50,  // 神秘蛋的掉落率 +50%
-  roadWaterPref: 0.85,    // 特殊路段里水域一侧的权重（bike 类取补数 0.15，即偏向自行车道）
 };
 const fPct = (v) => `${Math.round(v * 100)}%`;
+// p 在结算页是数字（10），在教程表里是区间字符串（"10~30"），统一换算成 base + p
+const pAdd = (base, p) => (typeof p === 'number'
+  ? `${base + p}`
+  : String(p).replace(/(\d+)\s*~\s*(\d+)/, (_, a, b) => `${base + Number(a)}~${base + Number(b)}`));
 export const FOLLOWER_TIER_ROMAN = { N: 'I', R: 'II', SR: 'III', UR: 'IV' };   // 副增益 tag 的强度后缀
 // 展示文案（教程与结算页共用）：主增益是固定值，副增益把幅度 p 插进来（p 也可以用 '10~30'）
 export const FOLLOWER_EFFECTS = {
-  bike:      { tag: '骑行加速', subTag: '更多车道', main: `骑行速度提升 ${fPct(FOLLOWER_MAIN.bikeSpeedBonus)}`, sub: (p) => `自行车道路段的出现率提升 ${p}%` },
-  fishing:   { tag: '钓鱼增产', subTag: '更多钓点', main: '钓到的道具数量提升 1 件', sub: (p) => `钓鱼点的出现率提升 ${p}%` },
+  bike:      { tag: '骑行加速', subTag: '更多车道', main: `骑行速度提升 ${fPct(FOLLOWER_MAIN.bikeSpeedBonus)}`, sub: (p) => `特殊路段出现率提升到 ${pAdd(5, p)}%，其中自行车道占 ${pAdd(50, p)}%` },
+  fishing:   { tag: '钓鱼增产', subTag: '更多钓点', main: '钓到的道具数量提升 1 件', sub: (p) => `特殊路段出现率提升到 ${pAdd(5, p)}%，其中水域占 ${pAdd(50, p)}%` },
   berry:     { tag: '树果增产', subTag: '树果生长', main: `收获多结一颗的概率提升 ${fPct(FOLLOWER_MAIN.berryExtraChance)}`, sub: (p) => `树果的成熟速度提升 ${p}%` },
   itemdrop:  { tag: '额外拾取', subTag: '拾取加速', main: `挂机时多拾取一件道具的概率提升 ${fPct(FOLLOWER_MAIN.itemExtraChance)}`, sub: (p) => `挂机拾取道具的速度提升 ${p}%` },
   battleexp: { tag: '糖果保底', subTag: '战斗经验', main: '胜利必定掉落经验糖果', sub: (p) => `对战的胜利经验提升 ${p}%` },
@@ -617,8 +620,8 @@ export const FOLLOWER_TYPE_GROUP = {
 };
 // 类别 → 生效机制：[0] 是结构性主效果、[1] 是数值辅效果（机制名走 __followerBoostMechanic 统一入口）
 export const FOLLOWER_GROUP_BOOST = {
-  bike:      ['bikeSpeed', 'roadWaterPref'],         // 骑行提速 + 特殊路段偏自行车道
-  fishing:   ['extraFishingItem', 'roadWaterPref'],  // 钓到道具多一件 + 特殊路段偏水域
+  bike:      ['bikeSpeed', 'roadSpecialChance', 'roadWaterPref'],         // 骑行提速 + 特殊路段更多、偏自行车道
+  fishing:   ['extraFishingItem', 'roadSpecialChance', 'roadWaterPref'],  // 钓到道具多一件 + 特殊路段更多、偏水域
   berry:     ['extraBerry', 'berryGrow'],            // 收获多结一颗 + 成熟加速
   itemdrop:  ['itemDropExtra', 'itemDrop'],          // 额外掉落一件 + 掉落率
   battleexp: ['expCandyGuarantee', 'battleExp'],     // 必定掉经验糖果 + 经验

@@ -275,7 +275,8 @@ function syncFollowerBoostHook() {
     if (mechanic === 'massShinyRate') return base * FOLLOWER_MAIN.massShinyMult;
     if (mechanic === 'mysteryEggRate') return base * (1 + FOLLOWER_MAIN.mysteryEggBonus);
     if (mechanic === 'bikeSpeed') return base * (1 + FOLLOWER_MAIN.bikeSpeedBonus);
-    // 副效果：特殊路段里本类路段的占比 = 50% + 档位幅度（水系偏水域，飞行/妖精偏车道）
+    // 副效果：特殊路段出现率 5% + 档位幅度，本类路段再占 50% + 档位幅度
+    if (mechanic === 'roadSpecialChance') return base + boost;
     if (mechanic === 'roadWaterPref') {
       return act.groups.includes('fishing') ? 0.5 + boost : 0.5 - boost;
     }

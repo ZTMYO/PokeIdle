@@ -4,11 +4,12 @@
 // 沿固定漫游路线自动选择下一站。到达目的地即结束导航（目的地回到"未设置"状态）。
 // 没有目的地时，定位图标在水平轴中央原地上下浮动。
 // 推进由主角实际移动驱动（gpsAddDistance），遇敌/钓鱼时道路暂停、导航也随之暂停。
-import { $, showView, setupFoodTooltip, updateBackpack, showConfirmBar } from './ui.js';
+import { $, showView, setupFoodTooltip, updateBackpack, showConfirmBar, setIdleCharacter } from './ui.js';
 import { gameData, phase, saveGame, setDistMatrix, getCurrentRoadInfo, getMassOutbreak, getPokemonByIndex, getTwist, inMassZone, inTwistZone, walkedPxOnSegment, normalizeMassRemainToEnd, pushNav } from './state.js';
 import { REGION_CYCLE, ROAD_SPEED_WALK, PX_PER_METER } from './config.js';
 import { isFishing } from './fishing.js';
 import * as road from './road.js';
+import { endCycling } from './audio.js';
 
 // 地区距离矩阵（下标与 REGION_CYCLE 一致：0关都 1城都 2丰缘 3神奥 4合众 5卡洛斯 6阿罗拉 7伽勒尔 8帕底亚）
 // 陆路全通：按地图可视化的 Delaunay 网络连成 14 条直达边（无交叉、全连通；
@@ -161,9 +162,12 @@ function updateGpsViewport() {
   }
 }
 
+// 正在骑：手动骑行或路段自带的自行车都算，导航页共用这套锁定
+const isRiding = () => road.isManualBike() || road.isRoadBike();
+
 function buildMiniMap(g) {
   // 骑行中（已选好目的地）锁定地图：节点/大量出没点不可点击，光标改默认
-  const locked = road.isManualBike();
+  const locked = isRiding();
   // 是否在道路中间由物理位置（path 进度）决定，不依赖是否有目的地——
   // 取消导航后仍停留在原物理位置，定位点不跳回出发端节点
   const { onRoad, currentRoad, activeA, activeB, markerIdx, markerX, markerY, markerAngle, markerUsable } = computeMarkerPos(g);
@@ -513,7 +517,7 @@ function advanceSegment() {
 // 规划前往指定地区的路线（手动选择目的地 / 漫游自动下一站共用）
 // 改目的地时按当前道路上的真实位置重算：比较“折返到起点”与“继续到终点”两条候选，取更短者。
 function planRoute(toIdx) {
-  if (road.isManualBike()) return false; // 骑行中禁止改选目的地（防中途换站/漫游无限续）
+  if (isRiding()) return false; // 骑行中禁止改选目的地（防中途换站/漫游无限续）
   const g = gameData.gps;
   if (g.pendingBike) { g.pendingBike = false; g.bikePrevNav = null; } // 待选中经其他入口导航（悬赏前往/漫游）：取消待选与快照，按普通走路导航
   const fromIdx = g.curIdx;
@@ -561,7 +565,7 @@ function planRoute(toIdx) {
 // 到达后结束导航但保留当前段进度，主角精确停在事件点（道路中间），不会瞬移回节点。
 // 返回 true = 已建立（或已处于）事件点导航目标：骑行入口据此决定是否上车
 function planEventRoute(getEvent, inZone) {
-  if (road.isManualBike()) return false; // 骑行中禁止改选事件点
+  if (isRiding()) return false; // 骑行中禁止改选事件点
   const ev = getEvent();
   if (!ev) return false; // 事件已结束（残留的旧标记）：不建立目标
   const g = gameData.gps;
@@ -836,7 +840,7 @@ function render() {
   const g = gameData.gps;
   const el = $('gpsContent');
   // 骑行相关特殊态：骑行中（已上车）或待选骑行目的地（点过自行车、未选目的地）
-  const riding = road.isManualBike();
+  const riding = isRiding();
   const pendingBike = g.pendingBike === true;
   const bikeMode = riding || pendingBike;
   // 导航中 = 有地区目的地 或 正在前往大量出没事件点（事件点不是地区节点，destIdx 为 null）
@@ -890,13 +894,13 @@ function render() {
       </div>
       ${buildMiniMap(g)}
       <div class="bottom-dock" id="gpsDock">
-        ${(hasDest || pendingBike) ? `
+        ${(hasDest || pendingBike || riding) ? `
         <span class="gps-bottom-cancel" id="gpsCancelBtn">
           <svg viewBox="0 0 12 12" width="13" height="13"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
           <span class="gps-bottom-cancel-text">${riding ? '下车' : '退出'}</span>
         </span>` : ''}
           <span class="gps-bottom-info">
-          <span class="gps-bottom-line1${!hasDest ? ' gps-pick-dest' : ''}" id="gpsPickDest">${hasDest ? `${remain.kmStr}${remain.timeStr}` : (pendingBike ? '点击地图选择骑行目的地' : '点击地图选择目的地')}</span>
+          <span class="gps-bottom-line1${!hasDest ? ' gps-pick-dest' : ''}" id="gpsPickDest">${hasDest ? `${remain.kmStr}${remain.timeStr}` : (pendingBike ? '点击地图选择骑行目的地' : (riding ? '骑行中' : '点击地图选择目的地'))}</span>
           ${hasDest ? `<span class="gps-bottom-line2">${remain.arriveStr}到达</span>` : ''}
         </span>
       </div>
@@ -965,7 +969,7 @@ export function showGpsView() {
       const idx = Number(node.dataset.region);
       const g = gameData.gps;
       closeDestDialog();
-      if (road.isManualBike()) return;
+      if (isRiding()) return;
       if (startBikeIfPending(() => planRoute(idx))) return;
       if (!isNaN(idx) && !(g.destIdx == null && !hasActiveSegment(g) && idx === g.curIdx)) {
         planRoute(idx);
@@ -978,7 +982,7 @@ export function showGpsView() {
     const isTwist = e.target.closest('#gpsDestTwist');
     if (isMass || isTwist) {
       closeDestDialog();
-      if (road.isManualBike()) return;
+      if (isRiding()) return;
       const go = isMass ? planMassRoute : planTwistRoute;
       if (startBikeIfPending(go)) return;
       go();
@@ -990,7 +994,7 @@ export function showGpsView() {
   el.onclick = (e) => {
     const sw = e.target.closest('#gpsRoamToggle');
     if (sw) {
-      if (road.isManualBike() || gameData.gps.pendingBike) return; // 骑行相关态已隐藏开关，保险拦截
+      if (isRiding() || gameData.gps.pendingBike) return; // 骑行相关态已隐藏开关，保险拦截
       setRoamEnabled(!gameData.gps.roamEnabled);
       return;
     }
@@ -1006,6 +1010,16 @@ export function showGpsView() {
         );
         return;
       }
+      // 路段自带的自行车：下车就放弃这段的自行车奖励
+      if (road.isRoadBike()) {
+        showConfirmBar('确认下车？无法获得自行车道具。', () => {
+          road.setBike(false);
+          endCycling();
+          setIdleCharacter('walk');
+          render();
+        }, null);
+        return;
+      }
       cancelNavigation();
       return;
     }
@@ -1013,13 +1027,13 @@ export function showGpsView() {
     // （骑行中地图与目的地都锁着，改选要先下车，所以这里也不弹）
     const pick = e.target.closest('#gpsPickDest, #gpsDock');
     if (pick) {
-      if (!road.isManualBike()) openDestDialog();
+      if (!isRiding()) openDestDialog();
       return;
     }
     // 点击大量出没事件点标记 → 规划前往事件点（骑行中锁定；待选中 = 选它作为骑行目的地）
     const mass = e.target.closest('.gps-mass-marker');
     if (mass) {
-      if (road.isManualBike()) return;
+      if (isRiding()) return;
       if (startBikeIfPending(planMassRoute)) return;
       planMassRoute();
       return;
@@ -1027,7 +1041,7 @@ export function showGpsView() {
     // 点击时空扭曲事件点标记 → 同上，规划前往扭曲点
     const twist = e.target.closest('.gps-twist-marker');
     if (twist) {
-      if (road.isManualBike()) return;
+      if (isRiding()) return;
       if (startBikeIfPending(planTwistRoute)) return;
       planTwistRoute();
       return;
@@ -1037,7 +1051,7 @@ export function showGpsView() {
     if (node) {
       const idx = Number(node.dataset.region);
       const g = gameData.gps;
-      if (road.isManualBike()) return;
+      if (isRiding()) return;
       if (startBikeIfPending(() => planRoute(idx))) return;
       if (!isNaN(idx) && !(g.destIdx == null && !hasActiveSegment(g) && idx === g.curIdx)) {
         planRoute(idx);

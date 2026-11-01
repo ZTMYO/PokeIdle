@@ -150,7 +150,8 @@ function _pickNextRoad() {
   let pool = ROAD_LAND;
   // 水 / 飞行·妖精随从把特殊路段的倾向推到自己那一侧
   const waterPref = window.__followerBoostMechanic?.('roadWaterPref', 0.5) ?? 0.5;
-  if (ROAD_WATER.length + ROAD_BIKE.length > 0 && Math.random() < ROAD_SPECIAL_CHANCE) {
+  const specialChance = window.__followerBoostMechanic?.('roadSpecialChance', ROAD_SPECIAL_CHANCE) ?? ROAD_SPECIAL_CHANCE;
+  if (ROAD_WATER.length + ROAD_BIKE.length > 0 && Math.random() < specialChance) {
     pool = Math.random() < waterPref
       ? (ROAD_WATER.length > 0 ? ROAD_WATER : ROAD_BIKE)
       : (ROAD_BIKE.length > 0 ? ROAD_BIKE : ROAD_WATER);
