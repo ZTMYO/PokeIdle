@@ -68,6 +68,10 @@ let _encounterGender = 'male';
 // 两条路径对同一遭遇重复扣减剩余数量（孵蛋挂起期间遭遇被后台结算后又走 goIdle 的场景）
 let _bikeRideBeforeEncounter = false;
 let _eventEncounterSettled = false;
+// 本次捕获入档的仓库个体 id：孵蛋张同一条「是否查看详情」确认条也挂在同一个全局"最近获得"上，
+// 同时孵蛋+捕获时会被对方顶掉，所以两边各自记自己那一条
+let _lastCatchEntryId = null;
+export function getLastCatchEntryId() { return _lastCatchEntryId; }
 // 补算正在按事件节奏结算大量出没遭遇：事件剩余数量由补算自己扣（见 onMassEncounterEnded 调用），
 // goIdle / cleanupEncounterState 两条收尾路径此时不再重复扣减
 let _massCatchupZone = false;
@@ -1002,6 +1006,7 @@ export async function throwBall(ballType) {
         ball: ballType,   // 捕获球种（高级筛选「球种」按它筛）
       });
       setLastObtainedEntryId(entry.id);
+      _lastCatchEntryId = entry.id; // 「是否查看详情」用：与孵蛋结果各记各的，避免互相顶掉
       // 记录遭遇日志（score 含个体值加成，需先建档拿到 ivs）
       addEncounterLog(idx, {
         time: encounterStamp(), shiny: currentIsShiny, squareShiny: currentIsSquareShiny, result: 'caught',

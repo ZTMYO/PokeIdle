@@ -1690,7 +1690,7 @@ function shareCardModel(p, poke) {
     nature: natureText(p.nature),
     source: srcName(p.source),
     obtained: fmtTime(p.obtainedAt),
-    lastLog: latestLogLine(String(p.originSpecies || p.species), p.obtainedAt) || '',
+    lastLog: latestLogLine(String(p.originSpecies || p.species), p.obtainedAt, p.source) || '',
     ivs: IV_KEYS.map(([k, name]) => ({ key: k, label: name, value: ivOf(p, k) })),
     ivTotal: ivSum(p),
     crowned: crownedCount(p),
@@ -1793,7 +1793,7 @@ function showRosterDetail(id) {
 
   const poke = getPokemonByIndex(String(p.species));
   const dGSpan = genderBadge(ensureGender(p));
-  const lastLog = latestLogLine(String(p.originSpecies || p.species), p.obtainedAt);
+  const lastLog = latestLogLine(String(p.originSpecies || p.species), p.obtainedAt, p.source);
   const list = $('rosterList');
   if (!list) return;
   const crownClickable = _detailEvoAllowed || _crownPickFrom != null; // 背包王冠入口：面板关掉后还能点「个体值」重开
@@ -2583,19 +2583,23 @@ function releasePokemon(id) {
 }
 
 // 该个体获得时那次遭遇的日志（一行小字，附在获得时间下）：按 originSpecies 匹配，进化后不会串到别的日志
-function latestLogLine(idx, obtainedAt) {
+function latestLogLine(idx, obtainedAt, source) {
   const logs = (gameData.encounterLogs || {})[idx] || [];
   if (logs.length === 0) return null;
+  // 同物种的日志里可能同时躺着孵蛋、捕获、交换、出没：先按来源收窄（孵出来的那只不该显示
+  // "用大师球抓住"），旧档日志没写 source 时退回全量
+  const sameSource = source ? logs.filter(l => l && l.source === source) : [];
+  const pool = sameSource.length ? sameSource : logs;
   // 优先取与该个体获得时刻最接近的日志（日志与建档同刻写入，容差内精确匹配），
   // 避免同一物种其他个体（尤其孵化/交换）的日志张冠李戴
   let best = null;
   let bestDiff = 5000;
-  for (const l of logs) {
+  for (const l of pool) {
     if (!l || l.time == null) continue;
     const d = Math.abs(l.time - obtainedAt);
     if (d < bestDiff) { bestDiff = d; best = l; }
   }
-  return describeLogEntry(best || [...logs].sort((a, b) => b.time - a.time)[0]);
+  return describeLogEntry(best || [...pool].sort((a, b) => b.time - a.time)[0]);
 }
 
 // 详情页返回列表

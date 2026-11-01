@@ -426,6 +426,11 @@ export const BERRY_COLORS = [
 // 双屏下演出在下屏、遭遇在上屏，两条流程本来就各跑各的，这份快照只是让交还动作保持幂等。
 let _suspendedEncounter = null;
 
+// 本次孵蛋落库的仓库个体 id：孵蛋结果和捕获共用一条「是否查看详情」确认条，
+// 同时发生时会互相顶掉全局"最近获得"，所以各自记一份
+let _hatchResultEntryId = null;
+export function getHatchResultEntryId() { return _hatchResultEntryId; }
+
 function suspendEncounterForEgg() {
   if ((phase !== 'encounter' && phase !== 'caught' && phase !== 'fled') || !currentEncounter) return false;
   _suspendedEncounter = {
@@ -979,6 +984,7 @@ function applyHatchEntry(slotIndex, presetGender) {
   }
   if (!entry) entry = addRosterEntry({ species: poke.index, shiny: eggIsShiny, squareShiny: eggIsSquareShiny, source: 'egg', gender: presetGender || undefined });
   setLastObtainedEntryId(entry.id);
+  _hatchResultEntryId = entry.id; // 孵蛋结果「查看详情」用：与捕获各记各的，避免同时发生互相顶掉
 
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
   if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];

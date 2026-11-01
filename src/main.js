@@ -4,13 +4,13 @@ window.__POKEIDLE_BOOTED__ = true;
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
 import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
-import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, flushSave, getPokemonByIndex, trimEncounterLogs, ensureGpsState, restoreSessionState, flushBuffRecord, markBuffStateRestored, calcOffline, addSystemLog, getCurrentRegion, getLastObtainedEntryId, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
+import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, flushSave, getPokemonByIndex, trimEncounterLogs, ensureGpsState, restoreSessionState, flushBuffRecord, markBuffStateRestored, calcOffline, addSystemLog, getCurrentRegion, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
 import { migrateEncounterScores } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
 import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyWindowBg, isEvolutionShowActive, isEggShowActive, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, setupOwnedTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView, relayoutStage } from './ui.js';
-import { spawnItemDrop, hasActiveDrop, activateHoney, activateShinyCharm, restoreHoneyRecord, restoreCharmRecord, grantItem, cancelItemDrop, rollCandyMult, ensureEvoMeta, renewBuffLater } from './items.js';
+import { spawnItemDrop, hasActiveDrop, activateHoney, activateShinyCharm, restoreHoneyRecord, restoreCharmRecord, grantItem, cancelItemDrop, rollCandyMult, ensureEvoMeta, renewBuffLater, getHatchResultEntryId } from './items.js';
 import { syncBlockVisual, startBlockCountdown, clearBlockCountdown, showMixerView } from './mixer.js';
-import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, settleStaleEncounter, ensureEncounterTextBox, setEncounterAt, syncBattleMusic, encState, setEncPhase, autoCatch, healStuckBuffPause } from './battle.js';
+import { scheduleNextEncounter, throwBall, fleeEncounter, goIdle, pauseAutoFleeTimer, showEncounter, tryAutoRefill, catchFilterResult, catchUpEncounters, settleEncounterForBackground, settleStaleEncounter, ensureEncounterTextBox, setEncounterAt, syncBattleMusic, encState, setEncPhase, autoCatch, healStuckBuffPause, getLastCatchEntryId } from './battle.js';
 import { startIdleRotation } from './messages.js';
 import { tryStartFishing, onRoadChanged, getFishingGuarantee, isFishingPending } from './fishing.js';
 import { helperTick, showBerryView, catchUpHelper } from './berry.js';
@@ -1122,7 +1122,7 @@ async function init() {
         const gap = Math.abs(l.time - p.obtainedAt);
         if (gap < bestGap) { bestGap = gap; best = l; }
       }
-      if (best && bestGap <= 120000) {
+      if (best && bestGap <= 5000) { // 建档与日志同一刻写；放宽到分钟级会把"同时抓的另一只"的球套上来
         const used = Object.keys(best.balls).filter(b => (best.balls[b] || 0) > 0)
           .sort((a, b) => (STRENGTH[b] || 0) - (STRENGTH[a] || 0));
         if (used.length) { p.ball = used[0]; filled++; }
@@ -1394,10 +1394,12 @@ async function init() {
     stopVictory(); // 交互完图鉴对话框 → 停止胜利音效
     $('catchConfirmBtns').style.display = 'none';
     setCatchConfirmStep(false);
-    const entryId = getLastObtainedEntryId();
     // 这条确认框属于谁：孵蛋结果的确认条挂在下屏的 app 文字框里，捕获的挂在上屏舞台框里。
     // 按框判断而不是按 phase —— 孵蛋演出不占 phase，而且双屏下屏幕里可能正打着遭遇
     const fromEgg = !!$('appTextBox')?.contains($('catchConfirmBtns'));
+    // 孵蛋和捕获共用这条确认条，但各自的「最近获得」要分开取：
+    // 全局那个会被同时发生的另一边顶掉（表现是孵化出来的那只点详情，打开的却是大师球抓的那只）
+    const entryId = fromEgg ? getHatchResultEntryId() : getLastCatchEntryId();
     if (fromEgg) {
       import('./items.js').then(async items => {
         await items.finalizeEggResultContext();
