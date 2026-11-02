@@ -2,8 +2,8 @@
 //
 // 派生物（每次运行覆盖）：
 //   bot/knowledge/data/图鉴-{地区}.md、招式学习-{地区}.md、招式数据.md、进化数据.md、形态总表.md
-//   bot/astrbot_plugin_pokeidle_query/data/pokeidle.json（走 tools/export-pokeidle-json.mjs）
-//   bot/astrbot_plugin_pokeidle_query.zip（插件安装包）
+//   bot/astrbot_plugin_pokeidle/data/pokeidle.json（走 tools/export-pokeidle-json.mjs）
+//   bot/astrbot_plugin_pokeidle.zip（插件安装包）
 // 手写文件（脚本不动，只在报告里列为“无需同步”）：
 //   00-总览 / FAQ / 术语与别名 / 联网与活动 / 故障排查 / 版本与更新 / 道具数据.md / 教程里那两篇补充文档
 //
@@ -21,7 +21,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BOT = path.join(ROOT, 'bot');
 const KB = path.join(BOT, 'knowledge');
 const DATA = path.join(KB, 'data');
-const PLUGIN = path.join(BOT, 'astrbot_plugin_pokeidle_query');
+const PLUGIN = path.join(BOT, 'astrbot_plugin_pokeidle');
 const CHECK = process.argv.includes('--check');
 const DIFF = process.argv.includes('--diff');
 
@@ -484,12 +484,12 @@ function main() {
   // 3) 插件数据与安装包
   if (!CHECK) {
     execFileSync(process.execPath, [path.join(ROOT, 'tools', 'export-pokeidle-json.mjs')], { cwd: ROOT, stdio: 'inherit' });
-    const zipPath = path.join(BOT, 'astrbot_plugin_pokeidle_query.zip');
+    const zipPath = path.join(BOT, 'astrbot_plugin_pokeidle.zip');
     const buf = zipDir(PLUGIN);
     const before = fs.existsSync(zipPath) ? fs.statSync(zipPath).size : 0;
     if (!fs.existsSync(zipPath) || fs.readFileSync(zipPath).compare(buf) !== 0) {
       fs.writeFileSync(zipPath, buf);
-      changes.push({ rel: 'bot/astrbot_plugin_pokeidle_query.zip', status: before ? '更新' : '新增', beforeLines: before, afterLines: buf.length });
+      changes.push({ rel: 'bot/astrbot_plugin_pokeidle.zip', status: before ? '更新' : '新增', beforeLines: before, afterLines: buf.length });
     }
   }
 
@@ -515,8 +515,8 @@ function main() {
     }
     if (changes.some((c) => c.rel.endsWith('.zip'))) {
       lines.push('');
-      lines.push('**插件**：`bot/astrbot_plugin_pokeidle_query.zip`');
-      lines.push('- WebUI 直接传 zip 常 408 超时：改为把 zip 解压后的 `astrbot_plugin_pokeidle_query/` 覆盖到 `data/plugins/`，然后重启 AstrBot；日志里看到新版本号才算装上。');
+      lines.push('**插件**：`bot/astrbot_plugin_pokeidle.zip`');
+      lines.push('- WebUI 直接传 zip 常 408 超时：改为把 zip 解压后的 `astrbot_plugin_pokeidle/` 覆盖到 `data/plugins/`，然后重启 AstrBot；日志里看到新版本号才算装上。');
     }
   }
   lines.push('');

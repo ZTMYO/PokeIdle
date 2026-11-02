@@ -63,7 +63,7 @@ export function familyRoot(idx, useIncense) {
   const key = String(idx);
   const start = _data.stones && _data.stones[key]
     ? (stoneSources(key)[0] || String(key).split('-')[0])
-    : key;
+    : ((_data.formSource && _data.formSource[key]) || key);
   const suffix = start.includes('-') ? start.slice(start.indexOf('-')) : '';
   let cur = start;
   const seen = new Set();

@@ -9,7 +9,7 @@ import {
 import { NATURES } from '../src/battle-core.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = path.join(ROOT, 'bot', 'astrbot_plugin_pokeidle_query', 'data', 'pokeidle.json');
+const OUT = path.join(ROOT, 'bot', 'astrbot_plugin_pokeidle', 'data', 'pokeidle.json');
 const VER = '1.21.3';
 const readJSON = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8'));
 // 闪光立绘文件名：<名>_shiny.<ext>（与插件 _image_urls 的拼法一致）
