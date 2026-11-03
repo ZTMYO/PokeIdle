@@ -20,7 +20,7 @@ import {
 } from './state.js';
 import { $, tryLoadPokemonIcon, setIdleCharacter, isOnGameView, isIdleStageVisible, isStageOccupied } from './ui.js';
 import { endCycling } from './audio.js';
-import { MAP_EDGES, showGpsView } from './gps.js';
+import { MAP_EDGES, showGpsView, setRoamEnabled } from './gps.js';
 import { startMassEncounter, startTwistEncounter, scheduleNextEncounter, encState, isBgCatchupRunning } from './battle.js';
 import { notifyMassStart, notifyMassEnd, massMsgTick, notifyTwistStart, notifyTwistEnd, twistMsgTick } from './messages.js';
 import { pickFamily, pickFamilyBySeed, pickWeightedPokemon } from './items.js';
@@ -141,6 +141,14 @@ function spawnMassOutbreak() {
   notifyMassStart();
 }
 
+// 事件结束后把漫游接回去：停在事件点上时 destIdx 是空的（事件点不是地区节点），
+// 不重新规划的话漫游会一直站着——玩家看到的就是"开着漫游却提示点击地图选择目的地"
+function resumeRoamAfterEvent() {
+  const g = gameData?.gps;
+  if (!g || !g.roamEnabled || g.destIdx != null || road.isManualBike()) return;
+  setRoamEnabled(true);
+}
+
 // 结束事件（抓完或到期）
 export function endMassOutbreak() {
   if (!gameData?.massOutbreak) return;
@@ -156,6 +164,7 @@ export function endMassOutbreak() {
       gameData.gps.massArrived = false;
     }
   }
+  resumeRoamAfterEvent();
   saveGame();
   notifyMassEnd(mo);
   // 事件结束：恢复正常遇敌调度（在战斗中到期时由 goIdle 的 scheduleNextEncounter 兜底）
@@ -483,6 +492,7 @@ export function endTwist() {
       gameData.gps.massArrived = false;
     }
   }
+  resumeRoamAfterEvent();
   saveGame();
   notifyTwistEnd();
   scheduleNextEncounter();

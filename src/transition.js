@@ -111,6 +111,11 @@ function pickEffect() {
 }
 
 // swap：全屏铺满那一刻执行的切视图动作。返回 Promise，播完（含跳过）时 resolve
+// isEncounterTransitionRunning()：转场播放中（遭遇页那套常驻兜底据此让路，别提前把文字框摆出来）。
+// 用到期时间戳而不是布尔：rAF 被冻结（切后台）导致动画没收尾时，它也会自己过期
+let _runningUntil = 0;
+export function isEncounterTransitionRunning() { return performance.now() < _runningUntil; }
+
 export function playEncounterTransition(swap, opts = {}) {
   const doSwap = typeof swap === 'function' ? swap : () => {};
   const skip = opts.skip
@@ -139,7 +144,9 @@ export function playEncounterTransition(swap, opts = {}) {
     let swapped = false;
     let raf = 0;
     const t0 = performance.now();
+    _runningUntil = t0 + COVER + HOLD + REVEAL;
     const finish = () => {
+      _runningUntil = 0;
       if (_canvas) _canvas.style.display = 'none';
       cancelAnimationFrame(raf);
       resolve();

@@ -15,6 +15,11 @@ export function bgAway() {
   return _inBg || _bgSecAccum > 0;
 }
 
+// 只判“是否正在后台”（补发窗口还没消费不算），逐秒计时用这个，别用 bgAway
+export function bgInBackground() {
+  return _inBg;
+}
+
 // 隐藏开始时间戳 / 停摆累计秒数 / 停摆时步态(是否骑行) / 停摆时 buff 剩余毫秒快照
 let _hiddenAt = 0;
 let _bgSecAccum = 0;

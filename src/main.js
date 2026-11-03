@@ -35,7 +35,7 @@ import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, close
 import { showCasinoView } from './casino.js';
 import * as road from './road.js';
 import { startSkyBg } from './sky-bg.js';
-import { initBackgroundCatchup, startBackgroundCatchup, notifyAppState, bgCatchupEnabled, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds, bgPeekAccum, bgTakeStatSeconds, bgTakeOfflineAway } from './background-catchup.js';
+import { initBackgroundCatchup, startBackgroundCatchup, notifyAppState, bgCatchupEnabled, bgAway, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds, bgPeekAccum, bgTakeStatSeconds, bgTakeOfflineAway, bgInBackground } from './background-catchup.js';
 import { startEventRefresh } from './server-events.js';
 import { startActivityRefresh } from './activity.js';
 
@@ -446,7 +446,9 @@ async function onGameTick() {
   setGameTick(gameTick + 1);
   // 隐藏/最小化期间不逐秒计时：这段由 visibilitychange 记账、回前台统一补发，
   // 两处各记一遍会翻倍（窗口最小化时定时器不节流，只有浏览器标签页才会）
-  if (!document.hidden) {
+  // 原生切后台（安卓壳里 document.hidden 可能恒 false）时不逐秒计时，交给回前台的补记，
+  // 否则同一段停摆会被 tick 和补记各记一遍
+  if (!document.hidden && !bgInBackground()) {
     gameData.stats.totalPlaySeconds++;
     addPlaySeconds(gameData, 1); // 今日挂机时长（跨天自动清零重计）
   }
@@ -624,6 +626,19 @@ async function onGameTick() {
         // 只有一个预设时无法切换，重置计数避免 do/while 死循环卡死
         _roadCycleStart = cyc;
       }
+    }
+  }
+
+  // 漫游自愈：漫游开着却没有目的地。典型成因是自行车道上到达节点时 planRoute 拒绝规划
+  // （isRiding），骑行结束/换回普通路段后没人再补下一站 —— 玩家看到的表现就是
+  // 「开着漫游却提示点击地图选择目的地」，一直站在原地直到手动关开漫游
+  {
+    const g = gameData.gps;
+    if (g && g.roamEnabled && g.destIdx == null && g.massTarget == null && !g.massArrived
+        && !g.pendingBike && phase === 'idle' && !_fishing
+        && !road.isBike() && !road.isTransitioning()
+        && !inMassZone() && !inTwistZone()) {
+      setRoamEnabled(true);
     }
   }
 

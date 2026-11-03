@@ -2,7 +2,7 @@ import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, B
 import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, currentIsSquareShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, getMassOutbreak, pxLeftToEventTarget, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, addEncounterLog, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, rollShinyResult, setEncounterSource, setEncounterVariant, simNow, setSimClock } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, showTextBoxNow, setIdleCharacter, isOnGameView, isIdleStageVisible, isDualLayout, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive, isEggShowActive, isStageOccupied } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
-import { playEncounterTransition } from './transition.js';
+import { playEncounterTransition, isEncounterTransitionRunning } from './transition.js';
 import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, takeBuffForRenew, clearBuffRenewPending, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
@@ -747,9 +747,10 @@ export function showEncounter(poke, opts = {}) {
   // 进入战斗道路必须暂停（后台遇敌同样暂停），结束由 goIdle 统一恢复
   road.pause();
   // 显示视觉画面（仅在首页时切换视图；入场"文案顶起主角"动画由 showView 统一处理）
+  let tr = null;
   if (_onHome) {
     // 逐格溶解盖满后再 showView，揭开时遭遇页已经渲染好了
-    playEncounterTransition(() => {
+    tr = playEncounterTransition(() => {
       showView('encounterView');
       $('fleeBtn').style.display = '';
     }, { skip: _bgCatchup });
@@ -757,8 +758,16 @@ export function showEncounter(poke, opts = {}) {
   // 渲染遭遇画面（名字/图片/类型/标签/文案等）
   // 仅在有自定义文案时写入（如钓鱼"上钩了"）；恢复会话走 showEncounter(poke, true) 时 msg 为 null，
   // 需保留 main.js 从会话状态恢复的 encounterMsg，不能被覆写
+  // 转场播放期间先别写文案：它带"从底下升起"的动画，溶解还没盖满时就在屏底冒头很怪，
+  // 等揭开完成后再放出来（见下面 tr.then）
   if (msg) setEncounterMsg(msg);
-  const loadPromise = renderEncounterScene(poke);
+  const loadPromise = renderEncounterScene(poke, { deferBox: !!tr && !_bgCatchup });
+  if (tr && !_bgCatchup) {
+    tr.then(() => {
+      if (_encPhase !== 'encounter' || !currentEncounter || !isOnGameView()) return;
+      updateTextBox(encounterMsg || (currentIsShiny ? '野生的 闪光' + currentEncounter.name + ' 跳出来了！' : '野生的 ' + currentEncounter.name + ' 跳出来了！'), false);
+    });
+  }
   // 闪光/神兽遭遇：播放闪光音效提示（音效开关控制，独立于音乐/战斗音乐）
   if (currentIsShiny || poke.legend) playShiny();
 
@@ -804,7 +813,9 @@ export function showEncounter(poke, opts = {}) {
 }
 
 // ===== 渲染遭遇画面（可被回到游戏页时重新调用同步） =====
-export function renderEncounterScene(poke) {
+// opts.deferBox：正在播进场转场时先不写文字框（文案带升起动画，等转场揭开后由调用方补上）
+export function renderEncounterScene(poke, opts = {}) {
+  const deferBox = !!opts.deferBox;
   // 从会话变量同步来源/变体：刷新页面恢复遭遇时 main.js 已 setEncounterSource/Variant，
   // 这里统一收口，保证私有变量与 state 一致（正常遭遇路径两者本已一致）
   _encounterSource = encounterSource;
@@ -918,9 +929,9 @@ export function renderEncounterScene(poke) {
     else rLabel = '极稀有';
     crEl.innerHTML = `捕获率 ${crLabel}<br>稀有度 ${rLabel}`;
   }
-  // 有视觉画面才更新文字
+  // 有视觉画面才更新文字（进场转场播放中先跳过，等揭开后再由 showEncounter 补一次）
   if (_onHome) {
-    updateTextBox(encounterMsg || (currentIsShiny ? '野生的 闪光' + poke.name + ' 跳出来了！' : '野生的 ' + poke.name + ' 跳出来了！'), false);
+    if (!deferBox) updateTextBox(encounterMsg || (currentIsShiny ? '野生的 闪光' + poke.name + ' 跳出来了！' : '野生的 ' + poke.name + ' 跳出来了！'), false);
     // 宝可梦在场上（非丢球/判定中）才循环闪光；等图片加载完再起，避免第一下拿不到尺寸退到页面中心
     if (currentIsShiny && !_throwing) {
       loadPromise.then(() => requestAnimationFrame(() => {
@@ -1943,6 +1954,8 @@ export async function settleStaleEncounter(awaySec) {
 export function ensureEncounterTextBox() {
   if (_bgCatchup || _encPhase !== 'encounter' || !currentEncounter) return;
   if (!isOnGameView()) return;
+  // 进场转场还在播：文案要等揭开后再升起，这里别抢先把框摆到位
+  if (isEncounterTransitionRunning()) return;
   showTextBoxNow('stage');
   if (!$('textBoxContent')?.textContent) {
     const name = currentEncounter.form || currentEncounter.name;

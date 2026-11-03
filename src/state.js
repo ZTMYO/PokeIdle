@@ -951,6 +951,13 @@ function todayDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// 今日最多只有 0 点到现在这么多秒：补发和逐秒计时若对同一段重复记账，先在这里兜住
+function clampToday(save) {
+  const now = Date.now();
+  const max = Math.max(0, (now - new Date(now).setHours(0, 0, 0, 0)) / 1000);
+  if ((save.stats.playSecondsToday || 0) > max) save.stats.playSecondsToday = max;
+}
+
 // 累计挂机秒数到"今日时长"（跨天自动清零重计）
 export function addPlaySeconds(save, sec) {
   if (!save?.stats) return;
@@ -960,6 +967,7 @@ export function addPlaySeconds(save, sec) {
     save.stats.playSecondsToday = 0;
   }
   save.stats.playSecondsToday = (save.stats.playSecondsToday || 0) + sec;
+  clampToday(save);
 }
 
 // 后台/最小化停摆的秒数补记"今日挂机时长"：窗口是 [now-sec, now]，跨 0 点时今天只算 0 点之后那段（口径同 calcOffline）
@@ -995,6 +1003,7 @@ export function calcOffline(save) {
   } else {
     save.stats.playSecondsToday = (save.stats.playSecondsToday || 0) + elapsed;
   }
+  clampToday(save);
   // 离线暂停：把依赖真实时间推进的机制时间基准整体后移，等价于离线期间不走表。
   // 孵蛋已改为里程制（离线不走路，天然暂停），无需处理
   const ms = Math.floor(elapsed * 1000);

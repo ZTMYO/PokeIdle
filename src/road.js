@@ -15,6 +15,9 @@ let scrollX = 0;
 let speed = ROAD_SPEED_WALK;
 let rafId = null;
 let active = false;
+// 流程层面"该不该跑"：start/resume 置真，pause/stop 置假。首帧贴图是异步 onload 回来的，
+// 回到时据此判断是不是已经被暂停（启动即恢复一场遭遇的情况）
+let _wantRun = false;
 let _lastFrameAt = 0; // 省电模式限帧用：上次真正绘制的时间戳
 const POWER_SAVE_FRAME_MS = 1000 / 30;
 const DUAL_APP_FRAME_MS = 1000 / 15; // 双屏且下屏开着 App：上屏降到 15fps
@@ -399,11 +402,16 @@ export function start(spd) {
   canvas.className = 'road-canvas';
   container.appendChild(canvas);
 
+  _wantRun = true;
   if (!img) {
     img = new Image();
     img.onload = () => {
       _resize();
       _walkSecCursor = 0;
+      // 首帧图片是异步回来的：这期间可能已经被流程停掉（启动即恢复一场遭遇，pause 时 active
+      // 还是 false 直接返回了），别再自己起跑，等 resume() 统一恢复
+      if (!_wantRun) return;
+      if (active) { _draw(); return; } // resume() 已经先起跑了：别起第二条循环
       clock.start(); // 世界时钟起算：从当前帧开始兑换世界步
       active = true;
       rafId = requestAnimationFrame(_frame);
@@ -426,6 +434,7 @@ export function start(spd) {
 }
 
 export function stop() {
+  _wantRun = false;
   active = false;
   if (rafId) {
     cancelAnimationFrame(rafId);
@@ -447,6 +456,7 @@ export function stop() {
 }
 
 export function pause() {
+  _wantRun = false; // 流程层面要求停：图片还在异步加载时也要生效
   if (!active) return;
   active = false;
   clock.pause(); // 暂停期间不兑换世界步（遇敌/钓鱼/拾取道具的有意停顿）
@@ -457,8 +467,9 @@ export function pause() {
 }
 
 export function resume() {
-  if (active) return;
   if (_fishingLock) return; // 钓鱼期间道路锁死，其他流程的 resume 一律忽略
+  _wantRun = true;
+  if (active) return;
   if (!canvas || !pattern) return;
   clock.resume(); // 重置时间戳与余数：暂停时长不计入推进，也不会一次性补一大段
   active = true;
