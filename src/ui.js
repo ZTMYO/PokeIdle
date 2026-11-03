@@ -505,15 +505,16 @@ export function isOnGameView() {
 // 三套界面风格共用同一份 DOM 与样式，只靠 <html> 上的类切换布局：
 // classic 单屏 / mobile 手游（手机端竖屏重排，上下两块屏）/ dual 双屏（桌面端，外壳保持经典，只多一块下屏）。
 // 设置项 uiMode 未写入时按平台取默认：移动端默认手游，桌面默认单屏（两端都能在设置里切）
-export function defaultUiMode() {
+export function isMobilePlatform() {
+  // 桌面壳永远按桌面处理：部分 PC 的 WebView/UA 带 Mobile，误判会切到手游布局
+  if (window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__) return false;
+  if (window.__POKEIDLE_MOBILE__) return true;
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  const isMobile = !!window.__POKEIDLE_MOBILE__ || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-  return isMobile ? 'mobile' : 'classic';
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
 }
 
-export function isMobilePlatform() {
-  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  return !!window.__POKEIDLE_MOBILE__ || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+export function defaultUiMode() {
+  return isMobilePlatform() ? 'mobile' : 'classic';
 }
 
 export function getUiMode() {
@@ -549,7 +550,11 @@ export function touchText(html) {
 
 // 应用界面风格：切 html 上的类（布局由 CSS 决定），并通知布局层重算缩放
 export function applyUiMode(mode) {
-  const m = mode === 'mobile' || mode === 'dual' ? mode : 'classic';
+  // 桌面端没有“手游布局”：不管存档/旧设置传什么，mobile/dual 都落到双屏；手机端反过来
+  const mobile = isMobilePlatform();
+  const m = mobile
+    ? (mode === 'classic' ? 'classic' : 'mobile')
+    : (mode === 'classic' ? 'classic' : 'dual');
   const cl = document.documentElement.classList;
   cl.toggle('ui-mobile', m === 'mobile');
   cl.toggle('ui-dual', m === 'dual');
@@ -1158,7 +1163,7 @@ function renderEggPickList() {
       <div class="pokedex-search">
         <div class="pokedex-search-row">
           <div class="pokedex-search-input-wrap">
-            <input id="incubatorEggSearch" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" value="${_eggPickQuery}" />
+            <input id="incubatorEggSearch" class="pokedex-search-input" type="text" placeholder="名称/拼音/首字母" autocomplete="off" value="${_eggPickQuery}" />
             <button class="pokedex-search-clear" id="incubatorEggSearchClear" style="display:${q ? '' : 'none'};" aria-label="清空搜索">
               <svg><use xlink:href="#icon-close" /></svg>
             </button>

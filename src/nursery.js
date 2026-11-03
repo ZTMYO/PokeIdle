@@ -999,7 +999,7 @@ function pickPickRows() {
       return _pickIvSel.every(({ stat, min }) =>
         p.ivs && p.ivs[stat] != null && p.ivs[stat] >= min);
     })
-    // 搜索过滤：名称 / 拼音 / 首字母 / 昵称
+    // 搜索过滤：名称/拼音/首字母/昵称
     .filter(p => {
       if (!q) return true;
       const poke = getPokemonByIndex(String(p.species));

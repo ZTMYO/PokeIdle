@@ -139,7 +139,7 @@ function rosterName(p) {
   return poke ? poke.name : `#${p.species}`;
 }
 
-// 搜索词是否命中该个体（名称 / 拼音 / 首字母）
+// 搜索词是否命中该个体（名称/拼音/首字母）
 function matchesQuery(p, q) {
   if (!q) return true;
   const poke = getPokemonByIndex(String(p.species));
@@ -2059,7 +2059,7 @@ function advFilterHtml() {
     <div class="adv-filter-body">
       <label class="adv-group-name">搜索宝可梦</label>
       <form class="adv-search-wrap" autocomplete="off" onsubmit="event.preventDefault();return false;">
-        <input class="adv-search-input" id="advFilterQ" type="text" placeholder="名称 / 拼音 / 首字母" name="advq" autocorrect="off" autocapitalize="off" spellcheck="false"
+        <input class="adv-search-input" id="advFilterQ" type="text" placeholder="名称/拼音/首字母" name="advq" autocorrect="off" autocapitalize="off" spellcheck="false"
           value="${advFilterQValue(F)}" data-selected-index="${F.poke || ''}" data-selected-name="${advFilterQValue(F).replace(/"/g, '&quot;')}" />
         <button class="adv-search-clear" id="advFilterQClear" style="display:none;" aria-label="清空搜索">
           <svg><use xlink:href="#icon-close" /></svg>

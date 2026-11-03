@@ -12667,6 +12667,15 @@ body.booting { visibility: hidden; }
   margin-left: 0;
 }
 
+/* 图鉴详情右上角「预览」：同样只留定位 */
+#followerPreviewBtn {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  z-index: 5;
+  margin-left: 0;
+}
+
 /* 批量放生「全选」：外观走 .incubator-log-btn（全项目小按钮同一套），这里只管右上角定位 */
 #rosterSelectAll {
   position: absolute;

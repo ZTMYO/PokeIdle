@@ -1035,7 +1035,7 @@ function pickPickRows() {
       if (!_pickVariant) return true;
       return _pickVariant === 'any' ? !!p.variant : p.variant === _pickVariant;
     })
-    // 搜索过滤：名称 / 拼音 / 首字母 / 昵称
+    // 搜索过滤：名称/拼音/首字母/昵称
     .filter(p => {
       if (!q) return true;
       const poke = getPokemonByIndex(String(p.species));

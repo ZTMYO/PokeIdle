@@ -429,6 +429,7 @@ export function getDefaultSave() {
     twist: null,            // 时空扭曲事件：{ edge:[a,b], t, remain, expiresAt, nextSpawnAt, active }；null=无事件
     twistNextGenAt: 0,      // 下一次时空扭曲生成时间戳（毫秒）
     follower: null,         // 随从（糖果抽卡的临时跟随）：{ index, tier, groups, star, boost, endsAt }；null=无随从
+    followerPreview: null,  // 随从预览（挂机页仅展示外观，不参与增益）：{ index }；null=未预览
     followerPending: null,  // 抽卡结果待处理（未选跟随/放走就退出）：{ index, name, tier, dex }；null=无
     followerDex: {},        // 随从图鉴：{ '<编号>': { count } }，星级 = min(5, count)（只记次数，星级派生）
     roster: [], // 宝可梦仓库：每只捕获/孵化的宝可梦一个独立条目（个体值/闪光/来源/是否在仓）

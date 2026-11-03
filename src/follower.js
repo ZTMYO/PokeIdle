@@ -25,6 +25,7 @@ let _followerRoadGeom = null; // 路上随从的四向几何表
 let _followerFootOffset = 0;  // 四向素材画布顶到脚底的距离（已乘缩放），用于和主角落地对齐
 let _followerRightEdge = 0;   // 随从右向内容右边界到画布左缘的距离（已乘缩放），用于贴边定位
 let _posKey = '';             // 上次成功定位时的窗口尺寸：切小窗/旋转变了要重定位
+let _followerRenderSeq = 0;   // 挂机页随从重建序号：异步贴图只认最新一次，预览/跟随切换不互相覆盖
 
 // 变体（index 含 -）没有四向素材
 function followerGeom(index) {
@@ -201,7 +202,7 @@ function getActiveBoost() {
     // 过期清理走内存路径（调 stopFollower 会与全局 hook 互相递归）
     gameData.follower = null;
     saveGame();
-    removeFollowerFromRoad();
+    renderFollowerOnRoad();
     syncFollowerBoostHook();
     return null;
   }
@@ -214,6 +215,7 @@ function getActiveBoost() {
 }
 
 function startFollower(poke, tier, groups) {
+  gameData.followerPreview = null; // 真随从接管挂机页：预览到此结束
   const star = followerDexInfo(poke.index).star;      // 星级来自随从图鉴的抽到次数
   const endsAt = Date.now() + followerDurMs(poke.index);
   gameData.follower = {
@@ -242,8 +244,8 @@ function startFollower(poke, tier, groups) {
 function stopFollower() {
   gameData.follower = null;
   syncFollowerBoostHook();
-  removeFollowerFromRoad();
   saveGame();
+  renderFollowerOnRoad();
   if ($('followerView')?.style.display === 'flex') renderFollowerView();
 }
 
@@ -251,7 +253,7 @@ function expireFollower() {
   gameData.follower = null;
   saveGame();
   syncFollowerBoostHook();
-  removeFollowerFromRoad();
+  renderFollowerOnRoad();
 }
 
 // 机制分两类：主效果（固定幅度，见 FOLLOWER_MAIN）与副效果（按稀有度幅度放大）
@@ -321,14 +323,17 @@ function bindFollowerDexBtn() {
 // ===== 随从视图（手机 App）=====
 export function showFollowerView() {
   pushNav('followerView');
-  // 先把这一趟要展示的阶段定好，再切视图：切视图会广播 view-changed，按阶段自愈
-  if (gameData?.followerPending && !gameData?.follower) {
-    // 有待处理结果：装回内存展示结果页（重启恢复 / 抽到一半切走再回来）
-    restorePendingFollower();
-  } else if (!gameData?.follower) {
-    // 正常进入：回到空闲态，避免残留上一轮的滚动/锁定动画
-    _drawPhase = 'idle';
-    _drawResult = null;
+  // 先把这一趟要展示的阶段定好，再切视图：切视图会广播 view-changed，按阶段自愈。
+  // 预览态优先，别把抽卡结果/空闲态覆盖回来
+  if (!gameData?.followerPreview) {
+    if (gameData?.followerPending && !gameData?.follower) {
+      // 有待处理结果：装回内存展示结果页（重启恢复 / 抽到一半切走再回来）
+      restorePendingFollower();
+    } else if (!gameData?.follower) {
+      // 正常进入：回到空闲态，避免残留上一轮的滚动/锁定动画
+      _drawPhase = 'idle';
+      _drawResult = null;
+    }
   }
   showView('followerView');
   bindFollowerDexBtn();
@@ -338,7 +343,7 @@ export function showFollowerView() {
 // 从别的页面回到随从页（返回键等不经过 showFollowerView 的路径）：
 // 动画阶段如果还停在 rolling / locking，按待处理结果收尾成结果页，别让跑马灯定格在那
 window.addEventListener('view-changed', (e) => {
-  if (e.detail !== 'followerView' || !gameData || gameData.follower) return;
+  if (e.detail !== 'followerView' || !gameData || gameData.follower || gameData.followerPreview) return;
   if (_drawPhase !== 'rolling' && _drawPhase !== 'locking' && _drawPhase !== 'multi-rolling') return;
   if (gameData.followerPending) restorePendingFollower();
   else { _drawPhase = 'idle'; _drawResult = null; }
@@ -352,8 +357,49 @@ function renderFollowerView() {
   if (!content) return;
   // 上一次锁定动画被打断时残留的全屏 overlay 先收掉，免得叠在一起
   document.getElementById('followerLockOverlay')?.remove();
+  const prev = gameData?.followerPreview;
+  const prevPoke = prev ? getPokemonByIndex(prev.index) : null;
   const f = gameData?.follower;
   const pool = getFollowerPool();
+
+  if (prev && prevPoke) {
+    // 预览页：永久展示，不计时、不参与增益；右侧只留名字/稀有度/属性
+    if (renderFollowerView._timer) {
+      clearInterval(renderFollowerView._timer);
+      renderFollowerView._timer = null;
+    }
+    const key = String(prev.index);
+    const info = followerDexInfo(key);
+    const tier = tierOfRarity(prevPoke.rarity || 0);
+    const name = prevPoke.form || prevPoke.name;
+    const movePath = followerStaticRel(key);
+    content.innerHTML = `
+      <div class="follower-display">
+        <div class="follower-display-inner">
+          <div class="follower-card-col">
+            <div class="follower-card-area">
+              <img class="follower-big-img" id="followerAnimImg" src="${movePath}" alt="${name}">
+            </div>
+            <div class="follower-time-line">正在预览中</div>
+          </div>
+          <div class="follower-info">
+            <div class="follower-info-name">${name}</div>
+            <div class="follower-info-line"><span class="tier-badge tier-${tier} follower-tier-badge">${FOLLOWER_TIER_LABEL[tier] || tier}</span><span style="font-weight:700;">${starIcons(info.star)}</span></div>
+            <div class="follower-info-line">${typeBadgesHtml(prevPoke.types)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="follower-actions">
+        <button class="gacha-btn" id="followerPreviewEndBtn">结束预览</button>
+      </div>`;
+    const animImg = $('followerAnimImg');
+    if (animImg) loadFollowerStatic(animImg, key).then(r => {
+      if (r.ok) startFourDirAnim(animImg, r.geom, { content: 74, anim: r.anim });
+    });
+    const endBtn = $('followerPreviewEndBtn');
+    if (endBtn) endBtn.addEventListener('click', stopFollowerPreview);
+    return;
+  }
 
   if (f) {
     // 有随从跟随中：展示当前随从 + 倒计时 + 送走
@@ -1163,7 +1209,7 @@ function followerDexPageHtml() {
     <div class="pokedex-search">
       <div class="pokedex-search-row">
         <div class="pokedex-search-input-wrap">
-          <input id="followerDexSearch" class="pokedex-search-input" type="text" placeholder="名称 / 拼音 / 首字母" autocomplete="off" value="${_followerDexQuery}">
+          <input id="followerDexSearch" class="pokedex-search-input" type="text" placeholder="名称/拼音/首字母" autocomplete="off" value="${_followerDexQuery}">
           <button class="pokedex-search-clear" id="followerDexSearchClear" style="display:${_followerDexQuery ? '' : 'none'};" aria-label="清空搜索"><svg><use xlink:href="#icon-close" /></svg></button>
         </div>
         <div id="followerDexStatusFilter" class="pokedex-region-select" tabindex="0">
@@ -1322,8 +1368,10 @@ function followerDetailPageHtml(key) {
   const tier = tierOfRarity(p.rarity || 0);
   const boostPct = Math.round(getEffectiveBoost(tier) * 100);
   const name = p.form || p.name;
+  const previewing = String(gameData?.followerPreview?.index) === key;
   // 不加 .view-list 的水平内缩：左右各多收 6px 会挤掉信息区宽度，主/副增益 tag 会换行
-  return `<div class="follower-dex-page view-list" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:0 0 4px;">
+  return `<div class="follower-dex-page view-list" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:0 0 4px;position:relative;">
+    <button class="incubator-log-btn${previewing ? ' disabled' : ''}" id="followerPreviewBtn"${previewing ? ' disabled' : ''}>${previewing ? '预览中' : '预览'}</button>
     <div class="follower-display">
       <div class="follower-display-inner">
         <div class="follower-card-col">
@@ -1366,6 +1414,36 @@ export function showFollowerDetail(index) {
   enterFollowerDetailTitle();
   box.innerHTML = followerDetailPageHtml(key);
   loadFollowerDetailImg(key);
+  $('followerPreviewBtn')?.addEventListener('click', () => startFollowerPreview(key));
+}
+
+// 预览：挂机页只展示外观，不参与任何增益；状态写档，重启后仍保持
+function startFollowerPreview(index) {
+  const key = String(index);
+  const poke = getPokemonByIndex(key);
+  if (!poke || !(gameData?.followerDex || {})[key]) return;
+  gameData.followerPreview = { index: key };
+  saveGame();
+  renderFollowerOnRoad();
+  // 回到随从页，直接展示「预览中」；先收掉图鉴详情的返回链
+  _followerDetailIndex = null;
+  leaveFollowerDetailTitle();
+  closeFollowerDexView();
+}
+
+// 结束预览：清理预览状态，回到这只随从的图鉴详情
+function stopFollowerPreview() {
+  const key = String(gameData?.followerPreview?.index || '');
+  if (!key) return;
+  gameData.followerPreview = null;
+  saveGame();
+  renderFollowerOnRoad();
+  if (!gameData.follower) {
+    if (gameData.followerPending) restorePendingFollower();
+    else { _drawPhase = 'idle'; _drawResult = null; }
+  }
+  showFollowerDexView();
+  if ((gameData.followerDex || {})[key]) showFollowerDetail(key);
 }
 
 function backToFollowerDexList() {
@@ -1377,10 +1455,16 @@ function backToFollowerDexList() {
   renderFollowerDexList();
 }
 
+// 挂机页当前展示谁：预览优先；真随从的增益仍按 gameData.follower 独立结算
+function currentRoadFollower() {
+  return gameData?.followerPreview || gameData?.follower;
+}
+
 // ===== 跟随渲染（挂机页主角身后）=====
 function renderFollowerOnRoad() {
   removeFollowerFromRoad();
-  const f = gameData?.follower;
+  const seq = ++_followerRenderSeq;
+  const f = currentRoadFollower();
   if (!f) return;
   // 挂到 screen 而非 road-layer：road-layer 高仅 72px 且 overflow hidden，放大后的随从会被裁剪
   const screen = $('screen');
@@ -1397,7 +1481,7 @@ function renderFollowerOnRoad() {
   el.appendChild(img);
 
   loadFollowerSprite(img, f.index).then(r => {
-    if (!r.ok) return;
+    if (!r.ok || seq !== _followerRenderSeq || !el.isConnected) return;
     _followerRoadGeom = r.geom;
     // 待机表也预热：钓鱼/捡道具时要切过去播正面待机，冷加载会闪一下空白
     preloadMoveImages([fourDirSrc(r.geom, fourDirStaticAnim(r.geom))]);
@@ -1459,6 +1543,7 @@ function positionFollowerOnRoad() {
 }
 
 function removeFollowerFromRoad() {
+  _followerRenderSeq++;
   stopFollowerAnim();
   _followerRoadGeom = null;
   _followerFootOffset = 0;
@@ -1553,7 +1638,7 @@ export function ensureRoadFollower() {
     refreshRoadFollower();
     return;
   }
-  if (!gameData?.follower) return;
+  if (!currentRoadFollower()) return;
   renderFollowerOnRoad();
   updateFollowerVisibility();
 }
