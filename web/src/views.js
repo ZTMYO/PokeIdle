@@ -311,7 +311,7 @@ export function showDataView() {
         </thead>
         <tbody>
           <tr><td>挂机时长</td><td id="dataPlayToday"></td><td id="dataPlayTotal"></td></tr>
-          <tr><td>遇敌</td><td id="dataTodaySeen"></td><td id="dataTotalSeen"></td></tr>
+          <tr><td>遭遇</td><td id="dataTodaySeen"></td><td id="dataTotalSeen"></td></tr>
           <tr><td>捕获</td><td id="dataTodayCaught"></td><td id="dataTotalCaught"></td></tr>
           <tr><td>逃跑</td><td id="dataTodayFled"></td><td id="dataTotalFled"></td></tr>
           <tr><td>捕获率</td><td id="dataTodayRate"></td><td id="dataTotalRate"></td></tr>
@@ -329,7 +329,7 @@ export function showDataView() {
       <div class="stat-row"><span>当前地区</span><span id="dataRegion"></span></div>
       <div class="stat-row"><span>行走距离</span><span id="dataWalkDist"></span></div>
       <div class="stat-row"><span>图鉴完成度</span><span id="dataDexPct"></span></div>
-      <div class="stat-row"><span>神兽保底</span><span id="dataLegendPity"></span></div>
+      <div class="stat-row"><span>当前神兽保底</span><span id="dataLegendPity"></span></div>
 
       <div class="stat-section">仓库情况</div>
       <div id="dataRosterMix"></div>
@@ -2422,7 +2422,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>保底只在<b>普通野生遭遇</b>触发；大量出没、时空扭曲、树果方块吸引等玩法有各自的固定闪光率，不吃护符的闪光加成。<b>野遇神兽也不吃</b>：神兽闪光按基础 1/1000 判，护符对它只提高「出神兽」的概率（1/600 → 1/120）。</p>`
       + `<p>骑行中速度以 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，增益的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
-      + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`
+      + `<p>倒计时只在挂机等待时消耗：野外遭遇与钓鱼期间暂停，<b>NPC 对战期间照常计时</b>（对战随时能进，冻结等于白嫖时长）。</p>`
       + tutorialTable([
         ['生效', `<b>${BUFF_DURATION}</b> 秒`, `<b>${BUFF_DURATION}</b> 秒`],
         ['遇敌', `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒`, `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒`],
@@ -2456,6 +2456,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>时空扭曲的宝可梦<b>个体值保底 ${TWIST_GUARANTEED_IVS}V</b>，闪光率 <b>1/${Math.round(1 / TWIST_SHINY_CHANCE)}</b>（不吃闪耀护符加成），有 <b>${Math.round(TWIST_RGB_CHANCE * 100)}%</b> 概率是 <b>RGB 分离</b>宝可梦、<b>${Math.round(TWIST_POLLUTED_CHANCE * 100)}%</b> 概率是<b>污染宝可梦</b>。</p>`
       + `<p>当这两类带有特效的宝可梦被<b>派遣</b>探险时，带回的糖果数量提升 <b>${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>派遣</b>」章节）。</p>`
       + `<p>事件持续 <b>${TWIST_DURATION}</b> 分钟，可遭遇的 <b>${TWIST_COUNT_MIN}</b> 只遭遇完或到期后结束。</p>`
+      + `<p>停在事件点上、或导航终点就是事件点时<b>切后台</b>，回来后这段时间会按事件节奏<b>补发</b>事件遭遇；事件打光或到期后，剩余时间回到普通遇敌。</p>`
       + `<p><b>甜甜蜜</b>生效期间会让<b>事件</b>里的下一只出现得更快：<b>大量出没</b> <b>${MASS_SPAWN_HONEY_MIN}~${MASS_SPAWN_HONEY_MAX}</b> 秒（普通 <b>${MASS_SPAWN_MIN}~${MASS_SPAWN_MAX}</b> 秒）、<b>时空扭曲</b> <b>${TWIST_SPAWN_HONEY_MIN}~${TWIST_SPAWN_HONEY_MAX}</b> 秒（普通 <b>${TWIST_SPAWN_MIN}~${TWIST_SPAWN_MAX}</b> 秒）。</p>`,
   },
   {
@@ -2485,6 +2486,7 @@ const TUTORIAL_SECTIONS = [
     title: '统计',
     html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按最近 500 场遭遇的稀有度与捕获运气综合评价称号，<b>抽卡欧气</b>单独看最近 500 抽的 SR 出货；</p>`
       + `<p>板块分为：数据总览、冒险进度、消耗统计、农场与合成、地区悬赏、NPC对战、游戏厅战绩、道具累计获得。</p>`
+      + `<p>「冒险进度」里的<b>神兽保底 X / ${LEGEND_PITY}</b>是当前软保底进度（只算普通道路遇敌，见「<b>神兽机制说明</b>」）。</p>`
   },
   {
     title: '成就',
@@ -2760,8 +2762,8 @@ const TUTORIAL_SECTIONS = [
     title: '自动操作',
     html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
       + `<p><b>自动丢球</b>：判定为「捕捉」后会自动<b>连续丢球直到捕获或逃跑</b>。球种按<b>智能选球</b>——<b>神兽或捕获率低</b>的宝可梦优先 <b>大师球→高级球→精灵球</b>，捕获率高的普通宝可梦优先 <b>精灵球</b> 省资源；只在勾选的球种中挑选，优先球种没库存自动顺延。</p>`
-      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 特效</b> 六类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未拥有过的</b>（仓库里已有对应形态直接放跑）。<b>特效</b>类对应时空扭曲（RGB/污染）遭遇，优先级最高。</p>`
-      + `<p>设置里的「<b>自动补货</b>」负责补资源：<b>自动补球</b>——球用光自动用糖果补 1 个（「‹ ›」调优先级）；<b>自动补增益道具</b>——甜甜蜜 / 闪耀护符各有独立开关，用光时按商店价自动补 1 个放进背包。</p>`,
+      + `<p><b>捕捉条件</b>：设置 →「<b>捕捉</b>」页 →「捕捉条件」右边的<b>编辑</b>打开表格，给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 特效</b> 六类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未拥有过的</b>（仓库里已有对应形态直接放跑）。<b>特效</b>类对应时空扭曲（RGB/污染）遭遇，优先级最高。</p>`
+      + `<p>设置 →「<b>补货</b>」页负责补资源：<b>自动补球</b>——球用光自动用糖果补 1 个（三颗球图标<b>按住拖动排序</b>，左→右为优先级；<b>点按图标</b>可单独启用/停用）；<b>自动补增益道具</b>——甜甜蜜 / 闪耀护符各有独立开关，用光时按商店价自动补 1 个放进背包。</p>`,
   },
   {
     title: '佛系模式',

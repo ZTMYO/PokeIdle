@@ -17,6 +17,7 @@ import { SW_LEVELS, swLevelOf } from './sweet-game.js';
 import { TH_LEVELS, thLevelOf, UNOWN_INDEX } from './treasure-game.js';
 import { SL_LEVELS, slLevelOf } from './seal-slide.js';
 import { AM_LEVELS, amLevelOf } from './arrow-maze.js';
+import { BH_LEVELS, bhLevelOf } from './ball-home.js';
 
 const TIERS = 4;      // 四档：进化道具 / 薄荷·王冠 / 大师球·闪耀护符 / 闪光蛋
 const PER_TIER = 3;   // 每档交 3 只（payload.perTier 可覆盖），四档共 12 只
@@ -214,6 +215,7 @@ const COIN_ICONS = {
   'power-flow': './items/goods/balloon-yellow.png',
   'seal-slide': './items/goods/balloon-blue.png',
   'arrow-maze': './items/goods/balloon-brown.png',
+  'ball-home': './items/goods/balloon-orange.png',
 };
 const coinIcon = (ctx) => COIN_ICONS[ctx && ctx.id] || BALLOON_ICON;
 // 兑换表：价格按"一周活动能换完"配（合计 4250）；每样限一次，所以不用怕刷。
@@ -1121,6 +1123,18 @@ export const ACTIVITIES = {
     rules: '点箭头转向，朝北鼻每走到一格就按那格的箭头继续走，使其到达精灵球位置。<br>岩石挡路，得绕过去；普通和困难档转动次数有限。完成后可以获得气球奖励。<br>气球可兑换下方奖励，每样限一次。',
     levelDesc: l => `${l.n}×${l.n} · ${l.coins} 气球`,
     start: (level, onFinish) => import('./arrow-maze.js').then(m => m.startArrowGame({ level, onFinish })),
+  }),
+
+  // ---- 球球归位（ball-home）：点一次性箭头推动精灵球/别的箭头，把球送进洞里 ----
+  // 服务器 activity.json 加一条 { "id": "ball-home", "from": …, "to": … }
+  'ball-home': coinGame({
+    name: '球球归位',
+    levels: BH_LEVELS,
+    levelOf: bhLevelOf,
+    attr: 'bh-level',
+    rules: '点箭头方块，它会沿箭头方向持续滑行直到碰到障碍；沙块被撞到后会破碎；三角箭头方块碰到精灵球后，精灵球会沿方向移动一格；把精灵球推进洞里即可通关。<br>气球可兑换下方奖励，每样限一次。',
+    levelDesc: l => `${l.n}×${l.n} · ${l.coins} 气球`,
+    start: (level, onFinish) => import('./ball-home.js').then(m => m.startBallHomeGame({ level, onFinish })),
   }),
 
   // ---- 猜宝可梦（guess-name）：独立小游戏页，从候选字里拼出宝可梦名字，答对累加气球 ----

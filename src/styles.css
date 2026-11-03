@@ -2475,8 +2475,8 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 }
 .voyage-cover {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  padding: 2px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  padding: 1px;
   background: #cfe6f7;
   font-size: 8.5px; line-height: 1.2; text-align: center;
 }
@@ -2687,7 +2687,7 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 .th-rank { font-size: 10px; opacity: .75; margin: 0; }
 
 /* === 海豹滑冰：点宝可梦，再点同排/同列格子，滑到冰墙或冰岩怪停下 === */
-#sealView, #arrowView {
+#sealView, #arrowView, #ballHomeView {
   position: relative;
   padding: 4px 6px;
   gap: 3px;
@@ -2724,6 +2724,131 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
   --sl-wall-line: #403929;
   --am-arrow: #d9cdb2;
   --am-arrow-on: #fdf7e8;
+}
+/* 球球归位：沙色棋盘 + 精灵球/碎岩/一次性箭头 */
+#ballHomeView {
+  --sl-cell: #efe6d2;
+  --sl-alt: #e7dcc4;
+  --sl-line: #c9bca0;
+  --bh-block: #3f6b58;
+  --bh-block-line: #2a4a3c;
+  --bh-block-arrow: #f4ecd2;
+  --bh-crate: #d9b47a;
+  --bh-crate-line: #8a5a2b;
+  --bh-hole: #3b3328;
+  --bh-hole-rim: #b99d78;
+}
+[data-theme="dark"] #ballHomeView {
+  --sl-cell: #2a251e;
+  --sl-alt: #241f19;
+  --sl-line: #4b4335;
+  --bh-block: #4f8a6e;
+  --bh-block-line: #2f6b4f;
+  --bh-block-arrow: #dff0e4;
+  --bh-crate: #8a6f45;
+  --bh-crate-line: #4a3823;
+  --bh-hole: #0d0c0a;
+  --bh-hole-rim: #6b5c44;
+}
+.bh-board-wrap { position: relative; flex: none; }
+.bh-overlay { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2; }
+.bh-piece {
+  position: absolute;
+  display: flex; align-items: center; justify-content: center;
+  box-sizing: border-box;
+  transition: left .06s linear, top .06s linear;
+  pointer-events: none;
+}
+.bh-block { color: var(--bh-block-arrow); }
+.bh-block-inner {
+  position: absolute;
+  left: 2px; top: 2px; right: 2px; bottom: 2px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bh-block);
+  border: 1px solid var(--bh-block-line);
+  border-radius: 3px;
+  color: var(--bh-block-arrow);
+}
+.bh-block.tri {
+  --bh-block: #b8845a;
+  --bh-block-line: #7a5530;
+  --bh-block-arrow: #fff3d6;
+}
+[data-theme="dark"] .bh-block.tri {
+  --bh-block: #8a5e38;
+  --bh-block-line: #5b3d22;
+  --bh-block-arrow: #ffe9c2;
+}
+.bh-arrow {
+  width: 64%; height: 64%;
+  color: var(--bh-block-arrow);
+  transform: rotate(var(--rot, 0deg));
+}
+.bh-block.windup { animation: bh-windup .12s ease-in-out; }
+.bh-block.lunge { transition: left .05s linear, top .05s linear; }
+.bh-crate-frame {
+  position: absolute;
+  left: 8%; top: 8%; width: 84%; height: 84%;
+  border-radius: 6px;
+  background: var(--bh-crate);
+  border: 1px solid var(--bh-crate-line);
+  box-sizing: border-box;
+}
+.bh-crate-shards {
+  position: absolute;
+  left: 8%; top: 8%; width: 84%; height: 84%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  opacity: 0;
+}
+.bh-crate-shards i {
+  display: block;
+  background: var(--bh-crate);
+  border: 1px solid var(--bh-crate-line);
+  box-sizing: border-box;
+}
+.bh-crate-shards i:nth-child(1) { border-radius: 5px 0 0 0; }
+.bh-crate-shards i:nth-child(2) { border-radius: 0 5px 0 0; }
+.bh-crate-shards i:nth-child(3) { border-radius: 0 0 0 5px; }
+.bh-crate-shards i:nth-child(4) { border-radius: 0 0 5px 0; }
+.bh-crate.breaking .bh-crate-frame { animation: bh-crate-hide .1s ease-out forwards; }
+.bh-crate.breaking .bh-crate-shards { opacity: 1; }
+.bh-crate.breaking .bh-crate-shards i:nth-child(1) { animation: bh-shard-1 .26s ease-out forwards; }
+.bh-crate.breaking .bh-crate-shards i:nth-child(2) { animation: bh-shard-2 .26s ease-out forwards; }
+.bh-crate.breaking .bh-crate-shards i:nth-child(3) { animation: bh-shard-3 .26s ease-out forwards; }
+.bh-crate.breaking .bh-crate-shards i:nth-child(4) { animation: bh-shard-4 .26s ease-out forwards; }
+.bh-ball-img {
+  width: 84%; height: 84%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transform-origin: center;
+  transition: transform .06s ease-out;
+}
+.bh-ball.drop { animation: bh-ball-drop .2s ease-in forwards; }
+.bh-hole { display: block; width: 84%; height: 84%; pointer-events: none; }
+.bh-hole-pit { fill: var(--bh-hole); }
+.bh-hole-rim { fill: none; stroke: var(--bh-hole-rim); stroke-width: 2; }
+.bh-hole-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+@keyframes bh-windup {
+  0% { transform: scale(1); }
+  45% { transform: scale(.9); }
+  100% { transform: scale(1); }
+}
+@keyframes bh-crate-hide { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes bh-shard-1 { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(-70%, -70%) rotate(-28deg) scale(.7); opacity: 0; } }
+@keyframes bh-shard-2 { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(70%, -70%) rotate(28deg) scale(.7); opacity: 0; } }
+@keyframes bh-shard-3 { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(-70%, 70%) rotate(28deg) scale(.7); opacity: 0; } }
+@keyframes bh-shard-4 { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(70%, 70%) rotate(-28deg) scale(.7); opacity: 0; } }
+@keyframes bh-ball-drop {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(.12); opacity: 0; }
 }
 .sl-head {
   position: relative;

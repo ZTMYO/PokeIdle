@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>洞窟撞球 · 限时活动原型</title>
+<style>
+  :root {
+    --page: #1d2420;
+    --panel: #26302a;
+    --panel-2: #2f3b34;
+    --edge: #4a5a50;
+    --ink: #e9e4d8;
+    --muted: #9aaa9f;
+    --accent: #8fd3b0;
+    --accent-dark: #376d56;
+    --danger: #ff7b7b;
+    --mono: ui-monospace, "Cascadia Mono", "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 18px 16px 40px;
+    background: var(--page);
+    color: var(--ink);
+    font: 13px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 2px; letter-spacing: .5px; }
+  h2 { font-size: 12px; margin: 0 0 8px; color: var(--accent); letter-spacing: .5px; }
+  p { margin: 0 0 8px; }
+  code { font-family: var(--mono); background: rgba(143,211,176,.12); padding: 1px 4px; border-radius: 2px; }
+  .lead { color: var(--muted); font-size: 11.5px; margin: 0 0 14px; }
+  .layout {
+    display: grid;
+    grid-template-columns: auto minmax(280px, 380px);
+    gap: 18px;
+    align-items: start;
+    justify-content: start;
+  }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+  }
+  .stage { display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; max-width: 100%; }
+  .stage-label {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: var(--muted);
+    font-size: 10.5px;
+    font-family: var(--mono);
+  }
+  .scale-wrap { display: inline-block; }
+  .frame-note { color: var(--muted); font-size: 10.5px; line-height: 1.6; text-align: center; max-width: 320px; }
+  .panel { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--edge);
+    border-radius: 3px;
+    padding: 10px 11px;
+  }
+  .card + .card { margin-top: 0; }
+  .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+  .row:last-child { margin-bottom: 0; }
+  .row > label { flex: 0 0 auto; color: var(--muted); font-size: 10.5px; }
+  button, select, input {
+    font: inherit;
+    font-size: 11px;
+    color: var(--ink);
+    background: var(--panel-2);
+    border: 1px solid var(--edge);
+    border-radius: 2px;
+    padding: 3px 7px;
+    cursor: pointer;
+  }
+  input { cursor: text; width: 108px; font-family: var(--mono); }
+  .row input[type="checkbox"] {
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--accent-dark); border-color: var(--accent); color: #eafff4; }
+  .seg { display: flex; gap: 4px; flex: 1; }
+  .seg button { flex: 1; }
+  .info {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--edge);
+    color: var(--muted);
+    font: 10.5px/1.65 var(--mono);
+    white-space: pre-wrap;
+  }
+  pre.out {
+    margin: 7px 0 0;
+    padding: 7px;
+    max-height: 190px;
+    overflow: auto;
+    background: #1b221e;
+    border: 1px solid var(--edge);
+    border-radius: 2px;
+    color: #cfe6d9;
+    font: 10px/1.55 var(--mono);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  pre.out:empty { display: none; }
+  .sol-line { cursor: pointer; padding: 1px 0; }
+  .sol-line:hover { color: var(--accent); }
+  .sol-note { color: var(--muted); font-size: 9.5px; margin-bottom: 4px; }
+  details {
+    margin-top: 10px;
+    background: var(--panel);
+    border: 1px solid var(--edge);
+    border-radius: 3px;
+    padding: 9px 11px;
+  }
+  details summary { cursor: pointer; color: var(--accent); font-size: 11.5px; font-weight: 700; }
+  details > div { margin-top: 8px; color: #cfd8d2; font-size: 11.5px; line-height: 1.7; }
+  details ul { margin: 4px 0 0 18px; padding: 0; }
+  details li { margin: 2px 0; }
+  .kbd { font-family: var(--mono); background: rgba(143,211,176,.12); padding: 0 4px; border-radius: 2px; }
+  .tag { color: var(--accent); font-weight: 700; }
+
+  /* ================= 游戏画框：严格 248×213 ================= */
+  .game-frame {
+    --screen: #73c5a4;
+    --screen-dark: #4c8d73;
+    --ui: #24563f;
+    --ui-2: #376d56;
+    --btn-bg: #dff0e4;
+    --btn-line: #2f6a4a;
+    --btn-text: #24563f;
+    --cell: #efe6d2;
+    --cell-alt: #e7dcc4;
+    --line: #c9bca0;
+    --wall: #9a8b73;
+    --wall-line: #7a6d58;
+    --block: #3f6b58;
+    --block-line: #2a4a3c;
+    --block-arrow: #f4ecd2;
+    --crate: #d9b47a;
+    --crate-line: #8a5a2b;
+    --hole: #3b3328;
+    --hole-rim: #b99d78;
+    --balloon: #e8a33d;
+
+    width: 248px;
+    height: 213px;
+    box-sizing: content-box;
+    padding: 4px 6px 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow: hidden;
+    position: relative;
+    background: var(--screen);
+    border: 2px solid var(--screen-dark);
+    color: var(--ui);
+    font: 700 8.5px/1.2 "Segoe UI", system-ui, sans-serif;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .game-frame.dark {
+    --screen: #12211a;
+    --screen-dark: #0e1a13;
+    --ui: #9fe0bf;
+    --ui-2: #5cb48d;
+    --btn-bg: #234437;
+    --btn-line: #5cb48d;
+    --btn-text: #b9efd4;
+    --cell: #2a251e;
+    --cell-alt: #241f19;
+    --line: #4b4335;
+    --wall: #5d5442;
+    --wall-line: #403929;
+    --block: #4f8a6e;
+    --block-line: #2f6b4f;
+    --block-arrow: #dff0e4;
+    --crate: #8a6f45;
+    --crate-line: #4a3823;
+    --hole: #0d0c0a;
+    --hole-rim: #6b5c44;
+  }
+  .bh-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-height: 13px;
+    color: var(--ui);
+  }
+  .bh-level {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .bh-actions {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+  .bh-actions[hidden] { display: none; }
+  .bh-btn {
+    padding: 1px 4px;
+    border: 1px solid var(--btn-line);
+    border-radius: 2px;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    font: 700 8px/1.2 "Segoe UI", system-ui, sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .bh-btn.off { opacity: .35; pointer-events: none; }
+  .bh-board {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    touch-action: manipulation;
+  }
+  .bh-board-wrap { position: relative; flex: none; }
+  .bh-grid {
+    display: grid;
+    position: relative;
+    background: var(--cell);
+    outline: 1px solid var(--line);
+    outline-offset: 0;
+  }
+  .bh-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cell);
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .bh-cell:nth-child(odd) { background: var(--cell-alt); }
+  .bh-cell.wall {
+    background: var(--wall);
+    border-color: var(--wall-line);
+    cursor: default;
+  }
+  .bh-cell.hole { cursor: default; }
+  .bh-cell svg { display: block; pointer-events: none; }
+  .bh-hole {
+    width: 84%;
+    height: 84%;
+  }
+  .bh-hole-pit { fill: var(--hole); }
+  .bh-hole-rim { fill: none; stroke: var(--hole-rim); stroke-width: 2; }
+  .bh-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .bh-piece {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    transition: left .06s linear, top .06s linear;
+    pointer-events: none;
+  }
+  .bh-ball-svg { width: 86%; height: 86%; transform-origin: center; transition: transform .06s ease-out; }
+  .bh-crate-frame {
+    position: absolute;
+    left: 8%; top: 8%; width: 84%; height: 84%;
+    border-radius: 6px;
+    background: var(--crate);
+    border: 1px solid var(--crate-line);
+    box-sizing: border-box;
+  }
+  .bh-crate-shards {
+    position: absolute;
+    left: 8%; top: 8%; width: 84%; height: 84%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    opacity: 0;
+  }
+  .bh-crate-shards i {
+    display: block;
+    background: var(--crate);
+    border: 1px solid var(--crate-line);
+    box-sizing: border-box;
+  }
+  .bh-crate-shards i:nth-child(1) { border-radius: 5px 0 0 0; }
+  .bh-crate-shards i:nth-child(2) { border-radius: 0 5px 0 0; }
+  .bh-crate-shards i:nth-child(3) { border-radius: 0 0 0 5px; }
+  .bh-crate-shards i:nth-child(4) { border-radius: 0 0 5px 0; }
+  .bh-block { color: var(--block-arrow); }
+  .bh-block.tri {
+    --block: #b8845a;
+    --block-line: #7a5530;
+    --block-arrow: #fff3d6;
+  }
+  .game-frame.dark .bh-block.tri {
+    --block: #8a5e38;
+    --block-line: #5b3d22;
+    --block-arrow: #ffe9c2;
+  }
+  .bh-block-inner {
+    position: absolute;
+    inset: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--block);
+    border: 1px solid var(--block-line);
+    border-radius: 3px;
+    color: var(--block-arrow);
+  }
+  .bh-arrow {
+    width: 64%;
+    height: 64%;
+    color: var(--block-arrow);
+    transform: rotate(var(--rot, 0deg));
+  }
+  .bh-block.hint .bh-block-inner {
+    outline: 2px solid #f2c53d;
+    outline-offset: -2px;
+  }
+  .bh-block.windup { animation: bh-windup .12s ease-in-out; }
+  .bh-block.lunge { transition: left .05s linear, top .05s linear; }
+  .bh-crate.breaking .bh-crate-frame { animation: bh-crate-hide .1s ease-out forwards; }
+  .bh-crate.breaking .bh-crate-shards { opacity: 1; }
+  .bh-crate.breaking .bh-crate-shards i:nth-child(1) { animation: bh-shard-1 .26s ease-out forwards; }
+  .bh-crate.breaking .bh-crate-shards i:nth-child(2) { animation: bh-shard-2 .26s ease-out forwards; }
+  .bh-crate.breaking .bh-crate-shards i:nth-child(3) { animation: bh-shard-3 .26s ease-out forwards; }
+  .bh-crate.breaking .bh-crate-shards i:nth-child(4) { animation: bh-shard-4 .26s ease-out forwards; }
+  .bh-ball.drop { animation: bh-ball-drop .2s ease-in forwards; }
+  @keyframes bh-windup {
+    0% { transform: scale(1); }
+    45% { transform: scale(.9); }
+    100% { transform: scale(1); }
+  }
+  @keyframes bh-crate-hide { 0% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes bh-shard-1 { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(-70%, -70%) rotate(-28deg) scale(.7); opacity: 0; } }
+  @keyframes bh-shard-2 { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(70%, -70%) rotate(28deg) scale(.7); opacity: 0; } }
+  @keyframes bh-shard-3 { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(-70%, 70%) rotate(28deg) scale(.7); opacity: 0; } }
+  @keyframes bh-shard-4 { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(70%, 70%) rotate(-28deg) scale(.7); opacity: 0; } }
+  @keyframes bh-ball-drop {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(.12); opacity: 0; }
+  }
+  .bh-result {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    color: var(--ui);
+    padding: 8px;
+  }
+  .bh-result-title { font-size: 15px; margin: 0; }
+  .bh-result-sub { font-size: 9px; margin: 0; opacity: .8; }
+  .bh-result-coins { display: flex; align-items: center; gap: 3px; font-size: 11px; margin: 1px 0 0; }
+  .bh-balloon { width: 12px; height: 15px; }
+  .bh-result-btns { display: flex; gap: 7px; margin-top: 3px; }
+  .bh-result-btns .bh-btn { font-size: 9px; padding: 3px 8px; }
+</style>
+</head>
+<body>
+
+<h1>洞窟撞球 · 限时活动原型</h1>
+<p class="lead">网格解谜 / 一次性箭头 / 精灵球入洞 / 可碎岩刹车。左侧画框严格按游戏 app 屏内区 248×213 制作，右侧是生成器调试面板。</p>
+
+<div class="layout">
+  <section class="stage">
+    <div class="stage-label">
+      <span>screenInner ≈ 248 × 213</span>
+      <span>274×342 设计基准</span>
+    </div>
+    <div class="scale-wrap" id="scaleWrap">
+      <div class="game-frame" id="gameFrame">
+        <div class="bh-head">
+          <span class="bh-actions" id="bhActions">
+            <button type="button" class="bh-btn" id="bhUndo">撤回</button>
+            <button type="button" class="bh-btn" id="bhReset">重置</button>
+            <button type="button" class="bh-btn" id="bhNew">换一题</button>
+          </span>
+          <span class="bh-level" id="bhLevel">普通</span>
+        </div>
+        <div class="bh-board" id="bhBoard"></div>
+      </div>
+    </div>
+    <p class="frame-note">手机双屏时下屏固定 213 高、宽度随设备变宽；<br>按 248 宽设计可保证窄屏也放得下。</p>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <h2>关卡</h2>
+      <div class="row">
+        <label>难度</label>
+        <div class="seg" id="tierSeg">
+          <button type="button" data-tier="easy">简单</button>
+          <button type="button" data-tier="normal" class="on">普通</button>
+          <button type="button" data-tier="hard">困难</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>种子</label>
+        <input id="seedInput" type="number" min="0" step="1" />
+        <button type="button" id="seedBtn">按种子生成</button>
+      </div>
+      <div class="row">
+        <button type="button" id="newBtn">换一题</button>
+        <button type="button" id="solBtn">显示解法</button>
+        <button type="button" id="playBtn">播放解法</button>
+      </div>
+      <div class="row">
+        <label>缩放</label>
+        <select id="scaleSel">
+          <option value="1">1×</option>
+          <option value="1.25">1.25×</option>
+          <option value="1.5" selected>1.5×</option>
+          <option value="2">2×</option>
+        </select>
+        <label><input id="darkChk" type="checkbox" style="width:auto;cursor:pointer;"> 暗色预览</label>
+      </div>
+      <div class="info" id="info"></div>
+      <pre class="out" id="solutionOut"></pre>
+    </div>
+
+    <div class="card">
+      <h2>生成自检</h2>
+      <div class="row">
+        <button type="button" id="checkBtn">跑 30 关 / 难度</button>
+        <span style="color:var(--muted);font-size:10px;">验证可解率、步数分布、求解规模</span>
+      </div>
+      <pre class="out" id="checkOut"></pre>
+    </div>
+
+    <div class="card">
+      <h2>导出</h2>
+      <div class="row">
+        <button type="button" id="exportBtn">导出当前关卡 JSON</button>
+      </div>
+      <pre class="out" id="jsonOut"></pre>
+    </div>
+  </aside>
+</div>
+
+<details>
+  <summary>规则口径（本原型采用）</summary>
+  <div>
+    <ul>
+      <li>点<b>箭头方块</b>，它会沿箭头方向滑出去。</li>
+      <li>把<b>精灵球</b>推进<b>洞里</b>即可通关。</li>
+      <li>箭头是一次性的；撤回 / 重置 / 换一题随时可用。</li>
+    </ul>
+  </div>
+</details>
+
+<details>
+  <summary>宝可梦联动提案</summary>
+  <div>
+    <p><span class="tag">球球归位</span>（活动名备选：洞窟撞球）</p>
+    <ul>
+      <li><b>洞</b>：普通的洞。只画洞口，不放表情。</li>
+      <li><b>球</b>：精灵球。要把它撞进洞里。</li>
+      <li><b>箭头方块</b>：铁哑铃 / 方向石，一次性冲撞。点击后“猛撞”滑行，撞上东西就消失；正式版可换成铁哑铃立绘，角上叠一个小箭头。</li>
+      <li><b>碎岩</b>：可破坏的岩石，对应「碎岩」招式；球/箭头撞到它时停在它前一格，碎岩碎掉消失。</li>
+      <li>整体气质接近现有「箭头迷宫」：沙色棋盘、无墙场地、低饱和绿 UI；不加渐变和阴影。</li>
+    </ul>
+  </div>
+</details>
+
+<details>
+  <summary>生成器怎么保证有解</summary>
+  <div>
+    <p>不是先撒东西再碰运气，而是<b>先布线、再验证</b>：</p>
+    <ul>
+      <li>从球的位置开始，随机铺一条“球被推 N 次”的路径：每次在球后方放一只推手，在前方放一个刹车点（边界或碎岩）。每个推手只用一次，正好对应一次性箭头。</li>
+      <li>困难档把其中一个推手换成三角箭头：球只被推一格，用来做细定位。</li>
+      <li>普通/困难把其中一个推手改成中转：目标箭头一开始在球的行/列外，先用另一只箭头把它推到球后方；最短解必须包含这次箭头推箭头。</li>
+      <li>最后一步强制让终点线避开初始球所在的行/列，避免开局一步直塞。</li>
+      <li>把候选关卡交给 BFS 求解器；拒绝无解、最短解短于设计步数、或存在一步直塞的关卡。</li>
+      <li>通过后再撒多余碎岩（只放在不挡已知解的位置）。</li>
+      <li>随机数走 mulberry32，同一个种子必定复现同一关。</li>
+      <li>外部检索受网络限制没找到可直接复用的开源实现；这里用的是 Ricochet Robots / 冰面滑行类滑动谜题的“构造 + BFS 验证”思路。</li>
+    </ul>
+  </div>
+</details>
+
+<details>
+  <summary>移植回游戏要动的地方</summary>
+  <div>
+    <ul>
+      <li><code>src/xxx-game.js</code>：把本页 ENGINE 段的 <code>generateLevel / prepareLevel / simulateMove / solveLevel</code> 原样搬过去，外面套 <code>startXxxGame({ level, onFinish })</code> 与 <code>leaveXxxGame()</code>。</li>
+      <li><code>src/index.html</code>：新增 <code>#xxxView</code>（顶栏 + 棋盘）和桌面图标 symbol。</li>
+      <li><code>src/ui.js</code>：把 <code>xxxView</code> 注册进 <code>VIEW_IDS</code> 和 <code>PHONE_VIEWS</code>。</li>
+      <li><code>src/main.js</code>：在返回键分支里加 <code>leaveXxxGame()</code>（本原型建议“返回 = 本局作废”）。</li>
+      <li><code>src/activities.js</code>：用 <code>coinGame</code> 注册，导出 <code>XX_LEVELS / xxLevelOf</code>；难度档写 <code>5×5 / 6×6 / 7×7</code>。</li>
+      <li><code>src/styles.css</code>：把画框内的 <code>bh-*</code> 改成 <code>#xxxView</code> 作用域，并补 <code>[data-theme="dark"]</code> 一套。</li>
+      <li>美术：精灵球可换成游戏里的 <code>items/balls/poke-ball.png</code>；箭头/洞/碎岩若要换贴图，走 <code>tryLoadImage</code>，仍保持纯色底 + 1px 描边，不要加渐变阴影。</li>
+      <li><code>src/apps.js</code> 的 <code>ACT_ICONS</code>、<code>tools/activity-maker.html</code> 的活动表、气球配色 <code>COIN_ICONS</code> 也要加一条。</li>
+    </ul>
+  </div>
+</details>
+
+<script>
+// ===== ENGINE START =====
+// 方向：0 上 1 右 2 下 3 左
+const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+const DIR_NAMES = ['上', '右', '下', '左'];
+
+const TIER_CFG = {
+  easy:   { id: 'easy',   name: '简单', n: 5, pushes: 2, crates: 1, triangles: 0, setups: 1, minLen: 3, maxLen: 5, coins: 30,  attempts: 4000, cap: 60000 },
+  normal: { id: 'normal', name: '普通', n: 6, pushes: 3, crates: 1, triangles: 0, setups: 1, minLen: 4, maxLen: 7, coins: 60,  attempts: 5000, cap: 100000 },
+  hard:   { id: 'hard',   name: '困难', n: 7, pushes: 4, crates: 2, triangles: 1, setups: 1, minLen: 5, maxLen: 10, coins: 100, attempts: 6000, cap: 150000 },
+};
+
+function stepOf(n, i, d) {
+  const x = i % n, y = Math.floor(i / n);
+  const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+  if (nx < 0 || nx >= n || ny < 0 || ny >= n) return -1;
+  return nx + ny * n;
+}
+
+function xyOf(n, i) { return [i % n, Math.floor(i / n)]; }
+
+function mulberry32(a) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function prepareLevel(level) {
+  return {
+    n: level.n,
+    wallSet: new Set(level.walls),
+    holeSet: new Set(level.holes),
+    crateIndex: new Map(level.crates.map((c, i) => [c, i])),
+    dirs: level.blocks.map((b) => b.dir),
+    kinds: level.blocks.map((b) => b.kind || 'normal'),
+  };
+}
+
+function initialState(level) {
+  return {
+    ball: level.ball,
+    blocks: level.blocks.map((b) => b.cell),
+    aliveMask: (1 << level.blocks.length) - 1,
+    cratesMask: (1 << level.crates.length) - 1,
+  };
+}
+
+// 模拟一次点击。箭头是一次性的：滑到任何障碍（墙/边界/方块/洞/碎岩/球）上就消失。
+// trace=true 时额外给出方块/球的移动轨迹，供动画使用。
+function simulateMove(prep, state, bi, trace) {
+  if (!(state.aliveMask & (1 << bi))) return null;
+  const n = prep.n;
+  const d = prep.dirs[bi];
+  const blockAt = new Set();
+  for (let i = 0; i < state.blocks.length; i++) {
+    if ((state.aliveMask & (1 << i)) && state.blocks[i] >= 0) blockAt.add(state.blocks[i]);
+  }
+  const newBlocks = state.blocks.slice();
+  const blockPath = trace ? [] : null;
+  const ballPath = trace ? [] : null;
+  let cratesMask = state.cratesMask;
+  let aliveMask = state.aliveMask;
+  let blockCrate = null;
+  let ballCrate = null;
+  let cur = state.blocks[bi];
+  let ball = state.ball;
+  let ballMoved = false;
+  let hitBall = false;
+  let hitArrow = false;
+  let arrowPushTarget = -1;
+  let arrowPushPath = trace ? [] : null;
+  let win = false;
+
+  while (true) {
+    const nx = stepOf(n, cur, d);
+    if (nx >= 0 && blockAt.has(nx)) {
+      // 撞到另一只箭头：被撞的箭头沿撞击方向滑到障碍前，留在场上；点击的箭头消失
+      let ti = -1;
+      for (let i = 0; i < newBlocks.length; i++) {
+        if ((aliveMask & (1 << i)) && newBlocks[i] === nx) { ti = i; break; }
+      }
+      if (ti >= 0) {
+        let tc = nx;
+        while (true) {
+          const nn = stepOf(n, tc, d);
+          if (nn < 0 || prep.wallSet.has(nn) || prep.holeSet.has(nn) || blockAt.has(nn)) break;
+          const cj = prep.crateIndex.get(nn);
+          if (cj !== undefined && (cratesMask & (1 << cj))) break;
+          if (nn === ball) break;
+          tc = nn;
+          if (trace) arrowPushPath.push(nn);
+        }
+        newBlocks[ti] = tc;
+        hitArrow = true;
+        arrowPushTarget = ti;
+      }
+      break;
+    }
+    if (nx < 0 || prep.wallSet.has(nx) || prep.holeSet.has(nx)) break;
+
+    const ci = prep.crateIndex.get(nx);
+    if (ci !== undefined && (cratesMask & (1 << ci))) {
+      blockCrate = nx;
+      cratesMask &= ~(1 << ci);
+      break;
+    }
+
+    if (nx === ball) {
+      hitBall = true;
+      if (prep.kinds[bi] === 'triangle') {
+        // 三角箭头：球只前进一格，不滚到底
+        const nn = stepOf(n, ball, d);
+        if (nn >= 0 && !prep.wallSet.has(nn) && !blockAt.has(nn)) {
+          if (prep.holeSet.has(nn)) {
+            ball = -1;
+            ballMoved = true;
+            win = true;
+            if (trace) ballPath.push(nn);
+          } else {
+            const cj = prep.crateIndex.get(nn);
+            if (cj !== undefined && (cratesMask & (1 << cj))) {
+              cratesMask &= ~(1 << cj);
+              ballCrate = nn;
+              // 球被碎岩挡住，停在原地
+            } else {
+              ball = nn;
+              ballMoved = true;
+              if (trace) ballPath.push(nn);
+            }
+          }
+        }
+      } else {
+        let bc = ball;
+        while (true) {
+          const nn = stepOf(n, bc, d);
+          if (nn < 0 || prep.wallSet.has(nn) || blockAt.has(nn)) break;
+          if (prep.holeSet.has(nn)) {
+            bc = nn;
+            ball = -1;
+            ballMoved = true;
+            win = true;
+            if (trace) ballPath.push(nn);
+            break;
+          }
+          const cj = prep.crateIndex.get(nn);
+          if (cj !== undefined && (cratesMask & (1 << cj))) {
+            // 撞碎岩：碎岩碎掉，球停在碎岩前那一格，不进入碎岩格
+            cratesMask &= ~(1 << cj);
+            ball = bc;
+            ballMoved = true;
+            ballCrate = nn;
+            break;
+          }
+          bc = nn;
+          ball = bc;
+          ballMoved = true;
+          if (trace) ballPath.push(nn);
+        }
+      }
+      break;
+    }
+
+    cur = nx;
+    if (trace) blockPath.push(nx);
+  }
+
+  // 撞上任何东西（包括球）后箭头立即消失；没移动就撞上的也一样
+  aliveMask &= ~(1 << bi);
+  newBlocks[bi] = -1;
+  return {
+    ball: win ? -1 : ball,
+    blocks: newBlocks,
+    aliveMask,
+    cratesMask,
+    win,
+    hitBall,
+    hitArrow,
+    arrowPushTarget,
+    arrowPushPath: arrowPushPath || [],
+    blockPath: blockPath || [],
+    ballPath: ballPath || [],
+    blockCrate,
+    ballCrate,
+  };
+}
+
+function stateKey(s) {
+  return s.ball + '|' + s.blocks.join(',') + '|' + s.aliveMask + '|' + s.cratesMask;
+}
+
+// BFS 最短路；同时给出每一步点的是哪只方块
+function solveLevel(level, prep, cap) {
+  const start = initialState(level);
+  if (start.ball === -1) return { solved: true, moves: [], len: 0, nodes: 0 };
+  const queue = [start];
+  const startKey = stateKey(start);
+  const prev = new Map([[startKey, null]]);
+  let head = 0;
+  let nodes = 0;
+
+  while (head < queue.length) {
+    if (nodes++ > cap) return { solved: false, capHit: true, nodes };
+    const st = queue[head++];
+    const stKey = stateKey(st);
+
+    for (let bi = 0; bi < st.blocks.length; bi++) {
+      const sim = simulateMove(prep, st, bi, false);
+      if (!sim) continue;
+      const ns = { ball: sim.ball, blocks: sim.blocks, aliveMask: sim.aliveMask, cratesMask: sim.cratesMask };
+      const key = stateKey(ns);
+      if (prev.has(key)) continue;
+      prev.set(key, { key: stKey, move: bi });
+      if (sim.win) {
+        const moves = [];
+        let k = key;
+        while (prev.get(k)) {
+          const p = prev.get(k);
+          moves.push(p.move);
+          k = p.key;
+        }
+        moves.reverse();
+        return { solved: true, moves, len: moves.length, nodes };
+      }
+      queue.push(ns);
+    }
+  }
+  return { solved: false, nodes };
+}
+
+function moveWins(level, prep, bi) {
+  const sim = simulateMove(prep, initialState(level), bi, false);
+  return !!sim && sim.win;
+}
+
+// 最短解里是否真的用三角箭头推了球（不是把它当障碍清掉）
+function solutionUsesTrianglePush(level, prep, moves) {
+  let st = initialState(level);
+  for (const bi of moves) {
+    const sim = simulateMove(prep, st, bi, false);
+    if (!sim) return false;
+    if ((level.blocks[bi].kind || 'normal') === 'triangle' && sim.hitBall) return true;
+    st = { ball: sim.ball, blocks: sim.blocks, aliveMask: sim.aliveMask, cratesMask: sim.cratesMask };
+    if (sim.win) break;
+  }
+  return false;
+}
+
+function solutionUsesSetupPush(level, prep, moves) {
+  let st = initialState(level);
+  for (const bi of moves) {
+    const sim = simulateMove(prep, st, bi, false);
+    if (!sim) return false;
+    if (sim.hitArrow) return true;
+    st = { ball: sim.ball, blocks: sim.blocks, aliveMask: sim.aliveMask, cratesMask: sim.cratesMask };
+    if (sim.win) break;
+  }
+  return false;
+}
+
+function backSteps(n, from, d, steps) {
+  let c = from;
+  for (let i = 0; i < steps; i++) {
+    c = stepOf(n, c, (d + 2) % 4);
+    if (c < 0) return -1;
+  }
+  return c;
+}
+
+// 把一条直线解改造成一次“箭头推箭头”的中转：
+// 目标推手从球的线上移开，玩家先用发车箭头把它推回 pFinal，再用它推球。
+function tryConvertToSetup(cand, prep, sol, cfg, rng) {
+  if (cfg.setups <= 0) return null;
+  const n = cand.n;
+  const occupied = new Set([
+    ...cand.walls,
+    ...cand.crates,
+    ...cand.blocks.map((b) => b.cell),
+    cand.ball,
+    ...cand.holes,
+  ]);
+
+  // 直接解里每一次“推球”都能作为目标
+  const candidates = [];
+  let st = initialState(cand);
+  for (const bi of sol.moves) {
+    const sim = simulateMove(prep, st, bi, false);
+    if (!sim) break;
+    if (sim.hitBall && st.ball >= 0) candidates.push({ bi, cell: st.blocks[bi], ball: st.ball });
+    st = { ball: sim.ball, blocks: sim.blocks, aliveMask: sim.aliveMask, cratesMask: sim.cratesMask };
+    if (sim.win) break;
+  }
+  if (!candidates.length) return null;
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+
+  for (const cm of candidates) {
+    const bi = cm.bi;
+    const pFinal = cm.cell;
+    const d = cand.blocks[bi].dir;
+    const dirs = [(d + 1) & 3, (d + 3) & 3];
+
+    for (const s of dirs) {
+      const crateCell = stepOf(n, pFinal, s);
+      if (crateCell < 0 || occupied.has(crateCell)) continue;
+      // 目标从 pInit 被推到 pFinal，碎岩在 pFinal+s 挡住它
+      for (let k = 1; k < n; k++) {
+        const pInit = backSteps(n, pFinal, s, k);
+        if (pInit < 0) break;
+        if (occupied.has(pInit)) continue;
+
+        let bad = false;
+        let c = pInit;
+        for (let q = 0; q < k - 1; q++) {
+          c = stepOf(n, c, s);
+          if (c < 0 || occupied.has(c)) { bad = true; break; }
+        }
+        if (bad) continue;
+
+        // 发车箭头在 pInit 后方
+        for (let m = 1; m < n; m++) {
+          const pSetup = backSteps(n, pInit, s, m);
+          if (pSetup < 0) break;
+          if (occupied.has(pSetup)) continue;
+
+          let bad2 = false;
+          let c2 = pSetup;
+          for (let q = 0; q < m - 1; q++) {
+            c2 = stepOf(n, c2, s);
+            if (c2 < 0 || occupied.has(c2)) { bad2 = true; break; }
+          }
+          if (bad2) continue;
+
+          const blocks = cand.blocks.map((b, idx) => (idx === bi ? { ...b, cell: pInit, role: 'target' } : b));
+          blocks.push({ cell: pSetup, dir: s, kind: 'normal', role: 'setup' });
+          const level = { ...cand, blocks, crates: [...cand.crates, crateCell] };
+          const prep2 = prepareLevel(level);
+          const sol2 = solveLevel(level, prep2, cfg.cap);
+          if (!sol2.solved) continue;
+          if (sol2.len < cfg.minLen || sol2.len > cfg.maxLen) continue;
+          if (!solutionUsesSetupPush(level, prep2, sol2.moves)) continue;
+          if (cfg.triangles > 0 && !solutionUsesTrianglePush(level, prep2, sol2.moves)) continue;
+          return { level, sol: sol2 };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// 构造候选：先铺一条已知解，再由 BFS 验证
+function buildCandidate(cfg, rng) {
+  const n = cfg.n;
+  const total = n * n;
+  const walls = new Set();
+  const crates = new Set();
+  const blocks = [];
+  const prot = new Set();   // 不能放任何东西（会挡已知解）
+  const vis = new Set();    // 球已经走过的格子
+  const broken = new Set(); // 已知解里已经撞碎的碎岩（后续布线可以穿过）
+  const used = new Set();   // 已知解里已经消耗掉的箭头所在格（后续布线可以穿过）
+  let cratesUsed = 0;
+
+  const solid = (c) => walls.has(c)
+    || (blocks.some((b) => b.cell === c) && !used.has(c))
+    || (crates.has(c) && !broken.has(c));
+  const occupiedInitial = (c) => walls.has(c) || crates.has(c) || blocks.some((b) => b.cell === c);
+  const start = Math.floor(rng() * total);
+  const startX = start % n;
+  const startY = Math.floor(start / n);
+  let ball = start;
+  let hole = -1;
+  prot.add(ball);
+  vis.add(ball);
+
+  const triSet = new Set();
+  if (cfg.triangles > 0 && cfg.pushes > 1) {
+    const pool = [];
+    for (let s = 0; s < cfg.pushes - 1; s++) pool.push(s);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    for (let i = 0; i < Math.min(cfg.triangles, pool.length); i++) triSet.add(pool[i]);
+  }
+
+  for (let s = 0; s < cfg.pushes; s++) {
+    const final = s === cfg.pushes - 1;
+    const kind = triSet.has(s) ? 'triangle' : 'normal';
+    const opts = [];
+
+    for (let d = 0; d < 4; d++) {
+      // 最后一条线不能经过初始球所在的行/列，否则开局就能直塞
+      if (final) {
+        const bx = ball % n;
+        const by = Math.floor(ball / n);
+        const horizontal = d === 1 || d === 3;
+        if (horizontal ? by === startY : bx === startX) continue;
+      }
+
+      // 推手候选：从球后方一路退，直到边界/障碍
+      const pushers = [];
+      let back = ball;
+      const line = [];
+      for (let j = 1; j < n; j++) {
+        const p = stepOf(n, back, (d + 2) % 4);
+        if (p < 0 || solid(p)) break;
+        line.push(p);
+        if (!prot.has(p) && !crates.has(p)) pushers.push({ p, line: line.slice() });
+        back = p;
+      }
+      if (!pushers.length) continue;
+
+      // 三角箭头：球只前进一格，不需要刹车点
+      if (kind === 'triangle') {
+        const to = stepOf(n, ball, d);
+        if (final) {
+          if (to >= 0 && to !== start && !vis.has(to) && !occupiedInitial(to)) {
+            opts.push({ d, to, path: [to], pushers, hole: true, kind: 'triangle' });
+          }
+        } else if (to >= 0 && to !== start && !solid(to) && !vis.has(to)) {
+          opts.push({ d, to, path: [to], pushers, kind: 'triangle' });
+        }
+        continue;
+      }
+
+      // 前方落点
+      let c = ball;
+      const path = [];
+      while (true) {
+        const nx = stepOf(n, c, d);
+        if (nx < 0 || solid(nx) || vis.has(nx)) break;
+        c = nx;
+        path.push(c);
+
+        if (final) {
+          if (c !== start && !vis.has(c) && !occupiedInitial(c)) {
+            opts.push({ d, to: c, path: path.slice(), pushers, hole: true });
+          }
+          continue;
+        }
+
+        // 场地里不放墙：球只能停在边界或碎岩前
+        const after = stepOf(n, c, d);
+        if (after < 0) opts.push({ d, to: c, path: path.slice(), pushers, edgeStop: true });
+
+        // 碎岩刹车：球停在 c，碎岩放在 c 的下一格；球撞碎它但不进入
+        if (cratesUsed < cfg.crates && after >= 0 && !solid(after) && !prot.has(after) && after !== start && !vis.has(after)) {
+          opts.push({ d, to: c, path: path.slice(), pushers, crateStop: true, after });
+        }
+      }
+    }
+
+    if (!opts.length) return null;
+    const ch = opts[Math.floor(rng() * opts.length)];
+    const pick = ch.pushers[Math.floor(rng() * ch.pushers.length)];
+
+    blocks.push({ cell: pick.p, dir: ch.d, kind });
+    pick.line.forEach((c) => prot.add(c));
+    ch.path.forEach((c) => prot.add(c));
+    prot.add(pick.p);
+    used.add(pick.p);
+
+    if (final) {
+      hole = ch.to;
+      prot.add(hole);
+    } else if (ch.crateStop) {
+      crates.add(ch.after);
+      broken.add(ch.after);   // 已知解会在这步撞碎它，后续布线可穿过
+      cratesUsed++;
+      prot.add(ch.after);
+    }
+
+    ball = ch.to;
+    ch.path.forEach((c) => vis.add(c));
+  }
+
+  if (hole < 0) return null;
+  if (cfg.crates > 0 && cratesUsed === 0) return null;   // 至少让一块碎岩参与解法
+
+  // 装饰：只撒在不会挡已知解的位置
+  const cells = [];
+  for (let c = 0; c < total; c++) {
+    if (c === hole || walls.has(c) || crates.has(c) || blocks.some((b) => b.cell === c) || prot.has(c)) continue;
+    cells.push(c);
+  }
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [cells[i], cells[j]] = [cells[j], cells[i]];
+  }
+  let k = 0;
+  for (let i = cratesUsed; i < cfg.crates && k < cells.length; i++) crates.add(cells[k++]);
+
+  return {
+    n,
+    walls: [...walls],
+    holes: [hole],
+    ball: start,
+    blocks,
+    crates: [...crates],
+  };
+}
+
+function generateLevel(tierId, seed) {
+  const cfg = TIER_CFG[tierId] || TIER_CFG.normal;
+  const rng = mulberry32(seed >>> 0);
+
+  for (let attempt = 1; attempt <= cfg.attempts; attempt++) {
+    const cand = buildCandidate(cfg, rng);
+    if (!cand) continue;
+    const prep = prepareLevel(cand);
+    if (cand.blocks.some((_, bi) => moveWins(cand, prep, bi))) continue;
+    const sol = solveLevel(cand, prep, cfg.cap);
+    if (!sol.solved) continue;
+
+    if (cfg.setups > 0) {
+      // 直线解必须正好用完所有推手，再把它改造成一次中转
+      if (sol.len !== cfg.pushes) continue;
+      const setup = tryConvertToSetup(cand, prep, sol, cfg, rng);
+      if (!setup) continue;
+      return {
+        ...setup.level,
+        tier: cfg.id,
+        tierName: cfg.name,
+        coins: cfg.coins,
+        seed: seed >>> 0,
+        minMoves: setup.sol.len,
+        solution: setup.sol.moves,
+        attempts: attempt,
+        nodes: setup.sol.nodes,
+        setups: cfg.setups,
+      };
+    }
+
+    if (sol.len < cfg.minLen || sol.len > cfg.maxLen) continue;
+    if (cfg.triangles > 0 && !solutionUsesTrianglePush(cand, prep, sol.moves)) continue;
+    return {
+      ...cand,
+      tier: cfg.id,
+      tierName: cfg.name,
+      coins: cfg.coins,
+      seed: seed >>> 0,
+      minMoves: sol.len,
+      solution: sol.moves,
+      attempts: attempt,
+      nodes: sol.nodes,
+      setups: 0,
+    };
+  }
+  return null;
+}
+// ===== ENGINE END =====
+
+/* ================= UI ================= */
+const $ = (id) => document.getElementById(id);
+
+const SVG_BALL = `<svg class="bh-ball-svg" viewBox="0 0 32 32" aria-hidden="true">
+  <circle cx="16" cy="16" r="13.5" fill="#f6f2e7" stroke="#2f2b26" stroke-width="2"/>
+  <path d="M2.5 16a13.5 13.5 0 0 1 27 0Z" fill="#d94b4b"/>
+  <path d="M2.5 16a13.5 13.5 0 0 1 27 0" fill="none" stroke="#2f2b26" stroke-width="2"/>
+  <rect x="2.5" y="14.8" width="27" height="2.4" fill="#2f2b26"/>
+  <circle cx="16" cy="16" r="5.2" fill="#f6f2e7" stroke="#2f2b26" stroke-width="2"/>
+  <circle cx="16" cy="16" r="1.8" fill="#d94b4b"/>
+</svg>`;
+
+const SVG_HOLE = `<svg class="bh-hole" viewBox="0 0 32 32" aria-hidden="true">
+  <circle class="bh-hole-pit" cx="16" cy="16" r="12.5"/>
+  <circle class="bh-hole-rim" cx="16" cy="16" r="12.5"/>
+</svg>`;
+
+const CRATE_HTML = `<span class="bh-crate-frame"></span><span class="bh-crate-shards"><i></i><i></i><i></i><i></i></span>`;
+
+const SVG_ARROW = `<svg class="bh-arrow" viewBox="0 0 32 32" aria-hidden="true">
+  <path d="M16 4.5 27 19.5h-7.4V27h-7.2v-7.5H5Z" fill="currentColor"/>
+</svg>`;
+
+const SVG_TRI = `<svg class="bh-arrow" viewBox="0 0 32 32" aria-hidden="true">
+  <path d="M16 4 28 27H4Z" fill="currentColor"/>
+</svg>`;
+
+const SVG_BALLOON = `<svg class="bh-balloon" viewBox="0 0 16 20" aria-hidden="true">
+  <ellipse cx="8" cy="7" rx="6" ry="7" fill="#e8a33d"/>
+  <path d="M8 13.6 5.8 16h4.4Z" fill="#e8a33d"/>
+  <path d="M8 16c-.8 1.6.8 2.4 0 4" fill="none" stroke="#8a6a42" stroke-width="1.2"/>
+</svg>`;
+
+const R = {
+  tier: 'normal',
+  level: null,
+  prep: null,
+  state: null,
+  initial: null,
+  history: [],
+  moves: 0,
+  done: false,
+  busy: false,
+  demo: false,
+  runToken: 0,
+  cell: 0,
+  gap: 2,
+  size: 0,
+};
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const randomSeed = () => (Math.random() * 0xFFFFFFFF) >>> 0;
+const cloneState = (s) => ({
+  ball: s.ball,
+  blocks: s.blocks.slice(),
+  aliveMask: s.aliveMask,
+  cratesMask: s.cratesMask,
+});
+
+function crateCells(level, mask) {
+  const out = [];
+  for (let i = 0; i < level.crates.length; i++) if (mask & (1 << i)) out.push(level.crates[i]);
+  return out;
+}
+
+function positionPiece(el, cell, ox = 0, oy = 0) {
+  if (!el || !R.level) return;
+  const n = R.level.n;
+  const x = cell % n;
+  const y = Math.floor(cell / n);
+  const step = R.cell + R.gap;
+  el.style.left = `${x * step + ox}px`;
+  el.style.top = `${y * step + oy}px`;
+  el.style.width = `${R.cell}px`;
+  el.style.height = `${R.cell}px`;
+}
+
+function renderBoard() {
+  const board = $('bhBoard');
+  if (!board || !R.level) return;
+  const n = R.level.n;
+  const wrap = document.createElement('div');
+  wrap.className = 'bh-board-wrap';
+
+  const gap = 2;
+  const availW = Math.max(80, board.clientWidth - 6);
+  const availH = Math.max(80, board.clientHeight - 6);
+  const cell = Math.max(16, Math.min(52, Math.floor(Math.min(
+    (availW - gap * (n - 1)) / n,
+    (availH - gap * (n - 1)) / n
+  ))));
+  const size = cell * n + gap * (n - 1);
+  R.cell = cell;
+  R.gap = gap;
+  R.size = size;
+
+  const grid = document.createElement('div');
+  grid.className = 'bh-grid';
+  grid.style.width = `${size}px`;
+  grid.style.height = `${size}px`;
+  grid.style.gridTemplateColumns = `repeat(${n}, ${cell}px)`;
+  grid.style.gridAutoRows = `${cell}px`;
+  grid.style.gap = `${gap}px`;
+
+  const wallSet = new Set(R.level.walls);
+  const holeSet = new Set(R.level.holes);
+  for (let i = 0; i < n * n; i++) {
+    const el = document.createElement('div');
+    el.className = 'bh-cell';
+    el.dataset.i = i;
+    if (wallSet.has(i)) el.classList.add('wall');
+    if (holeSet.has(i)) {
+      el.classList.add('hole');
+      el.innerHTML = SVG_HOLE;
+    }
+    grid.appendChild(el);
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'bh-overlay';
+  overlay.style.width = `${size}px`;
+  overlay.style.height = `${size}px`;
+
+  for (const c of crateCells(R.level, R.state.cratesMask)) {
+    const el = document.createElement('div');
+    el.className = 'bh-piece bh-crate';
+    el.dataset.crate = c;
+    el.innerHTML = CRATE_HTML;
+    positionPiece(el, c);
+    overlay.appendChild(el);
+  }
+
+  if (R.state.ball >= 0) {
+    const el = document.createElement('div');
+    el.className = 'bh-piece bh-ball';
+    el.innerHTML = SVG_BALL;
+    positionPiece(el, R.state.ball);
+    overlay.appendChild(el);
+  }
+
+  for (let bi = 0; bi < R.level.blocks.length; bi++) {
+    if (!(R.state.aliveMask & (1 << bi)) || R.state.blocks[bi] < 0) continue;
+    const b = R.level.blocks[bi];
+    const kind = b.kind || 'normal';
+    const el = document.createElement('div');
+    el.className = `bh-piece bh-block${kind === 'triangle' ? ' tri' : ''}`;
+    el.dataset.bi = bi;
+    el.dataset.kind = kind;
+    el.style.setProperty('--rot', `${b.dir * 90}deg`);
+    el.innerHTML = `<span class="bh-block-inner">${kind === 'triangle' ? SVG_TRI : SVG_ARROW}</span>`;
+    positionPiece(el, R.state.blocks[bi]);
+    overlay.appendChild(el);
+  }
+
+  wrap.appendChild(grid);
+  wrap.appendChild(overlay);
+  board.innerHTML = '';
+  board.appendChild(wrap);
+}
+
+function updateHeader() {
+  if (!R.level) return;
+  $('bhLevel').textContent = R.level.tierName;
+  const actions = $('bhActions');
+  actions.hidden = R.done;
+  const lock = R.busy || R.demo || R.done;
+  $('bhUndo').classList.toggle('off', lock || !R.history.length);
+  $('bhReset').classList.toggle('off', lock);
+  $('bhNew').classList.toggle('off', lock);
+}
+
+function updateInfo() {
+  if (!R.level) return;
+  const lv = R.level;
+  const map = [];
+  const chars = Array.from({ length: lv.n * lv.n }, () => '·');
+  for (const w of lv.walls) chars[w] = '#';
+  for (const c of lv.holes) chars[c] = 'O';
+  for (const c of lv.crates) chars[c] = 'X';
+  chars[lv.ball] = 'b';
+  lv.blocks.forEach((b, i) => { chars[b.cell] = `${b.kind === 'triangle' ? '△' : ''}${i + 1}`; });
+  for (let y = 0; y < lv.n; y++) map.push(chars.slice(y * lv.n, y * lv.n + lv.n).join(' '));
+  const triCount = lv.blocks.filter((b) => b.kind === 'triangle').length;
+  $('info').textContent =
+    `难度 ${lv.tierName} · 种子 ${lv.seed}\n` +
+    `最短 ${lv.minMoves} 步 · +${lv.coins} 气球\n` +
+    `生成尝试 ${lv.attempts} 次 · BFS ${lv.nodes} 状态\n` +
+    `无墙场地 · 碎岩 ${lv.crates.length} · 一次性箭头 ${lv.blocks.length}${triCount ? `（三角 ${triCount}）` : ''}${lv.setups ? ` · 中转 ${lv.setups}` : ''}\n` +
+    `箭头用一只少一只；步数见结算\n` +
+    `关卡地图（数字 = 箭头，△ = 三角箭头，方向见下方解法）\n${map.join('\n')}`;
+  $('seedInput').value = String(lv.seed);
+  $('solutionOut').textContent = '';
+  $('jsonOut').textContent = '';
+}
+
+function setTierUI(tier) {
+  document.querySelectorAll('#tierSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.tier === tier);
+  });
+}
+
+function setStatus(text) {
+  $('info').textContent = text;
+}
+
+function newLevel(tier, seed) {
+  if (R.busy || R.demo) return;
+  const t = tier || R.tier;
+  let s = (seed === undefined || seed === null || !Number.isFinite(Number(seed)))
+    ? randomSeed()
+    : (Number(seed) >>> 0);
+  let level = generateLevel(t, s);
+  if (!level && seed === undefined) {
+    for (let i = 0; i < 3 && !level; i++) {
+      s = randomSeed();
+      level = generateLevel(t, s);
+    }
+  }
+  if (!level) {
+    setStatus('这一关没生成出来，请再点一次换一题。');
+    return;
+  }
+  R.tier = t;
+  R.level = level;
+  R.prep = prepareLevel(level);
+  R.state = initialState(level);
+  R.initial = cloneState(R.state);
+  R.history = [];
+  R.moves = 0;
+  R.done = false;
+  R.busy = false;
+  R.demo = false;
+  R.runToken++;
+  setTierUI(t);
+  updateHeader();
+  updateInfo();
+  renderBoard();
+  requestAnimationFrame(() => {
+    if (R.level === level) renderBoard();
+  });
+}
+
+function resetLevel() {
+  if (!R.level || R.busy || R.demo) return;
+  R.runToken++;
+  R.state = cloneState(R.initial);
+  R.moves = 0;
+  R.history = [];
+  R.done = false;
+  R.busy = false;
+  updateHeader();
+  renderBoard();
+}
+
+function undo() {
+  if (!R.level || R.busy || R.demo || R.done || !R.history.length) return;
+  const h = R.history.pop();
+  R.state = cloneState(h.state);
+  R.moves = h.moves;
+  updateHeader();
+  renderBoard();
+}
+
+function breakCrate(cell) {
+  const el = document.querySelector(`.bh-crate[data-crate="${cell}"]`);
+  if (!el) return;
+  el.classList.add('breaking');
+  setTimeout(() => el.remove(), 260);
+}
+
+function showResult() {
+  R.done = true;
+  R.busy = false;
+  R.demo = false;
+  updateHeader();
+  const board = $('bhBoard');
+  if (!board || !R.level) return;
+  board.innerHTML = `
+    <div class="bh-result">
+      <p class="bh-result-title">完成</p>
+      <p class="bh-result-sub">用了 ${R.moves} 步 · 最少 ${R.level.minMoves} 步</p>
+      <p class="bh-result-coins">${SVG_BALLOON}+${R.level.coins} 气球</p>
+      <div class="bh-result-btns">
+        <button type="button" class="bh-btn" data-act="again">再来一局</button>
+        <button type="button" class="bh-btn" data-act="back">返回</button>
+      </div>
+    </div>`;
+  board.querySelector('[data-act="again"]').addEventListener('click', () => newLevel(R.tier));
+  board.querySelector('[data-act="back"]').addEventListener('click', () => {
+    setStatus('原型：游戏内这里会返回活动页。\n点左侧「换一题」继续试玩。');
+  });
+}
+
+async function animateBallPath(sim, ballEl, token, dir) {
+  const STEP = 60;
+  const BREAK = 260;
+  const img = ballEl && ballEl.firstElementChild;
+  const horizontal = dir === 1 || dir === 3;
+  const launch = horizontal ? 'scaleX(0.9) scaleY(1.1)' : 'scaleX(1.1) scaleY(0.9)';
+  const stop = horizontal ? 'scaleX(0.86) scaleY(1.14)' : 'scaleX(1.14) scaleY(0.86)';
+  if (img) img.style.transform = launch;
+  for (const cell of sim.ballPath) {
+    if (token !== R.runToken) return false;
+    R.state.ball = cell;
+    positionPiece(ballEl, cell);
+    if (R.prep.holeSet.has(cell)) {
+      await sleep(STEP);
+      if (ballEl) ballEl.classList.add('drop');
+      await sleep(200);
+      return true;
+    }
+    await sleep(STEP);
+  }
+  if (img) img.style.transform = stop;
+  if (sim.ballCrate !== null) {
+    if (token !== R.runToken) return false;
+    breakCrate(sim.ballCrate);
+  }
+  if (img) {
+    await sleep(30);
+    if (token !== R.runToken) return false;
+    img.style.transform = '';
+  }
+  if (sim.ballCrate !== null) {
+    await sleep(BREAK);
+    if (token !== R.runToken) return false;
+  } else if (img) {
+    await sleep(60);
+    if (token !== R.runToken) return false;
+  }
+  return true;
+}
+
+async function animateArrowPush(sim, token) {
+  const targetEl = document.querySelector(`.bh-block[data-bi="${sim.arrowPushTarget}"]`);
+  for (const cell of sim.arrowPushPath) {
+    if (token !== R.runToken) return false;
+    R.state.blocks[sim.arrowPushTarget] = cell;
+    positionPiece(targetEl, cell);
+    await sleep(60);
+  }
+  return true;
+}
+
+async function performMove(bi, force) {
+  if (!R.level || R.busy || R.done) return false;
+  if (R.demo && !force) return false;
+  const sim = simulateMove(R.prep, R.state, bi, true);
+  if (!sim) return false;
+
+  R.history.push({ state: cloneState(R.state), moves: R.moves });
+  R.busy = true;
+  const token = ++R.runToken;
+  updateHeader();
+
+  const STEP = 60;
+  const BREAK = 260;
+  const blockEl = document.querySelector(`.bh-block[data-bi="${bi}"]`);
+  const ballEl = document.querySelector('.bh-ball');
+
+  try {
+    // 起手：轻微缩小再恢复
+    if (blockEl) {
+      blockEl.classList.add('windup');
+      await sleep(120);
+      if (token !== R.runToken) return false;
+      blockEl.classList.remove('windup');
+    }
+
+    // 箭头滑到撞击前的最后一格
+    for (const cell of sim.blockPath) {
+      if (token !== R.runToken) return false;
+      R.state.blocks[bi] = cell;
+      positionPiece(blockEl, cell);
+      await sleep(STEP);
+    }
+
+    // 贴到目标内元素边缘再消失：间距 + 箭头内边距 + 目标内边距
+    if (blockEl) {
+      const n = R.level.n;
+      const d = R.level.blocks[bi].dir;
+      const finalCell = R.state.blocks[bi];
+      const target = stepOf(n, finalCell, d);
+      const padArrow = 2;
+      const padBall = R.cell * 0.07;
+      const padCrate = R.cell * 0.08;
+      const padHole = R.cell * 0.08;
+      let padTarget = padArrow;
+      if (sim.hitBall) padTarget = padBall;
+      else if (sim.blockCrate !== null) padTarget = padCrate;
+      else if (target >= 0 && R.prep.holeSet.has(target)) padTarget = padHole;
+      const lunge = target < 0 ? padArrow : R.gap + padArrow + padTarget;
+      blockEl.classList.add('lunge');
+      positionPiece(blockEl, finalCell, DIRS[d][0] * lunge, DIRS[d][1] * lunge);
+      await sleep(50);
+      if (token !== R.runToken) return false;
+    }
+
+    // 撞击瞬间：箭头直接消失（不缩小）；球在同一帧开始移动
+    if (token !== R.runToken) return false;
+    const jobs = [];
+    if (blockEl) blockEl.remove();
+    if (sim.blockCrate !== null) {
+      breakCrate(sim.blockCrate);
+      jobs.push(sleep(BREAK));
+    }
+    if (sim.hitArrow) jobs.push(animateArrowPush(sim, token));
+    if (sim.hitBall) jobs.push(animateBallPath(sim, ballEl, token, R.level.blocks[bi].dir));
+    await Promise.all(jobs);
+    if (token !== R.runToken) return false;
+
+    R.state.ball = sim.ball;
+    R.state.blocks = sim.blocks;
+    R.state.aliveMask = sim.aliveMask;
+    R.state.cratesMask = sim.cratesMask;
+    R.moves++;
+    R.busy = false;
+    updateHeader();
+    if (sim.win) showResult();
+    return true;
+  } catch (e) {
+    console.error('[洞窟撞球] 动画出错：', e);
+    if (token === R.runToken) {
+      R.busy = false;
+      updateHeader();
+    }
+    return false;
+  }
+}
+
+function showSolution() {
+  if (!R.level) return;
+  const out = $('solutionOut');
+  const lv = R.level;
+  const prep = prepareLevel(lv);
+  let st = initialState(lv);
+  const lines = [];
+  for (let k = 0; k < lv.solution.length; k++) {
+    const bi = lv.solution[k];
+    const b = lv.blocks[bi];
+    const kind = b.role === 'setup' ? '发车' : b.role === 'target' ? '中转目标' : (b.kind === 'triangle' ? '三角' : '普通');
+    const cell = st.blocks[bi];
+    const x = (cell % lv.n) + 1;
+    const y = Math.floor(cell / lv.n) + 1;
+    lines.push(`<div class="sol-line" data-bi="${bi}">${k + 1}. 方块 ${bi + 1}（${kind}，${DIR_NAMES[b.dir]}，当前 ${y} 行 ${x} 列）</div>`);
+    const sim = simulateMove(prep, st, bi, false);
+    if (!sim) break;
+    st = { ball: sim.ball, blocks: sim.blocks, aliveMask: sim.aliveMask, cratesMask: sim.cratesMask };
+    if (sim.win) break;
+  }
+  out.innerHTML = `<div class="sol-note">箭头一次性；三角只推一格；撞到别的箭头会把它推走；按顺序点：</div>` + lines.join('');
+  out.querySelectorAll('.sol-line').forEach((line) => {
+    line.addEventListener('mouseenter', () => {
+      const el = document.querySelector(`.bh-block[data-bi="${line.dataset.bi}"]`);
+      if (el) el.classList.add('hint');
+    });
+    line.addEventListener('mouseleave', () => {
+      const el = document.querySelector(`.bh-block[data-bi="${line.dataset.bi}"]`);
+      if (el) el.classList.remove('hint');
+    });
+  });
+  if (!lv.solution.length) out.textContent = '（无解？）';
+}
+
+async function playSolution() {
+  if (!R.level || R.busy || R.demo) return;
+  resetLevel();
+  if (R.busy) return;
+  R.demo = true;
+  updateHeader();
+  const moves = R.level.solution.slice();
+  for (const bi of moves) {
+    if (!R.demo || !R.level) break;
+    const ok = await performMove(bi, true);
+    if (!ok) break;
+    await sleep(60);
+  }
+  R.demo = false;
+  updateHeader();
+}
+
+async function selfCheck() {
+  const out = $('checkOut');
+  out.textContent = '生成中…';
+  await sleep(30);
+  const lines = [];
+  for (const tier of ['easy', 'normal', 'hard']) {
+    const cfg = TIER_CFG[tier];
+    const N = 30;
+    const t0 = performance.now();
+    let ok = 0;
+    let totalAttempts = 0;
+    let maxNodes = 0;
+    const lens = {};
+    for (let i = 0; i < N; i++) {
+      const lv = generateLevel(tier, randomSeed());
+      if (!lv) continue;
+      ok++;
+      totalAttempts += lv.attempts;
+      maxNodes = Math.max(maxNodes, lv.nodes);
+      lens[lv.minMoves] = (lens[lv.minMoves] || 0) + 1;
+    }
+    const lenText = Object.keys(lens).sort((a, b) => a - b)
+      .map((k) => `${k}步×${lens[k]}`).join(' / ') || '-';
+    lines.push(`${cfg.name}  ${ok}/${N}  ${lenText}  平均尝试 ${(totalAttempts / Math.max(1, ok)).toFixed(1)}  最大BFS ${maxNodes}  ${Math.round(performance.now() - t0)}ms`);
+  }
+  out.textContent = lines.join('\n');
+}
+
+function exportJson() {
+  if (!R.level) return;
+  $('jsonOut').textContent = JSON.stringify(R.level, null, 2);
+}
+
+function init() {
+  document.querySelectorAll('#tierSeg button').forEach((btn) => {
+    btn.addEventListener('click', () => newLevel(btn.dataset.tier));
+  });
+  // 种子输入允许留空后回车/点按钮都用随机种子
+  const seedInput = $('seedInput');
+  $('seedBtn').addEventListener('click', () => {
+    const v = seedInput.value.trim();
+    newLevel(R.tier, v === '' ? undefined : Number(v));
+  });
+  seedInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('seedBtn').click();
+  });
+  $('newBtn').addEventListener('click', () => newLevel(R.tier));
+  $('solBtn').addEventListener('click', showSolution);
+  $('playBtn').addEventListener('click', playSolution);
+  $('checkBtn').addEventListener('click', selfCheck);
+  $('exportBtn').addEventListener('click', exportJson);
+  $('scaleSel').addEventListener('change', (e) => {
+    $('scaleWrap').style.zoom = e.target.value;
+  });
+  $('scaleWrap').style.zoom = $('scaleSel').value;
+  $('darkChk').addEventListener('change', (e) => {
+    $('gameFrame').classList.toggle('dark', e.target.checked);
+  });
+  $('bhUndo').addEventListener('click', undo);
+  $('bhReset').addEventListener('click', resetLevel);
+  $('bhNew').addEventListener('click', () => newLevel(R.tier));
+  $('bhBoard').addEventListener('click', (e) => {
+    if (!R.level || R.busy || R.done || R.demo) return;
+    const cellEl = e.target.closest('.bh-cell');
+    if (!cellEl) return;
+    const i = Number(cellEl.dataset.i);
+    const bi = R.state.blocks.indexOf(i);
+    if (bi >= 0) performMove(bi, false);
+  });
+  window.addEventListener('resize', () => {
+    if (R.level && !R.busy && !R.done) renderBoard();
+  });
+  newLevel('normal');
+}
+
+init();
+</script>
+</body>
+</html>
