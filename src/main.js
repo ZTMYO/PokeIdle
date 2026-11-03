@@ -403,7 +403,7 @@ function onBagClick(itemKey) {
     // 保底只在普通野生遭遇生效，事件区/树果方块按当前场景换文案，避免误导
     let charmText = '使用闪耀护符？60秒内大幅提升闪光率，并保底遇到一只闪光宝可梦。';
     if (inMassZone() || inTwistZone()) {
-      charmText = '使用闪耀护符？此处不会有普通野生遭遇，护符加成与保底都不生效。';
+      charmText = '使用闪耀护符？此处不会有普通野生遭遇，护符加成与保底都<b style="color:#b3261e">不生效</b>。';
     } else if (blockBuffActive) {
       charmText = '使用闪耀护符？60秒闪光加成照常，但方块吸引的那次遇敌不吃加成。';
     }

@@ -485,8 +485,11 @@ function syncBuffExpiry() {
   if (honeyBuffActive && honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now()) handleHoneyExpired();
 }
 
-// 对战（NPC）开始时也暂停 buff：道路已经停摆，buff 再烧就是白烧
-export function pauseBuffsForBattle() { pauseEncounterBuffs(); }
+// 对战（NPC）开始时只停掉排队的野外遭遇（战斗页占着屏，不该再刷野遇）。
+// 增益道具照常走表：对战是玩家随时能进的，把 buff 冻在那儿等于白嫖时长
+export function pauseBuffsForBattle() {
+  if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
+}
 
 function pauseEncounterBuffs() {
   if (charmBuffActive && charmCountdownEnd > Date.now()) {
@@ -1386,6 +1389,10 @@ export function resumeEncounterFlow() {
     // 甜甜蜜到期：走统一公共回调（关闭+文案+自动续杯），与激活时的到期行为一致
     setHoneyExpiryTimer(setTimeout(handleHoneyExpired, d));
     startHoneyCountdown();
+  } else if (charmBuffActive || honeyBuffActive) {
+    // 增益还在生效、只是没有暂停余量（NPC 对战期间不冻表）：照增益节奏排下一场，
+    // 别退回普通间隔，否则打完一场对战增益的加速就白丢了
+    scheduleNextEncounter(rand(15, 30) * 1000);
   } else {
     scheduleNextEncounter();
   }

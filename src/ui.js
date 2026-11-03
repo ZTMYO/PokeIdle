@@ -130,8 +130,13 @@ export function showView(id) {
   const prevView = _currentView; // 切之前的页：判断"刚离开孵蛋页"要用（下面 syncViewChrome 会改写）
   hideFoodTip(); // 切页面：tooltip 不跟着走到新页面
   dismissConfirmBarForView(id);
-  // 导入存档的对比框只属于设置页：切走时收掉，别浮在新页面上
-  if (id !== 'settingsView') document.getElementById('importCmpDialog')?.remove();
+  // 导入存档的对比框、捕捉条件弹框只属于设置页：切走时收掉，别浮在新页面上。
+  // 捕捉条件弹框只收起来不删：设置页那个「编辑」按钮还挂着它，删了再点就没反应了
+  if (id !== 'settingsView') {
+    document.getElementById('importCmpDialog')?.remove();
+    const cfModal = document.getElementById('cfModal');
+    if (cfModal) cfModal.style.display = 'none';
+  }
   if (id === 'idleView' && phase === 'encounter') {
     id = 'encounterView';
   }

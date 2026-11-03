@@ -1,6 +1,6 @@
 import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, SQUARE_SHINY_CHANCE, EGG_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_SPAWN_MIN, TWIST_SPAWN_MAX, TWIST_SPAWN_HONEY_MIN, TWIST_SPAWN_HONEY_MAX, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, PENGUIN_STEPS, PENGUIN_BREAK_CHANCE, PENGUIN_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, flushSave, setSaveSuspended, formatNum, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon } from './state.js';
-import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress } from './ui.js';
+import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress, viewportToLogic } from './ui.js';
 import { doCandyExchange, doSellBall, useBuffNowOrDefer, refillBuffIfEmpty, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf, BASIC_ITEM_ORDER } from './items.js';
 import { formatLogTime } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, autoCatch } from './battle.js';
@@ -201,6 +201,7 @@ function refreshDataStats() {
   $('dataTotalShinyHatched').textContent = formatNum(totalShinyHatched);
   $('dataTotalShinyTraded').textContent = formatNum(totalShinyTraded);
   $('dataTradesTotal').textContent = formatNum(stats.totalTrades || 0);
+  $('dataLegendPity').textContent = `${gameData.legendPity || 0} / ${LEGEND_PITY}`;
   $('dataRegion').textContent = region.name;
   $('dataWalkDist').textContent = walkText;
   $('dataDexPct').textContent = `${totalUnique}/${totalSpecies} (${pct}%)`;
@@ -328,6 +329,7 @@ export function showDataView() {
       <div class="stat-row"><span>当前地区</span><span id="dataRegion"></span></div>
       <div class="stat-row"><span>行走距离</span><span id="dataWalkDist"></span></div>
       <div class="stat-row"><span>图鉴完成度</span><span id="dataDexPct"></span></div>
+      <div class="stat-row"><span>当前神兽保底</span><span id="dataLegendPity"></span></div>
 
       <div class="stat-section">仓库情况</div>
       <div id="dataRosterMix"></div>
@@ -1005,14 +1007,27 @@ export function showSettingsView() {
   pushNav('settingsView');
   ensureSettings(); // 保证旧档迁移（含捕捉条件四行表格结构）先于渲染执行
   clearBattleTier(); // 战斗中进入设置：清除 NPC 难度边框色，让设置页恢复正常配色
+  _cfModalOpen = false; // 每次进页面都从关闭态开始（离开时 DOM 会被收走）
   const content = $('settingsContent');
   const s = gameData.settings || {};
   renderSettings(content, s);
+  // 左侧页签：切分类只改显隐，不重渲染（保住各开关的事件绑定与滚动位置）
+  const nav = $('settingsNav');
+  if (nav) {
+    nav.onclick = (e) => {
+      const item = e.target.closest('.settings-nav-item');
+      if (!item || item.dataset.tab === _settingsTab) return;
+      _settingsTab = item.dataset.tab;
+      nav.querySelectorAll('.settings-nav-item').forEach(el => el.classList.toggle('active', el === item));
+      applySettingsTab(content);
+      content.scrollTop = 0;
+    };
+    nav.onwheel = (e) => { e.preventDefault(); nav.scrollTop += e.deltaY * 0.4; };
+  }
   // 滚轮减速：设置项较多，避免原生滚动一次翻太多
-  const sv = $('settingsView');
-  sv.onwheel = (e) => {
+  content.onwheel = (e) => {
     e.preventDefault();
-    sv.scrollTop += e.deltaY * 0.4;
+    content.scrollTop += e.deltaY * 0.4;
   };
   showView('settingsView');
 }
@@ -1034,6 +1049,26 @@ const CF_ACTIONS = [
   { v: 'flee', t: '逃跑' },
 ];
 
+// 设置页左侧页签：项目越堆越多，一页拉到底找不到；分页后每页只放同类设置
+const SETTINGS_TABS = [
+  { key: 'battle', label: '捕捉' },
+  { key: 'refill', label: '补货' },
+  { key: 'look', label: '外观' },
+  { key: 'sound', label: '声音' },
+  { key: 'perf', label: '性能' },
+  { key: 'save', label: '存档' },
+  { key: 'about', label: '关于' },
+];
+let _settingsTab = 'battle';
+let _cfModalOpen = false; // 捕捉条件弹框是否开着（设置重渲染后要还原）
+
+// 按当前页签显示对应的设置组（页签名字已经说明分类，分组不再单独写标题）
+function applySettingsTab(container) {
+  container.querySelectorAll('[data-pane]').forEach(el => {
+    el.style.display = el.dataset.pane === _settingsTab ? '' : 'none';
+  });
+}
+
 // 存档导出/导入提示：显示 2.5 秒后收起，文案被替换则不动
 function flashSaveHint(text) {
   updateTextBox(text, false, 'app');
@@ -1051,8 +1086,7 @@ export function renderSettings(container, s) {
   const windowScale = WINDOW_SCALES.includes(s.windowScale) ? s.windowScale : 2;
   // 窗口设置只对桌面端有意义：浏览器版与手机端都不显示
   const windowGroupHtml = (document.body.classList.contains('browser-mode') || isUiMobile()) ? '' : `
-      <div class="settings-group">
-        <div class="settings-group-title">窗口</div>
+      <div class="settings-group" data-pane="look">
         <div class="auto-catch-row">
           <div class="auto-catch-label">固定窗口</div>
           <div class="toggle-switch" id="toggleWindowPinned">
@@ -1126,9 +1160,8 @@ export function renderSettings(container, s) {
       </tr>`;
   }).join('');
   container.innerHTML = `
-    <div style="padding:6px 8px;">
-      <div class="settings-group">
-        <div class="settings-group-title">遇敌与捕捉</div>
+    <div style="min-height:100%;display:flex;flex-direction:column;">
+      <div class="settings-group settings-pane" data-pane="battle">
         <div class="auto-catch-row">
           <div class="auto-catch-label">自动操作</div>
           <div class="toggle-switch" id="toggleAutoCatch">
@@ -1165,28 +1198,12 @@ export function renderSettings(container, s) {
             <span class="ball-check ${autoBuffHoney ? 'on' : ''}" id="toggleBuffHoney">${autoBuffHoney ? '☑' : '☐'}甜甜蜜</span>
             <span class="ball-check ${autoBuffCharm ? 'on' : ''}" id="toggleBuffCharm">${autoBuffCharm ? '☑' : '☐'}闪耀护符</span>
           </div>
-          <div class="settings-sub-title" style="opacity:0.55;font-weight:400;padding-top:2px;">后台补发也按这个设置续杯，同样扣道具</div>
         </div>
-        <div class="filter-panel">
-          <div class="settings-sub-title">捕捉条件</div>
-          <table class="cf-table">
-            <thead>
-              <tr>
-                <th class="cf-corner"></th>
-                <th>捕捉</th>
-                <th>暂停</th>
-                <th>逃跑</th>
-                <th class="cf-col-lv">捕捉等级</th>
-                <th>未拥有</th>
-              </tr>
-            </thead>
-            <tbody>${cfTbody}</tbody>
-          </table>
-          <div class="cf-hint-row">
-            <div class="cf-hint">捕捉等级范围外的自动逃跑</div>
-            <button class="cf-reset-btn" id="cfReset">恢复默认</button>
-          </div>
+        <div class="reset-save-row">
+          <span class="auto-catch-label">捕捉条件</span>
+          <span class="reset-save-btn" id="cfOpenBtn">编辑</span>
         </div>
+        <div class="cf-hint" style="padding:0 4px 4px;">按遇敌类型分别设置捕捉 / 暂停 / 逃跑</div>
         ` : ''}
         <div class="auto-catch-row">
           <div class="auto-catch-label">佛系模式</div>
@@ -1199,8 +1216,7 @@ export function renderSettings(container, s) {
 
       </div>
 
-      <div class="settings-group">
-        <div class="settings-group-title">自动补货</div>
+      <div class="settings-group settings-pane" data-pane="refill">
         <div class="auto-catch-row">
           <div class="auto-catch-label">自动补球</div>
           <div class="toggle-switch" id="toggleAutoRefill">
@@ -1209,20 +1225,18 @@ export function renderSettings(container, s) {
           </div>
         </div>
         ${autoRefill ? `
-        <div style="padding:6px 4px 2px 8px;">
-          <div class="settings-sub-title">补球优先级（左高右低）</div>
+        <div style="padding:4px 4px 2px;">
+          <div class="settings-sub-title">补球优先级（左高右低，拖动排序）</div>
           <div class="refill-order-row" id="refillOrderList">
-            ${order.map((b, i) => `
+            ${order.map((b) => `
               <span class="refill-order-item${refillBalls[b] === false ? ' off' : ''}" data-ball="${b}">
-                <span class="refill-order-arrow left ${i === 0 ? 'hidden' : ''}" data-dir="-1">‹</span>
-                <span class="refill-order-name">${ballLabels[b]}</span>
-                <span class="refill-order-arrow right ${i === order.length - 1 ? 'hidden' : ''}" data-dir="1">›</span>
+                <img class="refill-order-icon" src="${itemIconSrc(b)}" alt="${ballLabels[b]}" draggable="false" />
               </span>
             `).join('')}
           </div>
         </div>
         ` : ''}
-        <div style="padding:6px 4px 0 8px;">
+        <div style="padding:4px 4px 0;">
           <div class="auto-catch-label">自动补增益道具</div>
           <div class="ball-check-row">
             <span class="ball-check ${autoRefillHoney ? 'on' : ''}" id="toggleRefillHoney">${autoRefillHoney ? '☑' : '☐'}甜甜蜜</span>
@@ -1231,9 +1245,14 @@ export function renderSettings(container, s) {
         </div>
       </div>
 
-      ${windowGroupHtml}
-      <div class="settings-group">
-        <div class="settings-group-title">外观</div>
+      <div class="settings-group settings-pane" data-pane="look">
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">角色</div>
+          <div class="gender-check-row">
+            <span class="ball-check ${gender === 'brendan' ? 'on' : ''}" id="genderBrendan">${gender === 'brendan' ? '☑' : '☐'}小悠</span>
+            <span class="ball-check ${gender === 'may' ? 'on' : ''}" id="genderMay">${gender === 'may' ? '☑' : '☐'}小遥</span>
+          </div>
+        </div>
         <div class="auto-catch-row">
           <div class="auto-catch-label">夜间模式</div>
           <div class="toggle-switch" id="toggleDarkMode">
@@ -1279,9 +1298,9 @@ export function renderSettings(container, s) {
           </div>
         </div>
       </div>
+      ${windowGroupHtml}
 
-      <div class="settings-group">
-        <div class="settings-group-title">性能</div>
+      <div class="settings-group settings-pane" data-pane="perf">
         <div class="auto-catch-row">
           <div class="auto-catch-label">省电模式</div>
           <div class="toggle-switch" id="togglePowerSave">
@@ -1292,8 +1311,7 @@ export function renderSettings(container, s) {
         <div class="cf-hint" style="padding:0 4px 4px;">场景帧率降低，适合长时间前台挂机</div>
       </div>
 
-      <div class="settings-group">
-        <div class="settings-group-title">声音</div>
+      <div class="settings-group settings-pane" data-pane="sound">
         <div class="auto-catch-row">
           <div class="auto-catch-label">音乐</div>
           <div class="toggle-switch" id="toggleMusicEnabled">
@@ -1326,8 +1344,7 @@ export function renderSettings(container, s) {
       </div>
 
       ${window.__POKEIDLE_MOBILE__?.foregroundStart ? `
-      <div class="settings-group">
-        <div class="settings-group-title">后台常驻</div>
+      <div class="settings-group" data-pane="perf">
         <div class="auto-catch-row">
           <div class="auto-catch-label">常驻通知</div>
           <div class="toggle-switch" id="toggleBackground">
@@ -1339,15 +1356,7 @@ export function renderSettings(container, s) {
       </div>
       ` : ''}
 
-      <div class="settings-group">
-        <div class="settings-group-title">角色与存档</div>
-        <div class="auto-catch-row">
-          <div class="auto-catch-label">角色</div>
-          <div class="gender-check-row">
-            <span class="ball-check ${gender === 'brendan' ? 'on' : ''}" id="genderBrendan">${gender === 'brendan' ? '☑' : '☐'}小悠</span>
-            <span class="ball-check ${gender === 'may' ? 'on' : ''}" id="genderMay">${gender === 'may' ? '☑' : '☐'}小遥</span>
-          </div>
-        </div>
+      <div class="settings-group settings-pane" data-pane="save">
         <div class="reset-save-row">
           <span class="auto-catch-label">导出存档</span>
           <span class="reset-save-btn" id="exportSaveBtn">导出</span>
@@ -1370,18 +1379,85 @@ export function renderSettings(container, s) {
         </div>
         <div class="cf-hint" id="saveTimeHint" style="padding:2px 4px 4px;"></div>
       </div>
-      <a href="https://github.com/ZTMYO/PokeIdle" id="githubLink" class="settings-footer-link" target="_blank" rel="noopener">
-        <svg viewBox="0 0 1024 1024" width="16" height="16" style="flex-shrink:0;"><use xlink:href="#icon-github"/></svg>
-        <span style="font-weight:600;">ZTMYO</span>
-      </a>
-      <div class="settings-version" id="settingsVersion"></div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:9px;padding:2px 0 4px;">
-        <a href="https://pokeidle.shiliu.space" id="siteLink" class="settings-mini-link" target="_blank" rel="noopener">官方网站</a>
-        <span style="opacity:0.3;">|</span>
-        <span id="declarationBtn" class="settings-mini-link">版权声明</span>
+      <div class="settings-pane settings-about" data-pane="about">
+        <div class="about-main">
+          <div class="about-hero">
+            <img class="about-logo" src="./icons/app-icon.png" alt="" draggable="false" />
+            <div class="about-name">口袋挂机</div>
+            <div class="settings-version" id="settingsVersion"></div>
+          </div>
+          <div class="about-links">
+            <a class="about-link about-link-icon" id="githubLink" href="https://github.com/ZTMYO/PokeIdle" target="_blank" rel="noopener">
+              <svg viewBox="0 0 1024 1024" width="12" height="12"><use xlink:href="#icon-github"/></svg>ZTMYO
+            </a>
+            <a class="about-link" id="siteLink" href="https://pokeidle.shiliu.space" target="_blank" rel="noopener">官方网站</a>
+          </div>
+          <span class="about-link about-link-sm" id="declarationBtn">版权声明</span>
+        </div>
+        <div class="about-credit">粉丝自制 完全免费 禁止倒卖</div>
       </div>
     </div>
   `;
+
+  // 左侧页签：只显示当前分类的设置组（分组用 data-pane 标好）
+  const nav = $('settingsNav');
+  if (nav) nav.innerHTML = SETTINGS_TABS.map(t => `<div class="settings-nav-item${t.key === _settingsTab ? ' active' : ''}" data-tab="${t.key}">${t.label}</div>`).join('');
+  applySettingsTab(container);
+
+  // 捕捉条件表格收进弹框：表格较宽，直接塞进页签的内容区会挤成一团
+  document.getElementById('cfModal')?.remove();
+  let cfBox = null;
+  if (autoCatch) {
+    // 挂到掌机 console 上（同高级筛选）：absolute 只覆盖整台掌机，不铺满浏览器窗口，
+    // 但比 screen-inner 大一整圈——弹框不用被那块小屏卡着
+    const host = document.querySelector('.console') || container.closest('.screen') || document.body;
+    const modal = document.createElement('div');
+    modal.id = 'cfModal';
+    modal.className = 'cf-modal';
+    modal.style.display = _cfModalOpen ? 'flex' : 'none';
+    modal.innerHTML = `
+      <div class="cf-modal-panel">
+        <div class="cf-modal-head">
+          <span>捕捉条件</span>
+          <button class="cf-modal-close" data-cf-close>✕</button>
+        </div>
+        <div class="cf-modal-body">
+          <table class="cf-table">
+            <thead>
+              <tr>
+                <th class="cf-corner"></th>
+                <th>捕捉</th>
+                <th>暂停</th>
+                <th>逃跑</th>
+                <th class="cf-col-lv">捕捉等级</th>
+                <th>未拥有</th>
+              </tr>
+            </thead>
+            <tbody>${cfTbody}</tbody>
+          </table>
+          <div class="cf-hint-row">
+            <div class="cf-hint">捕捉等级范围外的自动逃跑</div>
+            <button class="cf-reset-btn" id="cfReset">恢复默认</button>
+          </div>
+        </div>
+      </div>`;
+    host.appendChild(modal);
+    cfBox = modal;
+  } else {
+    _cfModalOpen = false; // 关掉自动操作后这张表不再存在，弹框状态一并复位
+  }
+  const setCfModal = (open) => {
+    _cfModalOpen = open;
+    const m = document.getElementById('cfModal');
+    if (m) { m.style.display = open ? 'flex' : 'none'; return; }
+    // 节点不在了（切过页面被收走）：重渲染一次把弹框建回来再开，别让按钮点了没反应
+    if (open) renderSettings(container, gameData.settings);
+  };
+  container.querySelector('#cfOpenBtn')?.addEventListener('click', () => setCfModal(true));
+  if (cfBox) {
+    cfBox.querySelector('[data-cf-close]')?.addEventListener('click', () => setCfModal(false));
+    cfBox.addEventListener('click', (e) => { if (e.target === cfBox) setCfModal(false); });
+  }
   container.querySelector('#toggleAutoCatch')?.addEventListener('click', toggleAutoCatch);
   container.querySelector('#toggleShinyLegendMaster')?.addEventListener('click', toggleShinyLegendMasterBall);
   container.querySelector('#toggleVariantMaster')?.addEventListener('click', toggleVariantMasterBall);
@@ -1648,8 +1724,8 @@ export function renderSettings(container, s) {
   container.querySelectorAll('.ball-check[data-refill-ball]').forEach(el => {
     el.addEventListener('click', () => toggleAutoRefillBall(el.dataset.refillBall));
   });
-  // 捕捉条件表格：点击策略单元格（捕捉/暂停/逃跑）切换该行策略并高亮
-  container.querySelectorAll('.cf-cell.act').forEach(el => {
+  // 捕捉条件表格（在弹框里）：点击策略单元格（捕捉/暂停/逃跑）切换该行策略并高亮
+  cfBox?.querySelectorAll('.cf-cell.act').forEach(el => {
     el.addEventListener('click', () => {
       const rows = gameData.settings.catchFilter?.rows;
       if (!rows || !rows[el.dataset.row]) return;
@@ -1659,7 +1735,7 @@ export function renderSettings(container, s) {
     });
   });
   // 捕捉条件表格：点击「未捕获」单元格开关（仅该行为捕捉时生效）
-  container.querySelectorAll('.cf-cell.uncaught').forEach(el => {
+  cfBox?.querySelectorAll('.cf-cell.uncaught').forEach(el => {
     el.addEventListener('click', () => {
       const rows = gameData.settings.catchFilter?.rows;
       const r = rows && rows[el.dataset.row];
@@ -1670,7 +1746,7 @@ export function renderSettings(container, s) {
     });
   });
   // 捕捉条件表格：各行等级范围（野生等级 1~20）。实时过滤输入（只留数字、最多 2 位、超 20 截断），change 时落库
-  container.querySelectorAll('.cf-lv-input').forEach(el => {
+  cfBox?.querySelectorAll('.cf-lv-input').forEach(el => {
     const rows = gameData.settings.catchFilter?.rows;
     const r = rows && rows[el.dataset.row];
     el.addEventListener('input', () => {
@@ -1695,13 +1771,13 @@ export function renderSettings(container, s) {
       }
       saveGame();
       // 换位会改动对端值，统一回写两个输入框显示（保证不空白）
-      container.querySelectorAll(`.cf-lv-input[data-row="${el.dataset.row}"]`).forEach(i => {
+      cfBox.querySelectorAll(`.cf-lv-input[data-row="${el.dataset.row}"]`).forEach(i => {
         i.value = (i.dataset.lv === 'min' ? r.levelMin : r.levelMax) || (i.dataset.lv === 'min' ? 1 : 20);
       });
     });
   });
   // 捕捉条件：恢复默认（全部行复位为 捕捉 / 等级 1~20 / 不勾选未捕获）
-  container.querySelector('#cfReset')?.addEventListener('click', () => {
+  cfBox?.querySelector('#cfReset')?.addEventListener('click', () => {
     const rows = gameData.settings.catchFilter?.rows;
     if (!rows) return;
     for (const key of Object.keys(rows)) {
@@ -1710,24 +1786,99 @@ export function renderSettings(container, s) {
     renderSettings(container, gameData.settings);
     saveGame();
   });
-  // 补球优先级：左右箭头调整顺序（从左到右优先级从高到低），点击格子切换启用/禁用
+  // 补球优先级：球图标拖动排序（左高右低），点按切换启用/停用。
+  // 和手机 App 图标同一套做法：超过阈值才起拖，原位留淡影、幽灵图标跟手；监听挂 document
+  // （卡片会就地挪位，挂在卡片上或用 pointer capture 都会在第一次换位后丢事件）
   const orderList = container.querySelector('#refillOrderList');
   if (orderList) {
-    const moveInOrder = (ball, dir) => {
-      const arr = [...(gameData.settings.autoRefillOrder || [])];
-      const i = arr.indexOf(ball);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= arr.length) return;
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-      gameData.settings.autoRefillOrder = arr;
-      renderSettings(container, gameData.settings);
+    const commitOrder = () => {
+      gameData.settings.autoRefillOrder = [...orderList.querySelectorAll('.refill-order-item')].map(el => el.dataset.ball);
       saveGame();
     };
+    // 幽灵挂到掌机 console 上：和 viewportToLogic 用的是同一套机身逻辑坐标，缩放/居中都不影响
+    const host = document.querySelector('.console') || container.closest('.screen') || document.body;
+    let drag = null;
+
+    // 指针（屏幕坐标）→ 掌机内的逻辑坐标：先 viewportToLogic，再减掌机自身的（已被换算成逻辑值的）左上角。
+    // 手机端整机是 transform 缩放，直接拿 clientX 相减会差一个缩放倍率，幽灵就跑到手指很远的地方
+    const toConsole = (x, y, cRect) => {
+      const p = viewportToLogic(x, y);
+      return { x: p.x - cRect.left, y: p.y - cRect.top };
+    };
+    const lift = (el, x, y) => {
+      const cRect = host.getBoundingClientRect();
+      const ghost = document.createElement('img');
+      ghost.className = 'refill-drag-ghost';
+      ghost.src = itemIconSrc(el.dataset.ball);
+      ghost.alt = '';
+      ghost.draggable = false;
+      const lp = toConsole(x, y, cRect);
+      ghost.style.left = lp.x + 'px';
+      ghost.style.top = lp.y + 'px';
+      host.appendChild(ghost);
+      el.classList.add('dragging');
+      return { ghost, cRect };
+    };
+    const place = (x) => {
+      // 按指针位置找插入点：第一张「中心在指针右侧」的卡就把自己插到它前面，都没有就放最后
+      const el = drag.el;
+      const others = [...orderList.querySelectorAll('.refill-order-item')].filter(c => c !== el);
+      let beforeEl = null;
+      for (const c of others) {
+        const r = c.getBoundingClientRect();
+        if (x < r.left + r.width / 2) { beforeEl = c; break; }
+      }
+      if (beforeEl !== el.nextSibling) orderList.insertBefore(el, beforeEl);
+    };
+    const onMove = (e) => {
+      if (!drag || e.pointerId !== drag.pid) return;
+      // 鼠标在窗口外松开时收不到 pointerup：这里按"键已抬起"兜底收尾，别把拖拽状态卡死
+      if (e.pointerType === 'mouse' && e.buttons === 0) { endDrag(e); return; }
+      if (!drag.moved) {
+        if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return; // 6px 阈值：轻点不算拖
+        drag.moved = true;
+        const lifted = lift(drag.el, e.clientX, e.clientY);
+        drag.ghost = lifted.ghost;
+        drag.cRect = lifted.cRect;
+      }
+      // 指针是屏幕坐标；掌机内的 rect 被 main.js 整体换算成了机身逻辑坐标，
+      // 两边先拉到同一套再比，手机端整机缩放时插入点才不会算错
+      const lp = toConsole(e.clientX, e.clientY, drag.cRect);
+      drag.ghost.style.left = lp.x + 'px';
+      drag.ghost.style.top = lp.y + 'px';
+      place(viewportToLogic(e.clientX, e.clientY).x);
+    };
+    const endDrag = (e) => {
+      if (!drag || e.pointerId !== drag.pid) return;
+      const st = drag;
+      drag = null;
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', endDrag);
+      document.removeEventListener('pointercancel', cancelDrag);
+      st.el.classList.remove('dragging');
+      if (st.ghost) st.ghost.remove();
+      if (st.moved) commitOrder();
+      else toggleAutoRefillBall(st.el.dataset.ball); // 没挪动：当点按处理，切换该球是否自动补
+    };
+    const cancelDrag = (e) => {
+      if (!drag || e.pointerId !== drag.pid) return;
+      const st = drag;
+      drag = null;
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', endDrag);
+      document.removeEventListener('pointercancel', cancelDrag);
+      st.el.classList.remove('dragging');
+      if (st.ghost) st.ghost.remove();
+      if (st.moved) commitOrder();
+    };
     orderList.querySelectorAll('.refill-order-item').forEach(el => {
-      el.addEventListener('click', (e) => {
-        const arrow = e.target.closest('.refill-order-arrow');
-        if (arrow) { moveInOrder(el.dataset.ball, Number(arrow.dataset.dir)); return; }
-        toggleAutoRefillBall(el.dataset.ball); // 点击格子本体：切换该球是否自动补
+      el.addEventListener('pointerdown', (e) => {
+        if (e.button != null && e.button !== 0) return;
+        if (drag) return; // 上一次没收到 pointerup：别叠第二次
+        drag = { el, pid: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, ghost: null, hostRect: null };
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', endDrag);
+        document.addEventListener('pointercancel', cancelDrag);
       });
     });
   }
@@ -2220,7 +2371,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>每隔 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟遇到一只<b>当前地区</b>的野生宝可梦。</p>`
       + `<p>野生宝可梦的等级在<b> ${1}~${WILD_LEVEL_MAX} 级</b>之间。</p>`
       + `<p>每个地区每天还有限定的<b>神兽</b>可以遭遇：遇敌时约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE)}</b> 的概率直接遇到，甜甜蜜 / 闪耀护符生效期间约 <b>1/${Math.round(1 / LEGEND_ENCOUNTER_RATE_BUFF)}</b>，等级固定 <b>${LEGEND_LEVEL}级</b>。</p>`
-      + `<p>保底 <b>${LEGEND_PITY}</b> 次遭遇出神兽。</p>`
+      + `<p>保底 <b>${LEGEND_PITY}</b> 次遭遇出神兽：只累计<b>普通道路遇敌</b>（大量出没 / 时空扭曲 / 钓鱼的遭遇不算），且只保证<b>遇到</b>，不保证捕获。</p>`
   },
   {
     title: '捕捉',
@@ -2271,7 +2422,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>保底只在<b>普通野生遭遇</b>触发；大量出没、时空扭曲、树果方块吸引等玩法有各自的固定闪光率，不吃护符的闪光加成。<b>野遇神兽也不吃</b>：神兽闪光按基础 1/1000 判，护符对它只提高「出神兽」的概率（1/600 → 1/120）。</p>`
       + `<p>骑行中速度以 <b>${ROAD_SPEED_BIKE / ROAD_SPEED_WALK}×</b> 优先，增益的跑步提速不生效（详见「<b>自行车</b>」章节）。</p>`
       + `<p>期间遇敌间隔从普通 <b>${Math.round(ENCOUNTER_MIN / 60)}~${Math.round(ENCOUNTER_MAX / 60)}</b> 分钟缩短到 <b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒。</p>`
-      + `<p>倒计时仅在挂机等待时消耗，遇敌/钓鱼期间暂停。</p>`
+      + `<p>倒计时只在挂机等待时消耗：野外遭遇与钓鱼期间暂停，<b>NPC 对战期间照常计时</b>（对战随时能进，冻结等于白嫖时长）。</p>`
       + tutorialTable([
         ['生效', `<b>${BUFF_DURATION}</b> 秒`, `<b>${BUFF_DURATION}</b> 秒`],
         ['遇敌', `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒`, `<b>${BUFF_ENCOUNTER_MIN}~${BUFF_ENCOUNTER_MAX}</b> 秒`],
@@ -2305,6 +2456,7 @@ const TUTORIAL_SECTIONS = [
       + `<p>时空扭曲的宝可梦<b>个体值保底 ${TWIST_GUARANTEED_IVS}V</b>，闪光率 <b>1/${Math.round(1 / TWIST_SHINY_CHANCE)}</b>（不吃闪耀护符加成），有 <b>${Math.round(TWIST_RGB_CHANCE * 100)}%</b> 概率是 <b>RGB 分离</b>宝可梦、<b>${Math.round(TWIST_POLLUTED_CHANCE * 100)}%</b> 概率是<b>污染宝可梦</b>。</p>`
       + `<p>当这两类带有特效的宝可梦被<b>派遣</b>探险时，带回的糖果数量提升 <b>${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>派遣</b>」章节）。</p>`
       + `<p>事件持续 <b>${TWIST_DURATION}</b> 分钟，可遭遇的 <b>${TWIST_COUNT_MIN}</b> 只遭遇完或到期后结束。</p>`
+      + `<p>停在事件点上、或导航终点就是事件点时<b>切后台</b>，回来后这段时间会按事件节奏<b>补发</b>事件遭遇；事件打光或到期后，剩余时间回到普通遇敌。</p>`
       + `<p><b>甜甜蜜</b>生效期间会让<b>事件</b>里的下一只出现得更快：<b>大量出没</b> <b>${MASS_SPAWN_HONEY_MIN}~${MASS_SPAWN_HONEY_MAX}</b> 秒（普通 <b>${MASS_SPAWN_MIN}~${MASS_SPAWN_MAX}</b> 秒）、<b>时空扭曲</b> <b>${TWIST_SPAWN_HONEY_MIN}~${TWIST_SPAWN_HONEY_MAX}</b> 秒（普通 <b>${TWIST_SPAWN_MIN}~${TWIST_SPAWN_MAX}</b> 秒）。</p>`,
   },
   {
@@ -2334,6 +2486,7 @@ const TUTORIAL_SECTIONS = [
     title: '统计',
     html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按最近 500 场遭遇的稀有度与捕获运气综合评价称号，<b>抽卡欧气</b>单独看最近 500 抽的 SR 出货；</p>`
       + `<p>板块分为：数据总览、冒险进度、消耗统计、农场与合成、地区悬赏、NPC对战、游戏厅战绩、道具累计获得。</p>`
+      + `<p>「冒险进度」里的<b>神兽保底 X / ${LEGEND_PITY}</b>是当前软保底进度（只算普通道路遇敌，见「<b>神兽机制说明</b>」）。</p>`
   },
   {
     title: '成就',
@@ -2609,8 +2762,8 @@ const TUTORIAL_SECTIONS = [
     title: '自动操作',
     html: `<p>开启后遇敌自动处理：勾选球种即<b>自动捕获</b>（按捕获率智能选球），一个球都不勾则<b>自动逃跑</b>。</p>`
       + `<p><b>自动丢球</b>：判定为「捕捉」后会自动<b>连续丢球直到捕获或逃跑</b>。球种按<b>智能选球</b>——<b>神兽或捕获率低</b>的宝可梦优先 <b>大师球→高级球→精灵球</b>，捕获率高的普通宝可梦优先 <b>精灵球</b> 省资源；只在勾选的球种中挑选，优先球种没库存自动顺延。</p>`
-      + `<p><b>捕捉条件</b>：给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 特效</b> 六类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未拥有过的</b>（仓库里已有对应形态直接放跑）。<b>特效</b>类对应时空扭曲（RGB/污染）遭遇，优先级最高。</p>`
-      + `<p>设置里的「<b>自动补货</b>」负责补资源：<b>自动补球</b>——球用光自动用糖果补 1 个（「‹ ›」调优先级）；<b>自动补增益道具</b>——甜甜蜜 / 闪耀护符各有独立开关，用光时按商店价自动补 1 个放进背包。</p>`,
+      + `<p><b>捕捉条件</b>：设置 →「<b>捕捉</b>」页 →「捕捉条件」右边的<b>编辑</b>打开表格，给 <b>普通 / 普通闪 / 神兽 / 神兽闪 / 可悬赏 / 特效</b> 六类各自设置 捕捉 / 暂停 / 逃跑——「逃跑」主角直接逃跑、「暂停」停手留给你手动；还能填<b>捕捉等级</b>范围（范围外的自动逃跑）、勾选<b>仅捕捉未拥有过的</b>（仓库里已有对应形态直接放跑）。<b>特效</b>类对应时空扭曲（RGB/污染）遭遇，优先级最高。</p>`
+      + `<p>设置 →「<b>补货</b>」页负责补资源：<b>自动补球</b>——球用光自动用糖果补 1 个（三颗球图标<b>按住拖动排序</b>，左→右为优先级；<b>点按图标</b>可单独启用/停用）；<b>自动补增益道具</b>——甜甜蜜 / 闪耀护符各有独立开关，用光时按商店价自动补 1 个放进背包。</p>`,
   },
   {
     title: '佛系模式',

@@ -5737,13 +5737,116 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   image-rendering: pixelated;
   vertical-align: -2px;
 }
-.settings-group {
-  padding: 0 0 6px;
+/* ===== 设置页双栏：左侧页签 + 右侧内容（同教程页布局） ===== */
+#settingsView {
+  flex-direction: row;
+  overflow: hidden;
+  align-items: stretch;
+  padding: 3px;
 }
-/* 板块之间用分割线分隔 */
+#settingsNav {
+  width: 42px;
+  flex-shrink: 0;
+  align-self: stretch;
+  overflow-y: auto;
+  padding: 2px 2px 2px 0;
+  border-right: 1px solid rgba(var(--ui-color-rgb), 0.15);
+  font-size: 10px;
+  color: var(--ui-color);
+  user-select: none;
+}
+.settings-nav-item {
+  padding: 6px 0;
+  margin-bottom: 2px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+@media (hover: hover) {
+  .settings-nav-item:hover { background: rgba(var(--ui-color-rgb), 0.08); }
+}
+.settings-nav-item.active {
+  background: var(--ui-color);
+  color: #fff;
+  font-weight: 700;
+}
+#settingsContent {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden; /* 内容永远只纵向滚，不给横向滚动条 */
+}
+
+/* 捕捉条件弹框：和高级筛选同一套（整屏压暗 + 居中面板 + 标题栏 + 可滚内容区） */
+.cf-modal {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+}
+.cf-modal-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(98%, 620px);
+  max-height: 94%;
+  background: var(--console-body);
+  border: 2px solid var(--screen-bg-dark);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  animation: albumFadeIn 0.18s ease;
+}
+.cf-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ui-color-dark);
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.25);
+}
+.cf-modal-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+@media (hover: hover) {
+  .cf-modal-close:hover { opacity: 1; }
+}
+.cf-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px 10px;
+}
+
+.settings-group {
+  /* 左右留 8px：同页第二个分组（窗口 / 后台常驻）不是页签容器，靠它也跟页签内容左右对齐 */
+  padding: 0 8px 6px;
+}
+/* 板块之间只留白：页签切换后首组的上面不该出现分割线（隐藏的兄弟组也会命中 + 选择器） */
 .settings-group + .settings-group {
-  border-top: 1px solid rgba(var(--ui-color-rgb),0.15);
-  padding-top: 8px;
+  /* 同页第二个分组的上下间距与普通行一致（上一组 6px + 这里 4px = 10px），看着就是同一列 */
+  padding-top: 4px;
+}
+/* 右侧每个页签统一一套容器内边距：不管这一页放几组，顶部和左右留白都一致。
+   用 id 提权，压过 .settings-group + .settings-group 的 padding-top */
+#settingsContent .settings-pane {
+  padding: 2px 8px 6px;
 }
 .settings-group-title {
   display: flex;
@@ -5771,41 +5874,74 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   user-select: none;
   padding: 2px 4px 3px;
 }
-.settings-footer-link {
+/* GitHub 图标：currentColor 在 <use> shadow DOM 不穿透，显式继承链接颜色（含 hover） */
+/* ===== 关于页：图标/名字/版本 + 链接作为一整块垂直居中，版权那行走页脚 ===== */
+#settingsContent .settings-pane.settings-about {
+  flex: 1 0 auto; /* 只有关于页需要铺满内容区高度（其余页按内容排） */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 6px 8px;
+}
+.about-main {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.about-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.about-logo {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+}
+.about-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.about-links {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  margin-top: 12px;
-  padding: 6px 0;
+  gap: 16px;
+  font-size: 11px;
+}
+.about-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--ui-color);
+  font-weight: 600;
+  text-decoration: none;
+  opacity: 0.72;
+  cursor: pointer;
+}
+.about-link svg { fill: currentColor; }
+@media (hover: hover) {
+  .about-link:hover { opacity: 1; }
+}
+.about-dot { opacity: 0.3; }
+/* 「版权声明」单独一行，字号比上面两个入口小一档 */
+.about-link-sm {
+  font-size: 9px;
+  font-weight: 600;
   opacity: 0.55;
-  text-decoration: none;
-  font-size: 12px;
-  cursor: pointer;
-  transition: color 0.15s, opacity 0.15s;
 }
-/* GitHub 图标：currentColor 在 <use> shadow DOM 不穿透，显式继承链接颜色（含 hover） */
-.settings-footer-link svg {
-  color: inherit;
-  fill: currentColor;
-}
-@media (hover: hover) {
-  .settings-footer-link:hover {
-    opacity: 1;
-    color: var(--ui-color);
-  }
-}
-/* 设置页底部小链接（官方网站 / 版权声明）：与版本号同字号，悬停加深 */
-.settings-mini-link {
-  color: var(--ui-color);
-  opacity: 0.5;
-  text-decoration: none;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-@media (hover: hover) {
-  .settings-mini-link:hover { opacity: 1; }
+.about-credit {
+  padding-top: 2px;
+  font-size: 9px;
+  opacity: 0.4;
 }
 /* 版本号：小字半透明居中，与版权声明同一字号层级 */
 .settings-version {
@@ -6094,59 +6230,44 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
    左右箭头调序，点击格子启用/禁用该球补球 */
 .refill-order-row {
   display: flex;
-  gap: 4px;
-  padding: 2px 4px 4px 10px;
+  gap: 10px;
+  padding: 2px 4px 4px;
+  touch-action: none; /* 拖动图标时别让内容区跟着滚 */
 }
+/* 补球优先级：只有球图标，拖起来时原位留淡影、幽灵跟手 */
 .refill-order-item {
-  flex: 0 0 auto;
-  width: 64px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 2px;
-  font-size: 10px;
-  font-weight: 400;
-  padding: 4px 2px;
-  border-radius: 4px;
-  cursor: pointer;
-  background: rgba(var(--ui-color-rgb),0.06);
-  border: 1.5px solid rgba(var(--ui-color-rgb),0.5); /* 勾选状态边框加深 */
+  justify-content: center;
+  border-radius: 6px;
+  cursor: grab;
   user-select: none;
-  transition: background 0.12s, opacity 0.12s;
+  touch-action: none;
+  transition: opacity 0.12s, background 0.12s;
 }
 @media (hover: hover) {
-  .refill-order-item:hover {
-    background: rgba(var(--ui-color-rgb),0.12);
-  }
+  .refill-order-item:hover { background: rgba(var(--ui-color-rgb), 0.1); }
 }
-.refill-order-item.off {
-  opacity: 0.4;
-  text-decoration: line-through;
-  border-color: rgba(var(--ui-color-rgb),0.15);
+.refill-order-item.dragging { opacity: 0.25; }
+.refill-order-item.off { opacity: 0.25; filter: grayscale(1); }
+.refill-order-icon {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
-.refill-order-name {
-  flex: 1;
-  text-align: center;
-  white-space: nowrap;
-}
-.refill-order-arrow {
-  width: 14px;
-  flex-shrink: 0;
-  font-size: 13px;
-  line-height: 1;
-  text-align: center;
-  color: var(--ui-color);
-  opacity: 0.7;
-  cursor: pointer;
-  user-select: none;
-}
-@media (hover: hover) {
-  .refill-order-arrow:hover {
-    opacity: 1;
-  }
-}
-.refill-order-arrow.hidden {
-  visibility: hidden;
+/* 拖拽幽灵：跟着指针走的那颗球 */
+.refill-drag-ghost {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px; /* 让指针落在图标中心 */
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 300;
+  opacity: 0.9;
 }
 
 /* 角色与存档：一行标签 + 右侧按钮 */

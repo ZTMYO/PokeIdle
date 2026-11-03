@@ -454,7 +454,7 @@ async function startNpcBattle(npcId, startAuto = false) {
   _battleLogs = []; // 新战斗清空上一把的对战记录
   _logCtx = { p: pTeam.map((x) => x.mon.name), e: eTeam.map((x) => x.mon.name), npc: npc.name };
   setPhase('battle'); // 战斗中：主界面道路暂停切段/骑行切换，避免挂机 BGM 覆盖战斗曲
-  import('./battle.js').then(m => m.pauseBuffsForBattle()); // 对战中 buff 暂停计时，结束后再恢复
+  import('./battle.js').then(m => m.pauseBuffsForBattle()); // 对战期间停排野外遭遇，增益道具照常走表
   // 遭遇与对战现在各走各的状态，开战时不再把进行中的遭遇塞去后台：
   // 它留在上屏继续，玩家照常丢球（战斗结束由 resumeEncounterFlow 收尾）
   _busy = true; // 开场精灵球登场动画期间也禁止刷新/重进战斗
@@ -2900,9 +2900,10 @@ function finishBattle(battle) {
       <div class="battle-result-detail">
         ${win ? results.map((r) => `<div>${r.name} 升级到 Lv${r.lv}${r.up ? `（+${r.up}级）` : ''}${r.bonusGain > 0 ? ` <span class="exp-bonus">+${r.bonusGain}经验</span>` : ''}</div>`).join('') : '<div>失败无经验，调整队伍或招式再来试试吧！</div>'}
         ${win ? `<div class="candy-gain"><span class="gain-label">获得</span><div class="gain-list">`
-          + `<span class="gain-chip"><img class="candy-icon" src="./items/goods/candy.png" alt="">×${battle.preset.candy}</span>`
-          + (dropCandy ? `<span class="gain-chip"><img class="candy-icon" src="./items/goods/xp-candy.png" alt="">×1</span>` : '')
-          + tierDrops.map((d) => `<span class="gain-chip"><img class="candy-icon" src="${itemIconSrc(d.key)}" alt="">×${d.qty}</span>`).join('')
+          + `<span class="gain-chip" data-tip="${ITEM_NAMES.candy || '糖果'}"><img class="candy-icon" src="./items/goods/candy.png" alt="">×${battle.preset.candy}</span>`
+          + (dropCandy ? `<span class="gain-chip" data-tip="${ITEM_NAMES['xp-candy'] || '经验糖果'}"><img class="candy-icon" src="./items/goods/xp-candy.png" alt="">×1</span>` : '')
+          // 奖励图标悬停用项目自带的 tooltip（同树果）：带上物品名
+          + tierDrops.map((d) => `<span class="gain-chip" data-tip="${ITEM_NAMES[d.key] || d.key}"><img class="candy-icon" src="${itemIconSrc(d.key)}" alt="">×${d.qty}</span>`).join('')
           + `</div></div>` : ''}
       </div>
       ${win
