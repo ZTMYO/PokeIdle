@@ -38,6 +38,10 @@ export function isTmUnlocked(moveId) {
 
 export let gameData = null;
 export let phase = 'idle'; // idle | encounter | caught | fled（孵蛋/进化演出不占阶段，见 ui.js isEggShowActive / isEvolutionShowActive）
+// NPC 对战是否在独立的下屏 App 里进行（双屏对战与上屏挂机解耦；不参与主地图 phase）
+let _npcBattleActive = false;
+export function setNpcBattleActive(v) { _npcBattleActive = !!v; }
+export function isNpcBattleActive() { return _npcBattleActive; }
 export let currentEncounter = null;
 export let currentIsShiny = false;
 export let currentIsSquareShiny = false;

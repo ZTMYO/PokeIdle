@@ -1,7 +1,7 @@
 // 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
-import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, updateBackpack, logicViewport, popupBounds, watchOutsidePress } from './ui.js';
-import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, currentEncounter, phase, ensureGender, rollGender, genderBadge, isPokemon, randInt, effIvs } from './state.js';
+import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, updateBackpack, logicViewport, popupBounds, watchOutsidePress, isDualLayout } from './ui.js';
+import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, ensureGender, rollGender, genderBadge, isPokemon, randInt, effIvs, setNpcBattleActive } from './state.js';
 import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon, STRUGGLE_ID } from './battle-core.js';
 import { typeMult } from './type-chart.js';
 import { grantItem, itemIconSrc, pickEvoDrop, MINT_KEYS, typeIconColor } from './items.js';
@@ -138,8 +138,9 @@ export function retreatBattle() {
 function doRetreat(battle) {
   if (_activeBattle !== battle) return; // 防重复执行
   _activeBattle = null;
+  setNpcBattleActive(false);
   battle.winner = null;
-  import('./battle.js').then(m => m.resumePhaseAfterBattle()); // 遭遇还在就回遭遇态，否则回挂机
+  if (!isDualLayout()) import('./battle.js').then(m => m.resumePhaseAfterBattle()); // 单屏：遭遇还在就回遭遇态，否则回挂机
   endBattle(); // 撤退 → 停止战斗曲，恢复地区曲
   showBattleView();
   addSystemLog('战斗', `与「${battle.preset.name}」的战斗中撤退了`);
@@ -441,22 +442,17 @@ async function startNpcBattle(npcId, startAuto = false) {
     hazards: { p: { spikes: 0, toxic: 0, rock: false }, e: { spikes: 0, toxic: 0, rock: false } }, // 撒菱/毒菱/隐形岩
     stall: 0, // 僵局连续回合计数（双方 HP 均无变化），见 battleLoop
   };
-  // 进战斗前存在进行中的野生遭遇：转后台异步结算（自动捕捉继续丢球 / 或记录逃跑），
-  // 避免 setPhase('battle') 中断遭遇流程导致遇敌直接丢失。
-  // 记录打断前的遭遇 phase（setPhase('battle') 后已不可再取）：'encounter' 未出结果，
-  // 后台继续捕捉或逃跑；'caught'/'fled' 判定已落库，只交给原流程收尾清理，防止重复捕捉/记录
-  const pendingEncounter = (phase === 'encounter' || phase === 'caught' || phase === 'fled') && !!currentEncounter;
-  battle._hadPendingEncounter = pendingEncounter;
-  battle._pendingEncounterPhase = pendingEncounter ? phase : null;
   _activeBattle = battle;
+  setNpcBattleActive(true);
   _fleeing = false;
   _auto = startAuto; // 新战斗默认手动模式；「再战一次」沿袭上一把结束时的自动状态
   _battleLogs = []; // 新战斗清空上一把的对战记录
   _logCtx = { p: pTeam.map((x) => x.mon.name), e: eTeam.map((x) => x.mon.name), npc: npc.name };
-  setPhase('battle'); // 战斗中：主界面道路暂停切段/骑行切换，避免挂机 BGM 覆盖战斗曲
-  import('./battle.js').then(m => m.pauseBuffsForBattle()); // 对战期间停排野外遭遇，增益道具照常走表
-  // 遭遇与对战现在各走各的状态，开战时不再把进行中的遭遇塞去后台：
-  // 它留在上屏继续，玩家照常丢球（战斗结束由 resumeEncounterFlow 收尾）
+  // 单屏（PC 经典布局）：对战占着唯一一屏，用 phase 保护战斗页并停排野遇；
+  // 双屏（手游/桌面双屏）：下屏对战和迷你游戏一样独立，不碰全局 phase，上屏照常走路/遇敌/烧甜甜蜜
+  if (!isDualLayout()) setPhase('battle');
+  if (!isDualLayout()) import('./battle.js').then(m => m.pauseBuffsForBattle());
+  // 双屏上屏的遭遇与下屏对战各走各的，战斗结束不回收上屏；单屏仍由 phase 保护战斗页
   _busy = true; // 开场精灵球登场动画期间也禁止刷新/重进战斗
   const pageReady = renderBattlePage(battle);
   playBattle(); // 进入 NPC 挑战 → 切换为战斗曲（覆盖地区曲）
@@ -2801,13 +2797,19 @@ async function battleLoop(battle) {
     _auto = false; // 战斗结束（含撤退/异常）自动战斗一并复位
     hideLogMenu(); // 战斗结束时若右键菜单还开着，一并收起
     closeLogPage(); // 记录页开着则关闭并还原标题栏（战斗已结束，无返回战斗一说）
-    if (_activeBattle === battle) _activeBattle = null;
-    import('./battle.js').then(m => m.resumePhaseAfterBattle()); // 遭遇还在就回遭遇态，否则回挂机
-    road.resume(); // 若进战斗前道路被其他流程暂停（如挂机遇敌）未恢复，回到主界面需恢复滚动
-    // 战斗结束：恢复 buff 倒计时与遇敌调度。
-    // 遭遇还压在屏上时 resumeEncounterFlow 内部会拒绝恢复，交给遭遇收尾
-    import('./battle.js').then(m => m.resumeEncounterFlow());
-    import('./battle.js').then(m => m.fireWaitingEncounter());
+    if (_activeBattle === battle) {
+      _activeBattle = null;
+      setNpcBattleActive(false);
+    }
+    // 单屏才需要把战斗占用的 phase / 遇敌调度还给主界面；双屏上屏从未被战斗暂停
+    if (!isDualLayout()) {
+      import('./battle.js').then(m => m.resumePhaseAfterBattle()); // 遭遇还在就回遭遇态，否则回挂机
+      road.resume(); // 若进战斗前道路被其他流程暂停（如挂机遇敌）未恢复，回到主界面需恢复滚动
+      // 战斗结束：恢复 buff 倒计时与遇敌调度。
+      // 遭遇还压在屏上时 resumeEncounterFlow 内部会拒绝恢复，交给遭遇收尾
+      import('./battle.js').then(m => m.resumeEncounterFlow());
+      import('./battle.js').then(m => m.fireWaitingEncounter());
+    }
   }
 }
 
@@ -2833,6 +2835,7 @@ function finishBattle(battle) {
   _retryAuto = _auto; // 记住战斗结束时的自动状态：「再战一次」沿袭（战斗中切回手动的则手动重试）
   const win = battle.winner === 'p';
   _activeBattle = null; // 战斗已结束：清空活动战斗（后续返回走普通视图切换，不再误判为撤退）
+  setNpcBattleActive(false);
   _settled = true; // 结算页显示中：标题栏返回应回 NPC 战斗列表
   const gd = gameData;
   // 随从增益：battleexp 类提升对战胜利经验。拆出基础值与加成部分，供结算页黄色标注

@@ -1,5 +1,5 @@
 import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BUFF_DURATION, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, SQUARE_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, HONEY_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance, AUTO_CATCH_BALLS_DEFAULT, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, ROAD_SPEED_WALK } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, currentIsSquareShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, getMassOutbreak, pxLeftToEventTarget, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, addEncounterLog, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, rollShinyResult, setEncounterSource, setEncounterVariant, simNow, setSimClock } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, currentIsSquareShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, getMassOutbreak, pxLeftToEventTarget, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, addEncounterLog, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, rollShinyResult, setEncounterSource, setEncounterVariant, simNow, setSimClock, isNpcBattleActive } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, showTextBoxNow, setIdleCharacter, isOnGameView, isIdleStageVisible, isDualLayout, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive, isEggShowActive, isStageOccupied } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
 import { playEncounterTransition, isEncounterTransitionRunning } from './transition.js';
@@ -485,8 +485,7 @@ function syncBuffExpiry() {
   if (honeyBuffActive && honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now()) handleHoneyExpired();
 }
 
-// 对战（NPC）开始时只停掉排队的野外遭遇（战斗页占着屏，不该再刷野遇）。
-// 增益道具照常走表：对战是玩家随时能进的，把 buff 冻在那儿等于白嫖时长
+// 单屏（PC 经典布局）对战占着唯一一屏，开场时停排野外遭遇；双屏下屏对战不走这里，上屏照常挂机
 export function pauseBuffsForBattle() {
   if (nextEncounterTimer) { clearTimeout(nextEncounterTimer); setNextEncounterTimer(null); }
 }
@@ -697,7 +696,7 @@ export function updateAutoFleeBar() {
 // 回前台校准战斗曲：后台期间遭遇可能已结算完，残留的战斗曲会和地区曲叠着放。
 // 仍在遭遇/战斗中则不动
 export function syncBattleMusic() {
-  const fighting = !!_encPhase || phase === 'battle';
+  const fighting = !!_encPhase || phase === 'battle' || isNpcBattleActive();
   if (!fighting) endBattle();
 }
 
@@ -1086,7 +1085,7 @@ export async function throwBall(ballType) {
       // 收尾判定用"当前"是否在游戏页：丢球动画期间玩家可能已切走
       const onView = isOnGameView();
       if (onView) {
-        endBattle(); // 战斗结束：捕捉成功即停战斗曲，胜利音效播完后恢复地区曲
+        if (!isNpcBattleActive()) endBattle(); // 双屏下屏对战在打时，上屏捕捉结束不能停掉它的战斗曲
         playVictory(); // 抓捕成功 → 胜利音效
         let msg;
         if (currentIsShiny) {
@@ -1205,7 +1204,7 @@ export function goIdle() {
     return;
   }
   setPhase('idle');
-  endBattle(); // 战斗结束 → 停止战斗曲，恢复地区曲
+  if (!isNpcBattleActive()) endBattle(); // 双屏下屏对战在打时，上屏收尾不能停掉它的战斗曲
   // 这次收尾的遭遇来自哪里：事件计数只认事件来源的遭遇，且要在下面重置来源之前取走。
   // 孵蛋/进化等流程收尾时也会走到 goIdle，那时玩家正好站在事件区域内，白扣一次会让事件提前结束
   const endedSource = _encounterSource;
@@ -1365,9 +1364,9 @@ export function healStuckBuffPause() {
 }
 
 export function resumeEncounterFlow() {
-  // 野生遭遇还压着屏（对战结束返回、或收尾没走完）：buff 保持暂停，遇敌调度也交给遭遇收尾。
-  // 否则玩家还在遭遇里，甜甜蜜/护符就开始倒计时了
-  if (encState() === 'encounter' && currentEncounter) return;
+  // 战斗中、钓鱼等待中、骑行中、遭遇还在收尾：保持暂停，交给各自收尾流程恢复。
+  // 战斗中遭遇刚结束（caught/fled）还没走完 goIdle 时，也不能提前把甜甜蜜/护符打开
+  if (phase === 'battle' || _fishing || road.isBike() || _encPhase) return;
   // 恢复闪耀护符倒计时（优先级高于甜甜蜜）
   if (charmBuffActive && charmPausedRemaining > 0) {
     $('idleText').textContent = '✦ 闪耀护符生效中 ✦';
@@ -1390,8 +1389,7 @@ export function resumeEncounterFlow() {
     setHoneyExpiryTimer(setTimeout(handleHoneyExpired, d));
     startHoneyCountdown();
   } else if (charmBuffActive || honeyBuffActive) {
-    // 增益还在生效、只是没有暂停余量（NPC 对战期间不冻表）：照增益节奏排下一场，
-    // 别退回普通间隔，否则打完一场对战增益的加速就白丢了
+    // 增益还在生效、没有暂停余量：照增益节奏排下一场
     scheduleNextEncounter(rand(15, 30) * 1000);
   } else {
     scheduleNextEncounter();
