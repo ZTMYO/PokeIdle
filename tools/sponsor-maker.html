@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>赞助者名单编辑器 · 口袋挂机</title>
+<style>
+  :root { --pink:#d98aa6; --rose:#9d4b68; --rose-dark:#7d3852; --bg:#fdf6f8; --card:#fffafb; --line:rgba(157,75,104,.18); --muted:#8b6b78; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:22px; background:var(--bg); color:var(--rose-dark); font:13px/1.5 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 2px; letter-spacing:.5px; }
+  .sub { color:var(--muted); font-size:12px; }
+  .status { margin:10px 0 12px; padding:7px 10px; border-radius:7px; background:#fff; border:1px solid var(--line); color:var(--muted); }
+  .status.err { color:#a33a4d; border-color:#e2b7c0; background:#fff7f8; }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,340px); gap:18px; align-items:start; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .field { margin-bottom:10px; }
+  .field > label { display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:var(--rose); }
+  input[type="text"], input[type="search"], select { width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--rose-dark); font:inherit; outline:none; }
+  input:focus, select:focus { border-color:var(--pink); }
+  .poke-pick { display:flex; gap:9px; align-items:center; margin-top:7px; }
+  .poke-pick img { width:38px; height:38px; object-fit:contain; image-rendering:pixelated; background:rgba(217,138,166,.12); border-radius:50%; padding:3px; }
+  .meta { min-width:0; font-size:11px; color:var(--muted); }
+  .color-row { display:flex; gap:8px; }
+  .color-cell { flex:1; min-width:0; font-size:10px; font-weight:700; color:var(--muted); }
+  .color-cell input { display:block; width:100%; height:32px; margin-top:4px; padding:2px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  .btn-row { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+  button { border:0; border-radius:7px; padding:7px 11px; font:inherit; font-weight:700; cursor:pointer; background:rgba(157,75,104,.10); color:var(--rose); }
+  button.primary { background:var(--pink); color:#fff; }
+  button.subtle { background:transparent; border:1px solid var(--line); }
+  button.danger { color:#a33a4d; }
+  button:active { transform:scale(.98); }
+  .preview-wrap { margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  .preview-label { font-size:11px; font-weight:700; color:var(--rose); margin-bottom:6px; }
+  /* 与游戏内一致的赞助卡片 */
+  .sponsor-card { position:relative; display:flex; align-items:center; justify-content:space-between; gap:6px; padding:5px 8px; border-radius:8px; color:var(--card-ink,#fff); background:linear-gradient(135deg,var(--card-a,#e7efe4),var(--card-b,#c9d9c9)); overflow:hidden; font-size:10px; }
+  #preview { max-width:240px; }
+  .sponsor-card::before { content:''; position:absolute; inset:-100px; z-index:0; pointer-events:none; background:repeating-linear-gradient(135deg,var(--card-stripe,rgba(255,255,255,.10)) 0 6px,transparent 6px 12px); animation:stripe 20s linear infinite; }
+  .sponsor-card > * { position:relative; z-index:1; }
+  @keyframes stripe { from { transform:translate3d(0,0,0); } to { transform:translate3d(84.85px,84.85px,0); } }
+  .sponsor-person { display:flex; align-items:center; gap:6px; min-width:0; }
+  .sponsor-icon { width:24px; height:24px; padding:3px; box-sizing:border-box; flex-shrink:0; object-fit:contain; image-rendering:pixelated; background:rgba(255,255,255,.34); border-radius:50%; }
+  .sponsor-name { font-size:11px; line-height:1.2; font-weight:700; }
+  .list { display:flex; flex-direction:column; gap:8px; max-height:58vh; overflow:auto; padding-right:2px; }
+  .list-item { display:flex; flex-direction:column; gap:4px; }
+  .list-actions { display:flex; gap:6px; justify-content:flex-end; }
+  .list-actions button { padding:3px 8px; font-size:10px; }
+  .empty { color:var(--muted); font-size:11px; padding:8px 2px; }
+  .hint { color:var(--muted); font-size:11px; margin-top:10px; line-height:1.6; }
+  .hint code { background:rgba(157,75,104,.08); padding:1px 4px; border-radius:3px; }
+  @media (max-width:760px) { body { padding:12px; } .layout { grid-template-columns:1fr; } .list { max-height:none; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>赞助者名单</h1>
+    <div class="sub">读取 <code>src/sponsors.js</code>，在页面里增删改，保存直接写回文件（旧文件自动备份 <code>.bak</code>）</div>
+    <div id="status" class="status">正在加载…</div>
+    <label id="localLoadWrap" class="hint" style="display:none;margin:0 0 12px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;">
+      浏览器不允许直接读取本地文件，请选择一次
+      <input id="pokedexFile" type="file" accept="application/json,.json" style="display:block;margin-top:6px;" />
+      文件位置：<code>src/pokemon-data/pokedex.json</code>
+    </label>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="field">
+          <label for="name">名字</label>
+          <input id="name" type="text" placeholder="输入赞助者名字" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="pokeSearch">宝可梦</label>
+          <input id="pokeSearch" type="search" placeholder="搜索名字 / 拼音 / 编号" autocomplete="off" />
+          <div style="height:6px"></div>
+          <select id="pokeSelect"></select>
+          <div class="poke-pick">
+            <img id="pokeIcon" alt="" style="visibility:hidden" />
+            <div id="pokeMeta" class="meta">还没有选择宝可梦</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>配色微调</label>
+          <div class="color-row">
+            <label class="color-cell">主色<input id="colorA" type="color" value="#7ac74c" /></label>
+            <label class="color-cell">辅色<input id="colorB" type="color" value="#2f6b4e" /></label>
+            <label class="color-cell">文字<input id="inkColor" type="color" value="#ffffff" /></label>
+          </div>
+          <div class="btn-row" style="margin-top:7px;">
+            <button class="subtle" id="recolorBtn">重新从图标取色</button>
+          </div>
+        </div>
+
+        <div class="preview-wrap">
+          <div class="preview-label">卡片预览</div>
+          <div id="preview" class="sponsor-card" style="--card-a:#e7efe4;--card-b:#c9d9c9;--card-ink:#fff;">
+            <span class="sponsor-person">
+              <img class="sponsor-icon" id="previewIcon" alt="" style="visibility:hidden" />
+              <span class="sponsor-name" id="previewName">赞助者</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="primary" id="saveBtn">保存到名单</button>
+          <button class="subtle" id="newBtn">新建</button>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="preview-label">现有名单</div>
+        <div id="list" class="list"></div>
+        <div class="btn-row">
+          <button class="primary" id="saveFileBtn">保存到 src/sponsors.js</button>
+        </div>
+        <div class="hint">
+          左栏改完先点「保存到名单」，再点上面写入文件。<br>
+          保存会直接写回文件，旧版本留在 <code>sponsors.js.bak</code>。<br>
+          请通过 <code>node tools/sponsor-server.mjs</code> 启动本页；直接双击 file:// 只能看，不能保存。
+        </div>
+      </aside>
+    </div>
+  </div>
+
+<script type="module">
+const SRC = '../src/';
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status');
+const searchEl = $('pokeSearch');
+const selectEl = $('pokeSelect');
+const iconEl = $('pokeIcon');
+const metaEl = $('pokeMeta');
+const nameEl = $('name');
+const previewEl = $('preview');
+const previewIcon = $('previewIcon');
+const previewName = $('previewName');
+const listEl = $('list');
+const colorAEl = $('colorA');
+const colorBEl = $('colorB');
+const inkColorEl = $('inkColor');
+const localLoadWrap = $('localLoadWrap');
+const pokedexFile = $('pokedexFile');
+
+let dex = [];
+let sponsors = [];
+let dexLoaded = false;
+let sponsorsLoaded = false;
+let picked = null;
+let editing = -1;
+let colors = ['#7ac74c', '#2f6b4e'];
+let ink = '#ffffff';
+let stripe = 'rgba(255,255,255,0.10)';
+
+const TYPE_PALETTES = {
+  '一般': ['#A8A878', '#6D6D4E'], '火': ['#E85D3D', '#A63228'], '水': ['#4A90D9', '#2E5E9E'],
+  '电': ['#F7D02C', '#C99717'], '草': ['#7AC74C', '#2F6B4E'], '冰': ['#7FD1E8', '#3D8BA8'],
+  '格斗': ['#C0603A', '#7A3420'], '毒': ['#A040A0', '#5E245E'], '地面': ['#C8A24A', '#7C5B22'],
+  '飞行': ['#8FA8E8', '#4A5FA0'], '超能': ['#D96BA0', '#8A3A60'], '虫': ['#A8B820', '#68720E'],
+  '岩石': ['#B8A038', '#6F5D1E'], '幽灵': ['#705898', '#3A2B52'], '龙': ['#6A5ACD', '#3A2F8A'],
+  '恶': ['#5A4A42', '#2A1F1C'], '钢': ['#8A9FA8', '#4A5C66'], '妖精': ['#F5A9C1', '#B86E8C'],
+};
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function q(s) { return `'${String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; }
+function hexOf(n) { return Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0'); }
+function rgbHex(r, g, b) { return `#${hexOf(r)}${hexOf(g)}${hexOf(b)}`; }
+function parseHex(h) {
+  const s = String(h || '').replace('#', '');
+  return /^[0-9a-fA-F]{6}$/.test(s)
+    ? { r: parseInt(s.slice(0, 2), 16), g: parseInt(s.slice(2, 4), 16), b: parseInt(s.slice(4, 6), 16) }
+    : { r: 0, g: 0, b: 0 };
+}
+function shade(h, f) { const c = parseHex(h); return rgbHex(c.r * f, c.g * f, c.b * f); }
+function luminance(h) {
+  const c = parseHex(h);
+  const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); };
+  return .2126 * f(c.r) + .7152 * f(c.g) + .0722 * f(c.b);
+}
+function whiteInk(v) { const s = String(v || '').toLowerCase(); return s === '#fff' || s === '#ffffff'; }
+function autoInk() { return (luminance(colors[0]) + luminance(colors[1])) / 2 > .56 ? '#3a2430' : '#ffffff'; }
+function autoStripe() { return whiteInk(ink) ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'; }
+function iconSrc(p) { return SRC + p.icon; }
+function typePalette(p) { return (TYPE_PALETTES[(p.types && p.types[0]) || '一般'] || TYPE_PALETTES['一般']).slice(); }
+function firstChar(s) { return Array.from(String(s.name || '').trim())[0] || ''; }
+function sortedSponsors() {
+  return sponsors.slice().sort((a, b) =>
+    firstChar(a).localeCompare(firstChar(b), 'zh-Hans-CN')
+    || String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN')
+  );
+}
+function setStatus(text, err = false) {
+  statusEl.textContent = text;
+  statusEl.classList.toggle('err', err);
+}
+function matchesDex(p, q) {
+  if (!q) return true;
+  const raw = q.trim(), low = raw.toLowerCase();
+  return String(p.name || '').includes(raw)
+    || String(p.form || '').includes(raw)
+    || String(p.pinyin || '').toLowerCase().includes(low)
+    || String(p.pinyinInitials || '').toLowerCase().includes(low)
+    || String(p.index || '').includes(raw);
+}
+function renderOptions() {
+  const rows = dex.filter(p => matchesDex(p, searchEl.value));
+  const current = picked ? String(picked.index) : '';
+  selectEl.innerHTML = '<option value="">— 选择宝可梦 —</option>'
+    + rows.map(p => `<option value="${esc(p.index)}">#${esc(p.index)} ${esc(p.form || p.name)}</option>`).join('');
+  selectEl.value = rows.some(p => String(p.index) === current) ? current : '';
+}
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('icon'));
+    img.src = src;
+  });
+}
+async function paletteFromIcon(p) {
+  try {
+    const img = await loadImage(iconSrc(p));
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const bins = new Map();
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 128) continue;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      if (r > 245 && g > 245 && b > 245) continue;
+      if (r < 8 && g < 8 && b < 8) continue;
+      const key = `${r >> 5},${g >> 5},${b >> 5}`;
+      let e = bins.get(key);
+      if (!e) bins.set(key, e = { n: 0, r: 0, g: 0, b: 0 });
+      e.n++; e.r += r; e.g += g; e.b += b;
+    }
+    const list = [...bins.values()].map(e => ({ n: e.n, r: e.r / e.n, g: e.g / e.n, b: e.b / e.n })).sort((a, b) => b.n - a.n);
+    if (!list.length) return typePalette(p);
+    const a = list[0];
+    const dist = (x, y) => Math.hypot(x.r - y.r, x.g - y.g, x.b - y.b);
+    const b = list.slice(1).find(x => dist(x, a) > 34);
+    const c1 = rgbHex(a.r, a.g, a.b);
+    let c2 = b ? rgbHex(b.r, b.g, b.b) : shade(c1, .68);
+    if (c2 === c1) c2 = shade(c1, .68);
+    return [c1, c2];
+  } catch (_) {
+    return typePalette(p);
+  }
+}
+function syncColorInputs() {
+  colorAEl.value = colors[0];
+  colorBEl.value = colors[1];
+  inkColorEl.value = whiteInk(ink) ? '#ffffff' : (ink || '#3a2430');
+}
+function applyPalette(cs) {
+  colors = cs.slice(0, 2);
+  ink = autoInk();
+  stripe = autoStripe();
+  syncColorInputs();
+  updatePreview();
+}
+function pickPokemon(p) {
+  picked = p || null;
+  if (picked) {
+    iconEl.src = iconSrc(picked);
+    iconEl.style.visibility = 'visible';
+    metaEl.textContent = `#${picked.index} ${picked.form || picked.name} · ${(picked.types || []).join(' / ') || '未知属性'}`;
+  } else {
+    iconEl.removeAttribute('src');
+    iconEl.style.visibility = 'hidden';
+    metaEl.textContent = '还没有选择宝可梦';
+  }
+  updatePreview();
+}
+function updatePreview() {
+  previewEl.style.setProperty('--card-a', colors[0]);
+  previewEl.style.setProperty('--card-b', colors[1]);
+  previewEl.style.setProperty('--card-ink', ink);
+  previewEl.style.setProperty('--card-stripe', stripe);
+  previewName.textContent = nameEl.value.trim() || '赞助者';
+  if (picked) {
+    previewIcon.src = iconSrc(picked);
+    previewIcon.style.visibility = 'visible';
+    previewIcon.alt = previewName.textContent;
+  } else {
+    previewIcon.removeAttribute('src');
+    previewIcon.style.visibility = 'hidden';
+  }
+}
+function showPickedInForm(index) {
+  const p = dex.find(x => String(x.index) === String(index));
+  pickPokemon(p || null);
+  if (p) {
+    searchEl.value = '';
+    renderOptions();
+    selectEl.value = String(p.index);
+  }
+}
+function resetForm() {
+  editing = -1;
+  nameEl.value = '';
+  searchEl.value = '';
+  selectEl.value = '';
+  picked = null;
+  colors = ['#7ac74c', '#2f6b4e'];
+  ink = '#ffffff';
+  stripe = 'rgba(255,255,255,0.10)';
+  syncColorInputs();
+  pickPokemon(null);
+  renderOptions();
+  updatePreview();
+}
+function renderList() {
+  const rows = sortedSponsors();
+  listEl.innerHTML = rows.length ? rows.map(s => {
+    const i = sponsors.indexOf(s);
+    const a = (s.colors && s.colors[0]) || '#e7efe4';
+    const b = (s.colors && s.colors[1]) || '#c9d9c9';
+    const cardInk = s.ink || (((luminance(a) + luminance(b)) / 2 > .56) ? '#3a2430' : '#ffffff');
+    const cardStripe = s.stripe || (whiteInk(cardInk) ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)');
+    const p = dex.find(x => String(x.index) === String(s.icon));
+    return `<div class="list-item">
+      <div class="sponsor-card" style="--card-a:${esc(a)};--card-b:${esc(b)};--card-ink:${esc(cardInk)};--card-stripe:${esc(cardStripe)}">
+        <span class="sponsor-person">${p ? `<img class="sponsor-icon" src="${esc(iconSrc(p))}" alt="">` : ''}<span class="sponsor-name">${esc(s.name)}</span></span>
+      </div>
+      <div class="list-actions"><button data-edit="${i}">编辑</button><button class="danger" data-del="${i}">删除</button></div>
+    </div>`;
+  }).join('') : '<div class="empty">还没有赞助者，左边添加一位吧。</div>';
+}
+async function editSponsor(index) {
+  const s = sponsors[index];
+  if (!s) return;
+  editing = index;
+  nameEl.value = s.name || '';
+  colors = Array.isArray(s.colors) && s.colors.length >= 2 ? s.colors.slice(0, 2) : ['#7ac74c', '#2f6b4e'];
+  ink = s.ink || autoInk();
+  stripe = s.stripe || autoStripe();
+  syncColorInputs();
+  showPickedInForm(s.icon);
+  if (!(Array.isArray(s.colors) && s.colors.length >= 2) && picked) applyPalette(await paletteFromIcon(picked));
+  updatePreview();
+  setStatus(`正在编辑「${s.name}」。`);
+  document.querySelector('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function saveSponsor() {
+  const name = nameEl.value.trim();
+  if (!name) { setStatus('先填名字。', true); nameEl.focus(); return; }
+  if (!picked) { setStatus('先选一只宝可梦。', true); searchEl.focus(); return; }
+  const old = editing >= 0 ? sponsors[editing] : null;
+  const item = {
+    name,
+    icon: String(picked.index),
+    colors: colors.slice(0, 2),
+    ink,
+    stripe,
+  };
+  if (old && old.note) item.note = old.note;
+  const wasEditing = editing >= 0;
+  if (wasEditing) sponsors[editing] = item;
+  else sponsors.push(item);
+  resetForm();
+  renderList();
+  setStatus(`已${wasEditing ? '更新' : '添加'}「${name}」到本地名单，点右侧按钮保存到文件。`);
+}
+function exportText() {
+  const rows = sponsors.map((s) => {
+    const parts = [`name: ${q(s.name)}`, `icon: ${q(s.icon)}`];
+    if (Array.isArray(s.colors) && s.colors.length >= 2) parts.push(`colors: [${q(s.colors[0])}, ${q(s.colors[1])}]`);
+    if (s.ink) parts.push(`ink: ${q(s.ink)}`);
+    if (s.stripe) parts.push(`stripe: ${q(s.stripe)}`);
+    if (s.note) parts.push(`note: ${q(s.note)}`);
+    return `  { ${parts.join(', ')} },`;
+  }).join('\n');
+  return `// 赞助者名单：直接加一行即可；显示时按名字首字排序，数组顺序不用管\n`
+    + `// 可视化编辑：tools/sponsor-maker.html\n`
+    + `// icon：图鉴编号（可选）；note：右侧备注（可选）\n`
+    + `// colors：卡片渐变两端颜色；ink：文字颜色；stripe：条纹颜色（都可选）\n`
+    + `export const SPONSORS = [\n${rows}\n];\n`;
+}
+async function saveToFile() {
+  if (!sponsorsLoaded) {
+    setStatus('现有名单没有读成功，先不要保存，避免覆盖文件。', true);
+    return;
+  }
+  try {
+    const res = await fetch('/__sponsor-save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: exportText() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    setStatus('已保存到 src/sponsors.js，旧文件备份在 sponsors.js.bak。');
+  } catch (e) {
+    setStatus('保存失败：请通过 node tools/sponsor-server.mjs 启动本页再保存。', true);
+  }
+}
+async function boot() {
+  try {
+    const res = await fetch(SRC + 'pokemon-data/pokedex.json');
+    if (!res.ok) throw new Error('pokedex');
+    dex = await res.json();
+    dexLoaded = Array.isArray(dex) && dex.length > 0;
+    if (!dexLoaded) throw new Error('pokedex');
+  } catch (_) {
+    dexLoaded = false;
+    setStatus('读不到宝可梦资料。请选择一次 pokedex.json，或通过 tools/sponsor-server.mjs 打开。', true);
+    localLoadWrap.style.display = 'block';
+  }
+  try {
+    const mod = await import(SRC + 'sponsors.js?t=' + Date.now());
+    if (!Array.isArray(mod.SPONSORS)) throw new Error('SPONSORS');
+    sponsors = mod.SPONSORS.map(s => ({ ...s }));
+    sponsorsLoaded = true;
+  } catch (_) {
+    sponsorsLoaded = false;
+  }
+  renderOptions();
+  renderList();
+  resetForm();
+  if (sponsorsLoaded && dexLoaded) setStatus(`已读取 ${sponsors.length} 位赞助者；改完先保存到名单，再写入文件。`);
+  else if (sponsorsLoaded) setStatus('名单已读取；宝可梦资料读取失败，请选择 pokedex.json。', true);
+  else setStatus('现有名单读取失败，先不要保存，避免覆盖文件。', true);
+}
+async function onSelectPokemon() {
+  if (!selectEl.value) { pickPokemon(null); return; }
+  const p = dex.find(x => String(x.index) === String(selectEl.value));
+  if (!p) { pickPokemon(null); return; }
+  pickPokemon(p);
+  applyPalette(await paletteFromIcon(p));
+}
+pokedexFile.addEventListener('change', async () => {
+  const file = pokedexFile.files && pokedexFile.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!Array.isArray(data)) throw new Error('bad');
+    dex = data;
+    dexLoaded = true;
+    renderOptions();
+    localLoadWrap.style.display = 'none';
+    if (sponsorsLoaded) setStatus(`已从本地文件加载 ${dex.length} 条宝可梦资料。`);
+    else setStatus('宝可梦资料已加载，但现有名单读取失败，先不要保存。', true);
+  } catch (_) {
+    setStatus('这个文件不是有效的 pokedex.json。', true);
+  }
+});
+searchEl.addEventListener('input', renderOptions);
+selectEl.addEventListener('change', onSelectPokemon);
+nameEl.addEventListener('input', updatePreview);
+colorAEl.addEventListener('input', () => { colors[0] = colorAEl.value; updatePreview(); });
+colorBEl.addEventListener('input', () => { colors[1] = colorBEl.value; updatePreview(); });
+inkColorEl.addEventListener('input', () => { ink = inkColorEl.value; stripe = autoStripe(); updatePreview(); });
+$('recolorBtn').addEventListener('click', async () => {
+  if (!picked) { setStatus('先选一只宝可梦。', true); return; }
+  applyPalette(await paletteFromIcon(picked));
+});
+$('saveBtn').addEventListener('click', saveSponsor);
+$('newBtn').addEventListener('click', () => { resetForm(); setStatus('已新建，填写后保存到名单。'); });
+$('saveFileBtn').addEventListener('click', saveToFile);
+listEl.addEventListener('click', (e) => {
+  const edit = e.target.closest('[data-edit]');
+  const del = e.target.closest('[data-del]');
+  if (edit) { editSponsor(Number(edit.dataset.edit)); return; }
+  if (del) {
+    const i = Number(del.dataset.del);
+    const s = sponsors[i];
+    if (!s || !confirm(`删除赞助者「${s.name}」？`)) return;
+    sponsors.splice(i, 1);
+    if (editing === i) resetForm();
+    else if (editing > i) editing -= 1;
+    renderList();
+    setStatus('已从本地名单删除，点保存到文件才会写回。');
+  }
+});
+boot();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, SQUARE_SHINY_CHANCE, EGG_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_SPAWN_MIN, TWIST_SPAWN_MAX, TWIST_SPAWN_HONEY_MIN, TWIST_SPAWN_HONEY_MAX, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, PENGUIN_STEPS, PENGUIN_BREAK_CHANCE, PENGUIN_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, flushSave, setSaveSuspended, formatNum, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon } from './state.js';
-import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress, viewportToLogic, tryLoadPokemonIcon } from './ui.js';
+import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress, viewportToLogic, tryLoadPokemonIcon, isDualLayout } from './ui.js';
 import { doCandyExchange, doSellBall, useBuffNowOrDefer, refillBuffIfEmpty, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf, BASIC_ITEM_ORDER } from './items.js';
 import { formatLogTime } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, autoCatch } from './battle.js';
@@ -1387,6 +1387,9 @@ export function renderSettings(container, s) {
             <div class="about-name">口袋挂机</div>
             <div class="settings-version" id="settingsVersion"></div>
           </div>
+          <div class="about-sponsor-row">
+            <span class="about-link about-link-sponsor" id="sponsorBtn"><svg class="about-sponsor-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M847.701333 383.744l-85.333333 597.589333H261.632L176.298667 383.786667a85.333333 85.333333 0 0 1-76.458667-105.813334l21.333333-85.333333a85.333333 85.333333 0 0 1 64.853334-62.72l20.053333-40.106667A85.333333 85.333333 0 0 1 282.325333 42.666667h459.264a85.333333 85.333333 0 0 1 76.330667 47.189333l20.053333 40.064a85.333333 85.333333 0 0 1 64.810667 62.72l21.333333 85.333333a85.333333 85.333333 0 0 1-76.458666 105.813334zM262.528 384l73.130667 512h352.682666l73.130667-512H262.528z m-22.826667-170.666667h-35.712l-21.333333 85.333334h658.688l-21.333333-85.333334h-35.712l-42.666667-85.333333H282.368l-42.666667 85.333333z" fill="currentColor"></path></svg>赞助者鸣谢</span>
+          </div>
           <div class="about-links">
             <a class="about-link about-link-icon" id="githubLink" href="https://github.com/ZTMYO/PokeIdle" target="_blank" rel="noopener">
               <svg viewBox="0 0 1024 1024" width="12" height="12"><use xlink:href="#icon-github"/></svg>ZTMYO
@@ -1394,7 +1397,6 @@ export function renderSettings(container, s) {
             <a class="about-link" id="siteLink" href="https://pokeidle.shiliu.space" target="_blank" rel="noopener">官方网站</a>
           </div>
           <div class="about-link-sm-row">
-            <span class="about-link about-link-sm" id="sponsorBtn">赞助者鸣谢</span>
             <span class="about-link about-link-sm" id="declarationBtn">版权声明</span>
           </div>
         </div>
@@ -3137,6 +3139,57 @@ function allowImageSave(img) {
   img.addEventListener('contextmenu', (e) => e.stopPropagation());
 }
 
+// 点击赞助卡片时，从点击位置冒出一小簇爱心
+function popSponsorHearts(event, row) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  if (document.documentElement.classList.contains('power-save')) return;
+  const rect = row.getBoundingClientRect();
+  const x = event.clientX || rect.left + rect.width / 2;
+  const y = event.clientY || rect.top + rect.height / 2;
+  const point = logicViewport(x, y);
+  const fx = document.createElement('div');
+  fx.className = 'sponsor-heart-fx';
+  fx.setAttribute('aria-hidden', 'true');
+  fx.style.left = `${point.x}px`;
+  fx.style.top = `${point.y}px`;
+  for (let i = 0; i < 8; i++) {
+    const heart = document.createElement('i');
+    heart.innerHTML = '<svg viewBox="0 0 24 24"><use xlink:href="#icon-liked"/></svg>';
+    heart.style.setProperty('--hx', `${(Math.random() * 2 - 1) * 26}px`);
+    heart.style.setProperty('--hy', `${-(24 + Math.random() * 28)}px`);
+    heart.style.setProperty('--hx0', `${(Math.random() * 2 - 1) * 5}px`);
+    heart.style.setProperty('--hy0', `${(Math.random() * 2 - 1) * 3}px`);
+    heart.style.setProperty('--hr', `${(Math.random() * 2 - 1) * 26}deg`);
+    heart.style.setProperty('--hs', (0.9 + Math.random() * 0.3).toFixed(2));
+    heart.style.setProperty('--hsize', `${(9 + Math.random() * 5).toFixed(1)}px`);
+    heart.style.setProperty('--hdur', `${(720 + Math.random() * 220).toFixed(0)}ms`);
+    heart.style.setProperty('--hdelay', `${(Math.random() * 80).toFixed(0)}ms`);
+    fx.appendChild(heart);
+  }
+  document.body.appendChild(fx);
+  setTimeout(() => fx.remove(), 1200);
+}
+
+// 赞助页淡粉色主题：和航海配色一样，只换承载页面的屏，离开就收回
+function sponsorScreenEls() {
+  const app = document.getElementById('appScreen');
+  return isDualLayout() ? [app] : [app, document.getElementById('screen')];
+}
+
+function applySponsorTheme(on) {
+  const els = sponsorScreenEls().filter(Boolean);
+  if (!els.length || els.every((sc) => sc.classList.contains('sponsor') === on)) return;
+  els.forEach((sc) => sc.classList.add('no-theme-trans'));
+  els.forEach((sc) => sc.classList.toggle('sponsor', on));
+  void els[0].offsetWidth;
+  els.forEach((sc) => sc.classList.remove('no-theme-trans'));
+}
+
+function syncSponsorTheme() {
+  applySponsorTheme($('sponsorView')?.style.display === 'flex');
+}
+window.addEventListener('view-changed', syncSponsorTheme);
+
 function openSponsorImage() {
   document.getElementById('sponsorImageMask')?.remove();
   const mask = document.createElement('div');
@@ -3144,7 +3197,7 @@ function openSponsorImage() {
   mask.className = 'sponsor-image-mask';
   mask.innerHTML = `<div class="sponsor-image-box">
     <img src="${SPONSOR_IMAGE}" alt="爱发电支持">
-    <div class="sponsor-image-hint">长按图片保存 · 点击空白处关闭</div>
+    <div class="sponsor-image-hint">点击空白处关闭</div>
   </div>`;
   document.body.appendChild(mask);
   const img = mask.querySelector('img');
@@ -3161,15 +3214,29 @@ export function showSponsorView() {
   pushNav('sponsorView');
   const content = $('sponsorContent');
   if (!content) return;
-  const list = SPONSORS.length
-    ? `<div class="sponsor-list">${SPONSORS.map(s => `
-        <div class="sponsor-row">
+  const firstChar = (s) => Array.from(String(s.name || '').trim())[0] || '';
+  const sortedSponsors = SPONSORS.slice().sort((a, b) => {
+    const fa = firstChar(a);
+    const fb = firstChar(b);
+    return fa.localeCompare(fb, 'zh-Hans-CN') || String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN');
+  });
+  const list = sortedSponsors.length
+    ? `<div class="sponsor-list">${sortedSponsors.map(s => {
+        const vars = [];
+        if (Array.isArray(s.colors) && s.colors.length >= 2) {
+          vars.push(`--card-a:${escapeTutorialText(s.colors[0])}`, `--card-b:${escapeTutorialText(s.colors[1])}`);
+        }
+        if (s.ink) vars.push(`--card-ink:${escapeTutorialText(s.ink)}`);
+        if (s.stripe) vars.push(`--card-stripe:${escapeTutorialText(s.stripe)}`);
+        const style = vars.length ? ` style="${vars.join(';')}"` : '';
+        return `<div class="sponsor-row"${style}>
           <span class="sponsor-person">
             ${s.icon ? `<img class="sponsor-icon" data-sponsor-icon="${escapeTutorialText(s.icon)}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="${escapeTutorialText(s.name)}">` : ''}
             <span class="sponsor-name">${escapeTutorialText(s.name)}</span>
           </span>
           ${s.note ? `<span class="sponsor-note">${escapeTutorialText(s.note)}</span>` : ''}
-        </div>`).join('')}</div>`
+        </div>`;
+      }).join('')}</div>`
     : `<div class="sponsor-empty">感谢每一位支持者。名单整理中，若你已赞助但未列出，请联系作者补充。</div>`;
   content.innerHTML = `
     <div style="text-align:center;padding:8px 0 8px;">
@@ -3177,7 +3244,7 @@ export function showSponsorView() {
       <div style="font-size:10px;opacity:0.6;margin-top:2px;">非常感谢每一份支持！</div>
     </div>
     <div style="font-size:11px;line-height:1.9;">
-      <p style="margin:6px 0;text-align:center;">赞助完全自愿，不影响游戏内容。</p>
+      <p style="margin:2px 0;text-align:center;">赞助完全自愿，不影响游戏内容。</p>
       <p style="text-align:center;margin:8px 0 2px;"><img class="sponsor-qr" id="sponsorQr" src="${SPONSOR_IMAGE}" alt="爱发电支持"></p>
       <p style="text-align:center;margin:6px 0;"><span class="sponsor-support-link" id="sponsorLink"><svg class="sponsor-support-icon" viewBox="0 0 1322 1024" aria-hidden="true"><path d="M495.899049 634.906371c-17.304811 0-31.251971 13.947161-31.251971 31.251971S478.594238 697.410314 495.899049 697.410314c17.304811 0 31.251971-13.947161 31.251971-31.251972 0-17.304811-13.947161-31.251971-31.251971-31.251971zM790.855671 728.662285c-17.304811 0-31.251971 13.947161-31.251972 31.251971s13.947161 31.251971 31.251972 31.251972 31.251971-13.947161 31.251971-31.251972c0-17.04653-13.947161-30.993691-31.251971-31.251971z" fill="currentColor"></path><path d="M1262.99289 719.622459c-13.430599-8.264984-28.927445-13.430599-44.68257-14.980284 34.867902-84.974368 57.080047-196.293374-18.596215-306.837537-115.193217-168.657333-280.75118-256.73107-491.766556-260.863562-60.179416-1.291404-130.948343 1.549685-205.849762 4.649054-87.040614 3.35765-203.008673 8.006703-281.526023 1.549684 15.755126-8.523265 32.543375-16.788249 47.007098-23.761829 55.530362-27.119479 98.921529-48.04022 84.457807-85.232649-7.748423-21.695583-30.218848-33.059937-67.411277-34.09306C206.624604-1.755689 37.967271 43.443443 7.748423 119.636265c-17.04653 42.874605-19.887618 125.524447 152.902206 198.876182 71.027208 30.218848 271.969635 66.894715 349.453861 74.643138 17.563091 1.549685 34.867902 5.165615 51.397871 11.364353-17.821372 11.622634-35.901025 24.02011-54.238959 36.417586-31.768533-18.079653-83.941245-39.516955-122.683358-13.172318-14.463722 9.298107-23.503549 25.053233-24.02011 42.358044-0.516562 21.179022 12.397476 42.099763 26.861198 58.629731-57.080047 45.715694-103.312302 89.881703-119.84227 123.974762-18.337934 41.841482-25.828075 110.544163 8.523265 177.438879 43.391167 84.974368 138.955046 144.120661 284.625391 176.147474 190.352916 41.583202 354.619476 4.132492 463.355674-53.205835 60.437697-32.026814 103.570583-69.994085 124.233043-103.828864 6.457019 2.066246 12.914038 4.132492 19.629338 6.198738 9.298107 2.841088 18.596214 5.682177 27.37776 8.781546 28.669164 10.072949 60.695977 8.523265 85.232649-3.61593l1.291403-0.774843c17.821372-9.039826 31.510252-25.053233 37.708991-44.166009 15.238565-51.139589-29.444006-79.033911-56.563486-96.08044z m-811.776412-239.684541l-17.30481 12.655757c-5.165615-5.165615-9.814669-11.106072-13.430599-17.563091 6.7153-2.066246 18.337934 0.258281 30.735409 4.907334zM1262.99289 798.139808c-1.291404 3.874211-4.132492 6.97358-9.298107 9.814669-10.33123 5.165615-25.569795 5.423896-39.258675 0.774842-9.298107-3.35765-19.371057-6.457019-29.444006-9.556388-18.596214-5.682177-49.848186-15.238565-55.788643-22.470426-9.814669-12.914038-28.152602-15.755126-41.32492-5.940457s-15.755126 28.152602-5.940458 41.324921c3.615931 4.390773 7.490142 8.264984 12.139196 11.622634-44.940851 62.245662-242.267348 186.220424-521.468844 125.007885-125.782728-27.636041-210.498815-77.742507-244.850155-145.412065-24.794952-48.815063-19.112776-98.921529-7.231861-126.299289 34.09306-71.027208 280.75118-234.518925 438.30244-327.241716 13.947161-8.264984 18.596214-26.344637 10.33123-40.291798s-27.119479-19.629337-40.291797-10.33123c-12.655757 7.490142-55.788643 33.059937-111.060725 68.186119-18.596214-12.655757-50.881309-27.894322-102.537459-33.059936-81.874999-8.264984-270.936512-44.42429-332.149051-70.252366C139.471608 245.418993 40.033517 196.34565 61.987381 141.073568c5.165615-12.914038 29.185725-33.576498 81.100157-53.464116 35.384463-13.430599 72.318611-22.470426 109.769321-27.119479l-11.622634 5.682176c-35.384463 17.304811-73.868296 36.417586-99.954652 59.146293-1.807965-1.033123-3.615931-2.324527-5.165615-3.874211-10.847792-11.622634-29.185725-12.397476-41.06664-1.291404l-0.516562 0.516561c-11.880915 11.106072-12.139195 29.702287-1.033123 41.583202 10.589511 11.106072 26.086356 19.371057 45.715694 25.569795 0.774842 0.258281 1.291404 0.516562 2.066246 0.774842 68.702681 21.179022 190.611197 18.596214 362.367899 11.622634 74.126577-2.841088 144.120661-5.682177 202.492111-4.649054 193.710566 3.874211 339.122631 80.841876 444.75946 235.552049 64.828469 95.047318 41.583202 188.544951 4.390773 269.903388-4.649054-3.615931-9.039826-7.748423-12.655757-12.139195-10.33123-12.397476-28.669164-14.463722-41.324921-4.649054-12.655757 10.072949-14.722003 28.669164-4.649054 41.324921 5.940457 7.490142 36.675867 42.874605 74.643138 39.775236h2.066246c1.291404-0.258281 2.324527 0 3.615931-0.258281 25.828075-4.649054 42.358044-3.615931 57.596608 6.198738 20.40418 12.914038 30.218848 20.40418 28.410883 26.861199z" fill="currentColor"></path></svg>请我喝杯咖啡</span></p>
       <div style="margin:12px 0 4px;padding-top:8px;border-top:1px dashed rgba(var(--ui-color-rgb),0.2);"><b>赞助者名单</b></div>
@@ -3193,6 +3260,9 @@ export function showSponsorView() {
     if (poke) tryLoadPokemonIcon(img, poke);
   });
   content.querySelector('#sponsorLink')?.addEventListener('click', () => openExternalUrl(SPONSOR_URL));
+  content.querySelectorAll('.sponsor-row').forEach(row => {
+    row.addEventListener('click', (event) => popSponsorHearts(event, row));
+  });
   showView('sponsorView');
 }
 

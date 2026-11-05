@@ -6038,9 +6038,22 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .about-links {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 22px;
   font-size: 11px;
+}
+.about-sponsor-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.about-link.about-link-sponsor {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.78;
+  gap: 4px;
 }
 .about-link {
   display: inline-flex;
@@ -6069,6 +6082,12 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   justify-content: center;
   gap: 12px;
 }
+.about-sponsor-icon {
+  display: block;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
 /* 赞助者鸣谢页的名单与爱发电入口 */
 .sponsor-qr {
   display: block;
@@ -6086,7 +6105,7 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: #946ce6;
+  background: #d98aa6;
   color: #fff;
   font-weight: 700;
   text-decoration: none;
@@ -6097,22 +6116,123 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   height: 18px;
   flex-shrink: 0;
 }
+/* 赞助者鸣谢页主题：只在进入赞助页时覆盖承载屏的主题变量 */
+#appScreen.sponsor,
+#screen.sponsor {
+  --screen-bg: #fde8ef;
+  --screen-bg-light: #fff2f6;
+  --screen-bg-dark: #d98aa6;
+  --ui-color: #9d4b68;
+  --ui-color-dark: #7d3852;
+  --ui-color-rgb: 157, 75, 104;
+  --item-border: rgba(157, 75, 104, 0.22);
+}
+[data-theme="dark"] #appScreen.sponsor,
+[data-theme="dark"] #screen.sponsor {
+  --screen-bg: #2a1820;
+  --screen-bg-light: #38212b;
+  --screen-bg-dark: #c77b96;
+  --ui-color: #f2b7c8;
+  --ui-color-dark: #d98aa6;
+  --ui-color-rgb: 242, 183, 200;
+  --item-border: rgba(242, 183, 200, 0.16);
+}
 .sponsor-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
+  gap: 6px;
+  width: 100%;
+  max-width: 240px;
+  margin: 6px auto 0;
 }
 .sponsor-row {
+  --card-a: #e7efe4;
+  --card-b: #c9d9c9;
+  --card-ink: var(--ui-color);
+  --card-stripe: rgba(255, 255, 255, 0.10);
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 6px;
-  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.12);
-  font-size: 11px;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  color: var(--card-ink);
+  background: linear-gradient(135deg, var(--card-a), var(--card-b));
+  overflow: hidden;
+  font-size: 10px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease;
 }
-.sponsor-row:last-child { border-bottom: 0; }
+.sponsor-row::before {
+  content: '';
+  position: absolute;
+  inset: -100px;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, var(--card-stripe) 0 6px, transparent 6px 12px);
+  animation: sponsor-stripe-drift 20s linear infinite;
+}
+.sponsor-row > * {
+  position: relative;
+  z-index: 1;
+}
+.sponsor-row:active { transform: scale(0.99); }
+/* 点击赞助卡片时冒出的爱心粒子：挂到 body，避开卡片的 overflow 裁剪 */
+.sponsor-heart-fx {
+  position: fixed;
+  z-index: 950;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.sponsor-heart-fx i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--hsize, 11px);
+  height: var(--hsize, 11px);
+  font-style: normal;
+  color: #ff6fa5;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.72)) drop-shadow(0 0 3px rgba(255, 111, 165, 0.55));
+  animation: sponsor-heart-pop var(--hdur, 0.8s) cubic-bezier(0.16, 0.84, 0.3, 1) both;
+  animation-delay: var(--hdelay, 0s);
+  will-change: transform, opacity;
+}
+.sponsor-heart-fx i svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+@keyframes sponsor-heart-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(var(--hx0, 0px), var(--hy0, 0px)) scale(0.25) rotate(0deg);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translate(calc(var(--hx, 0px) * 0.25), calc(var(--hy, 0px) * 0.25 - 3px)) scale(calc(var(--hs, 1) * 1.08)) rotate(calc(var(--hr, 0deg) * 0.35));
+  }
+  60% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(var(--hx, 0px), var(--hy, 0px)) scale(var(--hs, 1)) rotate(var(--hr, 0deg));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sponsor-heart-fx { display: none; }
+}
+html.power-save .sponsor-heart-fx { display: none; }
+@keyframes sponsor-stripe-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(84.85px, 84.85px, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sponsor-row::before { animation: none; }
+}
+html.power-save .sponsor-row::before { animation: none; }
 .sponsor-person {
   display: flex;
   align-items: center;
@@ -6120,14 +6240,22 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   min-width: 0;
 }
 .sponsor-icon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  box-sizing: border-box;
   flex-shrink: 0;
   object-fit: contain;
   image-rendering: pixelated;
+  background: rgba(255, 255, 255, 0.34);
+  border-radius: 50%;
 }
-.sponsor-name { font-weight: 700; }
-.sponsor-note { font-size: 9px; opacity: 0.6; }
+.sponsor-name {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.sponsor-note { font-size: 8px; opacity: 0.7; }
 .sponsor-empty {
   padding: 6px 2px;
   font-size: 10px;
