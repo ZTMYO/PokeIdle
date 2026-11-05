@@ -117,6 +117,16 @@
 - **自动挂机** — 自动捕获 / 逃跑 / 续增益
 - **托盘图标** — 实时显示游戏状态
 
+## 赞助支持
+
+如果这个游戏陪你了一段时间，可以请我喝杯咖啡。赞助完全自愿，不影响游戏内容。
+
+<p align="center">
+  <a href="https://ifdian.net/a/ztmyo"><img src="src/icons/afdian-ZTMYO.jpg" alt="爱发电支持" width="300"></a>
+</p>
+
+[爱发电 · 请我喝杯咖啡](https://ifdian.net/a/ztmyo)
+
 ## 开发
 
 ### 前置依赖

@@ -2740,6 +2740,7 @@ const TUTORIAL_SECTIONS = [
     html: `<p>在<b>手机</b>桌面打开<b>随从</b>应用：消耗 <b>${FOLLOWER_DRAW_COST} 颗糖果</b>抽一只宝可梦当随从，跟随期间获得限时增益，<b>同时只能跟随 1 只</b>。</p>`
       + `<p>稀有度概率：N <b>${Math.round(FOLLOWER_TIER_CHANCE.N * 100)}%</b> / R <b>${Math.round(FOLLOWER_TIER_CHANCE.R * 100)}%</b> / SR <b>${Math.round(FOLLOWER_TIER_CHANCE.SR * 100)}%</b> / UR <b>${Math.round(FOLLOWER_TIER_CHANCE.UR * 100)}%</b>。稀有度只决定<b>副增益强度</b>，不影响跟随时长。</p>`
       + `<p>跟随时长只看<b>星级</b>——★1~★5 依次 <b>${FOLLOWER_STAR_MIN.join(' / ')}</b> 分钟。</p>`
+      + `<p>抽到即记入随从图鉴：首次抽到是 <b>★1</b>，之后每再抽到同一只 <b>+1 星</b>（最高 <b>★5</b>），跟不跟随、放不放走都不影响。</p>`
       + `<p>随从按<b>属性</b>归入 <b>9</b> 大类：每类有一条<b>幅度固定</b>的主增益，外加一条按稀有度递增（档位幅度 <b>${FOLLOWER_SUB_RANGE}</b> 个百分点）的副增益；双属性跨类时两类<b>同时生效</b>：</p>`
       + tutorialTable(FOLLOWER_TUTORIAL_ROWS, ['属性', '增益'], [32, 'auto'])
   },

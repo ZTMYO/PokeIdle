@@ -6063,6 +6063,108 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   font-weight: 600;
   opacity: 0.55;
 }
+.about-link-sm-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+/* 赞助者鸣谢页的名单与爱发电入口 */
+.sponsor-qr {
+  display: block;
+  width: 120px;
+  max-width: 52%;
+  margin: 0 auto;
+  border-radius: 6px;
+  cursor: zoom-in;
+  -webkit-touch-callout: default;
+  user-select: none;
+}
+.sponsor-support-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #946ce6;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.sponsor-support-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.sponsor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.sponsor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.12);
+  font-size: 11px;
+}
+.sponsor-row:last-child { border-bottom: 0; }
+.sponsor-person {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.sponsor-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.sponsor-name { font-weight: 700; }
+.sponsor-note { font-size: 9px; opacity: 0.6; }
+.sponsor-empty {
+  padding: 6px 2px;
+  font-size: 10px;
+  line-height: 1.7;
+  opacity: 0.7;
+}
+.sponsor-image-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.78);
+}
+.sponsor-image-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  max-height: 100%;
+}
+.sponsor-image-box img {
+  max-width: min(92vw, 520px);
+  max-height: 82vh;
+  border-radius: 8px;
+  background: #fff;
+  -webkit-touch-callout: default;
+  user-select: none;
+}
+.sponsor-image-hint {
+  color: #fff;
+  font-size: 10px;
+  opacity: 0.8;
+}
 .about-credit {
   padding-top: 2px;
   font-size: 9px;
