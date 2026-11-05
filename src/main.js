@@ -112,6 +112,7 @@ road.onTransitionCharReach(() => {
   if (road.isBike()) playCycling();
   else endCycling();
   setIdleCharacter('walk');
+  updateBackpack(); // 自动进出自行车道时，增益道具槽位跟着置灰/恢复
 });
 
 // 手动骑行状态变更（上车/下车）：同步骑行音乐、角色外观、速度、日志与存档
@@ -133,12 +134,8 @@ road.onManualBikeChanged(v => {
     if (v) { slot.classList.add('disabled'); qtyEl.textContent = '下车'; }
     else { slot.classList.remove('disabled'); qtyEl.textContent = gameData.items['bike'] || 0; }
   }
-  // 骑行中禁点增益道具（交互拦截见 onBagClick）：上车置灰，下车恢复
-  // 若下车时对应 buff 仍在生效（倒计时遮罩），保留 disabled 由倒计时逻辑管理
-  const slotH = document.querySelector('.bag-slot[data-item="sweet-honey"]');
-  const slotC = document.querySelector('.bag-slot[data-item="shiny-charm"]');
-  if (slotH) v ? slotH.classList.add('disabled') : (!honeyBuffActive && slotH.classList.remove('disabled'));
-  if (slotC) v ? slotC.classList.add('disabled') : (!charmBuffActive && slotC.classList.remove('disabled'));
+  // 骑行中（手动/自动自行车道）增益道具由 updateBackpack 统一置灰；buff 生效中保持
+  updateBackpack();
   updateStats();
   saveGame();
 });
@@ -395,8 +392,8 @@ function onBagClick(itemKey) {
   const isCrown = itemKey === 'silver-crown' || itemKey === 'golden-crown';
   // 钓鱼中禁止使用 buff/骑行道具/经验糖果/王冠（会与暂停的道路/角色状态冲突，经验糖果/王冠会打开选取页打断流程）
   if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike' || itemKey === 'exp-candy' || isCrown)) return;
-  // 骑行中禁止使用增益道具（骑行速度已封顶且不遇敌，buff 无收益还浪费）；经验糖果/王冠不打断骑行，允许使用
-  if (road.isManualBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
+  // 骑行中禁止使用增益道具（手动/自动自行车道；骑行速度已封顶且不遇敌，buff 无收益还浪费）
+  if (road.isBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
   // 钓鱼等待中禁止使用自行车/经验糖果/王冠（会与即将开始的钓鱼动画冲突）
   if ((itemKey === 'bike' || itemKey === 'exp-candy' || isCrown) && isFishingPending()) return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
@@ -613,6 +610,7 @@ async function onGameTick() {
     if (road.isBike()) playCycling();
     else endCycling();
     setIdleCharacter('walk');
+    updateBackpack(); // 过渡兜底应用自行车道后同步增益道具置灰
   }
 
   // 道路轮播：每 ROAD_SWITCH_CYCLES 个完整循环切下一个（过渡中/钓鱼中/大量出没/时空扭曲事件路段内不切）
@@ -990,6 +988,13 @@ async function init() {
     gameDataRaw = candidates[0];
   }
   setGameData(gameDataRaw || getDefaultSave());
+  // 离线结算必须在任何 saveGame 之前：saveGame 会把 lastSaveTime 刷成当前时间，
+  // 之后再算离线间隔就永远是 0，随从 endsAt / 树果 / 训练等离线暂停都会失效
+  const offlineSec = calcOffline(gameData);
+  if (offlineSec > 0) {
+    gameData.pendingOfflineSec = (gameData.pendingOfflineSec || 0) + offlineSec;
+    seedBgOfflineSeconds(gameData.pendingOfflineSec, !!gameData.manualBike);
+  }
   // 应用存档中的窗口倍率（未设置时默认 2 倍）
   applyWindowScale(gameData?.settings?.windowScale);
   // 应用夜间模式
@@ -1054,15 +1059,6 @@ async function init() {
       if (tw?.getCurrentWindow) tw.getCurrentWindow().setAlwaysOnTop(true);
       else if (tw?.appWindow?.setAlwaysOnTop) tw.appWindow.setAlwaysOnTop(true);
     } catch (_) {}
-  }
-
-  // 离线处理：推进 0 点刷新内容，孵蛋/树果/交换/训练仍是离线暂停。
-  // 离线秒数交给补发管线；累计值另存进存档，没结算就被杀进程下次开机仍会补上
-  const offlineSec = calcOffline(gameData);
-  if (offlineSec > 0) {
-    gameData.pendingOfflineSec = (gameData.pendingOfflineSec || 0) + offlineSec;
-    seedBgOfflineSeconds(gameData.pendingOfflineSec, !!gameData.manualBike);
-    await saveGame();
   }
 
   // 加载道路预设数据

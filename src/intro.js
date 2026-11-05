@@ -122,6 +122,8 @@ export function startIntro(onDone) {
   _choiceOpen = false;
   document.removeEventListener('click', onIntroGlobalClick);
   document.addEventListener('click', onIntroGlobalClick);
+  document.removeEventListener('keydown', onIntroKeydown);
+  document.addEventListener('keydown', onIntroKeydown);
   const iv = $('introView');
   // 角色直接贴在背景草地上，无容器框
   iv.innerHTML = `
@@ -364,6 +366,29 @@ export function advanceIntro() {
   showNextLine();
 }
 
+// 小窗口/按钮被裁掉时的键盘兜底：回车等同点「继续」「好！」或「准备好了」。
+// 选角色那一步（_step === 0）不替玩家做选择
+function onIntroKeydown(e) {
+  if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const declare = $('introDeclare');
+  if (declare && !declare.dataset.closing) {
+    e.preventDefault();
+    dismissDeclare();
+    return;
+  }
+  if (!$('introView') || $('introView').style.display === 'none') return;
+  if (_step === 0) return;
+  e.preventDefault();
+  if (_typeTimer) { finishType(); return; }
+  if (_choiceOpen) { confirmIntro(); return; }
+  if (_step > SCRIPT.length + 1 && $('catchConfirmBtns')?.style.display !== 'none') {
+    confirmIntro();
+    return;
+  }
+  if (_step === 1 && $('appTextBoxArrow').style.display !== 'flex') return;
+  advanceIntro();
+}
+
 // 开场剧情中点击画面任意位置推进对话：
 // 按钮（角色选择/顶栏）、倒三角箭头、确认按钮区各走自身交互，不当作“任意位置”
 function onIntroGlobalClick(e) {
@@ -384,6 +409,7 @@ export async function confirmIntro() {
   }
   hideIntroText();
   document.removeEventListener('click', onIntroGlobalClick);
+  document.removeEventListener('keydown', onIntroKeydown);
   // 恢复游戏内确认按钮：放回舞台框、文案复位（intro 期间挪到了剧情框并改成「准备好了」/「好！」）
   $('textBox').appendChild($('catchConfirmBtns'));
   $('confirmYes').textContent = '确定';

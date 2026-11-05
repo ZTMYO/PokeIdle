@@ -486,6 +486,7 @@ function advanceSegment() {
     // 场景画面保持自行车道不变，恢复正常走路/遭遇，事件宝可梦才能滚向主角进战斗）
     road.setBike(false);
     road.setManualBike(false);
+    updateBackpack();
     render();
     return;
   }
@@ -1009,6 +1010,7 @@ export function showGpsView() {
       }
       road.setBike(false);
       road.setManualBike(false);
+      updateBackpack();
       endCycling();
       setIdleCharacter('walk');
       saveGame();
@@ -1037,6 +1039,7 @@ export function showGpsView() {
       if (road.isRoadBike()) {
         showConfirmBar('确认下车？无法获得自行车道具。', () => {
           road.setBike(false);
+          updateBackpack();
           endCycling();
           setIdleCharacter('walk');
           render();

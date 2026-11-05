@@ -1023,8 +1023,9 @@ export function calcOffline(save) {
     }
     // 交换广场：刷新倒计时只按在线时间累计，离线不刷新
     if (save.trades?.refreshedAt) save.trades.refreshedAt += ms;
-    // 随从：跟随倒计时只按在线时间累计，离线期间不走表（关闭不计算）
-    if (save.follower?.endsAt) save.follower.endsAt += ms;
+    // 随从：跟随倒计时只按在线时间累计，离线期间不走表（关闭不计算）。
+    // 只有离开时还在生效的随从才后移；已经过期的不要借离线时间复活
+    if (save.follower?.endsAt && save.follower.endsAt > save.stats.lastSaveTime) save.follower.endsAt += ms;
     // 派遣：唯一例外——离线照常计时，不后移 startAt，由真实时间自然推进完成
   }
   return elapsed;

@@ -1,5 +1,5 @@
 // ===== UI 管理 =====
-import { phase, currentEncounter, gameData, saveGame, _fishing, _eggHatching, _navStack } from './state.js';
+import { phase, currentEncounter, gameData, saveGame, _fishing, _eggHatching, _navStack, honeyBuffActive, charmBuffActive } from './state.js';
 import { formatNum, getCurrentRegion, getCurrentRoadInfo, anyIncubatorReady, getIncubatorUnlockCost, getMassOutbreak, getTwist, getRoadNumForEdge, getPokemonByIndex, isPokemon, genderBadge } from './state.js';
 import { ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, PX_PER_METER, eggSprite, alcremieShinySrc } from './config.js';
 import { formatLogTime } from './pokedex.js';
@@ -928,11 +928,15 @@ export function updateBackpack(popItem) {
         _prevBagCounts[item] = qty;
         continue;
       }
-      // 骑行中增益道具槽：持续置灰（交互拦截在 onBagClick，视觉防误点；骑行中不拾取，数量不变）
-      if (road.isManualBike() && (item === 'sweet-honey' || item === 'shiny-charm')) {
-        slot?.classList.add('disabled');
-        _prevBagCounts[item] = qty;
-        continue;
+      // 骑行中（手动或自动自行车道）增益道具置灰；buff 生效中也保持置灰
+      if (item === 'sweet-honey' || item === 'shiny-charm') {
+        const active = item === 'sweet-honey' ? honeyBuffActive : charmBuffActive;
+        if (road.isBike() || active) slot?.classList.add('disabled');
+        else slot?.classList.remove('disabled');
+        if (road.isBike()) {
+          _prevBagCounts[item] = qty;
+          continue;
+        }
       }
       if (!slot?.classList.contains('disabled')) {
         el.textContent = formatNum(qty);
