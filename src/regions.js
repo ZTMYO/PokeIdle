@@ -37,6 +37,7 @@ export const REGION_PLAYLISTS = {
     'unova/unova3.mp3',
     'unova/unova4.mp3',
     'unova/unova5.mp3',
+    'unova/unova6.mp3',
   ],
   '卡洛斯': [
     'kalos/kalos1.mp3',
@@ -118,6 +119,7 @@ export const TRACK_GAINS = {
   'unova/unova3.mp3': -6.30,
   'unova/unova4.mp3': -7.70,
   'unova/unova5.mp3': -8.70,
+  'unova/unova6.mp3': -8.20,
   'kalos/kalos1.mp3': -7.00,
   'kalos/kalos2.mp3': -7.30,
   'kalos/kalos3.mp3': -7.50,
