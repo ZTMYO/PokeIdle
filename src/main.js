@@ -39,6 +39,7 @@ import { startSkyBg } from './sky-bg.js';
 import { initBackgroundCatchup, startBackgroundCatchup, notifyAppState, bgCatchupEnabled, bgAway, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds, bgPeekAccum, bgTakeStatSeconds, bgTakeOfflineAway, bgInBackground } from './background-catchup.js';
 import { startEventRefresh } from './server-events.js';
 import { startActivityRefresh } from './activity.js';
+import { startLotteryRefresh } from './lottery.js';
 
 let ROAD_PRESETS = null;
 let ROAD_ALL = []; // 真正能当路段用的下标（road-data.json 里还混着场景地图，见下面筛选）
@@ -1669,6 +1670,7 @@ async function init() {
   startBackgroundCatchup();
   startEventRefresh(); // 全服事件排期：先吃缓存再拉最新（拉不到就退回本地随机事件）
   startActivityRefresh(); // 限时活动：服务端发开关+时间段，入口长在手机第三页（拉不到就不显示）
+  startLotteryRefresh(); // 每日抽奖：连上服务器才摆手机入口，默认跟在「全服事件」后面
   // 资源热更：延后几秒跑，别跟开局抢带宽；失败/不支持都静默跳过（PC 端自定义协议没有 SW 就自动不跑）
   setTimeout(() => { import('./hot-update.js').then(m => m.startHotUpdate()).catch(() => {}); }, 4000);
 

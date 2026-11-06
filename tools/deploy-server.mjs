@@ -67,7 +67,7 @@ run(`${sshBase} "pm2 restart ${pm2Name} >/dev/null 2>&1; sleep 2; pm2 list | gre
 
 console.log('[4/4] 接口自检');
 const base = cfg.apiBase ? cfg.apiBase.replace(/\/hot$/, '') : 'https://pokeidle.shiliu.space/api';
-for (const path of ['/activity/', '/events/', '/hot/manifest.json', '/telemetry/stats/']) {
+for (const path of ['/activity/', '/events/', '/lottery/', '/hot/manifest.json', '/telemetry/stats/']) {
   const { out } = capture(`curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${base}${path}"`);
   console.log(`      ${path.padEnd(20)} HTTP ${out}`);
 }

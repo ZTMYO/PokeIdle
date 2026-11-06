@@ -1,5 +1,5 @@
 // ===== 口袋挂机 · 后端服务（Node，无依赖） =====
-// 功能：在线统计 /api/telemetry/*；每日事件排期 /api/events（大量出没 / 时空扭曲全服共用）；资源热更 /api/hot/*。加新功能就在下面 ROUTES 里加一条。
+// 功能：在线统计 /api/telemetry/*；每日事件排期 /api/events；限时活动 /api/activity；每日抽奖 /api/lottery/*；资源热更 /api/hot/*。加新功能就在下面 ROUTES 里加一条。
 // 环境变量：PORT（默认 4000）/ DATA_DIR（默认 ./data）/ TELEMETRY_SALT（生产必填）/ TELEMETRY_ORIGINS（额外跨域来源）
 // 数据全在一个文件里：DATA_DIR/stats.json
 import http from 'node:http';
@@ -121,7 +121,7 @@ function loadActivities() {
     const j = JSON.parse(fs.readFileSync(ACTIVITY_FILE, 'utf8'));
     const list = (j && Array.isArray(j.list)) ? j.list : [];
     _actList = list.filter((a) => a && typeof a.id === 'string' && Number(a.from) > 0 && Number(a.to) > Number(a.from));
-    console.log(`[server] 已载入 ${_actList.length} 个限时活动：${_actList.map((a) => a.id).join(', ') || '（无）'}｜更新历程 ${_actTimeline.length} 条`);
+    console.log(`[server] 已载入 ${_actList.length} 个限时活动：${_actList.map((a) => a.id).join(', ') || '（无）'}`);
   } catch (_) { /* 没有这个文件 = 没有活动，正常 */ }
   return _actList;
 }
@@ -254,6 +254,8 @@ function prune() {
   for (const [k, v] of seen) if (v.last < cut) seen.delete(k);
   const rcut = Date.now() - 60000;
   for (const [k, v] of rate) if (v.ts < rcut) rate.delete(k);
+  const lcut = Date.now() - LOTTERY_RATE_MS;
+  for (const [k, v] of lotteryRate) if (v.ts < lcut) lotteryRate.delete(k);
 }
 
 // ---------- 每日事件排期 ----------
@@ -352,6 +354,169 @@ function tickEvents() {
   ensureEvents();
 }
 
+// ---------- 每日抽奖 ----------
+// 每天固定时间从当天报名的安装标识里抽一名，奖品是超级进化石。
+// 只存安装标识的哈希 + 昵称；开奖结果公开，领奖凭同一个安装标识（没有账号，认设备不认人）。
+const LOTTERY_FILE = path.join(DATA_DIR, 'lottery.json');
+const LOTTERY_DRAW_HOUR = Number.isFinite(Number(CFG.LOTTERY_DRAW_HOUR)) ? Number(CFG.LOTTERY_DRAW_HOUR) : 21;
+const LOTTERY_PRIZES = Array.isArray(CFG.LOTTERY_PRIZES) && CFG.LOTTERY_PRIZES.length
+  ? CFG.LOTTERY_PRIZES
+  : ['妙蛙花进化石'];
+const LOTTERY_KEEP_DAYS = 7;
+const LOTTERY_RATE_MS = 10 * 60 * 1000;
+const LOTTERY_RATE_BURST = 60; // 单 IP 10 分钟内最多 60 次报名/查询/领奖
+const LOTTERY_CORS = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' };
+const LOTTERY_DEFAULT_PRIZE = LOTTERY_PRIZES[0] || '妙蛙花进化石';
+const lotteryDb = { days: {} };
+const lotteryRate = new Map();
+
+function countEntries(d) { return Object.keys((d && d.entries) || {}).length; }
+function lotteryDaily(dayStr) {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  return new Date(y, m - 1, d, LOTTERY_DRAW_HOUR, 0, 0, 0).getTime();
+}
+// 奖品不按日期算：当天以 days[日期].prize 为准，新的一天默认第一枚 Mega 石
+function ensureLotteryDay(dayStr) {
+  let d = lotteryDb.days[dayStr];
+  if (!d) {
+    d = { date: dayStr, drawAt: lotteryDaily(dayStr), prize: LOTTERY_DEFAULT_PRIZE, drawn: false, winner: null, entries: {} };
+    lotteryDb.days[dayStr] = d;
+    return d;
+  }
+  // 旧档/手改文件兜底：缺字段补齐，别让一次坏数据把整个抽奖卡死
+  if (!d.entries || typeof d.entries !== 'object') d.entries = {};
+  if (!d.prize) d.prize = LOTTERY_DEFAULT_PRIZE;
+  if (!Number.isFinite(Number(d.drawAt))) d.drawAt = lotteryDaily(dayStr);
+  return d;
+}
+function saveLottery() {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    writeAtomic(LOTTERY_FILE, JSON.stringify({ days: lotteryDb.days }));
+  } catch (e) { console.warn('[server] 抽奖数据落盘失败', e.message); }
+}
+function drawLotteryDay(dayStr) {
+  const d = ensureLotteryDay(dayStr);
+  if (d.drawn) return d;
+  const hs = Object.keys(d.entries || {});
+  d.drawn = true;
+  if (hs.length) {
+    const h = hs[crypto.randomInt(hs.length)];
+    const e = d.entries[h];
+    d.winner = { h, n: (e && e.n) || '训练家', at: Date.now(), claimed: false };
+    console.log(`[抽奖] ${dayStr} 开奖：${d.winner.n} 获得 ${d.prize}（${hs.length} 人参与）`);
+  } else {
+    d.winner = null;
+    console.log(`[抽奖] ${dayStr} 无人参与，跳过`);
+  }
+  saveLottery();
+  return d;
+}
+function tickLottery(now = Date.now()) {
+  const today = dateKey(now);
+  // 服务器跨过开奖时间才启动：先把过期未开的日期补开
+  for (const [k, d] of Object.entries(lotteryDb.days)) {
+    if (k !== today && !d.drawn && Number(d.drawAt) <= now) drawLotteryDay(k);
+  }
+  const d = ensureLotteryDay(today);
+  if (!d.drawn && now >= d.drawAt) drawLotteryDay(today);
+  // 只留最近 N 天
+  const keys = Object.keys(lotteryDb.days).sort();
+  let changed = false;
+  for (const k of keys.slice(0, Math.max(0, keys.length - LOTTERY_KEEP_DAYS))) { delete lotteryDb.days[k]; changed = true; }
+  if (changed) saveLottery();
+}
+function loadLottery() {
+  try {
+    const j = JSON.parse(fs.readFileSync(LOTTERY_FILE, 'utf8'));
+    if (j && typeof j.days === 'object') lotteryDb.days = j.days || {};
+  } catch (_) { /* 首次运行没有文件，正常 */ }
+  tickLottery();
+  saveLottery(); // 启动就落盘：文件存在，方便直接改当天 prize
+  console.log(`[server] 抽奖：默认奖品 ${LOTTERY_DEFAULT_PRIZE}，每天 ${String(LOTTERY_DRAW_HOUR).padStart(2, '0')}:00 开奖`);
+}
+
+// 昵称：1~8 个字（按 Unicode 字符算，不看字节），去掉首尾空白，不允许竖线和控制字符
+function cleanLotteryName(raw) {
+  const s = String(raw || '').trim();
+  if (!s || s.includes('|') || /[\u0000-\u001f\u007f]/.test(s)) return '';
+  return Array.from(s).length <= 8 ? s : '';
+}
+function lotteryBody(body) {
+  const s = String(body || '').trim();
+  const i = s.indexOf('|');
+  const id = (i < 0 ? s : s.slice(0, i)).trim();
+  return { id, name: i < 0 ? '' : s.slice(i + 1), validId: /^[0-9a-f]{16,64}$/.test(id) };
+}
+function lotteryAllow(ip, now) {
+  const r = lotteryRate.get(ip) || { n: 0, ts: now };
+  if (now - r.ts > LOTTERY_RATE_MS) { r.n = 1; r.ts = now; }
+  else if (++r.n > LOTTERY_RATE_BURST) { lotteryRate.set(ip, r); return false; }
+  lotteryRate.set(ip, r);
+  return true;
+}
+function lotteryRecord(d) {
+  return {
+    date: d.date, prize: d.prize, count: countEntries(d),
+    name: d.winner ? d.winner.n : '', at: d.winner ? d.winner.at : d.drawAt,
+  };
+}
+function lotteryPublic(now = Date.now()) {
+  const today = ensureLotteryDay(dateKey(now));
+  // 只把真正抽出人的日子放进历史；无人参与的那天不占一行
+  const drawnDays = Object.values(lotteryDb.days)
+    .filter((d) => d && d.drawn && d.winner)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const history = drawnDays.slice(0, LOTTERY_KEEP_DAYS).map(lotteryRecord);
+  return {
+    ok: true, serverNow: now, day: today.date, drawAt: today.drawAt, drawHour: LOTTERY_DRAW_HOUR,
+    prize: today.prize, drawn: !!today.drawn, count: countEntries(today),
+    winner: today.winner ? { name: today.winner.n, prize: today.prize, at: today.winner.at } : null,
+    last: history[0] || null, history,
+  };
+}
+function lotteryWins(h) {
+  return Object.values(lotteryDb.days)
+    .filter((d) => d && d.winner && d.winner.h === h)
+    .sort((a, b) => (b.winner.at || 0) - (a.winner.at || 0));
+}
+function lotteryMe(now, h) {
+  const pub = lotteryPublic(now);
+  const d = lotteryDb.days[pub.day] || ensureLotteryDay(pub.day);
+  const entry = (d.entries || {})[h];
+  const wins = lotteryWins(h);
+  const win = wins.find((w) => !w.winner.claimed) || wins[0] || null;
+  return {
+    ...pub,
+    entered: !!entry, name: entry ? entry.n : '',
+    won: !!win, claimed: win ? !!win.winner.claimed : false,
+    winPrize: win ? win.prize : '', winDay: win ? win.date : '',
+  };
+}
+function enterLottery(now, h, name) {
+  const dayStr = dateKey(now);
+  const d = ensureLotteryDay(dayStr);
+  if (d.drawn) return { ok: false, error: 'closed', serverNow: now, drawAt: lotteryDaily(dateKey(now + DAY_MS)) };
+  const existed = !!d.entries[h];
+  d.entries[h] = { n: name, t: now };
+  saveLottery();
+  return { ok: true, entered: true, updated: existed, name, day: dayStr, drawAt: d.drawAt, count: countEntries(d), serverNow: now };
+}
+function claimLottery(now, h) {
+  const wins = lotteryWins(h);
+  const win = wins.find((w) => !w.winner.claimed);
+  if (!win) {
+    const old = wins[0];
+    return old
+      ? { ok: true, already: true, prize: old.prize, day: old.date, serverNow: now }
+      : { ok: false, error: 'no-win', serverNow: now };
+  }
+  win.winner.claimed = true;
+  win.winner.claimedAt = now;
+  saveLottery();
+  return { ok: true, prize: win.prize, day: win.date, serverNow: now };
+}
+
 // ---------- HTTP ----------
 function json(res, code, body, headers = {}) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', ...headers });
@@ -429,6 +594,52 @@ const ROUTES = [
   },
   {
     method: 'GET',
+    path: '/api/lottery',
+    handle(req, res) {
+      const now = Date.now();
+      tickLottery(now);
+      json(res, 200, lotteryPublic(now), LOTTERY_CORS);
+    },
+  },
+  {
+    method: 'POST',
+    path: '/api/lottery/enter',
+    handle(req, res, body) {
+      const now = Date.now();
+      if (!lotteryAllow(ipOf(req), now)) return json(res, 429, { ok: false }, LOTTERY_CORS);
+      tickLottery(now);
+      const p = lotteryBody(body);
+      const name = cleanLotteryName(p.name);
+      if (!p.validId || !name) return json(res, 400, { ok: false, error: 'bad-input' }, LOTTERY_CORS);
+      json(res, 200, enterLottery(now, hashOf(p.id), name), LOTTERY_CORS);
+    },
+  },
+  {
+    method: 'POST',
+    path: '/api/lottery/me',
+    handle(req, res, body) {
+      const now = Date.now();
+      if (!lotteryAllow(ipOf(req), now)) return json(res, 429, { ok: false }, LOTTERY_CORS);
+      tickLottery(now);
+      const p = lotteryBody(body);
+      if (!p.validId) return json(res, 400, { ok: false, error: 'bad-input' }, LOTTERY_CORS);
+      json(res, 200, lotteryMe(now, hashOf(p.id)), LOTTERY_CORS);
+    },
+  },
+  {
+    method: 'POST',
+    path: '/api/lottery/claim',
+    handle(req, res, body) {
+      const now = Date.now();
+      if (!lotteryAllow(ipOf(req), now)) return json(res, 429, { ok: false }, LOTTERY_CORS);
+      tickLottery(now);
+      const p = lotteryBody(body);
+      if (!p.validId) return json(res, 400, { ok: false, error: 'bad-input' }, LOTTERY_CORS);
+      json(res, 200, claimLottery(now, hashOf(p.id)), LOTTERY_CORS);
+    },
+  },
+  {
+    method: 'GET',
     path: '/healthz',
     handle(req, res) {
       json(res, 200, { ok: true, online: onlineCount(), ...presenceCounts(), today: today.size, total: totalSet.size, latest: latestVersion() }, { 'Cache-Control': 'no-store' });
@@ -496,7 +707,7 @@ const server = http.createServer((req, res) => {
   if (method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.writeHead(204, allowOrigin(req));
+    res.writeHead(204, url.startsWith('/api/lottery') ? { 'Access-Control-Allow-Origin': '*' } : allowOrigin(req));
     res.end();
     return;
   }
@@ -525,6 +736,7 @@ server.listen(PORT, '127.0.0.1', () => console.log(`[server] 127.0.0.1:${PORT}`)
 
 loadEvents(); // 先读回已有排期（重启不能换掉当天已发的排期）
 tickEvents(); // 没有今天的那份就现建（DATA_DIR 不存在会一并创建）
-setInterval(() => { prune(); rollDay(); tickEvents(); }, 30000);
+loadLottery(); // 抽奖：读回报名与开奖记录，跨过开奖时间就补开
+setInterval(() => { prune(); rollDay(); tickEvents(); tickLottery(); }, 30000);
 setInterval(save, 30000);
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { save(); process.exit(0); });
