@@ -13,4 +13,5 @@ export const SPONSORS = [
   { name: 'Getaak', icon: '0700', colors: ['#cce7f5', '#f17eb2'], ink: '#ffffff', stripe: 'rgba(255,255,255,0.10)' },
   { name: 'cccclown', icon: '0245', colors: ['#c8a1e8', '#3D6FA8'], ink: '#fff', stripe: 'rgba(255,255,255,0.10)' },
   { name: '年糕', icon: '0194', colors: ['#efbcf0', '#94ceff'], ink: '#ffffff', stripe: 'rgba(255,255,255,0.10)' },
+  { name: 'Cmw', icon: '0150', colors: ['#e2dae2', '#d196d6'], ink: '#ffffff', stripe: 'rgba(255,255,255,0.10)' },
 ];

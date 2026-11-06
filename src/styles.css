@@ -6164,7 +6164,6 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.12s ease;
 }
 .sponsor-row::before {
   content: '';
@@ -6173,20 +6172,19 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   z-index: 0;
   pointer-events: none;
   background: repeating-linear-gradient(135deg, var(--card-stripe) 0 6px, transparent 6px 12px);
-  animation: sponsor-stripe-drift 20s linear infinite;
 }
 .sponsor-row > * {
   position: relative;
   z-index: 1;
 }
-.sponsor-row:active { transform: scale(0.99); }
-/* 点击赞助卡片时冒出的爱心粒子：挂到 body，避开卡片的 overflow 裁剪 */
+/* 点击赞助卡片时冒出的爱心粒子：fixed 跟随 pointer 坐标，整簇只做一层动画 */
 .sponsor-heart-fx {
   position: fixed;
   z-index: 950;
   width: 0;
   height: 0;
   pointer-events: none;
+  animation: sponsor-heart-rise 0.86s cubic-bezier(0.16, 0.84, 0.3, 1) both;
 }
 .sponsor-heart-fx i {
   position: absolute;
@@ -6195,44 +6193,29 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   width: var(--hsize, 11px);
   height: var(--hsize, 11px);
   font-style: normal;
-  color: #ff6fa5;
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.72)) drop-shadow(0 0 3px rgba(255, 111, 165, 0.55));
-  animation: sponsor-heart-pop var(--hdur, 0.8s) cubic-bezier(0.16, 0.84, 0.3, 1) both;
-  animation-delay: var(--hdelay, 0s);
-  will-change: transform, opacity;
+  transform-origin: center;
+  color: #ff4f8b;
 }
 .sponsor-heart-fx i svg {
   display: block;
   width: 100%;
   height: 100%;
 }
-@keyframes sponsor-heart-pop {
+@keyframes sponsor-heart-rise {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) translate(var(--hx0, 0px), var(--hy0, 0px)) scale(0.25) rotate(0deg);
+    transform: translateY(6px) scale(0.3);
   }
-  18% {
-    opacity: 1;
-    transform: translate(-50%, -50%) translate(calc(var(--hx, 0px) * 0.25), calc(var(--hy, 0px) * 0.25 - 3px)) scale(calc(var(--hs, 1) * 1.08)) rotate(calc(var(--hr, 0deg) * 0.35));
-  }
-  60% { opacity: 1; }
+  16% { opacity: 1; }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) translate(var(--hx, 0px), var(--hy, 0px)) scale(var(--hs, 1)) rotate(var(--hr, 0deg));
+    transform: translateY(-48px) scale(1.08);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .sponsor-heart-fx { display: none; }
 }
 html.power-save .sponsor-heart-fx { display: none; }
-@keyframes sponsor-stripe-drift {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(84.85px, 84.85px, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sponsor-row::before { animation: none; }
-}
-html.power-save .sponsor-row::before { animation: none; }
 .sponsor-person {
   display: flex;
   align-items: center;

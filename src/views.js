@@ -2670,7 +2670,7 @@ const TUTORIAL_SECTIONS = [
   {
     title: '招募帮手',
     html: `<p>点田地右上角<b>告示牌</b>可在弹出的面板中花费糖果招募<b>帮手</b>，可设置连续工作时间段（每阶段 <b>${FARM_HELPER_WORK_STAGE}</b> 分钟），价格按阶段累进。</p>`
-      + `<p>帮手自动劳作：每次从<b>随机地块</b>起点扫描——优先收获成熟树果、给干涸树果浇水、在空地播种（「自动种植」开启后自动扣种子钱）；播种的树果<b>种类随机</b>。</p>`
+      + `<p>帮手自动劳作：每次从<b>随机地块</b>起点扫描——优先收获成熟树果、给干涸树果浇水、在空地播种（「自动种植」开启后自动扣种子钱）；播种时会优先选<b>库存 + 田里已种</b>总数最少的树果，尽量让每种树果数量均衡。</p>`
       + `<p>帮手每工作 <b>${FARM_HELPER_WORK_STAGE}</b> 分钟休息 <b>${FARM_HELPER_REST}</b> 分钟再继续；</p>`,
   },
   {
@@ -3146,7 +3146,7 @@ function popSponsorHearts(event, row) {
   const rect = row.getBoundingClientRect();
   const x = event.clientX || rect.left + rect.width / 2;
   const y = event.clientY || rect.top + rect.height / 2;
-  const point = logicViewport(x, y);
+  const point = logicViewport(x, y); // zoom 下还原逻辑坐标
   const fx = document.createElement('div');
   fx.className = 'sponsor-heart-fx';
   fx.setAttribute('aria-hidden', 'true');
@@ -3155,19 +3155,14 @@ function popSponsorHearts(event, row) {
   for (let i = 0; i < 8; i++) {
     const heart = document.createElement('i');
     heart.innerHTML = '<svg viewBox="0 0 24 24"><use xlink:href="#icon-liked"/></svg>';
-    heart.style.setProperty('--hx', `${(Math.random() * 2 - 1) * 26}px`);
-    heart.style.setProperty('--hy', `${-(24 + Math.random() * 28)}px`);
-    heart.style.setProperty('--hx0', `${(Math.random() * 2 - 1) * 5}px`);
-    heart.style.setProperty('--hy0', `${(Math.random() * 2 - 1) * 3}px`);
-    heart.style.setProperty('--hr', `${(Math.random() * 2 - 1) * 26}deg`);
-    heart.style.setProperty('--hs', (0.9 + Math.random() * 0.3).toFixed(2));
+    heart.style.left = `${(Math.random() * 2 - 1) * 16}px`;
+    heart.style.top = `${(Math.random() * 2 - 1) * 8}px`;
     heart.style.setProperty('--hsize', `${(9 + Math.random() * 5).toFixed(1)}px`);
-    heart.style.setProperty('--hdur', `${(720 + Math.random() * 220).toFixed(0)}ms`);
-    heart.style.setProperty('--hdelay', `${(Math.random() * 80).toFixed(0)}ms`);
+    heart.style.transform = `translate(-50%, -50%) rotate(${((Math.random() * 2 - 1) * 22).toFixed(0)}deg)`;
     fx.appendChild(heart);
   }
   document.body.appendChild(fx);
-  setTimeout(() => fx.remove(), 1200);
+  setTimeout(() => fx.remove(), 1100);
 }
 
 // 赞助页淡粉色主题：和航海配色一样，只换承载页面的屏，离开就收回

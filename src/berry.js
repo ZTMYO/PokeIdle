@@ -1241,10 +1241,24 @@ function helperWater(i) {
   notifyBerryChanged();
 }
 
+// 自动种植选种：按「库存 + 田里已种但没收」计数，优先补最少的；并列随机
+function pickAutoPlantType(f) {
+  const counts = BERRY_ICONS.map((_, i) => Number(f.stock?.[i]) || 0);
+  for (const p of f.plots) {
+    const type = Number(p?.type);
+    if (Number.isInteger(type) && type >= 0 && type < counts.length) counts[type] += 1;
+  }
+  if (!counts.length) return 0;
+  const min = Math.min(...counts);
+  const pool = [];
+  counts.forEach((n, i) => { if (n === min) pool.push(i); });
+  return pool[randInt(0, pool.length - 1)];
+}
+
 function helperPlant(i) {
   const f = ensureBerryFarm();
   if (f.plots[i] || (gameData.items.candy || 0) < PLANT_COST) return;
-  const type = randInt(0, BERRY_ICONS.length - 1);
+  const type = pickAutoPlantType(f);
   gameData.items.candy -= PLANT_COST;
   gameData.stats.totalPlantings = (gameData.stats.totalPlantings || 0) + 1;
   f.plots[i] = { type, grownMs: 0, water: 0, waterAt: simNow(), totalMs: randInt(MATURE_MIN, MATURE_MAX) };
