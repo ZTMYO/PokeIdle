@@ -1300,6 +1300,8 @@ function renderFollowerDexList() {
   const list = $('followerDexList');
   const page = box.querySelector('.follower-dex-page');
   if (!list || !page) { box.innerHTML = ''; ensureFollowerDexShell(); renderFollowerDexList(); return; }
+  const progress = page.querySelector('.pokedex-progress');
+  if (progress) progress.innerHTML = `随从图鉴：已收集 <b>${followerDexCount()}</b> / ${getFollowerPool().length}`;
   // 只换列表与表头箭头，保住搜索框焦点与下拉开关状态
   page.querySelector('.follower-dex-header')?.remove();
   list.insertAdjacentHTML('beforebegin', followerDexHeaderHtml());

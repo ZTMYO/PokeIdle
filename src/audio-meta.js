@@ -32,6 +32,7 @@ export const TRACK_META = {
   'unova/unova3.mp3': { title: "Shippou City", artist: "Go Ichinose", desc: "出自《宝可梦 黑·白》，合众七宝市城镇BGM" },
   'unova/unova4.mp3': { title: "Sky Arrow Bridge", artist: "Shota Kageyama", desc: "出自《宝可梦 黑·白》，合众天箭大桥场景BGM" },
   'unova/unova5.mp3': { title: "Hiun City", artist: "Shota Kageyama", desc: "出自《宝可梦 黑·白》，合众飞云市城镇BGM" },
+  'unova/unova6.mp3': { title: "Route 2 (Spring~Summer)", artist: "Hitomi Sato", desc: "出自《宝可梦 黑·白》，合众2号道路春夏野外BGM" },
   // 卡洛斯
   'kalos/kalos1.mp3': { title: "Vaniville Town", artist: "Shota Kageyama", desc: "出自《宝可梦 X·Y》，卡洛斯朝香镇初始小镇BGM" },
   'kalos/kalos2.mp3': { title: "Route 2", artist: "Shota Kageyama", desc: "出自《宝可梦 X·Y》，卡洛斯2号道路野外BGM" },

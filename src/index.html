@@ -9,7 +9,7 @@
     (function () {
       var SITE = 'https://pokeidle.shiliu.space';
       // 版本号由 tools/sync-version.mjs 改写：经典脚本这里 import 不了 build-info.js
-      var APP_VER = '1.22.3';
+      var APP_VER = '1.22.4';
       var VER_TEXT = '（v' + APP_VER + '）';
       var lines = [], box = null, detail = null, detailToggle = null, detailOpen = false;
 
@@ -1149,6 +1149,11 @@
             <!-- 版权声明 -->
             <div id="declarationView" class="view-scroll" style="display:none;padding:6px 0;">
               <div id="declarationContent" style="flex:1;color:var(--ui-color);padding:0 8px;"></div>
+            </div>
+
+            <!-- 赞助者鸣谢 -->
+            <div id="sponsorView" class="view-scroll" style="display:none;padding:6px 0;">
+              <div id="sponsorContent" style="flex:1;color:var(--ui-color);padding:0 8px;"></div>
             </div>
 
             <!-- 系统日志 -->

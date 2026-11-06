@@ -6038,9 +6038,22 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
 .about-links {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 22px;
   font-size: 11px;
+}
+.about-sponsor-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.about-link.about-link-sponsor {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.78;
+  gap: 4px;
 }
 .about-link {
   display: inline-flex;
@@ -6062,6 +6075,206 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   font-size: 9px;
   font-weight: 600;
   opacity: 0.55;
+}
+.about-link-sm-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.about-sponsor-icon {
+  display: block;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+/* 赞助者鸣谢页的名单与爱发电入口 */
+.sponsor-qr {
+  display: block;
+  width: 120px;
+  max-width: 52%;
+  margin: 0 auto;
+  border-radius: 6px;
+  cursor: zoom-in;
+  -webkit-touch-callout: default;
+  user-select: none;
+}
+.sponsor-support-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #d98aa6;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.sponsor-support-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+/* 赞助者鸣谢页主题：只在进入赞助页时覆盖承载屏的主题变量 */
+#appScreen.sponsor,
+#screen.sponsor {
+  --screen-bg: #fde8ef;
+  --screen-bg-light: #fff2f6;
+  --screen-bg-dark: #d98aa6;
+  --ui-color: #9d4b68;
+  --ui-color-dark: #7d3852;
+  --ui-color-rgb: 157, 75, 104;
+  --item-border: rgba(157, 75, 104, 0.22);
+}
+[data-theme="dark"] #appScreen.sponsor,
+[data-theme="dark"] #screen.sponsor {
+  --screen-bg: #2a1820;
+  --screen-bg-light: #38212b;
+  --screen-bg-dark: #c77b96;
+  --ui-color: #f2b7c8;
+  --ui-color-dark: #d98aa6;
+  --ui-color-rgb: 242, 183, 200;
+  --item-border: rgba(242, 183, 200, 0.16);
+}
+.sponsor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 240px;
+  margin: 6px auto 0;
+}
+.sponsor-row {
+  --card-a: #e7efe4;
+  --card-b: #c9d9c9;
+  --card-ink: var(--ui-color);
+  --card-stripe: rgba(255, 255, 255, 0.10);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  color: var(--card-ink);
+  background: linear-gradient(135deg, var(--card-a), var(--card-b));
+  overflow: hidden;
+  font-size: 10px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.sponsor-row::before {
+  content: '';
+  position: absolute;
+  inset: -100px;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, var(--card-stripe) 0 6px, transparent 6px 12px);
+}
+.sponsor-row > * {
+  position: relative;
+  z-index: 1;
+}
+/* 点击赞助卡片时冒出的爱心粒子：fixed 跟随 pointer 坐标，整簇只做一层动画 */
+.sponsor-heart-fx {
+  position: fixed;
+  z-index: 950;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  animation: sponsor-heart-rise 0.86s cubic-bezier(0.16, 0.84, 0.3, 1) both;
+}
+.sponsor-heart-fx i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--hsize, 11px);
+  height: var(--hsize, 11px);
+  font-style: normal;
+  transform-origin: center;
+  color: #ff4f8b;
+}
+.sponsor-heart-fx i svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+@keyframes sponsor-heart-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.3);
+  }
+  16% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translateY(-48px) scale(1.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sponsor-heart-fx { display: none; }
+}
+html.power-save .sponsor-heart-fx { display: none; }
+.sponsor-person {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.sponsor-icon {
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: rgba(255, 255, 255, 0.34);
+  border-radius: 50%;
+}
+.sponsor-name {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.sponsor-note { font-size: 8px; opacity: 0.7; }
+.sponsor-empty {
+  padding: 6px 2px;
+  font-size: 10px;
+  line-height: 1.7;
+  opacity: 0.7;
+}
+.sponsor-image-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.78);
+}
+.sponsor-image-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  max-height: 100%;
+}
+.sponsor-image-box img {
+  max-width: min(92vw, 520px);
+  max-height: 82vh;
+  border-radius: 8px;
+  background: #fff;
+  -webkit-touch-callout: default;
+  user-select: none;
+}
+.sponsor-image-hint {
+  color: #fff;
+  font-size: 10px;
+  opacity: 0.8;
 }
 .about-credit {
   padding-top: 2px;
