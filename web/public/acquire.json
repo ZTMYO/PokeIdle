@@ -27356,14 +27356,9 @@
             "legend": true,
             "methods": [
                 {
-                    "type": "wild",
-                    "region": "卡洛斯"
-                },
-                {
-                    "type": "twist"
-                },
-                {
-                    "type": "easter_author"
+                    "type": "evolve",
+                    "from": "0720",
+                    "item": "惩戒之壶"
                 }
             ]
         },
