@@ -23,6 +23,7 @@ import { showShopView, showSettingsView, showSystemLogs, showAchievementView, re
 import { showPhoneView, refreshPhoneBadges, updatePhoneBadge, isPhoneEditing, exitEdit, showIncubatorView } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, dropRideRoute } from './gps.js';
 import { closeShareCardIfOpen } from './share-card.js';
+import { closePlayerCardSetupIfOpen } from './player-card.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { restoreMusicMode } from './music.js';
 import { startTelemetry } from './telemetry.js';
@@ -164,6 +165,7 @@ function _pickNextRoad() {
 function goBack() {
   stopVictory(); // 任何返回离开当前视图：若胜利/抓捕音效还在播则立即停止（无播放时无副作用）
   if (closeShareCardIfOpen()) return; // 分享图预览开着：返回只关预览层，不穿透到底层页面
+  if (closePlayerCardSetupIfOpen()) return; // 名片昵称/性别弹框开着：返回只关弹框
   if (document.getElementById('gameRulesOverlay')) { document.getElementById('gameRulesOverlay').remove(); return; }
   if (document.getElementById('tutorialSearchPanel') || document.getElementById('tutorialCtxMenu')) {
     document.getElementById('tutorialSearchPanel')?.remove();

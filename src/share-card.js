@@ -390,7 +390,8 @@ function ensureMask() {
   return el;
 }
 
-export async function openShareCard(model) {
+// 通用预览：先拿到已经画好的 canvas，再统一走分享/保存面板
+export async function openShareCanvas(canvas, safe, shareText = '口袋挂机') {
   const el = ensureMask();
   const img = el.querySelector('#shareImg');
   if (img.dataset.objUrl) URL.revokeObjectURL(img.dataset.objUrl);
@@ -400,7 +401,7 @@ export async function openShareCard(model) {
 
   let blob;
   try {
-    blob = await canvasToBlob(await renderShareCard(model));
+    blob = await canvasToBlob(canvas);
   } catch (e) {
     console.error('[分享图] 生成失败：', e.message);
     return;
@@ -409,7 +410,6 @@ export async function openShareCard(model) {
   img.dataset.objUrl = url;
   img.src = url;
 
-  const safe = `口袋挂机-${String(model.name).replace(/[\\/:*?"<>|]/g, '')}.png`;
   const file = new File([blob], safe, { type: 'image/png' });
   const send = el.querySelector('#shareSend');
   const save = el.querySelector('#shareSave');
@@ -426,7 +426,7 @@ export async function openShareCard(model) {
         });
         await mob.shareImage(base64, safe);
       } else {
-        await navigator.share({ files: [file], title: '口袋挂机', text: `${model.name} Lv${model.level}` });
+        await navigator.share({ files: [file], title: '口袋挂机', text: shareText });
       }
     } catch (e) {
       if (e && e.name !== 'AbortError') console.warn('[分享图] 分享失败：', e);
@@ -447,4 +447,14 @@ export async function openShareCard(model) {
     a.download = safe;
     a.click();
   };
+}
+
+export async function openShareCard(model) {
+  try {
+    const canvas = await renderShareCard(model);
+    const safe = `口袋挂机-${String(model.name).replace(/[\\/:*?"<>|]/g, '')}.png`;
+    await openShareCanvas(canvas, safe, `${model.name} Lv${model.level}`);
+  } catch (e) {
+    console.error('[分享图] 生成失败：', e.message);
+  }
 }

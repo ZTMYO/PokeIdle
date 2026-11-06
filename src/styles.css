@@ -1846,6 +1846,14 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 .stat-inner {
   padding: 6px 8px;
 }
+.roster-tool.data-share-fab {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 30;
+  width: 20px;
+  height: 20px;
+}
 .stat-section {
   font-weight: 700;
   margin-bottom: 4px;
@@ -6158,25 +6166,29 @@ html[data-view="flowView"] .app-screen { margin-left: 2px; margin-right: 2px; }
   padding: 5px 8px;
   border-radius: 10px;
   color: var(--card-ink);
-  background: linear-gradient(135deg, var(--card-a), var(--card-b));
+  background:
+    repeating-linear-gradient(135deg, var(--card-stripe) 0 6px, transparent 6px 12px),
+    linear-gradient(135deg, var(--card-a), var(--card-b));
+  background-position: 0 0, 0 0;
   overflow: hidden;
   font-size: 10px;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-}
-.sponsor-row::before {
-  content: '';
-  position: absolute;
-  inset: -100px;
-  z-index: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(135deg, var(--card-stripe) 0 6px, transparent 6px 12px);
+  animation: sponsor-stripe-slide 20s linear infinite;
 }
 .sponsor-row > * {
   position: relative;
   z-index: 1;
 }
+@keyframes sponsor-stripe-slide {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 84.85px 84.85px, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sponsor-row { animation: none; }
+}
+html.power-save .sponsor-row { animation: none; }
 /* 点击赞助卡片时冒出的爱心粒子：fixed 跟随 pointer 坐标，整簇只做一层动画 */
 .sponsor-heart-fx {
   position: fixed;
@@ -7802,6 +7814,21 @@ html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
   text-align: center;
   padding: 4px 2px 6px;
   opacity: 0.8;
+}
+/* 顶部一行：刷新提示居左，右上角放「一键忽略」按钮 */
+.trade-topbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+}
+.trade-topbar #tradeRefreshTip {
+  flex: 1;
+  text-align: left;
+}
+.trade-ignore-all {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .trade-list {
   display: flex;
@@ -9685,6 +9712,10 @@ body.booting { visibility: hidden; }
   min-width: 0;
 }
 .team-member .member-lv {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 8px;
   font-weight: 700;
   color: var(--ui-color);
@@ -13677,6 +13708,72 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
 .share-btn:hover { background: var(--console-border); }   /* 悬停只把底色压深一档，别做透明 */
 [data-theme="dark"] .share-btn:hover { background: #000; }
 .share-btn:active { transform: scale(0.95); }
+
+/* === 训练家名片：生成前的昵称/性别小弹框 === */
+.player-card-modal .cf-modal-panel {
+  width: min(92%, 300px);
+}
+.player-card-field { margin-top: 8px; }
+.player-card-field:first-child { margin-top: 1px; }
+.player-card-field label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ui-color-dark);
+}
+.player-card-field input {
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  border-radius: 5px;
+  background: var(--screen-bg);
+  color: var(--ui-color);
+  font: inherit;
+  font-size: 11px;
+  outline: none;
+}
+.player-card-field input:focus { border-color: var(--ui-color); }
+.player-card-hint {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--ui-color-dark);
+  opacity: 0.72;
+}
+.player-card-genders { display: flex; gap: 4px; }
+.player-card-gender {
+  flex: 1;
+  padding: 5px 0;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  border-radius: 5px;
+  background: var(--screen-bg);
+  color: var(--ui-color);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.player-card-gender.on {
+  background: var(--ui-color);
+  border-color: var(--ui-color);
+  color: var(--screen-bg);
+}
+.player-card-error { min-height: 13px; margin-top: 3px; color: #c94a58; font-size: 10px; }
+.player-card-make {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 0;
+  border: 1px solid var(--ui-color);
+  border-radius: 5px;
+  background: var(--ui-color);
+  color: var(--screen-bg);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.player-card-make:disabled { opacity: 0.6; }
 
 /* === 资源热更：更新进度遮罩（hot-update.js 动态挂到 body） === */
 .hot-mask {

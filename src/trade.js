@@ -438,7 +438,10 @@ export function renderTrade() {
   const offers = [...gameData.trades.offers.filter(o => !o.traded)] // 已交换的条目直接隐藏
     .sort((a, b) => ivTotal(b.give.ivs) - ivTotal(a.give.ivs)); // 个体值高的排前面，一眼看到最强的
   content.innerHTML = `
-    <div id="tradeRefreshTip">距离下一波刷新：${refreshText()}</div>
+    <div class="trade-topbar">
+      <div id="tradeRefreshTip">距离下一波刷新：${refreshText()}</div>
+      <button class="incubator-log-btn trade-ignore-all" type="button">一键忽略</button>
+    </div>
     <div class="trade-list">${offers.map(offerCard).join('')}</div>`;
   // 加载 NPC 给出宝可梦的小图标
   content.querySelectorAll('[data-give-icon]').forEach(el => {
@@ -898,6 +901,21 @@ function toggleIgnoreOffer(offerId) {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trade-wave-changed'));
 }
 
+// 一键忽略：把当前所有未交换的 offer 全部标记为忽略（右键逐个忽略的批量版）
+function ignoreAllOffers() {
+  let changed = false;
+  (gameData.trades?.offers || []).forEach(o => {
+    if (!o.traded && !o.ignored) { o.ignored = true; changed = true; }
+  });
+  if (changed) {
+    saveGame();
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trade-wave-changed'));
+  } else {
+    showConfirmBar('当前没有可忽略的交换', null, null, { singleButton: true });
+  }
+  renderTrade();
+}
+
 // ---------- 事件绑定 ----------
 // 后台新增/培养宝可梦（捕获/孵化/交换/经验糖果升级）时，刷新交换按钮的可用状态。
 // 不要求交换页可见：DOM 在隐藏时也更新，返回交换页即显示最新状态
@@ -924,6 +942,9 @@ window.addEventListener('roster-changed', refreshTradeButtons);
 document.addEventListener('click', e => {
   const content = $('tradeContent');
   if (!content || $('tradeView').style.display !== 'flex') return;
+
+  // 右上角「一键忽略」：批量忽略当前所有未交换的 offer
+  if (e.target.closest('.trade-ignore-all')) { ignoreAllOffers(); return; }
 
   const offerBtn = e.target.closest('[data-offer]');
   // 「可培养」：没有直接合格的个体，跳去仓库并按需求物种名预填搜索
