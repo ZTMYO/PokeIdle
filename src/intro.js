@@ -135,7 +135,14 @@ export function startIntro(onDone) {
       <div class="intro-birch-wrap" id="introBirchWrap"><div class="intro-birch" id="introBirch"></div></div>
     </div>
     <div class="intro-declare" id="introDeclare">${DECLARE_HTML}</div>
-  `;
+    `;
+
+  // ===== 新加的开始 =====
+  const declareEl = iv.querySelector('#introDeclare');
+  if (declareEl) declareEl.style.display = 'none';
+  setTimeout(() => dismissDeclare(), 0);
+  // ===== 新加的结束 =====
+
   iv.querySelectorAll('.intro-pick-btn').forEach(btn => {
     btn.addEventListener('click', () => chooseGender(btn.dataset.gender));
   });
