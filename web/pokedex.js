@@ -501,7 +501,12 @@ function methodDetail(p, m, type) {
     if (m.note && !ditto) s += `${s ? '；' : ''}${esc(m.note)}`;
     return s;
   }
-  if (type === 'evolve') return `由 <b>${esc(dexName(m.from))}</b> 满足 <b>${condText(m.cond) || '特定条件'}</b> 进化而来`;
+  if (type === 'evolve') {
+    const it = m.item || (m.cond && m.cond.item);
+    const itemText = Array.isArray(it) ? it.join(' + ') : it;
+    if (itemText) return `由 <b>${esc(dexName(m.from))}</b> 使用 <b>${esc(itemText)}</b> 进化而来`;
+    return `由 <b>${esc(dexName(m.from))}</b> 满足 <b>${condText(m.cond) || '特定条件'}</b> 进化而来`;
+  }
   return '';
 }
 // 进化链：从这只沿反向边回到族根，再往下铺它这一支的后代，每级带图标与条件

@@ -387,12 +387,33 @@ export function showDataView() {
   if (showDataView._timer) clearInterval(showDataView._timer);
   showDataView._timer = setInterval(() => {
     if ($('dataView')?.style.display === 'none') {
+      document.getElementById('dataShareBtn')?.remove();
       clearInterval(showDataView._timer);
       showDataView._timer = null;
       return;
     }
     refreshDataStats();
   }, 1000);
+
+  // 分享按钮钉在应用屏右上角：不在统计列表里占行，滚动时也不跑
+  document.getElementById('dataShareBtn')?.remove();
+  const shareBtn = document.createElement('button');
+  shareBtn.id = 'dataShareBtn';
+  shareBtn.type = 'button';
+  shareBtn.className = 'roster-tool data-share-fab';
+  shareBtn.title = '生成训练家名片';
+  shareBtn.setAttribute('aria-label', '生成训练家名片');
+  shareBtn.innerHTML = '<svg viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-share"></use></svg>';
+  shareBtn.addEventListener('click', () => {
+    import('./player-card.js').then(m => m.openPlayerCard()).catch(e => console.error('[训练家名片]', e));
+  });
+  ($('appScreen') || document.querySelector('.app-screen') || document.body).appendChild(shareBtn);
+  const removeShareBtn = () => {
+    if ($('dataView')?.style.display !== 'none') return;
+    shareBtn.remove();
+    window.removeEventListener('view-changed', removeShareBtn);
+  };
+  window.addEventListener('view-changed', removeShareBtn);
   showView('dataView');
 }
 

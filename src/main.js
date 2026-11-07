@@ -23,6 +23,7 @@ import { showShopView, showSettingsView, showSystemLogs, showAchievementView, re
 import { showPhoneView, refreshPhoneBadges, updatePhoneBadge, isPhoneEditing, exitEdit, showIncubatorView } from './phone.js';
 import { gpsAddDistance, showGpsView, setRoamEnabled, startBikeTarget, abandonBikeTarget, dropRideRoute } from './gps.js';
 import { closeShareCardIfOpen } from './share-card.js';
+import { closePlayerCardSetupIfOpen } from './player-card.js';
 import { initAudio, playRegion, playCycling, endCycling, stopVictory, stopCongratulation, setMusicEnabled, isMusicEnabled, setSplashLocked, setShowCardOnEncounterEnd, setBattleMusic, setSfxEnabled } from './audio.js';
 import { restoreMusicMode } from './music.js';
 import { startTelemetry } from './telemetry.js';
@@ -38,6 +39,7 @@ import { startSkyBg } from './sky-bg.js';
 import { initBackgroundCatchup, startBackgroundCatchup, notifyAppState, bgCatchupEnabled, bgAway, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds, bgPeekAccum, bgTakeStatSeconds, bgTakeOfflineAway, bgInBackground } from './background-catchup.js';
 import { startEventRefresh } from './server-events.js';
 import { startActivityRefresh } from './activity.js';
+import { startLotteryRefresh } from './lottery.js';
 
 let ROAD_PRESETS = null;
 let ROAD_ALL = []; // 真正能当路段用的下标（road-data.json 里还混着场景地图，见下面筛选）
@@ -164,6 +166,7 @@ function _pickNextRoad() {
 function goBack() {
   stopVictory(); // 任何返回离开当前视图：若胜利/抓捕音效还在播则立即停止（无播放时无副作用）
   if (closeShareCardIfOpen()) return; // 分享图预览开着：返回只关预览层，不穿透到底层页面
+  if (closePlayerCardSetupIfOpen()) return; // 名片昵称/性别弹框开着：返回只关弹框
   if (document.getElementById('gameRulesOverlay')) { document.getElementById('gameRulesOverlay').remove(); return; }
   if (document.getElementById('tutorialSearchPanel') || document.getElementById('tutorialCtxMenu')) {
     document.getElementById('tutorialSearchPanel')?.remove();
@@ -1667,6 +1670,7 @@ async function init() {
   startBackgroundCatchup();
   startEventRefresh(); // 全服事件排期：先吃缓存再拉最新（拉不到就退回本地随机事件）
   startActivityRefresh(); // 限时活动：服务端发开关+时间段，入口长在手机第三页（拉不到就不显示）
+  startLotteryRefresh(); // 每日抽奖：连上服务器才摆手机入口，默认跟在「全服事件」后面
   // 资源热更：延后几秒跑，别跟开局抢带宽；失败/不支持都静默跳过（PC 端自定义协议没有 SW 就自动不跑）
   setTimeout(() => { import('./hot-update.js').then(m => m.startHotUpdate()).catch(() => {}); }, 4000);
 

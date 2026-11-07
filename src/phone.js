@@ -299,10 +299,24 @@ function normalizeLayout() {
     if (out[i].every((e) => !e)) out.splice(i, 1);
   }
   if (!out.length) out.push(freshPage());
+  const findApp = (id) => {
+    for (let p = 0; p < out.length; p++) {
+      for (let i = 0; i < PAGE_SIZE; i++) if (out[p][i]?.app === id) return { p, i };
+    }
+    return null;
+  };
   for (const a of allApps()) {
     if (seen.has(a.id) || !appAvailable(a)) continue;
     seen.add(a.id);
-    placeAt(out, 0, 0, { app: a.id });
+    // 新应用默认排在指定应用后面（如抽奖跟着全服事件）；参照物还没摆进来就先给它占个位
+    let at = a.after ? findApp(a.after) : null;
+    if (!at && a.after && appById(a.after) && !seen.has(a.after)) {
+      placeAt(out, 0, 0, { app: a.after });
+      seen.add(a.after);
+      at = findApp(a.after);
+    }
+    if (at) placeAt(out, at.p, at.i + 1, { app: a.id });
+    else placeAt(out, 0, 0, { app: a.id });
   }
   gameData.phoneLayout = out;
   return out;

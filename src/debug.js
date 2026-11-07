@@ -1,6 +1,7 @@
 // ===== 控制台调试命令（window.__*）统一登记处 =====
 // 用法：游戏加载完成后，F12 控制台直接调用示例：
 //   __addCandy(500)                   增加糖果
+//   __addItem('xxx', 1)          增加任意道具
 //   __matureBerries()                 农场树果全部成熟
 //   __teleport(3)                     传送到指定地区（1关都…9帕底亚）
 //   __finishAll()                     一键完成：孵蛋器+繁殖+派遣
@@ -47,6 +48,20 @@ window.__addCandy = (n = 1000) => {
   updateBackpack('candy');
   updateStats();
   console.log('糖果 +' + amount);
+};
+
+// 快速增加任意道具
+window.__addItem = (key, qty = 1) => {
+  if (!key) return false;
+  const amount = Math.max(1, Math.floor(Number(qty) || 1));
+  gameData.items[key] = (gameData.items[key] || 0) + amount;
+  gameData.stats.totalItemsEarned = gameData.stats.totalItemsEarned || {};
+  gameData.stats.totalItemsEarned[key] = (gameData.stats.totalItemsEarned[key] || 0) + amount;
+  saveGame();
+  updateBackpack(key);
+  updateStats();
+  console.log(`__addItem: ${key} ×${amount}，当前 ${gameData.items[key]}`);
+  return gameData.items[key];
 };
 
 // ---------- 农场 / GPS / 事件 ----------

@@ -8,6 +8,7 @@ import { hasClaimableAchievements } from './achievements.js';
 import { hasUnclaimedTutorialRewards } from './views.js';
 import { activityEntries } from './activity.js';
 import { hasSchedule } from './server-events.js';
+import { hasLottery, hasLotteryDot } from './lottery.js';
 
 // 红点：返回布尔或 Promise<boolean>（nursery / dispatch 体积大，保持按需加载）
 export const APPS = [
@@ -57,6 +58,10 @@ export const APPS = [
   // 拿不到排期就不摆这个图标（和限时活动一个口径：没内容别放个点不开的应用）
   { id: 'events', name: '全服事件', icon: 'icon-events', available: hasSchedule,
     open: () => import('./events-view.js').then((m) => m.showEventsView()) },
+  // 常驻联网活动：连上服务器才摆，默认排在全服事件后面
+  { id: 'lottery', name: '抽奖', icon: 'icon-gift', after: 'events', available: hasLottery,
+    dot: hasLotteryDot,
+    open: () => import('./lottery.js').then((m) => m.showLotteryView()) },
 ];
 
 // 表里没有的活动回退到气球
