@@ -168,6 +168,7 @@ export function backFromPokedexLogs() {
 function renderPokedexLogsPage(idx) {
   const list = $('pokedexList');
   if (!list) return;
+  stopShinySparkleLoop($('pokedexView')); // 离开详情进日志页：停掉闪光粒子
   _pokedexRenderSeq++;   // 顶掉还没跑完的列表分片：这个容器现在归日志页
   _logsIdx = idx;
   enterLogsTitle();
@@ -207,6 +208,7 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
   const displayName = known ? (poke?.form || poke?.name || `#${pokemonIndex}`) : '？？？';
   const list = $('pokedexList');
   if (!list) return;
+  stopShinySparkleLoop($('pokedexView')); // 切只/重进详情：先停上一只的闪光粒子
   _pokedexRenderSeq++;   // 顶掉还没跑完的列表分片：这个容器现在归详情页
 
   setPokedexInLogView(true);
@@ -345,7 +347,10 @@ export function showEncounterLogs(pokemonIndex, fromLogsBack = false) {
         const on = img.dataset.shiny !== 'true';
         // 短暂隐藏，用完整 fallback 链加载，加载完再显示
         img.style.visibility = 'hidden';
+        const detailIdx = idx;
         tryLoadPokemonImage(img, poke, on ? '_shiny' : '').then(() => {
+          // 加载期间可能已经翻到别的条目：旧图已脱离 DOM，别再给新详情起粒子
+          if (!img.isConnected || _curDetailIdx !== detailIdx) return;
           img.style.visibility = 'visible';
           img.dataset.shiny = on ? 'true' : 'false';
           shinyBtn.classList.toggle('on', on);

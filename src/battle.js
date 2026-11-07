@@ -1269,8 +1269,8 @@ export function goIdle() {
   // 补算/打断等路径可能不触发，这里无条件兜底
   hideTextBox();
 
-  // 战斗结束后检查自动buff是否要续杯（自动操作或佛系模式均触发）
-  if (!honeyBuffActive && !charmBuffActive && gameData.settings && (gameData.settings.autoCatch || gameData.settings.autoFlee)) {
+  // 战斗结束后检查自动buff是否要续杯（自动操作开启时才续）
+  if (!honeyBuffActive && !charmBuffActive && gameData.settings?.autoCatch) {
     if (takeBuffForRenew('sweet-honey')) {
       console.log('[续杯] 战斗结束 → 自动甜甜蜜', { honeyBuffActive, autoBuffHoney: gameData.settings.autoBuffHoney });
       activateHoney();
@@ -1753,7 +1753,9 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
     // 这段窗口由补发按时间线自己续杯：清掉后台到期时记下的待续，免得回前台再白烧一瓶
     clearBuffRenewPending();
     const stock = { 'sweet-honey': gameData.items['sweet-honey'] || 0, 'shiny-charm': gameData.items['shiny-charm'] || 0 };
-    const on = { 'sweet-honey': !!gameData.settings?.autoBuffHoney, 'shiny-charm': !!gameData.settings?.autoBuffCharm };
+    // 自动操作关闭时，补算也不要按隐藏的「自动使用」设置续杯
+    const autoBuff = !!gameData.settings?.autoCatch;
+    const on = { 'sweet-honey': autoBuff && !!gameData.settings?.autoBuffHoney, 'shiny-charm': autoBuff && !!gameData.settings?.autoBuffCharm };
     for (let guard = 0; buffSec < secs && guard < 3000; guard++) {
       const item = ['sweet-honey', 'shiny-charm'].find((k) => on[k] && stock[k] > 0);
       if (!item) break;

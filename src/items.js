@@ -1633,8 +1633,9 @@ export function refillBuffIfEmpty(item) {
   return true;
 }
 
-// 续杯取用：开了「自动使用」才自动用；库存见底时，开着补货就先补一个再用
+// 续杯取用：开了「自动操作」且「自动使用」才自动用；库存见底时，开着补货就先补一个再用
 export function takeBuffForRenew(item) {
+  if (!gameData.settings?.autoCatch) return false; // 自动操作关闭：隐藏的自动使用设置也不再生效
   const useKey = item === 'sweet-honey' ? 'autoBuffHoney' : 'autoBuffCharm';
   if (!gameData.settings?.[useKey]) return false;
   if ((gameData.items[item] || 0) <= 0 && !refillBuffIfEmpty(item)) return false;
