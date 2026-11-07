@@ -1773,6 +1773,7 @@ function showRosterDetail(id) {
   _detailId = id;
   const rootEl = $('rosterView');
   if (!rootEl) return;
+  stopShinySparkleLoop(rootEl); // 切只/重进详情：先停上一只的闪光粒子
   const listEl = $('rosterList');
   if (listEl) {
     if (fromList) listEl.dataset.savedScroll = listEl.scrollTop; // 记住列表位置
