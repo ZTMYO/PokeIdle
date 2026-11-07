@@ -406,10 +406,11 @@ async function doEnter() {
   btn.disabled = false;
   btn.textContent = '参与抽奖';
   const text = res.error === 'closed' ? '今日已开奖，明天再来'
-    : res.error === 'network' ? '连不上服务器，稍后再试'
-      : res.error === 'long' ? `最多 ${MAX_NAME} 个字`
-        : res.error === 'bad' ? '昵称里不能有竖线'
-          : '报名失败，稍后再试';
+    : res.error === 'duplicate-name' ? '这个昵称今天已经有人用了，换一个吧'
+      : res.error === 'network' ? '连不上服务器，稍后再试'
+        : res.error === 'long' ? `最多 ${MAX_NAME} 个字`
+          : res.error === 'bad' ? '昵称里不能有竖线'
+            : '报名失败，稍后再试';
   if (msg) msg.textContent = text;
 }
 

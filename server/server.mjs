@@ -436,11 +436,25 @@ function loadLottery() {
   console.log(`[server] 抽奖：默认奖品 ${LOTTERY_DEFAULT_PRIZE}，每天 ${String(LOTTERY_DRAW_HOUR).padStart(2, '0')}:00 开奖`);
 }
 
-// 昵称：1~8 个字（按 Unicode 字符算，不看字节），去掉首尾空白，不允许竖线和控制字符
+// 昵称：1~8 个字（按 Unicode 字符算，不看字节），去掉首尾空白和零宽字符，不允许竖线和控制字符
+function stripLotteryInvisible(s) {
+  return String(s || '').replace(/[\u200b-\u200d\ufeff]/g, '');
+}
 function cleanLotteryName(raw) {
-  const s = String(raw || '').trim();
+  const s = stripLotteryInvisible(raw).trim();
   if (!s || s.includes('|') || /[\u0000-\u001f\u007f]/.test(s)) return '';
   return Array.from(s).length <= 8 ? s : '';
+}
+// 重名比对键：全半角统一、忽略大小写和所有空白；只用于查重，不改玩家填的名字
+function lotteryNameKey(name) {
+  return stripLotteryInvisible(name).normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+}
+function lotteryNameTaken(d, name, exceptHash) {
+  const key = lotteryNameKey(name);
+  for (const [h, e] of Object.entries((d && d.entries) || {})) {
+    if (h !== exceptHash && lotteryNameKey(e && e.n) === key) return true;
+  }
+  return false;
 }
 function lotteryBody(body) {
   const s = String(body || '').trim();
@@ -497,6 +511,7 @@ function enterLottery(now, h, name) {
   const dayStr = dateKey(now);
   const d = ensureLotteryDay(dayStr);
   if (d.drawn) return { ok: false, error: 'closed', serverNow: now, drawAt: lotteryDaily(dateKey(now + DAY_MS)) };
+  if (lotteryNameTaken(d, name, h)) return { ok: false, error: 'duplicate-name', serverNow: now };
   const existed = !!d.entries[h];
   d.entries[h] = { n: name, t: now };
   saveLottery();
