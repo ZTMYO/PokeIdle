@@ -1744,24 +1744,32 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
   const buffAvg = (BUFF_ENCOUNTER_MIN + BUFF_ENCOUNTER_MAX) / 2;
   const normalAvg = (ENCOUNTER_MIN + ENCOUNTER_MAX) / 2;
   const activeItem = simItem;   // 这段窗口里真正在跑的瓶子（按离开时算，回前台续的杯不算）
-  let nextBottleAt = buffLeftSec;   // 下一瓶的起点：第一瓶剩下的用完后开始续
   // 离开时确实有 buff 在跑，才按自动续杯接着烧（一瓶 = BUFF_DURATION 秒）。
-  // 这里只算"要续几瓶"，真扣道具放到补算结束后按实际模拟到的时刻结算（撞上暂停时不多扣）
-  let buffSec = Math.min(secs, buffLeftSec);
+  // 这里只算"要续几瓶"，真扣道具放到补算结束后按实际模拟到的时刻结算（撞上暂停时不多扣）。
+  // 时间线按瓶切开：第一段是离开时剩下的，后面是计划续上的瓶；每段记自己的道具。
+  const bottles = [];
+  let buffSec = 0;
   const renewPlan = [];
-  if (buffLeftSec > 0) {
-    // 这段窗口由补发按时间线自己续杯：清掉后台到期时记下的待续，免得回前台再白烧一瓶
+  if (simItem && buffLeftSec > 0) {
+    const end = Math.min(secs, buffLeftSec);
+    bottles.push({ from: 0, to: end, item: simItem });
+    buffSec = end;
+  }
+  if (bottles.length > 0) {
+    // 这段窗口由补发按时间线自己续杯：清掉后台到期时记下的待续，免得回前台又白烧一瓶
     clearBuffRenewPending();
     const stock = { 'sweet-honey': gameData.items['sweet-honey'] || 0, 'shiny-charm': gameData.items['shiny-charm'] || 0 };
     // 自动操作关闭时，补算也不要按隐藏的「自动使用」设置续杯
     const autoBuff = !!gameData.settings?.autoCatch;
     const on = { 'sweet-honey': autoBuff && !!gameData.settings?.autoBuffHoney, 'shiny-charm': autoBuff && !!gameData.settings?.autoBuffCharm };
-    for (let guard = 0; buffSec < secs && guard < 3000; guard++) {
+    while (buffSec < secs && renewPlan.length < 3000) {
       const item = ['sweet-honey', 'shiny-charm'].find((k) => on[k] && stock[k] > 0);
       if (!item) break;
       stock[item]--;
       renewPlan.push(item);
-      buffSec = Math.min(secs, buffSec + BUFF_DURATION);
+      const end = Math.min(secs, buffSec + BUFF_DURATION);
+      bottles.push({ from: buffSec, to: end, item });
+      buffSec = end;
     }
   }
   const renewUse = { 'sweet-honey': 0, 'shiny-charm': 0 };
@@ -1822,14 +1830,15 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
           setCurrentIsShiny(sr.shiny, sr.squareShiny);
         }
       } else {
-        // 每一瓶护符都自带一次保底闪光（activateShinyCharm 会置 charmGuaranteed）：
-        // 补发按瓶推进，进到新的一瓶就把保底重新上膛，否则续十瓶也只兑现一次
-        if (simItem === 'shiny-charm' && t >= nextBottleAt) {
-          setCharmGuaranteed(true);
-          nextBottleAt = t + BUFF_DURATION;
+        // 按瓶时间线取这一刻在跑的道具：护符瓶第一次进入时上膛必闪（第一瓶的保底在激活时已上）
+        for (const b of bottles) {
+          if (b.from <= t && b.from > 0 && b.item === 'shiny-charm' && !b.guaranteed) {
+            b.guaranteed = true;
+            setCharmGuaranteed(true);
+          }
         }
-        const buffed = t < buffSec; // 这一刻 buff 还在不在
-        poke = resolveEncounterPoke(buffed, simItem);
+        const bottle = bottles.find((b) => t >= b.from && t < b.to) || null;
+        poke = resolveEncounterPoke(!!bottle, bottle ? bottle.item : null);
         if (!poke) break;
       }
       rollEncounterGender(poke); // 补算不走 showEncounter，这里必须自己掷

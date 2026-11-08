@@ -366,32 +366,41 @@ const LOTTERY_KEEP_DAYS = 7;
 const LOTTERY_RATE_MS = 10 * 60 * 1000;
 const LOTTERY_RATE_BURST = 60; // 单 IP 10 分钟内最多 60 次报名/查询/领奖
 const LOTTERY_CORS = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' };
-const LOTTERY_DEFAULT_PRIZE = LOTTERY_PRIZES[0] || '妙蛙花进化石';
+const LOTTERY_FALLBACK_PRIZE = '妙蛙花进化石';
 const lotteryDb = { days: {} };
 const lotteryRate = new Map();
+let _lotteryReadError = false; // 文件存在但读不出来：本次只读保护，绝不覆盖原文件
 
 function countEntries(d) { return Object.keys((d && d.entries) || {}).length; }
 function lotteryDaily(dayStr) {
   const [y, m, d] = dayStr.split('-').map(Number);
   return new Date(y, m - 1, d, LOTTERY_DRAW_HOUR, 0, 0, 0).getTime();
 }
-// 奖品不按日期算：当天以 days[日期].prize 为准，新的一天默认第一枚 Mega 石
+// 奖品不按日期算：新建一天时随机抽一枚并落盘；当天以 days[日期].prize 为准，可手动改
+function lotteryRandomPrize() {
+  return LOTTERY_PRIZES.length ? LOTTERY_PRIZES[crypto.randomInt(LOTTERY_PRIZES.length)] : LOTTERY_FALLBACK_PRIZE;
+}
 function ensureLotteryDay(dayStr) {
   let d = lotteryDb.days[dayStr];
   if (!d) {
-    d = { date: dayStr, drawAt: lotteryDaily(dayStr), prize: LOTTERY_DEFAULT_PRIZE, drawn: false, winner: null, entries: {} };
+    d = { date: dayStr, drawAt: lotteryDaily(dayStr), prize: lotteryRandomPrize(), drawn: false, winner: null, entries: {} };
     lotteryDb.days[dayStr] = d;
+    saveLottery(); // 新一天的随机奖品立刻落盘，重启不会换
     return d;
   }
   // 旧档/手改文件兜底：缺字段补齐，别让一次坏数据把整个抽奖卡死
   if (!d.entries || typeof d.entries !== 'object') d.entries = {};
-  if (!d.prize) d.prize = LOTTERY_DEFAULT_PRIZE;
+  if (!d.prize) d.prize = lotteryRandomPrize();
   if (!Number.isFinite(Number(d.drawAt))) d.drawAt = lotteryDaily(dayStr);
   return d;
 }
 function saveLottery() {
+  if (_lotteryReadError) return; // 原文件读不出来：只读保护，别拿内存里的空数据覆盖
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (fs.existsSync(LOTTERY_FILE)) {
+      try { fs.copyFileSync(LOTTERY_FILE, `${LOTTERY_FILE}.bak`); } catch (_) {}
+    }
     writeAtomic(LOTTERY_FILE, JSON.stringify({ days: lotteryDb.days }));
   } catch (e) { console.warn('[server] 抽奖数据落盘失败', e.message); }
 }
@@ -427,13 +436,24 @@ function tickLottery(now = Date.now()) {
   if (changed) saveLottery();
 }
 function loadLottery() {
+  const exists = fs.existsSync(LOTTERY_FILE);
+  _lotteryReadError = false;
   try {
     const j = JSON.parse(fs.readFileSync(LOTTERY_FILE, 'utf8'));
     if (j && typeof j.days === 'object') lotteryDb.days = j.days || {};
-  } catch (_) { /* 首次运行没有文件，正常 */ }
+  } catch (_) {
+    if (exists) {
+      _lotteryReadError = true;
+      const bad = `${LOTTERY_FILE}.bad-${Date.now()}`;
+      try { fs.copyFileSync(LOTTERY_FILE, bad); } catch (_) {}
+      console.error(`[server] 抽奖数据读取失败，已保留原文件（${bad}），本次不会覆盖；修复/恢复 lottery.json 后重启`);
+    }
+    // 没有文件 = 首次运行，正常
+  }
   tickLottery();
-  saveLottery(); // 启动就落盘：文件存在，方便直接改当天 prize
-  console.log(`[server] 抽奖：默认奖品 ${LOTTERY_DEFAULT_PRIZE}，每天 ${String(LOTTERY_DRAW_HOUR).padStart(2, '0')}:00 开奖`);
+  if (_lotteryReadError) console.warn('[server] 抽奖数据处于只读保护：lottery.json 无效，未写盘');
+  else saveLottery(); // 启动就落盘：文件存在，方便直接改当天 prize
+  console.log(`[server] 抽奖：每天 ${String(LOTTERY_DRAW_HOUR).padStart(2, '0')}:00 开奖；新一天随机奖品，可在 lottery.json 手动改`);
 }
 
 // 昵称：1~8 个字（按 Unicode 字符算，不看字节），去掉首尾空白和零宽字符，不允许竖线和控制字符
