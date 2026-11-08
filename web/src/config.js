@@ -409,9 +409,6 @@ export const SPECIAL_SPRITE_SCALE = {
 // 自动存档间隔（秒）
 export const SAVE_INTERVAL = 30;
 
-// 离线/后台补发最多补 8 小时（calcOffline 与挂机补发共用）
-export const OFFLINE_MAX_SEC = 8 * 3600;
-
 // 佛系模式：遇敌后自动逃跑的倒计时（毫秒）
 export const AUTO_FLEE_TIMEOUT = 30000;
 // 无球时展示遇敌画面后逃跑的等待（毫秒）
@@ -664,7 +661,7 @@ export function massShinyChance() {
   return window.__followerBoostMechanic?.('massShinyRate', MASS_SHINY_CHANCE) ?? MASS_SHINY_CHANCE;
 }
 
-// ===== 派遣（手机 app，唯一离线收益来源）=====
+// ===== 派遣（手机 app，离线照常计时）=====
 export const DISPATCH_SLOTS = 6;              // 槽位总数
 export const DISPATCH_FREE_SLOTS = 2;         // 初始免费解锁槽位数（后续槽位解锁价与孵蛋器一致，走 getIncubatorUnlockCost）
 // 派遣时长档位（小时）与对应收益系数

@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, BIKE_PENDING_MAX_GAP_MS, AUTO_CATCH_BALLS_DEFAULT, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS, SHINY_CHANCE, SQUARE_SHINY_CHANCE, ALCREMIE_FORM_INDEX, OFFLINE_MAX_SEC } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, BIKE_PENDING_MAX_GAP_MS, AUTO_CATCH_BALLS_DEFAULT, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS, SHINY_CHANCE, SQUARE_SHINY_CHANCE, ALCREMIE_FORM_INDEX } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -441,7 +441,7 @@ export function getDefaultSave() {
     teams: Array.from({ length: 6 }, (_, i) => ({ name: `队伍${i + 1}`, ids: [] })), // 6 组配队：{ name, ids }
     activeTeam: 0, // 当前上场队伍下标
     training: { slots: [] }, // 训练场：{ slots: [{ id, startAt } | null] }，随时间自动获得经验
-    dispatch: { unlockedSlots: DISPATCH_FREE_SLOTS, slots: [] }, // 派遣：唯一离线收益来源（离线照常计时），格子糖果解锁
+    dispatch: { unlockedSlots: DISPATCH_FREE_SLOTS, slots: [] }, // 派遣：离线照常计时，格子糖果解锁
     nursery: { parents: [null, null] }, // 饲育屋：{ parents: [{ id, placedAt } | null, ...] }，配对繁殖（与训练/配队互斥）
     casinoRecords: [],   // 21点战绩（滑动窗口 50 条）：{ time, bet, action, result, net }
     mahjongRecords: [],  // 麻将战绩（滑动窗口 50 条，整场一条）：{ time, net, rank, stake }
@@ -986,7 +986,7 @@ export function addAwaySeconds(save, sec) {
 // ---------- 离线处理：仅推进 0 点刷新的内容，其余机制保持存档原样 ----------
 export function calcOffline(save) {
   const now = Date.now();
-  const elapsed = Math.min((now - save.stats.lastSaveTime) / 1000, OFFLINE_MAX_SEC);
+  const elapsed = (now - save.stats.lastSaveTime) / 1000;
   if (!(elapsed > 0)) return 0; // 注意 NaN（旧档缺 lastSaveTime）：不能写成 elapsed <= 0，否则会把 NaN 统计进在线时长
   // 骑行状态按 BIKE_RESTORE_MAX_GAP_MS 保留（车是花道具换来的，切后台被杀掉不该丢）
   if (elapsed * 1000 > BIKE_RESTORE_MAX_GAP_MS) {
@@ -1026,6 +1026,8 @@ export function calcOffline(save) {
     // 随从：跟随倒计时只按在线时间累计，离线期间不走表（关闭不计算）。
     // 只有离开时还在生效的随从才后移；已经过期的不要借离线时间复活
     if (save.follower?.endsAt && save.follower.endsAt > save.stats.lastSaveTime) save.follower.endsAt += ms;
+    // 饲育屋：离线不产蛋（繁殖轮次只按在线时间推进）
+    if (save.nursery?.breeding?.startedAt) save.nursery.breeding.startedAt += ms;
     // 派遣：唯一例外——离线照常计时，不后移 startAt，由真实时间自然推进完成
   }
   return elapsed;

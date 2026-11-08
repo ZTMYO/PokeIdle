@@ -1,4 +1,4 @@
-import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BUFF_DURATION, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, SQUARE_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, HONEY_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance, AUTO_CATCH_BALLS_DEFAULT, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, ROAD_SPEED_WALK, OFFLINE_MAX_SEC } from './config.js';
+import { ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, BUFF_DURATION, BLOCK_TARGET_CHANCE, BLOCK_QUALITY, SHINY_CHANCE, SQUARE_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, CHARM_RARITY_BOOST, HONEY_RARITY_BOOST, ITEM_NAMES, CATCH_RATES, ULTRA_BALL_ADD, AUTO_FLEE_TIMEOUT, AUTO_FLEE_NO_BALL_DELAY, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, CANDY_EXCHANGE, TWIST_SHINY_CHANCE, TWIST_GUARANTEED_IVS, LEGEND_LEVEL, massShinyChance, AUTO_CATCH_BALLS_DEFAULT, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, ROAD_SPEED_WALK } from './config.js';
 import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, currentEncounter, currentIsShiny, currentIsSquareShiny, encounterLevel, encounterBallsUsed, currentEncounterBalls, nextEncounterTimer, honeyBuffActive, charmBuffActive, charmGuaranteed, blockBuffActive, blockRecipe, blockQuality, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, honeyExpiryTimer, charmExpiryTimer, honeyCountdownInterval, charmCountdownInterval, _charmEncounterCount, _autoFleeTimer, _autoFleeStartTime, _autoFleeBarInterval, _autoCatching, _throwing, _fishing, _eggHatching, encounterMsg, encounterSource, encounterVariant, saveGame, addSystemLog, getCurrentRegion, hasAnyBall, rand, randInt, setSaveSuspended, inMassZone, inTwistZone, getMassOutbreak, pxLeftToEventTarget, rollGuaranteedIvs, setPhase, setCurrentEncounter, setEncounterLevel, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setHoneyBuffActive, setCharmBuffActive, setCharmGuaranteed, setCharmEncounterCount, setHoneyPausedRemaining, setCharmPausedRemaining, setHoneyCountdownEnd, setCharmCountdownEnd, setNextEncounterTimer, setAutoCatching, setThrowing, setCatchConfirmStep, setAutoFleeTimer, setAutoFleeStartTime, setAutoFleeBarInterval, setHoneyExpiryTimer, setCharmExpiryTimer, setHoneyCountdownInterval, setCharmCountdownInterval, setEncounterMsg, addRosterEntry, addEncounterLog, setLastObtainedEntryId, rollGender, genderBadge, wildLevelCap, dexUnlocked, dexShinyOwned, rollShinyResult, setEncounterSource, setEncounterVariant, simNow, setSimClock, isNpcBattleActive } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, showTextBoxNow, setIdleCharacter, isOnGameView, isIdleStageVisible, isDualLayout, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive, isEggShowActive, isStageOccupied } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
@@ -1775,9 +1775,8 @@ function settleBuffWindow(activeItem, buffLeftSec, covered, renewPlan, renewUse)
   resumeEncounterFlow();
 }
 
-export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = false) {
-  if (!bgCatchupEnabled()) return; // 后台补发开关关闭时（如安卓沿用离线暂停哲学）不做任何遇敌补算
-  secs = Math.min(secs, OFFLINE_MAX_SEC);
+export async function catchUpEncounters(secs, buffRemainingMs) {
+  if (!bgCatchupEnabled()) return; // 后台补发开关关闭时不做任何遇敌补算
   // 「离开那一刻 buff 还剩多少」：快照优先；没有快照就把绝对到期时刻回推到离开时刻。
   // 以前这里取的是「现在还剩多少」，离开期间已经过期的会算成 0 —— 整段停摆就被当成全程无 buff，
   // 自动续杯自然也不会模拟，表现就是开着护符补发出一堆普通宝可梦。
@@ -1790,15 +1789,11 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
   let simItem = (honeyBuffActive || honeyLeft > 0) ? 'sweet-honey'
     : (charmBuffActive || charmLeft > 0) ? 'shiny-charm' : null;
   const snapSec = Math.min(BUFF_DURATION, Math.max(0, (buffRemainingMs || 0) / 1000));
-  // 冷启动补的离线段按「无 buff」估：离线期间增益本来就是暂停的（seedBgOfflineSeconds 也这么记），
-  // 不能拿恢复后的倒计时回推——否则整段离线被当成 buff 期，一重进就把手里的瓶子全烧掉
-  const buffLeftSec = offlineAway ? 0
-    : snapSec > 0 ? snapSec
-      : simItem === 'sweet-honey' ? honeyLeft
-        : simItem === 'shiny-charm' ? charmLeft
-          : 0;
+  const buffLeftSec = snapSec > 0 ? snapSec
+    : simItem === 'sweet-honey' ? honeyLeft
+      : simItem === 'shiny-charm' ? charmLeft
+        : 0;
   if (_bgCatchup || _bgCatch) return;
-  if (offlineAway) { simItem = null; syncBuffExpiry(); }
   // 大量出没事件区不再整体跳过：站在事件点上（或导航终点就是它）时按事件节奏补，
   // 详见 buildCatchupPlan。时空扭曲暂不补（变体/外观另有一套，先保持原行为）
   if (phase !== 'idle' || _fishing || inTwistZone() || road.isBike()) { syncBuffExpiry(); return; }

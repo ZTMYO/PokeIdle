@@ -1,4 +1,4 @@
-// 派遣 App：把宝可梦派出去探险，按真实时间完成（唯一离线收益来源），完成后带回糖果与道具
+// 派遣 App：把宝可梦派出去探险，按真实时间完成（离线照常计时），完成后带回糖果与道具
 // 离线期间派遣照常计时：calcOffline 对派遣槽不做 startAt += ms 后移
 import { $, showView, tryLoadImage, showConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog, ensureGender, genderBadge, getIncubatorUnlockCost, ivOf } from './state.js';
