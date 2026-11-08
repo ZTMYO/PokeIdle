@@ -661,7 +661,7 @@ export function massShinyChance() {
   return window.__followerBoostMechanic?.('massShinyRate', MASS_SHINY_CHANCE) ?? MASS_SHINY_CHANCE;
 }
 
-// ===== 派遣（手机 app，唯一离线收益来源）=====
+// ===== 派遣（手机 app，离线照常计时）=====
 export const DISPATCH_SLOTS = 6;              // 槽位总数
 export const DISPATCH_FREE_SLOTS = 2;         // 初始免费解锁槽位数（后续槽位解锁价与孵蛋器一致，走 getIncubatorUnlockCost）
 // 派遣时长档位（小时）与对应收益系数

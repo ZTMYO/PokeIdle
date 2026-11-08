@@ -172,7 +172,7 @@
         "pinyinInitials": "CJJHMWHMWH",
         "catchRate": 0.28,
         "genus": "种子宝可梦",
-        "description": "它背上开出的大花 能够吸收太阳光 并将其转换为能量。",
+        "description": "会用火山喷发般的气势播撒大量的花粉。如果吸入过多花粉，可是会昏倒的。",
         "height": 20,
         "weight": 1000,
         "stats": [
@@ -409,7 +409,7 @@
         "pinyinInitials": "CJJHPHLPHL",
         "catchRate": 0.28,
         "genus": "火焰宝可梦",
-        "description": "从口中喷出灼热的火焰时，尾巴尖端的红色火焰 会燃烧得更加猛烈。",
+        "description": "超极巨化之力不仅让喷火龙变得更加巨大，还让它获得了熊熊燃烧的翅膀。",
         "height": 17,
         "weight": 905,
         "stats": [
@@ -603,7 +603,7 @@
         "pinyinInitials": "CJJHSJGSJG",
         "catchRate": 0.28,
         "genus": "甲壳宝可梦",
-        "description": "一旦锁定了目标，它会以超越了消防 水枪的力道来喷水。",
+        "description": "不擅长精细的射击。使用３１门大炮连续不断地发射炮弹，才是它的攻击风格。",
         "height": 16,
         "weight": 855,
         "stats": [
@@ -758,7 +758,7 @@
         "pinyinInitials": "CJJHBDDBDD",
         "catchRate": 0.28,
         "genus": "蝴蝶宝可梦",
-        "description": "仔细观察那对大眼睛的话，会发现其实是许许多多小眼睛 聚集在一起形成的。",
+        "description": "超极巨化之力结晶化之后，变成了闪闪发亮的剧毒鳞粉。",
         "height": 11,
         "weight": 320,
         "stats": [
@@ -1146,7 +1146,7 @@
         "pinyinInitials": "XLDALL",
         "catchRate": 0.9,
         "genus": "鼠宝可梦",
-        "description": "门牙会终生生长，所以必须要保养。 不准备好锉刀的话，会把柱子都啃掉。",
+        "description": "只对新鲜的东西感兴趣。如果带它去买东西，在挑选食材时会很有帮助。",
         "height": 3,
         "weight": 38,
         "stats": [
@@ -1224,7 +1224,7 @@
         "pinyinInitials": "LDALL",
         "catchRate": 0.64,
         "genus": "鼠宝可梦",
-        "description": "游泳很在行。后脚带有小小的蹼，会渡过河流，有时还会渡过大海。",
+        "description": "性格非常贪婪。巢穴里满是让小拉达们收集起来的，吃都吃不完的食物。",
         "height": 7,
         "weight": 255,
         "stats": [
@@ -1978,7 +1978,7 @@
         "pinyinInitials": "CJJHPKQPKQ",
         "catchRate": 0.624,
         "genus": "鼠宝可梦",
-        "description": "最近发表了聚集大量皮卡丘，建造发电厂的计划。",
+        "description": "膨胀的超极巨化之力使得它的身体变大，尾巴也变得高耸入云。",
         "height": 4,
         "weight": 60,
         "stats": [
@@ -2057,7 +2057,7 @@
         "pinyinInitials": "LQALL",
         "catchRate": 0.48,
         "genus": "鼠宝可梦",
-        "description": "电击有时候会达到十万伏特，不小心碰到的话，连印度象也会昏厥。",
+        "description": "人们认为，它会进化成这个样子，是受到了阿罗拉地区的气候、风土以及食物的影响。",
         "height": 7,
         "weight": 210,
         "stats": [
@@ -2213,7 +2213,7 @@
         "pinyinInitials": "CSSALL",
         "catchRate": 0.9,
         "genus": "鼠宝可梦",
-        "description": "可以蜷缩身体变成球的样子。 骨碌碌滚动着在沙漠里高速移动。",
+        "description": "栖息在雪山。钢的甲壳非常坚固，但因为过于坚硬，身体没法蜷缩起来。",
         "height": 7,
         "weight": 400,
         "stats": [
@@ -2291,7 +2291,7 @@
         "pinyinInitials": "CSWALL",
         "catchRate": 0.53,
         "genus": "鼠宝可梦",
-        "description": "用爪子爬上树，当猎物出现时，身体就蜷缩成尖刺球从高处落下。",
+        "description": "钢针是用冰覆盖住的。被它刺中会造成很深的伤口，还会被冻伤。",
         "height": 12,
         "weight": 550,
         "stats": [
@@ -2710,7 +2710,7 @@
         "pinyinInitials": "LWALL",
         "catchRate": 0.78,
         "genus": "狐狸宝可梦",
-        "description": "因为毛色和尾巴非常漂亮，所以很有人气。伴随着成长，尾巴会分开，长得越来越多。",
+        "description": "在炎热的时候，用６根尾巴制作冰砾在周围挥洒，让身体冷却下来。",
         "height": 6,
         "weight": 99,
         "stats": [
@@ -2787,7 +2787,7 @@
         "pinyinInitials": "JWALL",
         "catchRate": 0.48,
         "genus": "狐狸宝可梦",
-        "description": "至今还流传着9位圣者 合体变成九尾的传说，是充满神秘色彩的宝可梦。",
+        "description": "从体毛中生出冰粒，泼向敌人。如果惹恼它，一瞬间就会被冰镇。",
         "height": 11,
         "weight": 199,
         "stats": [
@@ -3293,7 +3293,7 @@
         "pinyinInitials": "DSALL",
         "catchRate": 0.9,
         "genus": "鼹鼠宝可梦",
-        "description": "在地下啃食树根。 因有些品种的蔬菜会遭其啃食，是可能对农户造成灾害的宝可梦。",
+        "description": "金色的胡子拥有感应器的功能。从洞里伸出，查探周围的状态。",
         "height": 2,
         "weight": 10,
         "stats": [
@@ -3370,7 +3370,7 @@
         "pinyinInitials": "SDSALL",
         "catchRate": 0.37,
         "genus": "鼹鼠宝可梦",
-        "description": "三胞胎合作行动。 甚至连地下100公里都能挖到，这种力量是团队合作的成果。",
+        "description": "金属材质的胡须很重，所以速度不怎么快，但有着能挖穿坚硬岩盘的力量。",
         "height": 7,
         "weight": 666,
         "stats": [
@@ -3446,7 +3446,7 @@
         "pinyinInitials": "MMJLE",
         "catchRate": 0.9,
         "genus": "妖怪猫宝可梦",
-        "description": "白天就一直睡啊睡地度过，太阳落山时才开始活动。 在夜晚的街道上搜寻硬币。",
+        "description": "和好战的海洋民族一起生活，久而久之身体的各个地方就都变成了黑铁。",
         "height": 4,
         "weight": 75,
         "stats": [
@@ -3485,7 +3485,7 @@
         "pinyinInitials": "MMALL",
         "catchRate": 0.9,
         "genus": "妖怪猫宝可梦",
-        "description": "白天就一直睡啊睡地度过，太阳落山时才开始活动。 在夜晚的街道上搜寻硬币。",
+        "description": "自尊心和智商都很高。会狡猾地应战，反复攻击敌人的弱点。",
         "height": 4,
         "weight": 42,
         "stats": [
@@ -3524,7 +3524,7 @@
         "pinyinInitials": "CJJHMMMM",
         "catchRate": 0.72,
         "genus": "妖怪猫宝可梦",
-        "description": "白天就一直睡啊睡地度过，太阳落山时才开始活动。 在夜晚的街道上搜寻硬币。",
+        "description": "人们认为它额头上金币浮现出的纹路中蕴藏着解开极巨化之谜的关键。",
         "height": 4,
         "weight": 42,
         "stats": [
@@ -3601,7 +3601,7 @@
         "pinyinInitials": "MLDALL",
         "catchRate": 0.53,
         "genus": "暹罗猫宝可梦",
-        "description": "性情粗暴，只要视线对上就会 猛扑过来。被锐利的爪子抓到的话，就会留下很深的伤口。",
+        "description": "由于在阿罗拉地区圆脸是富贵的象征，人们对猫老大呵护备至。",
         "height": 11,
         "weight": 330,
         "stats": [
@@ -3832,7 +3832,7 @@
         "pinyinInitials": "KDGXC",
         "catchRate": 0.78,
         "genus": "小狗宝可梦",
-        "description": "机灵而忠诚。但是对于 不认识的或是侵犯领地的，会狂吠不停并作出威吓。",
+        "description": "两只一组共同负责地盘的警卫工作。体毛中混有火成岩的成分，可以推想这是受到火山活动的影响。",
         "height": 8,
         "weight": 227,
         "stats": [
@@ -3909,7 +3909,7 @@
         "pinyinInitials": "FSGXC",
         "catchRate": 0.48,
         "genus": "传说宝可梦",
-        "description": "在东方的古代传说中也会出现。 充满威严，强壮而又美丽的宝可梦。",
+        "description": "将猛烈燃烧的火焰缠绕在牙齿上扑向猎物。虽然体型很大，却能以灵巧的假动作戏弄敌手，那姿态就像是舞蹈一般。",
         "height": 20,
         "weight": 1680,
         "stats": [
@@ -4325,7 +4325,7 @@
         "pinyinInitials": "CJJHGLGL",
         "catchRate": 0.28,
         "genus": "怪力宝可梦",
-        "description": "使出百万吨级的拳击，将阻挡的敌人击飞到 地平线的另一端。",
+        "description": "手臂里充斥着超极巨化之力，因此能施展出破坏力不亚于炸弹的拳击。",
         "height": 16,
         "weight": 1300,
         "stats": [
@@ -4635,7 +4635,7 @@
         "pinyinInitials": "XQSALL",
         "catchRate": 0.9,
         "genus": "岩石宝可梦",
-        "description": "圆圆的很容易拿，但要互相扔的话，又硬又重。 像打雪仗那样扔着玩会很危险。",
+        "description": "带有磁力的石头身体。在磁力特别强的部分，铁矿砂密密麻麻地附着哦。",
         "height": 4,
         "weight": 203,
         "stats": [
@@ -4714,7 +4714,7 @@
         "pinyinInitials": "LLSALL",
         "catchRate": 0.62,
         "genus": "岩石宝可梦",
-        "description": "非常喜欢吃长有苔藓的岩石。 发着嘎吱嘎吱的声音，1天吃1吨以上。",
+        "description": "受到喜欢吃的石头影响，它全身都带着电。性格非常好斗。",
         "height": 10,
         "weight": 1100,
         "stats": [
@@ -4792,7 +4792,7 @@
         "pinyinInitials": "LLYALL",
         "catchRate": 0.35,
         "genus": "重量级宝可梦",
-        "description": "即使用炸药爆破身体也毫发无伤，但非常讨厌湿气和雨。",
+        "description": "发射出带着电的岩石。哪怕没有命中，只是擦到，对手也会麻痹而失去意识。",
         "height": 17,
         "weight": 3160,
         "stats": [
@@ -4868,7 +4868,7 @@
         "pinyinInitials": "XHMJLE",
         "catchRate": 0.78,
         "genus": "火马宝可梦",
-        "description": "在用力跳跃之后，会 用蹄子和脚上的肌肉 来缓解着地时的撞击。",
+        "description": "能从眼神中读取对方的内心。如果发现了邪恶的想法，就会在转眼间消失不见。",
         "height": 8,
         "weight": 240,
         "stats": [
@@ -4945,7 +4945,7 @@
         "pinyinInitials": "LYMJLE",
         "catchRate": 0.42,
         "genus": "火马宝可梦",
-        "description": "总之就是喜欢跑步。如果 发现有谁跑得比自己更快，就会用尽全力去追赶。",
+        "description": "勇猛果敢，自尊心强。会在蹄子上的毛里储存精神力量，在森林中轻快地奔跑。",
         "height": 17,
         "weight": 800,
         "stats": [
@@ -5023,7 +5023,7 @@
         "pinyinInitials": "DDSJLE",
         "catchRate": 0.78,
         "genus": "憨憨宝可梦",
-        "description": "长长的尾巴经常被揪断。 因为也不会觉得特别痛，马上会长出来，所以并不在意。",
+        "description": "虽然会用尾巴来垂钓，但渗出的香料味却害得它总是成果一般。",
         "height": 12,
         "weight": 360,
         "stats": [
@@ -5103,7 +5103,7 @@
         "pinyinInitials": "DKSJLE",
         "catchRate": 0.48,
         "genus": "寄居蟹宝可梦",
-        "description": "呆呆地望着大海。 因大舌贝的毒在身体中循环 而变得越来越傻乎乎。",
+        "description": "咬在手臂上的大舌贝会因渗出的毒素而失去意识，但也会因味道太好而宛如做梦。",
         "height": 16,
         "weight": 705,
         "stats": [
@@ -5299,7 +5299,7 @@
         "pinyinInitials": "DCYJLE",
         "catchRate": 0.35,
         "genus": "黄嘴鸭宝可梦",
-        "description": "居住在茎状植物生长的地方。 由于这种植物极为稀少而罕见，大葱鸭的数量似乎也在减少。",
+        "description": "生活在伽勒尔的大葱鸭挥舞着又粗又壮的大葱，是英勇奋战的战士。",
         "height": 8,
         "weight": 420,
         "stats": [
@@ -5533,7 +5533,7 @@
         "pinyinInitials": "CNALL",
         "catchRate": 0.78,
         "genus": "污泥宝可梦",
-        "description": "工厂排放的污泥废液 是其主要的饵料。 最近数量减少了。",
+        "description": "任何垃圾都能吃得很美味，因此在处理垃圾的地方它能大显身手，十分受欢迎。",
         "height": 7,
         "weight": 420,
         "stats": [
@@ -5610,7 +5610,7 @@
         "pinyinInitials": "CCNALL",
         "catchRate": 0.48,
         "genus": "污泥宝可梦",
-        "description": "总之就是臭得鼻子都不敢呼吸。 但是也存在着部分觉得这味道 很不错的臭臭泥爱好者。",
+        "description": "体内的毒素有１００种以上。毒素和毒素之间的化学反应是其生命之源。",
         "height": 10,
         "weight": 520,
         "stats": [
@@ -5880,7 +5880,7 @@
         "pinyinInitials": "CJJHGGGG",
         "catchRate": 0.28,
         "genus": "影子宝可梦",
-        "description": "如果突然被寒气侵袭，那就是被耿鬼袭击的证据。 没有可逃之法，所以死心吧。",
+        "description": "身体里填满了诅咒的能量。据说它巨大嘴巴的另一端连接着死后的世界。",
         "height": 15,
         "weight": 405,
         "stats": [
@@ -6107,7 +6107,7 @@
         "pinyinInitials": "CJJHJQXJQX",
         "catchRate": 0.336,
         "genus": "钳子宝可梦",
-        "description": "一边的钳子很是巨大，虽说硬如钢铁还拥有 1万马力，但还是太重了。",
+        "description": "会吐出强碱性的泡沫，对手一旦被泡沫沾上，身体就会立刻溶化。",
         "height": 13,
         "weight": 600,
         "stats": [
@@ -6184,7 +6184,7 @@
         "pinyinInitials": "PLDQXC",
         "catchRate": 0.78,
         "genus": "球宝可梦",
-        "description": "据说它与精灵球相似的外形 其实是它的保护色，但它 很容易自爆这一点也出人意料。",
+        "description": "形状颇似精灵球的奇异宝可梦。当情绪高涨时，积蓄在腹部的电流就会放出，同时发出大笑。",
         "height": 5,
         "weight": 130,
         "stats": [
@@ -6261,7 +6261,7 @@
         "pinyinInitials": "WPLDXC",
         "catchRate": 0.42,
         "genus": "球宝可梦",
-        "description": "只要受到一点撞击，就会由于体内的 电能溢出导致爆炸。",
+        "description": "体表的组织与球果的成分极为接近，不可思议。当它情绪焦躁时所放出的电流，能量足以匹敌２０次的落雷。",
         "height": 12,
         "weight": 710,
         "stats": [
@@ -6377,7 +6377,7 @@
         "pinyinInitials": "YDSALL",
         "catchRate": 0.35,
         "genus": "椰子宝可梦",
-        "description": "各个脑袋里有各自的思想，通过心灵感应来交谈，决定大家要做什么。",
+        "description": "能让长脖子像鞭子一样弯曲，并用头重重地敲打对手。自己也会有些头晕眼花。",
         "height": 109,
         "weight": 4156,
         "stats": [
@@ -6492,7 +6492,7 @@
         "pinyinInitials": "GLGLALL",
         "catchRate": 0.48,
         "genus": "爱骨宝可梦",
-        "description": "原本因体弱而很胆小。 进化后变成了挥舞着骨头的粗暴性格。",
+        "description": "对于嘎啦嘎啦来说，绿意盎然的阿罗拉地区是一片残酷的土地。为了活下去，它会去操纵火焰。",
         "height": 10,
         "weight": 340,
         "stats": [
@@ -6719,7 +6719,7 @@
         "pinyinInitials": "SDWSJLE",
         "catchRate": 0.42,
         "genus": "毒气宝可梦",
-        "description": "它要靠吸收垃圾 里的毒气、细菌和 灰尘来维持生命。",
+        "description": "会吸收大气中的污染成分，然后吐出新鲜的空气，这就是它的排泄方式。",
         "height": 30,
         "weight": 160,
         "stats": [
@@ -7292,7 +7292,7 @@
         "pinyinInitials": "MQROJLE",
         "catchRate": 0.35,
         "genus": "屏障宝可梦",
-        "description": "有着非凡的默剧表演实力。 在你看入迷的时候，不知不觉间 就会出现一面真正的墙壁。",
+        "description": "会从脚底释放出冷气。一整天都会在自己冻住的地板上努力练习踢踏舞。",
         "height": 14,
         "weight": 568,
         "stats": [
@@ -7593,7 +7593,7 @@
         "pinyinInitials": "KTLPDYGD",
         "catchRate": 0.35,
         "genus": "暴牛宝可梦",
-        "description": "在世界各地都有骑着肯泰罗 生活的历史，但这一切的开端 据说是在阿罗拉。",
+        "description": "擅长以肌肉发达的身体打格斗战。会用短短的角瞄准对手的要害。",
         "height": 14,
         "weight": 884,
         "stats": [
@@ -7632,7 +7632,7 @@
         "pinyinInitials": "KTLPDYS",
         "catchRate": 0.35,
         "genus": "暴牛宝可梦",
-        "description": "在世界各地都有骑着肯泰罗 生活的历史，但这一切的开端 据说是在阿罗拉。",
+        "description": "从角尖端的洞猛烈地喷射出水，以形成高压的水流将敌人贯穿。",
         "height": 14,
         "weight": 884,
         "stats": [
@@ -7671,7 +7671,7 @@
         "pinyinInitials": "KTLPDYH",
         "catchRate": 0.35,
         "genus": "暴牛宝可梦",
-        "description": "在世界各地都有骑着肯泰罗 生活的历史，但这一切的开端 据说是在阿罗拉。",
+        "description": "会喷出高温的鼻息，因此被命名为火炽种。３根尾巴总是拧在一起。",
         "height": 14,
         "weight": 884,
         "stats": [
@@ -7867,7 +7867,7 @@
         "pinyinInitials": "CJJHLPLSLPLS",
         "catchRate": 0.28,
         "genus": "乘载宝可梦",
-        "description": "拥有很高的智商，理解人类的语言。 心情好的时候会用美妙的声音唱歌。",
+        "description": "可以让超过５０００个人乘在自己背部的甲壳上。完全不会摇晃，坐起来非常舒适。",
         "height": 25,
         "weight": 2200,
         "stats": [
@@ -7982,7 +7982,7 @@
         "pinyinInitials": "CJJHYBYB",
         "catchRate": 0.28,
         "genus": "进化宝可梦",
-        "description": "拥有不平衡性外加不稳定的 遗传基因，因而蕴含着各种 各样的进化可能性。",
+        "description": "超极巨化之力使得颈部的绒毛变得更加地毛茸茸。会用绒毛包住敌人，同时掳获它的心。",
         "height": 3,
         "weight": 65,
         "stats": [
@@ -8442,7 +8442,7 @@
         "pinyinInitials": "CJJHKBSKBS",
         "catchRate": 0.16,
         "genus": "瞌睡宝可梦",
-        "description": "据说拥有最强的胃袋。 就连臭臭泥的毒对卡比兽的 舌头来说也只是调味料而已。",
+        "description": "拥有骇人的力量。体型像山一样巨大，而且不动如山。",
         "height": 21,
         "weight": 4600,
         "stats": [
@@ -8515,7 +8515,7 @@
         "pinyinInitials": "JDNJLE",
         "catchRate": 0.03,
         "genus": "冰冻宝可梦",
-        "description": "传说的鸟宝可梦。它能将 冬日空中的空气中含有的 水分冻结，降下雪花。",
+        "description": "用精神力量制作出的羽毛形刀刃能像裁纸般轻松地劈开厚厚的铁板。",
         "height": 17,
         "weight": 509,
         "stats": [
@@ -8586,7 +8586,7 @@
         "pinyinInitials": "SDNJLE",
         "catchRate": 0.03,
         "genus": "电击宝可梦",
-        "description": "当天空黑暗，落雷 不断时，这只传说的 宝可梦就会出现。",
+        "description": "羽毛相互摩擦时会发出像电一样的噼噼啪啪声，因此得到了闪电鸟这个名字。",
         "height": 16,
         "weight": 582,
         "stats": [
@@ -8657,7 +8657,7 @@
         "pinyinInitials": "HYNJLE",
         "catchRate": 0.03,
         "genus": "火焰宝可梦",
-        "description": "传说的鸟宝可梦。当它 挥舞起剧烈燃烧着的双翅，哪怕是夜空也会被点亮。",
+        "description": "能像燃起烈火一般燃起邪恶的气场。因为这样的外表而被命名为火焰鸟。",
         "height": 20,
         "weight": 660,
         "stats": [
@@ -9256,7 +9256,7 @@
         "pinyinInitials": "HBSXC",
         "catchRate": 0.35,
         "genus": "火山宝可梦",
-        "description": "如果它的愤怒达到顶峰，它会变得极其炽热，任何触碰它的东西都会瞬间燃烧起来。",
+        "description": "据考察，它是受到耸立于洗翠中心的灵山之气影响，才形成了现在的模样。据说会用自己的火焰净化并超渡无处可去的灵魂。",
         "height": 16,
         "weight": 698,
         "stats": [
@@ -10798,7 +10798,7 @@
         "pinyinInitials": "WBPDY",
         "catchRate": 0.9,
         "genus": "水鱼宝可梦",
-        "description": "在冰冷的水中生活。 附近天气变凉之后，也会来到地上觅食。",
+        "description": "在地盘的争夺中落败而到陆地生活，渐渐地就变成用有毒的粘膜来保护身体。",
         "height": 4,
         "weight": 110,
         "stats": [
@@ -11030,7 +11030,7 @@
         "pinyinInitials": "DDWJLE",
         "catchRate": 0.46,
         "genus": "王者宝可梦",
-        "description": "受被咬到的毒素影响，拥有天才的头脑。 能自由自在地操纵精神力量。",
+        "description": "一旦发现虚弱的宝可梦，它就会从角上的洞取出由毒液制成的药给对方。",
         "height": 18,
         "weight": 795,
         "stats": [
@@ -12565,7 +12565,7 @@
         "pinyinInitials": "QZYXC",
         "catchRate": 0.35,
         "genus": "气球宝可梦",
-        "description": "对手的体型越是巨大，它就会 喝下越多的水使身体膨胀，仿佛马上就要破裂一般。",
+        "description": "会从食物摄取毒素。突显紫色的针是它充满剧毒的证据。",
         "height": 5,
         "weight": 39,
         "stats": [
@@ -12836,7 +12836,7 @@
         "pinyinInitials": "NLXC",
         "catchRate": 0.42,
         "genus": "钩爪宝可梦",
-        "description": "狡黠凶恶的性格。 趁着双亲不在就侵入巢穴，将蛋盗出。",
+        "description": "强健的爪子形状有助于在断崖绝壁上行动自如。爪子尖端滴出的毒液会在捉住猎物时侵袭其神经。",
         "height": 9,
         "weight": 270,
         "stats": [
@@ -13145,7 +13145,7 @@
         "pinyinInitials": "TYSHJLE",
         "catchRate": 0.42,
         "genus": "珊瑚宝可梦",
-        "description": "头顶上长着珊瑚枝。 虽然相当容易折断，但大约3天就能恢复哦。",
+        "description": "它是因急遽环境变化而死去的远古太阳珊瑚。会用珊瑚枝吸取人的精气。",
         "height": 6,
         "weight": 5,
         "stats": [
@@ -14959,7 +14959,7 @@
         "pinyinInitials": "SWXJLE",
         "catchRate": 0.9,
         "genus": "豆狸宝可梦",
-        "description": "会用背上的硬毛摩擦树木，留下代表自己地盘的标记。 性情比伽勒尔的蛇纹熊温驯。",
+        "description": "这似乎是蛇纹熊最古老的样子。会之字形乱走，把周围弄得一团糟。",
         "height": 4,
         "weight": 175,
         "stats": [
@@ -15037,7 +15037,7 @@
         "pinyinInitials": "ZCXJLE",
         "catchRate": 0.53,
         "genus": "猛冲宝可梦",
-        "description": "体毛拥有良好的韧度与质感。 用它身上掉下来的毛制成的 剃须刷是最上等的高级货。",
+        "description": "会用长舌头挑衅猎物。一旦猎物被自己激怒，便会猛烈地冲撞上去。",
         "height": 5,
         "weight": 325,
         "stats": [
@@ -21806,7 +21806,7 @@
         "pinyinInitials": "JCELJSY",
         "catchRate": 0.62,
         "genus": "蓑衣虫宝可梦",
-        "description": "为了抵御冬季寒风的侵袭，它会用树枝和树叶制成的斗篷包裹自己。",
+        "description": "当身边找不到适合的材料时，会用尘土草芥等垃圾来做蓑衣。裹起来的感觉似乎意外地还不坏。",
         "height": 2,
         "weight": 34,
         "stats": [
@@ -21845,7 +21845,7 @@
         "pinyinInitials": "JCESTSY",
         "catchRate": 0.62,
         "genus": "蓑衣虫宝可梦",
-        "description": "为了抵御冬季寒风的侵袭，它会用树枝和树叶制成的斗篷包裹自己。",
+        "description": "将吐出的丝揉合泥沙制成蓑衣。泥沙所制的蓑衣不耐风雨，因此它会躲藏在洞穴等处。",
         "height": 2,
         "weight": 34,
         "stats": [
@@ -21924,7 +21924,7 @@
         "pinyinInitials": "JCGFLJSY",
         "catchRate": 0.35,
         "genus": "蓑衣虫宝可梦",
-        "description": "当结草儿进化时，它的斗篷成为了这只宝可梦身体的一部分。这件斗篷永远不会脱落。",
+        "description": "尘土草芥等垃圾构成的身体能毫不起眼地融入周围景色之中，正好适合用来躲避天敌袭击。",
         "height": 5,
         "weight": 65,
         "stats": [
@@ -21963,7 +21963,7 @@
         "pinyinInitials": "JCGFSTSY",
         "catchRate": 0.35,
         "genus": "蓑衣虫宝可梦",
-        "description": "当结草儿进化时，它的斗篷成为了这只宝可梦身体的一部分。这件斗篷永远不会脱落。",
+        "description": "泥沙形成的皮肤有相当的硬度。若是姆克儿的嘴喙程度的攻击，轻而易举就可以反弹回去。",
         "height": 5,
         "weight": 65,
         "stats": [
@@ -22311,7 +22311,7 @@
         "pinyinInitials": "YHEYG",
         "catchRate": 0.48,
         "genus": "樱花宝可梦",
-        "description": "花苞形态时性格稳重，几乎不会动，只是静静地 等待太阳光的出现。",
+        "description": "充分沐浴到阳光后活力满满的样子。会一直活泼到日落。",
         "height": 5,
         "weight": 93,
         "stats": [
@@ -22391,7 +22391,7 @@
         "pinyinInitials": "WKHTDH",
         "catchRate": 0.78,
         "genus": "海兔宝可梦",
-        "description": "岩岸是它主要的居所。 根据栖息地的环境和食物的质地，颜色和样子会有所不同。",
+        "description": "最近有论文指出，这个样子的无壳海兔正在逐渐减少。",
         "height": 3,
         "weight": 63,
         "stats": [
@@ -22472,7 +22472,7 @@
         "pinyinInitials": "HTSDH",
         "catchRate": 0.48,
         "genus": "海兔宝可梦",
-        "description": "再生能力很高。 即使被鱼宝可梦咬断，也会在几小时内恢复原状哦。",
+        "description": "渔夫说道，虽然曾经很少遇见这个样子的海兔兽，但现在它们有增加的倾向。",
         "height": 9,
         "weight": 299,
         "stats": [
@@ -24916,7 +24916,7 @@
         "pinyinInitials": "LTM",
         "catchRate": 0.35,
         "genus": "等离子宝可梦",
-        "description": "某位少年的发明 促使人们开始制造 各种活用洛托姆的机器 。",
+        "description": "某位少年的发明促使人们开始制造各种活用洛托姆的机器。",
         "height": 3,
         "weight": 3,
         "stats": [
@@ -24954,7 +24954,7 @@
         "pinyinInitials": "LTMQG",
         "catchRate": 0.35,
         "genus": "等离子宝可梦",
-        "description": "某位少年的发明 促使人们开始制造 各种活用洛托姆的机器 。",
+        "description": "钻进由特殊马达驱动的割草机里的洛托姆。会把割下的草到处乱撒。",
         "height": 3,
         "weight": 3,
         "stats": [
@@ -24993,7 +24993,7 @@
         "pinyinInitials": "LTMJR",
         "catchRate": 0.35,
         "genus": "等离子宝可梦",
-        "description": "某位少年的发明 促使人们开始制造 各种活用洛托姆的机器 。",
+        "description": "钻进由特殊马达驱动的烤箱微波炉里的洛托姆。十分擅长控制火焰。",
         "height": 3,
         "weight": 3,
         "stats": [
@@ -25032,7 +25032,7 @@
         "pinyinInitials": "LTMXZ",
         "catchRate": 0.35,
         "genus": "等离子宝可梦",
-        "description": "某位少年的发明 促使人们开始制造 各种活用洛托姆的机器 。",
+        "description": "会吹飞你重要的资料。喜欢利用刮风来恶作剧的洛托姆。",
         "height": 3,
         "weight": 3,
         "stats": [
@@ -25071,7 +25071,7 @@
         "pinyinInitials": "LTMQX",
         "catchRate": 0.35,
         "genus": "等离子宝可梦",
-        "description": "某位少年的发明 促使人们开始制造 各种活用洛托姆的机器 。",
+        "description": "会让房间发大水。喜欢利用水来恶作剧的洛托姆。",
         "height": 3,
         "weight": 3,
         "stats": [
@@ -25110,7 +25110,7 @@
         "pinyinInitials": "LTMJB",
         "catchRate": 0.35,
         "genus": "等离子宝可梦",
-        "description": "某位少年的发明 促使人们开始制造 各种活用洛托姆的机器 。",
+        "description": "钻进由特殊马达驱动的电冰箱里的洛托姆。会吐出冷气战斗。",
         "height": 3,
         "weight": 3,
         "stats": [
@@ -25286,7 +25286,7 @@
         "pinyinInitials": "DYLKQYXT",
         "catchRate": 0.03,
         "genus": "时间宝可梦",
-        "description": "拥有控制时间的力量。在神奥地区的传说中，它被描述为古老的神明。",
+        "description": "光明乃是促使形态变化的导火线。此形态所能发挥的强大力量，令人不得不认为如此酷似创造神的姿态才是其真身。",
         "height": 70,
         "weight": 8500,
         "stats": [
@@ -25357,7 +25357,7 @@
         "pinyinInitials": "PLQYQYXT",
         "catchRate": 0.03,
         "genus": "空间宝可梦",
-        "description": "拥有扭曲空间的能力。在神奥地区的传说中，它被描述为一位神明。",
+        "description": "翱翔天际的姿态令人联想起万物的创造主。本人推测，模仿创造主的模样正是将其力化为己有的方法。",
         "height": 63,
         "weight": 6600,
         "stats": [
@@ -25534,7 +25534,7 @@
         "pinyinInitials": "QLDNQY",
         "catchRate": 0.03,
         "genus": "反抗宝可梦",
-        "description": "据说是生活在与我们相反世界的宝可梦。它出现在古老的墓地中。",
+        "description": "脚部随着形态变化而消失。据推测，此宝可梦栖息于没有天地之分的世界，然而没有手段能加以证明。",
         "height": 69,
         "weight": 6500,
         "stats": [
@@ -25779,7 +25779,7 @@
         "pinyinInitials": "XMTK",
         "catchRate": 0.03,
         "genus": "感谢宝可梦",
-        "description": "生活在花丛中，会蜷缩身体伪装成开花植物来避免被发现。",
+        "description": "当嗅闻珍奇之花的香味时，娇小的身体将在光辉之中变化成此形貌。本人曾尝试嗅闻该花，但没有变化。",
         "height": 4,
         "weight": 52,
         "stats": [
@@ -26862,7 +26862,7 @@
         "pinyinInitials": "DJGXC",
         "catchRate": 0.35,
         "genus": "威严宝可梦",
-        "description": "盔甲上镶嵌的剑一挥就能击倒对手。仅凭一记瞪视就能让全场鸦雀无声。",
+        "description": "性情与刀路皆是残酷无情。连绵不断的攻击彷如千层浪涛。此乃只在洗翠进化而成的稀有姿态。",
         "height": 15,
         "weight": 582,
         "stats": [
@@ -27583,7 +27583,7 @@
         "pinyinInitials": "GAZJCX",
         "catchRate": 0.35,
         "genus": "自尊心宝可梦",
-        "description": "拥有高度的飞行能力。 雌性擅于持久，雄性擅长速度。",
+        "description": "雄性的头上有冠羽。绝对不会亲近训练家以外的人。",
         "height": 12,
         "weight": 290,
         "stats": [
@@ -28809,7 +28809,7 @@
         "pinyinInitials": "QEXJXC",
         "catchRate": 0.48,
         "genus": "花饰宝可梦",
-        "description": "无论花多少工夫和金钱，比起借助人工手段让它开放，在野外绽放的花更美。",
+        "description": "据考察，雪山深处的栖息环境为其带来了发达的脚力。会从头冠般的花中发出鼓舞周围伙伴的香气。",
         "height": 12,
         "weight": 192,
         "stats": [
@@ -28886,7 +28886,7 @@
         "pinyinInitials": "YMLYBTW",
         "catchRate": 0.78,
         "genus": "粗暴宝可梦",
-        "description": "是性格粗暴又凶猛的宝可梦。 红色和蓝色的野蛮鲈鱼 总是为了领地问题打架。",
+        "description": "与野蛮鲈鱼的生态相差甚远，因此它们是不同种类的说法在近年以来备受支持。",
         "height": 10,
         "weight": 180,
         "stats": [
@@ -28925,7 +28925,7 @@
         "pinyinInitials": "YMLYLTW",
         "catchRate": 0.78,
         "genus": "粗暴宝可梦",
-        "description": "是性格粗暴又凶猛的宝可梦。 红色和蓝色的野蛮鲈鱼 总是为了领地问题打架。",
+        "description": "颜色相同的会集结成群。最大的敌人是红色的野蛮鲈鱼的群体。",
         "height": 10,
         "weight": 180,
         "stats": [
@@ -29118,7 +29118,7 @@
         "pinyinInitials": "HHBDWJLE",
         "catchRate": 0.62,
         "genus": "不倒翁宝可梦",
-        "description": "能量之源是体内的火焰。 如果火焰变小了，它马上就会睡着。",
+        "description": "身体越冷就越有活力。会把呼出来的气冻起来做成雪球和伙伴互相扔着玩。",
         "height": 7,
         "weight": 400,
         "stats": [
@@ -29195,7 +29195,7 @@
         "pinyinInitials": "DMFFJLE",
         "catchRate": 0.42,
         "genus": "爆燃宝可梦",
-        "description": "总是热血沸腾的宝可梦。 它厚重的手臂使出的拳击 甚至能把翻斗车打得粉碎。",
+        "description": "性格敦厚的大力士。会一口气冻住头上的雪球，然后用头锤撞击对手。",
         "height": 17,
         "weight": 1200,
         "stats": [
@@ -29234,7 +29234,7 @@
         "pinyinInitials": "DMFFJLEDMMS",
         "catchRate": 0.42,
         "genus": "爆燃宝可梦",
-        "description": "总是热血沸腾的宝可梦。 它厚重的手臂使出的拳击 甚至能把翻斗车打得粉碎。",
+        "description": "原本已经退化的火囊因愤怒而重生。在所到之处胡乱喷火大闹一番。",
         "height": 17,
         "weight": 929,
         "stats": [
@@ -29273,7 +29273,7 @@
         "pinyinInitials": "DMFFDMMS",
         "catchRate": 0.42,
         "genus": "爆燃宝可梦",
-        "description": "总是热血沸腾的宝可梦。 它厚重的手臂使出的拳击 甚至能把翻斗车打得粉碎。",
+        "description": "它会通过冥想来镇静自己浮躁的心，以此磨练精神力量。",
         "height": 13,
         "weight": 929,
         "stats": [
@@ -29625,7 +29625,7 @@
         "pinyinInitials": "KKMJJLE",
         "catchRate": 0.78,
         "genus": "魂宝可梦",
-        "description": "每天夜里都在遗迹中徘徊。 据说它拿着的面具 是它还是人类时的脸。",
+        "description": "刻有诅咒的黏土板附在了哭哭面具上。据说会吸收怨念的能量。",
         "height": 5,
         "weight": 15,
         "stats": [
@@ -29936,7 +29936,7 @@
         "pinyinInitials": "CJJHHCSHCS",
         "catchRate": 0.336,
         "genus": "垃圾场宝可梦",
-        "description": "要注意从右臂喷出的毒液。 只要沾到一点点，就会被未知的毒素侵袭。",
+        "description": "如果沾到它从嘴和手指喷射出来的毒气，毒素会蔓延到你的骨髓里。",
         "height": 19,
         "weight": 1073,
         "stats": [
@@ -30013,7 +30013,7 @@
         "pinyinInitials": "SLYXC",
         "catchRate": 0.48,
         "genus": "恶狐宝可梦",
-        "description": "性格胆小的宝可梦，不和伙伴呆在一起的时候，通常都会幻化成其他东西。",
+        "description": "死后灵魂在洗翠地区复苏。怨恨化为力量，从其头部冉冉飘升。会化成对手的样貌去洗刷仇恨。",
         "height": 7,
         "weight": 125,
         "stats": [
@@ -30090,7 +30090,7 @@
         "pinyinInitials": "SLYKXC",
         "catchRate": 0.35,
         "genus": "妖狐宝可梦",
-        "description": "不只是幻化成其他东西，还拥有让几百人看见幻像的力量。",
+        "description": "疯狂舞动白发的姿态如同死神。在足以撕裂自身的深刻仇怨驱使下，抱定同归于尽之心袭杀仇敌。",
         "height": 16,
         "weight": 730,
         "stats": [
@@ -30662,7 +30662,7 @@
         "pinyinInitials": "SJLD",
         "catchRate": 0.78,
         "genus": "季节宝可梦",
-        "description": "它们的毛色和气味会随山间草木变化。当感知到敌意时，它们会躲进草丛中。",
+        "description": "四季鹿的体味会随季节而变，但当它是冬天的样子时，却几乎没有任何气味。",
         "height": 6,
         "weight": 195,
         "stats": [
@@ -30702,7 +30702,7 @@
         "pinyinInitials": "SJLX",
         "catchRate": 0.78,
         "genus": "季节宝可梦",
-        "description": "它们的毛色和气味会随山间草木变化。当感知到敌意时，它们会躲进草丛中。",
+        "description": "为了防止田地被它入侵，许多农家会拜托它的天敌，也就是鬃岩狼人来站岗。",
         "height": 6,
         "weight": 195,
         "stats": [
@@ -30742,7 +30742,7 @@
         "pinyinInitials": "SJLQ",
         "catchRate": 0.78,
         "genus": "季节宝可梦",
-        "description": "它们的毛色和气味会随山间草木变化。当感知到敌意时，它们会躲进草丛中。",
+        "description": "它拥有毫不怕生的性格，因此在人类面前也是我行我素。只要给它食物就能立刻拉近关系。",
         "height": 6,
         "weight": 195,
         "stats": [
@@ -30821,7 +30821,7 @@
         "pinyinInitials": "MYLD",
         "catchRate": 0.48,
         "genus": "季节宝可梦",
-        "description": "它们随季节迁徙。人们看着萌芽鹿的角就能分辨季节。",
+        "description": "当它是这个样子时会比较稳重，容易驯化，是与它成为同伴的好机会。",
         "height": 19,
         "weight": 925,
         "stats": [
@@ -30860,7 +30860,7 @@
         "pinyinInitials": "MYLX",
         "catchRate": 0.48,
         "genus": "季节宝可梦",
-        "description": "它们随季节迁徙。人们看着萌芽鹿的角就能分辨季节。",
+        "description": "拥有很多爱好者的宝可梦。人们认为它角上的枝叶越厚越大就代表越雄伟。",
         "height": 19,
         "weight": 925,
         "stats": [
@@ -30899,7 +30899,7 @@
         "pinyinInitials": "MYLQ",
         "catchRate": 0.48,
         "genus": "季节宝可梦",
-        "description": "它们随季节迁徙。人们看着萌芽鹿的角就能分辨季节。",
+        "description": "秋天的样子的萌芽鹿以性情凶暴而闻名。雄性之间总是打架不断。",
         "height": 19,
         "weight": 925,
         "stats": [
@@ -31170,7 +31170,7 @@
         "pinyinInitials": "QPPCX",
         "catchRate": 0.78,
         "genus": "漂浮宝可梦",
-        "description": "会用薄纱般的手脚缠住 正在游泳的猎物，将其拖入深海之中。",
+        "description": "会用薄纱般的手脚缠住正在游泳的猎物，将其拖入深海之中。",
         "height": 12,
         "weight": 330,
         "stats": [
@@ -32317,7 +32317,7 @@
         "pinyinInitials": "NBYJLE",
         "catchRate": 0.48,
         "genus": "陷阱宝可梦",
-        "description": "潮间带便是它的巢穴。 制造电的器官由于 泥里的细菌而发达起来。",
+        "description": "栖息于富含铁质的泥巴里，因此获得了结实坚固的钢铁身躯。",
         "height": 7,
         "weight": 205,
         "stats": [
@@ -32779,7 +32779,7 @@
         "pinyinInitials": "YSXYXC",
         "catchRate": 0.42,
         "genus": "勇猛宝可梦",
-        "description": "连死都毫不畏惧的勇敢性格。 太古时代，阿罗拉的人们称之为 天空的勇士，并尊敬着它。",
+        "description": "勇猛的大鸟。狩猎时会发出气势骇人的战吼，朝湖水发出冲击波，捕捉浮出水面的猎物。",
         "height": 17,
         "weight": 434,
         "stats": [
@@ -33301,7 +33301,7 @@
         "pinyinInitials": "LJYLS",
         "catchRate": 0.03,
         "genus": "旋风宝可梦",
-        "description": "它的下半身包裹着能量云。它以时速200英里的速度在空中飞驰。",
+        "description": "此乃被称为形态变化的现象。据考察，此一形同怪鸟的姿态才是其真正样貌。曾被目击以此姿态横越大海。",
         "height": 14,
         "weight": 630,
         "stats": [
@@ -33373,7 +33373,7 @@
         "pinyinInitials": "LDYLS",
         "catchRate": 0.03,
         "genus": "雷击宝可梦",
-        "description": "雷电云经过的地方，大地上遍布着无数焦黑的残迹。",
+        "description": "在闪电霹雳中现身。会自尾部的连串珠子降下雷击扫荡敌手。惊人的威力足以令敌手片甲不留。",
         "height": 30,
         "weight": 610,
         "stats": [
@@ -33515,7 +33515,7 @@
         "pinyinInitials": "TDYLS",
         "catchRate": 0.03,
         "genus": "丰饶宝可梦",
-        "description": "土地云造访过的土地会结出丰饶的作物，因此它被誉为“田野的守护神”。",
+        "description": "以灵兽之姿翱翔天际时，会为大地带来丰收，因而受到众人崇敬。只需一刻光阴便能纵断洗翠大地。",
         "height": 13,
         "weight": 680,
         "stats": [
@@ -36980,7 +36980,7 @@
         "pinyinInitials": "CNMMCX",
         "catchRate": 0.48,
         "genus": "抑制宝可梦",
-        "description": "会从耳朵内侧眼珠花纹的地方 释放出精神力量，但平时 会将那种力量隐藏起来。",
+        "description": "一旦察觉到危险就会以最大输出释放精神力量。它可不会在意对手的事情。",
         "height": 6,
         "weight": 85,
         "stats": [
@@ -38301,7 +38301,7 @@
         "pinyinInitials": "NMEXC",
         "catchRate": 0.35,
         "genus": "软体生物宝可梦",
-        "description": "食物和伙伴的区别模糊不清。 即使关系很好，有时候也会 淡定地将对方溶解吸食。",
+        "description": "性情阴沉。据考察，洗翠地区的水中含有的铁质对皮肤的黏液产生作用，使其变化成了金属外壳。",
         "height": 7,
         "weight": 685,
         "stats": [
@@ -38377,7 +38377,7 @@
         "pinyinInitials": "NMLXC",
         "catchRate": 0.35,
         "genus": "龙宝可梦",
-        "description": "和人非常亲近的宝可梦。 不管它的话，就会很寂寞，流着黏糊糊的眼泪鸣叫。",
+        "description": "能自在操纵可刚可柔的金属外壳。性情执着且厌恶孤独，一旦喜爱的对象离开自己便会怒不可遏。",
         "height": 17,
         "weight": 3341,
         "stats": [
@@ -38687,7 +38687,7 @@
         "pinyinInitials": "BYGXC",
         "catchRate": 0.39,
         "genus": "冰山宝可梦",
-        "description": "把好几只冰宝驮在背上，混进众多冰山之间，在高纬度的寒冷大海里游动。",
+        "description": "包覆下颚的冰块装甲硬度更胜钢铁，能轻易地击碎岩石。冰岩怪借此铲开厚重积雪，在险峻的山路上猛冲。",
         "height": 14,
         "weight": 2624,
         "stats": [
@@ -39348,7 +39348,7 @@
         "pinyinInitials": "JSSXXC",
         "catchRate": 0.35,
         "genus": "箭羽宝可梦",
-        "description": "会搭上箭羽射向对手。 在绝对不想射偏时，会拉紧头上的藤蔓集中精神。",
+        "description": "为抵抗洗翠的严寒气候，羽毛的芯中含有空气，因而能够防寒。由此可见环境会对进化产生影响。",
         "height": 16,
         "weight": 370,
         "stats": [
@@ -40077,7 +40077,7 @@
         "pinyinInitials": "HWNPZ",
         "catchRate": 0.35,
         "genus": "舞蹈宝可梦",
-        "description": "拍打翅膀生火。 一边踩着华丽的步伐，一边洒下猛烈的火焰。",
+        "description": "充满活力与欢乐的舞蹈风格在孩子们当中很受欢迎，但在帕底亚却很少见。",
         "height": 6,
         "weight": 34,
         "stats": [
@@ -40116,7 +40116,7 @@
         "pinyinInitials": "HWNHL",
         "catchRate": 0.35,
         "genus": "舞蹈宝可梦",
-        "description": "拍打翅膀生火。 一边踩着华丽的步伐，一边洒下猛烈的火焰。",
+        "description": "轻快的舞蹈有助于保持健康，也因此很受人们欢迎，但在帕底亚却很少见。",
         "height": 6,
         "weight": 34,
         "stats": [
@@ -40155,7 +40155,7 @@
         "pinyinInitials": "HWNQY",
         "catchRate": 0.35,
         "genus": "舞蹈宝可梦",
-        "description": "拍打翅膀生火。 一边踩着华丽的步伐，一边洒下猛烈的火焰。",
+        "description": "吸食了兰紫色花蜜的样子。会通过奇幻的舞步召唤出死者的灵魂。",
         "height": 6,
         "weight": 34,
         "stats": [
@@ -40348,7 +40348,7 @@
         "pinyinInitials": "ZYLRHH",
         "catchRate": 0.53,
         "genus": "狼宝可梦",
-        "description": "快速移动迷惑敌人。 除了爪子和牙齿之外，鬃毛里的尖锐岩石也是武器之一。",
+        "description": "性情冷静又凶猛。据说这个样子的鬃岩狼人培育起来最费工夫。",
         "height": 8,
         "weight": 250,
         "stats": [
@@ -40386,7 +40386,7 @@
         "pinyinInitials": "ZYLRHY",
         "catchRate": 0.53,
         "genus": "狼宝可梦",
-        "description": "快速移动迷惑敌人。 除了爪子和牙齿之外，鬃毛里的尖锐岩石也是武器之一。",
+        "description": "性情十分粗暴。只要是为了解决掉对手，就算会伤害到自己也无所谓。",
         "height": 11,
         "weight": 250,
         "stats": [
@@ -40463,7 +40463,7 @@
         "pinyinInitials": "RDYYQ",
         "catchRate": 0.42,
         "genus": "小鱼宝可梦",
-        "description": "一旦陷入危机，眼睛就会变得 湿润并发光。和汇聚在这光亮中的 伙伴们一起对抗敌人。",
+        "description": "组成阵形来对抗强大的敌人。如果在战斗中受伤，便会散开回到一只一只的样子。",
         "height": 82,
         "weight": 786,
         "stats": [
@@ -43499,7 +43499,7 @@
         "pinyinInitials": "NKLZMHHZZ",
         "catchRate": 0.03,
         "genus": "棱镜宝可梦",
-        "description": "好像一直都沉睡在地下。 被认为是太古时代从其他世界 来到此地的类似究极异兽的生物。",
+        "description": "奈克洛兹玛不断吸取索尔迦雷欧的力量的样子。非常粗暴，令人无从应付。",
         "height": 38,
         "weight": 4600,
         "stats": [
@@ -43535,7 +43535,7 @@
         "pinyinInitials": "NKLZMFXZY",
         "catchRate": 0.03,
         "genus": "棱镜宝可梦",
-        "description": "好像一直都沉睡在地下。 被认为是太古时代从其他世界 来到此地的类似究极异兽的生物。",
+        "description": "不断吞食露奈雅拉的光的样子。会用巨大的爪子抓住敌人，使劲撕开。",
         "height": 42,
         "weight": 3500,
         "stats": [
@@ -43571,7 +43571,7 @@
         "pinyinInitials": "JJNKLZMNKLZM",
         "catchRate": 0.03,
         "genus": "棱镜宝可梦",
-        "description": "好像一直都沉睡在地下。 被认为是太古时代从其他世界 来到此地的类似究极异兽的生物。",
+        "description": "吸收压倒性的光能量后变化而成的样子。从全身发射出激光。",
         "height": 75,
         "weight": 2300,
         "stats": [
@@ -44212,7 +44212,7 @@
         "pinyinInitials": "CJJHHLJGXHLJGX",
         "catchRate": 0.28,
         "genus": "鼓手宝可梦",
-        "description": "能够通过打鼓来控制 特别的树桩中的力量，操纵树根进行战斗。",
+        "description": "超极巨化之力使它的树桩急速成长，变成了仿佛森林一样的鼓。",
         "height": 21,
         "weight": 900,
         "stats": [
@@ -44367,7 +44367,7 @@
         "pinyinInitials": "CJJHSYWPSYWP",
         "catchRate": 0.28,
         "genus": "前锋宝可梦",
-        "description": "会将小石头像足球般用脚挑起，制造出缠绕着火焰的足球。 会用猛烈的踢射来燃烧对手。",
+        "description": "因着超极巨化的力量，火焰球的直径有时甚至会超过１００米。",
         "height": 14,
         "weight": 330,
         "stats": [
@@ -44522,7 +44522,7 @@
         "pinyinInitials": "CJJHQMBYQMBY",
         "catchRate": 0.28,
         "genus": "特工宝可梦",
-        "description": "身上隐藏着多种特殊能力，例如从手指喷射水流，以及用背部的翼膜滑翔等等。",
+        "description": "狙击技巧超群。打穿掉落在１５公里以外地面上的树果对它来说也是小菜一碟。",
         "height": 19,
         "weight": 452,
         "stats": [
@@ -44752,7 +44752,7 @@
         "pinyinInitials": "CJJHGKYGKY",
         "catchRate": 0.28,
         "genus": "乌鸦宝可梦",
-        "description": "在伽勒尔地区的空中所向披靡。 它那黑得发亮的钢铁之躯 有着让敌人畏惧的威慑力。",
+        "description": "能让背部被称为“刃鸟”的８根羽毛脱离身体，各自独立去袭击敌人。",
         "height": 22,
         "weight": 750,
         "stats": [
@@ -44906,7 +44906,7 @@
         "pinyinInitials": "CJJHYOLPYOLP",
         "catchRate": 0.28,
         "genus": "七星宝可梦",
-        "description": "以头脑聪慧而闻名。 大大的脑子是它拥有 出众精神力量的证明。",
+        "description": "在它竭尽全力时，能够操纵自己周围一切生物的心灵。",
         "height": 4,
         "weight": 408,
         "stats": [
@@ -45250,7 +45250,7 @@
         "pinyinInitials": "CJJHBSGBSG",
         "catchRate": 0.384,
         "genus": "紧咬宝可梦",
-        "description": "性格凶暴的宝可梦。 会用能咬断铁棍的颚部 大口咬住猎物。",
+        "description": "古时候它咬崩一座山阻止洪水漫延的故事在伽勒尔地区代代相传。",
         "height": 10,
         "weight": 1155,
         "stats": [
@@ -45480,7 +45480,7 @@
         "pinyinInitials": "CJJHJTSJTS",
         "catchRate": 0.28,
         "genus": "煤炭宝可梦",
-        "description": "平时性情温和，但在人类 破坏矿山时会大发雷霆，用1500度的大火将他们烧尽。",
+        "description": "身体是巨大的火炉。超极巨化之力激发它燃烧起了２０００度的炉火。",
         "height": 28,
         "weight": 3105,
         "stats": [
@@ -45598,7 +45598,7 @@
         "pinyinInitials": "CJJHPGLPGL",
         "catchRate": 0.28,
         "genus": "苹果翅宝可梦",
-        "description": "啃果虫吃了酸苹果后进化 而成。颊囊里储存着足以 造成灼伤的强酸性液体。",
+        "description": "超极巨化之力使它的蜜量增加，最后外貌变成了巨大的苹果。",
         "height": 3,
         "weight": 10,
         "stats": [
@@ -45677,7 +45677,7 @@
         "pinyinInitials": "CJJHFMLFML",
         "catchRate": 0.28,
         "genus": "苹果汁宝可梦",
-        "description": "啃果虫吃了甜苹果后进化而成。 以虫宝可梦为食，会从体内发出 甜甜的香味引诱它们上钩。",
+        "description": "会向敌人大量喷射体内的蜜，让对方在黏糊糊的黏液里窒息。",
         "height": 4,
         "weight": 130,
         "stats": [
@@ -45793,7 +45793,7 @@
         "pinyinInitials": "CJJHSLMSLM",
         "catchRate": 0.496,
         "genus": "沙蛇宝可梦",
-        "description": "蜷缩身体后从鼻孔里喷射出 100公斤的沙子。没有了 沙子就会变得很懦弱。",
+        "description": "沙囊也变得巨大无比。围绕在身上的沙土重量超过１００万吨。",
         "height": 38,
         "weight": 655,
         "stats": [
@@ -46103,7 +46103,7 @@
         "pinyinInitials": "CXRYDD",
         "catchRate": 0.35,
         "genus": "庞克宝可梦",
-        "description": "当它用力抓挠胸部的突起物 来制造电力时，四周会响起 如同吉他演奏般的声音。",
+        "description": "当它大口喝下淤水，并在体内制造电气的时候，会响起仿佛像是贝斯的节拍。",
         "height": 16,
         "weight": 400,
         "stats": [
@@ -46142,7 +46142,7 @@
         "pinyinInitials": "CJJHCXRYCXRY",
         "catchRate": 0.28,
         "genus": "庞克宝可梦",
-        "description": "当它用力抓挠胸部的突起物 来制造电力时，四周会响起 如同吉他演奏般的声音。",
+        "description": "过剩的电力是它的武器。它所储备的电量甚至凌驾于雷雨云之上。",
         "height": 16,
         "weight": 400,
         "stats": [
@@ -46258,7 +46258,7 @@
         "pinyinInitials": "CJJHFYGFYG",
         "catchRate": 0.384,
         "genus": "发热宝可梦",
-        "description": "发热时的体温大约有800度。 会像鞭子那样弯曲身体 朝着敌人弹跳过去。",
+        "description": "超极巨化之力使它的体温超过了１０００度。会用热浪烧焦对手。",
         "height": 30,
         "weight": 1200,
         "stats": [
@@ -46565,7 +46565,7 @@
         "pinyinInitials": "CJJHBLMWBLMW",
         "catchRate": 0.28,
         "genus": "寂静宝可梦",
-        "description": "由于会朝四周释放足以 引起头痛的精神力量，其他生物都躲得远远的。",
+        "description": "能从触手释放出如同闪电一般的光束。也被称为是狂暴的女神。",
         "height": 21,
         "weight": 51,
         "stats": [
@@ -46723,7 +46723,7 @@
         "pinyinInitials": "CJJHCMJMCMJM",
         "catchRate": 0.28,
         "genus": "健美宝可梦",
-        "description": "通过用头发裹住全身，让肌肉的力量向上提升。 能发挥出足以压倒怪力的力量。",
+        "description": "全身的毛因超极巨化而增多。即使是全世界最高的建筑也能一跃而过。",
         "height": 15,
         "weight": 610,
         "stats": [
@@ -49809,7 +49809,7 @@
         "pinyinInitials": "BQEJDT",
         "catchRate": 0.42,
         "genus": "企鹅宝可梦",
-        "description": "从非常寒冷的地方漂流 而来。随时都用冰块 冰镇着自己的脸。",
+        "description": "与外表相反，不擅长游泳。在发梢做出冰球来吸引并钓起猎物。",
         "height": 14,
         "weight": 890,
         "stats": [
@@ -49888,7 +49888,7 @@
         "pinyinInitials": "AGSCX",
         "catchRate": 0.24,
         "genus": "感情宝可梦",
-        "description": "会用头上的角读取对方的心情。 雄性就像管家一样，在主人的身边打理一切。",
+        "description": "为了寻求喜悦和感谢等快乐的心情，会勤快地到处照顾人和宝可梦。",
         "height": 9,
         "weight": 280,
         "stats": [
@@ -49968,7 +49968,7 @@
         "pinyinInitials": "MLBKKF",
         "catchRate": 0.76,
         "genus": "双面宝可梦",
-        "description": "总是饿着肚子。 会吃掉装在像口袋一样的 袋子里的种子来发电。",
+        "description": "因饥饿导致荷尔蒙失衡，使颊囊中的电能转化成了恶属性的能量。",
         "height": 3,
         "weight": 30,
         "stats": [
@@ -50085,7 +50085,7 @@
         "pinyinInitials": "CJJHDWTXDWTX",
         "catchRate": 0.424,
         "genus": "像铜宝可梦",
-        "description": "绿色的皮肤非常耐水。 在很久以前从其他地区过来，之后便一直与人类一起工作。",
+        "description": "超极巨化后，只要用巨大的象鼻攻击一次，就能拆毁高大的建筑。",
         "height": 30,
         "weight": 6500,
         "stats": [
@@ -50308,7 +50308,7 @@
         "pinyinInitials": "CJJHLGLLGL",
         "catchRate": 0.28,
         "genus": "合金宝可梦",
-        "description": "身体犹如打磨过的金属，虽然轻而坚硬，却有着 容易生锈的弱点。",
+        "description": "细胞的硬度在钢属性宝可梦之中也是顶级的。拥有抗震的构造。",
         "height": 18,
         "weight": 400,
         "stats": [
@@ -50786,7 +50786,7 @@
         "pinyinInitials": "CJJHWDXSYJLWDXS",
         "catchRate": 0.024,
         "genus": "拳法宝可梦",
-        "description": "一击必杀是它的信条。 飞冲到对方的怀中，用自己 经过千锤百炼的拳头一拳击入。",
+        "description": "从拳头放出的能量变成了冲击波，能一击打飞极巨化的宝可梦。",
         "height": 19,
         "weight": 1050,
         "stats": [
@@ -50822,7 +50822,7 @@
         "pinyinInitials": "CJJHWDXSLJLWDXS",
         "catchRate": 0.024,
         "genus": "拳法宝可梦",
-        "description": "一击必杀是它的信条。 飞冲到对方的怀中，用自己 经过千锤百炼的拳头一拳击入。",
+        "description": "据说，它是以时而湍急时而平稳的河水为灵感，创造出了格斗招式的形式。",
         "height": 19,
         "weight": 1050,
         "stats": [
@@ -51286,7 +51286,7 @@
         "pinyinInitials": "YYXHY",
         "catchRate": 0.16,
         "genus": "泥炭宝可梦",
-        "description": "我认为正是洗翠的沼泽地形，赋予了圈圈熊魁梧的体格和随意操纵泥炭的新能力。",
+        "description": "很特别的月月熊，会用如铁般坚硬的泥土保护身体，并拥有能看穿黑暗的左眼。",
         "height": 27,
         "weight": 3330,
         "stats": [
@@ -51364,7 +51364,7 @@
         "pinyinInitials": "YWXYCX",
         "catchRate": 0.35,
         "genus": "大鱼宝可梦",
-        "description": "它披覆着未能完成逆流而上夙愿而死的同伴灵魂。在整个洗翠的河流中，没有其他物种能与幽尾玄鱼匹敌。",
+        "description": "能操控恐怖的幻觉。伙伴的灵魂的悲痛越深，它的身体就会变得越白。",
         "height": 30,
         "weight": 1100,
         "stats": [
@@ -51515,7 +51515,7 @@
         "pinyinInitials": "JLYLS",
         "catchRate": 0.03,
         "genus": "爱憎宝可梦",
-        "description": "当它从海的彼岸飞抵这片大地时，严酷的寒冬便迎来终结。传说这只宝可梦的爱意会让洗翠大地萌发崭新的生命。",
+        "description": "自女人的姿态变化而成。若有谁做出糟蹋生命之事，便会从云海中现身，愤怒地降下无情的惩罚。",
         "height": 16,
         "weight": 480,
         "stats": [
@@ -51974,7 +51974,7 @@
         "pinyinInitials": "PXTCX",
         "catchRate": 0.56,
         "genus": "猪宝可梦",
-        "description": "飘香豚为自己细腻光滑的皮肤感到自豪。它会从尾巴尖端散发出浓缩的香气。",
+        "description": "会释放出如花般的香气。肌肉发达的腿可以轻而易举地跳过５米高。",
         "height": 10,
         "weight": 1200,
         "stats": [
@@ -52357,7 +52357,7 @@
         "pinyinInitials": "YJSSZJT",
         "catchRate": 0.48,
         "genus": "家族宝可梦",
-        "description": "两只小家伙是某天突然出现的。这个群体可能是一个由相关宝可梦组成的家庭，但没人能确定。",
+        "description": "身型大的２只会一边保护孩子一边战斗。对抗强大的对手时会集体出阵。",
         "height": 3,
         "weight": 28,
         "stats": [
@@ -52630,7 +52630,7 @@
         "pinyinInitials": "NYGLYM",
         "catchRate": 0.78,
         "genus": "鹦鹉宝可梦",
-        "description": "这些宝可梦更喜欢生活在城市里。它们根据羽毛的颜色组成群体，并为了争夺领地而争斗。",
+        "description": "蓝色羽毛的群体把势力最大的绿色羽毛的群体视为竞争对手。",
         "height": 6,
         "weight": 24,
         "stats": [
@@ -52670,7 +52670,7 @@
         "pinyinInitials": "NYGHYM",
         "catchRate": 0.78,
         "genus": "鹦鹉宝可梦",
-        "description": "这些宝可梦更喜欢生活在城市里。它们根据羽毛的颜色组成群体，并为了争夺领地而争斗。",
+        "description": "黄色的怒鹦哥最为粗暴。有时还会把其他鸟宝可梦赶出城镇。",
         "height": 6,
         "weight": 24,
         "stats": [
@@ -52710,7 +52710,7 @@
         "pinyinInitials": "NYGBYM",
         "catchRate": 0.78,
         "genus": "鹦鹉宝可梦",
-        "description": "这些宝可梦更喜欢生活在城市里。它们根据羽毛的颜色组成群体，并为了争夺领地而争斗。",
+        "description": "不擅长单独行动。凝聚力很强，靠着与伙伴互相合作而生存了下来。",
         "height": 6,
         "weight": 24,
         "stats": [
@@ -54047,7 +54047,7 @@
         "pinyinInitials": "HTXQNXT",
         "catchRate": 0.35,
         "genus": "海豚宝可梦",
-        "description": "如果听到同伴呼救，这只宝可梦就会改变外形。海豚侠绝不会让任何人看到它变身的过程。",
+        "description": "会以５０节的游泳速度去救助溺水的人类和宝可梦。是大海的英雄。",
         "height": 18,
         "weight": 974,
         "stats": [
@@ -54659,7 +54659,7 @@
         "pinyinInitials": "MLLXCZS",
         "catchRate": 0.56,
         "genus": "拟态宝可梦",
-        "description": "这是一只小型的龙属性宝可梦。它生活在吃吼霸的口中，以保护自己免受外敌侵害。",
+        "description": "会装死来欺骗对手。虽然体型小又没力气，却懂得运用智慧来求生。",
         "height": 3,
         "weight": 80,
         "stats": [
@@ -54699,7 +54699,7 @@
         "pinyinInitials": "MLLPTZS",
         "catchRate": 0.56,
         "genus": "拟态宝可梦",
-        "description": "这是一只小型的龙属性宝可梦。它生活在吃吼霸的口中，以保护自己免受外敌侵害。",
+        "description": "即使在龙宝可梦当中，它的智商也是名列前茅。会膨胀喉囊来拟态。",
         "height": 3,
         "weight": 80,
         "stats": [
@@ -55009,7 +55009,7 @@
         "pinyinInitials": "TLJJSJ",
         "catchRate": 0.35,
         "genus": "地蛇宝可梦",
-        "description": "这只宝可梦用坚硬的尾巴在地下深处的基岩中钻孔筑巢。巢穴的长度可达六英里以上。",
+        "description": "最近的研究发现，它的身体会有多少节是由基因决定的。",
         "height": 36,
         "weight": 392,
         "stats": [
@@ -55698,7 +55698,7 @@
         "pinyinInitials": "SCLTBXT",
         "catchRate": 0.35,
         "genus": "宝箱宝可梦",
-        "description": "这只宝可梦大约在1500年前诞生于一个宝箱内。它会吸取试图偷走财宝的恶徒的生命能量。",
+        "description": "背着古老的硬币四处徘徊。会吸取试图捡起硬币的人的生命力来维生。",
         "height": 1,
         "weight": 1,
         "stats": [
@@ -56380,7 +56380,7 @@
         "pinyinInitials": "EGPSJMJ",
         "catchRate": 0.06,
         "genus": "",
-        "description": "这只宝可梦的属性会随所戴面具而改变。它用敏捷的动作与踢击迷惑对手。",
+        "description": "激发出水之力量的样子。会以踢技和藤蔓发起无间断的打击。",
         "height": 12,
         "weight": 398,
         "stats": [
@@ -56416,7 +56416,7 @@
         "pinyinInitials": "EGPHZMJ",
         "catchRate": 0.06,
         "genus": "",
-        "description": "这只宝可梦的属性会随所戴面具而改变。它用敏捷的动作与踢击迷惑对手。",
+        "description": "激发出火之力量的样子。会像挥动长枪一样操控带刺的藤蔓贯穿敌人。",
         "height": 12,
         "weight": 398,
         "stats": [
@@ -56452,7 +56452,7 @@
         "pinyinInitials": "EGPCSMJ",
         "catchRate": 0.06,
         "genus": "",
-        "description": "这只宝可梦的属性会随所戴面具而改变。它用敏捷的动作与踢击迷惑对手。",
+        "description": "这是它防守优秀的样子，能够如支撑住家的地基般承受沉重的冲击。",
         "height": 12,
         "weight": 398,
         "stats": [
@@ -56739,7 +56739,7 @@
         "pinyinInitials": "TLBGSTJXT",
         "catchRate": 0.03,
         "genus": "",
-        "description": "太乐巴戈斯利用将能量转化为坚硬结晶的能力保护自己。这只宝可梦正是太晶现象的源头。",
+        "description": "一旦察觉到危险，它就会用太晶的结晶制作出坚固的甲壳以备战。",
         "height": 3,
         "weight": 160,
         "stats": [

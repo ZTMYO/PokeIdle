@@ -4,7 +4,7 @@ window.__POKEIDLE_BOOTED__ = true;
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
 import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
-import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, flushSave, getPokemonByIndex, trimEncounterLogs, ensureGpsState, restoreSessionState, flushBuffRecord, markBuffStateRestored, calcOffline, addSystemLog, getCurrentRegion, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
+import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, flushSave, getPokemonByIndex, trimEncounterLogs, ensureGpsState, restoreSessionState, flushBuffRecord, markBuffStateRestored, calcOffline, addSystemLog, getCurrentRegion, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
 import { migrateEncounterScores } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
 import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyWindowBg, isEvolutionShowActive, isEggShowActive, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, setupOwnedTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView, relayoutStage } from './ui.js';
@@ -36,7 +36,7 @@ import { backFromBattlePick, isBattlePicking, migrateTeams, isTeamEditing, close
 import { showCasinoView } from './casino.js';
 import * as road from './road.js';
 import { startSkyBg } from './sky-bg.js';
-import { initBackgroundCatchup, startBackgroundCatchup, notifyAppState, bgCatchupEnabled, bgAway, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, seedBgOfflineSeconds, bgPeekAccum, bgTakeStatSeconds, bgTakeOfflineAway, bgInBackground } from './background-catchup.js';
+import { initBackgroundCatchup, startBackgroundCatchup, notifyAppState, bgCatchupEnabled, bgAway, bgTakeAccum, bgTakeBike, bgTakeBuffRemainingMs, bgPeekAccum, bgTakeStatSeconds, bgInBackground } from './background-catchup.js';
 import { startEventRefresh } from './server-events.js';
 import { startActivityRefresh } from './activity.js';
 import { startLotteryRefresh } from './lottery.js';
@@ -541,7 +541,6 @@ async function onGameTick() {
   // 后台补发开关关闭时（如安卓沿用离线暂停哲学）停摆秒数不参与任何补算，主循环保持前台原行为
   const afkRoadSec = bgCatchupEnabled() ? road.takeAfkSeconds() : 0;   // road 帧间隔兜底（Tauri 最小化可能不发 visibilitychange）
   const afkSec = bgCatchupEnabled() ? Math.max(bgTakeAccum(), afkRoadSec) : 0;
-  const offlineAway = bgCatchupEnabled() ? bgTakeOfflineAway() : false; // 离线段：补算按无 buff 估
   // 挂机时长补记：停摆期间没有 tick，逐秒累加走不到；离线那段的秒数由 calcOffline 记过，这里不重复
   if (bgCatchupEnabled()) creditAwaySeconds(Math.max(bgTakeStatSeconds(), afkRoadSec));
   // 骑行停摆期间不产生掉落/遭遇（骑行不遇敌、不拾取），里程仍按骑行速度补算：
@@ -553,7 +552,7 @@ async function onGameTick() {
   let grantSec = afkSec;
   let idleAfkSec = idleAfkSecRaw;
   if (catchUpLog) {
-    const enc = await catchUpEncounters(idleAfkSecRaw, bgTakeBuffRemainingMs(), offlineAway);
+    const enc = await catchUpEncounters(idleAfkSecRaw, bgTakeBuffRemainingMs());
     if (enc) {
       catchUpLog.enc = enc;
       if (enc.stalledSec != null) {
@@ -571,8 +570,7 @@ async function onGameTick() {
       gpsAddDistance(extraWalk);
       catchUpLog.walk = extraWalk;
     }
-    // 里程/掉落/帮手已入账：清掉待补的离线秒数记账
-    if (gameData.pendingOfflineSec) gameData.pendingOfflineSec = 0;
+    // 里程/掉落/帮手已入账
     saveGame(); // 补算入账立即落盘，避免依赖 30 秒周期存档
     // 树果帮手补算：后台 rAF 停摆期间帮手在线时长/劳作暂停，恢复时按前台节奏补齐
     const helper = catchUpHelper(afkSec);
@@ -991,13 +989,10 @@ async function init() {
     gameDataRaw = candidates[0];
   }
   setGameData(gameDataRaw || getDefaultSave());
-  // 离线结算必须在任何 saveGame 之前：saveGame 会把 lastSaveTime 刷成当前时间，
-  // 之后再算离线间隔就永远是 0，随从 endsAt / 树果 / 训练等离线暂停都会失效
+  // 离线结算只后移不走的计时器（农场/训练/交换/随从）；大退不补发资源，只有派遣按真实时间推进。
+  // pendingOfflineSec 留给待开战遭遇的时间戳，不再喂补发管线。
   const offlineSec = calcOffline(gameData);
-  if (offlineSec > 0) {
-    gameData.pendingOfflineSec = (gameData.pendingOfflineSec || 0) + offlineSec;
-    seedBgOfflineSeconds(gameData.pendingOfflineSec, !!gameData.manualBike);
-  }
+  gameData.pendingOfflineSec = offlineSec > 0 ? offlineSec : 0;
   // 应用存档中的窗口倍率（未设置时默认 2 倍）
   applyWindowScale(gameData?.settings?.windowScale);
   // 应用夜间模式
@@ -1307,7 +1302,7 @@ async function init() {
 
   // 主存档的待开战记录：按同一只继续，不给重摇机会
   if (gameData.wildEncounter && !sessionEncounterRestored) {
-    // 这只跨了离线：把它之后的记账时间钉在离线那一刻（pendingOfflineSec 稍后会被补算清零，这里先读）
+    // 这只跨了离线：把日志/入袋时间钉在退出那一刻（pendingOfflineSec 只用于时间戳，不参与补发）
     const gapSecs = bgCatchupEnabled() ? (gameData.pendingOfflineSec || 0) : 0;
     import('./battle.js').then(m => m.restoreWildEncounter(gameData.wildEncounter, gapSecs));
   }
@@ -1651,15 +1646,17 @@ async function init() {
   // 1.5s 定时器触发，该定时器会被浏览器冻结导致画面卡住；切后台立即启动后台快速结算。
   // 记账/开关统一收敛在 background-catchup.js，此处只注入运行依赖
   initBackgroundCatchup({
-    // 停摆补算的记账门槛：正常挂机或遭遇页；钓鱼/孵蛋/骑行等道路本就停摆的场合不记账
+    // 按“路面时钟是否在跑”判断，不是按当前页面：手机/图鉴/商店等页面路面仍 active，切后台照样补；
+    // 钓鱼/孵蛋/单屏对战等路面被主动暂停的场合不记账。遭遇 phase 单独放行，跨后台的遭遇要能结算。
     isIdleRoadActive: () => (phase === 'idle'
       ? road.isActive()
       : phase === 'encounter' || phase === 'caught' || phase === 'fled'),
     isBike: () => road.isBike(),
     buffRemaining: () => {
+      const now = Date.now();
       let ms = 0;
-      if (honeyBuffActive && honeyCountdownEnd > Date.now()) ms = Math.max(ms, honeyCountdownEnd - Date.now());
-      if (charmBuffActive && charmCountdownEnd > Date.now()) ms = Math.max(ms, charmCountdownEnd - Date.now());
+      if (honeyBuffActive) ms = Math.max(ms, honeyCountdownEnd > now ? honeyCountdownEnd - now : honeyPausedRemaining);
+      if (charmBuffActive) ms = Math.max(ms, charmCountdownEnd > now ? charmCountdownEnd - now : charmPausedRemaining);
       return ms;
     },
     onHidden: () => settleEncounterForBackground(),

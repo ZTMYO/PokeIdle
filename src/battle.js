@@ -1389,8 +1389,29 @@ export function resumeEncounterFlow() {
     setHoneyExpiryTimer(setTimeout(handleHoneyExpired, d));
     startHoneyCountdown();
   } else if (charmBuffActive || honeyBuffActive) {
-    // 增益还在生效、没有暂停余量：照增益节奏排下一场
-    scheduleNextEncounter(rand(15, 30) * 1000);
+    // 增益还在生效、没有暂停余量：照增益节奏排下一场，同时补上到期计时器
+    // （补发/后台恢复可能把原来的 timer 清掉，只改 countdownEnd 不挂 timer 会变成永久 buff）
+    if (charmBuffActive) {
+      const left = charmCountdownEnd > Date.now() ? charmCountdownEnd - Date.now() : 0;
+      if (left > 0) {
+        if (charmExpiryTimer) clearTimeout(charmExpiryTimer);
+        setCharmExpiryTimer(setTimeout(handleCharmExpired, left));
+        startCharmCountdown();
+      } else {
+        handleCharmExpired();
+      }
+    } else {
+      const left = honeyCountdownEnd > Date.now() ? honeyCountdownEnd - Date.now() : 0;
+      if (left > 0) {
+        if (honeyExpiryTimer) clearTimeout(honeyExpiryTimer);
+        setHoneyExpiryTimer(setTimeout(handleHoneyExpired, left));
+        startHoneyCountdown();
+      } else {
+        handleHoneyExpired();
+      }
+    }
+    if (charmBuffActive || honeyBuffActive) scheduleNextEncounter(rand(15, 30) * 1000);
+    else scheduleNextEncounter();
   } else {
     scheduleNextEncounter();
   }
@@ -1711,53 +1732,95 @@ function buildCatchupPlan(secs, hideAt, buffSec, buffAvg, normalAvg, simItem) {
 // 否则事件宝可梦会在补算的 await 间隙撞上来开第二场）
 export function isBgCatchupRunning() { return _bgCatchup; }
 
-export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = false) {
-  if (!bgCatchupEnabled()) return; // 后台补发开关关闭时（如安卓沿用离线暂停哲学）不做任何遇敌补算
+// 补发窗口结束后的 buff 结算：扣掉模拟用掉的续杯、算回到前台还剩多少、到期续杯、恢复调度。
+// 无论有没有排到遭遇都要走（短切后台也可能没有遭遇，但 buff 仍然在走表）。
+function settleBuffWindow(activeItem, buffLeftSec, covered, renewPlan, renewUse) {
+  const coveredSec = Math.max(0, covered - buffLeftSec);
+  const usedBottles = Math.min(renewPlan.length, Math.ceil(coveredSec / BUFF_DURATION));
+  for (const item of renewPlan.slice(0, usedBottles)) {
+    gameData.items[item] = Math.max(0, (gameData.items[item] || 0) - 1);
+    renewUse[item]++;
+  }
+  for (const [item, n] of Object.entries(renewUse)) {
+    if (!n) continue;
+    addSystemLog('item_use', { item, qty: n, auto: true });
+    updateBackpack(item);
+  }
+  // 先扣掉模拟用掉的瓶，再决定回到前台要不要续杯：否则到期回调会看到还没扣的库存，多烧一瓶。
+  // remainingSec 用「原 buff + 实际用掉的续杯」减去已走过的时长，别拿计划续到 secs 的 end 算。
+  const remainingSec = Math.max(0, buffLeftSec + usedBottles * BUFF_DURATION - covered);
+  if (activeItem === 'sweet-honey') {
+    if (remainingSec > 0) {
+      if (honeyPausedRemaining > 0) setHoneyPausedRemaining(remainingSec * 1000);
+      else setHoneyCountdownEnd(Date.now() + remainingSec * 1000);
+    } else if (honeyPausedRemaining > 0) {
+      setHoneyPausedRemaining(0);
+    } else if (honeyCountdownEnd > 0) {
+      setHoneyCountdownEnd(0);
+    }
+  } else if (activeItem === 'shiny-charm') {
+    if (remainingSec > 0) {
+      if (charmPausedRemaining > 0) setCharmPausedRemaining(remainingSec * 1000);
+      else setCharmCountdownEnd(Date.now() + remainingSec * 1000);
+    } else if (charmPausedRemaining > 0) {
+      setCharmPausedRemaining(0);
+    } else if (charmCountdownEnd > 0) {
+      setCharmCountdownEnd(0);
+    }
+  }
+  if (activeItem && remainingSec <= 0) {
+    if (activeItem === 'sweet-honey') handleHoneyExpired();
+    else handleCharmExpired();
+  }
+  resumeEncounterFlow();
+}
+
+export async function catchUpEncounters(secs, buffRemainingMs) {
+  if (!bgCatchupEnabled()) return; // 后台补发开关关闭时不做任何遇敌补算
   // 「离开那一刻 buff 还剩多少」：快照优先；没有快照就把绝对到期时刻回推到离开时刻。
   // 以前这里取的是「现在还剩多少」，离开期间已经过期的会算成 0 —— 整段停摆就被当成全程无 buff，
   // 自动续杯自然也不会模拟，表现就是开着护符补发出一堆普通宝可梦。
   // 回推值按一瓶时长封顶：期间定时器可能已经续过杯，绝对时刻会变成新的到期点。
   const hideAt = Date.now() - secs * 1000;
   const leftAtHide = (endMs) => (endMs > 0 ? Math.min(BUFF_DURATION, Math.max(0, endMs - hideAt) / 1000) : 0);
-  const honeyLeft = honeyPausedRemaining > 0 ? honeyPausedRemaining : leftAtHide(honeyCountdownEnd);
-  const charmLeft = charmPausedRemaining > 0 ? charmPausedRemaining : leftAtHide(charmCountdownEnd);
+  // honeyPausedRemaining / charmPausedRemaining 是毫秒，左侧时间轴统一按秒算
+  const honeyLeft = honeyPausedRemaining > 0 ? Math.min(BUFF_DURATION, honeyPausedRemaining / 1000) : leftAtHide(honeyCountdownEnd);
+  const charmLeft = charmPausedRemaining > 0 ? Math.min(BUFF_DURATION, charmPausedRemaining / 1000) : leftAtHide(charmCountdownEnd);
   let simItem = (honeyBuffActive || honeyLeft > 0) ? 'sweet-honey'
     : (charmBuffActive || charmLeft > 0) ? 'shiny-charm' : null;
   const snapSec = Math.min(BUFF_DURATION, Math.max(0, (buffRemainingMs || 0) / 1000));
-  // 冷启动补的离线段按「无 buff」估：离线期间增益本来就是暂停的（seedBgOfflineSeconds 也这么记），
-  // 不能拿恢复后的倒计时回推——否则整段离线被当成 buff 期，一重进就把手里的瓶子全烧掉
-  const buffLeftSec = offlineAway ? 0
-    : snapSec > 0 ? snapSec
-      : simItem === 'sweet-honey' ? honeyLeft
-        : simItem === 'shiny-charm' ? charmLeft
-          : 0;
-  if (offlineAway) simItem = null;
-  syncBuffExpiry(); // 恢复前先同步 buff 到期状态（过期自动续杯）：与是否补遭遇无关，
-                    // 骑行/钓鱼等暂停补算的守卫会提前 return，若不在此处先同步，骑行中后台到期的 buff 会漏续杯
+  const buffLeftSec = snapSec > 0 ? snapSec
+    : simItem === 'sweet-honey' ? honeyLeft
+      : simItem === 'shiny-charm' ? charmLeft
+        : 0;
   if (_bgCatchup || _bgCatch) return;
   // 大量出没事件区不再整体跳过：站在事件点上（或导航终点就是它）时按事件节奏补，
   // 详见 buildCatchupPlan。时空扭曲暂不补（变体/外观另有一套，先保持原行为）
-  if (phase !== 'idle' || _fishing || inTwistZone() || road.isBike()) return;
+  if (phase !== 'idle' || _fishing || inTwistZone() || road.isBike()) { syncBuffExpiry(); return; }
   const autoActive = gameData.settings?.autoCatch || gameData.settings?.autoFlee;
-  if (!autoActive) return;
+  if (!autoActive) { syncBuffExpiry(); return; }
   // 遇敌节奏与 buff 联动：buff 期间 15~30s 一次，平时 120~240s 一次
   const buffAvg = (BUFF_ENCOUNTER_MIN + BUFF_ENCOUNTER_MAX) / 2;
   const normalAvg = (ENCOUNTER_MIN + ENCOUNTER_MAX) / 2;
   const activeItem = simItem;   // 这段窗口里真正在跑的瓶子（按离开时算，回前台续的杯不算）
+  // 补发会按瓶时间线自己处理续杯（或由下面的到期回调续），清掉后台记下的待续，免得回前台又白烧一瓶；
+  // activeItem 为空时保留：那是后台已经到期、需要 renewBuffLater 在回前台后补上的情况
+  if (activeItem) clearBuffRenewPending();
   // 离开时确实有 buff 在跑，才按自动续杯接着烧（一瓶 = BUFF_DURATION 秒）。
   // 这里只算"要续几瓶"，真扣道具放到补算结束后按实际模拟到的时刻结算（撞上暂停时不多扣）。
   // 时间线按瓶切开：第一段是离开时剩下的，后面是计划续上的瓶；每段记自己的道具。
   const bottles = [];
   let buffSec = 0;
+  let activeUntil = 0; // 含续杯在内的实际到期点（秒），用于切分续杯时间线
   const renewPlan = [];
   if (simItem && buffLeftSec > 0) {
     const end = Math.min(secs, buffLeftSec);
     bottles.push({ from: 0, to: end, item: simItem });
     buffSec = end;
+    activeUntil = buffLeftSec;
   }
   if (bottles.length > 0) {
-    // 这段窗口由补发按时间线自己续杯：清掉后台到期时记下的待续，免得回前台又白烧一瓶
-    clearBuffRenewPending();
+    // 这段窗口由补发按时间线自己续杯
     const stock = { 'sweet-honey': gameData.items['sweet-honey'] || 0, 'shiny-charm': gameData.items['shiny-charm'] || 0 };
     // 自动操作关闭时，补算也不要按隐藏的「自动使用」设置续杯
     const autoBuff = !!gameData.settings?.autoCatch;
@@ -1767,17 +1830,23 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
       if (!item) break;
       stock[item]--;
       renewPlan.push(item);
-      const end = Math.min(secs, buffSec + BUFF_DURATION);
-      bottles.push({ from: buffSec, to: end, item });
+      const start = activeUntil;
+      activeUntil += BUFF_DURATION;
+      const end = Math.min(secs, activeUntil);
+      bottles.push({ from: start, to: end, item });
       buffSec = end;
     }
   }
   const renewUse = { 'sweet-honey': 0, 'shiny-charm': 0 };
-  const buffLeftover = Math.max(0, buffLeftSec - Math.min(secs, buffLeftSec)); // 停摆窗口走完后原 buff 的剩余
   // 场次表：事件区（大量出没）按事件节奏排，其余时段按普通遇敌节奏排；没有事件区时与旧算法完全一致
   const plan = buildCatchupPlan(secs, hideAt, buffSec, buffAvg, normalAvg, simItem);
   const total = plan.length;
-  if (total <= 0) return;
+  if (total <= 0) {
+    // 没有排到遭遇，但停摆期间 buff 仍要走表；否则频繁短切后台会让 60 秒 buff 永远不结束
+    if (activeItem) settleBuffWindow(activeItem, buffLeftSec, secs, renewPlan, renewUse);
+    else syncBuffExpiry();
+    return;
+  }
   // 路上还压着一只没走到主角面前的（刷新/重开后恢复的滚动图标）：把它并进补发的第一场，图标撤掉不再单独开战。
   // 否则补算会另摇一只，紧接着图标那只再开战，两只撞在一起——每日神兽池就一两只，撞上就是同一只神兽连出
   let pending = null;
@@ -1901,40 +1970,17 @@ export async function catchUpEncounters(secs, buffRemainingMs, offlineAway = fal
     _bgCatchup = false;
     _massCatchupZone = false;
     setSimClock(0);
-    // 补发把这段 buff 真用掉了：从暂停剩余里扣掉；用光的走正常到期（自动续杯会真扣一瓶），
-    // 否则会留下一个没有倒计时的“永久 buff”，神兽率一直被按加成判
-    if (activeItem === 'sweet-honey') {
-      if (honeyPausedRemaining > 0) setHoneyPausedRemaining(buffLeftover);
-      else if (honeyCountdownEnd > 0) setHoneyCountdownEnd(Math.max(0, honeyCountdownEnd - buffSec * 1000));
-    } else if (activeItem === 'shiny-charm') {
-      if (charmPausedRemaining > 0) setCharmPausedRemaining(buffLeftover);
-      else if (charmCountdownEnd > 0) setCharmCountdownEnd(Math.max(0, charmCountdownEnd - buffSec * 1000));
-    }
-    resumeEncounterFlow(); // 补算结束统一恢复 buff 倒计时与遇敌调度
-    if (activeItem && buffLeftSec > 0 && buffLeftover <= 0) {
-      if (activeItem === 'sweet-honey') handleHoneyExpired();
-      else handleCharmExpired();
-    }
+    // 补发实际走过的时长：撞上暂停就只算到那一场，后面的停摆不消耗 buff
+    const covered = Math.min(secs, stalledSec != null ? stalledSec : secs);
+    settleBuffWindow(activeItem, buffLeftSec, covered, renewPlan, renewUse);
     setBulkQuiet(false); // 恢复背景曲（补算期间的闪光提示音在此一并补播）
-    // 补发续杯：按真正模拟到的时刻结算，撞上暂停就少扣
-    const coveredSec = Math.max(0, Math.min(secs, stalledSec != null ? stalledSec : secs) - buffLeftSec);
-    const usedBottles = Math.min(renewPlan.length, Math.ceil(coveredSec / BUFF_DURATION));
-    for (const item of renewPlan.slice(0, usedBottles)) {
-      gameData.items[item] = Math.max(0, (gameData.items[item] || 0) - 1);
-      renewUse[item]++;
-    }
-    for (const [item, n] of Object.entries(renewUse)) {
-      if (!n) continue;
-      addSystemLog('item_use', { item, qty: n, auto: true });
-      updateBackpack(item);
-    }
     setSaveSuspended(false); // 解除挂起，否则这次收尾的 saveGame 会被直接挡掉，之后也一直存不了
     saveGame();
   }
   const renewText = Object.entries(renewUse).filter(([, n]) => n).map(([k, n]) => `${ITEM_NAMES[k]}×${n}`).join('、');
   // 补发结果记一条系统日志：桌面端开不了控制台，玩家只能在这里核对增益有没有被模拟
   if (done > 0) {
-    addSystemLog('catchup', { n: done, mass: massDone, shiny: shinies, buffMin: Math.round(Math.min(secs, buffSec) / 60), renew: renewText });
+    addSystemLog('catchup', { n: done, mass: massDone, shiny: shinies, buffMin: Math.round(Math.min(stalledSec != null ? stalledSec : secs, buffSec) / 60), renew: renewText });
   }
   const result = { done, total, balls, shinies, mass: massDone, caught, stalledSec };
   console.log(`[挂机补发] 遇敌补算 ${done}/${total} 次（消耗球 ${balls}，闪光 ${shinies}${massDone ? `，其中大量出没 ${massDone}` : ''}${caught.length ? `，捕获 ${caught.join('、')}` : ''}${renewText ? `，补发续杯 ${renewText}` : ''}${stalledSec != null ? `，模拟到 ${stalledSec}s 处遇暂停` : ''}）`);
