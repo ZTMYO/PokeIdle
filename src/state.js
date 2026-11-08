@@ -1,5 +1,5 @@
 // ===== 游戏状态 + 存档管理 =====
-import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, BIKE_PENDING_MAX_GAP_MS, AUTO_CATCH_BALLS_DEFAULT, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS, SHINY_CHANCE, SQUARE_SHINY_CHANCE, ALCREMIE_FORM_INDEX } from './config.js';
+import { REGION_CYCLE, HATCH_DIST_MIN, HATCH_DIST_MAX, HATCH_DIST_SIGMA, START_CANDY, START_POKE_BALLS, BIKE_RESTORE_MAX_GAP_MS, BIKE_PENDING_MAX_GAP_MS, AUTO_CATCH_BALLS_DEFAULT, WILD_LEVEL_MAX, DISPATCH_FREE_SLOTS, SHINY_CHANCE, SQUARE_SHINY_CHANCE, ALCREMIE_FORM_INDEX, OFFLINE_MAX_SEC } from './config.js';
 
 // ---------- 游戏数据 ----------
 export let allPokemon = [];
@@ -986,7 +986,7 @@ export function addAwaySeconds(save, sec) {
 // ---------- 离线处理：仅推进 0 点刷新的内容，其余机制保持存档原样 ----------
 export function calcOffline(save) {
   const now = Date.now();
-  const elapsed = Math.min((now - save.stats.lastSaveTime) / 1000, 86400);
+  const elapsed = Math.min((now - save.stats.lastSaveTime) / 1000, OFFLINE_MAX_SEC);
   if (!(elapsed > 0)) return 0; // 注意 NaN（旧档缺 lastSaveTime）：不能写成 elapsed <= 0，否则会把 NaN 统计进在线时长
   // 骑行状态按 BIKE_RESTORE_MAX_GAP_MS 保留（车是花道具换来的，切后台被杀掉不该丢）
   if (elapsed * 1000 > BIKE_RESTORE_MAX_GAP_MS) {

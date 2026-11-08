@@ -3,8 +3,8 @@
 window.__POKEIDLE_BOOTED__ = true;
 // 禁用全局右键菜单（桌面端 webview 的原生右键菜单）
 document.addEventListener('contextmenu', e => e.preventDefault());
-import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
-import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, flushSave, getPokemonByIndex, trimEncounterLogs, ensureGpsState, restoreSessionState, flushBuffRecord, markBuffStateRestored, calcOffline, addSystemLog, getCurrentRegion, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
+import { CATCH_RATES, SAVE_INTERVAL, ITEM_RATES, ITEM_NAMES, ROAD_SPECIAL_CHANCE, ROAD_WIDTH_MIN, ROAD_WIDTH_MAX, ROAD_SWITCH_CYCLES, BIKE_RESTORE_MAX_GAP_MS, PX_PER_METER, AUTO_CATCH_BALLS_DEFAULT, OFFLINE_MAX_SEC } from './config.js';
+import { allPokemon, gameData, phase, currentEncounter, honeyBuffActive, charmBuffActive, blockBuffActive, honeyCountdownEnd, charmCountdownEnd, honeyPausedRemaining, charmPausedRemaining, _autoCatching, _pokedexInLogView, _lastRegionId, gameTick, _fishing, setAllPokemon, setGameData, setPhase, setCurrentEncounter, setCurrentIsShiny, setEncounterBallsUsed, setCurrentEncounterBalls, setGameTick, pushNav, popNav, resetNav, setLastRegionId, setIdleMsgIdx, setCatchConfirmStep, setBlockBuffActive, setBlockRecipe, setBlockStartWalk, setBlockQuality, setQteState, getDefaultSave, saveGame, flushSave, getPokemonByIndex, trimEncounterLogs, ensureGpsState, restoreSessionState, flushBuffRecord, markBuffStateRestored, calcOffline, addSystemLog, getCurrentRegion, saveSessionState, setEncounterMsg, addPlaySeconds, addAwaySeconds, inMassZone, inTwistZone, setEncounterSource, setEncounterVariant, nextEncounterTimer , setSimClock, _eggHatching  } from './state.js';
 import { migrateEncounterScores } from './scoring.js';
 import { massTick, ensureMassInit as ensureMassInitEvents, twistTick, ensureTwistInit } from './events.js';
 import { $, showView, updateTextBox, showConfirmBar, isIdleStageVisible, isPageHidden, applyUiMode, getUiMode, isUiMobile, isDualLayout, isStageView, getAppChannelView, closeAppArea, applyWindowBg, isEvolutionShowActive, isEggShowActive, applyCharSprites, updateBackpack, updateStats, setIdleCharacter, renderIncubatorView, updateIncubatorTimers, updateIncubatorBadge, setupFoodTooltip, setupOwnedTooltip, isIncubatorLogOpen, closeIncubatorLog, closeIncubatorEggView, relayoutStage } from './ui.js';
@@ -527,7 +527,7 @@ async function onGameTick() {
       // 人确实挂着：这段时间先记挂机时长；收益补算的停摆秒数（_bgSecAccum）留在账上别消费——
       // 等这只遭遇处理完、回到挂机后走下面的正常分支补，否则挂机时长涨了、里程道具一点不动。
       // 时长取两个源的最大值（两源量的是同一段停摆，不能相加），顺带把 road 帧间隔兜底取走防重复计
-      if (bgCatchupEnabled()) creditAwaySeconds(Math.max(bgTakeStatSeconds(), road.takeAfkSeconds()));
+      if (bgCatchupEnabled()) creditAwaySeconds(Math.min(OFFLINE_MAX_SEC, Math.max(bgTakeStatSeconds(), road.takeAfkSeconds())));
     }
     updateStats();
     return;
@@ -540,10 +540,10 @@ async function onGameTick() {
   // 遇敌/钓鱼等 road 暂停时两者均为 0，不会误补。Tauri 端窗口可见时均不触发
   // 后台补发开关关闭时（如安卓沿用离线暂停哲学）停摆秒数不参与任何补算，主循环保持前台原行为
   const afkRoadSec = bgCatchupEnabled() ? road.takeAfkSeconds() : 0;   // road 帧间隔兜底（Tauri 最小化可能不发 visibilitychange）
-  const afkSec = bgCatchupEnabled() ? Math.max(bgTakeAccum(), afkRoadSec) : 0;
+  const afkSec = bgCatchupEnabled() ? Math.min(OFFLINE_MAX_SEC, Math.max(bgTakeAccum(), afkRoadSec)) : 0;
   const offlineAway = bgCatchupEnabled() ? bgTakeOfflineAway() : false; // 离线段：补算按无 buff 估
   // 挂机时长补记：停摆期间没有 tick，逐秒累加走不到；离线那段的秒数由 calcOffline 记过，这里不重复
-  if (bgCatchupEnabled()) creditAwaySeconds(Math.max(bgTakeStatSeconds(), afkRoadSec));
+  if (bgCatchupEnabled()) creditAwaySeconds(Math.min(OFFLINE_MAX_SEC, Math.max(bgTakeStatSeconds(), afkRoadSec)));
   // 骑行停摆期间不产生掉落/遭遇（骑行不遇敌、不拾取），里程仍按骑行速度补算：
   // 只把行走时段的停摆秒数计入掉落/遭遇补算，避免骑行结束瞬间的骑行秒数被误补
   const idleAfkSecRaw = bgTakeBike() ? 0 : afkSec;
@@ -1657,9 +1657,10 @@ async function init() {
       : phase === 'encounter' || phase === 'caught' || phase === 'fled'),
     isBike: () => road.isBike(),
     buffRemaining: () => {
+      const now = Date.now();
       let ms = 0;
-      if (honeyBuffActive && honeyCountdownEnd > Date.now()) ms = Math.max(ms, honeyCountdownEnd - Date.now());
-      if (charmBuffActive && charmCountdownEnd > Date.now()) ms = Math.max(ms, charmCountdownEnd - Date.now());
+      if (honeyBuffActive) ms = Math.max(ms, honeyCountdownEnd > now ? honeyCountdownEnd - now : honeyPausedRemaining);
+      if (charmBuffActive) ms = Math.max(ms, charmCountdownEnd > now ? charmCountdownEnd - now : charmPausedRemaining);
       return ms;
     },
     onHidden: () => settleEncounterForBackground(),

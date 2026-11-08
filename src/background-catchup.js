@@ -3,6 +3,7 @@
 // （里程/掉落/遇敌/帮手/农场）。安卓 WebView 切后台 JS 冻结、进程可能被杀，若安卓端沿用
 // "离线暂停"哲学（calcOffline），把 BACKGROUND_CATCHUP 改为 false 即可整体关闭补发——
 // 记账、补算、遭遇结算等全部入口都会跳过，主循环保持前台原行为。
+import { OFFLINE_MAX_SEC } from './config.js';
 export const BACKGROUND_CATCHUP = true;
 
 export function bgCatchupEnabled() {
@@ -42,14 +43,14 @@ export function bgPeekAccum() { return _bgSecAccum; }
 
 // 读取停摆累计秒数并清零
 export function bgTakeAccum() {
-  const s = _bgSecAccum;
+  const s = Math.min(_bgSecAccum, OFFLINE_MAX_SEC);
   _bgSecAccum = 0;
   return s;
 }
 
 // 读取"该补记挂机时长"的停摆秒数并清零（只有同一会话切后台才往里加）
 export function bgTakeStatSeconds() {
-  const s = _statSecAccum;
+  const s = Math.min(_statSecAccum, OFFLINE_MAX_SEC);
   _statSecAccum = 0;
   return s;
 }
@@ -92,8 +93,11 @@ function enterBg() {
   if (deps.isIdleRoadActive()) {
     _hiddenAt = Date.now();
     _hiddenIsBike = deps.isBike(); // 记录停摆期间步态：骑行停摆不产生掉落/遭遇，里程按骑行速度补
-    // 快照离开时刻 buff 剩余时长（甜甜蜜/护符互斥，取剩余较多者），供补算分段模拟遇敌节奏
-    _hiddenBuffRemainingMs = Math.max(_hiddenBuffRemainingMs, deps.buffRemaining() || 0);
+    // 快照离开时刻 buff 剩余时长。每次切后台都以这一次为准，不能和上一次没消费的旧快照取 max：
+    // 那样会把早已过期的 buff 越攒越长，补算时整段停摆都被按增益判（神兽/闪光率虚高）
+    _hiddenBuffRemainingMs = deps.buffRemaining() || 0;
+  } else {
+    _hiddenBuffRemainingMs = 0;
   }
   deps.onHidden(); // 遭遇中切后台：立即结算进行中的遭遇（autoCatch 定时器会被冻结卡画面）
 }
