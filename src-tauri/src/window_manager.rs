@@ -78,12 +78,14 @@ pub fn set_window_scale(
     };
     let s = if scale > 0.0 { scale } else { 1.0 };
 
-    // 以 JS 上报的真实系统 dpr 为准（Rust scale_factor 与 WebView2 实际渲染可能不一致）
+    // JS 上报的系统 dpr 优先；但高 DPI 首次启动时 WebView2 可能暂时报 1，
+    // 再拿它算 zoom 会把 274 宽的视口裁成一半。用 Rust scale_factor 兜底取大值。
+    let rust_dpr = window.scale_factor().unwrap_or(1.0).max(0.25);
     let js_dpr = {
         let d = *JS_DPR.lock().unwrap();
-        if d > 0.0 { d } else { window.scale_factor().unwrap_or(1.0) }
+        if d > 0.0 { d } else { rust_dpr }
     };
-    let dpr = js_dpr.max(0.25);
+    let dpr = js_dpr.max(rust_dpr).max(0.25);
 
     // 显示器物理像素上限（留 5% 边距）
     let max_s = if let Ok(Some(monitor)) = window.current_monitor() {

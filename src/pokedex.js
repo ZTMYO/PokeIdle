@@ -1031,7 +1031,7 @@ export function showPokedex() {
     return `<div class="pokedex-entry${known ? '' : ' disabled'}" data-index="${p.index}" data-seen="${known ? '1' : '0'}">
       <span class="pokedex-star">${shinyTag}</span>
       <span class="pokedex-idx">#${p.index}</span>
-      <span class="pokedex-name" data-dex-no="#${p.index}">${known ? p.name : '？？？'}</span>
+      <span class="pokedex-name">${known ? p.name : '？？？'}</span>
       <span class="pokedex-stat">${seen}</span>
       <span class="pokedex-stat">${caught}</span>
       <span class="pokedex-stat">${shinySeen}</span>
@@ -1060,15 +1060,8 @@ export function showPokedex() {
     if (i < sorted.length) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
-  // 点击名字：在原位置替换成图鉴编号，再点回名字；点条目其它位置仍进详情
+  // 点击条目弹出遭遇日志（仅已看到过的）
   list.onclick = (e) => {
-    const nameEl = e.target.closest('.pokedex-name');
-    if (nameEl && nameEl.dataset.dexNo) {
-      e.stopPropagation();
-      if (!nameEl.dataset.label) nameEl.dataset.label = nameEl.textContent;
-      nameEl.textContent = nameEl.textContent === nameEl.dataset.dexNo ? nameEl.dataset.label : nameEl.dataset.dexNo;
-      return;
-    }
     const entry = e.target.closest('.pokedex-entry');
     if (entry && entry.dataset.seen === '1') showEncounterLogs(entry.dataset.index);
   };

@@ -899,15 +899,15 @@ async function init() {
     if (!_isBrowser) { _layoutScale = 1; _transformLayout = false; return; } // Tauri：窗口缩放由 Rust 负责，rect 保持逻辑值
     if (_isMobileUA) {
       // 移动端浏览器用 transform：canvas 保持逻辑尺寸绘制、由 GPU 合成缩放，不额外增加重绘开销
-      const scale = Math.max(1, Math.min(vw / 274, vh / baseH));
+      const scale = Math.max(0.2, Math.min(vw / 274, vh / baseH));
       consoleEl.style.transform = `scale(${scale})`;
       document.documentElement.style.zoom = '';
       _layoutScale = scale;
       _transformLayout = true;
     } else {
       _transformLayout = false;
-      // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时保持 100%
-      const scale = Math.max(1, Math.min(innerWidth / 274, innerHeight / baseH));
+      // 宽屏取高为限（上下贴边），窄屏取宽为限（左右贴边）；窗口不足基准尺寸时也等比缩小，避免裁切
+      const scale = Math.max(0.2, Math.min(innerWidth / 274, innerHeight / baseH));
       document.documentElement.style.zoom = scale;
       _layoutScale = scale;
     }
@@ -1185,6 +1185,7 @@ async function init() {
         sw.style.transition = '';
       }
       applyUiMode(targetUiMode);
+      applyWindowScale(gameData.settings?.windowScale); // 开场是 classic；切回 dual/mobile 后窗口高度要跟着重设
       if (isDualLayout()) closeAppArea();
       // 底部背包/统计栏与顶部按钮的恢复由 startSplashDrop 统一处理（splash 显示后淡入，避免闪现）
       // 首次 splash（开场剧情结束后的首个开机动画）不静音：未白镇开场曲顺势延续
