@@ -1,7 +1,7 @@
 // ===== 分享图 =====
 // 用 canvas 直接把数据画成卡片：不截屏、不拼 SVG，没有跨域限制，手机 WebView 上也一样能出图。
 // 版面照游戏屏幕来：整张青绿卡 + 一圈深绿细边，平面色块与分割线，没有渐变。
-// 素材只用游戏自己的：精灵图（路径取图鉴里的 image 字段）、app 图标、内联 SVG 图标（#icon-star 等）。
+// 素材只用游戏自己的：精灵图（路径取图鉴里的 image 字段）、app 图标、内联 SVG 图标与状态徽章。
 import { tryLoadImage, isMobilePlatform } from './ui.js';   // 贴图走游戏自己的加载器：多通道 + 缓存，PC WebView 上才不会漏图
 import { alcremieSuffix, alcremieShinySrc } from './config.js';
 
@@ -92,7 +92,7 @@ function pill(ctx, str, x, y, h, { bg, fg, size = 22, weight = 700, padX = 14 } 
   return w;
 }
 
-// 直接复用游戏里的内联 SVG 图标（icon-star / icon-male / icon-female …），不自己造图形
+// 直接复用游戏里的内联 SVG 图标（icon-male / icon-female …），不自己造图形
 const _iconCache = new Map();
 function iconImage(id, color) {
   const key = `${id}|${color}`;
@@ -110,6 +110,23 @@ function iconImage(id, color) {
     img.src = url;
   });
   _iconCache.set(key, p);
+  return p;
+}
+
+// 徽章直接取 badges.js 的 SVG，不经过内联 symbol
+const _badgeCache = new Map();
+function badgeImage(svg, color) {
+  const key = `${color}|${svg}`;
+  if (_badgeCache.has(key)) return _badgeCache.get(key);
+  const code = svg.replace(/currentColor/g, color).replace('<svg ', '<svg width="64" height="64" ');
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(code);
+  const p = new Promise((res) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = url;
+  });
+  _badgeCache.set(key, p);
   return p;
 }
 
@@ -162,7 +179,7 @@ async function loadSprite(m) {
 }
 
 // ---------- 画卡片 ----------
-// 版面照游戏屏幕来：整张米绿卡 + 一圈深绿细边。自上而下：标题行（编号 + 名字 + 闪光星 + 性别 + Lv）
+// 版面照游戏屏幕来：整张米绿卡 + 一圈深绿细边。自上而下：标题行（编号 + 名字 + 状态徽章 + 性别 + Lv）
 // → 基础信息（左立绘、右属性胶囊与三行文字）→ 一条内缩分割线 → 个体值（左雷达图右进度条）
 // → 一条通到底的分割线 → 页脚（左：游戏 logo，右：日期）
 async function drawCard(ctx, m) {
@@ -174,16 +191,16 @@ async function drawCard(ctx, m) {
   ctx.fillRect(0, 0, W, H);
   outline(ctx, 12, 12, W - 24, H - 24, c.edge, 4, 22);
 
-  // 标题行：编号 + 名字（全名含形态）+ 游戏自带图标 + Lv
+  // 标题行：编号 + 名字（全名含形态）+ 状态徽章 + Lv
   const dispName = m.title || m.name || '';   // 昵称上限 5 字、形态名也放得下，图上不截断
   let nx = L;
   label(ctx, dispName, nx, 106, { size: 56, weight: 700, color: ui });
   nx += measure(ctx, dispName, 56, 700) + 22;
   ctx.save();
   ctx.imageSmoothingEnabled = true;   // 矢量图标：开平滑才按目标尺寸锐利光栅化
-  if (m.shiny) {
-    const st = await iconImage('icon-star', ui);
-    if (st) { ctx.drawImage(st, nx, 62, 46, 46); nx += 58; }
+  if (m.badge) {
+    const bi = await badgeImage(m.badge, ui);
+    if (bi) { ctx.drawImage(bi, nx, 62, 46, 46); nx += 58; }
   }
   if (m.gender) {
     const gi = await iconImage(m.gender === '♀' ? 'icon-female' : 'icon-male', m.gender === '♀' ? FEMALE : MALE);

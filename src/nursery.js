@@ -4,7 +4,8 @@
 import { $, showView, tryLoadImage, setupFoodTooltip, showConfirmBar, hideConfirmBar, hideFoodTip, eggIconHtml, logicViewport, watchOutsidePress, popupBounds } from './ui.js';
 import { gameData, getPokemonByIndex, isPokemon, saveGame, pushNav, ensureGender, genderBadge, rollGender, rollNature, rollSexForm, addSystemLog, rollShinyResult } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
-import { BERRY_ICONS, BERRY_NAMES, pokemonSourceBadge } from './items.js';
+import { BERRY_ICONS, BERRY_NAMES } from './items.js';
+import { pokemonSourceBadge } from './badges.js';
 import { ensureBerryFarm } from './berry.js';
 import { removePokemonFromAllTeams } from './team.js';
 import { familyRoot } from './evolution.js';

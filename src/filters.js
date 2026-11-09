@@ -20,7 +20,7 @@ export function sourceFilterLabel(s) {
   const comboShort = { '|': '全部', 'legend|': '神', 'normal|normal': '普', 'legend|normal': '神', '|normal': '非闪', '|shiny': '闪', 'normal|shiny': '普闪', 'legend|shiny': '神闪' };
   if (!s.src) return comboShort[`${s.legend}|${s.shiny}`] || '全部';
   if (s.variant) {
-    const vShort = { any: '变', rgb: 'RGB', polluted: '污染' };
+    const vShort = { any: '变', rgb: 'RGB', polluted: '污染', rainbow: '炫彩' };
     return `${srcShort[s.src]}·${vShort[s.variant]}`;
   }
   return `${srcShort[s.src]}·${comboShort[`${s.legend}|${s.shiny}`]}`;
@@ -55,11 +55,13 @@ export function setupSourceFilter({ trigger, label, dd, state, onPick }) {
         sub.push(`<div class="region-dropdown-item${state.legend === 'legend' && state.shiny === 'shiny' && !state.src ? ' active' : ''}"
              data-src="" data-legend="legend" data-shiny="shiny">闪光</div>`);
       } else if (k === 'twist') {
-        // 时空扭曲专属：二级直接列出 RGB / 污染 / 闪光三个叶子项
+        // 时空扭曲专属：二级直接列出 RGB / 污染 / 炫彩 / 闪光叶子项
         sub.push(`<div class="region-dropdown-item${state.src === k && state.variant === 'rgb' && !state.legend && !state.shiny ? ' active' : ''}"
              data-src="${k}" data-legend="" data-shiny="" data-variant="rgb">RGB</div>`);
         sub.push(`<div class="region-dropdown-item${state.src === k && state.variant === 'polluted' && !state.legend && !state.shiny ? ' active' : ''}"
              data-src="${k}" data-legend="" data-shiny="" data-variant="polluted">污染</div>`);
+        sub.push(`<div class="region-dropdown-item${state.src === k && state.variant === 'rainbow' && !state.legend && !state.shiny ? ' active' : ''}"
+             data-src="${k}" data-legend="" data-shiny="" data-variant="rainbow">炫彩</div>`);
         sub.push(`<div class="region-dropdown-item${state.src === k && state.shiny === 'shiny' && !state.legend && !state.variant ? ' active' : ''}"
              data-src="${k}" data-legend="" data-shiny="shiny">闪光</div>`);
       } else {

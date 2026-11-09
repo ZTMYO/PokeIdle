@@ -10,7 +10,8 @@ import {
 } from './config.js';
 import { ensureBerryFarm } from './berry.js';
 import { removePokemonFromAllTeams, isInAnyTeam } from './team.js';
-import { BERRY_ICONS, BERRY_NAMES, TYPE_COLORS, pokemonSourceBadge } from './items.js';
+import { BERRY_ICONS, BERRY_NAMES, TYPE_COLORS } from './items.js';
+import { pokemonSourceBadge } from './badges.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
 import { fourDirGeom, fourDirSrc, fourDirRowBox, DIR_ROW } from './four-dir.js';

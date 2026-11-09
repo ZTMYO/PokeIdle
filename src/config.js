@@ -28,6 +28,7 @@ export const ITEM_NAMES = {
   'master-ball': '大师球', 'candy': '糖果',
   'sweet-honey': '甜甜蜜', 'mystery-egg': '神秘蛋', 'shiny-charm': '闪耀护符',
   'bike': '自行车', 'exp-candy': '经验糖果', 'casinoCoin': '游戏币', 'ticket': '船票',
+  'silver-crown': '银色王冠', 'golden-crown': '金色王冠', '虹色之羽': '虹色之羽',
   '火之石': '火之石', '水之石': '水之石', '雷之石': '雷之石', '叶之石': '叶之石',
   '冰之石': '冰之石', '月之石': '月之石', '日之石': '日之石', '光之石': '光之石',
   '暗之石': '暗之石', '觉醒之石': '觉醒之石',
@@ -96,7 +97,7 @@ export const EVO_PRICES = {
   '心之石': 500, '联系绳': 900, '极巨汤': 1200, '奇异石': 1500,
   '草莓糖饰': 400, '爱心糖饰': 400, '野莓糖饰': 400, '幸运草糖饰': 400,
   '花朵糖饰': 400, '星星糖饰': 400, '蝴蝶结糖饰': 400,
-  'silver-crown': 500, 'golden-crown': 1000,
+  'silver-crown': 500, 'golden-crown': 1000, '虹色之羽': 1200,
 };
 export const EVO_EXCLUSIVE_PRICE = 2500; // 形态专属道具的统一基准价
 
@@ -113,8 +114,8 @@ export const EVO_SHOP_WEIGHTS = {
 export const EVO_SHOP_EXCLUSIVE_SLOTS = 1;     // 保底格：一定从专属道具里出
 export const EVO_SHOP_EXCLUSIVE_WEIGHT = 5.0;  // 其余格子抽到专属道具的整类权重
 export const EVO_SHOP_MINT_WEIGHT = 1.0;       // 其余格子抽到薄荷的整类权重（21 种平分）
-// 其余格子抽到王冠的整类权重（比薄荷低一档；类内银冠 7 : 金冠 3）
-export const EVO_SHOP_CROWNS = [['silver-crown', 0.35], ['golden-crown', 0.15]];
+// 其余格子抽到王冠/虹色之羽的整类权重（比薄荷低一档；类内银冠 0.35 / 金冠 0.15 / 虹色之羽 0.05）
+export const EVO_SHOP_CROWNS = [['silver-crown', 0.35], ['golden-crown', 0.15], ['虹色之羽', 0.05]];
 
 // ===== 薄荷（改性格）=====
 // 21 种：20 种带修正的性格各一个 + 认真（中性）；值是性格 key，与 battle-core 的 NATURES 一致。
@@ -540,6 +541,9 @@ export const ITEM_DESC = {
 其余 ${BUFF_DURATION} 秒内闪光概率提升至 ${pct(CHARM_SHINY_CHANCE)}`,
   'bike': `骑行赶路工具\n速度 ${Math.round(ROAD_SPEED_BIKE / ROAD_SPEED_WALK)} 倍且不遇敌、不拾取`,
   'exp-candy': '使用后给宝可梦增加经验\n在背包里点经验糖果选一只使用',
+  'silver-crown': '把宝可梦的一项个体值练到 31\n在详情页点「个体值」使用',
+  'golden-crown': '把宝可梦的六项个体值全部练到 31\n在详情页点「个体值」使用',
+  '虹色之羽': '对一只污染宝可梦使用\n净化污染并赋予炫彩描边',
   'casinoCoin': '游戏厅的筹码\n在游戏厅柜台用糖果兑换',
   'ticket': '限时活动「航海寻宝」的船票\n活动期间提交悬赏可获得',
   // 进化道具说明：是什么 + 干什么用；形态专属道具在 items.js 里按数据生成
@@ -669,7 +673,7 @@ export const DISPATCH_DURATIONS = [1, 4, 8, 12, 24];
 export const DISPATCH_DUR_MULT = [1.0, 1.1, 1.25, 1.4, 1.8];
 export const DISPATCH_CANDY_PER_HOUR = 25;    // 糖果/小时（糖果是货币，派遣糖果应占大头；约为在线挂机的 1/3）
 export const DISPATCH_CANDY_JITTER = 0.05;     // 糖果结算随机浮动幅度（±5%）
-export const DISPATCH_VARIANT_CANDY_BONUS = 0.25; // 时空扭曲的 RGB/污染宝可梦派遣糖果加成（特色联动）
+export const DISPATCH_VARIANT_CANDY_BONUS = 0.25; // 带特效外观（RGB / 污染 / 炫彩）的宝可梦派遣糖果加成
 export const DISPATCH_EXTRA_CHANCE = 0.5;     // 完成时追加第 2 个道具的概率
 // 速度种族值 → 派遣耗时系数：指数衰减映射，速度越快完成越快（永不超过档位时长）
 export const DISPATCH_SPEED_REF = 100;                                  // 无种族值数据时的兜底速度

@@ -648,7 +648,7 @@ export function addRosterEntry({ species, shiny = false, squareShiny = false, so
     ivs: ivs || (legendIv ? rollLegendIvs() : rollIvs()),
     nature: rollNature(),
     source,
-    variant: variant || null, // 外观变体：'rgb' 污染等（仅外观，功能等同普通宝可梦）
+    variant: variant || null, // 外观变体：'rgb' 污染等（外观，功能等同普通宝可梦）
     ball: ball || null, // 捕获用的球种（孵蛋/交换为空）；高级筛选「球种」用它
     obtainedAt: at || simNow(), // 显式时间优先；补算期间按模拟时刻写
     inRoster: true,
