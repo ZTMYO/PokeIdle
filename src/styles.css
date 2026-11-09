@@ -7018,6 +7018,10 @@ html.power-save .sponsor-heart-fx { display: none; }
   white-space: nowrap;
   margin-left: 4px;
 }
+/* 点名字：原位置换成图鉴编号 */
+.dex-name-trigger { cursor: pointer; }
+.dex-no-reveal { display: none; cursor: pointer; }
+.dex-no-reveal.show { display: inline; }
 /* 改名按钮 */
 .roster-nick-btn {
   display: inline-flex;

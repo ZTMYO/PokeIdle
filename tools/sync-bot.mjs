@@ -123,6 +123,11 @@ function dexMd(region) {
     if (outs.length) evoBits.push(outs.map((e) => `${nameOf(e.to)}（${edgeCondText(e.cond)}）`).join('；'));
     else evoBits.push('无进一步进化');
     if (ins.length) evoBits.push(`进化前身：${ins.map((e) => `${nameOf(e.from)}（${edgeCondText(e.cond)}）`).join('；')}`);
+    const stirNote = p.index === '0868'
+      ? '\n- 糖饰与搅拌：先选糖饰决定外观，再进入搅拌小游戏；净转满 3 圈才能完成，口味按方向 + 净圈数决定（顺时针 / 逆时针 / 来回搅各有三档）。'
+      : String(p.index).startsWith('0869')
+        ? '\n- 口味：由小仙奶进化时，糖饰决定外观，搅拌方向 + 净圈数决定口味。'
+        : '';
     return `### ${p.index} ${displayName(p)}（${p.name_en || ''}）
 - 属性：${(p.types || []).join(' / ')}｜种族值：${totalOf(p)}（${(p.stats || []).map((v, i) => `${STATS[i]} ${v}`).join(' / ')}）
 - 分类：${p.genus || '未知'}｜身高 ${(Number(p.height) / 10).toFixed(1)} m｜体重 ${(Number(p.weight) / 10).toFixed(1)} kg｜地区：${p.region}｜稀有度：${Number(p.rarity || 0).toFixed(4)}（${rarityText(Number(p.rarity || 0))}）
@@ -131,7 +136,7 @@ function dexMd(region) {
 - 爱吃：${(p.foods || []).map((i) => BERRY_NAMES[i] || `树果#${i}`).join('、') || '无'}
 - 进化：${evoBits.join('｜')}
 - 获取：${(acquire.pokemon.find((x) => x.index === p.index)?.methods || []).map((m) => methodText(m, p)).join('；')}
-- 招式：${learnsetLine(p)}`;
+- 招式：${learnsetLine(p)}${stirNote}`;
   }).join('\n\n');
   return `# 宝可梦图鉴：${region}
 
@@ -292,6 +297,8 @@ ${body}`;
   return `# 进化数据
 
 > 共 ${rows.length} 条进化关系。条件里的「掌握」指当前携带的 4 招；「使用」会消耗对应道具；「地区」要求人在该地区；形态编号带后缀（如 0003-1 是超级妙蛙花）。
+
+> 小仙奶（0868）→ 霜奶仙（0869 族）的“使用糖饰”只是第一步：进化会进入搅拌小游戏，糖饰决定外观，搅拌方向 + 净圈数决定口味（净转满 3 圈才能完成）。
 
 ${parts.join('\n\n')}
 `;

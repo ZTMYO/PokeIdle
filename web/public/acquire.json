@@ -5689,12 +5689,6 @@
                 },
                 {
                     "type": "easter_imiti"
-                },
-                {
-                    "type": "breed",
-                    "parents": [
-                        "0132"
-                    ]
                 }
             ]
         },
