@@ -17,7 +17,7 @@ import { helperTick, showBerryView, catchUpHelper } from './berry.js';
 import { startIntro, advanceIntro, confirmIntro } from './intro.js';
 import { restorePokedex, setupRegionDropdown, setupStatusDropdown, setupTypeFilter,
   showPokedex, setupPokedexSearch, isPokedexLogsPage, backFromPokedexLogs } from './pokedex.js';
-import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease, openCrownPicker } from './roster.js';
+import { showRosterView, isRosterPicking, leaveRosterPicker, isRosterInDetail, isRosterDetailFromObtain, leaveRosterDetailToSource, restoreRosterList, isRosterDetailFromList, leaveRosterDetailToList, isRosterDetailJumpedToPokedex, returnRosterDetailFromPokedex, isRosterInMoveEdit, leaveMoveEditor, isBatchReleasing, cancelBatchRelease, openCrownPicker, openFeatherPicker } from './roster.js';
 import { isTradeInDetail, restoreTradeList, showTradeView } from './trade.js';
 import { showShopView, showSettingsView, showSystemLogs, showAchievementView, renderSystemLogs, applyWindowScale } from './views.js';
 import { showPhoneView, refreshPhoneBadges, updatePhoneBadge, isPhoneEditing, exitEdit, showIncubatorView } from './phone.js';
@@ -374,6 +374,11 @@ function onBagClick(itemKey) {
       openCrownPicker(itemKey);
       return;
     }
+    // 遇敌中可点击虹色之羽：同王冠，打开污染宝可梦选取
+    if (itemKey === '虹色之羽') {
+      openFeatherPicker(itemKey);
+      return;
+    }
     // 遇敌中不可点击自行车（与甜甜蜜/护符同规则，防止误触放弃当前宝可梦）
     if (gameData.settings?.autoCatch) {
       // 遇敌过滤设为"暂停"的遭遇：停在战斗页等玩家手动丢球，不受自动选球配置限制
@@ -393,12 +398,13 @@ function onBagClick(itemKey) {
   }
   if (phase !== 'idle') return;
   const isCrown = itemKey === 'silver-crown' || itemKey === 'golden-crown';
+  const isRainbow = itemKey === '虹色之羽';
   // 钓鱼中禁止使用 buff/骑行道具/经验糖果/王冠（会与暂停的道路/角色状态冲突，经验糖果/王冠会打开选取页打断流程）
-  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike' || itemKey === 'exp-candy' || isCrown)) return;
+  if (_fishing && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm' || itemKey === 'bike' || itemKey === 'exp-candy' || isCrown || isRainbow)) return;
   // 骑行中禁止使用增益道具（手动/自动自行车道；骑行速度已封顶且不遇敌，buff 无收益还浪费）
   if (road.isBike() && (itemKey === 'sweet-honey' || itemKey === 'shiny-charm')) return;
   // 钓鱼等待中禁止使用自行车/经验糖果/王冠（会与即将开始的钓鱼动画冲突）
-  if ((itemKey === 'bike' || itemKey === 'exp-candy' || isCrown) && isFishingPending()) return;
+  if ((itemKey === 'bike' || itemKey === 'exp-candy' || isCrown || isRainbow) && isFishingPending()) return;
   if (itemKey === 'sweet-honey') { activateHoney(); }
   else if (itemKey === 'shiny-charm') {
     if (charmBuffActive || honeyBuffActive) return;   // 生效中（槽位置灰）：不弹确认框
@@ -425,6 +431,9 @@ function onBagClick(itemKey) {
   } else if (isCrown) {
     // 王冠：反向入口，打开仓库选取宝可梦使用（正门在个体详情页点「个体值」标题）
     openCrownPicker(itemKey);
+  } else if (isRainbow) {
+    // 虹色之羽：反向入口，只列污染宝可梦；正门在污染个体详情页点「外观：污染」行
+    openFeatherPicker(itemKey);
   }
 }
 

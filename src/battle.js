@@ -47,7 +47,7 @@ const BREAK_MSGS = {
 
 // 当前遭遇来源（'normal' 普通遇敌 / 'fishing' 钓鱼钓到），记录进遭遇日志与系统日志
 let _encounterSource = 'normal';
-// 当前遭遇外观变体（时空扭曲：'rgb' / 'polluted' / null）；仅外观，功能等同普通宝可梦
+// 当前遭遇外观变体（时空扭曲：'rgb' / 'polluted' / null）；外观，功能等同普通宝可梦
 let _encounterVariant = null;
 // 丢球动画期间暂停逃跑倒计时保留的剩余毫秒数（null 表示未暂停）
 let _autoFleePausedRemaining = null;
@@ -594,7 +594,7 @@ export function startMassEncounter(poke, shiny, squareShiny = false) {
 
 // ===== 时空扭曲遭遇：事件宝可梦滚向主角时直接进入战斗 =====
 // 宝可梦与闪光/变体在滚动精灵生成时已判定并随碰撞传入；闪光率固定（不享受闪耀护符）。
-// variant：'rgb' / 'polluted' / null，仅外观特效，捕获入库时记录在 entry.variant。
+// variant：'rgb' / 'polluted' / null，外观特效，捕获入库时记录在 entry.variant。
 export function startTwistEncounter(poke, shiny, variant, squareShiny = false) {
   if (!poke) return;
   _encounterVariant = variant || null;
@@ -861,7 +861,7 @@ export function renderEncounterScene(poke, opts = {}) {
     img.style.animation = '';
   }
   const shinySuffix = currentIsShiny ? '_shiny' : '';
-  // 时空扭曲外观变体特效（RGB / 污染）：作用于宝可梦图片元素，仅外观展示
+  // 时空扭曲外观变体特效（RGB / 污染）：作用于宝可梦图片元素，外观展示
   img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
   if (_encounterVariant === 'rgb') img.classList.add('fx-variant-rgb');
   else if (_encounterVariant === 'polluted') img.classList.add('fx-variant-polluted');
@@ -1009,7 +1009,7 @@ export async function throwBall(ballType) {
       }
       gameData.stats.totalCatches++;
       // 入仓库（随机个体值 + 野生等级取当前遇敌等级；性别沿用遭遇时 roll 的性别，与遭遇界面一致）
-      // 时空扭曲来源：个体值保底 2V（随机 2 项 31），并记录外观变体（仅外观，功能等同普通宝可梦）
+      // 时空扭曲来源：个体值保底 2V（随机 2 项 31），并记录外观变体（外观，功能等同普通宝可梦）
       const entry = addRosterEntry({
         species: currentEncounter.index, shiny: currentIsShiny, squareShiny: currentIsSquareShiny, source: _encounterSource,
         level: encounterLevel, gender: _encounterGender,

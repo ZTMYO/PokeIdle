@@ -269,6 +269,7 @@ function renderRosterMix() {
     ['神兽', cnt((p) => !!getPokemonByIndex(String(p.species))?.legend)],
     ['RGB', cnt((p) => p.variant === 'rgb')],
     ['污染', cnt((p) => p.variant === 'polluted')],
+    ['炫彩', cnt((p) => p.variant === 'rainbow')],
   ];
   box.innerHTML = list.map(([k, v]) =>
     `<div class="stat-row"><span>${k}</span><span>${formatNum(v)}</span></div>`
@@ -519,6 +520,9 @@ export function renderSystemLogs() {
         desc = `对 ${logName(log)} 使用王冠，练满了 ${(log.details.stats || []).map(k => cn[k] || k).join('、')}`;
         break;
       }
+      case 'rainbow_purify':
+        desc = `对 ${logName(log)} 使用虹色之羽，污染净化成了炫彩`;
+        break;
       case 'berry_helper':
         desc = `招募了帮手${log.details.stages ? `（工作 ${log.details.stages} 阶段）` : ''}`;
         break;
@@ -2387,7 +2391,7 @@ const TUTORIAL_SECTIONS = [
       + `<p><b>老虎机</b>也能转出树果、糖果、游戏币、球、神秘蛋和补给箱消耗品（详见「<b>老虎机</b>」章节）。</p>`
       + `<p><b>神秘蛋</b>挂机也能捡到；<b>自行车</b>离开自行车道时获得；两者都能在商店兑换。</p>`
       + `<p><b>糖果</b>是货币，<b>经验糖果</b>累计放生一定宝可梦或对战获胜后获得，给宝可梦加经验，<b>招式机</b>在商店兑换，永久解锁招式，<b>树果</b>来自农场——详见对应章节。</p>`
-      + `<p><b>进化道具</b>、<b>薄荷</b>与<b>王冠</b>不能在路上拾取，只有这几条渠道：</p>`
+      + `<p><b>进化道具</b>、<b>薄荷</b>、<b>王冠</b>与<b>虹色之羽</b>不能在路上拾取，只有这几条渠道：</p>`
       + tutorialTable([
         ['商店', '每天一批，每件限买 1 个'],
         ['悬赏', '中档给常见，高阶给稀有'],
@@ -2401,7 +2405,8 @@ const TUTORIAL_SECTIONS = [
         ['薄荷', '点<b>性格</b>行，换成对应薄荷的性格'],
         ['王冠', '点<b>个体值</b>标题，把选中的维度练到 31；也可在背包第二页点王冠，挑一只宝可梦后直接打开面板'],
       ], ['道具', '使用入口'], [56, 'auto'])
-      + `<b>道具盒</b>里能查看持有数与来源，大多数道具都可在<b>商店</b>出售。</p>`,
+      + `<p><b>虹色之羽</b>只对污染宝可梦使用：在背包第二页点它，只列出污染个体，选中后净化成炫彩；保留闪光、个体和性格。</p>`
+      + `<b>道具盒</b>里能查看持有数与来源，王冠和虹色之羽归「基础」；大多数道具都可在<b>商店</b>出售。</p>`,
   },
   {
     title: '遭遇',
@@ -2491,7 +2496,8 @@ const TUTORIAL_SECTIONS = [
       + `<p>事件持续 <b>${MASS_DURATION}</b> 分钟，遭遇完或到期后结束。</p>`
       + `<p><b>时空扭曲</b>：每隔 <b>${TWIST_GEN_MIN}~${TWIST_GEN_MAX}</b> 分钟出现一次，从<b>全地区（排除事件所在地）</b>的宝可梦中随机现身，每次遭遇都不同；<b>超级进化 / 超极巨化</b>这类强化形态<b>不会现身</b>，它们只能靠进化获得。</p>`
       + `<p>时空扭曲的宝可梦<b>个体值保底 ${TWIST_GUARANTEED_IVS}V</b>，闪光率 <b>1/${Math.round(1 / TWIST_SHINY_CHANCE)}</b>（不吃闪耀护符加成），有 <b>${Math.round(TWIST_RGB_CHANCE * 100)}%</b> 概率是 <b>RGB 分离</b>宝可梦、<b>${Math.round(TWIST_POLLUTED_CHANCE * 100)}%</b> 概率是<b>污染宝可梦</b>。</p>`
-      + `<p>当这两类带有特效的宝可梦被<b>派遣</b>探险时，带回的糖果数量提升 <b>${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>派遣</b>」章节）。</p>`
+      + `<p>当这些带特效外观的宝可梦（<b>RGB / 污染 / 炫彩</b>）被<b>派遣</b>探险时，带回的糖果数量提升 <b>${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>派遣</b>」章节）。</p>`
+      + `<p>污染的宝可梦可以用<b>虹色之羽</b>净化成<b>炫彩</b>；净化保留闪光、个体和性格。</p>`
       + `<p>事件持续 <b>${TWIST_DURATION}</b> 分钟，可遭遇的 <b>${TWIST_COUNT_MIN}</b> 只遭遇完或到期后结束。</p>`
       + `<p>停在事件点上、或导航终点就是事件点时<b>切后台</b>，回来后这段时间会按事件节奏<b>补发</b>事件遭遇；事件打光或到期后，剩余时间回到普通遇敌。</p>`
       + `<p><b>甜甜蜜</b>生效期间会让<b>事件</b>里的下一只出现得更快：<b>大量出没</b> <b>${MASS_SPAWN_HONEY_MIN}~${MASS_SPAWN_HONEY_MAX}</b> 秒（普通 <b>${MASS_SPAWN_MIN}~${MASS_SPAWN_MAX}</b> 秒）、<b>时空扭曲</b> <b>${TWIST_SPAWN_HONEY_MIN}~${TWIST_SPAWN_HONEY_MAX}</b> 秒（普通 <b>${TWIST_SPAWN_MIN}~${TWIST_SPAWN_MAX}</b> 秒）。</p>`,
@@ -2794,7 +2800,7 @@ const TUTORIAL_SECTIONS = [
         return acc;
       }, {})).map(([k, types]) => [ITEM_NAMES[k] || k, types.join('、')]), ['道具', '属性'], ['auto', 'auto'])
       + `<p>此外每次结算另掷一次<b>进化道具、薄荷或王冠</b>：概率随档位上升（<b>1 小时 ${(DISPATCH_EVO_MAX_CHANCE / 24 * 100).toFixed(1)}%</b> → <b>24 小时 ${Math.round(DISPATCH_EVO_MAX_CHANCE * 100)}%</b>），命中随机带回 <b>1</b> 件。</p>`
-      + `<p>时空扭曲出没的 <b>RGB</b> / <b>污染</b> 宝可梦派遣时糖果额外 <b>+${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>事件</b>」章节）。</p>`
+      + `<p>带特效外观的 <b>RGB</b> / <b>污染</b> / <b>炫彩</b> 宝可梦派遣时糖果额外 <b>+${Math.round(DISPATCH_VARIANT_CANDY_BONUS * 100)}%</b>（详见「<b>事件</b>」章节）。</p>`
       + `<p><b>派遣</b>按真实时间推进，离线也会照常完成；回来后领取奖励，宝可梦留在槽位可直接再出发。</p>`,
   },
   {

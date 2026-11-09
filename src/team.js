@@ -1,7 +1,8 @@
 import { $, showView, tryLoadImage, showConfirmBar, viewportToLogic, watchOutsidePress } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, isPokemon, ivOf, effIvTotal } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
-import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
+import { TYPE_COLORS } from './items.js';
+import { pokemonSourceBadge } from './badges.js';
 import { REGION_CYCLE } from './config.js';
 import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
 

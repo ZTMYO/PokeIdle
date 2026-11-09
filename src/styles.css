@@ -415,7 +415,7 @@ html.mobile-app #quitHide { display: none !important; }
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
 }
 /* === 时空扭曲外观变体（RGB 分离 / 污染宝可梦）===
-   仅外观特效，宝可梦功能与普通个体完全相同 */
+   外观特效，宝可梦功能与普通个体完全相同 */
 .fx-variant-rgb {
   /* 强制独立合成层：滤镜对整层一次性应用，避免 GIF 动画逐帧重采样导致边缘重影频闪 */
   will-change: filter;
@@ -6897,10 +6897,8 @@ html.power-save .sponsor-heart-fx { display: none; }
 .roster-header, .roster-row { gap: 2px; }
 /* 仓库的闪光星标列更窄，避免图标与编号之间空出太多 */
 .roster-header .pokedex-star, .roster-row .pokedex-star { width: 8px; padding-right: 0; }
-/* 仓库行闪光星与变体圆环共用一个类（pokedex-star-svg），统一 8px 尺寸 */
+/* 仓库行徽章共用一个类（pokedex-star-svg），统一 8px 尺寸 */
 .roster-row .pokedex-star svg { width: 8px; height: 8px; display: block; fill: currentColor; }
-/* 方闪那枚右上带小星，竖向被小星占掉一截：放大 1px 让主星看起来和 ★ 一样大 */
-.roster-row .pokedex-star svg.pokedex-sq-svg { width: 9px; height: 9px; }
 /* 仓库编号列加宽至与图鉴页一致并禁止换行，容纳 8 字符扩展编号（#0025-10/#0773-17） */
 .roster-header .pokedex-idx, .roster-row .pokedex-idx { width: 58px; white-space: nowrap; }
 .roster-header .roster-icon, .roster-row .roster-icon { width: 20px; }
@@ -7149,7 +7147,6 @@ html.power-save .sponsor-heart-fx { display: none; }
 }
 .box-badges { position: absolute; top: 0; right: 0; display: flex; }
 .box-badges .pokedex-star-svg { width: 7px; height: 7px; display: block; }
-.box-badges .pokedex-star-svg.pokedex-sq-svg { width: 8px; height: 8px; }
 
 /* 底部等级 / 性别 */
 .box-foot {
@@ -7170,11 +7167,26 @@ html.power-save .sponsor-heart-fx { display: none; }
 
 /* 稀有度边框：普通/稀有统一走图鉴的深绿，传说保留金框 */
 .roster-box-cell.rar-legend { border-color: #d4850a; }
+.roster-box-cell.legend-ring {
+  /* 删掉原来在外层的 box-shadow！ */
+  position: relative;
+}
+.roster-box-cell.legend-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 4px rgb(255, 220, 110);
+}
 
-/* 变体色框优先于稀有度：污染（紫）/ RGB（上左青、下右红的分离色边框，配色同 .fx-variant-rgb） */
+/* 变体色框优先于稀有度：污染（紫）/ RGB（上左青、下右红的分离色边框，配色同 .fx-variant-rgb）/ 炫彩（静态彩虹渐变） */
 .roster-box-cell.var-polluted { border-color: #8a4fd0; }
 .roster-box-cell.var-rgb {
   border-color: rgba(0, 220, 255, .85) rgba(255, 0, 80, .85) rgba(255, 0, 80, .85) rgba(0, 220, 255, .85);
+}
+.roster-box-cell.var-rainbow {
+  border: 1px solid transparent;
+  border-image: linear-gradient(135deg, #ff3b3b, #ffe83b, #3bff8a, #3bd9ff, #b03bff, #ff3b3b) 1;
 }
 
 /* ===== 图鉴盒子（网格）视图 ===== */
@@ -14846,3 +14858,79 @@ html.power-save .screen *:not(.walk-gif)::after {
   color: var(--ui-color-dark);
 }
 .tutorial-search-empty { padding: 6px; color: var(--ui-color); font-size: 8px; text-align: center; opacity: .7; }
+
+/* 炫彩描边：详情大图和净化演出共用；单张精灵图按源像素偏移取并集，边缘保持像素台阶 */
+#rosterView { position: relative; }
+.rainbow-sprite { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.rainbow-mask { mask-type: alpha; }
+.rainbow-band-fill {
+  width: 100%;
+  height: 100%;
+  background: conic-gradient(from var(--rainbow-angle), #ff3b3b, #ffe83b, #3bff8a, #3bd9ff, #b03bff, #ff3b3b);
+  animation: rainbow-band-spin 4s linear infinite;
+}
+@property --rainbow-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes rainbow-band-spin { to { --rainbow-angle: 360deg; } }
+
+/* 净化演出：污染阶段暗，净化后转柔和；羽毛化成粒子落到宝可梦身上 */
+.purify-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 42%, #4b2e74 0%, #29183d 55%, #140d20 100%);
+  color: #fff;
+  transition: color .7s ease;
+}
+.purify-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 38%, #fff4da 0%, #ffe6f1 32%, #dff5ff 64%, #eee7ff 100%);
+  opacity: 0;
+  transition: opacity .7s ease;
+}
+.purify-overlay.purified { color: #4b3550; }
+.purify-overlay.purified::before { opacity: 1; }
+.purify-glow {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 70%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 210, 255, .28), transparent 65%);
+  filter: blur(6px);
+  transition: background .7s ease;
+}
+.purify-overlay.purified .purify-glow {
+  background: radial-gradient(circle, rgba(255, 255, 255, .65), transparent 68%);
+}
+.purify-mon-wrap {
+  position: relative;
+  width: min(58vh, 58vw);
+  max-width: 78%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.purify-mon { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; transition: opacity .18s; }
+.purify-rainbow { position: absolute; inset: 0; opacity: 0; transition: opacity .25s; }
+.purify-item {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 8px rgba(255, 220, 255, .8));
+}
+.purify-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }

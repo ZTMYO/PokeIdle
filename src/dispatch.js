@@ -4,7 +4,8 @@ import { $, showView, tryLoadImage, showConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, saveGame, pushNav, addSystemLog, ensureGender, genderBadge, getIncubatorUnlockCost, ivOf } from './state.js';
 import { DISPATCH_SLOTS, DISPATCH_FREE_SLOTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_EXTRA_CHANCE, DISPATCH_SPEED_REF, DISPATCH_SPEED_MIN, DISPATCH_SPEED_MAX, DISPATCH_SPEED_DECAY, DISPATCH_SPEED_FLAT, DISPATCH_BASE_WEIGHTS, DISPATCH_TYPE_BOOST, DISPATCH_ITEM_VALUE, DISPATCH_ITEM_CAP, DISPATCH_VALUE_PER_HOUR, DISPATCH_PICKS_MAX, DISPATCH_EVO_MAX_CHANCE, REGION_CYCLE, DISPATCH_BOOST_DISCOUNT, DISPATCH_CANDY_JITTER, DISPATCH_VARIANT_CANDY_BONUS } from './config.js';
 import { removePokemonFromAllTeams, isInAnyTeam } from './team.js';
-import { grantItem, TYPE_COLORS, itemIconSrc, ensureEvoMeta, pickEvoDrop, pokemonSourceBadge } from './items.js';
+import { grantItem, TYPE_COLORS, itemIconSrc, ensureEvoMeta, pickEvoDrop } from './items.js';
+import { pokemonSourceBadge } from './badges.js';
 import { NATURES } from './battle-core.js';
 import { matchPinyinPartial } from './pokedex.js';
 import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
@@ -106,7 +107,7 @@ function itemPicks(hours) {
 }
 
 // 糖果基准值（档位小时 × 倍率 + 属性糖果侧重），结算与预览共用；结算时另加随机浮动
-// RGB / 污染（时空扭曲）变体额外糖果加成，预览与结算一致
+// RGB / 污染 / 炫彩 特效外观额外糖果加成，预览与结算一致
 function candyBase(entry, durationMin) {
   const poke = getPokemonByIndex(String(entry.species));
   const boost = poke ? DISPATCH_TYPE_BOOST[poke.types?.[0]] : null;
@@ -116,7 +117,7 @@ function candyBase(entry, durationMin) {
   // 属性糖果侧重（一般/岩石/地面）：直接附赠糖果，每 5 权重 → 额外 2 颗/小时
   const candyBoost = boost ? (boost['candy'] || 0) : 0;
   if (candyBoost) candy += Math.round((candyBoost / 5) * hours * 2);
-  if (entry.variant === 'rgb' || entry.variant === 'polluted') {
+  if (entry.variant === 'rgb' || entry.variant === 'polluted' || entry.variant === 'rainbow') {
     candy = Math.round(candy * (1 + DISPATCH_VARIANT_CANDY_BONUS));
   }
   return candy;

@@ -6,7 +6,8 @@ import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TR
 import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon, ivOf, effIvTotal, rollShinyResult } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage, logicViewport, popupBounds, showConfirmBar, watchOutsidePress } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
-import { TYPE_COLORS, pokemonSourceBadge } from './items.js';
+import { TYPE_COLORS } from './items.js';
+import { pokemonSourceBadge } from './badges.js';
 import { isInAnyTeam } from './team.js';
 import { NATURES } from './battle-core.js';
 import { playCongratulation } from './audio.js';

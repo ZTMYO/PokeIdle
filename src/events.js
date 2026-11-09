@@ -431,7 +431,7 @@ function updateMassSpawner(now) {
 // 随机间隔在道路网络上生成一个「时空扭曲」事件点：异时空宝可梦在该路段大量出现。
 // 与大量出没复用同一套 gps 事件点导航机制（massTarget/massArrived），但事件对象独立存放。
 // 每次遭遇：从「排除事件点归属地区」的全局宝可梦池随机抽一只，
-// 个体值保底 2V，并可能 roll 出 RGB / 污染外观变体（仅外观，闪光判定正常）。
+// 个体值保底 2V，并可能 roll 出 RGB / 污染外观变体（外观，闪光判定正常）。
 // 宝可梦池每次生成事件时快照，不会因玩家跨地区移动而漂移。
 function spawnTwist() {
   if (!gameData || gameData.twist?.active) return;
