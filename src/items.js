@@ -1675,6 +1675,8 @@ export function handleHoneyExpired() {
     // 这里必须落盘：主存档里的 buff 记录要跟着清掉，否则刷新后会把已经到期的增益"复活"
     _buffRenewPending = true;
     setHoneyExpiryTimer(null);
+    setIdleCharacter('walk');
+    particles.stop(); // 定时器/拾取动画期间到期时也会走这里，别把金色粒子留在屏上
     saveGame();
     return;
   }
@@ -1708,6 +1710,8 @@ export function handleCharmExpired() {
     // 同样要落盘清掉旧记录，避免刷新后复活已到期的护符
     _buffRenewPending = true;
     setCharmExpiryTimer(null);
+    setIdleCharacter('walk');
+    particles.stop(); // 同上：到期时把星星粒子收掉
     saveGame();
     return;
   }

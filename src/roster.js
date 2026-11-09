@@ -1800,7 +1800,7 @@ function showRosterDetail(id) {
   const crownClickable = _detailEvoAllowed || _crownPickFrom != null; // 背包王冠入口：面板关掉后还能点「个体值」重开
   list.innerHTML = `
     <div style="font-size:13px;font-weight:700;padding:4px 5px 2px;display:flex;align-items:center;justify-content:space-between;">
-      <span><span id="rosterNickSpan">${rosterName(p)}</span><button class="roster-nick-btn" id="rosterNickBtn" title="改名"><svg t="1786243847045" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13"><path d="M138.666667 810.666667V213.333333c0-41.216 33.450667-74.666667 74.666666-74.666666h469.333334v64H213.333333a10.666667 10.666667 0 0 0-10.666666 10.666666v597.333334c0 5.888 4.778667 10.666667 10.666666 10.666666h597.333334a10.666667 10.666667 0 0 0 10.666666-10.666666V352h64V810.666667A74.666667 74.666667 0 0 1 810.666667 885.333333H213.333333A74.666667 74.666667 0 0 1 138.666667 810.666667z" fill="currentColor"></path><path d="M444.330667 540.032L856.362667 128l45.226666 45.226667-411.989333 412.032-45.226667-45.226667z" fill="currentColor"></path></svg></button>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>' : ''}<span class="roster-detail-lv${_detailEvoAllowed ? ' can-use' : ''}" id="rosterDetailLv"${_detailEvoAllowed ? ' data-exp-candy-open' : ''}>${dGSpan}Lv${p.level || 1}</span></span>
+      <span><span id="rosterNickSpan" class="dex-name-trigger" title="点击查看图鉴编号">${rosterName(p)}</span><span id="rosterDexNo" class="dex-no-reveal">#${p.species}</span><button class="roster-nick-btn" id="rosterNickBtn" title="改名"><svg t="1786243847045" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13"><path d="M138.666667 810.666667V213.333333c0-41.216 33.450667-74.666667 74.666666-74.666666h469.333334v64H213.333333a10.666667 10.666667 0 0 0-10.666666 10.666666v597.333334c0 5.888 4.778667 10.666667 10.666666 10.666666h597.333334a10.666667 10.666667 0 0 0 10.666666-10.666666V352h64V810.666667A74.666667 74.666667 0 0 1 810.666667 885.333333H213.333333A74.666667 74.666667 0 0 1 138.666667 810.666667z" fill="currentColor"></path><path d="M444.330667 540.032L856.362667 128l45.226666 45.226667-411.989333 412.032-45.226667-45.226667z" fill="currentColor"></path></svg></button>${p.shiny ? ' <svg class="roster-shiny" viewBox="0 0 1024 1024" width="14" height="14" style="flex-shrink:0;vertical-align:-2px;transform:translateY(-2px);"><use xlink:href="#icon-star"/></svg>' : ''}<span class="roster-detail-lv${_detailEvoAllowed ? ' can-use' : ''}" id="rosterDetailLv"${_detailEvoAllowed ? ' data-exp-candy-open' : ''}>${dGSpan}Lv${p.level || 1}</span></span>
       <div class="roster-detail-tools">
         <button class="roster-tool" data-pokedex title="查看图鉴"><svg viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-book"></use></svg></button>
         <button class="roster-tool${p.locked ? ' on' : ''}" data-lock title="${p.locked ? '取消锁定' : '锁定'}"><svg viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="${p.locked ? '#icon-lock' : '#icon-unlock'}"></use></svg></button>
@@ -1886,6 +1886,23 @@ function showRosterDetail(id) {
     showConfirmBar(`要对${who}使用经验糖果吗？`, () => {
       import('./exp-candy.js').then(m => m.useExpCandyOn(entry.id, true, 'rosterView'));
     }, null, { overlay: true });
+  });
+
+  // 点名字：名字和改名按钮一起隐藏，原位置换成图鉴编号；点编号恢复
+  const rosterNameEl = $('rosterNickSpan');
+  const rosterDexNoEl = $('rosterDexNo');
+  const rosterEditBtn = $('rosterNickBtn');
+  rosterNameEl?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    rosterNameEl.style.display = 'none';
+    if (rosterEditBtn) rosterEditBtn.style.display = 'none';
+    rosterDexNoEl?.classList.add('show');
+  });
+  rosterDexNoEl?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    rosterDexNoEl.classList.remove('show');
+    rosterNameEl.style.display = '';
+    if (rosterEditBtn) rosterEditBtn.style.display = '';
   });
 
   // 改名按钮

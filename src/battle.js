@@ -1357,6 +1357,9 @@ function cleanupEncounterState() {
 // 玩家会看到倒计时卡住不动（只能靠刷新恢复）
 export function healStuckBuffPause() {
   if (phase !== 'idle' || encState() || _fishing || road.isBike()) return;
+  // 定时器被后台冻结、或拾取动画把路面暂停时，active 还挂着但已经到期：走正常到期（含自动续杯）
+  if (honeyBuffActive && honeyCountdownEnd > 0 && honeyCountdownEnd <= Date.now()) handleHoneyExpired();
+  if (charmBuffActive && charmCountdownEnd > 0 && charmCountdownEnd <= Date.now()) handleCharmExpired();
   const honeyStuck = honeyBuffActive && honeyPausedRemaining > 0 && !(honeyCountdownEnd > 0);
   const charmStuck = charmBuffActive && charmPausedRemaining > 0 && !(charmCountdownEnd > 0);
   if (!honeyStuck && !charmStuck) return;
