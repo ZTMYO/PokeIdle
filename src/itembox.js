@@ -44,9 +44,11 @@ let _groups = {};    // 各类各自的持有道具
 let _all = [];       // 四类合并，搜索结果用
 
 function buildGroups() {
-  const basicKeys = BASIC_ITEM_ORDER.concat(Object.keys(CANDY_EXCHANGE).filter((k) => !EVO_PRICES[k] && !BASIC_ITEM_ORDER.includes(k)));
+  // 王冠和虹色之羽虽然走 EVO_PRICES 的定价/掉落，但道具盒里按「基础」陈列
+  const BASIC_BOX_EXTRA = ['silver-crown', 'golden-crown', '虹色之羽'];
+  const basicKeys = [...BASIC_ITEM_ORDER, ...BASIC_BOX_EXTRA, ...Object.keys(CANDY_EXCHANGE).filter((k) => !EVO_PRICES[k] && !BASIC_ITEM_ORDER.includes(k))];
   // 糖饰虽然按通用价位算，但只服务霜奶仙一组形态，陈列到「专属」页签
-  const evoKeys = Object.keys(EVO_PRICES).filter((k) => !FORM_ITEM_KEYS.includes(k));
+  const evoKeys = Object.keys(EVO_PRICES).filter((k) => !FORM_ITEM_KEYS.includes(k) && !BASIC_BOX_EXTRA.includes(k));
   _groups = {
     basic: itemsOf(basicKeys, itemIconSrc, (k) => ITEM_NAMES[k] || k),
     berry: itemsOf(BERRY_ICONS.map((_, i) => `berry:${i}`), (k) => BERRY_DIR + BERRY_ICONS[Number(k.slice(6))], (k) => BERRY_NAMES[BERRY_ICONS[Number(k.slice(6))]] || '树果'),

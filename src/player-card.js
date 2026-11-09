@@ -92,7 +92,7 @@ function buildModel({ name, gender, accentType }) {
   let variant = 0;
   for (const p of roster) {
     if (p.shiny && p.squareShiny) square++;
-    if (p.variant === 'rgb' || p.variant === 'polluted') variant++;
+    if (p.variant === 'rgb' || p.variant === 'polluted' || p.variant === 'rainbow') variant++;
     if (p.ivs && IV_STATS.every(k => num(p.ivs[k]) === 31)) perfect++;
     if (num(p.level) >= 100) maxLevel++;
   }

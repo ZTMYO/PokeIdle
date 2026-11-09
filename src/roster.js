@@ -3,7 +3,10 @@
 // 交互与图鉴对齐：搜索 / 来源筛选 / 表头排序 / 点击进入个体详情，详情页可返回列表。
 import { $, showView, getCurrentView, getAppChannelView, tryLoadImage, tryLoadPokemonImage, showConfirmBar, hideConfirmBar, updateBackpack, updateStats, logicViewport, viewportToLogic, popupBounds, isDualLayout, isStageView, closeAppArea, watchOutsidePress } from './ui.js';
 import { gameData, allPokemon, getPokemonByIndex, isTmUnlocked, getNature, pushNav, resetNav, saveGame, addSystemLog, setPokedexInLogView, ensureGender, genderBadge, isPokemon, phase, dexUnlocked, ivOf, effIvTotal, effPerfectCount, applyCrown, IV_STATS } from './state.js';
-import { TYPE_COLORS, typeIconColor, pokemonSourceBadge, itemIconSrc, MINT_KEYS } from './items.js';
+import { TYPE_COLORS, typeIconColor, itemIconSrc, MINT_KEYS } from './items.js';
+import { pokemonSourceBadge } from './badges.js';
+import { createRainbowSprite } from './rainbow-fx.js';
+import { playPurify } from './purify-view.js';
 import { evolutionRows, applyEvolution, condItems, moveCondText, evoPreEvos, evolutionData, loadEvolution, stoneSources } from './evolution.js';
 import { playEvolution } from './evo-view.js';
 import { playStir } from './stir-view.js';
@@ -104,7 +107,7 @@ let _detailJumpedToPokedex = false; // 详情页跳转图鉴中（返回键应�
 let _detailEvoAllowed = false; // 详情页是否允许「改性格 / 点进化」：只有从宝可梦 app 列表点行进来才允许；进化链本身各处都展示，挑一只来用的入口只是不给操作
 let _picker = null; // 选取模式：配队/训练/限时活动点击空位跳转仓库选择，{ mode:'team'|'train'|'activity', slot, from, exclude[] }
 let _crownPickFrom = null; // 背包王冠入口：选中个体进详情后，返回要回到「选择宝可梦使用王冠」列表而非仓库列表
-let _renderSeq = 0; // 列表分片渲染版本号：新一轮渲染作废旧一轮，避免快速切换筛选时乱序
+let _featherPickFrom = null; // 背包虹色之羽入口：返回要回到「选择污染宝可梦」列表
 let _rosterIconObs = null; // 列表图标懒加载观察器：滚动进入视口（含预载带）才加载，避免大仓库并发请求打爆资源
 let _boxView = false;      // 盒子（网格）视图：右键菜单切换，选择记到 localStorage
 try { _boxView = localStorage.getItem('rosterBoxView') === '1'; } catch (e) {}
@@ -257,6 +260,8 @@ function currentFilterPool() {
   }
   // 选取模式（配队/训练）：蛋不可作为宝可梦使用（M3 全站过滤）
   if (_picker) pool = pool.filter(p => isPokemon(p));
+  // 虹色之羽只作用于污染个体
+  if (_picker?.mode === 'rainbow') pool = pool.filter(p => p.variant === 'polluted');
   return pool;
 }
 
@@ -359,7 +364,9 @@ function renderList() {
               ? `选择宝可梦使用经验糖果 · 共 ${pool.length} 只`
               : _picker.mode === 'crown'
                 ? `选择宝可梦使用王冠 · 共 ${pool.length} 只`
-                : `选择放入饲育屋 · 共 ${pool.length} 只`;
+                : _picker.mode === 'rainbow'
+                  ? `选择污染宝可梦使用虹色之羽 · 共 ${pool.length} 只`
+                  : `选择放入饲育屋 · 共 ${pool.length} 只`;
     } else if (_batchRelease) {
       prog.textContent = '请点击选中你要放生的宝可梦';
     } else {
@@ -375,8 +382,6 @@ function renderList() {
   }
   // 排序
   const sorted = sortPool(pool);
-  _renderSeq++;
-  const seq = _renderSeq;
   list.innerHTML = '';
   if (sorted.length === 0) {
     _vRows = null;
@@ -387,32 +392,7 @@ function renderList() {
   } else if (!_boxView) {
     vStart(list, sorted);
   } else {
-    // 盒子视图是网格项，留白会破坏 grid 排布，仍走分片铺满
-    _vRows = null;
-    let i = 0;
-    let chunk = 40;        // 每帧行数：按上一帧耗时自适应，慢机上自动缩小
-    const BUDGET_MS = 8;   // 单帧渲染预算：别把上屏的动画挤掉
-    const step = () => {
-      if (seq !== _renderSeq || !list.isConnected) return; // 已被新一轮渲染取代或列表已卸载
-      const view = $('rosterView');
-      if (view && view.style.display === 'none') return; // 视图已隐藏：暂停分片，避免后台继续抢图片 I/O
-      const t0 = performance.now();
-      const rows = [];
-      const end = Math.min(i + chunk, sorted.length);
-      for (; i < end; i++) rows.push(rosterRowHtml(sorted[i]));
-      // 先拼进临时容器再逐行 append：只给新增的这几十行挂观察器
-      const tmp = document.createElement('div');
-      tmp.innerHTML = rows.join('');
-      for (const el of Array.from(tmp.children)) {
-        list.appendChild(el);
-        observeRowIcon(el);
-      }
-      const dt = performance.now() - t0;
-      if (dt > BUDGET_MS) chunk = Math.max(12, Math.floor(chunk * 0.7));
-      else if (dt < BUDGET_MS / 2) chunk = Math.min(64, chunk + 8);
-      if (i < sorted.length) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
+    vStartBox(list, sorted);
   }
   // 点击行：选取模式直接加入目标；批量模式切换选中；否则进详情
   list.onclick = (e) => {
@@ -469,6 +449,7 @@ const ROW_OVERSCAN = 8;
 let _vRows = null;                 // 当前列表数据
 let _vPadTop = null, _vPadBot = null;
 let _vStart = -1, _vEnd = -1;
+let _vBoxStart = -1, _vBoxEnd = -1;
 let _vRowH = 30;                   // 行高：首次渲染后按实测值校正（批量放生会切成 24px）
 let _vProbed = false;
 let _vBound = false;
@@ -481,7 +462,55 @@ function rosterRowHtml(p) {
     `<div class="pokedex-entry roster-row${sel ? ' roster-batch-sel' : ''}`);
 }
 
+// 盒子视图的虚拟滚动：上下各放一个跨全列、跨行数的留白项，只渲染视口附近的格子。
+// 行高 = 格子边长 + 行间距，上下留白项靠 grid-row: span N 占位。
+function vFillBox(force) {
+  const list = $('rosterList');
+  if (!list || !_vRows || !_vRows.length) return;
+  if (!_boxView) return;
+  const size = boxCellSize(list);
+  if (size <= 0) { requestAnimationFrame(() => vFillBox(true)); return; }
+  const gap = parseFloat(getComputedStyle(list).rowGap) || 0;
+  const rowH = size + gap;
+  const cols = 6;
+  const total = _vRows.length;
+  const totalRows = Math.ceil(total / cols);
+  const viewH = list.clientHeight || 300;
+  const scrollTop = list.scrollTop;
+  const startRow = Math.max(0, Math.floor(scrollTop / rowH) - ROW_OVERSCAN);
+  const endRow = Math.min(totalRows, Math.ceil((scrollTop + viewH) / rowH) + ROW_OVERSCAN);
+  const start = startRow * cols;
+  const end = Math.min(total, endRow * cols);
+  if (!force && start === _vBoxStart && end === _vBoxEnd) return;
+  _vBoxStart = start;
+  _vBoxEnd = end;
+  list.innerHTML = '';
+  if (startRow > 0) {
+    const pad = document.createElement('div');
+    pad.style.gridColumn = '1 / -1';
+    pad.style.gridRow = `span ${startRow}`;
+    list.appendChild(pad);
+  }
+  const rows = [];
+  for (let i = start; i < end; i++) rows.push(rosterRowHtml(_vRows[i]));
+  const tmp = document.createElement('div');
+  tmp.innerHTML = rows.join('');
+  for (const el of Array.from(tmp.children)) {
+    list.appendChild(el);
+    observeRowIcon(el);
+  }
+  const bottomRows = totalRows - endRow;
+  if (bottomRows > 0) {
+    const pad = document.createElement('div');
+    pad.style.gridColumn = '1 / -1';
+    pad.style.gridRow = `span ${bottomRows}`;
+    list.appendChild(pad);
+  }
+  list.scrollTop = scrollTop;
+}
+
 function vFill(force) {
+  if (_boxView) { vFillBox(force); return; }
   const list = $('rosterList');
   if (!list || !_vRows || !_vRows.length) return;
   // 详情页会把整个列表内容换掉：留白已不是列表的子节点，别再往里插行
@@ -516,24 +545,34 @@ function vFill(force) {
   }
 }
 
+function bindVRows(list) {
+  if (_vBound) return;
+  _vBound = true;
+  list.addEventListener('scroll', () => {
+    if (!_vRows || _vRaf) return;
+    _vRaf = requestAnimationFrame(() => { _vRaf = 0; vFill(false); });
+  }, { passive: true });
+  window.addEventListener('resize', () => { if (_vRows) vFill(true); });
+}
+
 function vStart(list, sorted) {
   _vRows = sorted;
   _vStart = _vEnd = -1;
   _vProbed = false;
-  if (!_vBound) {
-    _vBound = true;
-    list.addEventListener('scroll', () => {
-      if (!_vRows || _vRaf) return;
-      _vRaf = requestAnimationFrame(() => { _vRaf = 0; vFill(false); });
-    }, { passive: true });
-    window.addEventListener('resize', () => { if (_vRows) vFill(true); });
-  }
+  bindVRows(list);
   list.innerHTML = '';
   _vPadTop = document.createElement('div');
   _vPadBot = document.createElement('div');
   list.appendChild(_vPadTop);
   list.appendChild(_vPadBot);
   vFill(true);
+}
+
+function vStartBox(list, sorted) {
+  _vRows = sorted;
+  _vBoxStart = _vBoxEnd = -1;
+  bindVRows(list);
+  vFillBox(true);
 }
 
 function rowHtml(p) {
@@ -551,10 +590,12 @@ function rowHtml(p) {
     </div>`;
 }
 
-// 盒子视图边框类：变体优先（RGB / 污染），传说金框；普通/稀有统一走图鉴深绿框
+// 盒子视图边框类：变体优先，传说金框；变体神兽在变体框外再补一圈金
 function boxFrameClass(p, poke) {
-  if (p.variant === 'rgb') return 'var-rgb';
-  if (p.variant === 'polluted') return 'var-polluted';
+  const ring = poke?.legend ? ' legend-ring' : '';
+  if (p.variant === 'rgb') return 'var-rgb' + ring;
+  if (p.variant === 'polluted') return 'var-polluted' + ring;
+  if (p.variant === 'rainbow') return 'var-rainbow' + ring;
   if (poke?.legend) return 'rar-legend';
   return '';
 }
@@ -1622,6 +1663,29 @@ function paintCrownPanel(entry) {
   if (next) next.scrollTop = top;
 }
 
+// 虹色之羽：污染 → 炫彩；确认后消耗，保留闪光/个体/昵称
+function openFeatherConfirm(entry) {
+  if (!entry || entry.variant !== 'polluted') return;
+  const count = gameData.items['虹色之羽'] || 0;
+  if (count <= 0) {
+    showConfirmBar('没有虹色之羽，无法净化。', null, null, { singleButton: true });
+    return;
+  }
+  showConfirmBar(`对「${rosterName(entry)}」使用虹色之羽？`, () => {
+    const img = $('rosterDetailImg');
+    const host = $('rosterView');
+    const src = img?.currentSrc || img?.src || '';
+    const sw = img?.naturalWidth || 0;
+    const sh = img?.naturalHeight || 0;
+    gameData.items['虹色之羽'] = count - 1;
+    entry.variant = 'rainbow';
+    saveGame();
+    addSystemLog('rainbow_purify', { pokemon: entry.species, name: rosterName(entry) });
+    updateBackpack('虹色之羽');
+    playPurify({ host, src, sw, sh, name: rosterName(entry), onClose: () => showRosterDetail(entry.id) });
+  }, null, { overlay: true });
+}
+
 // 王冠面板：用掉一顶后面板不关（常有连着练两维的需求），只原地重绘 + 闪一下刚变的那一行
 function openCrownPanel() {
   const view = $('rosterView');
@@ -1683,6 +1747,7 @@ function shareCardModel(p, poke) {
     image: poke.image || '',
     level: p.level || 1,
     shiny: !!p.shiny,
+    badge: pokemonSourceBadge(p),
     variant: p.variant || null,   // RGB / 污染：卡片上要照着画同样的特效
     gender: g === 'male' ? '♂' : g === 'female' ? '♀' : '',
     types: (poke.types || []).map(t => ({ name: t, color: TYPE_COLORS[t] || '#888' })),
@@ -1765,7 +1830,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 function showRosterDetail(id) {
-  _renderSeq++; // 详情页直接覆盖列表内容：作废未完成的分片渲染，防止 rAF 分片把列表行追加到详情下方
   _vRows = null; // 虚拟列表同时作废：这个容器现在归详情页
   const p = (gameData.roster || []).find(r => r.id === id);
   if (!p) return;
@@ -1849,13 +1913,23 @@ function showRosterDetail(id) {
   };
   const img = $('rosterDetailImg');
   if (img && poke) {
-    // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）
+    // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）；炫彩走 SVG 描边
     img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
     if (p.variant === 'rgb') img.classList.add('fx-variant-rgb');
     else if (p.variant === 'polluted') img.classList.add('fx-variant-polluted');
     // 等图片加载完成再启动粒子，否则 burst 时图片尺寸为 0 会定位到页面中心
     // 霜奶仙特殊外观优先取组合图（无闪光版），否则闪光取 _shiny
     tryLoadPokemonImage(img, poke, alcremieSuffix(p.variant) || (p.shiny ? '_shiny' : '')).then(() => {
+      const grid = img.closest('.poke-img-grid');
+      if (grid) {
+        grid.querySelector('.rainbow-sprite')?.remove();
+        if (p.variant === 'rainbow' && img.naturalWidth && img.naturalHeight) {
+          grid.appendChild(createRainbowSprite(img.currentSrc || img.src, img.naturalWidth, img.naturalHeight));
+          img.style.opacity = '0';
+        } else {
+          img.style.opacity = '';
+        }
+      }
       // 闪光个体：图片周围循环播放星星粒子（详情页图小 → 粒子缩小、飞行更近）
       if (p.shiny && _detailId === id) startShinySparkleOn($('rosterView'), img, { cls: 'sm', scale: 0.6, squareShiny: !!p.squareShiny });
     });
@@ -2110,7 +2184,7 @@ function advFilterHtml() {
           ${chip('shiny', '', '不限')}${chip('shiny', 'normal', '非闪光')}${chip('shiny', 'shiny', '闪光')}${chip('shiny', 'square', '方闪')}
         </div></div>
         <div class="adv-group"><div class="adv-group-name">特效</div><div class="adv-chips">
-          ${chip('variant', '', '不限')}${chip('variant', 'none', '无特效')}${chip('variant', 'rgb', 'RGB')}${chip('variant', 'polluted', '污染')}
+          ${chip('variant', '', '不限')}${chip('variant', 'none', '无特效')}${chip('variant', 'rgb', 'RGB')}${chip('variant', 'polluted', '污染')}${chip('variant', 'rainbow', '炫彩')}
         </div></div>
         <div class="adv-group"><div class="adv-group-name">性别</div><div class="adv-chips">
           ${chip('gender', '', '不限')}${chip('gender', 'male', '雄性')}${chip('gender', 'female', '雌性')}${chip('gender', 'genderless', '无性别')}
@@ -2368,6 +2442,7 @@ function advFilterBadges(F) {
   if (F.variant === 'none') parts.push({ k: 'variant', t: '无特效' });
   if (F.variant === 'rgb') parts.push({ k: 'variant', t: 'RGB' });
   if (F.variant === 'polluted') parts.push({ k: 'variant', t: '污染' });
+  if (F.variant === 'rainbow') parts.push({ k: 'variant', t: '炫彩' });
   if (F.src) parts.push({ k: 'src', t: ADV_SRC_NAMES[F.src] || F.src });
   if (F.ball === 'master-ball') parts.push({ k: 'ball', t: '大师球捕获' });
   if (F.type && F.type.length) parts.push({ k: 'type', t: F.type.join('+') });
@@ -2635,6 +2710,16 @@ export function restoreRosterList() {
     showRosterPicker({ mode: 'crown', from });
     return;
   }
+  if (_featherPickFrom != null) {
+    const from = _featherPickFrom;
+    _featherPickFrom = null;
+    _detailId = null;
+    _detailJumpedToPokedex = false;
+    _detailEvoAllowed = false;
+    _detailReturnFn = null;
+    showRosterPicker({ mode: 'rainbow', from });
+    return;
+  }
   if (_detailId == null) return;
   _detailJumpedToPokedex = false;
   _detailEvoAllowed = false; // 退出详情就关掉改性格/进化的开关，别漏给下一次别的入口
@@ -2737,10 +2822,11 @@ export function isRosterPicking() {
 export function showRosterPicker(picker) {
   _picker = picker || null;
   _crownPickFrom = null;
+  _featherPickFrom = null;
   _detailFromView = null;
   showRosterView(true); // 选取模式不压栈：返回由配队/训练页的返回链处理
   // 背包入口：标题栏替换为道具名（与仓库列表同款页面，仅标题不同）
-  const pickerTitle = picker?.mode === 'expcandy' ? '经验糖果' : '';
+  const pickerTitle = picker?.mode === 'expcandy' ? '经验糖果' : picker?.mode === 'rainbow' ? '虹色之羽' : '';
   if (pickerTitle) {
     const t = $('appTitle');
     if (t) {
@@ -2757,6 +2843,13 @@ export function openCrownPicker(key) {
   showRosterPicker({ mode: 'crown', from });
 }
 
+// 反向入口：背包点虹色之羽 → 只挑污染宝可梦
+export function openFeatherPicker(key) {
+  if ((gameData.items[key] || 0) <= 0) return;
+  const from = getAppChannelView() || getCurrentView();
+  showRosterPicker({ mode: 'rainbow', from });
+}
+
 // 返回按钮：离开选取模式并恢复来源页（配队/训练重新渲染）
 export function leaveRosterPicker() {
   const p = _picker;
@@ -2765,7 +2858,7 @@ export function leaveRosterPicker() {
   else if (p?.mode === 'team') import('./team.js').then(m => m.restoreTeamView());
   else if (p?.mode === 'train') import('./train.js').then(m => m.showTrainView());
   else if (p?.mode === 'nursery') import('./nursery.js').then(m => m.showNurseryView());
-  else if (p?.mode === 'expcandy' || p?.mode === 'crown') {
+  else if (p?.mode === 'expcandy' || p?.mode === 'crown' || p?.mode === 'rainbow') {
     const target = fromWithEncounterGuard(p?.from);
     showView(target);
     // 从仓库列表页进入（背包全局显示，可在仓库直接点）：返回后仍停留仓库列表，
@@ -2793,6 +2886,7 @@ function pickRow(rid) {
   else if (p.mode === 'nursery') import('./nursery.js').then(m => m.addToNursery(rid, p.slot));
   else if (p.mode === 'expcandy') import('./exp-candy.js').then(m => m.useExpCandyOn(rid, false, p.from));
   else if (p.mode === 'crown') openCrownForPick(rid, p.from);
+  else if (p.mode === 'rainbow') openFeatherForPick(rid, p.from);
 }
 
 // 背包反向入口选中后：落到该个体详情页并直接弹王冠面板（与详情页点「个体值」标题一致）。
@@ -2807,9 +2901,23 @@ function openCrownForPick(rid, from) {
   openCrownPanel();
 }
 
+// 背包虹色之羽入口选中后：落到详情页，点「外观：污染」行确认净化
+function openFeatherForPick(rid, from) {
+  _picker = null;
+  _featherPickFrom = from || null;
+  _crownPickFrom = null;
+  _detailFromView = null;
+  _detailReturnFn = null;
+  _detailEvoAllowed = false;
+  showRosterDetail(rid);
+  const entry = (gameData.roster || []).find(r => r.id === rid);
+  if (entry) openFeatherConfirm(entry);
+}
+
 export function showRosterView(noNav, opts) {
   const o = opts || {};
   _crownPickFrom = null; // 回到仓库列表即退出王冠选取流程，避免状态残留到下一次进详情
+  _featherPickFrom = null;
   // 进入前不在仓库视图 = 从其它页面重新进入列表（手机菜单、背包经验糖果等）
   const fromOtherView = getCurrentView() !== 'rosterView';
   // 正常入口压栈（返回回来源页）；选取/子流程模式传 true 跳过，避免污染导航栈

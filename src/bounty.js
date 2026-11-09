@@ -5,7 +5,8 @@ import { REGION_CYCLE, ITEM_NAMES, BOUNTY_PER_REGION, BOUNTY_CANDY_MIN, BOUNTY_C
 import { gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcluded, getCurrentRegion, pushNav, saveGame, addSystemLog, ensureGender, genderBadge, isPokemon, randInt, ivOf, effIvTotal } from './state.js';
 import { $, showView, updateStats, tryLoadImage, logicViewport, popupBounds, showConfirmBar, watchOutsidePress } from './ui.js';
 import { showGoodbyeConfirm } from './animation.js';
-import { pickFamily, pokemonSourceBadge, grantItem, itemIconSrc, evoExclusivePool, MINT_KEYS } from './items.js';
+import { pickFamily, grantItem, itemIconSrc, evoExclusivePool, MINT_KEYS } from './items.js';
+import { pokemonSourceBadge } from './badges.js';
 import { evolutionData, evoPreEvos } from './evolution.js';
 import { activityActive, activityFrom } from './activity.js';
 
