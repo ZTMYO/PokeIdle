@@ -997,7 +997,16 @@ export async function applyWindowScale(scale) {
     await applyOnce();
     // 二次校准：窗口 resize 后若 CSS 视口仍偏离基准（274×baseH），用稳定后的 dpr 重设
     await new Promise(r => setTimeout(r, 250));
-    if (Math.abs(window.innerWidth - 274) > 1 || Math.abs(window.innerHeight - baseH) > 1) {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    if (vw > 50 && vh > 50 && (vw < 272 || vh < baseH - 2)) {
+      // dpr 被低估（高 DPI 首次启动偶发）：按实际 CSS 视口反推一个校正后的 dpr，
+      // 否则 Rust 算出的 zoom 会偏大，274 宽的界面只露出左边一部分。
+      const sysDpr = (window.devicePixelRatio || 1) / (currentZoom || 1);
+      const ratio = Math.max(274 / vw, baseH / vh);
+      await invoke('set_device_pixel_ratio', { dpr: sysDpr * ratio });
+      const zoom = await invoke('set_window_scale', { scale: s, mode });
+      if (typeof zoom === 'number' && zoom > 0) currentZoom = zoom;
+    } else if (Math.abs(vw - 274) > 1 || Math.abs(vh - baseH) > 1) {
       await applyOnce();
     }
   } catch (_) {
