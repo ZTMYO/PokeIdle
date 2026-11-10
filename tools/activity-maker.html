@@ -187,6 +187,7 @@ const ACTS = [
   { id: 'seal-slide',     name: '海豹滑冰' },
   { id: 'arrow-maze',     name: '箭头迷宫' },
   { id: 'ball-home',      name: '球球归位' },
+  { id: 'egg-week',       name: '孵蛋周', days: 7, manual: true },
 ];
 const BY_ID = new Map(ACTS.map((a) => [a.id, a]));
 const actOf = (id) => BY_ID.get(id) || { id, name: id };
@@ -263,12 +264,15 @@ function makeItem(id, from, durMs) {
   const act = actOf(id);
   const payload = { seed: randSeed(from) };
   if (act.perTier) payload.perTier = 3;
-  return { uid: uid(), id, from, to: from + durMs, payload };
+  const dur = act.days ? act.days * DAY : durMs;
+  return { uid: uid(), id, from, to: from + dur, payload };
 }
 // 换活动：保留种子，按新活动补/删 perTier、限定蛋不要 eggSpecies
 function setItemId(it, id) {
   const act = actOf(id);
   it.id = id;
+  // 孵蛋周固定一周
+  if (act.days) it.to = it.from + act.days * DAY;
   const p = { ...(it.payload || {}) };
   if (!Number.isFinite(Number(p.seed))) p.seed = randSeed(it.from);
   if (act.perTier) { if (!p.perTier) p.perTier = 3; } else delete p.perTier;
@@ -289,10 +293,11 @@ function generateSchedule() {
   const durMs = numOf('qDur', 48, 1, 720) * HOUR;
   const par = numOf('qPar', 2, 1, 6);
   const count = numOf('qCount', 10, 1, 40);
+  const pool = ACTS.filter(a => !a.manual);
   // 每 par 个活动在同一个 0 点一起开、一起结束，然后整组换下一批
   const startIdx = items.length;   // 活动顺序接着上一次轮，不每次从第一个重来
   for (let i = 0; i < count; i++) {
-    const act = ACTS[(startIdx + i) % ACTS.length];
+    const act = pool[(startIdx + i) % pool.length];
     items.push(makeItem(act.id, base + Math.floor(i / par) * durMs, durMs));
   }
   selUid = null;
@@ -313,7 +318,8 @@ function freeSlot(laneId, durMs) {
 }
 
 function addToLane(laneId) {
-  const durMs = numOf('qDur', 48, 1, 720) * HOUR;
+  const act = actOf(laneId);
+  const durMs = act.days ? act.days * DAY : numOf('qDur', 48, 1, 720) * HOUR;
   const it = makeItem(laneId, freeSlot(laneId, durMs), durMs);
   items.push(it);
   selUid = it.uid;
@@ -324,9 +330,10 @@ function appendWave() {
   const durMs = numOf('qDur', 48, 1, 720) * HOUR;
   const par = numOf('qPar', 2, 1, 6);
   const from = baseStart();
+  const pool = ACTS.filter(a => !a.manual);
   const startIdx = items.length;
   for (let j = 0; j < par; j++) {
-    const act = ACTS[(startIdx + j) % ACTS.length];
+    const act = pool[(startIdx + j) % pool.length];
     items.push(makeItem(act.id, from, durMs));
   }
   selUid = null;
@@ -433,8 +440,8 @@ function renderInspector() {
   box.innerHTML = `<div class="insp">
     <div class="line"><label>活动</label><select id="insAct">${actOpts}</select></div>
     <div class="line"><label>开始</label><input type="datetime-local" id="insFrom" value="${inputFmt(it.from)}" /></div>
-    <div class="line"><label>结束</label><input type="datetime-local" id="insTo" value="${inputFmt(it.to)}" /></div>
-    <div class="line"><label>结束按时</label>${[1, 2, 3].map((d) => `<button class="btn ghost mini" data-setend="${d}">${d} 天后 0 点</button>`).join('')}</div>
+    <div class="line"><label>结束</label><input type="datetime-local" id="insTo" value="${inputFmt(it.to)}" ${act.days ? 'disabled' : ''} /></div>
+    <div class="line"><label>结束按时</label>${(act.days ? [act.days] : [1, 2, 3, 7]).map((d) => `<button class="btn ghost mini" data-setend="${d}">${d} 天后 0 点</button>`).join('')}${act.days ? '<span class="meta">固定时长</span>' : ''}</div>
     <div class="line"><label>整段平移</label>
       <button class="btn ghost mini" data-shift="-24">← 前移 24h</button>
       <button class="btn ghost mini" data-shift="24">后移 24h →</button>
@@ -454,9 +461,14 @@ function renderInspector() {
   });
   $('insFrom').addEventListener('change', () => {
     const t = new Date($('insFrom').value).getTime();
-    if (Number.isFinite(t)) { it.from = Math.min(t, it.to - HOUR); renderAll(); }
+    if (Number.isFinite(t)) {
+      if (act.days) { it.from = t; it.to = t + act.days * DAY; }
+      else it.from = Math.min(t, it.to - HOUR);
+      renderAll();
+    }
   });
   $('insTo').addEventListener('change', () => {
+    if (act.days) return;
     const t = new Date($('insTo').value).getTime();
     if (Number.isFinite(t)) { it.to = Math.max(t, it.from + HOUR); renderAll(); }
   });
@@ -562,14 +574,20 @@ function parseList(raw) {
   else throw new Error('找不到 list 数组');
   list.forEach((a, i) => {
     if (!a || typeof a !== 'object' || typeof a.id !== 'string'
-      || !Number.isFinite(Number(a.from)) || !Number.isFinite(Number(a.to))) {
+      || !Number.isFinite(Number(a.from))
+      || (!actOf(a.id).days && !Number.isFinite(Number(a.to)))) {
       throw new Error(`第 ${i + 1} 条缺少 id / from / to`);
     }
   });
-  return list.map((a) => ({
-    uid: uid(), id: a.id, from: Number(a.from), to: Number(a.to),
-    payload: a.payload && typeof a.payload === 'object' ? { ...a.payload } : { seed: randSeed(Number(a.from)) },
-  }));
+  return list.map((a) => {
+    const act = actOf(a.id);
+    const from = Number(a.from);
+    return {
+      uid: uid(), id: a.id, from,
+      to: act.days ? from + act.days * DAY : Number(a.to),
+      payload: a.payload && typeof a.payload === 'object' ? { ...a.payload } : { seed: randSeed(from) },
+    };
+  });
 }
 $('importBtn').addEventListener('click', () => {
   const hint = $('importHint');

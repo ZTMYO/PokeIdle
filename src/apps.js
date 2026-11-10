@@ -78,6 +78,7 @@ const ACT_ICONS = {
   'seal-slide': 'icon-seal-slide',     // 雪花
   'arrow-maze': 'icon-arrow-maze',     // 箭头迷宫
   'ball-home': 'icon-ball-home',       // 球球归位：精灵球
+  'egg-week': 'icon-egg-week',          // 孵蛋周
 };
 
 // 限时活动：每个活动各占一个图标（id 前缀 act: + 活动 id，桌面位置各记各的）。

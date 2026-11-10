@@ -88,7 +88,7 @@ let _eggQuery = '';           // 蛋搜索关键词
 let _eggSortBy = null;    // 蛋列表排序列：null=默认按时间降序 | name | iv
 let _eggSortDir = -1;     // 1 升序 / -1 降序
 let _breedRounds = 1;         // 连续繁殖轮数（提交树果时选择，1~MAX_BREED_ROUNDS）
-const MAX_BREED_ROUNDS = 10;  // 连续繁殖轮数上限
+export const MAX_BREED_ROUNDS = 10;  // 连续繁殖轮数上限
 
 // ---------- 存档 ----------
 // 保证饲育屋数据存在并补齐两个亲本槽位（兼容旧存档）
@@ -156,7 +156,7 @@ export function checkPairing(entryA, entryB, useIncense = false) {
 // 正常配对：雌性=母方、雄性=父方
 // 百变怪配对：非百变怪按自身性别判定（雄性=父方、雌性=母方、无性别=母方，提供后代物种的一方）；
 // 百变怪充当与对方相反的角色（对方雄性→母方，对方雌性/无性别→父方）
-function pairRole(ea, eb, sid) {
+export function pairRole(ea, eb, sid) {
   const entry = sid === 'b' ? eb : ea;
   const other = sid === 'b' ? ea : eb;
   const r = checkPairing(ea, eb);
@@ -188,6 +188,14 @@ export function showNurseryView() {
   markNurseryBreedVisited();
 }
 
+// 孵蛋周摊位也占用宝可梦：活动期内算繁育中，结束后自动失效
+const EGG_WEEK_ID = 'egg-week';
+function eggWeekParents() {
+  const s = gameData.activity?.[EGG_WEEK_ID];
+  if (!s || !Array.isArray(s.parents) || (s.eventTo && Date.now() >= s.eventTo)) return [];
+  return s.parents.map(p => p && (p.id || p)).filter(Boolean);
+}
+
 // 从所有亲本槽移除该个体（训练/配队放入时调用）
 export function removeNurseryByPokemon(id) {
   const n = ensureNursery();
@@ -199,13 +207,24 @@ export function removeNurseryByPokemon(id) {
       n.parents[i] = null; changed = true;
     }
   }
+  const ew = gameData.activity?.[EGG_WEEK_ID];
+  if (ew && Array.isArray(ew.parents)) {
+    for (let i = 0; i < ew.parents.length; i++) {
+      const pid = ew.parents[i] && (ew.parents[i].id || ew.parents[i]);
+      if (pid === id) {
+        ew.parents[i] = null;
+        if (ew.breeding) ew.breeding = null;
+        changed = true;
+      }
+    }
+  }
   if (changed) saveGame();
   return changed;
 }
 
-// 该个体是否在饲育屋亲本槽中（放入页占用确认用）
+// 该个体是否在饲育屋/孵蛋周亲本槽中（放入页占用确认用）
 export function isNurseryPokemon(id) {
-  return ensureNursery().parents.some(p => p && p.id === id);
+  return ensureNursery().parents.some(p => p && p.id === id) || eggWeekParents().includes(id);
 }
 
 // 仓库选取：从列表项放入饲育屋（空槽点击跳转仓库后由列表项触发）。
@@ -222,6 +241,7 @@ export function addToNursery(id, slot) {
     if (inTrain) occ.push('训练');
     if (inTeam) occ.push('队伍');
     if (inDispatch) occ.push('派遣');
+    if (eggWeekParents().includes(id)) occ.push('孵蛋周');
     if (occ.length) {
       showConfirmBar(`这只宝可梦正在${occ.join('、')}中。放入饲育屋将自动将其撤下，确定放入？`, () => doAddToNursery(id, slot), null, { overlay: true });
       return;
@@ -233,6 +253,7 @@ export function addToNursery(id, slot) {
 function doAddToNursery(id, slot) {
   const n = ensureNursery();
   if (n.parents[slot]) return; // 目标槽已被占用则不处理
+  if (eggWeekParents().includes(id)) removeNurseryByPokemon(id);
   n.parents[slot] = { id, placedAt: Date.now() };
   _pickSearch = ''; // 放入成功后清空搜索词，避免放第二只时残留第一只页面的输入
   _pickSlot = null; // 退出放入页
@@ -1115,7 +1136,7 @@ function loadSlotIcons(host) {
 
 // 配对预览：两只都放入后展示双方个体值（第一行一左一右）与后代名字/个体值（第二行）。
 // 不展示"能否繁殖"判定——放入列表已按共同蛋组过滤，能选到的必定可繁殖。
-function pairStatusHtml(n) {
+export function pairStatusHtml(n) {
   const [a, b] = n.parents;
   if (!a && !b) return `<div class="nursery-pair-status idle">放入两只宝可梦后，这里会显示配对预览</div>`;
   if (!a || !b) return `<div class="nursery-pair-status idle">再放入一只宝可梦，这里会显示配对预览</div>`;
@@ -1279,7 +1300,7 @@ function breedingState(n) {
 
 // 本轮所需树果（§4.5）：双方喜欢列表有交集 → 投 1 颗共同喜欢 ×2；
 // 无交集 → 各投 1 颗（自动按库存选取，优先有库存的，否则取列表第一个）
-function berryDemand(ea, eb) {
+export function berryDemand(ea, eb) {
   const pa = getPokemonByIndex(String(ea.species));
   const pb = getPokemonByIndex(String(eb.species));
   const fa = (pa && Array.isArray(pa.foods) && pa.foods.length) ? pa.foods : [0];
@@ -1314,10 +1335,10 @@ function breedAreaHtml(n, ea, eb, r) {
     const mm = Math.floor(sec / 60), ss = sec % 60;
     return `
     <div class="nursery-breed">
-      <div class="nursery-breed-bar"><div class="nursery-breed-fill" id="nurseryBreedFill" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="nursery-breed-bar"><div class="nursery-breed-fill" id="${n.breedFillId || 'nurseryBreedFill'}" style="width:${pct.toFixed(1)}%"></div></div>
       <div class="nursery-breed-meta">
         <span>第 ${st.roundsDone + 1}/${st.roundsTotal} 轮 繁殖中…</span>
-        <span id="nurseryBreedRemain">剩余 ${mm}:${String(ss).padStart(2, '0')}</span>
+        <span id="${n.breedRemainId || 'nurseryBreedRemain'}">剩余 ${mm}:${String(ss).padStart(2, '0')}</span>
       </div>
       <div class="nursery-breed-note">已产 ${st.roundsDone} 枚蛋自动入库，取出亲本终止剩余轮次（树果不退）</div>
     </div>`;
@@ -1326,7 +1347,7 @@ function breedAreaHtml(n, ea, eb, r) {
     // 一批全部完成：不单独展示完成态，直接恢复默认的轮数选择 + 树果需求界面，可立即开始下一批
   }
   const demand = berryDemand(ea, eb);
-  const rounds = Math.max(1, Math.min(MAX_BREED_ROUNDS, _breedRounds));
+  const rounds = Math.max(1, Math.min(MAX_BREED_ROUNDS, Number(n.rounds) || _breedRounds));
   const stock = ensureBerryFarm().stock || {};
   const lack = demand.filter(({ type, qty }) => (stock[type] || 0) < qty * rounds);
   const itemsHtml = demand.map(({ type, qty }) => {
@@ -1459,7 +1480,7 @@ export function markNurseryBreedVisited() {
 
 // 生成蛋条目：个体值 6 项中 5 项继承双亲、1 项随机。锁定位固定继承所选亲本（source）的
 // 数值（占 1 个继承名额），其余随机遗传位 50% 取父/母；性别/性格/闪光出生即定，孵化后完全沿用
-function createEggEntry(ea, eb, childSpecies, lockedIv) {
+export function createEggEntry(ea, eb, childSpecies, lockedIv) {
   // 尼多兰/尼多朗二选一：母方尼多兰、或尼多朗一家配百变怪都按这条掷
   if (NIDO_PAIR[String(childSpecies)] && Math.random() < 0.5) childSpecies = NIDO_PAIR[String(childSpecies)];
   childSpecies = rollSexForm(childSpecies); // 雌雄异形：后代性别单独 roll，出了哪种就落哪条形态

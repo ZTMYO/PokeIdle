@@ -18,6 +18,7 @@ import { TH_LEVELS, thLevelOf, UNOWN_INDEX } from './treasure-game.js';
 import { SL_LEVELS, slLevelOf } from './seal-slide.js';
 import { AM_LEVELS, amLevelOf } from './arrow-maze.js';
 import { BH_LEVELS, bhLevelOf } from './ball-home.js';
+import { EGG_WEEK } from './egg-week.js';
 
 const TIERS = 4;      // 四档：进化道具 / 薄荷·王冠 / 大师球·闪耀护符 / 闪光蛋
 const PER_TIER = 3;   // 每档交 3 只（payload.perTier 可覆盖），四档共 12 只
@@ -954,6 +955,8 @@ function voyageLoop(now) {
 }
 
 export const ACTIVITIES = {
+  // ---- 孵蛋周（id: egg-week）：培育奶奶的摊位，普通繁殖规则，每轮 2~5 分钟 ----
+  'egg-week': EGG_WEEK,
   // ---- 大量悬赏（id: mass-bounty）：活动期间固定一只宝可梦，每交 3 只领一档，四档共 12 只 ----
   // 服务器 activity.json 里加一条：
   // { "id": "mass-bounty", "from": …, "to": …, "payload": { "seed": …, "perTier": 3, "eggSpecies": "0133" } }

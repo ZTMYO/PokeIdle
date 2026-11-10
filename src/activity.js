@@ -5,6 +5,7 @@
 import { $, showView, showConfirmBar, getCurrentView, isDualLayout, setViewTitle } from './ui.js';
 import { gameData, saveGame, addSystemLog, pushNav, popNav, rollGender } from './state.js';
 import { grantItem } from './items.js';
+import { ensureBerryFarm } from './berry.js';
 import { ITEM_NAMES } from './config.js';
 import { ACTIVITIES } from './activities.js';
 import { DEV } from './build-info.js';
@@ -364,13 +365,24 @@ function ctxFor(a, win) {
       saveGame();
       return true;
     },
+    // 树果在 berryFarm.stock，不在 items 里
+    spendBerries: (demand = []) => {
+      const stock = ensureBerryFarm().stock;
+      if ((demand || []).some(({ type, qty }) => (stock[type] || 0) < qty)) return false;
+      for (const { type, qty } of demand) {
+        stock[type] = (stock[type] || 0) - qty;
+        if (stock[type] <= 0) delete stock[type];
+      }
+      saveGame();
+      return true;
+    },
     confirm: (text, onYes) => showConfirmBar(text, onYes || null, null, {}),   // 留取消键，让玩家能反悔
     picks: _picks,                                    // 槽位里已选的个体 id（下标 = 槽位）
     setPick: (i, rid) => { _picks[i] = rid || null; },
     // 打开仓库选择器挑一只放进第 i 个槽；exclude 由活动给（只列得出可上交的那些）
-    openPicker: (i, exclude) => {
+    openPicker: (i, exclude, opts = {}) => {
       import('./roster.js').then(m => m.showRosterPicker({
-        mode: 'activity', slot: i, from: 'activityView', exclude: exclude || [],
+        mode: 'activity', slot: i, from: 'activityView', exclude: exclude || [], label: opts.label || '',
       }));
     },
     // 发一颗蛋（闪光蛋也走这里）：蛋作为仓库条目存在，个体/性格/性别/闪光都跟着它，
@@ -389,6 +401,8 @@ function ctxFor(a, win) {
         ivs: eggOpts.ivs || { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
         nature: eggOpts.nature || 'hardy',
         shiny: !!eggOpts.shiny,
+        squareShiny: !!eggOpts.squareShiny,
+        ivRandomKey: eggOpts.ivRandomKey || null,
         variant: eggOpts.variant || null,   // 特殊外观（如霜奶仙糖饰-口味），孵蛋原地转正后保留
         source: 'egg',
         obtainedAt: Date.now(),

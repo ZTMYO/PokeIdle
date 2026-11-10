@@ -4,7 +4,7 @@ import { gameData, allPokemon, getPokemonByIndex, rollIvs, rollLegendIvs, rollNa
 import { chooseMoves } from './moves.js';
 import { BATTLE_REFRESH_MS, BATTLE_NPC_COUNTS, BATTLE_MONS_COUNT, BATTLE_TIER_BAND, MAX_LEVEL, EXP_CANDY_DROP, SHINY_CHANCE } from './config.js';
 
-// 通用训练家形象（sprite 为 npcs.png 拼图下标，13 列 × 2 行）
+// 通用训练家形象（sprite 为 npcs.png 拼图下标，13 列 × 3 行）
 const NPC_FACES = [
   { sprite: 0, name: '男孩' },   { sprite: 1, name: '男孩' },   { sprite: 2, name: '男孩' },
   { sprite: 3, name: '捕虫少年' }, { sprite: 4, name: '露营少年' }, { sprite: 5, name: '钓鱼大叔' },
@@ -15,6 +15,7 @@ const NPC_FACES = [
   { sprite: 18, name: '富家少爷' }, { sprite: 19, name: '研究员' }, { sprite: 20, name: '研究员' },
   { sprite: 21, name: '女青年' }, { sprite: 22, name: '女青年' }, { sprite: 23, name: '女青年' },
   { sprite: 24, name: '女青年' }, { sprite: 25, name: '女青年' },
+  { sprite: 26, name: '老奶奶' }, { sprite: 27, name: '老爷爷' },
 ];
 
 // 各档宝可梦池：按种族值总和（BST）自动分档全国图鉴，三档区间交错重叠：

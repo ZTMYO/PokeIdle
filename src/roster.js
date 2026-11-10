@@ -26,7 +26,10 @@ const SOURCE_NAMES = { normal: '野生', mass: '大量出没', twist: '时空扭
 function memberStatusTags(p) {
   const tags = [];
   if ((gameData.training?.slots || []).some(s => s && s.id === p.id)) tags.push('训练中');
-  if ((gameData.nursery?.parents || []).some(s => s && s.id === p.id)) tags.push('繁育中');
+  const ew = gameData.activity?.['egg-week'];
+  const ewBusy = ew && (!ew.eventTo || Date.now() < ew.eventTo)
+    && (ew.parents || []).some(s => s && (s.id || s) === p.id);
+  if ((gameData.nursery?.parents || []).some(s => s && s.id === p.id) || ewBusy) tags.push('繁育中');
   if ((gameData.teams || []).some(t => (t.ids || []).includes(p.id))) tags.push('队伍中');
   if ((gameData.dispatch?.slots || []).some(s => s && s.id === p.id)) tags.push('派遣中');
   if (!tags.length) return '';
@@ -354,19 +357,21 @@ function renderList() {
   const prog = $('rosterProgress');
   if (prog) {
     if (_picker) {
-      prog.textContent = _picker.mode === 'team'
-        ? `选择加入队伍 · 共 ${pool.length} 只`
-        : _picker.mode === 'train'
-          ? `选择放入训练 · 共 ${pool.length} 只`
-          : _picker.mode === 'activity'
-            ? `选择要上交的宝可梦 · 共 ${pool.length} 只`
-            : _picker.mode === 'expcandy'
-              ? `选择宝可梦使用经验糖果 · 共 ${pool.length} 只`
-              : _picker.mode === 'crown'
-                ? `选择宝可梦使用王冠 · 共 ${pool.length} 只`
-                : _picker.mode === 'rainbow'
-                  ? `选择污染宝可梦使用虹色之羽 · 共 ${pool.length} 只`
-                  : `选择放入饲育屋 · 共 ${pool.length} 只`;
+      prog.textContent = _picker.label
+        ? `${_picker.label} · 共 ${pool.length} 只`
+        : _picker.mode === 'team'
+          ? `选择加入队伍 · 共 ${pool.length} 只`
+          : _picker.mode === 'train'
+            ? `选择放入训练 · 共 ${pool.length} 只`
+            : _picker.mode === 'activity'
+              ? `选择要上交的宝可梦 · 共 ${pool.length} 只`
+              : _picker.mode === 'expcandy'
+                ? `选择宝可梦使用经验糖果 · 共 ${pool.length} 只`
+                : _picker.mode === 'crown'
+                  ? `选择宝可梦使用王冠 · 共 ${pool.length} 只`
+                  : _picker.mode === 'rainbow'
+                    ? `选择污染宝可梦使用虹色之羽 · 共 ${pool.length} 只`
+                    : `选择放入饲育屋 · 共 ${pool.length} 只`;
     } else if (_batchRelease) {
       prog.textContent = '请点击选中你要放生的宝可梦';
     } else {

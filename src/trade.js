@@ -13,9 +13,9 @@ import { NATURES } from './battle-core.js';
 import { playCongratulation } from './audio.js';
 
 // ---------- NPC ----------
-// 图源 src/character/npc 的 9 帧行走图（等宽 16px），同名角色共用名字
-// 顺序必须与 npcs.png 拼图坐标一致：行0 = 0..12，行1 = 13..25；
-// 末尾的作者彩蛋追加在行0 的第 14 列（物理位置不变，下标注 26 用固定偏移定位）
+// 图源 src/character/npcs.png，每格 16×21 的首帧拼图，同名角色共用名字
+// 顺序必须与拼图坐标一致：行0 = 0..12，行1 = 13..25，行2 = 26..27（老奶奶 / 老爷爷）；
+// 作者与伊美蒂固定在行0/1的第14列，用固定偏移定位
 const NPCS = [
   { id: 'boy_1', name: '男孩' },
   { id: 'boy_2', name: '男孩' },
@@ -43,6 +43,8 @@ const NPCS = [
   { id: 'woman_3', name: '女人' },
   { id: 'woman_4', name: '女人' },
   { id: 'woman_5', name: '女人' },
+  { id: 'oldwoman', name: '老奶奶' },
+  { id: 'oldman', name: '老爷爷' },
   { id: 'author', name: 'ZTMYO' }, // 彩蛋 NPC：极低概率出现在交易市场，给出闪光 6V 神兽
   { id: 'imiti', name: '伊美蒂' }, // 彩蛋 NPC：与 ZTMYO 同概率出现在交易市场，只给百变怪（10% 概率 6V）
 ];
@@ -469,8 +471,8 @@ export function renderTrade() {
 // 单张 offer 卡片：NPC 行走动画 + 想要/给出说明 + 交换按钮
 function offerCard(o) {
   const npc = NPCS.find(n => n.id === o.npc) || NPCS[0];
-  // NPC 首帧拼图（npcs.png：13列×2行 + 行0末列追加的作者彩蛋，每格 16×21，2x 显示），按下标定位；
-  // 普通 NPC 用 13 列公式（图片物理位置未变），作者固定取新增列（x=208 → -416px）
+  // NPC 首帧拼图（npcs.png：13列×3行 + 行0/1第14列彩蛋，每格 16×21，2x 显示），按下标定位；
+  // 普通 NPC 用 13 列公式，老奶奶/老爷爷在行2；作者/伊美蒂固定取第14列
   const npcIdx = Math.max(0, NPCS.indexOf(npc));
   const npcPos = npc.id === 'author'
     ? 'background-position:-416px 0px'

@@ -335,7 +335,7 @@ function startRefreshCountdown() {
 
 function npcCardHtml(npc) {
   const base = npcBaseLevel(npc); // 档位固定区间：列表上直接能看出该打哪一档
-  // NPC 首帧拼图（npcs.png：13列×2行，每格 16×21，2x 显示），按下标定位（与交换页同款）
+  // NPC 首帧拼图（npcs.png：13列×3行，每格 16×21，2x 显示），按下标定位（与交换页同款）
   const npcIdx = npc.sprite ?? 0;
   const npcPos = `background-position:${-(npcIdx % 13) * 32}px ${-Math.floor(npcIdx / 13) * 42}px`;
   return `

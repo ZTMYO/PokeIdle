@@ -836,12 +836,15 @@ function trashDockHtml() {
 // - 特例：现有成员明显偏弱（可选池够满编且整池等级都高于现有成员最高级）时直接整队重配，
 //   避免保留几只低等级旧成员、放着整池高等级宝可梦不用。
 function autoBuildTeam() {
-  // 训练 / 饲育屋 / 派遣中的个体不参与随机配队
+  // 训练 / 饲育屋 / 孵蛋周 / 派遣中的个体不参与随机配队
+  const ew = gameData.activity?.['egg-week'];
+  const ewParents = ew && (!ew.eventTo || Date.now() < ew.eventTo) ? (ew.parents || []) : [];
   const busyIds = new Set([
     ...(gameData.training?.slots || []),
     ...(gameData.nursery?.parents || []),
+    ...ewParents,
     ...(gameData.dispatch?.slots || []),
-  ].map((s) => s && s.id).filter(Boolean));
+  ].map((s) => s && (s.id || s)).filter(Boolean));
   const roster = (gameData.roster || []).filter((p) => p.inRoster !== false && !busyIds.has(p.id));
   if (!roster.length) return;
   const byId = new Map(roster.map((p) => [p.id, p]));

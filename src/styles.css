@@ -2352,6 +2352,45 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
   background: var(--item-bg);
   padding: 7px 9px;
 }
+/* ===== 孵蛋周：培育奶奶的摊位 ===== */
+.eggweek { text-align: left; padding: 0 2px 8px; }
+.eggweek-npc { display: flex; align-items: center; gap: 8px; margin: 0 0 7px; }
+.eggweek-npc-img {
+  width: 48px;
+  height: 63px;
+  flex: 0 0 auto;
+  background: url('./character/npcs.png') no-repeat 0 -126px / 672px 189px;
+  image-rendering: pixelated;
+}
+.eggweek-bubble {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.22);
+  border-radius: 6px;
+  background: var(--item-bg);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+.eggweek-card { padding: 6px 7px 7px; }
+.eggweek-card .nursery-pair-row { padding: 4px 2px 2px; }
+.eggweek-card .nursery-breed { margin: 0 2px 2px; }
+/* 活动页更窄：亲本槽收一档，保证五字名字后还能露出性别 */
+.eggweek .nursery-slot { gap: 3px; padding: 4px; }
+.eggweek .nursery-slot-info { flex: 1; min-width: 0; }
+.eggweek .nursery-slot-name { min-width: 0; font-size: 9.5px; }
+.eggweek .nursery-slot-nick { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eggweek .nursery-slot-name em { flex: 0 0 auto; }
+.eggweek .nursery-slot-icon { width: 20px; height: 20px; }
+.eggweek .nursery-slot-name em svg { width: 10px; height: 10px; }
+/* 活动页比 board 窄：继承来源的“继承自”单独占一行，父方/母方各占半行，长名字不再截 */
+.eggweek .nursery-pair-lock,
+.eggweek .nursery-pair-result { margin-left: 2px; margin-right: 2px; }
+.eggweek .nursery-pair-lock { gap: 4px; padding: 4px 6px; }
+.eggweek .nursery-pair-lock-srcs { flex-wrap: wrap; gap: 4px; }
+.eggweek .nursery-pair-lock-src-label { flex: 0 0 100%; }
+.eggweek .nursery-pair-lock-src { flex: 1 1 calc(50% - 2px); }
+.eggweek-note { margin: 7px 2px 0; font-size: 9.5px; line-height: 1.6; opacity: .65; }
 .act-rules { font-size: 10px; line-height: 1.75; opacity: .85; text-align: left; margin: 0 0 8px; }
 .act-tiers { display: flex; flex-direction: column; gap: 6px; padding: 0 2px 6px; text-align: left; }
 .act-tier {
@@ -7917,13 +7956,13 @@ html.ui-mobile .pokedex-box-idx { transform: scale(0.45); }
   align-items: center;
   gap: 6px;
 }
-/* NPC 首帧拼图：13列×2行，每格 16×21（已裁顶部留白、底部对齐）；background-size 为 2x（416×84），位置由 JS 内联计算 */
+/* NPC 首帧拼图：13列×3行 + 行0/1第14列彩蛋，每格 16×21；background-size 为 2x（448×126），位置由 JS 内联计算 */
 .npc-sprite {
   width: 32px;
   height: 42px;
   background-repeat: no-repeat;
   background-image: url('./character/npcs.png');
-  background-size: 448px 84px;
+  background-size: 448px 126px;
   image-rendering: pixelated;
 }
 /* 底部一小行：NPC 名 / 给出宝可梦名（闪光带星标），都靠左 */
