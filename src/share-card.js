@@ -4,6 +4,7 @@
 // 素材只用游戏自己的：精灵图（路径取图鉴里的 image 字段）、app 图标、内联 SVG 图标与状态徽章。
 import { tryLoadImage, isMobilePlatform } from './ui.js';   // 贴图走游戏自己的加载器：多通道 + 缓存，PC WebView 上才不会漏图
 import { alcremieSuffix, alcremieShinySrc } from './config.js';
+import { drawVariantSprite } from './sprite-fx.js';
 
 const W = 1080;
 const H = 1080;
@@ -115,7 +116,7 @@ function iconImage(id, color) {
 
 // 徽章直接取 badges.js 的 SVG，不经过内联 symbol
 const _badgeCache = new Map();
-function badgeImage(svg, color) {
+export function badgeImage(svg, color) {
   const key = `${color}|${svg}`;
   if (_badgeCache.has(key)) return _badgeCache.get(key);
   const code = svg.replace(/currentColor/g, color).replace('<svg ', '<svg width="64" height="64" ');
@@ -227,17 +228,7 @@ async function drawCard(ctx, m) {
     const sh = Math.round(sprite.height * k);
     const sx = Math.round(L + (cellS - sw) / 2);
     const sy = Math.round(cellY + (cellS - sh) / 2);
-    // 外观变体：canvas 上挂不了 .fx-variant-* 那套 CSS，用等价的 filter 画（取值和 styles.css 对齐）。
-    // RGB 的偏移量按立绘大小缩放 —— 固定 3px 放在这张大图上几乎看不出来
-    ctx.save();
-    if (m.variant === 'rgb') {
-      const off = Math.max(3, Math.round(sw / 48));
-      ctx.filter = `drop-shadow(${off}px 0 0 rgba(255, 0, 80, .65)) drop-shadow(-${off}px 0 0 rgba(0, 220, 255, .65))`;
-    } else if (m.variant === 'polluted') {
-      ctx.filter = 'grayscale(1) sepia(1) hue-rotate(248deg) saturate(7) brightness(.65)';
-    }
-    ctx.drawImage(sprite, sx, sy, sw, sh);
-    ctx.restore();
+    drawVariantSprite(ctx, sprite, sx, sy, sw, sh, m.variant);
   } else {
     label(ctx, '贴图没加载出来', L + cellS / 2, cellY + cellS / 2, { size: 22, color: c.weak, align: 'center' });
     label(ctx, fit(ctx, spritePaths(m)[0] || '', cellS - 12, 16), L + cellS / 2, cellY + cellS / 2 + 30, { size: 16, color: c.weak, align: 'center' });

@@ -1846,19 +1846,22 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 .stat-inner {
   padding: 6px 8px;
 }
-.roster-tool.data-share-fab {
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  z-index: 30;
-  width: 20px;
-  height: 20px;
-}
 .stat-section {
   font-weight: 700;
   margin-bottom: 4px;
   border-bottom: 1px solid var(--ui-color);
   margin-top: 0;
+}
+.stat-section.stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.stat-share {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
 }
 .stat-section + .stat-section {
   margin-top: 6px;

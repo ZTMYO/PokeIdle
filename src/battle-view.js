@@ -10,6 +10,7 @@ import { ensureNpcs, refreshNpcs, buildNpcTeam, npcBaseLevel } from './npcs.js';
 import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, BATTLE_EVO_POOLS, MAX_LEVEL, SPECIAL_SPRITE_SCALE, ITEM_NAMES, alcremieSuffix } from './config.js';
 import { playBattle, endBattle, playVictory, stopVictory, playShiny } from './audio.js';
 import { burstShinySparkle } from './animation.js';
+import { createRainbowSprite } from './rainbow-fx.js';
 import * as road from './road.js';
 
 // 18 属性标签色（与图鉴/遇敌一致）
@@ -761,16 +762,82 @@ function animateHpBar(side, from, to, maxHp) {
   bar.style.background = t < 30 ? '#f95a4c' : t < 60 ? '#fce653' : '#2cb065';
 }
 
+const RAINBOW_IMG_CLS = 'b-rainbow-img';
+
+function clearBattleRainbow(img) {
+  if (!img) return;
+  if (img._rainbowCleanup) {
+    img._rainbowCleanup();
+    img._rainbowCleanup = null;
+  }
+  img.classList.remove(RAINBOW_IMG_CLS);
+}
+
+// 炫彩描边：原图隐藏，SVG 层按原图位置/尺寸铺开，每帧跟着战斗动画的 transform/opacity/filter 走
+function applyBattleRainbow(side, img) {
+  const src = img.currentSrc || img.src;
+  if (!src || !img.naturalWidth || !img.naturalHeight) return false;
+  if (img._rainbowCleanup && img._rainbowSrc === src) return true;
+  if (img._rainbowCleanup) {
+    img._rainbowCleanup();
+    img._rainbowCleanup = null;
+  }
+  const host = side === 'bp' ? img.closest('.b-flip') : img.closest('.b-enemy-box');
+  if (!host) return false;
+  const svg = createRainbowSprite(src, img.naturalWidth, img.naturalHeight);
+  host.appendChild(svg);
+  let raf = 0;
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    if (raf) cancelAnimationFrame(raf);
+    svg.remove();
+    if (img._rainbowCleanup === stop) {
+      img._rainbowCleanup = null;
+      img._rainbowSrc = null;
+    }
+  };
+  const tick = () => {
+    if (stopped) return;
+    if (!img.isConnected) { stop(); return; }
+    if ($('battleView')?.style.display === 'none') {
+      raf = requestAnimationFrame(tick);
+      return;
+    }
+    const cs = getComputedStyle(img);
+    svg.style.right = 'auto';
+    svg.style.bottom = 'auto';
+    svg.style.left = img.offsetLeft + 'px';
+    svg.style.top = img.offsetTop + 'px';
+    svg.style.width = img.offsetWidth + 'px';
+    svg.style.height = img.offsetHeight + 'px';
+    svg.style.transform = cs.transform === 'none' ? '' : cs.transform;
+    svg.style.opacity = cs.opacity;
+    svg.style.filter = cs.filter === 'none' ? '' : cs.filter;
+    svg.style.visibility = img.style.visibility === 'hidden' ? 'hidden' : '';
+    svg.style.zIndex = img.style.zIndex || '1';
+    raf = requestAnimationFrame(tick);
+  };
+  img._rainbowCleanup = stop;
+  img._rainbowSrc = src;
+  tick();
+  return true;
+}
+
 function renderMon(mon, side, enter) {
   // 变身后的百变怪：以复制对象的外观渲染（图片/属性随 _transformOf 切换）
   const pd = getPokemonByIndex(mon._transformOf || mon.idx);
   const img = $(`${side}-img`);
   // 清除上一只残留的战斗动画类（faint 带 forwards 会停在不可见状态；其余互斥类按 CSS 后定义覆盖）
   img.classList.remove(...B_ANIM_CLS);
-  // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫），与详情页一致
+  if (mon.variant !== 'rainbow') clearBattleRainbow(img);
+  const rainbowSeq = (img._rainbowSeq = (img._rainbowSeq || 0) + 1);
+  // 时空扭曲外观变体：按个体 variant 应用 CSS 特效（RGB 分离 / 污染紫）；炫彩走 SVG 描边层
   img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
   if (mon.variant === 'rgb') img.classList.add('fx-variant-rgb');
   else if (mon.variant === 'polluted') img.classList.add('fx-variant-polluted');
+  if (mon.variant === 'rainbow') img.classList.add(RAINBOW_IMG_CLS);
   lowerAttacker(side); // 换宠/刷新时恢复默认层级（动画被中断时 animationend 不会触发）
   // 登场球动画期间隐藏精灵；两回合招式蓄力（钻地/升空/入水）期间同样保持隐藏
   img.style.visibility = (enter || mon.chargeHidden) ? 'hidden' : '';
@@ -782,6 +849,8 @@ function renderMon(mon, side, enter) {
     applySpriteSize(img, side, pd); // 按真实身高缩放（仅战斗页生效）
     syncStatusFx(side, mon, true); // 图片尺寸确定后校正异常状态粒子挂点位置
     syncSeedFx(side, mon, true); // 同上：校正寄生种子幼芽挂点位置
+    if (img._rainbowSeq !== rainbowSeq) return;
+    if (mon.variant === 'rainbow' && !applyBattleRainbow(side, img)) img.classList.remove(RAINBOW_IMG_CLS);
   });
   const nameEl = $(`${side}-name`);
   nameEl.textContent = mon.name;

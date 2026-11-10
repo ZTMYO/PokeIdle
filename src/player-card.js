@@ -4,7 +4,9 @@ import { gameData, allPokemon, getPokemonByIndex } from './state.js';
 import { TYPE_COLORS } from './items.js';
 import { REGION_CYCLE, PX_PER_METER } from './config.js';
 import { tryLoadImage } from './ui.js';
-import { openShareCanvas } from './share-card.js';
+import { pokemonSourceBadge } from './badges.js';
+import { drawVariantSprite } from './sprite-fx.js';
+import { openShareCanvas, badgeImage } from './share-card.js';
 
 const W = 1200;
 const H = 675;
@@ -320,9 +322,11 @@ function drawPartnerPanel(ctx, model, images, accent) {
   const nameSize = fitSize(ctx, name, 340, 30, 18, 800);
   drawText(ctx, name, x + 22, y + 65, nameSize, 800, INK);
   let nameW = measure(ctx, name, nameSize, 800);
-  if (partner?.shiny && images.shiny) {
+  const badgeSvg = partner ? pokemonSourceBadge(partner) : '';
+  const badge = badgeSvg && images.badges ? images.badges.get(badgeSvg) : null;
+  if (badge) {
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(images.shiny, x + 22 + nameW + 5, y + 49, 20, 20);
+    ctx.drawImage(badge, x + 22 + nameW + 5, y + 49, 20, 20);
     ctx.imageSmoothingEnabled = false;
     nameW += 26;
   }
@@ -350,7 +354,7 @@ function drawPartnerPanel(ctx, model, images, accent) {
       const dw = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
       const dh = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(img, Math.round(cx - dw / 2), Math.round(bottom - dh), dw, dh);
+      drawVariantSprite(ctx, img, Math.round(cx - dw / 2), Math.round(bottom - dh), dw, dh, partner.variant);
     } else {
       drawText(ctx, '立绘加载失败', cx, bottom - 46, 14, 400, MUT, 'center');
     }
@@ -371,11 +375,13 @@ function drawPartnerPanel(ctx, model, images, accent) {
         const dw = Math.round(img.naturalWidth * k);
         const dh = Math.round(img.naturalHeight * k);
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, Math.round(ix + (size - dw) / 2), Math.round(iy + (size - dh) / 2), dw, dh);
+        drawVariantSprite(ctx, img, Math.round(ix + (size - dw) / 2), Math.round(iy + (size - dh) / 2), dw, dh, entry.variant);
       }
-      if (entry.shiny && images.shiny) {
+      const bsvg = pokemonSourceBadge(entry);
+      const bimg = bsvg && images.badges ? images.badges.get(bsvg) : null;
+      if (bimg) {
         ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(images.shiny, ix + size - 14, iy - 6, 17, 17);
+        ctx.drawImage(bimg, ix + size - 14, iy - 6, 17, 17);
         ctx.imageSmoothingEnabled = false;
       }
     });
@@ -474,22 +480,6 @@ async function loadImage(src) {
   }
 }
 
-// 复用项目里的 #icon-star（闪光标记），不要用文字五角星
-function loadSymbolImage(id, color) {
-  return new Promise((resolve) => {
-    const sym = document.getElementById(id);
-    if (!sym) return resolve(null);
-    const vb = sym.getAttribute('viewBox') || '0 0 1024 1024';
-    const body = sym.innerHTML.replace(/currentColor/g, color);
-    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}">${body}</svg>`);
-    const img = new Image();
-    img.onload = () => resolve(img.naturalWidth ? img : null);
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-}
-
 function spritePath(poke, shiny) {
   const base = poke?.image ? `./${poke.image}` : '';
   return shiny ? base.replace(/(\.[a-z]+)$/i, '_shiny$1') : base;
@@ -506,11 +496,13 @@ async function loadSprite(poke, shiny) {
 async function renderCard(model) {
   const partner = model.partner;
   const team = model.team.slice(1, 6);
-  const [app, avatar, partnerImg, shinyMark, ...teamImgs] = await Promise.all([
+  const badgeSvgs = [...new Set([model.partner, ...team].filter(Boolean).map(pokemonSourceBadge).filter(Boolean))];
+  const badgeImgs = await Promise.all(badgeSvgs.map(async (svg) => [svg, await badgeImage(svg, INK)]));
+  const badges = new Map(badgeImgs);
+  const [app, avatar, partnerImg, ...teamImgs] = await Promise.all([
     loadImage('./icons/app-icon.png'),
     loadImage(`./character/${model.avatarGender}-front.png`),
     model.partnerPoke ? loadSprite(model.partnerPoke, !!partner?.shiny) : Promise.resolve(null),
-    loadSymbolImage('icon-star', '#3B2A4A'),
     ...team.map(entry => {
       const p = getPokemonByIndex(String(entry.species));
       return loadSprite(p, !!entry.shiny);
@@ -523,7 +515,7 @@ async function renderCard(model) {
   canvas.height = H * SCALE;
   const ctx = canvas.getContext('2d');
   ctx.scale(SCALE, SCALE);
-  drawCard(ctx, model, { app, avatar, partner: partnerImg, team: teamImgs, shiny: shinyMark });
+  drawCard(ctx, model, { app, avatar, partner: partnerImg, team: teamImgs, badges });
   return canvas;
 }
 

@@ -5,6 +5,8 @@
 /* 战斗动画 */
 .b-flip { position: relative; transform: scaleX(-1); }
 #bp-img, #be-img { will-change: transform; }
+/* 炫彩：原图隐藏，由同位置的 SVG 描边层显示 */
+#bp-img.b-rainbow-img, #be-img.b-rainbow-img { visibility: hidden !important; }
 #bp-img.lunge, #be-img.lunge { animation: bLunge 0.3s cubic-bezier(0.3, 0.7, 0.4, 1); }
 /* 特殊攻击：朝对手方向摆动一小段（位移由战斗页按双方精灵位置设置 --lunge-dx/--lunge-dy） */
 @keyframes bLunge {
