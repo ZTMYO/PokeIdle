@@ -1,10 +1,8 @@
 // ===== 每日抽奖 =====
-// 服务器每天 21:00 从当天报名的安装标识里抽一名，奖品是超级进化石。
-// 没有账号：只上传本机匿名标识 + 玩家自己填的昵称，服务器存哈希与昵称；开奖结果公开，领奖凭同一个标识。
+// 服务器每天固定时间抽一二三等奖；奖品支持道具和蛋。没有账号，只上传匿名标识 + 昵称。
 import { $, showView, showConfirmBar, hideConfirmBar, tryLoadImage } from './ui.js';
-import { pushNav, saveGame } from './state.js';
-import { grantItem, itemIconSrc } from './items.js';
-import { ITEM_NAMES } from './config.js';
+import { pushNav } from './state.js';
+import { prizeName, prizeIcon, grantPrize, normalizePrize } from './prizes.js';
 import { DEV } from './build-info.js';
 import { installId } from './identity.js';
 
@@ -15,14 +13,14 @@ const SEEN_KEY = 'pokeidle_lottery_seen';
 const REFRESH_MS = 10 * 60 * 1000;
 const MAX_NAME = 8;
 
-let _status = null;      // 服务器最近一次返回的完整状态
-let _srvAt = 0;          // 对齐用的服务器时刻
+let _status = null;
+let _srvAt = 0;
 let _perfAt = 0;
 let _freshAt = 0;
 let _loading = null;
 let _tick = 0;
 let _offline = false;
-let _hasLoaded = false;  // 本次启动成功连上过服务器：没连上时手机里不摆这个入口
+let _hasLoaded = false;
 let _uiTimer = null;
 let _drawFetchAt = 0;
 let _promptedKey = '';
@@ -103,6 +101,56 @@ async function loadLottery(force = false) {
   return _loading;
 }
 
+function normTiers(list) {
+  return (Array.isArray(list) ? list : []).map((t, i) => {
+    const prize = normalizePrize(t && t.prize);
+    if (!prize) return null;
+    return {
+      id: Number(t.id) || i + 1,
+      name: String(t.name || `第${i + 1}等奖`),
+      count: Math.max(1, Number(t.count) || 1),
+      prize,
+      winners: (Array.isArray(t.winners) ? t.winners : [])
+        .map((w) => (typeof w === 'string' ? { name: w } : w))
+        .filter((w) => w && w.name),
+    };
+  }).filter(Boolean);
+}
+
+function tiersOf(s) {
+  const tiers = normTiers(s && s.tiers);
+  if (tiers.length) return tiers;
+  const prize = normalizePrize(s && s.prize);
+  if (!prize) return [];
+  return [{
+    id: 1,
+    name: '一等奖',
+    count: 1,
+    prize,
+    winners: s && s.winner ? [{ name: s.winner.name, at: s.winner.at }] : [],
+  }];
+}
+
+function winsOf(s) {
+  if (Array.isArray(s && s.wins)) {
+    return s.wins.map((w) => ({
+      ...w,
+      prize: normalizePrize(w && w.prize),
+      tier: w && w.tier ? w.tier : { id: 1, name: '一等奖' },
+    })).filter((w) => w.prize);
+  }
+  if (s && s.winPrize) {
+    return [{
+      day: s.winDay,
+      tier: { id: 1, name: '一等奖' },
+      prize: normalizePrize(s.winPrize),
+      claimed: !!s.claimed,
+      at: 0,
+    }].filter((w) => w.prize);
+  }
+  return [];
+}
+
 function afterStatus() {
   announceResult();
   promptWin();
@@ -111,29 +159,34 @@ function afterStatus() {
 
 function announceResult() {
   const last = _status && _status.last;
-  if (!last || !last.at || !last.name) return;
+  if (!last || !last.name) return;
   let seen = 0;
   try { seen = Number(localStorage.getItem(SEEN_KEY) || 0); } catch (_) {}
-  if (last.at <= seen) return;
-  try { localStorage.setItem(SEEN_KEY, String(last.at)); } catch (_) {}
-  if (!seen) return;   // 首次安装不播旧结果
-  if (_status.won && _status.winDay === last.date) return;   // 自己中了，走领奖弹窗
-  showConfirmBar(`${esc(last.name)} 在每日抽奖中获得了 ${esc(ITEM_NAMES[last.prize] || last.prize)}`, null, null, { noButtons: true });
+  if ((last.at || 0) <= seen) return;
+  try { localStorage.setItem(SEEN_KEY, String(last.at || 0)); } catch (_) {}
+  if (!seen) return; // 首次安装不播旧结果
+  if (winsOf(_status).some((w) => !w.claimed && w.day === last.date)) return;
+  showConfirmBar(`${esc(last.name)} 在每日抽奖中获得了 ${esc(prizeName(last.prizeObj || last.prize))}`, null, null, { noButtons: true });
   const bar = document.getElementById('confirmBar');
   setTimeout(() => { if (bar && document.getElementById('confirmBar') === bar) hideConfirmBar(); }, 4000);
 }
 
 function promptWin() {
-  if (!_status || !_status.won || _status.claimed) return;
-  const key = `${_status.winDay}|${_status.winPrize}`;
+  const win = winsOf(_status).find((w) => !w.claimed);
+  if (!win) return;
+  const key = `${win.day}|${win.tier && win.tier.id}`;
   if (_promptedKey === key) return;
   _promptedKey = key;
-  const prize = esc(ITEM_NAMES[_status.winPrize] || _status.winPrize);
-  showConfirmBar(`你被抽中了：${prize}<br><span style="opacity:.7">${esc(_status.winDay)} 的每日抽奖</span>`, () => { claimLottery(); }, null, { overlay: true });
+  showConfirmBar(
+    `你被抽中了：${esc(prizeName(win.prize))}<br><span style="opacity:.7">${esc(win.day)} · ${esc((win.tier && win.tier.name) || '一等奖')}</span>`,
+    () => { claimLottery(win.day, win.tier && win.tier.id); },
+    null,
+    { overlay: true },
+  );
 }
 
 export function hasLotteryDot() {
-  return !!(_hasLoaded && _status && _status.won && !_status.claimed);
+  return !!(_hasLoaded && _status && winsOf(_status).some((w) => !w.claimed));
 }
 
 async function enterLottery(rawName) {
@@ -162,7 +215,7 @@ async function enterLottery(rawName) {
   }
 }
 
-async function claimLottery() {
+async function claimLottery(day, tier) {
   if (_claiming) return { ok: false, error: 'busy' };
   if (!onlineAllowed()) {
     showConfirmBar('连不上服务器，稍后再试', null, null, { singleButton: true });
@@ -170,16 +223,14 @@ async function claimLottery() {
   }
   _claiming = true;
   try {
-    const data = await post('/claim', installId());
+    const data = await post('/claim', `${installId()}|${day || ''}|${tier == null ? '' : tier}`);
     if (data.ok && !data.already && data.prize) {
-      grantItem(data.prize, 1, '抽奖');
-      await saveGame();
-      if (_status) {
-        _status.claimed = true;
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ..._status, savedAt: Date.now() })); } catch (_) {}
-        renderIfOpen();
+      const p = normalizePrize(data.prize);
+      if (p && grantPrize(p)) {
+        showConfirmBar(`已领取 ${esc(prizeName(p))}${p.kind === 'egg' ? '，已放入仓库' : ''}`, null, null, { singleButton: true });
+      } else {
+        showConfirmBar('奖品发放失败，请联系管理员', null, null, { singleButton: true });
       }
-      showConfirmBar(`已领取 ${esc(ITEM_NAMES[data.prize] || data.prize)} ×1`, null, null, { singleButton: true });
       loadLottery(true);
     } else if (data.already) {
       showConfirmBar('这个奖品已经领取过了', null, null, { singleButton: true });
@@ -218,6 +269,7 @@ function ensureLotteryView() {
 
 export function showLotteryView() {
   if (!ensureLotteryView()) return;
+  closeLotteryDetail();
   pushNav('lotteryView');
   showView('lotteryView');
   renderLotteryView();
@@ -240,11 +292,6 @@ function startUiTimer() {
     }
     tickCountdown();
   }, 1000);
-}
-
-function dayText(ms) {
-  const d = new Date(ms);
-  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function drawHourOf(s) {
@@ -282,10 +329,100 @@ function tickCountdown() {
 function renderIfOpen() {
   const view = $('lotteryView');
   if (!view || view.style.display === 'none') return;
-  // 正在输入昵称时不重画，免得轮询把输入框清掉
   const input = $('lotName');
   if (input && (document.activeElement === input || input.value.trim())) return;
   renderLotteryView();
+}
+
+function tierCardHtml(t, drawn) {
+  const icon = prizeIcon(t.prize);
+  const names = (t.winners || []).map((w) => w.name).filter(Boolean);
+  const count = drawn ? `${names.length} 名` : `${t.count} 名`;
+  return `<div class="lot-tier">
+    <span class="lot-tier-rank">${esc(t.name)}</span>
+    ${icon ? `<img class="lot-tier-icon" data-icon="${esc(icon)}" alt="">` : ''}
+    <span class="lot-tier-prize">${esc(prizeName(t.prize))}</span>
+    <span class="lot-tier-right${drawn && !names.length ? ' muted' : ''}">${esc(count)}</span>
+  </div>`;
+}
+
+function winHtml(w) {
+  return `<div class="lot-win">
+    <div class="lot-win-title">你被抽中了 · ${esc((w.tier && w.tier.name) || '一等奖')}</div>
+    <div class="lot-win-prize">${esc(prizeName(w.prize))}</div>
+    <div class="lot-win-sub">${esc(w.day)} 的抽奖 · 未领取</div>
+    <button class="lot-btn lot-claim" data-claim-day="${esc(w.day)}" data-claim-tier="${esc((w.tier && w.tier.id) || 1)}">领取奖品</button>
+  </div>`;
+}
+
+function historyTiers(h) {
+  let tiers = normTiers(h && h.tiers);
+  if (!tiers.length) {
+    const p = normalizePrize(h && h.prize);
+    if (p) tiers = [{ id: 1, name: '一等奖', count: 1, prize: p, winners: h && h.name ? [{ name: h.name }] : [] }];
+  }
+  return tiers;
+}
+
+function historyItemHtml(h) {
+  const tiers = historyTiers(h);
+  const first = tiers[0] || null;
+  const firstWinner = first && first.winners && first.winners[0] ? first.winners[0].name : (h && h.name) || '';
+  return `<div class="lot-hist-item">
+    <div class="lot-row lot-hist-row" data-hist="${esc(h && h.date ? h.date : '')}">
+      <span class="lot-row-date">${esc(h && h.date ? String(h.date).slice(5) : '')}</span>
+      <span class="lot-row-name">${esc(firstWinner || '无人中奖')}</span>
+      <span class="lot-row-prize">${esc(first ? prizeName(first.prize) : '—')}</span>
+      <span class="lot-row-more">›</span>
+    </div>
+  </div>`;
+}
+
+function tierDetailHtml(t) {
+  const names = (t.winners || []).map((w) => w.name).filter(Boolean);
+  const icon = prizeIcon(t.prize);
+  const count = `${names.length} 名`;
+  return `<div class="lot-detail-tier">
+    <div class="lot-detail-head"><span>${esc(t.name)}</span><span class="lot-detail-count">${esc(count)}</span></div>
+    <div class="lot-detail-prize">${icon ? `<img class="lot-detail-icon" data-icon="${esc(icon)}" alt="">` : ''}<span>${esc(prizeName(t.prize))}</span></div>
+    <div class="lot-detail-winners${names.length ? '' : ' muted'}">${esc(names.length ? names.join('、') : '无人中奖')}</div>
+  </div>`;
+}
+
+function onLotDetailKey(e) {
+  if (e.key === 'Escape') closeLotteryDetail();
+}
+
+function closeLotteryDetail() {
+  $('lotteryDetailDialog')?.remove();
+  document.removeEventListener('keydown', onLotDetailKey);
+}
+
+function openLotteryDetail(h) {
+  const view = $('lotteryView');
+  if (!view || !h) return;
+  closeLotteryDetail();
+  const tiers = historyTiers(h);
+  const date = h.date ? String(h.date) : '';
+  const count = Number(h.count) || 0;
+  const dlg = document.createElement('div');
+  dlg.id = 'lotteryDetailDialog';
+  dlg.className = 'lot-detail-overlay';
+  dlg.innerHTML = `<div class="lot-detail-panel" role="dialog" aria-modal="true" aria-label="开奖详情">
+    <div class="lot-detail-title"><span>开奖详情</span><button type="button" class="lot-detail-close" data-lot-close aria-label="关闭">✕</button></div>
+    <div class="lot-detail-body">
+      <div class="lot-detail-sub">${esc(date)} · ${count} 人参与</div>
+      <div class="lot-detail-list">${tiers.length ? tiers.map((t) => tierDetailHtml(t)).join('') : '<div class="lot-empty">无奖品记录</div>'}</div>
+    </div>
+    <div class="lot-detail-foot"><button type="button" class="lot-detail-ok" data-lot-close>关闭</button></div>
+  </div>`;
+  view.appendChild(dlg);
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) closeLotteryDetail(); });
+  dlg.querySelectorAll('[data-lot-close]').forEach((el) => {
+    el.addEventListener('click', (e) => { e.stopPropagation(); closeLotteryDetail(); });
+  });
+  document.addEventListener('keydown', onLotDetailKey);
+  dlg.querySelectorAll('img[data-icon]').forEach((img) => tryLoadImage(img, img.dataset.icon));
 }
 
 function renderLotteryView() {
@@ -297,26 +434,18 @@ function renderLotteryView() {
     return;
   }
   const savedName = (() => { try { return localStorage.getItem(NAME_KEY) || ''; } catch (_) { return ''; } })();
-  const prizeName = ITEM_NAMES[s.prize] || s.prize || '待定';
-  const prizeIcon = s.prize ? itemIconSrc(s.prize) : '';
-  const wonHtml = s.won && !s.claimed
-    ? `<div class="lot-win">
-        <div class="lot-win-title">你被抽中了</div>
-        <div class="lot-win-prize">${esc(ITEM_NAMES[s.winPrize] || s.winPrize)}</div>
-        <div class="lot-win-sub">${esc(s.winDay)} 的抽奖 · 未领取</div>
-        <button class="lot-btn lot-claim" id="lotClaim">领取奖品</button>
-      </div>`
-    : '';
+  const tiers = tiersOf(s);
+  const wins = winsOf(s).filter((w) => !w.claimed);
+  const wonHtml = wins.map(winHtml).join('');
   let stateHtml = '';
   if (s.drawn) {
+    const names = tiers.flatMap((t) => (t.winners || []).map((w) => w.name)).filter(Boolean);
     stateHtml = `<div class="lot-state">
-        <div class="lot-state-main">${s.winner ? `中奖者：${esc(s.winner.name)}` : '今日无人参与'}</div>
-        <div class="lot-state-hint">下一次开奖：明天 ${String(drawHourOf(s)).padStart(2, '0')}:00</div>
+        <div class="lot-state-sub">${names.length ? `中奖者：${names.map(esc).join('、')}` : '今日无人中奖'}</div>
       </div>`;
   } else if (s.entered) {
     stateHtml = `<div class="lot-state">
-        <div class="lot-state-main">已参与</div>
-        <div class="lot-state-sub">等待 ${String(drawHourOf(s)).padStart(2, '0')}:00 开奖</div>
+        <div class="lot-state-sub">已参与 · 等待 ${String(drawHourOf(s)).padStart(2, '0')}:00 开奖</div>
       </div>`;
   } else {
     stateHtml = `<div class="lot-state">
@@ -329,11 +458,7 @@ function renderLotteryView() {
   }
   const history = Array.isArray(s.history) ? s.history : [];
   const historyHtml = history.length
-    ? history.map((h) => `<div class="lot-row">
-        <span class="lot-row-date">${h.date ? String(h.date).slice(5) : dayText(h.at)}</span>
-        <span class="lot-row-name">${esc(h.name || '—')}</span>
-        <span class="lot-row-prize">${esc(ITEM_NAMES[h.prize] || h.prize)}</span>
-      </div>`).join('')
+    ? history.map((h) => historyItemHtml(h)).join('')
     : '<div class="lot-empty">还没有开奖记录</div>';
 
   box.innerHTML = `<div class="lot-wrap">
@@ -343,13 +468,7 @@ function renderLotteryView() {
       <span class="act-left" id="lotCountdown">${s.drawn ? '今日已开奖' : '距开奖 --:--:--'}</span>
     </div>
     ${wonHtml}
-    <div class="lot-prize act-card">
-      ${prizeIcon ? `<img class="lot-prize-icon" data-icon="${esc(prizeIcon)}" alt="">` : ''}
-      <div class="lot-prize-info">
-        <div class="lot-prize-label">今日奖品</div>
-        <div class="lot-prize-name">${esc(prizeName)}</div>
-      </div>
-    </div>
+    <div class="lot-tiers">${tiers.map((t) => tierCardHtml(t, !!s.drawn)).join('')}</div>
     ${stateHtml}
     <div class="lot-history-title">最近开奖</div>
     <div class="lot-history">${historyHtml}</div>
@@ -361,12 +480,12 @@ function renderLotteryView() {
 }
 
 function bindLotteryEvents() {
+  const box = $('lotteryContent');
   const input = $('lotName');
   if (input) {
     input.addEventListener('input', () => {
       const chars = Array.from(input.value);
       if (chars.length > MAX_NAME) input.value = chars.slice(0, MAX_NAME).join('');
-      // 输入即缓存：没报名就退出，下次打开也能接着用；清空则删掉
       try {
         if (input.value.trim()) localStorage.setItem(NAME_KEY, input.value);
         else localStorage.removeItem(NAME_KEY);
@@ -377,11 +496,21 @@ function bindLotteryEvents() {
     });
   }
   $('lotEnter')?.addEventListener('click', doEnter);
-  $('lotClaim')?.addEventListener('click', (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    btn.textContent = '领取中…';
-    claimLottery().then(() => renderLotteryView());
+  box?.querySelectorAll('[data-claim-day]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      btn.disabled = true;
+      btn.textContent = '领取中…';
+      claimLottery(btn.dataset.claimDay, btn.dataset.claimTier).then(() => renderLotteryView());
+    });
+  });
+  box?.querySelectorAll('.lot-hist-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const list = _status && Array.isArray(_status.history) ? _status.history : [];
+      const date = row.dataset.hist;
+      const h = list.find((x) => String(x && x.date) === date);
+      if (h) openLotteryDetail(h);
+    });
   });
 }
 

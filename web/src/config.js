@@ -69,6 +69,31 @@ export const LOTTERY_PRIZES = [
   '列阵兵进化石', '狠辣椒进化石', '晶光花进化石', '米立龙进化石', '戟脊龙进化石',
 ];
 
+// 抽奖默认奖项：一等奖从 Mega 石池抽，二/三等奖从道具池抽；日程 JSON 可以逐日覆盖。
+// 随机只决定「物品类型」，数量固定：一/二等奖是单件，三等奖按约 150 糖果的预算折算。
+export const LOTTERY_TIERS = [
+  { id: 1, name: '一等奖', winners: 1, pool: 'first' },
+  { id: 2, name: '二等奖', winners: 2, pool: 'second' },
+  { id: 3, name: '三等奖', winners: 3, pool: 'third' },
+];
+export const LOTTERY_PRIZE_POOLS = {
+  first: LOTTERY_PRIZES,
+  second: [
+    '火之石', '水之石', '雷之石', '叶之石', '冰之石', '月之石', '日之石', '光之石', '暗之石', '觉醒之石',
+    '心之石', '联系绳', '极巨汤', '奇异石',
+    'silver-crown', 'golden-crown', '虹色之羽', 'master-ball',
+  ],
+  third: ['exp-candy', 'candy', 'ultra-ball', 'poke-ball', 'sweet-honey'],
+};
+// 三等奖固定数量：商店价 精灵球 10 / 高级球 25 / 甜甜蜜 40；经验糖果无售价，按 50 糖果/颗折算
+export const LOTTERY_PRIZE_QTY = {
+  'candy': 150,
+  'poke-ball': 15,
+  'ultra-ball': 6,
+  'sweet-honey': 3,
+  'exp-candy': 3,
+};
+
 // 精灵球基础捕获率（最终 = 基础率 × 宝可梦 catchRate × 丢球加成）
 export const CATCH_RATES = {
   'poke-ball': 0.35, 'ultra-ball': 0.70, 'master-ball': 1.00,

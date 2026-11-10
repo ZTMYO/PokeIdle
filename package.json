@@ -14,7 +14,8 @@
     "android:build": "node mobile/android.mjs release",
     "android:install": "node mobile/android.mjs install",
     "android:keystore": "node mobile/keystore.mjs",
-    "android:serve": "node mobile/dev-server.mjs"
+    "android:serve": "node mobile/dev-server.mjs",
+    "lottery-maker": "node tools/lottery-server.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.0",

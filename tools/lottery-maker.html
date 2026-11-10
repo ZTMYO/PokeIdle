@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>每日抽奖排期</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f3f0e7;
+    --card: #fffdf8;
+    --line: #ddd6c6;
+    --line-soft: #eae4d6;
+    --ink: #2f2b24;
+    --muted: #837b6d;
+    --accent: #3f7d5c;
+    --accent-soft: #e8f1ea;
+    --danger: #a33b32;
+    --chip: #f1ede1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 13px/1.55 "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 18px 70px; }
+  .top { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .top h1 { margin: 0; font-size: 21px; letter-spacing: .5px; }
+  .path { color: var(--muted); font: 11px/1.5 Consolas, monospace; word-break: break-all; }
+  .banner {
+    display: none; margin: 0 0 12px; padding: 9px 12px; border-radius: 8px;
+    background: #fff4dc; border: 1px solid #edd7a4; color: #715c2a; font-size: 12px;
+  }
+  .banner.show { display: block; }
+
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  .jsonbar { padding: 10px 12px 12px; margin-bottom: 12px; }
+  .jsonbar-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .jsonbar-head .ttl { font-size: 12px; font-weight: 800; letter-spacing: .3px; }
+  .jsonbar-head .grow { flex: 1; }
+  #out {
+    width: 100%; height: 150px; resize: vertical; padding: 9px 10px;
+    border: 1px solid var(--line); border-radius: 7px; background: #fbf9f2;
+    font: 11px/1.5 Consolas, "Courier New", monospace; white-space: pre;
+  }
+  .msgline { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+  .msgline.err { color: var(--danger); font-weight: 700; }
+
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .toolbar .grow { flex: 1; }
+  .tip { margin: 0 0 12px; color: var(--muted); font-size: 11px; }
+  .btn {
+    border: 1px solid #c6bda9; border-radius: 7px; background: #fffdf8;
+    padding: 7px 12px; font-size: 12px; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.danger { color: var(--danger); }
+  .file { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
+  .file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+  .days { display: flex; flex-direction: column; gap: 8px; }
+  .empty { padding: 26px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; }
+  .day { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .day.open { border-color: #c9bfa8; box-shadow: 0 2px 8px rgba(70, 60, 40, .06); }
+  .day-row {
+    display: grid; grid-template-columns: 24px 142px minmax(0, 1fr) auto auto auto;
+    align-items: center; gap: 10px; padding: 8px 12px;
+  }
+  .chev {
+    width: 22px; height: 22px; border: 0; background: transparent; color: var(--muted);
+    font-size: 16px; line-height: 1; transition: transform .15s ease; padding: 0;
+  }
+  .day.open .chev { transform: rotate(90deg); color: var(--accent); }
+  .date {
+    border: 1px solid transparent; border-radius: 5px; background: transparent;
+    padding: 4px 5px; font-size: 13px; font-weight: 700; color: var(--ink);
+  }
+  .date:hover, .date:focus { border-color: var(--line); background: #fff; outline: none; }
+  .sum { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-width: 0; }
+  .sum-chip {
+    display: inline-flex; align-items: center; gap: 5px; max-width: 210px;
+    background: var(--chip); border-radius: 999px; padding: 2px 9px 2px 4px;
+    font-size: 11px; line-height: 1.5;
+  }
+  .sum-chip img { width: 20px; height: 20px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
+  .sum-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sum-chip b { font-weight: 700; opacity: .65; white-space: nowrap; font-size: 10px; }
+  .day-count { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+  .del {
+    border: 0; background: transparent; color: var(--muted); padding: 4px 6px;
+    border-radius: 5px; font-size: 11px;
+  }
+  .del:hover { color: var(--danger); background: #fbeeed; }
+  .rnd {
+    border: 0; background: transparent; color: var(--accent); padding: 4px 7px;
+    border-radius: 5px; font-size: 11px; font-weight: 700;
+  }
+  .rnd:hover { background: var(--accent-soft); }
+  .day-body { border-top: 1px solid var(--line-soft); padding: 10px 12px 12px; background: #fbf9f2; }
+  .tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
+  .tier { background: var(--card); border: 1px solid var(--line-soft); border-radius: 8px; padding: 9px; }
+  .tier-head { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+  .tname {
+    flex: 1; min-width: 0; border: 1px solid transparent; border-radius: 5px;
+    background: transparent; padding: 3px 5px; font-weight: 800; font-size: 12.5px;
+  }
+  .tname:hover, .tname:focus { border-color: var(--line); background: #fff; outline: none; }
+  .wn { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); font-size: 10.5px; }
+  .wn input { width: 44px; padding: 3px 4px; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+  .kind-seg { display: flex; gap: 0; margin-bottom: 7px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .kind-seg button {
+    flex: 1; border: 0; background: #fff; padding: 4px 0; font-size: 11px; color: var(--muted);
+  }
+  .kind-seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 800; }
+  .kind-seg button + button { border-left: 1px solid var(--line); }
+  .pick {
+    width: 100%; display: flex; align-items: center; gap: 8px; text-align: left;
+    border: 1px solid var(--line); border-radius: 7px; background: #fff; padding: 7px 8px;
+  }
+  .pick:hover { border-color: var(--accent); background: #fbfdfb; }
+  .pick img { width: 34px; height: 34px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
+  .pick-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .pick-txt b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pick-txt small { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: Consolas, monospace; }
+  .pick-go { color: var(--accent); font-size: 10.5px; flex: 0 0 auto; }
+  .qty-line { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; color: var(--muted); font-size: 10.5px; }
+  .qty-line input { width: 58px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+  .egg-flags { display: flex; gap: 6px; margin-top: 6px; }
+  .flag {
+    border: 1px solid var(--line); border-radius: 999px; background: #fff;
+    padding: 3px 10px; font-size: 10.5px; color: var(--muted);
+  }
+  .flag.on { background: #fff3d6; border-color: #dfb45e; color: #8a6116; font-weight: 800; }
+  .flag:disabled { opacity: .4; cursor: not-allowed; }
+
+  .modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal[hidden] { display: none; }
+  .modal-mask { position: absolute; inset: 0; background: rgba(40, 34, 24, .38); }
+  .modal-card {
+    position: relative; width: min(940px, 100%); max-height: min(82vh, 780px);
+    display: flex; flex-direction: column; background: var(--card);
+    border-radius: 12px; box-shadow: 0 18px 50px rgba(30, 25, 15, .3); overflow: hidden;
+  }
+  .modal-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+  .modal-head h3 { margin: 0; font-size: 15px; flex: 1; }
+  .modal-head .x { border: 0; background: transparent; font-size: 18px; color: var(--muted); padding: 2px 6px; }
+  .modal-tools { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; flex-wrap: wrap; }
+  #pickerSearch {
+    flex: 1; min-width: 180px; padding: 7px 10px; border: 1px solid var(--line);
+    border-radius: 7px; background: #fff; outline: none;
+  }
+  #pickerSearch:focus { border-color: var(--accent); }
+  .tabs { display: flex; gap: 4px; }
+  .tabs button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 11px; color: var(--muted); }
+  .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  #pickerCount { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+  .picker-grid {
+    overflow-y: auto; padding: 6px 14px 16px; display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 6px;
+  }
+  .pk {
+    display: flex; align-items: center; gap: 8px; text-align: left; min-width: 0;
+    border: 1px solid transparent; border-radius: 7px; background: transparent; padding: 5px 6px;
+  }
+  .pk:hover { background: #f6f2e6; border-color: var(--line-soft); }
+  .pk img { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
+  .pk-txt { display: flex; flex-direction: column; min-width: 0; }
+  .pk-txt b { font-size: 11.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pk-txt small { font-size: 9.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pk-picked { background: var(--accent-soft); border-color: #a9c9b1; }
+  .picker-empty { grid-column: 1 / -1; padding: 30px; text-align: center; color: var(--muted); }
+
+  .toast {
+    position: fixed; right: 20px; bottom: 20px; z-index: 70; max-width: 420px;
+    padding: 9px 14px; border-radius: 8px; background: #34413a; color: #fff;
+    font-size: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+    opacity: 0; transform: translateY(8px); pointer-events: none; transition: .18s ease;
+  }
+  .toast.show { opacity: 1; transform: none; }
+  .toast.bad { background: #8f3a32; }
+  img.broken { visibility: hidden; }
+
+  @media (max-width: 900px) {
+    .tiers { grid-template-columns: 1fr; }
+    .day-row { grid-template-columns: 24px 132px 1fr auto auto; }
+    .day-count { display: none; }
+    .sum-chip { max-width: 150px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>每日抽奖排期</h1>
+    <div class="path" id="path">下载后把 lottery-schedule.json 传到服务器 DATA_DIR 即可</div>
+  </div>
+  <div class="banner" id="banner"></div>
+
+  <div class="panel jsonbar">
+    <div class="jsonbar-head">
+      <span class="ttl">JSON 预览</span>
+      <span class="msgline" id="msg" style="margin:0"></span>
+      <span class="grow"></span>
+      <button type="button" class="btn" id="copy">复制 JSON</button>
+      <button type="button" class="btn primary" id="download">下载 JSON</button>
+    </div>
+    <textarea id="out" readonly spellcheck="false" placeholder="填写完整后这里会实时显示 JSON"></textarea>
+    <div class="msgline" id="err"></div>
+  </div>
+
+  <div class="toolbar">
+    <button type="button" class="btn primary" id="addDay">＋ 添加一天</button>
+    <button type="button" class="btn" id="randomAll">全部随机</button>
+    <label class="btn file">导入 JSON<input type="file" id="file" accept=".json,application/json"></label>
+    <span class="grow"></span>
+    <button type="button" class="btn danger" id="clear">清空排期</button>
+  </div>
+  <p class="tip">「添加一天」会自动随机一个不重复的进化石一等奖，二三等奖只随机物品类型，数量按售价固定；点日期行展开可微调。</p>
+
+  <div class="days" id="days"></div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-mask" data-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="modalTitle">选择奖品</h3>
+      <button type="button" class="x" data-close>✕</button>
+    </div>
+    <div class="modal-tools">
+      <input id="pickerSearch" autocomplete="off" placeholder="搜索名称 / 编号 / 拼音">
+      <div class="tabs" id="pickerTabs"></div>
+      <span id="pickerCount"></span>
+    </div>
+    <div class="picker-grid" id="pickerGrid"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Number(v) || 0));
+const DRAFT_KEY = 'pokeidle_lottery_schedule_v2';
+const TIER_NAMES = ['一等奖', '二等奖', '三等奖'];
+const DEFAULT_PRIZES = [
+  { kind: 'item', key: '妙蛙花进化石', qty: 1 },
+  { kind: 'item', key: '月之石', qty: 1 },
+  { kind: 'item', key: 'candy', qty: 150 },
+];
+
+let meta = { items: [], pokemon: [], lotteryPrizes: [], prizeQty: {} };
+let itemMap = new Map();
+let pokeMap = new Map();
+let days = [];
+let source = 'new';
+let picker = null;
+let toastTimer = 0;
+let draftTimer = 0;
+
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+function defaultTier(i) {
+  const prize = DEFAULT_PRIZES[i] || DEFAULT_PRIZES[DEFAULT_PRIZES.length - 1];
+  return {
+    name: TIER_NAMES[i] || `第${i + 1}等奖`,
+    winners: i === 0 ? 1 : i === 1 ? 2 : i === 2 ? 3 : 1,
+    prize: { ...prize },
+  };
+}
+
+function newDay(date, expanded = false) {
+  return { date: date || todayStr(), tiers: [0, 1, 2].map(defaultTier), expanded };
+}
+
+function normalizePrize(raw) {
+  if (typeof raw === 'string') return { kind: 'item', key: raw, qty: 1 };
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_PRIZES[0] };
+  if (raw.kind === 'egg') {
+    return {
+      kind: 'egg',
+      species: String(raw.species || '0133'),
+      shiny: !!raw.shiny,
+      squareShiny: !!raw.shiny && !!raw.squareShiny,
+    };
+  }
+  return { kind: 'item', key: String(raw.key || DEFAULT_PRIZES[0].key), qty: clamp(raw.qty || 1, 1, 999) };
+}
+
+function normalizeTier(raw, i) {
+  const d = defaultTier(i);
+  if (!raw || typeof raw !== 'object') return d;
+  return {
+    name: String(raw.name || d.name).slice(0, 8),
+    winners: clamp(raw.winners != null ? raw.winners : raw.count, 1, 50) || d.winners,
+    prize: normalizePrize(raw.prize),
+  };
+}
+
+function normalizeDay(raw) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(raw && raw.date || '')) ? String(raw.date) : todayStr();
+  const list = Array.isArray(raw && raw.tiers) ? raw.tiers : [];
+  const tiers = list.map(normalizeTier);
+  while (tiers.length < 3) tiers.push(defaultTier(tiers.length));
+  return { date, tiers: tiers.slice(0, 6), expanded: false };
+}
+
+function normalizeSchedule(data) {
+  let list = [];
+  if (Array.isArray(data)) list = data;
+  else if (data && Array.isArray(data.list)) list = data.list;
+  else if (data && data.days && typeof data.days === 'object') {
+    list = Object.entries(data.days).map(([date, v]) => ({ date, tiers: Array.isArray(v) ? v : ((v && v.tiers) || []) }));
+  }
+  return list.map(normalizeDay).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function prizeView(p) {
+  if (p.kind === 'egg') {
+    const poke = pokeMap.get(String(p.species));
+    return {
+      icon: poke ? poke.icon : '',
+      label: poke ? (poke.form && poke.form !== poke.name ? poke.form : poke.name) : `#${p.species}`,
+      sub: `#${p.species}`,
+      full: poke ? `${poke.name}${poke.form && poke.form !== poke.name ? ' · ' + poke.form : ''}` : `#${p.species}`,
+    };
+  }
+  const item = itemMap.get(String(p.key));
+  return {
+    icon: item ? item.icon : '/items/goods/mystery-egg.png',
+    label: item ? item.name : (p.key || '未选择道具'),
+    sub: item ? item.key : '',
+    full: item ? item.name : (p.key || '未选择道具'),
+  };
+}
+
+function summaryChips(d) {
+  return d.tiers.map((t) => {
+    const v = prizeView(t.prize);
+    const qty = t.prize.kind === 'egg' ? `${t.winners} 名` : `×${t.prize.qty}`;
+    return `<span class="sum-chip" title="${esc(t.name + ' · ' + v.full)}"><img src="${v.icon}" alt=""><span>${esc(v.label)}</span><b>${esc(qty)}</b></span>`;
+  }).join('');
+}
+
+function tierInnerHtml(t) {
+  const v = prizeView(t.prize);
+  const seg = t.prize.kind === 'egg'
+    ? '<button type="button" data-kind="item">道具</button><button type="button" data-kind="egg" class="on">蛋</button>'
+    : '<button type="button" data-kind="item" class="on">道具</button><button type="button" data-kind="egg">蛋</button>';
+  const body = t.prize.kind === 'egg'
+    ? `<button type="button" class="pick" data-pick="egg">
+         <img src="${v.icon}" alt="">
+         <span class="pick-txt"><b>${esc(v.label)}</b><small>${esc(v.sub)} · 宝可梦蛋</small></span>
+         <span class="pick-go">更换</span>
+       </button>
+       <div class="egg-flags">
+         <button type="button" class="flag${t.prize.shiny ? ' on' : ''}" data-flag="shiny">闪光</button>
+         <button type="button" class="flag${t.prize.squareShiny ? ' on' : ''}" data-flag="square"${t.prize.shiny ? '' : ' disabled'}>方闪</button>
+       </div>`
+    : `<button type="button" class="pick" data-pick="item">
+         <img src="${v.icon}" alt="">
+         <span class="pick-txt"><b>${esc(v.label)}</b><small>${esc(v.sub)}</small></span>
+         <span class="pick-go">更换</span>
+       </button>
+       <div class="qty-line"><span>每次发放</span><label>×<input class="qty" type="number" min="1" max="999" value="${t.prize.qty}"></label></div>`;
+  return `<div class="tier-head">
+      <input class="tname" maxlength="8" value="${esc(t.name)}" aria-label="奖项名">
+      <label class="wn">名额<input class="wins" type="number" min="1" max="50" value="${t.winners}"></label>
+    </div>
+    <div class="kind-seg">${seg}</div>
+    <div class="prize-box">${body}</div>`;
+}
+
+function tierHtml(t, di, ti) {
+  return `<div class="tier" data-d="${di}" data-t="${ti}">${tierInnerHtml(t)}</div>`;
+}
+
+function dayHtml(d, di) {
+  return `<div class="day${d.expanded ? ' open' : ''}" data-d="${di}">
+    <div class="day-row">
+      <button type="button" class="chev" data-toggle aria-label="展开">›</button>
+      <input class="date" type="date" value="${esc(d.date)}">
+      <div class="sum">${summaryChips(d)}</div>
+      <span class="day-count">${d.tiers.length} 个奖项</span>
+      <button type="button" class="rnd" data-random title="随机这一天的奖品">随机</button>
+      <button type="button" class="del" data-del>删除</button>
+    </div>
+    <div class="day-body"${d.expanded ? '' : ' hidden'}>
+      <div class="tiers">${d.tiers.map((t, ti) => tierHtml(t, di, ti)).join('')}</div>
+    </div>
+  </div>`;
+}
+
+function renderAll() {
+  $('days').innerHTML = days.length
+    ? days.map(dayHtml).join('')
+    : '<div class="empty">还没有排期，点上面的「添加一天」开始。</div>';
+  refreshJson();
+}
+
+function renderTier(di, ti) {
+  const el = document.querySelector(`.day[data-d="${di}"] .tier[data-t="${ti}"]`);
+  if (el) el.innerHTML = tierInnerHtml(days[di].tiers[ti]);
+}
+
+function refreshDay(di) {
+  const d = days[di];
+  const el = document.querySelector(`.day[data-d="${di}"]`);
+  if (!d || !el) return;
+  const sum = el.querySelector('.sum');
+  if (sum) sum.innerHTML = summaryChips(d);
+  const body = el.querySelector('.day-body');
+  if (body) body.hidden = !d.expanded;
+  el.classList.toggle('open', !!d.expanded);
+  refreshJson();
+}
+
+function modelJson() {
+  return {
+    list: days.map((d) => ({
+      date: d.date,
+      tiers: d.tiers.map((t, i) => ({
+        id: i + 1,
+        name: (t.name || '').trim() || TIER_NAMES[i] || `第${i + 1}等奖`,
+        winners: t.winners,
+        prize: t.prize,
+      })),
+    })),
+  };
+}
+
+function validateDays() {
+  if (!days.length) return '还没有排期';
+  const seen = new Set();
+  for (const d of days) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) return '有日期没有填写';
+    if (seen.has(d.date)) return `日期重复：${d.date}`;
+    seen.add(d.date);
+    for (const t of d.tiers) {
+      if (!String(t.name || '').trim()) return `${d.date} 有奖项名没填`;
+      if (t.prize.kind === 'item' && !String(t.prize.key || '').trim()) return `${d.date} 有奖项没选道具`;
+      if (t.prize.kind === 'egg' && !/^\d{1,4}(-\d+)?$/.test(String(t.prize.species || ''))) return `${d.date} 有奖项的图鉴编号不对`;
+    }
+  }
+  return '';
+}
+
+function refreshJson() {
+  const err = validateDays();
+  const errEl = $('err');
+  errEl.textContent = err || '';
+  errEl.className = 'msgline' + (err ? ' err' : '');
+  $('download').disabled = !!err;
+  $('out').value = days.length ? JSON.stringify(modelJson(), null, 2) : '';
+  const label = source === 'draft' ? '本地草稿' : source === 'import' ? '导入的排期' : '新排期';
+  $('msg').textContent = days.length ? `${days.length} 天 · ${label}` : '还没有排期';
+  scheduleDraft();
+}
+
+function scheduleDraft() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    try {
+      const data = days.map((d) => ({
+        date: d.date,
+        tiers: d.tiers.map((t) => ({ name: t.name, winners: t.winners, prize: t.prize })),
+      }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    } catch (_) {}
+  }, 300);
+}
+
+function loadDraft() {
+  try {
+    const data = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    return Array.isArray(data) ? data : null;
+  } catch (_) { return null; }
+}
+
+function toast(text, bad = false) {
+  const el = $('toast');
+  el.textContent = text;
+  el.className = 'toast show' + (bad ? ' bad' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
+}
+
+function nextDateStr() {
+  const list = days.map((d) => d.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+  const base = list.length ? list[list.length - 1] : todayStr();
+  const [y, m, d] = base.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+// ---------- 随机填奖 ----------
+// 随机只抽物品类型；数量按服务端 config 的 LOTTERY_PRIZE_QTY 固定
+const SECOND_KEYS = [
+  '火之石', '水之石', '雷之石', '叶之石', '冰之石', '月之石', '日之石', '光之石', '暗之石', '觉醒之石',
+  '心之石', '联系绳', '极巨汤', '奇异石',
+  'silver-crown', 'golden-crown', '虹色之羽', 'master-ball',
+];
+const THIRD_KEYS = [
+  ['exp-candy', 3], ['candy', 4], ['ultra-ball', 3], ['poke-ball', 2], ['sweet-honey', 2],
+];
+const FALLBACK_QTY = { candy: 150, 'poke-ball': 15, 'ultra-ball': 6, 'sweet-honey': 3, 'exp-candy': 3 };
+
+function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+
+function prizeQty(key) {
+  const q = Number(meta.prizeQty && meta.prizeQty[key]);
+  return Math.max(1, Math.min(999, q || FALLBACK_QTY[key] || 1));
+}
+
+function randomSecond() {
+  const keys = SECOND_KEYS.filter((k) => itemMap.has(k));
+  const key = keys.length ? keys[randInt(0, keys.length - 1)] : DEFAULT_PRIZES[1].key;
+  return { kind: 'item', key, qty: prizeQty(key) };
+}
+
+function randomThird() {
+  const total = THIRD_KEYS.reduce((s, x) => s + x[1], 0);
+  let r = Math.random() * total;
+  let key = THIRD_KEYS[THIRD_KEYS.length - 1][0];
+  for (const [k, w] of THIRD_KEYS) {
+    r -= w;
+    if (r <= 0) { key = k; break; }
+  }
+  return { kind: 'item', key, qty: prizeQty(key) };
+}
+
+function megaPool() {
+  const fromCfg = Array.isArray(meta.lotteryPrizes) ? meta.lotteryPrizes.filter((k) => itemMap.has(k)) : [];
+  if (fromCfg.length) return fromCfg;
+  return meta.items.filter((x) => x.group === 'stone' && x.key.includes('进化石')).map((x) => x.key);
+}
+
+function usedFirstStones(exceptIndex = -1) {
+  const used = new Set();
+  days.forEach((d, i) => {
+    if (i === exceptIndex) return;
+    const p = d.tiers[0] && d.tiers[0].prize;
+    if (p && p.kind === 'item' && p.key.includes('进化石')) used.add(p.key);
+  });
+  return used;
+}
+
+function pickMega(used) {
+  const pool = megaPool();
+  const free = pool.filter((k) => !used.has(k));
+  const list = free.length ? free : pool;
+  return list.length ? list[randInt(0, list.length - 1)] : DEFAULT_PRIZES[0].key;
+}
+
+function randomizeDay(d, used) {
+  while (d.tiers.length < 3) d.tiers.push(defaultTier(d.tiers.length));
+  d.tiers[0].prize = { kind: 'item', key: pickMega(used), qty: 1 };
+  d.tiers[1].prize = randomSecond();
+  d.tiers[2].prize = randomThird();
+}
+
+function switchKind(di, ti, kind) {
+  const t = days[di].tiers[ti];
+  if (!t || t.prize.kind === kind) return;
+  if (kind === 'egg') {
+    t._item = t.prize;
+    t.prize = t._egg || { kind: 'egg', species: '0133', shiny: false, squareShiny: false };
+  } else {
+    t._egg = t.prize;
+    t.prize = t._item || { ...DEFAULT_PRIZES[0] };
+  }
+  renderTier(di, ti);
+  refreshDay(di);
+}
+
+// ---------- 选择器 ----------
+function pickerTabs() {
+  if (!picker) return [];
+  return picker.kind === 'item'
+    ? [['all', '全部'], ['stone', '进化石'], ['item', '其他道具']]
+    : [['all', '全部'], ['base', '本体'], ['form', '形态']];
+}
+
+function openPicker(di, ti) {
+  const t = days[di].tiers[ti];
+  if (!t) return;
+  picker = { kind: t.prize.kind, di, ti, tab: 'all', q: '' };
+  $('modalTitle').textContent = picker.kind === 'item' ? '选择道具' : '选择宝可梦蛋';
+  $('pickerSearch').value = '';
+  $('pickerSearch').placeholder = picker.kind === 'item' ? '搜索道具名 / key' : '搜索名字 / 编号 / 拼音';
+  $('modal').hidden = false;
+  renderPickerTabs();
+  renderPickerGrid();
+  setTimeout(() => $('pickerSearch').focus(), 0);
+}
+
+function closePicker() {
+  picker = null;
+  $('modal').hidden = true;
+}
+
+function renderPickerTabs() {
+  $('pickerTabs').innerHTML = pickerTabs()
+    .map(([v, label]) => `<button type="button" data-tab="${v}" class="${picker.tab === v ? 'on' : ''}">${label}</button>`)
+    .join('');
+}
+
+function pickerSource() {
+  if (picker.kind === 'item') {
+    if (picker.tab === 'stone') return meta.items.filter((x) => x.group === 'stone');
+    if (picker.tab === 'item') return meta.items.filter((x) => x.group !== 'stone');
+    return meta.items;
+  }
+  if (picker.tab === 'base') return meta.pokemon.filter((x) => !x.index.includes('-'));
+  if (picker.tab === 'form') return meta.pokemon.filter((x) => x.index.includes('-'));
+  return meta.pokemon;
+}
+
+function renderPickerGrid() {
+  if (!picker) return;
+  const q = picker.q.trim().toLowerCase();
+  const list = pickerSource().filter((x) => {
+    if (!q) return true;
+    if (picker.kind === 'item') return (x.name + ' ' + x.key).toLowerCase().includes(q);
+    return (x.name + ' ' + x.form + ' ' + x.index + ' ' + x.pinyin + ' ' + x.initials).toLowerCase().includes(q);
+  });
+  const cap = picker.kind === 'egg' ? 120 : 240;
+  const shown = list.slice(0, cap);
+  const current = picker.kind === 'item'
+    ? days[picker.di].tiers[picker.ti].prize.key
+    : days[picker.di].tiers[picker.ti].prize.species;
+  $('pickerGrid').innerHTML = shown.length
+    ? shown.map((x) => {
+      const picked = (picker.kind === 'item' ? x.key : x.index) === current ? ' pk-picked' : '';
+      const sub = picker.kind === 'item'
+        ? (x.group === 'stone' ? '进化石' : '道具') + (x.key !== x.name ? ' · ' + x.key : '')
+        : `#${x.index}${x.form && x.form !== x.name ? ' · ' + x.form : ''}`;
+      return `<button type="button" class="pk${picked}" data-key="${esc(x.key || '')}" data-index="${esc(x.index || '')}">
+        <img src="${x.icon}" alt="">
+        <span class="pk-txt"><b>${esc(x.name)}</b><small>${esc(sub)}</small></span>
+      </button>`;
+    }).join('')
+    : `<div class="picker-empty">${meta.items.length || meta.pokemon.length ? '没有匹配的结果' : '没有数据，请用 npm run lottery-maker 启动后端'}</div>`;
+  $('pickerCount').textContent = list.length > shown.length
+    ? `显示 ${shown.length} / 共 ${list.length}`
+    : `共 ${list.length}`;
+}
+
+function pickItem(key) {
+  const t = days[picker.di].tiers[picker.ti];
+  const qty = t.prize.kind === 'item' ? t.prize.qty : 1;
+  t.prize = { kind: 'item', key, qty };
+  const { di, ti } = picker;
+  closePicker();
+  renderTier(di, ti);
+  refreshDay(di);
+}
+
+function pickPokemon(index) {
+  const t = days[picker.di].tiers[picker.ti];
+  const shiny = t.prize.kind === 'egg' ? t.prize.shiny : false;
+  const squareShiny = t.prize.kind === 'egg' ? t.prize.squareShiny : false;
+  t.prize = { kind: 'egg', species: index, shiny, squareShiny };
+  const { di, ti } = picker;
+  closePicker();
+  renderTier(di, ti);
+  refreshDay(di);
+}
+
+// ---------- 数据读写 ----------
+async function fetchJson(url, opts) {
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && (data.error || data.message)) || `HTTP ${res.status}`);
+  return data;
+}
+
+function downloadJson() {
+  const err = validateDays();
+  if (err) { toast(err, true); return; }
+  const text = JSON.stringify(modelJson(), null, 2) + '\n';
+  const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'lottery-schedule.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  toast(`已下载 ${days.length} 天的排期`);
+}
+
+// ---------- 事件 ----------
+$('days').addEventListener('click', (e) => {
+  const dayEl = e.target.closest('.day');
+  if (!dayEl) return;
+  const di = Number(dayEl.dataset.d);
+  const d = days[di];
+  if (!d) return;
+  if (e.target.closest('[data-random]')) {
+    d.expanded = true;
+    randomizeDay(d, usedFirstStones(di));
+    renderAll();
+    toast(`${d.date} 已随机`);
+    return;
+  }
+  if (e.target.closest('[data-del]')) {
+    if (!confirm(`删除 ${d.date} 的排期？`)) return;
+    days.splice(di, 1);
+    renderAll();
+    return;
+  }
+  if (e.target.closest('[data-toggle]')
+    || (e.target.closest('.day-row') && !e.target.closest('input,button,label'))) {
+    d.expanded = !d.expanded;
+    refreshDay(di);
+    return;
+  }
+  const tierEl = e.target.closest('.tier');
+  if (!tierEl) return;
+  const ti = Number(tierEl.dataset.t);
+  const kindBtn = e.target.closest('[data-kind]');
+  if (kindBtn) { switchKind(di, ti, kindBtn.dataset.kind); return; }
+  if (e.target.closest('[data-pick]')) { openPicker(di, ti); return; }
+  const flagBtn = e.target.closest('[data-flag]');
+  if (flagBtn) {
+    const t = d.tiers[ti];
+    if (flagBtn.dataset.flag === 'shiny') {
+      t.prize.shiny = !t.prize.shiny;
+      if (!t.prize.shiny) t.prize.squareShiny = false;
+    } else if (flagBtn.dataset.flag === 'square' && t.prize.shiny) {
+      t.prize.squareShiny = !t.prize.squareShiny;
+    }
+    renderTier(di, ti);
+    refreshDay(di);
+  }
+});
+
+$('days').addEventListener('input', (e) => {
+  const dayEl = e.target.closest('.day');
+  if (!dayEl) return;
+  const di = Number(dayEl.dataset.d);
+  const d = days[di];
+  if (!d) return;
+  const el = e.target;
+  if (el.classList.contains('date')) {
+    d.date = el.value;
+    refreshJson();
+    return;
+  }
+  const tierEl = el.closest('.tier');
+  if (!tierEl) return;
+  const t = d.tiers[Number(tierEl.dataset.t)];
+  if (!t) return;
+  if (el.classList.contains('tname')) {
+    t.name = el.value;
+    refreshDay(di);
+  } else if (el.classList.contains('wins')) {
+    t.winners = clamp(el.value, 1, 50) || 1;
+    refreshDay(di);
+  } else if (el.classList.contains('qty')) {
+    t.prize.qty = clamp(el.value, 1, 999) || 1;
+    refreshDay(di);
+  }
+});
+
+$('days').addEventListener('change', (e) => {
+  const el = e.target;
+  const dayEl = el.closest('.day');
+  if (!dayEl) return;
+  const di = Number(dayEl.dataset.d);
+  const tierEl = el.closest('.tier');
+  if (!tierEl) return;
+  const ti = Number(tierEl.dataset.t);
+  const t = days[di] && days[di].tiers[ti];
+  if (!t) return;
+  if (el.classList.contains('wins')) el.value = t.winners;
+  if (el.classList.contains('qty')) el.value = t.prize.qty;
+});
+
+$('days').addEventListener('error', (e) => {
+  if (e.target && e.target.tagName === 'IMG') e.target.classList.add('broken');
+}, true);
+
+$('addDay').addEventListener('click', () => {
+  const d = newDay(nextDateStr(), true);
+  randomizeDay(d, usedFirstStones());
+  days.push(d);
+  days.sort((a, b) => a.date.localeCompare(b.date));
+  renderAll();
+  const idx = days.indexOf(d);
+  document.querySelector(`.day[data-d="${idx}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+});
+
+$('randomAll').addEventListener('click', () => {
+  if (!days.length) { toast('先添加日期', true); return; }
+  if (!confirm('把已添加的日期全部重新随机？手动改过的奖品会被覆盖。')) return;
+  const used = new Set();
+  for (const d of days) {
+    randomizeDay(d, used);
+    const p = d.tiers[0] && d.tiers[0].prize;
+    if (p && p.kind === 'item') used.add(p.key);
+  }
+  renderAll();
+  toast(`已随机 ${days.length} 天`);
+});
+
+$('download').addEventListener('click', downloadJson);
+$('copy').addEventListener('click', async () => {
+  const text = $('out').value;
+  if (!text) { toast('没有可复制的 JSON', true); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('已复制 JSON');
+  } catch (_) {
+    $('out').select();
+    document.execCommand('copy');
+    toast('已复制 JSON');
+  }
+});
+$('clear').addEventListener('click', () => {
+  if (!days.length || !confirm('清空当前排期？')) return;
+  days = [];
+  renderAll();
+});
+$('file').addEventListener('change', async () => {
+  const file = $('file').files && $('file').files[0];
+  if (!file) return;
+  try {
+    const raw = JSON.parse(await file.text());
+    const next = normalizeSchedule(raw);
+    if (!next.length) throw new Error('没有读到有效日期');
+    days = next;
+    source = 'import';
+    renderAll();
+    toast(`已导入 ${days.length} 天`);
+  } catch (e) {
+    toast('导入失败：' + e.message, true);
+  } finally {
+    $('file').value = '';
+  }
+});
+
+$('modal').addEventListener('click', (e) => {
+  if (e.target.closest('[data-close]')) { closePicker(); return; }
+  const tab = e.target.closest('[data-tab]');
+  if (tab && picker) { picker.tab = tab.dataset.tab; renderPickerTabs(); renderPickerGrid(); return; }
+  const key = e.target.closest('[data-key]');
+  if (key && key.dataset.key && picker) { pickItem(key.dataset.key); return; }
+  const mon = e.target.closest('[data-index]');
+  if (mon && mon.dataset.index && picker) { pickPokemon(mon.dataset.index); }
+});
+$('pickerSearch').addEventListener('input', (e) => {
+  if (!picker) return;
+  picker.q = e.target.value;
+  renderPickerGrid();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && picker) closePicker();
+});
+
+async function init() {
+  try {
+    const m = await fetchJson('/api/meta', { cache: 'no-store' });
+    meta = m;
+    itemMap = new Map(meta.items.map((x) => [x.key, x]));
+    pokeMap = new Map(meta.pokemon.map((x) => [x.index, x]));
+  } catch (e) {
+    $('path').textContent = '未连接本地后端';
+    const b = $('banner');
+    b.textContent = '没有连上本地工具后端。请在本目录运行 npm run lottery-maker 后再打开页面，否则拿不到道具、图鉴和图标。';
+    b.classList.add('show');
+  }
+
+  const draft = loadDraft();
+  if (draft && draft.length) {
+    days = draft.map(normalizeDay).sort((a, b) => a.date.localeCompare(b.date));
+    source = 'draft';
+  }
+  if (!days.length) {
+    const d = newDay(todayStr(), false);
+    randomizeDay(d, new Set());
+    days = [d];
+    source = 'new';
+  }
+  renderAll();
+}
+
+init();
+</script>
+</body>
+</html>
