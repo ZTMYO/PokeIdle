@@ -1,7 +1,7 @@
 // ===== 随从系统 =====
 // 糖果抽卡：抽出一只宝可梦限时跟随，到期即走；同时只能跟 1 只。
 // 属性归类到 9 大增益类，同类去重，双属性两类同时生效、不减半
-import { FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_MAIN, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, FOLLOWER_TIER_ROMAN, FOLLOWER_TYPE_GROUP, FOLLOWER_GROUP_BOOST } from './config.js';
+import { FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_MAIN, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, FOLLOWER_TIER_ROMAN, FOLLOWER_TYPE_GROUP, FOLLOWER_GROUP_BOOST, ROAD_SPEED_BIKE } from './config.js';
 import { gameData, allPokemon, getPokemonByIndex, phase, saveGame, pushNav, popNav, addSystemLog } from './state.js';
 import { $, showView, isOnGameView, updateBackpack, updateStats, tryLoadImage, tryLoadPokemonIcon, consoleLayerStyle } from './ui.js';
 import { TYPE_COLORS } from './items.js';
@@ -194,6 +194,13 @@ function getEffectiveBoost(tier) {
   return FOLLOWER_TIER_BOOST[tier] || 0;
 }
 
+// 骑行加速随从生效/失效：当前正在骑车时立刻重算步速，导航页的预计时间跟着变
+function refreshBikeSpeed() {
+  if (!road.isBike()) return;
+  road.setSpeed(ROAD_SPEED_BIKE * (window.__followerBoostMechanic?.('bikeSpeed', 1) ?? 1));
+  if ($('gpsView')?.style.display === 'flex') import('./gps.js').then(m => m.refreshGpsRender()).catch(() => {});
+}
+
 // 当前活跃随从；已过期就地清理并返回 null
 function getActiveBoost() {
   const f = gameData?.follower;
@@ -204,6 +211,7 @@ function getActiveBoost() {
     saveGame();
     renderFollowerOnRoad();
     syncFollowerBoostHook();
+    refreshBikeSpeed();
     return null;
   }
   return {
@@ -229,6 +237,7 @@ function startFollower(poke, tier, groups) {
   };
   saveGame();
   syncFollowerBoostHook();
+  refreshBikeSpeed();
   renderFollowerOnRoad();
   if ($('followerView')?.style.display === 'flex') renderFollowerView();
   // 交换列表的闪光在生成时就定了，装配 trade 类随从要强制刷新一波
@@ -244,6 +253,7 @@ function startFollower(poke, tier, groups) {
 function stopFollower() {
   gameData.follower = null;
   syncFollowerBoostHook();
+  refreshBikeSpeed();
   saveGame();
   renderFollowerOnRoad();
   if ($('followerView')?.style.display === 'flex') renderFollowerView();
@@ -253,6 +263,7 @@ function expireFollower() {
   gameData.follower = null;
   saveGame();
   syncFollowerBoostHook();
+  refreshBikeSpeed();
   renderFollowerOnRoad();
 }
 

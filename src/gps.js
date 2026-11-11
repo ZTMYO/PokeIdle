@@ -127,11 +127,17 @@ function computeRouteRemain(g) {
     }
   }
   const pxPerSec = road.getPxPerSec();
-  const pxPerMin = pxPerSec * 60;
-  const remainMin = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerMin)) : 0;
-  const remainSec = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerSec)) : 0;
+  const totalSec = hasDest ? Math.max(0, Math.ceil(remainPxTotal / pxPerSec)) : 0;
+  const remainMin = hasDest ? Math.ceil(totalSec / 60) : 0;
+  const remainSec = totalSec;
   const remainKm = hasDest ? Math.max(0, remainPxTotal / PX_PER_METER / 1000) : 0;
-  const timeStr = hasDest ? (remainMin >= 2 ? remainMin + '分' : remainSec + '秒') : '';
+  const timeStr = hasDest
+    ? (totalSec >= 600
+      ? `${remainMin}分`
+      : totalSec >= 60
+        ? `${Math.floor(totalSec / 60)}分${String(totalSec % 60).padStart(2, '0')}秒`
+        : `${totalSec}秒`)
+    : '';
   const kmStr = hasDest && remainKm >= 0.1 ? remainKm.toFixed(1) + '公里 ' : '';
   const arriveStr = hasDest ? (() => {
     const d = new Date(Date.now() + remainMin * 60000);
