@@ -1,5 +1,7 @@
 mod game_data;
 mod window_manager;
+#[cfg(all(target_os = "macos", not(dev)))]
+mod macos_assets;
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -78,7 +80,6 @@ struct TrayFrames(Mutex<Vec<Image<'static>>>);
 
 // 当前动画每帧间隔（毫秒）：随 set_tray_frames 一起更新，让走路/跑步/骑车/钓鱼等
 // 不同动画各自按游戏实际节奏切换（如钓鱼 800ms/帧，走路 150ms/帧）
-#[derive(Default)]
 struct TrayDelay(Mutex<u64>);
 
 #[derive(serde::Deserialize)]
@@ -166,6 +167,11 @@ pub fn run() {
     if !claim_single_instance() {
         std::process::exit(0);
     }
+
+    #[cfg(all(target_os = "macos", not(dev)))]
+    let context = tauri::generate_context!(assets = macos_assets::GameAssets::new());
+    #[cfg(not(all(target_os = "macos", not(dev))))]
+    let context = tauri::generate_context!();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -271,7 +277,7 @@ pub fn run() {
             // 托盘动画：后台线程按当前动画的每帧间隔切帧，帧数据与间隔由前端通过 set_tray_frames 传入
             app.manage(TrayFrames::default());
             app.manage(TrayStatus::default());
-            app.manage(TrayDelay::default());
+            app.manage(TrayDelay(Mutex::new(150)));
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -328,6 +334,17 @@ pub fn run() {
             force_close_window,
             hide_to_tray,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(context)
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { has_visible_windows: false, .. } = _event {
+                if let Some(window) = _app.get_webview_window("main") {
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    let _ = window_manager::mark_show();
+                }
+            }
+        });
 }

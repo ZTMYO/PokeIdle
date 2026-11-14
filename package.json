@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node tools/sync-version.mjs --dev && tauri dev",
     "build": "node tools/build-release.mjs",
+    "build:mac": "bash tools/build-mac.sh",
     "build:pc": "node tools/build-release.mjs --skip-android",
     "build:pc-tauri": "node tools/sync-version.mjs && powershell -Command \"$env:PATH += ';D:\\nsis-3.11'; tauri build\"",
     "icon": "tauri icon src/assets/icon.png",
