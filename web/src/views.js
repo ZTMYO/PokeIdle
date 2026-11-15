@@ -302,7 +302,7 @@ export function showDataView() {
   // 数值 span 由 refreshDataStats 按 id 填充，避免整页重建导致滚动位置丢失
   content.innerHTML = `
     <div class="stat-inner">
-      <div class="stat-section">欧非评定</div>
+      <div class="stat-section stat-head"><span>欧非评定</span><button id="dataShareBtn" type="button" class="roster-tool stat-share" title="生成训练家名片" aria-label="生成训练家名片"><svg viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-share"></use></svg></button></div>
       <div class="stat-row"><span>称号</span><span id="dataRating"></span></div>
       <div class="stat-row"><span>抽卡欧气</span><span id="dataGachaRating"></span></div>
 
@@ -380,6 +380,9 @@ export function showDataView() {
   refreshDataStats();
   renderRosterMix(); // 这两块要扫仓库和全部相遇日志，只在进页面时算一次，不跟每秒刷新
   renderNemesis();
+  $('dataShareBtn')?.addEventListener('click', () => {
+    import('./player-card.js').then(m => m.openPlayerCard()).catch(e => console.error('[训练家名片]', e));
+  });
   // 卡册收集进度：卡池数据异步加载（有缓存），加载完成后填入
   import('./album.js').then(m => m.getCardCollectionStats()).then(s => {
     const el = $('dataCardPct');
@@ -388,7 +391,6 @@ export function showDataView() {
   if (showDataView._timer) clearInterval(showDataView._timer);
   showDataView._timer = setInterval(() => {
     if ($('dataView')?.style.display === 'none') {
-      document.getElementById('dataShareBtn')?.remove();
       clearInterval(showDataView._timer);
       showDataView._timer = null;
       return;
@@ -396,25 +398,6 @@ export function showDataView() {
     refreshDataStats();
   }, 1000);
 
-  // 分享按钮钉在应用屏右上角：不在统计列表里占行，滚动时也不跑
-  document.getElementById('dataShareBtn')?.remove();
-  const shareBtn = document.createElement('button');
-  shareBtn.id = 'dataShareBtn';
-  shareBtn.type = 'button';
-  shareBtn.className = 'roster-tool data-share-fab';
-  shareBtn.title = '生成训练家名片';
-  shareBtn.setAttribute('aria-label', '生成训练家名片');
-  shareBtn.innerHTML = '<svg viewBox="0 0 1024 1024" width="18" height="18"><use xlink:href="#icon-share"></use></svg>';
-  shareBtn.addEventListener('click', () => {
-    import('./player-card.js').then(m => m.openPlayerCard()).catch(e => console.error('[训练家名片]', e));
-  });
-  ($('appScreen') || document.querySelector('.app-screen') || document.body).appendChild(shareBtn);
-  const removeShareBtn = () => {
-    if ($('dataView')?.style.display !== 'none') return;
-    shareBtn.remove();
-    window.removeEventListener('view-changed', removeShareBtn);
-  };
-  window.addEventListener('view-changed', removeShareBtn);
   showView('dataView');
 }
 

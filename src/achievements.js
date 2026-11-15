@@ -9,6 +9,19 @@ import { PX_PER_METER } from './config.js';
 // 糖果图标（显示在按钮左侧）
 const CANDY_ICON = '<img src="./items/goods/candy.png" style="width:12px;height:12px;vertical-align:-2px;image-rendering:pixelated;" />';
 
+// 成就进度用向下取整的缩写：1999 显示 1.9K，不会和 2000 的 2K 撞成一样
+function shortFloor(v) {
+  const r = Math.floor(v * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+function formatProgress(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000000) return shortFloor(n / 1000000000) + 'B';
+  if (n >= 1000000) return shortFloor(n / 1000000) + 'M';
+  if (n >= 1000) return shortFloor(n / 1000) + 'K';
+  return shortFloor(n);
+}
+
 // 图鉴已解锁种类数（去重）
 function dexCount() {
   if (!gameData?.pokedex) return 0;
@@ -33,82 +46,82 @@ export const ACHIEVEMENTS = [
     id: 'candy', name: '糖果富翁', desc: '累计糖果数',
     // 首级阈值 500：新档启动资金 450 已计入累计统计，若阈值过低开局就会直接解锁
     metric: d => d.stats.totalItemsEarned?.candy || 0, base: 500, reward: 10,
-    fmt: v => `${formatNum(v)} 个`,
+    fmt: v => `${formatProgress(v)} 个`,
   },
   {
     id: 'play', name: '时间旅人', desc: '累计挂机时长',
     metric: d => Math.floor((d.stats.totalPlaySeconds || 0) / 3600), base: 1, reward: 20,
-    fmt: v => `${formatNum(v)} 小时`,
+    fmt: v => `${formatProgress(v)} 小时`,
   },
   {
     id: 'catch', name: '收服之旅', desc: '累计捕捉宝可梦',
     metric: d => d.stats.totalCatches || 0, base: 5, reward: 10,
-    fmt: v => `${formatNum(v)} 只`,
+    fmt: v => `${formatProgress(v)} 只`,
   },
   {
     id: 'walk', name: '漫步者', desc: '累计行走距离',
     metric: d => Math.floor((d.stats.walkDistance || 0) / PX_PER_METER), base: 1000, reward: 20,
-    fmt: v => v >= 1000 ? `${formatNum(v / 1000)} 公里` : `${v} 米`,
+    fmt: v => v >= 1000 ? `${formatProgress(v / 1000)} 公里` : `${v} 米`,
   },
   {
     id: 'harvest', name: '农场主', desc: '累计收获树果',
     metric: d => d.stats.totalBerriesHarvested || 0, base: 10, reward: 20,
-    fmt: v => `${formatNum(v)} 颗`,
+    fmt: v => `${formatProgress(v)} 颗`,
   },
   {
     id: 'hatch', name: '孵化师', desc: '累计孵化宝可梦',
     metric: d => d.stats.totalEggsHatched || 0, base: 1, reward: 30,
-    fmt: v => `${formatNum(v)} 只`,
+    fmt: v => `${formatProgress(v)} 只`,
   },
   {
     id: 'evolve', name: '进化论', desc: '累计进化宝可梦',
     metric: d => d.stats.totalEvolutions || 0, base: 1, reward: 30,
-    fmt: v => `${formatNum(v)} 次`,
+    fmt: v => `${formatProgress(v)} 次`,
   },
   {
     id: 'breed', name: '育种大师', desc: '累计繁殖产蛋',
     metric: d => d.stats.totalEggsProduced || 0, base: 1, reward: 30,
-    fmt: v => `${formatNum(v)} 枚`,
+    fmt: v => `${formatProgress(v)} 枚`,
   },
   {
     id: 'block', name: '树果大师', desc: '累计合成树果方块',
     metric: d => d.stats.totalBlockMade || 0, base: 1, reward: 20,
-    fmt: v => `${formatNum(v)} 个`,
+    fmt: v => `${formatProgress(v)} 个`,
   },
   {
     id: 'trade', name: '交换达人', desc: '累计完成交换',
     metric: d => d.stats.totalTrades || 0, base: 1, reward: 30,
-    fmt: v => `${formatNum(v)} 次`,
+    fmt: v => `${formatProgress(v)} 次`,
   },
   {
     id: 'npcCandy', name: '对战丰收', desc: '累计通过 NPC 对战获得糖果',
     metric: d => d.stats.totalNpcCandy || 0, base: 100, reward: 30,
-    fmt: v => `${formatNum(v)} 个`,
+    fmt: v => `${formatProgress(v)} 个`,
   },
   {
     id: 'npcWin', name: '百战百胜', desc: '累计战胜 NPC 训练家',
     metric: d => d.stats.totalNpcWins || 0, base: 1, reward: 30,
-    fmt: v => `${formatNum(v)} 次`,
+    fmt: v => `${formatProgress(v)} 次`,
   },
   {
     id: 'bounty', name: '赏金猎人', desc: '累计完成地区悬赏',
     metric: d => d.stats.totalBountyClaims || 0, base: 1, reward: 50,
-    fmt: v => `${formatNum(v)} 次`,
+    fmt: v => `${formatProgress(v)} 次`,
   },
   {
     id: 'npcElite', name: '精英猎人', desc: '累计战胜精英 NPC 训练家',
     metric: d => d.stats.totalNpcEliteWins || 0, base: 1, reward: 60,
-    fmt: v => `${formatNum(v)} 次`,
+    fmt: v => `${formatProgress(v)} 次`,
   },
   {
     id: 'npcLeader', name: '道馆挑战者', desc: '累计战胜馆主 NPC 训练家',
     metric: d => d.stats.totalNpcLeaderWins || 0, base: 1, reward: 90,
-    fmt: v => `${formatNum(v)} 次`,
+    fmt: v => `${formatProgress(v)} 次`,
   },
   {
     id: 'npcChampion', name: '冠军挑战者', desc: '累计战胜冠军 NPC 训练家',
     metric: d => d.stats.totalNpcChampionWins || 0, base: 1, reward: 120,
-    fmt: v => `${formatNum(v)} 次`,
+    fmt: v => `${formatProgress(v)} 次`,
   },
   {
     id: 'dex', name: '图鉴收藏家', desc: '图鉴中累计捕获不同种类',
@@ -116,7 +129,7 @@ export const ACHIEVEMENTS = [
     // 满级阈值对齐当前全图鉴 1493 种，最后一级 1493
     // 后续新增宝可梦时：把末级数字改为最新图鉴总数，同时同步 maxTiers（= tiers 数组长度）
     tiers: [10, 20, 50, 100, 200, 500, 1000, 1493],
-    // 不改 formatNum：避免 1.3K 缩写，图鉴进度显示具体数字
+    // 不用缩写：图鉴进度显示具体数字
     fmt: v => `${Number(v)} 种`,
   },
   {
@@ -136,7 +149,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'shinyCaught', name: '闪光猎手', desc: '累计捕获闪光宝可梦',
     metric: d => d.stats.totalShinyCaught || 0, base: 1, reward: 100,
-    fmt: v => `${formatNum(v)} 只`,
+    fmt: v => `${formatProgress(v)} 只`,
   },
   {
     id: 'cardCollect', name: '卡牌收藏家', desc: '累计收集卡牌种类',
@@ -146,7 +159,7 @@ export const ACHIEVEMENTS = [
     }, base: 5, reward: 50, maxTiers: 7,
     // 满级阈值对齐全部卡牌 60 张（抽卡机 1、2 号池各 30 张），最后一级 60
     tiers: [5, 10, 20, 30, 40, 50, 60],
-    fmt: v => `${formatNum(v)} 种`,
+    fmt: v => `${formatProgress(v)} 种`,
   },
 ];
 
