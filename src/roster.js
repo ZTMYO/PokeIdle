@@ -22,18 +22,23 @@ import { openShareCard } from './share-card.js';
 // 大量出没（mass）本质也是野生遭遇，显示与筛选均归入「野生」，不单列筛选项
 const SOURCE_NAMES = { normal: '野生', mass: '大量出没', twist: '时空扭曲', fishing: '钓鱼', egg: '孵蛋', honey: '甜甜蜜', trade: '交换' };
 
-// 个体当前所处状态标签：训练中 / 繁育中 / 队伍中 / 派遣中（可多状态并存），无则不渲染
-function memberStatusTags(p) {
-  const tags = [];
-  if ((gameData.training?.slots || []).some(s => s && s.id === p.id)) tags.push('训练中');
+// 个体当前被哪些玩法占用：训练 / 饲育屋 / 队伍 / 派遣（可多状态并存）
+const OCCUPY_TAGS = { training: '训练中', nursery: '繁育中', team: '队伍中', dispatch: '派遣中' };
+function pokemonOccupancy(p) {
+  const keys = [];
+  if ((gameData.training?.slots || []).some(s => s && s.id === p.id)) keys.push('training');
   const ew = gameData.activity?.['egg-week'];
   const ewBusy = ew && (!ew.eventTo || Date.now() < ew.eventTo)
     && (ew.parents || []).some(s => s && (s.id || s) === p.id);
-  if ((gameData.nursery?.parents || []).some(s => s && s.id === p.id) || ewBusy) tags.push('繁育中');
-  if ((gameData.teams || []).some(t => (t.ids || []).includes(p.id))) tags.push('队伍中');
-  if ((gameData.dispatch?.slots || []).some(s => s && s.id === p.id)) tags.push('派遣中');
-  if (!tags.length) return '';
-  return tags.map(t => `<span class="roster-status-tag">${t}</span>`).join('');
+  if ((gameData.nursery?.parents || []).some(s => s && s.id === p.id) || ewBusy) keys.push('nursery');
+  if ((gameData.teams || []).some(t => (t.ids || []).includes(p.id))) keys.push('team');
+  if ((gameData.dispatch?.slots || []).some(s => s && s.id === p.id)) keys.push('dispatch');
+  return keys;
+}
+function memberStatusTags(p) {
+  const keys = pokemonOccupancy(p);
+  if (!keys.length) return '';
+  return keys.map(k => `<span class="roster-status-tag">${OCCUPY_TAGS[k]}</span>`).join('');
 }
 // 六围个体值明细（键 → 显示名）
 const IV_KEYS = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速度']];
@@ -188,8 +193,8 @@ function ensureEvoDataForFilter() {
 
 function currentFilterPool() {
   let pool = inRoster();
-  // 批量放生：锁定的个体整个不参与——列表里不出现、搜索也搜不到、全选也选不上
-  if (_batchRelease) pool = pool.filter(p => !p.locked);
+  // 批量放生：锁定的个体和被训练/饲育/队伍/派遣占用的个体整个不参与——列表里不出现、搜索也搜不到、全选也选不上
+  if (_batchRelease) pool = pool.filter(p => !p.locked && !pokemonOccupancy(p).length);
   const adv = _advFilter;
   if (adv) {
     // 高级筛选：名称/来源/稀有度/闪光/变体/属性/地区/等级/个体值/性别
@@ -2593,7 +2598,7 @@ function doBatchRelease() {
   const toRemove = new Set([..._batchSelected]);
   let gained = 0;
   for (let i = arr.length - 1; i >= 0; i--) {
-    if (toRemove.has(arr[i].id)) {
+    if (toRemove.has(arr[i].id) && !arr[i].locked && !pokemonOccupancy(arr[i]).length) {
       names.push(rosterName(arr[i]));
       gained += releaseXpOf(arr[i]); // 移除前累计各个体返还经验
       arr.splice(i, 1);
@@ -2614,10 +2619,37 @@ function doBatchRelease() {
     renderList();
   }, 1500);
 }
+// 放生后撤掉所有占用：饲育屋/孵蛋周、派遣、训练、配队
+function vacateReleasedPokemon(id) {
+  import('./nursery.js').then(m => m.removeNurseryByPokemon(id)).catch(() => {});
+  import('./dispatch.js').then(m => m.removeDispatchByPokemon(id)).catch(() => {});
+  import('./train.js').then(m => m.removeTrainingByPokemon(id)).catch(() => {});
+  import('./team.js').then(m => { m.removePokemonFromAllTeams(id); saveGame(); }).catch(() => {});
+}
+
 function releasePokemon(id) {
   const p = (gameData.roster || []).find(r => r.id === id);
   if (!p || _releasing) return;
+  if (p.locked) {
+    showConfirmBar('宝可梦已锁定，先解锁才能放生', null, null, { singleButton: true });
+    return;
+  }
+  const tags = pokemonOccupancy(p).map(k => OCCUPY_TAGS[k]);
+  if (tags.length) {
+    showConfirmBar(
+      `这只宝可梦正处于${tags.join('、')}，放生后会从对应位置移除。确定继续？`,
+      () => { _releasing = true; openReleaseConfirm(p); },
+      null,
+      { overlay: true },
+    );
+    return;
+  }
   _releasing = true;
+  openReleaseConfirm(p);
+}
+
+function openReleaseConfirm(p) {
+  const id = p.id;
   const poke = getPokemonByIndex(String(p.species));
   const poolBefore = gameData.stats.releaseXpPool || 0; // 放生前池值，供进度条/数字滚动动画用
   let gainedCandies = 0; // 本次放生产出的经验糖果数
@@ -2638,10 +2670,7 @@ function releasePokemon(id) {
       const ri = arr.findIndex(r => r.id === id);
       if (ri < 0) return; // 个体已不在仓库，无需重复提交
       arr.splice(ri, 1);
-      // 若该个体正放在饲育屋繁育：同步清出亲本槽并终止繁殖（否则场地贴图/配对预览残留）
-      import('./nursery.js').then(m => m.removeNurseryByPokemon(id));
-      // 若该个体正在派遣中：放生后清出派遣槽（已完成待领取的保留奖励）
-      import('./dispatch.js').then(m => m.removeDispatchByPokemon(id));
+      vacateReleasedPokemon(id);
       gained = releaseXpOf(p);
       gainedCandies = addReleaseXp(gained);
       committed = true;
@@ -2663,8 +2692,9 @@ function releasePokemon(id) {
         const ri = arr.findIndex(r => r.id === id);
         if (ri >= 0) {
           arr.splice(ri, 1);
+          vacateReleasedPokemon(id);
           gained = releaseXpOf(p);
-          addReleaseXp(gained);
+          gainedCandies = addReleaseXp(gained);
           stopShinySparkleLoop($('rosterView'));
           addSystemLog('pokemon_release', { pokemon: p.species, shiny: !!p.shiny });
           saveGame();

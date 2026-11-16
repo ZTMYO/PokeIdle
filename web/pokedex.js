@@ -537,10 +537,14 @@ function evolveChainHtml(idx) {
     return f.startsWith(n + '-') ? f.slice(n.length + 1) : '';
   };
   // 某一级的下一级 = 普通边 + 挂在它身上的专属石头形态（cond 传原始条件，交给 conn 排版）
-  // 多来源的强化形态只挂在第一个来源上，免得树里重复几十次
+  // 双来源（雄/雌、两种形态）两条分支都挂；63 个糖饰口味这类多来源只挂第一个，免得树里重复几十次
+  const attachStone = (k, i) => {
+    const srcs = srcList(k);
+    return srcs.includes(String(i)) && (srcs.length <= 2 || srcs[0] === String(i));
+  };
   const childrenOf = (i) => [
     ...Object.keys(E[i] || {}).map((k) => ({ id: k, cond: E[i][k] })),
-    ...Object.keys(stones).filter((k) => srcList(k)[0] === String(i)).map((k) => ({ id: k, cond: { item: stones[k] } })),
+    ...Object.keys(stones).filter((k) => attachStone(k, i)).map((k) => ({ id: k, cond: { item: stones[k] } })),
   ];
   // 族根：沿反向边往上走（同后缀优先，与游戏 familyRoot 同规则；石头形态先回挂靠形态）
   let cur = self, guard = 0;

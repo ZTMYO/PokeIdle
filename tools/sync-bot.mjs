@@ -106,10 +106,27 @@ function methodText(m, p) {
   }
 }
 
-const outEdges = (idx) => Object.entries((evo.edges || {})[String(idx)] || {}).map(([to, cond]) => ({ to, cond }));
+const stoneSourcesOf = (k) => {
+  const s = evo.stoneSource && evo.stoneSource[k];
+  return (Array.isArray(s) ? s : [s || String(k).split('-')[0]]).map(String);
+};
+const outEdges = (idx) => [
+  ...Object.entries((evo.edges || {})[String(idx)] || {}).map(([to, cond]) => ({ to, cond })),
+  ...Object.entries(evo.stones || {})
+    .filter(([k]) => {
+      const srcs = stoneSourcesOf(k);
+      return srcs.includes(String(idx)) && (srcs.length <= 2 || srcs[0] === String(idx));
+    })
+    .map(([to, item]) => ({ to, cond: { item } })),
+];
 const inEdges = (idx) => {
   const out = [];
   for (const [from, row] of Object.entries(evo.edges || {})) if (row[String(idx)]) out.push({ from, cond: row[String(idx)] });
+  const item = evo.stones && evo.stones[String(idx)];
+  if (item) {
+    const srcs = stoneSourcesOf(String(idx));
+    for (const from of (srcs.length <= 2 ? srcs : [srcs[0]])) out.push({ from, cond: { item } });
+  }
   return out;
 };
 
@@ -281,6 +298,13 @@ function evolutionMd() {
   const rows = [];
   for (const [from, row] of Object.entries(evo.edges || {})) {
     for (const [to, cond] of Object.entries(row)) rows.push({ from, to, cond, head: headOf.get(String(from)) });
+  }
+  // 写进进化数据的石头/极巨化也补齐；双来源雄雌两边都列，63 个糖饰口味只列第一个
+  for (const [to, item] of Object.entries(evo.stones || {})) {
+    const srcs = stoneSourcesOf(to);
+    for (const from of (srcs.length <= 2 ? srcs : [srcs[0]])) {
+      rows.push({ from, to, cond: { item }, head: headOf.get(String(from)) });
+    }
   }
   const groups = new Map();
   for (const r of rows) {
