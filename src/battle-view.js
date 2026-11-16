@@ -1,8 +1,8 @@
 // 流程：NPC 列表 → 自动编队（仓库中等级最高 6 只）→ 回合制战斗（动画）→ 结算（经验/糖果）
 // 与挂机主循环解耦：战斗只在手机 App 内进行，不影响地图/遇敌/离线
-import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, updateBackpack, logicViewport, popupBounds, watchOutsidePress, isDualLayout } from './ui.js';
+import { $, showView, tryLoadPokemonImage, tryLoadPokemonIcon, updateStats, updateBackpack, logicViewport, popupBounds, watchOutsidePress, isDualLayout, showConfirmBar } from './ui.js';
 import { gameData, getPokemonByIndex, addSystemLog, saveGame, pushNav, setPhase, ensureGender, rollGender, genderBadge, isPokemon, randInt, effIvs, setNpcBattleActive } from './state.js';
-import { createMon, useMove, preTurn, postTurn, aiMove, tickBattleTurns, transformMon, STRUGGLE_ID } from './battle-core.js';
+import { createMon, useMove, preTurn, postTurn, aiMove, aiMoveByNature, tickBattleTurns, transformMon, STRUGGLE_ID } from './battle-core.js';
 import { typeMult } from './type-chart.js';
 import { grantItem, itemIconSrc, pickEvoDrop, MINT_KEYS, typeIconColor } from './items.js';
 import { chooseMoves } from './moves.js';
@@ -127,6 +127,13 @@ export function isBattleSettled() {
 // 撤退（由标题栏返回触发）：结束挂起选择并中断战斗循环
 export function retreatBattle() {
   if (!_activeBattle) return;
+  // 自定义对战（对战帐篷）：标题栏返回等于放弃本轮，先确认，避免误触
+  const custom = _activeBattle.custom;
+  if (custom?.confirmText && !custom.confirmed) {
+    custom.confirmed = true;
+    showConfirmBar(custom.confirmText, () => { retreatBattle(); }, () => { custom.confirmed = false; }, { overlay: true });
+    return;
+  }
   _fleeing = true;
   if (_pendingAsk) {
     _pendingAsk({ type: 'flee' });
@@ -143,6 +150,13 @@ function doRetreat(battle) {
   battle.winner = null;
   if (!isDualLayout()) import('./battle.js').then(m => m.resumePhaseAfterBattle()); // 单屏：遭遇还在就回遭遇态，否则回挂机
   endBattle(); // 撤退 → 停止战斗曲，恢复地区曲
+  if (battle.custom?.onEnd) {
+    _settled = true;
+    if (battle._ended) return;
+    battle._ended = true;
+    battle.custom.onEnd({ win: false, retreat: true, pTeam: battle.pTeam, eTeam: battle.eTeam, rounds: battle.round });
+    return;
+  }
   showBattleView();
   addSystemLog('战斗', `与「${battle.preset.name}」的战斗中撤退了`);
 }
@@ -239,6 +253,8 @@ function hasBattleTeam() {
 export async function showBattleView() {
   stopVictory(); // 返回对战列表：若胜利音效还在播则立即停止并恢复背景曲（无播放时无副作用）
   await ensureData();
+  const bv = $('battleView');
+  if (bv) delete bv.dataset.viewTitle;
   pushNav('battleView');
   _settled = false; // 回到列表页：清除结算标志，后续返回按普通逐级弹栈
   _battleLogs = []; // 彻底离开本局：清空对战记录缓存
@@ -470,6 +486,41 @@ async function startNpcBattle(npcId, startAuto = false) {
   await battleLoop(battle);
 }
 
+// 自定义对战（对战帐篷）：双方队伍由调用方传入；手动攻击/换人，不写经验/糖果/NPC 列表，
+// 结果回调给调用方。
+export async function startCustomBattle({ pTeam, eTeam, preset, onEnd, confirmText = '' }) {
+  await ensureData();
+  if (_busy) return false;
+  const battle = {
+    preset: preset || { name: '对战', tier: 'champion' },
+    pTeam, eTeam, pIdx: 0, eIdx: 0, winner: null, round: 1,
+    weather: preset?.weather || null, weatherTurns: preset?.weather ? 5 : 0,
+    field: null, fieldTurns: 0,
+    hazards: { p: { spikes: 0, toxic: 0, rock: false }, e: { spikes: 0, toxic: 0, rock: false } },
+    stall: 0,
+    tentEndure: true,
+    custom: { onEnd, confirmText, confirmed: false, tentBattle: true },
+  };
+  _activeBattle = battle;
+  setNpcBattleActive(true);
+  _fleeing = false;
+  _auto = false;
+  _battleLogs = [];
+  _logCtx = { p: pTeam.map((x) => x.mon.name), e: eTeam.map((x) => x.mon.name), npc: battle.preset.name };
+  // 双屏：下屏独立对战，不碰主 phase；单屏：临时占用唯一一屏
+  if (!isDualLayout()) setPhase('battle');
+  if (!isDualLayout()) import('./battle.js').then((m) => m.pauseBuffsForBattle());
+  _busy = true;
+  const pageReady = renderBattlePage(battle);
+  playBattle();
+  await pageReady;
+  autoTransform(battle, 'p');
+  autoTransform(battle, 'e');
+  if (battle.custom?.tentBattle) setText(`${curMon(battle, 'p').name}上场了！`);
+  await battleLoop(battle);
+  return true;
+}
+
 function curMon(battle, side) {
   return side === 'p' ? battle.pTeam[battle.pIdx].mon : battle.eTeam[battle.eIdx].mon;
 }
@@ -602,6 +653,12 @@ function promptSwitchAfterFaint(battle) {
       resolve(nextAliveIdx(battle, 'p'));
       return;
     }
+    // 只剩最后一只：没有选择余地，直接上场
+    const alive = battle.pTeam.filter((x) => x.mon.hp > 0);
+    if (alive.length <= 1) {
+      resolve(alive.length ? battle.pTeam.findIndex((x) => x.mon.hp > 0) : -1);
+      return;
+    }
     _pendingAsk = () => { // 撤退：结束挂起的选择，交由循环判定
       _pendingAsk = null;
       resolve(-1);
@@ -622,14 +679,16 @@ function promptSwitchAfterFaint(battle) {
 // 也避免切页瞬间边框色渐变过渡（战斗配色→默认绿）的拉扯感
 // 难度边框色画在「战斗页所在的那块屏」上：手游双屏下战斗在下屏，不能染到上面挂机屏
 function battleScreenEl() {
+  // 经典单屏：appScreen 的边框是透明的，真正可见的是舞台屏
+  if (!isDualLayout()) return $('screen');
   return document.getElementById('battleView')?.closest('.screen') || $('screen');
 }
 
 export function clearBattleTier() {
   const sc = battleScreenEl();
-  if (!sc.classList.contains('t-novice') && !sc.classList.contains('t-veteran') && !sc.classList.contains('t-leader') && !sc.classList.contains('t-champion')) return;
+  if (!sc.classList.contains('t-novice') && !sc.classList.contains('t-veteran') && !sc.classList.contains('t-leader') && !sc.classList.contains('t-champion') && !sc.classList.contains('t-tent')) return;
   sc.classList.add('no-theme-trans'); // 切页时的主题色变化禁用过渡，直接跳变
-  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion');
+  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion', 't-tent');
   void sc.offsetWidth; // 强制重排，让"无过渡"立即生效
   sc.classList.remove('no-theme-trans');
 }
@@ -638,7 +697,7 @@ export function clearBattleTier() {
 // 返回战斗页属于切换页面，不做渐变过渡
 export function restoreBattleTier() {
   const sc = battleScreenEl();
-  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion');
+  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion', 't-tent');
   if (_activeBattle?.preset?.tier) {
     sc.classList.add('no-theme-trans');
     sc.classList.add('t-' + _activeBattle.preset.tier);
@@ -653,10 +712,32 @@ async function renderBattlePage(battle) {
   // 进入战斗算场景切换，边框色直接跳变，不做渐变过渡
   const sc = battleScreenEl();
   sc.classList.add('no-theme-trans');
-  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion');
+  sc.classList.remove('t-novice', 't-veteran', 't-leader', 't-champion', 't-tent');
   if (battle.preset.tier) sc.classList.add('t-' + battle.preset.tier);
   void sc.offsetWidth; // 强制重排，让"无过渡"立即生效
   sc.classList.remove('no-theme-trans');
+  const bottomHtml = battle.custom?.tentBattle
+    ? `<div class="b-bottom tent-battle-bottom">
+         <div class="text-box tent-battle-box"><div class="text-box-content" id="b-text"></div></div>
+         <div class="b-actions tent-battle-dock" id="b-actions">
+           <button class="tent-battle-btn main" id="act-fight">攻击</button>
+           <button class="tent-battle-btn" id="act-pkm">宝可梦</button>
+         </div>
+       </div>`
+    : `<div class="b-bottom">
+        <div class="b-left">
+          <div class="b-text" id="b-text"></div>
+          <div class="b-cmd" id="b-cmd"></div>
+        </div>
+        <div class="b-right" id="b-right">
+          <div class="b-actions" id="b-actions"></div>
+          <div class="b-right-info" id="b-right-info">
+            <div class="b-npc-name" id="b-npc-name"></div>
+            <div class="b-round">回合 <span id="b-round">1</span></div>
+          </div>
+        </div>
+        <div class="b-auto-mask" id="b-auto-mask"><span class="b-auto-label">自动战斗中…</span></div>
+      </div>`;
   box.innerHTML = `
     <div class="battle-fight t-${battle.preset.tier}">
       <div class="battle-stage-top">
@@ -697,24 +778,11 @@ async function renderBattlePage(battle) {
           </div>
         </div>
       </div>
-      <div class="b-bottom">
-        <div class="b-left">
-          <div class="b-text" id="b-text"></div>
-          <div class="b-cmd" id="b-cmd"></div>
-        </div>
-        <div class="b-right" id="b-right">
-          <div class="b-actions" id="b-actions"></div>
-          <div class="b-right-info" id="b-right-info">
-            <div class="b-npc-name" id="b-npc-name"></div>
-            <div class="b-round">回合 <span id="b-round">1</span></div>
-          </div>
-        </div>
-        <div class="b-auto-mask" id="b-auto-mask"><span class="b-auto-label">自动战斗中…</span></div>
-      </div>
+${bottomHtml}
     </div>`;
-  $('b-npc-name').textContent = battle.preset.name;
+  const npcName = $('b-npc-name'); if (npcName) npcName.textContent = battle.preset.name;
   // 自动战斗遮罩：点击恢复手动操作（同时清除遮罩与隐藏态右栏）
-  $('b-auto-mask').addEventListener('click', () => {
+  $('b-auto-mask')?.addEventListener('click', () => {
     _auto = false;
     $('b-auto-mask').style.display = 'none';
     showRight();
@@ -726,7 +794,7 @@ async function renderBattlePage(battle) {
     e.stopPropagation(); // 阻止冒泡到全局右键禁用监听
     showLogMenu(e.clientX, e.clientY);
   };
-  box.querySelector('.b-left')?.addEventListener('contextmenu', onLogCtx);
+  (box.querySelector('.b-left') || box.querySelector('.tent-battle-text'))?.addEventListener('contextmenu', onLogCtx);
   box.querySelector('.b-auto-mask')?.addEventListener('contextmenu', onLogCtx);
   const balls = [
     renderMon(curMon(battle, 'p'), 'bp', true),
@@ -735,7 +803,7 @@ async function renderBattlePage(battle) {
   renderTeamInfo(battle);
   panelIn('bp'); // 开场：双方信息卡片滑入屏幕
   panelIn('be');
-  setText(`${battle.preset.name} 发起了挑战！`);
+  setText(battle.custom?.tentBattle ? '' : `${battle.preset.name} 发起了挑战！`);
   await Promise.all(balls); // 等双方精灵球登场动画播完再进入回合，避免对手提前行动
 }
 
@@ -1981,9 +2049,59 @@ function flashHitPanel(side) {
   setTimeout(() => panel.classList.remove('b-hit-panel'), 340);
 }
 
+// 普通 NPC 对战沿用旧 AI；对战帐篷让双方按性格出招
+function aiFor(battle, actor, enemy) {
+  return battle?.custom?.tentBattle
+    ? aiMoveByNature(actor, enemy, _data)
+    : aiMove(actor, enemy, _data);
+}
+
+// 对战帐篷：底部两个大按钮，攻击由宝可梦按性格自动选招
+function askTentMove(battle) {
+  return new Promise((resolve) => {
+    _pendingAsk = resolve;
+    const done = (act) => { _pendingAsk = null; resolve(act); };
+    const pMon = curMon(battle, 'p');
+    const eMon = curMon(battle, 'e');
+    const dock = $('b-actions');
+    const fight = $('act-fight');
+    const pkm = $('act-pkm');
+    const show = () => { if (dock) dock.style.display = 'flex'; };
+    const hide = () => { if (dock) dock.style.display = 'none'; };
+    // 只剩最后一只时没有可换目标，直接自动出招
+    if (battle.pTeam.filter((x) => x.mon.hp > 0).length <= 1) {
+      hide();
+      if (!battle._tentSolo) {
+        battle._tentSolo = true;
+        setText('只剩最后一只，自动战斗中');
+      }
+      const mid = aiMoveByNature(pMon, eMon, _data) ?? firstUsableMove(pMon);
+      done({ type: 'move', id: mid });
+      return;
+    }
+    show();
+    if (fight) fight.onclick = () => {
+      hide();
+      const mid = aiMoveByNature(pMon, eMon, _data) ?? firstUsableMove(pMon);
+      done({ type: 'move', id: mid });
+    };
+    if (pkm) pkm.onclick = () => {
+      hide();
+      import('./team.js').then((m) => {
+        m.showTeamViewForBattle(battle.pTeam, battle.pIdx, (idx) => {
+          showView('battleView');
+          if (idx < 0) { show(); return; }
+          done({ type: 'switch', idx });
+        });
+      });
+    };
+  });
+}
+
 // 等待玩家选招；返回行动对象：{type:'move',id} / {type:'switch',idx}（撤退由标题栏返回触发）
 // 布局：左栏文案/技能，右栏操作按钮；选招时右栏切换为招式详情 + 返回按钮
 function askPlayerMove(battle) {
+  if (battle.custom?.tentBattle) return askTentMove(battle);
   return new Promise((resolve) => {
     _pendingAsk = resolve; // 撤退时强制结束挂起的选择
     const done = (act) => { _pendingAsk = null; resolve(act); };
@@ -2024,7 +2142,7 @@ function askPlayerMove(battle) {
         });
       });
       // 自动战斗：隐藏右栏、铺上遮罩，本回合立刻按 AI 出招，后续回合持续自动
-      $('act-auto').addEventListener('click', () => {
+      $('act-auto')?.addEventListener('click', () => {
         _auto = true;
         const mid = aiMove(pMon, curMon(battle, 'e'), _data) ?? firstUsableMove(pMon);
         clearBottom();
@@ -2682,7 +2800,7 @@ async function battleLoop(battle) {
         }
       }
       if (preTurn(eMon, ePre)) {
-        eMove = eMon.chargeMove != null ? eMon.chargeMove : aiMove(eMon, pMon, _data); // 同上：AI 蓄力招式第二回合自动出招
+        eMove = eMon.chargeMove != null ? eMon.chargeMove : aiFor(battle, eMon, pMon); // 同上：AI 蓄力招式第二回合自动出招
       }
 
       // 先播行动前状态事件（双方各自的状态检查结果）
@@ -2853,7 +2971,7 @@ async function battleLoop(battle) {
       curMon(battle, 'p').flinch = false;
       curMon(battle, 'e').flinch = false;
       battle.round++;
-      $('b-round').textContent = battle.round;
+      const roundEl = $('b-round'); if (roundEl) roundEl.textContent = battle.round;
     }
     if (_fleeing) { doRetreat(battle); return; }
     finishBattle(battle);
@@ -2901,6 +3019,17 @@ export function rollTierDrops(tier) {
 }
 
 function finishBattle(battle) {
+  // 自定义对战：不结算经验/糖果/NPC 列表，只把结果交回调用方
+  if (battle.custom?.onEnd) {
+    _activeBattle = null;
+    setNpcBattleActive(false);
+    _settled = true;
+    endBattle();
+    if (battle._ended) return;
+    battle._ended = true;
+    battle.custom.onEnd({ win: battle.winner === 'p', pTeam: battle.pTeam, eTeam: battle.eTeam, rounds: battle.round });
+    return;
+  }
   _retryAuto = _auto; // 记住战斗结束时的自动状态：「再战一次」沿袭（战斗中切回手动的则手动重试）
   const win = battle.winner === 'p';
   _activeBattle = null; // 战斗已结束：清空活动战斗（后续返回走普通视图切换，不再误判为撤退）

@@ -1,10 +1,11 @@
-import { $, showView, tryLoadImage, showConfirmBar, viewportToLogic, watchOutsidePress } from './ui.js';
-import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, isPokemon, ivOf, effIvTotal } from './state.js';
+import { $, showView, tryLoadImage, showConfirmBar, viewportToLogic, watchOutsidePress, tryLoadPokemonImage, touchText } from './ui.js';
+import { gameData, getPokemonByIndex, saveGame, pushNav, ensureGender, genderBadge, isPokemon, ivOf, effIvTotal, POKEMON_NATURES } from './state.js';
 import { matchPinyinPartial } from './pokedex.js';
-import { TYPE_COLORS } from './items.js';
+import { TYPE_COLORS, typeIconColor } from './items.js';
 import { pokemonSourceBadge } from './badges.js';
 import { REGION_CYCLE } from './config.js';
 import { setupSourceFilter, closeAllDropdowns, sourceFilterLabel } from './filters.js';
+import { createRainbowSprite } from './rainbow-fx.js';
 
 export const TEAM_MAX = 6;
 
@@ -140,6 +141,10 @@ let _dragTarget = -1;    // 指针当前悬停的目标槽位
 let _dragGhost = null;   // 跟随指针的幽灵卡片
 let _dragOnTrash = false; // 指针是否位于底部移除停靠区
 let _suppressClick = false; // 拖拽结束后抑制本次 click（避免误弹菜单）
+let _detailOpen = false;    // 战斗中替换页的详情弹框
+let _moveData = null;       // 详情弹框按需加载 moves.json
+let _moveLoading = null;
+const NATURE_CN = new Map(POKEMON_NATURES);
 
 export function showTeamView(hint, prev) {
   _hint = hint || null;
@@ -778,11 +783,13 @@ function renderTeamEdit(box) {
 
 // ---------- 战斗中替换（原 _battleCb 模式） ----------
 function renderBattlePick(box) {
+  _detailOpen = false;
   const slotPokes = _battleParty.map(x => x.entry); // 直接显示出战队伍
+  const slotCount = Math.max(3, slotPokes.length);
   box.innerHTML = `
-    <div class="team-app">
+    <div class="team-app battle-pick">
       <div class="team-party">
-        ${[0, 1, 2, 3, 4, 5].map(i => {
+        ${Array.from({ length: slotCount }, (_, i) => {
           const p = slotPokes[i];
           const disabled = !p || _battleParty[i].mon.hp <= 0 || i === _battleFieldIdx;
           return slotHtml(i, p, disabled);
@@ -800,22 +807,182 @@ function renderBattlePick(box) {
     const cb = _battleCb;
     _battleCb = null; _battleParty = null; _battleFieldIdx = -1; _battleCanCancel = false;
     showView('battleView');
+    import('./battle-view.js').then((m) => m.restoreBattleTier()).catch(() => {});
     if (cb) cb(-1);
   });
   // 槽位点击：选择上场
   box.querySelectorAll('[data-slot]').forEach(slot => {
     slot.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (_suppressClick) return;
+      if (_suppressClick || _detailOpen) return;
       const i = Number(slot.dataset.slot);
       const member = _battleParty[i];
       if (!member || member.mon.hp <= 0 || i === _battleFieldIdx) return;
       const cb = _battleCb;
       _battleCb = null; _battleParty = null; _battleFieldIdx = -1; _battleCanCancel = false;
       showView('battleView');
+      import('./battle-view.js').then((m) => m.restoreBattleTier()).catch(() => {});
       cb(i);
     });
   });
+  bindBattleDetail(box);
+}
+
+// 战斗中替换页：右键/长按查看详情
+function bindBattleDetail(box) {
+  box.querySelectorAll('.team-member[data-slot]').forEach((slot) => {
+    let timer = 0;
+    let sx = 0;
+    let sy = 0;
+    const stop = () => { if (timer) { clearTimeout(timer); timer = 0; } };
+    slot.addEventListener('pointerdown', (e) => {
+      if (_detailOpen || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      sx = e.clientX;
+      sy = e.clientY;
+      stop();
+      timer = setTimeout(() => { timer = 0; openBattleDetail(Number(slot.dataset.slot)); }, 500);
+    });
+    slot.addEventListener('pointermove', (e) => {
+      if (!timer) return;
+      if (Math.hypot(e.clientX - sx, e.clientY - sy) > 8) stop();
+    });
+    slot.addEventListener('pointerup', stop);
+    slot.addEventListener('pointercancel', stop);
+    slot.addEventListener('pointerleave', stop);
+    slot.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      stop();
+      openBattleDetail(Number(slot.dataset.slot));
+    });
+  });
+}
+
+function ensureTeamMoveData() {
+  if (_moveData) return Promise.resolve(_moveData);
+  if (!_moveLoading) {
+    _moveLoading = fetch('./pokemon-data/moves.json')
+      .then((r) => { if (!r.ok) throw new Error('moves'); return r.json(); })
+      .then((d) => { _moveData = d; return d; })
+      .catch((e) => { _moveLoading = null; throw e; });
+  }
+  return _moveLoading;
+}
+
+function openBattleDetail(i) {
+  if (_detailOpen) return;
+  const member = _battleParty && _battleParty[i];
+  if (!member || !member.entry) return;
+  _detailOpen = true;
+  ensureTeamMoveData().then((data) => {
+    if (!_detailOpen) return;
+    const host = $('teamContent');
+    const html = battleDetailHtml(member.entry, member, data);
+    if (!host || !html) { _detailOpen = false; return; }
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    const modal = wrap.firstElementChild;
+    host.appendChild(modal);
+    const close = () => { modal.remove(); _detailOpen = false; };
+    modal.querySelector('#teamDetailClose')?.addEventListener('click', close);
+    modal.querySelector('#teamDetailPanel')?.addEventListener('click', (e) => e.stopPropagation());
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+    const img = modal.querySelector('#teamDetailImg');
+    const pd = getPokemonByIndex(String(member.entry.species));
+    if (!img || !pd) return;
+    img.classList.remove('fx-variant-rgb', 'fx-variant-polluted');
+    if (member.entry.variant === 'rgb') img.classList.add('fx-variant-rgb');
+    else if (member.entry.variant === 'polluted') img.classList.add('fx-variant-polluted');
+    tryLoadPokemonImage(img, pd, member.entry.shiny ? '_shiny' : '').then(() => {
+      const pic = img.parentElement;
+      if (!pic) return;
+      pic.querySelector('.rainbow-sprite')?.remove();
+      img.style.opacity = '';
+      if (member.entry.variant === 'rainbow' && img.naturalWidth && img.naturalHeight) {
+        pic.appendChild(createRainbowSprite(img.currentSrc || img.src, img.naturalWidth, img.naturalHeight));
+        img.style.opacity = '0';
+      }
+    });
+  }).catch(() => { _detailOpen = false; });
+}
+
+function detailMoveCat(mv) {
+  const ef = mv.effect || {};
+  if (['damage', 'explode', 'multihit', 'drain', 'recoil', 'fixed', 'finalGambit', 'counter', 'mirrorCoat'].includes(ef.kind)) {
+    return ef.kind === 'mirrorCoat' || ef.cat === 'spec' ? 'spec' : 'phys';
+  }
+  return 'status';
+}
+
+function detailIvRadar(ivs) {
+  const keys = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速度']];
+  const vOf = (k) => Math.max(0, Math.min(31, Number(ivs?.[k]) || 0));
+  const cx = 50, cy = 50, r = 34;
+  const pt = (i, ratio) => {
+    const a = (Math.PI / 180) * (-90 + 60 * i);
+    return [cx + r * ratio * Math.cos(a), cy + r * ratio * Math.sin(a)];
+  };
+  const poly = (ratio) => keys.map((_, i) => pt(i, ratio).map((n) => n.toFixed(1)).join(',')).join(' ');
+  const data = keys.map(([k], i) => pt(i, vOf(k) / 31).map((n) => n.toFixed(1)).join(',')).join(' ');
+  const axes = keys.map((_, i) => {
+    const [x, y] = pt(i, 1);
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(var(--ui-color-rgb),0.15)" stroke-width="0.5"/>`;
+  }).join('');
+  const labels = keys.map(([, label], i) => {
+    const [x, y] = pt(i, (i === 0 || i === 3) ? 1.16 : 1.32);
+    return `<text x="${x.toFixed(1)}" y="${(y + 2).toFixed(1)}" text-anchor="middle" font-size="6.5" fill="var(--ui-color)">${label}</text>`;
+  }).join('');
+  const dots = keys.map(([k], i) => {
+    const [x, y] = pt(i, vOf(k) / 31);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.7" fill="var(--ui-color)"/>`;
+  }).join('');
+  return `<svg viewBox="0 6 100 88" class="roster-hex">
+    <polygon points="${poly(0.34)}" fill="none" stroke="rgba(var(--ui-color-rgb),0.18)" stroke-width="0.5"/>
+    <polygon points="${poly(0.67)}" fill="none" stroke="rgba(var(--ui-color-rgb),0.18)" stroke-width="0.5"/>
+    <polygon points="${poly(1)}" fill="none" stroke="rgba(var(--ui-color-rgb),0.25)" stroke-width="0.5"/>
+    ${axes}<polygon points="${data}" fill="rgba(var(--ui-color-rgb),0.18)" stroke="var(--ui-color)" stroke-width="1"/>${dots}${labels}
+  </svg>`;
+}
+
+function battleDetailHtml(entry, member, data) {
+  const pd = getPokemonByIndex(String(entry.species));
+  if (!pd) return '';
+  const name = entry.nickname || pd.name;
+  const ivKeys = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spa', '特攻'], ['spd', '特防'], ['spe', '速度']];
+  const ivs = {};
+  for (const [k] of ivKeys) ivs[k] = ivOf(entry, k);
+  const ivBars = ivKeys.map(([k, label]) => {
+    const v = ivs[k];
+    return `<div class="roster-iv-item"><span>${label}</span><div class="roster-iv-bar"><div class="roster-iv-fill" style="width:${(v / 31 * 100).toFixed(0)}%"></div></div><span>${v}</span></div>`;
+  }).join('');
+  const moves = (member.mon.moves || []).map((id, i) => {
+    const mv = id != null ? data.moves[id] : null;
+    if (!mv) return '';
+    const cat = detailMoveCat(mv);
+    const pp = Array.isArray(member.mon.pp) ? member.mon.pp[i] : mv.pp;
+    const typeIcon = `<span class="b-move-type" style="background:${TYPE_COLORS[mv.type] || '#888'};color:${typeIconColor(mv.type)}"><svg class="b-move-type-icon"><use xlink:href="#icon-type-${mv.type}"></use></svg></span>`;
+    return `<div class="tent-detail-move">${typeIcon}<div class="tent-move-main"><div class="tent-move-name">${mv.name}</div><div class="tent-move-meta"><span class="move-cat-icon cat-${cat}"></span><b>${cat === 'status' ? '—' : (mv.power || '—')}</b><em>PP ${pp == null ? '∞' : pp}</em></div></div></div>`;
+  }).join('');
+  const svg = pokemonSourceBadge(entry);
+  const badge = svg ? `<span class="tent-badge">${svg}</span>` : '';
+  return `<div class="cf-modal" id="teamDetailModal">
+    <div class="cf-modal-panel tent-detail-panel" id="teamDetailPanel">
+      <div class="cf-modal-head"><span>${name}</span><button type="button" class="cf-modal-close" id="teamDetailClose">×</button></div>
+      <div class="cf-modal-body">
+        <div class="tent-detail-head">
+          <div class="tent-detail-pic"><img class="tent-detail-icon" id="teamDetailImg" alt=""></div>
+          <div class="tent-detail-main">
+            <div class="tent-detail-line"><span class="tent-detail-lv">Lv${entry.level || 1}</span>${badge}<span class="tent-detail-types">${(pd.types || []).map((t) => `<span class="type-badge" style="background:${TYPE_COLORS[t] || '#888'}">${t}</span>`).join('')}</span></div>
+            <div class="tent-detail-sub">性格：${NATURE_CN.get(entry.nature) || entry.nature || '—'}</div>
+          </div>
+        </div>
+        <div class="tent-detail-title">个体值</div>
+        <div class="roster-iv-flex">${detailIvRadar(ivs)}<div class="roster-iv-bars">${ivBars}</div></div>
+        <div class="tent-detail-title">招式</div>
+        <div class="tent-detail-moves">${moves}</div>
+      </div>
+    </div>
+  </div>`;
 }
 
 // 底部停靠区：左侧「随机配队」、中间拖拽移除区、右侧「清空」
@@ -931,8 +1098,8 @@ function slotHtml(i, p, disabled) {
 
 function footerHtml() {
   if (_battleCb) {
-    return `<div class="team-footer">
-      <span class="team-footer-text">点击要上场的宝可梦。</span>
+    return `<div class="team-footer battle">
+      <span class="team-footer-text">${touchText('点击要上场的宝可梦，右键查看宝可梦详情。')}</span>
       ${_battleCanCancel ? '<button class="team-footer-btn" id="teamBattleBack">返回</button>' : ''}
     </div>`;
   }

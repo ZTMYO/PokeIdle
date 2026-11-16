@@ -161,6 +161,12 @@ function hit(actor, target, mv, ef, events, ctx = null) {
     target.endure = false;
     events.push(msg(`${target.name}挺住了！`));
   }
+  // 对战帐篷：特殊外观租借宝可梦每场可挺住一次致死伤害
+  if (ctx?.tentEndure && target.tentEndure && !target.tentEndureUsed && target.hp <= 0) {
+    target.hp = 1;
+    target.tentEndureUsed = true;
+    events.push(msg(`${target.name}靠特殊外观挺住了！`));
+  }
   // 双倍奉还/镜面反射记录：覆盖为最近一次受到的物理/特殊伤害（官方：反击最近一次攻击，不累加）
   if (ef.cat === 'phys' && dmg > 0) {
     target.hitByPhys = true;
@@ -299,11 +305,11 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
   if (ef.kind !== 'protect') actor.protectStreak = 0;
   switch (ef.kind) {
     case 'damage':
-      if (hit(actor, target, mv, ef, events) && RECHARGE_MOVES.has(mv.name)) actor.recharge = true;
+      if (hit(actor, target, mv, ef, events, ctx) && RECHARGE_MOVES.has(mv.name)) actor.recharge = true;
       break;
     case 'explode': {
       // 大爆炸：造成伤害后使用者直接倒下（命中或被守住挡下均倒下，miss/属性免疫不倒下）
-      const landed = hit(actor, target, mv, ef, events);
+      const landed = hit(actor, target, mv, ef, events, ctx);
       const blocked = !landed && target.protected && mv.accuracy !== 0 && typeMult(mv.type, target.types) !== 0;
       if (landed || blocked) {
         const fromHp = actor.hp;
@@ -317,7 +323,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
       const n = rand(ef.hits[0], ef.hits[1]);
       for (let i = 0; i < n; i++) {
         events.push({ t: 'step' });
-        if (hit(actor, target, mv, ef, events) && target.hp <= 0) break;
+        if (hit(actor, target, mv, ef, events, ctx) && target.hp <= 0) break;
       }
       events.push(msg(`攻击了 ${n} 次！`));
       break;
@@ -344,7 +350,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     }
     case 'drain': {
       const before = target.hp;
-      if (hit(actor, target, mv, ef, events)) {
+      if (hit(actor, target, mv, ef, events, ctx)) {
         const healed = Math.floor((before - Math.max(0, target.hp)) / 2);
         actor.hp = Math.min(actor.maxHp, actor.hp + healed);
         events.push({ t: 'heal', who: actor.name, uid: actor.uid, amount: healed, text: `${actor.name}吸收了 ${healed} 点HP！` });
@@ -353,7 +359,7 @@ export function useMove(actor, target, moveId, data, events = [], ctx = null) {
     }
     case 'recoil': {
       const before = target.hp;
-      const landed = hit(actor, target, mv, ef, events);
+      const landed = hit(actor, target, mv, ef, events, ctx);
       // halfHp：按最大HP一半反伤（惊爆大头/铁蹄光线/叶绿爆震），未命中或被守住挡下也照样承受
       if (!landed && !ef.halfHp) break;
       const ratio = ef.ratio || 0.25; // 每招各自的反噬比例（如双刃头锤 50%、舍身冲撞 33%）
@@ -963,8 +969,9 @@ export function tickBattleTurns(battle, events) {
 
 // ---------- AI：按属性克制与威力择优（克制的招优先，免疫的尽量避开） ----------
 const AI_DMG_KIND = ['damage', 'explode', 'multihit', 'fixed', 'drain', 'recoil', 'finalGambit', 'counter', 'mirrorCoat'];
-export function aiMove(actor, enemy, data) {
-  const usable = actor.moves.filter((m) => {
+// 当前可出的招式：PP/定身法/挑衅/登场技等硬限制，普通 AI 与性格 AI 共用
+function usableMovesForAi(actor, data) {
+  return actor.moves.filter((m) => {
     const ms = String(m);
     const ef = data.moves[m] && data.moves[m].effect;
     if (!ef || ef.kind === 'unimplemented') return false;
@@ -979,6 +986,9 @@ export function aiMove(actor, enemy, data) {
     if (Array.isArray(actor.pp) && actor.pp[pi] != null && actor.pp[pi] <= 0) return false;
     return true;
   });
+}
+export function aiMove(actor, enemy, data) {
+  const usable = usableMovesForAi(actor, data);
   if (!usable.length) return STRUGGLE_ID; // 一招都用不了 → 挣扎（不然双方会互相干瞪眼）
   // 当前最高打击倍率：打不动对方时更倾向用辅助招（降敌能力/自强化）
   const maxMult = usable.reduce((mx, m) => {
@@ -1066,6 +1076,78 @@ export function aiMove(actor, enemy, data) {
       score += ok && !enemy.status && Math.random() < 0.4 ? 8 : -8; // 诱惑：异性且对方无状态时施放
     } else {
       score -= 8;
+    }
+    if (score > bestScore) { bestScore = score; best = m; }
+  }
+  return best;
+}
+
+// ---------- 性格 AI（对战帐篷）：同一套硬限制，按性格调整出招偏好 ----------
+// 强攻/炮台/高速/耐久/均衡五类；映射按性格提升的能力走，和卡面显示保持一致。
+const NATURE_AI_PROFILE = {
+  aggressive: { damage: 1.8, status: 0.25, heal: 0.2, protect: 0.35, priority: 1.0, phys: 1.15, spec: 0.95 },
+  special:    { damage: 1.7, status: 0.4,  heal: 0.3, protect: 0.45, priority: 1.0, phys: 0.9,  spec: 1.2 },
+  speed:      { damage: 1.4, status: 0.6,  heal: 0.4, protect: 0.5,  priority: 1.35, phys: 1.0, spec: 1.0 },
+  tank:       { damage: 0.65, status: 1.8, heal: 1.8, protect: 1.6, priority: 0.8, phys: 1.0,  spec: 1.0 },
+  balanced:   { damage: 1.0, status: 1.0,  heal: 1.0, protect: 1.0, priority: 1.0, phys: 1.0,  spec: 1.0 },
+};
+// 先制招式名（与 battle-view 的 MOVE_PRIORITY 对齐，只用于“高速”性格的加分）
+const AI_PRIORITY_NAMES = new Set([
+  '帮助', '王者盾牌', '击掌奇袭', '快速防守', '广域防守', '神速', '迎头一击', '佯攻',
+  '电光一闪', '音速拳', '子弹拳', '冰砾', '影子偷袭', '水流喷射', '突袭', '守住', '挺住',
+]);
+export function natureProfileOf(nature) {
+  const n = NATURES[nature];
+  if (!n) return 'balanced';
+  if (n.up === 1) return 'aggressive';
+  if (n.up === 3) return 'special';
+  if (n.up === 5) return 'speed';
+  if (n.up === 2 || n.up === 4) return 'tank';
+  return 'balanced';
+}
+export function aiMoveByNature(actor, enemy, data) {
+  const usable = usableMovesForAi(actor, data);
+  if (!usable.length) return STRUGGLE_ID;
+  const prof = NATURE_AI_PROFILE[natureProfileOf(actor.nature)] || NATURE_AI_PROFILE.balanced;
+  let best = usable[0];
+  let bestScore = -Infinity;
+  for (const m of usable) {
+    const mv = data.moves[m];
+    const ef = mv.effect;
+    let score = Math.random() * 2;
+    if (AI_DMG_KIND.includes(ef.kind)) {
+      const mult = typeMult(mv.type, enemy.types);
+      if (mult === 0) {
+        score -= 30;
+      } else {
+        const pow = ef.kind === 'fixed' ? (mv.name === '音爆' ? 20 : mv.name === '龙之怒' ? 40 : actor.level) : (ef.power || 0);
+        let base = mult * 12 + (actor.types.includes(mv.type) ? 3 : 0) + Math.min(pow, 120) / 20;
+        if (mv.category === '物理') base *= prof.phys;
+        else if (mv.category === '特殊') base *= prof.spec;
+        if (AI_PRIORITY_NAMES.has(mv.name)) base *= prof.priority;
+        score += base * prof.damage;
+      }
+    } else {
+      const lowHp = actor.hp < actor.maxHp * 0.5;
+      if (ef.kind === 'heal' || ef.kind === 'sleepRest' || ef.kind === 'healCure') {
+        score += (lowHp ? 12 : 1) * prof.heal;
+      } else if (ef.kind === 'protect' || ef.kind === 'endure') {
+        score += (lowHp ? 8 : 1) * prof.protect;
+      } else if (ef.kind === 'stat') {
+        score += 6 * prof.status;
+      } else if (ef.kind === 'status') {
+        score += (!enemy.status ? 7 : 1) * prof.status;
+      } else if (ef.kind === 'leechSeed') {
+        score += (!enemy.seeded ? 6 : 1) * prof.status;
+      } else if (ef.kind === 'substitute') {
+        score += (actor.subHp <= 0 && actor.hp > actor.maxHp * 0.5 ? 5 : 1) * prof.status;
+      } else if (ef.kind === 'hazard' || ef.kind === 'wall' || ef.kind === 'regen') {
+        score += 5 * prof.status;
+      } else if (ef.kind === 'weather' || ef.kind === 'field') {
+        score += 4 * prof.status;
+      } else {
+        score += 2 * prof.status;
+      }
     }
     if (score > bestScore) { bestScore = score; best = m; }
   }

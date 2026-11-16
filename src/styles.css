@@ -359,21 +359,23 @@ html.mobile-app #quitHide { display: none !important; }
   75.01% { background-position: 75% 0; }
   100% { background-position: 75% 0; }
 }
-/* Brendan 骑车 */
+/* 骑车（3 帧 32×23 → 2x 显示 64×46） */
 .walk-gif.bike {
   width: 64px;
   height: 46px;
-  background-size: 128px 46px;
+  background-size: 192px 46px;
   transform: translateX(-8px);
-  animation: brendanBike 0.25s steps(1) infinite;
+  animation: brendanBike 0.375s steps(1) infinite;
 }
 .walk-gif.brendan.bike { background-image: url('./character/brendan-bike.png'); }
 .walk-gif.may.bike     { background-image: url('./character/may-bike.png'); }
 @keyframes brendanBike {
-  0%   { background-position: 0px 0; }
-  50%  { background-position: 0px 0; }
-  50.01% { background-position: -64px 0; }
-  100% { background-position: -64px 0; }
+  0%     { background-position: 0px 0; }
+  33.33% { background-position: 0px 0; }
+  33.34% { background-position: -64px 0; }
+  66.66% { background-position: -64px 0; }
+  66.67% { background-position: -128px 0; }
+  100%   { background-position: -128px 0; }
 }
 
 
@@ -9242,18 +9244,21 @@ body.booting { visibility: hidden; }
 .battle-fight.t-veteran, .battle-result.t-veteran { background: #8fb6e0; }
 .battle-fight.t-leader, .battle-result.t-leader { background: #c0a5e0; }
 .battle-fight.t-champion, .battle-result.t-champion { background: #dcc06a; }
+.battle-fight.t-tent, .battle-result.t-tent { background: #a8ded9; }
 /* 夜间模式各档 NPC 战斗背景统一为遭遇页暗色（不改 .battle-fight 上 filter，避免连内部内容一起降亮；
    难度差异仅保留在 screen 边框四色） */
 [data-theme="dark"] .battle-fight.t-novice, [data-theme="dark"] .battle-result.t-novice,
 [data-theme="dark"] .battle-fight.t-veteran, [data-theme="dark"] .battle-result.t-veteran,
 [data-theme="dark"] .battle-fight.t-leader, [data-theme="dark"] .battle-result.t-leader,
-[data-theme="dark"] .battle-fight.t-champion, [data-theme="dark"] .battle-result.t-champion {
+[data-theme="dark"] .battle-fight.t-champion, [data-theme="dark"] .battle-result.t-champion,
+[data-theme="dark"] .battle-fight.t-tent, [data-theme="dark"] .battle-result.t-tent {
   background: var(--screen-bg);
 }
 /* 战斗期间屏幕边框按 NPC 难度着色（.screen 的 t- 类由战斗页挂载/清除） */
 .screen.t-novice { border-color: #57a86a; }
 .screen.t-veteran { border-color: #4a78c9; }
 .screen.t-champion { border-color: #c9a13c; }
+.screen.t-tent { border-color: #3f918b; }
 .battle-stage-top {
   flex: 1;
   min-height: 0;
@@ -9311,6 +9316,7 @@ body.booting { visibility: hidden; }
 /* 底座颜色随 NPC 难度：普通绿 / 精英蓝 / 冠军金 */
 .battle-fight.t-veteran .b-base { border-color: #4a78c9; background: rgba(74, 120, 201, 0.3); }
 .battle-fight.t-champion .b-base { border-color: #c9a13c; background: rgba(201, 161, 60, 0.3); }
+.battle-fight.t-tent .b-base { border-color: #3f918b; background: rgba(63, 145, 139, 0.3); }
 #be-base { right: 33px; top: 48px; transform: translate(50%, -50%); }
 #bp-base { left: 28px; top: 36px; transform: translate(-50%, -50%); }
 .b-enemy-box img { position: relative; z-index: 1; } /* 精灵盖在底座上层（我方 .b-flip 自带 transform 叠层） */
@@ -9817,6 +9823,7 @@ body.booting { visibility: hidden; }
   padding: 4px 3px 32px;
   user-select: none;
 }
+.team-app.battle-pick { padding-bottom: 58px; }
 .team-party {
   flex: 1;
   min-height: 0;
@@ -9991,7 +9998,7 @@ body.booting { visibility: hidden; }
 /* 战斗中替换：不可上场（已倒下/当前场上）的成员置灰 */
 .team-member.swap-disabled {
   opacity: 0.45;
-  pointer-events: none;
+  cursor: default;
 }
 .team-footer {
   position: absolute;
@@ -10005,6 +10012,9 @@ body.booting { visibility: hidden; }
   background: var(--console-body);
   border-top: 2px solid var(--console-border);
 }
+/* 战斗替换页用标准文字框高度，别再沿用配队提示条的窄条 */
+.team-footer.battle { height: 52px; padding: 0 10px; }
+.team-footer.battle .team-footer-text { font-size: 11px; line-height: 1.35; white-space: normal; overflow: visible; text-overflow: clip; }
 .team-footer-text {
   flex: 1;
   min-width: 0;
@@ -10024,8 +10034,8 @@ body.booting { visibility: hidden; }
   font-weight: 700;
   color: var(--ui-color);
   border: 1px solid var(--ui-color);
-  border-radius: 999px;
-  padding: 1px 8px;
+  border-radius: 3px;
+  padding: 2px 8px;
   background: transparent;
   cursor: pointer;
 }
@@ -15046,3 +15056,95 @@ html.power-save .screen *:not(.walk-gif)::after {
   filter: drop-shadow(0 0 8px rgba(255, 220, 255, .8));
 }
 .purify-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* ==================== 对战帐篷（二楼 4 号机） ==================== */
+/* 沿用游戏厅标准 UI；只有战斗背景单独换成淡红/淡蓝 */
+.tent-app { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; color: var(--ui-color); }
+.tent-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 2px 4px; }
+.tent-loading { padding: 20px 8px; text-align: center; font-size: 11px; color: var(--color-muted); }
+.tent-dock { display: flex; flex-shrink: 0; width: 100%; align-self: stretch; margin: 0; border-top: 1px solid rgba(var(--ui-color-rgb), .3); }
+.tent-dock-btn { flex: 1; border: 0; border-right: 1px solid rgba(var(--ui-color-rgb), .3); border-radius: 0; background: var(--screen-bg-light); color: var(--ui-color); font: inherit; font-size: 12px; font-weight: 700; padding: 7px 8px; cursor: pointer; }
+.tent-dock-btn:last-child { border-right: 0; }
+.tent-dock-btn.main { background: var(--ui-color); color: var(--screen-bg-light); }
+.tent-dock-btn:disabled { opacity: .35; }
+@media (hover: hover) {
+  .tent-dock-btn:hover { background: rgba(var(--ui-color-rgb), .12); }
+  .tent-dock-btn.main:hover { background: var(--ui-color); filter: brightness(1.08); }
+}
+.tent-result-wrap { flex: 1; min-height: 0; overflow-y: auto; display: flex; padding: 4px 0; }
+.tent-result { margin: auto; width: min(92%, 300px); padding: 10px 10px 9px; text-align: center; border: 1px solid rgba(var(--ui-color-rgb), .25); border-radius: 8px; background: var(--screen-bg-light); flex-shrink: 0; }
+.tent-result-kicker { font-size: 9px; opacity: .7; }
+.tent-result-title { margin: 1px 0 6px; font-size: 16px; font-weight: 800; }
+.tent-result-payout { display: flex; align-items: baseline; justify-content: center; gap: 4px; }
+.tent-result-payout img { width: 18px; height: 18px; image-rendering: pixelated; align-self: center; }
+.tent-result-payout b { font-size: 24px; line-height: 1; font-weight: 900; color: var(--ui-color-dark); }
+.tent-result-net { margin-top: 3px; font-size: 10px; font-weight: 700; }
+.tent-result-net.pos { color: #d4850a; }
+.tent-result-net.neg { color: #b5544e; }
+.tent-result-team { display: flex; justify-content: center; gap: 3px; margin-top: 8px; }
+.tent-result-team img { width: 26px; height: 26px; object-fit: contain; image-rendering: pixelated; }
+.tent-rec-list { display: flex; flex-direction: column; gap: 5px; padding: 2px 0; }
+.tent-rec-card { padding: 5px 7px; border: 1px solid var(--item-border); border-radius: 6px; background: var(--item-bg); }
+.tent-rec-top { display: flex; align-items: center; gap: 6px; }
+.tent-rec-result { flex-shrink: 0; padding: 0 4px; border-radius: 3px; color: #fff; font-size: 8px; line-height: 1.5; }
+.tent-rec-time { font-size: 9px; opacity: .65; white-space: nowrap; }
+.tent-rec-detail { font-size: 9px; opacity: .75; white-space: nowrap; }
+.tent-rec-net { margin-left: auto; font-size: 10px; font-weight: 700; }
+.tent-rec-team { display: flex; gap: 4px; margin-top: 4px; }
+.tent-rec-mon { position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--item-border); border-radius: 4px; background: rgba(var(--ui-color-rgb), .06); }
+.tent-rec-mon img { width: 20px; height: 20px; object-fit: contain; image-rendering: pixelated; }
+.tent-rec-mon .box-badges { top: -1px; right: -1px; }
+.tent-victory .tent-result-title { font-size: 18px; }
+.tent-victory-next { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--item-border); font-size: 11px; font-weight: 700; color: var(--ui-color-dark); }
+.tent-side-label { margin: 6px 0 2px; font-size: 10px; font-weight: 700; }
+.tent-badge { display: inline-flex; width: 11px; height: 11px; flex-shrink: 0; }
+.tent-badge svg { width: 11px; height: 11px; display: block; }
+/* 对战帐篷战斗底栏：上方战斗文案，下方左右两块大按钮 */
+.b-bottom.tent-battle-bottom { height: auto; min-height: 74px; flex-direction: column; border-top: 0; }
+.tent-battle-box { position: static; height: 40px; flex: 0 0 40px; z-index: auto; }
+.tent-battle-box .text-box-content { padding: 4px 10px; font-size: 11px; line-height: 1.3; }
+.tent-battle-dock { flex: 0 0 34px; width: 100%; display: flex; flex-direction: row; gap: 0; min-height: 0; border-top: 1px solid var(--console-border); }
+.tent-battle-btn { flex: 1; height: 100%; border: 0; border-right: 1px solid var(--console-border); background: transparent; color: var(--ui-color); font: inherit; font-size: 11px; font-weight: 700; padding: 2px 8px; cursor: pointer; }
+.tent-battle-btn:last-child { border-right: 0; }
+.tent-battle-btn.main { background: transparent; color: var(--ui-color); }
+.tent-battle-btn:active { filter: brightness(.92); }
+
+.tent-detail-panel { width: 98%; max-width: 98%; height: 94%; max-height: 94%; }
+.tent-detail-head { display: flex; align-items: center; gap: 8px; }
+.tent-detail-pic { position: relative; flex: 0 0 44px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+.tent-detail-icon { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+.tent-detail-pic .tent-detail-icon.fx-variant-rgb {
+  filter: drop-shadow(1.5px 0 0 rgba(255,0,80,.65)) drop-shadow(-1.5px 0 0 rgba(0,220,255,.65));
+}
+.tent-detail-main { min-width: 0; }
+.tent-detail-line { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; }
+.tent-detail-lv { font-size: 10px; font-weight: 700; }
+.tent-detail-types { display: flex; flex-wrap: wrap; gap: 3px; }
+.tent-detail-sub { margin-top: 2px; font-size: 9px; opacity: .8; line-height: 1.5; }
+.tent-detail-title { margin-top: 10px; font-size: 10px; font-weight: 700; opacity: .75; }
+.tent-detail-moves { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; margin-top: 2px; }
+.tent-detail-move { display: flex; align-items: center; gap: 4px; min-width: 0; padding: 3px 4px; border: 1px solid var(--item-border); border-radius: 4px; background: var(--item-bg); }
+.tent-detail-move .b-move-type { flex-shrink: 0; }
+.tent-move-main { flex: 1; min-width: 0; }
+.tent-move-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; font-weight: 700; line-height: 1.25; }
+.tent-move-meta { display: flex; align-items: center; gap: 3px; font-size: 8px; opacity: .75; line-height: 1.35; }
+.tent-move-meta .move-cat-icon { width: 12px; height: 12px; }
+.tent-move-meta b { font-size: 8px; }
+.tent-move-meta em { font-style: normal; font-size: 7.5px; }
+.tent-detail-endure { margin-top: 6px; font-size: 8px; color: #a47a30; }
+.tent-vs-label { margin: 2px 0 1px; font-size: 8px; font-weight: 700; color: var(--ui-color-dark); opacity: .75; }
+.tent-vs-team { display: grid; grid-template-columns: repeat(3, minmax(0, 54px)); justify-content: center; gap: 3px; }
+.tent-vs-box { height: auto; aspect-ratio: 1; min-width: 0; border-width: 2px; }
+.tent-vs-hint { font-weight: 400; opacity: .6; }
+.tent-vs-drag { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.tent-vs-drag.dragging { opacity: .35; transform: scale(.94); }
+.tent-vs-drag.drop-target { outline: 2px dashed var(--ui-color-dark); outline-offset: -3px; }
+.tent-app > .tent-drag-layer { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 900; overflow: hidden; pointer-events: none; }
+.tent-vs-ghost { position: absolute; pointer-events: none; opacity: .92; transform: translate(-50%, -50%) scale(1.06); filter: drop-shadow(0 4px 8px rgba(0,0,0,.28)); will-change: left, top; }
+.tent-vs-ghost * { pointer-events: none; }
+.tent-vs-box .box-icon-wrap .roster-icon-img { width: 30px; height: 30px; }
+.tent-vs-foot { flex-direction: column; align-items: center; justify-content: center; padding-top: 1px; line-height: 1.1; }
+.tent-vs-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; font-weight: 700; }
+.tent-vs { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.tent-vs-line { flex: 1; height: 1px; background: rgba(var(--ui-color-rgb), .3); }
+.tent-vs-text { font-size: 9px; font-weight: 800; letter-spacing: 1px; color: var(--ui-color-dark); }

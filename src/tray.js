@@ -9,7 +9,7 @@
 //   2. 钓鱼中               → 推游戏真实钓鱼雪碧图，甩竿/待机两帧交替
 //   3. 孵蛋中               → 推蛋图标，中/左/右三态左右摇摆
 //   4. 农场有地块缺水    → 推 sprout-1/sprout-2 两帧树苗动画（提醒浇水）
-//   5. 骑车中               → 推游戏真实骑车雪碧图，2 帧踩踏板循环
+//   5. 骑车中               → 推游戏真实骑车雪碧图，3 帧踩踏板循环
 //   6. 跑步中（增益生效） → 推游戏真实跑步雪碧图 4 帧动画
 //   7. 主角走动中       → 推游戏真实走路雪碧图 4 帧动画
 //   8. 主角不动         → 只推站立帧单帧，托盘静止
@@ -206,10 +206,10 @@ async function pushFrames() {
       seq = frames;
       delay = 500; // 树苗两帧 1s 一个循环
     } else if (bike) {
-      // 骑车中：用游戏真实骑车雪碧图（2 帧踩踏板循环）
+      // 骑车中：用游戏真实骑车雪碧图（3 帧踩踏板循环）
       const [sheet] = await loadImages([`./character/${prefix}-bike.png`]);
-      seq = renderFrames(sliceFrames(sheet, 32, sheet.naturalHeight || sheet.height, [0, 1]));
-      delay = 125; // 骑车 0.25s 一个踩踏板循环（2 帧）
+      seq = renderFrames(sliceFrames(sheet, 32, sheet.naturalHeight || sheet.height, [0, 1, 2]));
+      delay = 125; // 骑车 0.375s 一个踩踏板循环（3 帧）
     } else {
       // 跑步/走路/静止：增益生效用真实跑步雪碧图，否则走路雪碧图；静止只显示站立帧（帧0）
       const [sheet] = await loadImages([`./character/${prefix}-${run ? 'run' : 'walk'}.png`]);

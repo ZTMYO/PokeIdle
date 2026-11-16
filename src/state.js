@@ -455,6 +455,7 @@ export function getDefaultSave() {
     legendPity: 0,    // 神兽池软保底计数：连着多少场遇敌没出神兽
     trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
     battleNpcs: null, // NPC 挑战：{ refreshedAt: Date.now(), list: [{ id, tier, title, name, sprite, lvBonus, candy, mons }] }，由 npcs.js 管理
+    battleTent: null, // 对战帐篷：{ records, run }，由 battle-tent.js 管理
     pokedex: {},
     encounterLogs: {},
     systemLogs: [],

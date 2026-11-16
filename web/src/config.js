@@ -357,6 +357,20 @@ export const BATTLE_REFRESH_MS = 20 * 60 * 1000; // NPC 挑战刷新间隔（20 
 export const BATTLE_NPC_COUNTS = { novice: 1, veteran: 2, leader: 1, champion: 1 }; // 每波各档 NPC 数量
 export const BATTLE_MONS_COUNT = { novice: 3, veteran: 5, leader: 5, champion: 6 };  // 各档队伍宝可梦数量
 
+// ---- 对战帐篷（游戏厅二楼 4 号机）----
+// 随机 3 只租借 → 自动 3 回合 → 最多 5 层；赢了继续或收手拿游戏币，输了归零。
+export const TENT_DEX_GATE = 800;          // 图鉴解锁条目数
+export const TENT_TEAM_SIZE = 3;           // 固定 3 只
+export const TENT_FLOOR_LEVELS = [50, 55, 60, 65, 70]; // 环境全局等级，双方同层同级
+export const TENT_PAYOUT_MULT = [0, 1.2, 1.8, 2.8, 4.0, 6.0]; // 下标 = 已赢层数
+export const TENT_FLOOR_BST = [[400, 500], [450, 530], [480, 560], [520, 600], [560, 999]];
+export const TENT_LEGEND_CHANCE = [0.05, 0.08, 0.12, 0.18, 1];
+export const TENT_SHINY_RATE = 0.04;       // 闪光
+export const TENT_SQUARE_SHINY_RATE = 0.01; // 方闪（含闪光标记）
+export const TENT_VARIANT_RATE = 0.01;     // RGB / 污染 / 炫彩 各 1%，与闪光独立叠加
+export const TENT_SURRENDER_REFUND = 0.5;  // 开局弃权退款比例
+export const TENT_RECORD_MAX = 10;         // 战绩条数上限
+
 // ---- 经验糖果 ----
 // 不可用糖果购买，唯一来源：NPC 训练家对战胜利概率掉落（见 EXP_CANDY_DROP）
 export const EXP_CANDY_XP = 3000; // 单颗经验值（1→17 级左右）

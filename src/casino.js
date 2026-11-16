@@ -3,10 +3,11 @@
 // 规则：标准 52 张牌；A = 1/11 取最优，J/Q/K = 10；玩家可要牌/停牌/加倍；
 // 庄家点数 < 17 一直要牌；天然 21（前两张即 21 = 黑杰克）按 1.5 倍赔付；
 // 下注/赔付均操作 gameData.items.candy，结算走 saveGame() + updateStats()。
-import { $, showView, updateStats, hideFoodTip, logicToViewport, popupBounds } from './ui.js';
-import { gameData, saveGame, pushNav, formatNum, addSystemLog } from './state.js';
+import { $, showView, updateStats, hideFoodTip, logicToViewport, popupBounds, tryLoadPokemonIcon } from './ui.js';
+import { gameData, saveGame, pushNav, formatNum, addSystemLog, dexUnlocked, getPokemonByIndex } from './state.js';
 import { playCasino, playMahjongSfx } from './audio.js';
-import { COIN_RATE, DEALER_STAND, BJ_MULT } from './config.js';
+import { pokemonSourceBadge } from './badges.js';
+import { COIN_RATE, DEALER_STAND, BJ_MULT, TENT_DEX_GATE } from './config.js';
 
 // ---------- 牌堆 ----------
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -132,6 +133,15 @@ function handIsSoft(cards) {
 const candy = () => gameData.items['candy'] || 0;
 const coin = () => gameData.items['casinoCoin'] || 0;
 
+// 对战帐篷门禁：图鉴解锁条目数达到 800
+function tentOpen() {
+  const dex = gameData?.pokedex;
+  if (!dex) return false;
+  let n = 0;
+  for (const k in dex) if (dexUnlocked(k)) n++;
+  return n >= TENT_DEX_GATE;
+}
+
 // ---------- 进入页面 ----------
 export function showCasinoView() {
   pushNav('casinoView');
@@ -179,7 +189,7 @@ function renderScene() {
           const open = _cardStats && _cardStats.total > 0 && _cardStats.owned >= _cardStats.total;
           return hotHtml('casino-hot-slot', open ? '老虎机' : '卡册集齐后开放', r);
         }
-        return hotHtml('', '敬请期待', r);
+        return hotHtml('casino-hot-tent', tentOpen() ? '对战帐篷' : `图鉴集齐 ${TENT_DEX_GATE} 后开放`, r);
       }).join('')
       + hotHtml('casino-hot-down', '下楼', SCENE_STAIRS_DOWN)
     : hotHtml('casino-hot-bj', '21 点', SCENE_HOT)
@@ -205,6 +215,7 @@ function renderScene() {
   box.querySelector('.casino-hot-penguin')?.addEventListener('click', () => import('./penguin.js').then((m) => m.showPenguinView()));
   box.querySelector('.casino-hot-voltorb')?.addEventListener('click', () => import('./voltorb.js').then((m) => m.showVoltorbView()));
   box.querySelector('.casino-hot-slot')?.addEventListener('click', () => import('./slot-machine.js').then((m) => m.showSlotMachineView()));
+  box.querySelector('.casino-hot-tent')?.addEventListener('click', () => import('./battle-tent.js').then((m) => m.showBattleTentView()));
   drawScene(box.querySelector('.casino-scene-canvas'), scene);
 }
 
@@ -728,10 +739,16 @@ export function showCasinoHistoryView(source) {
   const isMj = source === 'mj';
   const isPg = source === 'pg';
   const isVf = source === 'vf';
-  const records = (isVf ? gameData.voltorbRecords : isPg ? gameData.penguinRecords : isMj ? gameData.mahjongRecords : gameData.casinoRecords) || [];
-  const title = isVf ? '电球翻牌战绩' : isPg ? '跳企鹅战绩' : isMj ? '口袋麻将战绩' : '21点战绩';
+  const isTent = source === 'tent';
+  const records = (isTent ? gameData.battleTent?.records : isVf ? gameData.voltorbRecords : isPg ? gameData.penguinRecords : isMj ? gameData.mahjongRecords : gameData.casinoRecords) || [];
+  const title = isTent ? '对战帐篷战绩' : isVf ? '电球翻牌战绩' : isPg ? '跳企鹅战绩' : isMj ? '口袋麻将战绩' : '21点战绩';
   const CN = ['零', '一', '二', '三', '四'];
   const badge = r => {
+    if (isTent) {
+      return r.result === 'cash' ? { text: '收手', bg: '#d4850a' }
+        : r.result === 'clear' ? { text: '通关', bg: '#d4850a' }
+          : { text: '出局', bg: '#b5544e' };
+    }
     if (isVf) {
       const b = {
         cash: { text: '收手', bg: '#d4850a' },
@@ -750,6 +767,35 @@ export function showCasinoHistoryView(source) {
     if (r.action === 'lose') return { text: '输', bg: '#b5544e' };
     return { text: '平', bg: '#7a8a8a' };
   };
+  if (isTent) {
+    const cards = records.map((r) => {
+      const b = badge(r);
+      const color = r.net > 0 ? '#d4850a' : r.net < 0 ? '#b5544e' : 'rgba(255,255,255,0.45)';
+      const team = (r.team || []).map((p) => {
+        const pd = getPokemonByIndex(p.species);
+        const icon = pd?.icon ? `<img data-poke="${p.species}" alt="">` : '';
+        return `<span class="tent-rec-mon">${icon}<span class="box-badges">${pokemonSourceBadge(p)}</span></span>`;
+      }).join('');
+      return `<div class="tent-rec-card">
+        <div class="tent-rec-top">
+          <span class="tent-rec-result" style="background:${b.bg}">${b.text}</span>
+          <span class="tent-rec-time">${fmtHistoryTime(r.time)}</span>
+          <span class="tent-rec-detail">${r.floors} 层 · 下注 ${formatNum(r.bet)}</span>
+          <span class="tent-rec-net" style="color:${color};">${r.net > 0 ? '+' : ''}${formatNum(r.net)}</span>
+        </div>
+        ${team ? `<div class="tent-rec-team">${team}</div>` : ''}
+      </div>`;
+    }).join('');
+    content.innerHTML = `
+      <div class="rec-header">${title} · ${records.length} 场</div>
+      ${records.length === 0 ? '<div class="rec-empty">暂无战绩</div>' : `<div class="tent-rec-list">${cards}</div>`}`;
+    content.querySelectorAll('img[data-poke]').forEach((img) => {
+      const pd = getPokemonByIndex(img.dataset.poke);
+      if (pd) tryLoadPokemonIcon(img, pd);
+    });
+    showView('casinoHistoryView');
+    return;
+  }
   content.innerHTML = `
     <div class="rec-header">${title} · ${records.length} 场</div>
     ${records.length === 0 ? '<div class="rec-empty">暂无战绩</div>' : ''}

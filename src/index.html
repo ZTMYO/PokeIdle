@@ -9,7 +9,7 @@
     (function () {
       var SITE = 'https://pokeidle.shiliu.space';
       // 版本号由 tools/sync-version.mjs 改写：经典脚本这里 import 不了 build-info.js
-      var APP_VER = '1.23.2';
+      var APP_VER = '1.24.0';
       var VER_TEXT = '（v' + APP_VER + '）';
       var lines = [], box = null, detail = null, detailToggle = null, detailOpen = false;
 
@@ -1055,6 +1055,11 @@
             <!-- 老虎机（二楼 3 号机，卡册集齐后开放） -->
             <div id="slotMachineView" class="view-fixed" style="display:none;">
               <div id="slotMachineContent" style="flex:1;display:flex;flex-direction:column;color:var(--ui-color);min-height:0;"></div>
+            </div>
+
+            <!-- 对战帐篷（二楼 4 号机） -->
+            <div id="battleTentView" class="view-fixed" style="display:none;">
+              <div id="battleTentContent" style="flex:1;display:flex;flex-direction:column;min-height:0;"></div>
             </div>
 
             <!-- 口袋麻将（独立页） -->
