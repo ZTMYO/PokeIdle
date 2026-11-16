@@ -98,28 +98,11 @@ pub fn import_save_data(_app: tauri::AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 pub fn read_gif_base64(app: tauri::AppHandle, path: String) -> Result<String, String> {
-    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
+    use base64::Engine;
 
-    // 尝试多个可能的基准路径（dev / 构建后）
-    let candidates = vec![
-        resource_dir.join("../../src").join(&path),
-        resource_dir.join("../src").join(&path),
-        resource_dir.join("src").join(&path),
-        std::path::PathBuf::from("../src").join(&path),
-        std::path::PathBuf::from("src").join(&path),
-    ];
-
-    for p in &candidates {
-        if p.exists() {
-            let bytes = std::fs::read(p).map_err(|e| format!("读取失败: {}", e))?;
-            use base64::Engine;
-            return Ok(base64::engine::general_purpose::STANDARD.encode(&bytes));
-        }
-    }
-
-    Err(format!(
-        "图片不存在（尝试了 {} 个路径，均失败）: {}",
-        candidates.len(),
-        path
-    ))
+    // 通过 Tauri 的资源解析器读取随游戏打包的图片，不依赖源码目录或工作目录。
+    let asset = app.asset_resolver().get(path.clone())
+        .filter(|asset| asset.mime_type().starts_with("image/"))
+        .ok_or_else(|| format!("图片不存在: {}", path))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(asset.bytes()))
 }

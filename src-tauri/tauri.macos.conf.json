@@ -1,0 +1,16 @@
+{
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "category": "Game",
+    "copyright": "PokeIdle © 2026 ZTMYO · https://github.com/ZTMYO/PokeIdle",
+    "resources": {
+      "../src/": "game/",
+      "../LICENSE": "LICENSE",
+      "../LICENSE-MIT": "LICENSE-MIT",
+      "../README.md": "README.md"
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.0"
+    }
+  }
+}
