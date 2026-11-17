@@ -9875,9 +9875,14 @@ body.booting { visibility: hidden; }
   gap: 1px;
 }
 .team-member .member-top {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   min-width: 0;
 }
 .team-member .member-name {
+  flex: 1;
+  min-width: 0;
   font-size: 11px;
   font-weight: 800;
   color: var(--ui-color-dark);
@@ -9885,6 +9890,13 @@ body.booting { visibility: hidden; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.team-member-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--ui-color);
+}
+.team-member-badge .pokedex-star-svg { width: 11px; height: 11px; display: block; }
 /* 第二行：左等级 / 右经验数值 */
 .team-member .member-mid {
   display: flex;
@@ -15060,7 +15072,7 @@ html.power-save .screen *:not(.walk-gif)::after {
 /* ==================== 对战帐篷（二楼 4 号机） ==================== */
 /* 沿用游戏厅标准 UI；只有战斗背景单独换成淡红/淡蓝 */
 .tent-app { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; color: var(--ui-color); }
-.tent-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 2px 4px; }
+.tent-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 2px 4px; }
 .tent-loading { padding: 20px 8px; text-align: center; font-size: 11px; color: var(--color-muted); }
 .tent-dock { display: flex; flex-shrink: 0; width: 100%; align-self: stretch; margin: 0; border-top: 1px solid rgba(var(--ui-color-rgb), .3); }
 .tent-dock-btn { flex: 1; border: 0; border-right: 1px solid rgba(var(--ui-color-rgb), .3); border-radius: 0; background: var(--screen-bg-light); color: var(--ui-color); font: inherit; font-size: 12px; font-weight: 700; padding: 7px 8px; cursor: pointer; }
@@ -15100,10 +15112,10 @@ html.power-save .screen *:not(.walk-gif)::after {
 .tent-badge { display: inline-flex; width: 11px; height: 11px; flex-shrink: 0; }
 .tent-badge svg { width: 11px; height: 11px; display: block; }
 /* 对战帐篷战斗底栏：上方战斗文案，下方左右两块大按钮 */
-.b-bottom.tent-battle-bottom { height: auto; min-height: 74px; flex-direction: column; border-top: 0; }
-.tent-battle-box { position: static; height: 40px; flex: 0 0 40px; z-index: auto; }
-.tent-battle-box .text-box-content { padding: 4px 10px; font-size: 11px; line-height: 1.3; }
-.tent-battle-dock { flex: 0 0 34px; width: 100%; display: flex; flex-direction: row; gap: 0; min-height: 0; border-top: 1px solid var(--console-border); }
+.b-bottom.tent-battle-bottom { height: auto; min-height: 60px; flex-direction: column; border-top: 0; }
+.tent-battle-box { position: static; height: auto; min-height: 30px; flex: 0 0 auto; z-index: auto; }
+.tent-battle-box .text-box-content { padding: 3px 8px; font-size: 11px; line-height: 1.25; }
+.tent-battle-dock { flex: 0 0 30px; width: 100%; display: flex; flex-direction: row; gap: 0; min-height: 0; border-top: 1px solid var(--console-border); }
 .tent-battle-btn { flex: 1; height: 100%; border: 0; border-right: 1px solid var(--console-border); background: transparent; color: var(--ui-color); font: inherit; font-size: 11px; font-weight: 700; padding: 2px 8px; cursor: pointer; }
 .tent-battle-btn:last-child { border-right: 0; }
 .tent-battle-btn.main { background: transparent; color: var(--ui-color); }
@@ -15134,17 +15146,58 @@ html.power-save .screen *:not(.walk-gif)::after {
 .tent-detail-endure { margin-top: 6px; font-size: 8px; color: #a47a30; }
 .tent-vs-label { margin: 2px 0 1px; font-size: 8px; font-weight: 700; color: var(--ui-color-dark); opacity: .75; }
 .tent-vs-team { display: grid; grid-template-columns: repeat(3, minmax(0, 54px)); justify-content: center; gap: 3px; }
-.tent-vs-box { height: auto; aspect-ratio: 1; min-width: 0; border-width: 2px; }
+.tent-vs-box { height: auto; aspect-ratio: 1; min-width: 0; border-width: 2px; background: var(--screen-bg); }
+.tent-vs-box:hover { background: var(--screen-bg); }
 .tent-vs-hint { font-weight: 400; opacity: .6; }
 .tent-vs-drag { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 .tent-vs-drag.dragging { opacity: .35; transform: scale(.94); }
 .tent-vs-drag.drop-target { outline: 2px dashed var(--ui-color-dark); outline-offset: -3px; }
+.tent-vs-box.drop-target { opacity: .45; }
 .tent-app > .tent-drag-layer { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 900; overflow: hidden; pointer-events: none; }
 .tent-vs-ghost { position: absolute; pointer-events: none; opacity: .92; transform: translate(-50%, -50%) scale(1.06); filter: drop-shadow(0 4px 8px rgba(0,0,0,.28)); will-change: left, top; }
 .tent-vs-ghost * { pointer-events: none; }
 .tent-vs-box .box-icon-wrap .roster-icon-img { width: 30px; height: 30px; }
+.tent-vs-box.var-rainbow {
+  border-width: 2px;
+  border-image-width: 2px;
+}
+.tent-vs-box.shiny-frame {
+  border-color: #d4850a !important;
+  border-image: none !important;
+}
+.tent-vs-hidden { visibility: hidden; pointer-events: none; }
+.tent-vs-box.tent-vs-appear { animation: tent-vs-appear .18s ease-out; }
+.tent-vs-box.tent-vs-frameless {
+  border: 2px solid var(--ui-color) !important;
+  border-image: none !important;
+}
+.tent-vs-box.tent-vs-frameless.legend-ring::after { display: none; }
+@keyframes tent-vs-appear {
+  from { transform: scale(.94); opacity: .45; }
+  to { transform: scale(1); opacity: 1; }
+}
 .tent-vs-foot { flex-direction: column; align-items: center; justify-content: center; padding-top: 1px; line-height: 1.1; }
 .tent-vs-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; font-weight: 700; }
-.tent-vs { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.tent-vs { display: flex; align-items: center; gap: 6px; margin: 3px 0; overflow: hidden; }
 .tent-vs-line { flex: 1; height: 1px; background: rgba(var(--ui-color-rgb), .3); }
 .tent-vs-text { font-size: 9px; font-weight: 800; letter-spacing: 1px; color: var(--ui-color-dark); }
+.tent-vs-await .tent-vs-line {
+  opacity: 0;
+  transition: transform .22s ease-out, opacity .18s ease-out;
+}
+.tent-vs-await .tent-vs-line:first-child { transform: translateX(-36px) scaleX(.2); transform-origin: left; }
+.tent-vs-await .tent-vs-line:last-child { transform: translateX(36px) scaleX(.2); transform-origin: right; }
+.tent-vs-await .tent-vs-text {
+  opacity: 0;
+  transform: scale(.6);
+  transition: opacity .16s ease-out, transform .16s ease-out;
+}
+.tent-vs-await.tent-vs-in .tent-vs-line { opacity: 1; transform: none; }
+.tent-vs-await.tent-vs-in .tent-vs-text { opacity: 1; transform: scale(1); }
+.tent-dock-await { opacity: 0; transform: translateY(100%); pointer-events: none; }
+.tent-dock-await.tent-dock-in {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition: transform .24s ease-out, opacity .18s ease-out;
+}

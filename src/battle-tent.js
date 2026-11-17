@@ -11,7 +11,7 @@ import {
   gameData, allPokemon, getPokemonByIndex, saveGame, addSystemLog, dexUnlocked,
   formatNum, POKEMON_NATURES, isPowerForm, popNav, pushNav, randInt, rollGender,
 } from './state.js';
-import { $, showView, getCurrentView, showConfirmBar, tryLoadPokemonIcon, tryLoadPokemonImage, viewportToLogic } from './ui.js';
+import { $, showView, getCurrentView, showConfirmBar, tryLoadPokemonIcon, tryLoadPokemonImage, viewportToLogic, updateStats } from './ui.js';
 import { createMon, natureProfileOf } from './battle-core.js';
 import { chooseMoves } from './moves.js';
 import { TYPE_COLORS, typeIconColor } from './items.js';
@@ -19,6 +19,7 @@ import { pokemonSourceBadge } from './badges.js';
 import { startCustomBattle, clearBattleTier } from './battle-view.js';
 import { BETS, renderBetAreaCommon, showCasinoHistoryView } from './casino.js';
 import { showRulesPanel } from './rules-panel.js';
+import { playMahjongSfx } from './audio.js';
 import { createRainbowSprite } from './rainbow-fx.js';
 
 const VIEW = 'battleTentView';
@@ -41,6 +42,8 @@ let _busy = false;
 let _lastStep = null;
 let _lastResult = null;
 let _tentDragAt = 0;
+let _vsRevealDone = false;
+let _vsRevealTimer = null;
 
 const hasSpecial = (p) => !!(p && (p.shiny || p.squareShiny || p.variant));
 const coin = () => gameData.items['casinoCoin'] || 0;
@@ -381,6 +384,7 @@ export function showBattleTentView() {
 function render() {
   const box = $(BOX);
   if (!box) return;
+  stopVsReveal();
   if ((_step === 'vs' || _step === 'decision' || _step === 'swap') && !_run) _step = 'lobby';
   if (_step === 'result' && !_result) _step = 'lobby';
   _detailList = [];
@@ -397,9 +401,11 @@ function render() {
   bind(box);
   loadIcons(box);
   loadDetailSprite(box);
+  startVsReveal(box);
   const scroll = box.querySelector('.tent-scroll');
   if (scroll && _lastStep !== _step) scroll.scrollTop = 0;
   _lastStep = _step;
+  updateStats();
 }
 
 function pageForStep() {
@@ -418,6 +424,49 @@ function lobbyPage() {
   const html = renderBetAreaCommon(balance, holder, 'tentStart', startText, { rulesId: 'tentRules' });
   _bet = holder.bet;
   return { body: html, foot: '' };
+}
+
+function stopVsReveal() {
+  if (_vsRevealTimer) {
+    clearTimeout(_vsRevealTimer);
+    _vsRevealTimer = null;
+  }
+}
+
+// 首层 VS：六格先闪烁，再按敌我交替顺序揭晓
+function startVsReveal(box) {
+  if (_vsRevealDone || _detail || _step !== 'vs' || !_run || _run.floors !== 0) return;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { _vsRevealDone = true; return; }
+  const teams = box.querySelectorAll('.tent-vs-team');
+  const opp = teams[0] ? [...teams[0].children] : [];
+  const mine = teams[1] ? [...teams[1].children] : [];
+  const order = [opp[0], mine[0], opp[1], mine[1], opp[2], mine[2]].filter(Boolean);
+  if (order.length !== 6) return;
+  const vs = box.querySelector('.tent-vs');
+  const dock = box.querySelector('.tent-dock');
+  vs?.classList.add('tent-vs-await');
+  dock?.classList.add('tent-dock-await');
+  for (const el of order) el.classList.add('tent-vs-hidden', 'tent-vs-frameless');
+  const reveal = (i) => {
+    if (getCurrentView() !== VIEW) return;
+    const el = order[i];
+    if (!el || !el.isConnected) return;
+    el.classList.remove('tent-vs-hidden');
+    el.classList.add('tent-vs-appear');
+    playMahjongSfx('draw');
+    setTimeout(() => el.classList.remove('tent-vs-appear'), 180);
+    if (i + 1 < order.length) _vsRevealTimer = setTimeout(() => reveal(i + 1), 90);
+    else {
+      _vsRevealTimer = setTimeout(() => {
+        _vsRevealTimer = null;
+        _vsRevealDone = true;
+        for (const el of order) el.classList.remove('tent-vs-frameless');
+        vs?.classList.add('tent-vs-in');
+        dock?.classList.add('tent-dock-in');
+      }, 280);
+    }
+  };
+  _vsRevealTimer = setTimeout(() => reveal(0), 220);
 }
 
 function vsPage() {
@@ -468,7 +517,7 @@ function swapPage() {
 
 function resultPage() {
   const r = _result;
-  const title = r.result === 'clear' ? '五层通关' : r.result === 'cash' ? '收手成功' : '挑战结束';
+  const title = r.result === 'clear' ? '五层通关' : r.result === 'cash' ? '大获全胜' : '挑战结束';
   const kicker = r.result === 'lose' ? `止步第 ${r.floors + 1} 层` : `${r.floors} 层`;
   const netCls = r.net > 0 ? 'pos' : r.net < 0 ? 'neg' : '';
   const body = `
@@ -498,11 +547,10 @@ function teamCard(plain, member = null, opts = {}) {
   const ivSum = keys.reduce((n, k) => n + (Number(plain.ivs?.[k]) || 0), 0);
   const pct = Math.round((ivSum / 186) * 100);
   const perfect = keys.every((k) => Number(plain.ivs?.[k]) === 31);
-  const ring = pd.legend ? ' legend-ring' : '';
-  const frame = plain.variant === 'rgb' ? 'var-rgb' + ring
-    : plain.variant === 'polluted' ? 'var-polluted' + ring
-      : plain.variant === 'rainbow' ? 'var-rainbow' + ring
-        : pd.legend ? 'rar-legend' : '';
+  const frame = (plain.variant === 'rgb' ? 'var-rgb'
+    : plain.variant === 'polluted' ? 'var-polluted'
+      : plain.variant === 'rainbow' ? 'var-rainbow'
+        : '') + (plain.shiny ? ' shiny-frame' : '');
   const detail = opts.detail === false ? '' : ` data-detail="${detailIdx}"`;
   const swapSrc = opts.swapSrc != null ? ` data-swap-src="${opts.swapSrc}"` : '';
   const swapDst = opts.swapDst != null ? ` data-swap-dst="${opts.swapDst}"` : '';
@@ -709,10 +757,11 @@ function bindSwapDrag(box) {
       el.classList.remove('dragging');
       layer?.remove();
       try { el.releasePointerCapture(e.pointerId); } catch (_) {}
-      if (!moved || cancelled || dst == null) return;
+      if (!moved || cancelled) return;
       _tentDragAt = Date.now();
       suppressClick = true;
       setTimeout(() => { suppressClick = false; }, 0);
+      if (dst == null) return;
       askSwap(src, dst);
     };
     el.addEventListener('pointerup', (e) => end(e, false));
@@ -899,6 +948,7 @@ function beginRun() {
   _run = run;
   _result = null;
   _detail = null;
+  _vsRevealDone = false;
   _step = 'vs';
   persistRun();
   _busy = false;
@@ -924,6 +974,7 @@ function surrender() {
 
 async function startBattle() {
   if (!_run || _busy) return;
+  stopVsReveal();
   _busy = true;
   try {
     const level = TENT_FLOOR_LEVELS[_run.floors];

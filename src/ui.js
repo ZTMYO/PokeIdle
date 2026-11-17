@@ -971,7 +971,7 @@ let _prevBagCounts = {};
 export function updateStats() {
   const candy = gameData.items['candy'] || 0;
   const coin = gameData.items['casinoCoin'] || 0;
-  const coinHtml = /casino|mahjong|gacha|slotMachine/i.test(_currentView) ? ` <img src="./items/goods/coin.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;margin-left:4px;" /> ${formatNum(coin)}` : '';
+  const coinHtml = CASINO_VIEWS.has(_currentView) ? ` <img src="./items/goods/coin.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;margin-left:4px;" /> ${formatNum(coin)}` : '';
   $('statProgress').innerHTML = `<img src="./items/goods/candy.png" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" /> ${formatNum(candy)}${coinHtml}`;
   const g = gameData?.gps;
   const region = getCurrentRegion();

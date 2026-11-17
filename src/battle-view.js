@@ -2049,6 +2049,51 @@ function flashHitPanel(side) {
   setTimeout(() => panel.classList.remove('b-hit-panel'), 340);
 }
 
+// 对战帐篷：敌方也会在明显劣势时主动换人
+const TENT_DMG_KINDS = new Set(['damage', 'explode', 'multihit', 'fixed', 'drain', 'recoil', 'finalGambit', 'counter', 'mirrorCoat']);
+function enemyOffense(mon, foe) {
+  let off = 0;
+  for (const id of mon.moves) {
+    const mv = _data.moves[id];
+    const ef = mv?.effect || {};
+    if (!TENT_DMG_KINDS.has(ef.kind)) continue;
+    const pow = ef.kind === 'fixed' ? 40 : (ef.power || 0);
+    off = Math.max(off, typeMult(mv.type, foe.types) * (mon.types.includes(mv.type) ? 1.5 : 1) * (1 + Math.min(pow, 120) / 80));
+  }
+  return off;
+}
+function enemyMoveScore(mon, foe) {
+  const off = enemyOffense(mon, foe);
+  let threat = 0;
+  for (const id of foe.moves) {
+    const mv = _data.moves[id];
+    const ef = mv?.effect || {};
+    if (!TENT_DMG_KINDS.has(ef.kind)) continue;
+    const pow = ef.kind === 'fixed' ? 40 : (ef.power || 0);
+    threat = Math.max(threat, typeMult(mv.type, mon.types) * (foe.types.includes(mv.type) ? 1.5 : 1) * (1 + Math.min(pow, 120) / 80));
+  }
+  return off * 6 - threat * 3 + (mon.hp / mon.maxHp) * 7 + (mon.effStat(0) >= foe.effStat(0) ? 2 : 0);
+}
+
+function pickEnemySwitch(battle, mon, foe) {
+  if (!battle.custom?.tentBattle || battle.round < 2) return -1;
+  if (battle.round - (battle._eSwitchRound || -10) < 2) return -1;
+  const bench = battle.eTeam.map((x, i) => (x.mon.hp > 0 && i !== battle.eIdx ? i : -1)).filter((i) => i >= 0);
+  if (!bench.length) return -1;
+  const score = (m) => enemyMoveScore(m, foe);
+  const curScore = score(mon);
+  const best = bench.map((i) => [i, score(battle.eTeam[i].mon)]).sort((a, b) => b[1] - a[1])[0];
+  const hp = mon.hp / mon.maxHp;
+  if (!best || best[1] <= curScore + 6) return -1;
+  if (hp < 0.45 || enemyOffense(mon, foe) < 1) {
+    if (Math.random() < 0.8) {
+      battle._eSwitchRound = battle.round;
+      return best[0];
+    }
+  }
+  return -1;
+}
+
 // 普通 NPC 对战沿用旧 AI；对战帐篷让双方按性格出招
 function aiFor(battle, actor, enemy) {
   return battle?.custom?.tentBattle
@@ -2786,7 +2831,8 @@ async function battleLoop(battle) {
       const pPre = []; // 我方回合前状态事件（睡眠/麻痹/畏缩/混乱自伤等）
       const ePre = []; // 敌方回合前状态事件
       let pAct = null; // 我方选择：{type:'move',id} / {type:'switch',idx}
-      let eMove = null; // 敌方 AI 选择（null = 本回合不行动）
+      let eAct = null; // 敌方选择：{type:'move',id} / {type:'switch',idx}
+      let eMove = null; // 敌方本回合出招（null = 不行动/换人）
 
       if (preTurn(pMon, pPre)) {
         if (pMon.chargeMove != null) {
@@ -2800,7 +2846,12 @@ async function battleLoop(battle) {
         }
       }
       if (preTurn(eMon, ePre)) {
-        eMove = eMon.chargeMove != null ? eMon.chargeMove : aiFor(battle, eMon, pMon); // 同上：AI 蓄力招式第二回合自动出招
+        if (eMon.chargeMove != null) eAct = { type: 'move', id: eMon.chargeMove }; // 蓄力招式第二回合自动出招
+        else {
+          const sw = pickEnemySwitch(battle, eMon, pMon);
+          eAct = sw >= 0 ? { type: 'switch', idx: sw } : { type: 'move', id: aiFor(battle, eMon, pMon) };
+        }
+        if (eAct.type === 'move') eMove = eAct.id;
       }
 
       // 先播行动前状态事件（双方各自的状态检查结果）
@@ -2826,6 +2877,27 @@ async function battleLoop(battle) {
         await battleSleep(400);
         autoTransform(battle, 'p'); // 换上的若是百变怪，登场后立即变身
         pAct = null; // 本回合行动已消耗在换人上
+      }
+
+      // 敌方主动换人：和出招一样，换人优先于本回合出招
+      if (eAct && eAct.type === 'switch') {
+        panelOut('be');
+        await battleSleep(260);
+        battle.eIdx = eAct.idx;
+        eMon = curMon(battle, 'e');
+        resetCounter(eMon);
+        setText(`${eMon.name}上场了！`);
+        const ballE = renderMon(eMon, 'be', true);
+        renderTeamInfo(battle);
+        panelIn('be');
+        if (ballE) await ballE;
+        const hazEvs = [];
+        applyEntryHazards(battle, 'e', hazEvs);
+        if (hazEvs.length) await playEvents(hazEvs, battle, curMon(battle, 'e'));
+        await battleSleep(400);
+        autoTransform(battle, 'e');
+        eAct = null;
+        eMove = null;
       }
 
       // 出招：双方都出招时按先制度、再按速度决定先后（速度平手随机）；
