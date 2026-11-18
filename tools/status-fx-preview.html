@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>异常状态特效预览 · 口袋挂机</title>
+  <link rel="stylesheet" href="../src/battle-fx.css">
+  <link rel="stylesheet" href="./status-fx-preview.css">
+</head>
+<body>
+  <div class="sfx-app">
+    <header class="sfx-head">
+      <div>
+        <h1>异常状态特效预览</h1>
+        <p>睡眠 / 着迷 · 自绘 SVG + 文字，不使用外部图片素材</p>
+      </div>
+      <div class="sfx-actions">
+        <a href="./move-fx-preview.html">招式特效 →</a>
+        <button type="button" id="sfxReplay">重新播放</button>
+      </div>
+    </header>
+
+    <main class="sfx-cards">
+      <section class="sfx-card">
+        <div class="sfx-card-head">
+          <div>
+            <h2>睡眠</h2>
+            <span>我方 · 两个 Z</span>
+          </div>
+          <span class="sfx-badge">SLEEP</span>
+        </div>
+        <div class="sfx-screen-box">
+          <div class="sfx-screen">
+            <div class="sfx-stage" data-scene="sleep">
+              <div class="sfx-mon enemy">
+                <div class="sfx-base"></div>
+                <div class="sfx-panel">
+                  <div class="sfx-name">伊布 <small>Lv50</small></div>
+                  <div class="sfx-hp"><i style="width:82%"></i></div>
+                </div>
+                <img class="sfx-sprite" data-mon="enemy" alt="伊布">
+              </div>
+              <div class="sfx-mon player">
+                <div class="sfx-base"></div>
+                <div class="sfx-panel">
+                  <div class="sfx-name">皮卡丘 <small>Lv50</small></div>
+                  <div class="sfx-hp"><i style="width:64%"></i></div>
+                </div>
+                <img class="sfx-sprite" data-mon="player" alt="皮卡丘">
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="sfx-note">头顶两个 Z 错峰上浮，没有阴影和额外图标。</p>
+      </section>
+
+      <section class="sfx-card">
+        <div class="sfx-card-head">
+          <div>
+            <h2>着迷</h2>
+            <span>对手 · 爱心</span>
+          </div>
+          <span class="sfx-badge love">ATTRACT</span>
+        </div>
+        <div class="sfx-screen-box">
+          <div class="sfx-screen">
+            <div class="sfx-stage" data-scene="love">
+              <div class="sfx-mon enemy">
+                <div class="sfx-base"></div>
+                <div class="sfx-panel">
+                  <div class="sfx-name">伊布 <small>Lv50</small></div>
+                  <div class="sfx-hp"><i style="width:77%"></i></div>
+                </div>
+                <img class="sfx-sprite" data-mon="enemy" alt="伊布">
+              </div>
+              <div class="sfx-mon player">
+                <div class="sfx-base"></div>
+                <div class="sfx-panel">
+                  <div class="sfx-name">皮卡丘 <small>Lv50</small></div>
+                  <div class="sfx-hp"><i style="width:91%"></i></div>
+                </div>
+                <img class="sfx-sprite" data-mon="player" alt="皮卡丘">
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="sfx-note">四颗爱心错峰上浮，保留原来的文字效果，只去掉了阴影。</p>
+      </section>
+    </main>
+
+    <footer class="sfx-foot">预览直接复用游戏内的状态特效构建函数与 CSS；对局中状态变化时会重建挂件。</footer>
+  </div>
+  <script src="./status-fx-preview.js"></script>
+</body>
+</html>

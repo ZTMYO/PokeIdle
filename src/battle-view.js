@@ -11,6 +11,7 @@ import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, BATTLE_EVO_POOLS, MAX_LEVEL, SPEC
 import { playBattle, endBattle, playVictory, stopVictory, playShiny } from './audio.js';
 import { burstShinySparkle } from './animation.js';
 import { createRainbowSprite } from './rainbow-fx.js';
+import { playPeMove, playPeLabel } from './pe-battle-anim.js';
 import * as road from './road.js';
 
 // 18 属性标签色（与图鉴/遇敌一致）
@@ -28,6 +29,10 @@ const TYPE_FX = {
   火: 'flame', 水: 'drop', 草: 'leaf', 电: 'spark', 冰: 'ice', 毒: 'bubble',
   地面: 'clump', 岩石: 'rock', 飞行: 'streak', 虫: 'dot', 超能: 'swirl', 龙: 'dragon',
 };
+const IMPACT_TINT_TYPES = new Set(['火', '水', '草', '毒', '冰']);
+const METEOR_MOVES = new Set(['流星群', '流星闪冲', '流星突击', '流星光束']);
+const FANG_COLORS = { 雷电牙: '#ffe066', 冰冻牙: '#23d7ff', 剧毒牙: '#b35cff', 虫咬: '#a8c93f' };
+const HAND_CLAMP_MOVES = new Set(['拍落', '小偷', '渴望', '击掌奇袭']);
 
 let _data = null;
 let _learnset = null;
@@ -1180,7 +1185,7 @@ export function closeLogPage() {
   }
 }
 // 战斗动画互斥：lunge/hit/faint 同时存在时会按 CSS 后定义者覆盖，取动画前必须清掉全部
-const B_ANIM_CLS = ['lunge', 'lunge-attack', 'hit', 'faint', 'lunge-stay', 'b-strike', 'flinch', 'b-enter',
+const B_ANIM_CLS = ['lunge', 'lunge-attack', 'hit', 'faint', 'lunge-stay', 'b-strike', 'flinch', 'b-enter', 'thunder-hit',
   'cg-sink', 'cg-rise', 'cg-vanish', 'cg-glow', 'cg-out-sink', 'cg-out-rise', 'cg-out-vanish'];
 function resetAnim(el) {
   el.classList.remove(...B_ANIM_CLS);
@@ -1279,6 +1284,81 @@ function lungeAttack(side) {
     lowerAttacker(side);
     el.removeEventListener('animationend', h);
   });
+}
+// 简化位移：只向目标平移一小段再回原位，不贴脸
+function nudgeAttacker(side) {
+  const el = $(`${side}-img`);
+  const f = lungeTargetRect(side);
+  if (!el || !f) return;
+  resetAnim(el);
+  void el.offsetWidth;
+  raiseAttacker(side);
+  const r = el.getBoundingClientRect();
+  let dx = (f.left + f.width / 2 - (r.left + r.width / 2)) * 0.18;
+  const dy = (f.top + f.height / 2 - (r.top + r.height / 2)) * 0.12;
+  if (side === 'bp') dx = -dx;
+  el.animate([
+    { transform: 'translate(0, 0)' },
+    { transform: `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`, offset: 0.4 },
+    { transform: 'translate(0, 0)' },
+  ], { duration: 280, easing: 'ease-out' });
+  setTimeout(() => lowerAttacker(side), 300);
+}
+// 居合劈：原作斩击贴图
+function spawnSlashAsset(boxSide) {
+  const img = $(`${boxSide}-img`);
+  const box = $(`${boxSide}-box`);
+  if (!img || !box) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const el = document.createElement('span');
+  el.className = 'b-charge-asset';
+  el.style.width = '32px';
+  el.style.height = '32px';
+  el.style.left = cx + 'px';
+  el.style.top = cy + 'px';
+  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_Cut__32x32.png')";
+  el.style.backgroundSize = '32px 128px';
+  el.style.backgroundPosition = '0 0';
+  el.style.transform = 'translate(-50%, -50%) scale(1.1)';
+  box.appendChild(el);
+  let f = 0;
+  const timer = setInterval(() => {
+    f = (f + 1) % 4;
+    el.style.backgroundPosition = `0 -${f * 32}px`;
+  }, 45);
+  el.animate([
+    { opacity: 0, transform: 'translate(-50%, -50%) scale(.8)' },
+    { opacity: 1, transform: 'translate(-50%, -50%) scale(1.1)', offset: 0.3 },
+    { opacity: 0, transform: 'translate(-50%, -50%) scale(1.2)' },
+  ], { duration: 300, easing: 'ease-out', fill: 'both' });
+  setTimeout(() => { clearInterval(timer); el.remove(); }, 340);
+}
+// 目标侧命中贴图（风/斩击到达即出现，不和伤害结算的旧粒子错位）
+function spawnImpactAsset(boxSide) {
+  const img = $(`${boxSide}-img`);
+  const box = $(`${boxSide}-box`);
+  if (!img || !box) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'b-charge-asset';
+  el.style.width = '32px';
+  el.style.height = '32px';
+  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  el.style.top = (ir.top - br.top + ir.height / 2) + 'px';
+  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/impact.png')";
+  el.style.backgroundSize = '32px 32px';
+  el.style.transform = 'translate(-50%, -50%) scale(1)';
+  box.appendChild(el);
+  el.animate([
+    { opacity: 0, transform: 'translate(-50%, -50%) scale(.65)' },
+    { opacity: 1, transform: 'translate(-50%, -50%) scale(1.12)', offset: 0.3 },
+    { opacity: 0, transform: 'translate(-50%, -50%) scale(1.2)' },
+  ], { duration: 300, easing: 'ease-out', fill: 'both' });
+  setTimeout(() => el.remove(), 340);
 }
 function shake(side) { playAnim(side, 'hit'); }
 function popDmg(side, amount, mon) {
@@ -1379,38 +1459,29 @@ function spawnTypeFx(side, type) {
   box.appendChild(fx);
   setTimeout(() => fx.remove(), 900);
 }
-// 回复加号粒子：受回复宝可梦身上迸发绿色十字，治疗能量向上飘散（纯 CSS 扁平，无阴影）
+// 回复：统一使用原作 Gfx_BlueStar 星星粒子
 function spawnHealFx(side) {
-  const img = $(`${side}-img`);
-  const box = $(`${side}-box`);
-  if (!img || !box) return;
-  const fx = document.createElement('span');
-  fx.className = 'b-heal-fx';
-  const ir = img.getBoundingClientRect();
-  const br = box.getBoundingClientRect();
-  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
-  fx.style.top = (ir.top - br.top + ir.height / 2) + 'px';
-  for (let i = 0; i < 6; i++) {
-    const p = document.createElement('i');
-    // 上半圆扩散（y 轴向下，sin 为负即向上）：198°~342° 覆盖左上到右上的扇形
-    const ang = Math.PI * (1.1 + Math.random() * 0.8);
-    const dist = 14 + Math.random() * 12;
-    p.style.setProperty('--dx', (Math.cos(ang) * dist).toFixed(1) + 'px');
-    p.style.setProperty('--dy', (Math.sin(ang) * dist).toFixed(1) + 'px');
-    p.style.animationDelay = (Math.random() * 0.15).toFixed(2) + 's';
-    fx.appendChild(p);
-  }
-  box.appendChild(fx);
-  setTimeout(() => fx.remove(), 900);
+  spawnBlueStarBurst(side, 10);
 }
 // 远程多段物理招式（种子机关枪/冰锥/岩石暴击/飞弹针/骨棒乱打/鳞射/尖刺加农炮）：
 // 攻击方不贴脸，站原地朝对手逐发喷射实心粒子，粒子形状按招区分、颜色取属性色
+const SOUND_MOVES = new Set([
+  '叫声', '吼叫', '唱歌', '超音波', '音爆', '刺耳声', '打鼾', '终焉之歌', '治愈铃声',
+  '巨声', '金属音', '长嚎', '虫鸣', '轮唱', '回声', '大声咆哮', '打嗝', '战吼',
+  '魅惑之声', '爆音波', '密语', '古老之歌', '破音', '精神噪音', '龙声鼓舞', '魅诱之声',
+  '闪焰高歌', '鳞片噪音', '魂舞烈音爆', '怪异电波', '吵闹', '哈欠', '梦话',
+]);
+const BIND_MOVES = new Set(['缠绕', '紧束', '绑紧']);
+const FIST_MOVES = new Set(['子弹拳', '增强拳', '等离子闪电拳', '钢拳双击', '极巨拳斗', '喷射拳', '愤怒之拳']);
+const STONE_RANGED = new Set(['尖石攻击', '岩石炮', '钻石风暴', '岩斧', '冲岩']);
 const RANGED_PHYS_MULTI = {
   '种子机关枪': { shape: 'pill',    color: TYPE_COLORS['草'] },
   '冰锥':       { shape: 'crystal', color: TYPE_COLORS['冰'] },
-  '岩石暴击':   { shape: 'jag',     color: TYPE_COLORS['岩石'] },
+  '岩石爆击':   { shape: 'jag',     color: TYPE_COLORS['岩石'] },
   '飞弹针':     { shape: 'needle',  color: TYPE_COLORS['虫'] },
   '骨棒乱打':   { shape: 'bone',    color: TYPE_COLORS['地面'] },
+  '骨头回力镖': { shape: 'bone',    color: TYPE_COLORS['地面'] },
+  '投球':       { shape: 'ball',    color: '#d85b4b' },
   '鳞射':       { shape: 'scale',   color: TYPE_COLORS['龙'] },
   '尖刺加农炮': { shape: 'pill',    color: TYPE_COLORS['一般'] },
 };
@@ -1430,14 +1501,13 @@ function spawnProjStream(side, shape, color, solid) {
   const from = $(`${side}-img`);
   const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
   const box = $(`${side}-box`);
-  if (!from || !to || !box) return;
+  if (!from || !to || !box) return Promise.resolve();
   const br = box.getBoundingClientRect();
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const fx = document.createElement('span');
   fx.className = 'b-proj-fx proj-' + shape;
-  if (color) fx.style.setProperty('--fc', color); // 圆球类招式按属性着色
-  // 起点：攻击方中心略偏上（模拟喷出点）；终点：目标中心略偏上
+  if (color) fx.style.setProperty('--fc', color);
   const sx = fr.left - br.left + fr.width / 2;
   const sy = fr.top - br.top + fr.height * 0.38;
   const ex = tr.left - br.left + tr.width / 2;
@@ -1449,14 +1519,13 @@ function spawnProjStream(side, shape, color, solid) {
     b.style.setProperty('--bx', (ex - sx).toFixed(1) + 'px');
     b.style.setProperty('--by', (ey - sy).toFixed(1) + 'px');
     b.style.setProperty('--bs', (16 + Math.random() * 4).toFixed(1) + 'px');
-    if (solid) b.style.boxShadow = 'none'; // 实心球：去掉柔和光晕
+    if (solid) b.style.boxShadow = 'none';
     fx.appendChild(b);
     box.appendChild(fx);
-    setTimeout(() => fx.remove(), 800);
-    return;
+    return new Promise((resolve) => setTimeout(() => { fx.remove(); resolve(); }, 740));
   }
-  const shrink = side === 'bp'; // 我方大→小；敌方小→大
-  const n = 7;
+  const shrink = side === 'bp';
+  const n = 6;
   for (let i = 0; i < n; i++) {
     const b = document.createElement('i');
     b.style.setProperty('--bx', (ex - sx + (Math.random() * 12 - 6)).toFixed(1) + 'px');
@@ -1464,14 +1533,12 @@ function spawnProjStream(side, shape, color, solid) {
     b.style.setProperty('--sf', shrink ? 1.5 : 0.45);
     b.style.setProperty('--se', shrink ? 0.45 : 1.5);
     b.style.setProperty('--bs', (10 + Math.random() * 7).toFixed(1) + 'px');
-    b.style.setProperty('--bd', (i * 0.08).toFixed(2) + 's'); // 逐发错开，在目标处逐一消失
+    b.style.setProperty('--bd', (i * 0.06).toFixed(2) + 's');
     fx.appendChild(b);
   }
   box.appendChild(fx);
-  setTimeout(() => fx.remove(), 600 + n * 90);
+  return new Promise((resolve) => setTimeout(() => { fx.remove(); resolve(); }, 700));
 }
-// 远程多段物理：单发实心粒子从攻击方飞向目标（供逐击喷射，shape 见 RANGED_PHYS_MULTI）。
-// 返回 Promise：等粒子飞抵目标后 resolve，调用方据此再结算该段伤害，保证"弹到即扣血"
 function spawnProjOne(side, shape, color) {
   const from = $(`${side}-img`);
   const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
@@ -1503,6 +1570,79 @@ function spawnProjOne(side, shape, color) {
   return new Promise((resolve) => {
     setTimeout(() => { fx.remove(); resolve(); }, 380);
   });
+}
+// 空气之刃/空气利刃：复用气旋攻击的 Gfx_AirWave2 风刃，少量发射
+function spawnAirBladeStream(side, count = 2) {
+  const tSide = side === 'bp' ? 'be' : 'bp';
+  const from = $(`${side}-img`);
+  const to = $(`${tSide}-img`);
+  const box = $(`${tSide}-box`);
+  if (!from || !to || !box) return Promise.resolve();
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.42;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.42;
+  const ang = (Math.atan2(ey - sy, ex - sx) * 180) / Math.PI;
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_AirWave2__32x16.png', import.meta.url).href;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = sx + 'px';
+    el.style.top = (sy + (i - (count - 1) / 2) * 12) + 'px';
+    el.style.width = '32px';
+    el.style.height = '16px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = '32px 16px';
+    el.style.filter = 'drop-shadow(0 0 5px #dff6ff)';
+    el.style.zIndex = '9';
+    el.style.transform = `translate(-50%,-50%) rotate(${ang.toFixed(1)}deg)`;
+    box.appendChild(el);
+    const dy = ey - (sy + (i - (count - 1) / 2) * 12);
+    el.animate([
+      { transform: `translate(-50%,-50%) rotate(${ang.toFixed(1)}deg) scale(.7)`, opacity: 0 },
+      { transform: `translate(-50%,-50%) rotate(${ang.toFixed(1)}deg) scale(1)`, opacity: 1, offset: .12 },
+      { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) rotate(${ang.toFixed(1)}deg) scale(1.15)`, opacity: 1, offset: .9 },
+      { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) rotate(${ang.toFixed(1)}deg) scale(1.2)`, opacity: 0 },
+    ], { duration: 320, delay: i * 55, easing: 'ease-in', fill: 'both' });
+    setTimeout(() => el.remove(), 360 + i * 55);
+  }
+  return new Promise((resolve) => setTimeout(resolve, 320 + (count - 1) * 55 + 50));
+}
+// 原作针形弹道：用 Gfx_Needle 贴图沿飞行方向旋转射出（双针/毒针同素材）
+function spawnNeedleAsset(side, tSide) {
+  const from = $(`${side}-img`);
+  const to = $(`${tSide}-img`);
+  const box = $(`${tSide}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.4;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.4;
+  const ang = (Math.atan2(ey - sy, ex - sx) * 180) / Math.PI + 90;
+  const el = document.createElement('span');
+  el.className = 'fx-orig';
+  el.style.left = sx + 'px';
+  el.style.top = sy + 'px';
+  el.style.width = '20px';
+  el.style.height = '20px';
+  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_Needle__16x16.png')";
+  el.style.backgroundSize = '20px 20px';
+  el.style.zIndex = '9';
+  box.appendChild(el);
+  const trs = `translate(-50%,-50%) rotate(${ang.toFixed(1)}deg)`;
+  el.animate([
+    { transform: trs, opacity: 0 },
+    { opacity: 1, offset: .1 },
+    { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${(ey - sy).toFixed(1)}px)) rotate(${ang.toFixed(1)}deg)`, opacity: 1, offset: .86 },
+    { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${(ey - sy).toFixed(1)}px)) rotate(${ang.toFixed(1)}deg)`, opacity: 0 },
+  ], { duration: 330, easing: 'linear', fill: 'both' });
+  setTimeout(() => el.remove(), 370);
 }
 // 破坏光线：一截橙色带白边光段，从攻击方中心沿目标方向飞出，穿过对手后冲出屏幕。
 // 发射点为容器原点并旋转对齐方向；--td 为沿该方向的飞行总距离
@@ -1552,76 +1692,205 @@ function spawnSolarBeam(tSide) {
   box.appendChild(fx);
   setTimeout(() => fx.remove(), 650);
 }
-// 电系招式：一道闪电从目标头顶上方劈下命中头部（短暂闪灭）。
-// 闪电挂在目标盒子、以头部为原点向上延伸，超出舞台部分被裁剪（表现为从屏幕顶劈下）
-function spawnLightningStrike(tSide) {
+// 电系招式命中：Gfx_Lightning 纵向拼接成从屏幕顶劈到对手头顶的闪电
+// 电系强度对应的分片：3=细弱电（电击），0=常规，2=粗壮分叉
+function lightningVariant(mv) {
+  const p = Number(mv.power) || 0;
+  if (p >= 100) return 1;
+  if (p >= 85) return 2;
+  if (p >= 55) return 0;
+  return 3;
+}
+function spawnLightningStrike(tSide, variant = 3) {
+  spawnVoltFlash();
+  spawnLightningAsset(tSide, variant);
+}
+// 麻痹：原作 Gfx_Spark2 三帧电花，在目标身上连续闪烁
+function spawnParalysisBurst(tSide) {
   const box = $(`${tSide}-box`);
   const img = $(`${tSide}-img`);
   if (!box || !img) return;
   const br = box.getBoundingClientRect();
   const ir = img.getBoundingClientRect();
-  const fx = document.createElement('span');
-  fx.className = 'b-lightning-fx';
-  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
-  fx.style.top = (ir.top - br.top) + 'px'; // 头部
-  const bolt = document.createElement('i');
-  bolt.className = 'bolt';
-  fx.appendChild(bolt);
-  const flash = document.createElement('i');
-  flash.className = 'flash';
-  fx.appendChild(flash);
-  box.appendChild(fx);
-  setTimeout(() => fx.remove(), 600);
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const k = Math.max(0.7, Math.min(1.6, ir.width / 80));
+  const offs = [[5, 0], [-5, 10], [15, 20], [-15, -10], [25, 0], [-8, 8], [2, -8], [-20, 15]];
+  offs.forEach(([ox, oy], i) => {
+    const el = document.createElement('span');
+    el.className = 'fx-spark-asset';
+    el.style.left = (cx + ox * k) + 'px';
+    el.style.top = (cy + oy * k) + 'px';
+    el.style.animationDelay = (i * 0.03).toFixed(2) + 's';
+    box.appendChild(el);
+    setTimeout(() => el.remove(), 760);
+  });
+  const orbUrl = './pe-battle/move-fx-assets/pe/Gfx_ElectricOrbs__8x8.png';
+  for (let i = 0; i < 5; i++) {
+    const size = 14 + randInt(0, 10);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + randInt(-24, 24)) + 'px';
+    el.style.top = (cy + randInt(-20, 20)) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${orbUrl})`;
+    el.style.backgroundSize = `${size}px ${size * 4}px`;
+    el.style.zIndex = '9';
+    box.appendChild(el);
+    let f = randInt(0, 3);
+    const timer = setInterval(() => { f = (f + 1) % 4; el.style.backgroundPosition = `0 -${f * size}px`; }, 60);
+    const dx = randInt(-30, 30), dy = randInt(-36, 16);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.5)', opacity: 0 },
+      { opacity: 1, offset: .18 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1)`, opacity: 0 },
+    ], { duration: 420, delay: i * 30, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 480 + i * 30);
+  }
 }
-// 岩崩：目标头顶上方掉下大小不一的圆形岩石，错峰砸落（从盒子顶部上方落下，超出舞台部分被裁剪，
-// 表现为从屏幕上方滚落；落在目标身上后消失）
+function spawnLightningAsset(tSide, variant = 3) {
+  const field = document.querySelector('.battle-fight');
+  const img = $(`${tSide}-img`);
+  if (!field || !img) return;
+  const fr = field.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - fr.left + ir.width / 2;
+  const headY = ir.top - fr.top + ir.height * 0.12;
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_Lightning__32x32.png', import.meta.url).href;
+  const step = 24;
+  const count = Math.max(1, Math.ceil(headY / step));
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('span');
+    el.style.position = 'absolute';
+    el.style.zIndex = '8';
+    el.style.width = '32px';
+    el.style.height = '32px';
+    el.style.left = (cx + randInt(-3, 3)) + 'px';
+    el.style.top = (headY - i * step) + 'px';
+    el.style.pointerEvents = 'none';
+    el.style.imageRendering = 'pixelated';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = '32px 160px';
+    el.style.backgroundPosition = `0 -${variant * 32}px`;
+    el.style.transform = 'translate(-50%,-50%) scale(1.05)';
+    field.appendChild(el);
+    el.animate([
+      { opacity: 0 },
+      { opacity: 1, offset: .15 },
+      { opacity: .35, offset: .4 },
+      { opacity: 1, offset: .55 },
+      { opacity: 0 },
+    ], { duration: 340, fill: 'both' });
+    setTimeout(() => el.remove(), 380);
+  }
+  setTimeout(() => spawnParalysisBurst(tSide), 220);
+}
+function spawnVoltFlash() {
+  const stage = document.querySelector('.battle-fight');
+  if (!stage) return;
+  const el = document.createElement('span');
+  el.className = 'b-volt-flash';
+  stage.appendChild(el);
+  setTimeout(() => el.remove(), 320);
+}
+function spawnElectricBall(side, variant = 2) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.42;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.42;
+  const ball = document.createElement('span');
+  ball.className = 'fx-orig';
+  ball.style.left = sx + 'px';
+  ball.style.top = sy + 'px';
+  ball.style.width = '58px';
+  ball.style.height = '58px';
+  ball.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_CircleOfLight__64x64.png')";
+  ball.style.backgroundSize = '58px 58px';
+  ball.style.filter = 'drop-shadow(0 0 12px #ffe45c)';
+  ball.style.zIndex = '9';
+  box.appendChild(ball);
+  ball.animate([
+    { transform: 'translate(-50%,-50%) scale(.35)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: .2 },
+    { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${(ey - sy).toFixed(1)}px)) scale(1.15)`, opacity: 1 },
+  ], { duration: 420, easing: 'cubic-bezier(.3,.1,.8,1)', fill: 'both' });
+  setTimeout(() => {
+    ball.remove();
+    spawnLightningStrike(side === 'bp' ? 'be' : 'bp', variant);
+  }, 420);
+}
 function spawnRockSlide(tSide) {
   const box = $(`${tSide}-box`);
   const img = $(`${tSide}-img`);
   if (!box || !img) return;
   const br = box.getBoundingClientRect();
   const ir = img.getBoundingClientRect();
-  const fx = document.createElement('span');
-  fx.className = 'b-rock-fx';
-  const cx = ir.left - br.left + ir.width / 2; // 目标横向中心
-  for (let i = 0; i < 8; i++) {
-    const r = document.createElement('i');
-    const size = 6 + Math.random() * 10; // 大小不一
-    const dropY = 130 + Math.random() * 70; // 各自的下落起点高度
-    r.style.width = size + 'px';
-    r.style.height = size + 'px';
-    r.style.left = (cx + (Math.random() * 100 - 50)) + 'px'; // 头顶上方横向散布
-    r.style.top = (ir.top - br.top - dropY) + 'px';
-    r.style.setProperty('--by', (dropY + ir.height * 0.35).toFixed(0) + 'px'); // 落到身体上
-    r.style.setProperty('--bd', (Math.random() * 0.3).toFixed(2) + 's'); // 错峰砸落
-    fx.appendChild(r);
+  const cx = ir.left - br.left + ir.width / 2;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Rocks__32x32.png';
+  for (let i = 0; i < 9; i++) {
+    const size = 22 + randInt(0, 16);
+    const endX = cx + randInt(-Math.round(ir.width * 0.45), Math.round(ir.width * 0.45));
+    const endY = ir.top - br.top + ir.height * (0.06 + Math.random() * 0.28);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = endX + 'px';
+    el.style.top = endY + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 6}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 5) * size}px`;
+    el.style.zIndex = '8';
+    box.appendChild(el);
+    el.animate([
+      { transform: `translate(-50%,-50%) translateY(-${(ir.height + randInt(90, 190)).toFixed(0)}px) rotate(0deg)`, opacity: 0 },
+      { opacity: 1, offset: .1 },
+      { transform: 'translate(-50%,-50%) translateY(0) rotate(240deg)', opacity: 1, offset: .88 },
+      { transform: 'translate(-50%,-50%) translateY(0) rotate(240deg)', opacity: 0 },
+    ], { duration: 500 + randInt(0, 120), delay: randInt(0, 220), easing: 'ease-in', fill: 'both' });
+    setTimeout(() => el.remove(), 720 + i * 25);
   }
-  box.appendChild(fx);
-  setTimeout(() => fx.remove(), 950);
 }
-// 落石：目标头顶上方砸下一颗大石头（单颗、不规则石块，落地旋转后淡出）
 function spawnRockDrop(tSide) {
   const box = $(`${tSide}-box`);
   const img = $(`${tSide}-img`);
   if (!box || !img) return;
   const br = box.getBoundingClientRect();
   const ir = img.getBoundingClientRect();
-  const fx = document.createElement('span');
-  fx.className = 'b-rock-fx';
-  const size = 46;
-  const dropY = ir.height * 0.9 + 130; // 从目标头顶更高的地方砸下
-  const r = document.createElement('i');
-  r.classList.add('big');
-  r.style.width = size + 'px';
-  r.style.height = size + 'px';
-  r.style.left = (ir.left - br.left + ir.width / 2 - size / 2) + 'px';
-  r.style.top = (ir.top - br.top - dropY) + 'px';
-  r.style.setProperty('--by', (dropY + ir.height * 0.08).toFixed(0) + 'px'); // 砸中头部位置，不落到身体下方
-  fx.appendChild(r);
-  box.appendChild(fx);
-  setTimeout(() => fx.remove(), 900);
+  const cx = ir.left - br.left + ir.width / 2;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Rocks__32x32.png';
+  for (let i = 0; i < 5; i++) {
+    const size = 30 + randInt(0, 16);
+    const endX = cx + randInt(-Math.round(ir.width * 0.28), Math.round(ir.width * 0.28));
+    const endY = ir.top - br.top + ir.height * (0.08 + Math.random() * 0.24);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = endX + 'px';
+    el.style.top = endY + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 6}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 5) * size}px`;
+    el.style.zIndex = '8';
+    box.appendChild(el);
+    el.animate([
+      { transform: `translate(-50%,-50%) translateY(-${(ir.height + randInt(100, 180)).toFixed(0)}px) rotate(0deg)`, opacity: 0 },
+      { opacity: 1, offset: .1 },
+      { transform: 'translate(-50%,-50%) translateY(0) rotate(200deg)', opacity: 1, offset: .9 },
+      { transform: 'translate(-50%,-50%) translateY(0) rotate(200deg)', opacity: 0 },
+    ], { duration: 560 + randInt(0, 100), delay: i * 35, easing: 'ease-in', fill: 'both' });
+    setTimeout(() => el.remove(), 700 + i * 35);
+  }
 }
-// 雪崩：目标头顶上方掉下大小不一的白色雪球，错峰砸落（表现同岩崩，颜色换冰白）
 function spawnSnowSlide(tSide) {
   const box = $(`${tSide}-box`);
   const img = $(`${tSide}-img`);
@@ -1648,9 +1917,44 @@ function spawnSnowSlide(tSide) {
 }
 // 发声招式（叫声/唱歌/哈欠/巨声/金属音/长嚎/治愈铃声/虫鸣）：从攻击方发出扩散的声波圈，
 // 圆环逐波涌向目标方向并放大淡出
-function spawnSoundWave(side) {
+// 声音招式：攻击方身边弹出原作 NoiseLine 声纹，再配合扩散声波圈
+function spawnNoiseLines(side) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const dir = side === 'bp' ? 1 : -1;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_NoiseLine__32x32.png';
+  const rows = [-10, 0, 10];
+  rows.forEach((dy, i) => {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = cx + 'px';
+    el.style.top = (cy + dy) + 'px';
+    el.style.width = '28px';
+    el.style.height = '28px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = '28px 112px';
+    el.style.zIndex = '8';
+    box.appendChild(el);
+    let f = i === 2 ? 2 : 0;
+    const timer = setInterval(() => { f = f === 0 ? 1 : f === 1 ? 0 : f === 2 ? 3 : 2; el.style.backgroundPosition = `0 -${f * 28}px`; }, 90);
+    const dur = 480;
+    el.animate([
+      { transform: `translate(-50%,-50%) scaleX(${dir}) scale(.7)`, opacity: 0 },
+      { opacity: 1, offset: .18 },
+      { transform: `translate(calc(-50% + ${dir * 64}px), calc(-50% + ${dy * 0.4}px)) scaleX(${dir}) scale(1.05)`, opacity: 0 },
+    ], { duration: dur, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, dur + 40);
+  });
+}
+function spawnSoundWave(side, tSide = side === 'bp' ? 'be' : 'bp') {
+  spawnNoiseLines(side);
   const from = $(`${side}-img`);
-  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const to = $(`${tSide}-img`);
   const box = $(`${side}-box`);
   if (!from || !to || !box) return;
   const br = box.getBoundingClientRect();
@@ -1728,6 +2032,104 @@ function spawnWaterSweep(side) {
   stage.appendChild(fx);
   setTimeout(() => fx.remove(), 700);
 }
+// 抓狂：攻击方左右来回平移两次，之后走普通受击
+async function flailWindup(side) {
+  const img = $(`${side}-img`);
+  if (!img) return;
+  img.style.transformOrigin = '50% 100%';
+  const a = img.animate([
+    { transform: 'translateX(0)' },
+    { transform: 'translateX(-14px)', offset: 0.15 },
+    { transform: 'translateX(14px)', offset: 0.35 },
+    { transform: 'translateX(-14px)', offset: 0.55 },
+    { transform: 'translateX(14px)', offset: 0.75 },
+    { transform: 'translateX(0)' },
+  ], { duration: 420, easing: 'ease-in-out', fill: 'both' });
+  await battleSleep(440);
+  a.cancel();
+  img.style.transformOrigin = '';
+  img.style.transform = '';
+}
+// 临别礼物：紫黑色柔光椭圆先在攻击方身上向上拉长，再在目标身上压缩
+async function playMementoFx(side) {
+  const stage = document.querySelector('.battle-fight');
+  const foe = side === 'bp' ? 'be' : 'bp';
+  const atk = $(`${side}-img`);
+  const tgt = $(`${foe}-img`);
+  if (!stage || !atk || !tgt) return;
+  const sr = stage.getBoundingClientRect();
+  const orb = (img) => {
+    const r = img.getBoundingClientRect();
+    const el = document.createElement('span');
+    el.className = 'b-memento-orb';
+    el.style.left = (r.left - sr.left + r.width / 2) + 'px';
+    el.style.top = (r.top - sr.top + r.height * 0.52) + 'px';
+    el.style.width = (r.width * 1.08) + 'px';
+    el.style.height = (r.height * 0.86) + 'px';
+    stage.appendChild(el);
+    return el;
+  };
+  const run = (img, frames, dur, orbFrames) => {
+    img.style.transformOrigin = '50% 100%';
+    const a = img.animate(frames, { duration: dur, easing: 'ease-in-out', fill: 'both' });
+    const el = orb(img);
+    el.animate(orbFrames, { duration: dur, easing: 'ease-in-out', fill: 'both' });
+    return { a, el };
+  };
+  const first = run(atk, [
+    { transform: 'scale(1,1)' },
+    { transform: 'scale(1.06,1.45)', offset: 0.55 },
+    { transform: 'scale(1.06,1.45)', offset: 0.78 },
+    { transform: 'scale(1,1)' },
+  ], 520, [
+    { opacity: 0, transform: 'translate(-50%,-50%) scaleY(.5)' },
+    { opacity: .85, transform: 'translate(-50%,-50%) scaleY(1.45)', offset: .5 },
+    { opacity: .8, transform: 'translate(-50%,-50%) scaleY(1.55)', offset: .78 },
+    { opacity: 0, transform: 'translate(-50%,-50%) scaleY(1.6)' },
+  ]);
+  await battleSleep(560);
+  first.a.cancel();
+  first.el.remove();
+  atk.style.transformOrigin = '';
+  atk.style.transform = '';
+  await battleSleep(70);
+  const second = run(tgt, [
+    { transform: 'scale(1,1)' },
+    { transform: 'scale(1.08,.5)', offset: .35 },
+    { transform: 'scale(1.08,.5)', offset: .7 },
+    { transform: 'scale(1,1)' },
+  ], 560, [
+    { opacity: 0, transform: 'translate(-50%,-50%) scaleY(1.55)' },
+    { opacity: .85, transform: 'translate(-50%,-50%) scaleY(1.55)', offset: .25 },
+    { opacity: .7, transform: 'translate(-50%,-50%) scaleY(.55)', offset: .7 },
+    { opacity: 0, transform: 'translate(-50%,-50%) scaleY(.35)' },
+  ]);
+  await battleSleep(600);
+  second.a.cancel();
+  second.el.remove();
+  tgt.style.transformOrigin = '';
+  tgt.style.transform = '';
+}
+const SURF_WAVE_SRC = {
+  bp: './pe-battle/move-fx-assets/surf-player.png',
+  be: './pe-battle/move-fx-assets/surf-enemy.png',
+};
+function spawnSurfWave(side, muddy = false) {
+  const stage = document.querySelector('.battle-fight');
+  if (!stage) return;
+  const fx = document.createElement('span');
+  fx.className = 'b-surf-fx ' + (side === 'bp' ? 'is-player' : 'is-enemy') + (muddy ? ' is-muddy' : '');
+  const water = document.createElement('span');
+  water.className = 'b-surf-water';
+  const wave = document.createElement('img');
+  wave.className = 'b-surf-wave';
+  wave.src = SURF_WAVE_SRC[side === 'bp' ? 'bp' : 'be'];
+  wave.alt = '';
+  water.appendChild(wave);
+  fx.appendChild(water);
+  stage.appendChild(fx);
+  setTimeout(() => fx.remove(), 1000);
+}
 // 风系/龙卷风类招式：彩色旋风（旋转的风团）从攻击方刮向对手，逐团错峰；
 // 热风红色/妖精之风粉色/冰冻之风蓝色，其余默认青白（--fc 由 JS 传入）
 function spawnWindTornado(side, color) {
@@ -1738,27 +2140,257 @@ function spawnWindTornado(side, color) {
   const br = box.getBoundingClientRect();
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
-  const fx = document.createElement('span');
-  fx.className = 'b-wind-fx';
-  if (color) fx.style.setProperty('--fc', color);
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.35;
+  const sy = fr.top - br.top + fr.height * 0.4;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.35;
-  fx.style.left = sx + 'px';
-  fx.style.top = sy + 'px';
+  const ey = tr.top - br.top + tr.height * 0.4;
+  const url = new URL('./pe-battle/move-fx-assets/gust.png', import.meta.url).href;
   for (let i = 0; i < 3; i++) {
-    const w = document.createElement('i');
-    w.style.setProperty('--bx', (ex - sx + (Math.random() * 20 - 10)).toFixed(1) + 'px');
-    w.style.setProperty('--by', (ey - sy + (Math.random() * 16 - 8)).toFixed(1) + 'px');
-    w.style.setProperty('--bd', (i * 0.12).toFixed(2) + 's'); // 逐团错峰
-    fx.appendChild(w);
+    const el = document.createElement('span');
+    el.className = 'b-gust-stream';
+    el.style.left = sx + 'px';
+    el.style.top = sy + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    if (color) el.style.filter = `drop-shadow(0 0 6px ${color})`;
+    box.appendChild(el);
+    let frame = 0;
+    const timer = setInterval(() => {
+      frame = (frame + 1) % 2;
+      el.style.backgroundPosition = `0 -${frame * 32}px`;
+    }, 90);
+    const dx = ex - sx + (Math.random() * 28 - 14);
+    const dy = ey - sy + (Math.random() * 16 - 8);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.8)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${(dx * .45).toFixed(1)}px), calc(-50% + ${(dy * .45).toFixed(1)}px)) scale(1)`, opacity: .75, offset: .4 },
+      { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(1.2)`, opacity: 0 },
+    ], { duration: 500, delay: i * 100, easing: 'linear', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 500 + i * 100 + 120);
   }
-  box.appendChild(fx);
-  setTimeout(() => fx.remove(), 750);
 }
 // 龙系特殊招式（龙息/龙之波动/流星群/时光咆哮/亚空裂斩/鳞片噪音/巨龙威能/归无之光/随机光）：
 // 一团紫蓝色龙息能量粒子，起点聚拢成团，飞向目标途中逐渐散开（动画见 .b-dragon-fx）
+// 冰冻之风：白色柔光雾气从攻击方喷向对手
+function spawnFireBurst(side) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = new URL('./pe-battle/move-fx-assets/fire_plume.png', import.meta.url).href;
+  for (let i = 0; i < 7; i++) {
+    const el = document.createElement('span');
+    el.className = 'b-fire-burst';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    box.appendChild(el);
+    let frame = 0;
+    const timer = setInterval(() => {
+      frame = (frame + 1) % 5;
+      el.style.backgroundPosition = `0 -${frame * 32}px`;
+    }, 90);
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 24 + Math.random() * 30;
+    const dx = Math.cos(ang) * dist;
+    const dy = Math.sin(ang) * dist - 8;
+    const s0 = .45 + Math.random() * .3;
+    const s1 = .8 + Math.random() * .5;
+    el.animate([
+      { transform: `translate(-50%,-50%) scale(${s0})`, opacity: 0 },
+      { transform: `translate(calc(-50% + ${(dx * .45).toFixed(1)}px), calc(-50% + ${(dy * .45).toFixed(1)}px)) scale(${s1})`, opacity: 1, offset: .35 },
+      { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(${s0})`, opacity: 0 },
+    ], { duration: 360 + Math.random() * 120, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 620);
+  }
+}
+function spawnImpactTint(side, color) {
+  if (!color) return;
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'b-impact-tint';
+  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  el.style.top = (ir.top - br.top + ir.height / 2) + 'px';
+  el.style.background = `radial-gradient(circle, ${color} 0%, ${color}66 38%, transparent 70%)`;
+  box.appendChild(el);
+  setTimeout(() => el.remove(), 340);
+}
+function spawnWaterImpact(tSide) {
+  const img = $(`${tSide}-img`);
+  const box = $(`${tSide}-box`);
+  if (!img || !box) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.style.position = 'absolute';
+  el.style.zIndex = '9';
+  el.style.width = '32px';
+  el.style.height = '32px';
+  el.style.pointerEvents = 'none';
+  el.style.imageRendering = 'pixelated';
+  el.style.backgroundImage = `url(${new URL('./pe-battle/move-fx-assets/pe/Gfx_WaterImpact__32x32.png', import.meta.url).href})`;
+  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  el.style.top = (ir.top - br.top + ir.height / 2) + 'px';
+  box.appendChild(el);
+  el.animate([
+    { transform: 'translate(-50%,-50%) scale(.55)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) scale(1.35)', opacity: 1, offset: .3 },
+    { transform: 'translate(-50%,-50%) scale(1.55)', opacity: 0 },
+  ], { duration: 280, easing: 'ease-out', fill: 'both' });
+  setTimeout(() => el.remove(), 320);
+}
+function spawnHydroOrbStream(side) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.42;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.42;
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_WaterOrb__16x16.png', import.meta.url).href;
+  for (let i = 0; i < 7; i++) {
+    const el = document.createElement('span');
+    el.style.position = 'absolute';
+    el.style.zIndex = '8';
+    el.style.width = '16px';
+    el.style.height = '16px';
+    el.style.pointerEvents = 'none';
+    el.style.imageRendering = 'pixelated';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = '16px 64px';
+    el.style.left = sx + 'px';
+    el.style.top = sy + 'px';
+    box.appendChild(el);
+    let frame = 0;
+    const timer = setInterval(() => {
+      frame = (frame + 1) % 4;
+      el.style.backgroundPosition = `0 -${frame * 16}px`;
+    }, 70);
+    const dx = ex - sx + (Math.random() * 16 - 8);
+    const dy = ey - sy + (Math.random() * 10 - 5);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.6)', opacity: 0 },
+      { opacity: .95, offset: .2 },
+      { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(1)`, opacity: 0 },
+    ], { duration: 420, delay: i * 55, easing: 'linear', fill: 'both' });
+    setTimeout(() => spawnWaterImpact(side === 'bp' ? 'be' : 'bp'), 420 + i * 55);
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 420 + i * 55 + 100);
+  }
+}
+function spawnBrineRain(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const top = ir.top - br.top;
+  const fall = ir.height * 0.55 + 8;
+  const url = new URL('./pe-battle/move-fx-assets/bubble.png', import.meta.url).href;
+  for (let i = 0; i < 10; i++) {
+    const el = document.createElement('span');
+    el.style.position = 'absolute';
+    el.style.zIndex = '8';
+    el.style.width = '16px';
+    el.style.height = '16px';
+    el.style.pointerEvents = 'none';
+    el.style.imageRendering = 'pixelated';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = '16px 48px';
+    el.style.left = (cx + randInt(-24, 24)) + 'px';
+    el.style.top = (top - 70 - randInt(0, 40)) + 'px';
+    box.appendChild(el);
+    let frame = 0;
+    const timer = setInterval(() => {
+      frame = (frame + 1) % 3;
+      el.style.backgroundPosition = `0 -${frame * 16}px`;
+    }, 90);
+    const dur = 360 + randInt(0, 140);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.75)', opacity: 0 },
+      { opacity: 1, offset: .18 },
+      { transform: `translate(-50%, calc(-50% + ${fall.toFixed(0)}px)) scale(1)`, opacity: 0 },
+    ], { duration: dur, delay: i * 35, easing: 'ease-in', fill: 'both' });
+    setTimeout(() => spawnWaterImpact(tSide), dur + i * 35 + 40);
+    setTimeout(() => { clearInterval(timer); el.remove(); }, dur + i * 35 + 80);
+  }
+}
+function spawnAquaRing(side) {
+  const img = $(`${side}-img`);
+  const box = $(`${side}-box`);
+  if (!img || !box) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const host = document.createElement('span');
+  host.className = 'b-aqua-ring';
+  host.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  host.style.top = (ir.top - br.top + ir.height * 0.5) + 'px';
+  box.appendChild(host);
+  const band = document.createElement('span');
+  band.className = 'aqua-band';
+  host.appendChild(band);
+  const drops = [];
+  for (let i = 0; i < 10; i++) {
+    const el = document.createElement('span');
+    el.className = 'aqua-drop';
+    host.appendChild(el);
+    drops.push({ el, phase: (i / 10) * Math.PI * 2 });
+  }
+  const start = performance.now();
+  const dur = 900;
+  const tick = (now) => {
+    const t = Math.min(1, (now - start) / dur);
+    const spin = t * Math.PI * 2 * 1.15;
+    for (const d of drops) {
+      const ang = spin + d.phase;
+      const x = Math.cos(ang) * 34;
+      const y = Math.sin(ang) * 13 + Math.sin(ang * 2) * 2;
+      d.el.style.transform = `translate(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px))`;
+    }
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  setTimeout(() => host.remove(), 980);
+}
+function spawnMistStream(side) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.4;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.4;
+  for (let i = 0; i < 10; i++) {
+    const el = document.createElement('span');
+    el.className = 'b-mist-stream';
+    el.style.left = sx + 'px';
+    el.style.top = sy + 'px';
+    box.appendChild(el);
+    const dx = ex - sx + (Math.random() * 28 - 14);
+    const dy = ey - sy + (Math.random() * 14 - 7);
+    const dur = 480 + Math.random() * 180;
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.5)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${(dx * .45).toFixed(1)}px), calc(-50% + ${(dy * .45).toFixed(1)}px)) scale(1.15)`, opacity: .85, offset: .4 },
+      { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(1.45)`, opacity: 0 },
+    ], { duration: dur, delay: i * 45, easing: 'linear', fill: 'both' });
+    setTimeout(() => el.remove(), dur + i * 45 + 120);
+  }
+}
 function spawnDragonWave(side) {
   const from = $(`${side}-img`);
   const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
@@ -1788,8 +2420,7 @@ function spawnDragonWave(side) {
   box.appendChild(fx);
   setTimeout(() => fx.remove(), 750);
 }
-// 吸血粒子：从来源精灵身上飞出一串能量粒子，收拢吸回目标。
-// 即时吸血招式（吸取/终极吸取等 drain 类）与寄生种子回合末吸血通用（颜色经 color 传入）
+// 吸血粒子：从来源精灵身上飞出一串原作吸收光球，收拢吸回目标。
 function spawnDrainParticles(fromSide, toSide, color, count = 10) {
   const from = $(`${fromSide}-img`);
   const to = $(`${toSide}-img`);
@@ -1802,26 +2433,155 @@ function spawnDrainParticles(fromSide, toSide, color, count = 10) {
   const sy = fr.top - br.top + fr.height * 0.4; // 来源精灵躯干中心
   const ex = tr.left - br.left + tr.width / 2;
   const ey = tr.top - br.top + tr.height * 0.4;
-  const fx = document.createElement('span');
-  fx.className = 'b-drain-fx';
-  fx.style.setProperty('--fc', color);
-  fx.style.left = sx + 'px';
-  fx.style.top = sy + 'px';
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_Orbs__16x16.png', import.meta.url).href;
   for (let i = 0; i < count; i++) {
-    const p = document.createElement('i');
-    // 粒子先从来源身上散开，再收拢吸回目标
-    const spread = Math.random() * 20;
+    const size = 14 + randInt(0, 10);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = sx + 'px';
+    el.style.top = (sy + randInt(-5, 5)) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 3}px`;
+    el.style.backgroundPosition = `0 -${2 * size}px`;
+    el.style.filter = 'drop-shadow(0 0 5px rgba(150, 225, 255, .8))';
+    el.style.zIndex = '9';
+    el.style.pointerEvents = 'none';
+    box.appendChild(el);
+    const spread = randInt(0, 20);
     const ang = Math.random() * Math.PI * 2;
-    p.style.setProperty('--bx', (ex - sx + Math.cos(ang) * spread).toFixed(1) + 'px');
-    p.style.setProperty('--by', (ey - sy + Math.sin(ang) * spread).toFixed(1) + 'px');
-    p.style.animationDelay = (Math.random() * 0.2).toFixed(2) + 's'; // 错峰出发
-    p.style.animationDuration = (0.45 + Math.random() * 0.2).toFixed(2) + 's';
-    fx.appendChild(p);
+    const dx = ex - sx + Math.cos(ang) * spread;
+    const dy = ey - sy + Math.sin(ang) * spread;
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.45)', opacity: 0 },
+      { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: .16 },
+      { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(.55)`, opacity: 0 },
+    ], { duration: 480, delay: i * 22, easing: 'ease-in', fill: 'both' });
+    setTimeout(() => el.remove(), 540 + i * 22);
   }
-  box.appendChild(fx);
-  setTimeout(() => fx.remove(), 800);
 }
-// 念力/精神强念：目标身上产生一个扭动变形的圆环（超能系精神波动扭曲空气），绕目标中心起伏后消失
+// 花瓣舞：花朵和花瓣都使用特效素材，前后分层绕目标旋转
+function spawnPetalDanceFx(targetSide) {
+  const box = $(`${targetSide}-box`);
+  const img = $(`${targetSide}-img`);
+  if (!box || !img) return Promise.resolve();
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.46;
+  const back = document.createElement('span');
+  const front = document.createElement('span');
+  back.style.cssText = 'position:absolute;inset:0;z-index:0;pointer-events:none';
+  front.style.cssText = 'position:absolute;inset:0;z-index:9;pointer-events:none';
+  box.insertBefore(back, box.firstChild);
+  box.appendChild(front);
+  const petalUrl = new URL('./pe-battle/move-fx-assets/pe/Gfx_PinkPetal__8x8.png', import.meta.url).href;
+  const bigFlowerUrl = new URL('./pe-battle/move-fx-assets/pe/Gfx_Flower__16x16.png', import.meta.url).href;
+  const smallFlowerUrl = new URL('./pe-battle/move-fx-assets/pe/Gfx_Flower__8x8.png', import.meta.url).href;
+  const parts = [];
+  const add = (kind) => {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = '0';
+    el.style.top = '0';
+    el.style.zIndex = '0';
+    let size = 12 + randInt(0, 3);
+    let frames = 4;
+    if (kind === 'big') { size = 22 + randInt(0, 5); frames = 1; el.style.backgroundImage = `url(${bigFlowerUrl})`; }
+    else if (kind === 'small') { size = 13 + randInt(0, 3); frames = 5; el.style.backgroundImage = `url(${smallFlowerUrl})`; }
+    else el.style.backgroundImage = `url(${petalUrl})`;
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundSize = `${size}px ${size * frames}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, frames - 1) * size}px`;
+    back.appendChild(el);
+    if (frames > 1) {
+      let f = randInt(0, frames - 1);
+      el._timer = setInterval(() => { f = (f + 1) % frames; el.style.backgroundPosition = `0 -${f * size}px`; }, 80);
+    }
+    parts.push({
+      el,
+      phase: (parts.length / 19) * Math.PI * 2 + Math.random() * 0.6,
+      r: (kind === 'petal' ? 48 : 42) * (0.75 + Math.random() * 0.35),
+      spin: kind === 'petal' ? 1.8 + Math.random() * 0.9 : 0.7 + Math.random() * 0.6,
+      bob: randInt(0, 8),
+      rise: kind === 'petal' ? 26 : 18,
+      kind,
+    });
+  };
+  for (let i = 0; i < 12; i++) add('petal');
+  for (let i = 0; i < 3; i++) add('big');
+  for (let i = 0; i < 4; i++) add('small');
+  const dur = 1050;
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      for (const p of parts) {
+        const ang = p.phase + t * Math.PI * 2 * p.spin;
+        const depth = Math.sin(ang);
+        const x = cx + Math.cos(ang) * p.r * (1 - t * 0.3);
+        const y = cy + Math.sin(ang) * (p.kind === 'petal' ? 15 : 13) * (1 - t * 0.15) - t * p.rise + p.bob;
+        const sc = p.kind === 'petal' ? 0.7 + 0.3 * Math.cos(ang) : 0.9 + 0.15 * Math.cos(ang);
+        p.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) rotate(${(ang * (p.kind === 'petal' ? 57.3 : 22)).toFixed(0)}deg) scale(${sc.toFixed(2)})`;
+        p.el.style.opacity = String(Math.min(1, t * 5) * (t > 0.82 ? (1 - t) / 0.18 : 1));
+        const dest = depth < 0 ? back : front;
+        if (p.el.parentNode !== dest) dest.appendChild(p.el);
+      }
+      if (t < 1) requestAnimationFrame(tick);
+      else {
+        for (const p of parts) {
+          if (p.el._timer) clearInterval(p.el._timer);
+          p.el.remove();
+        }
+        back.remove();
+        front.remove();
+        resolve();
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+// 吸取之吻：目标处粉色爱心炸开，再顺着连线飞回攻击方
+function spawnDrainingKissFx(atkSide, tSide) {
+  const tBox = $(`${tSide}-box`);
+  const tImg = $(`${tSide}-img`);
+  const aImg = $(`${atkSide}-img`);
+  if (!tBox || !tImg || !aImg) return;
+  const br = tBox.getBoundingClientRect();
+  const tr = tImg.getBoundingClientRect();
+  const ar = aImg.getBoundingClientRect();
+  const cx = tr.left - br.left + tr.width / 2;
+  const cy = tr.top - br.top + tr.height / 2;
+  const ax = ar.left - br.left + ar.width / 2;
+  const ay = ar.top - br.top + ar.height / 2;
+  for (let i = 0; i < 8; i++) {
+    const h = document.createElement('span');
+    h.style.position = 'absolute';
+    h.style.zIndex = '9';
+    h.style.left = cx + 'px';
+    h.style.top = cy + 'px';
+    h.style.width = '14px';
+    h.style.height = '14px';
+    h.style.pointerEvents = 'none';
+    h.style.color = '#ff78b8';
+    h.style.filter = 'drop-shadow(0 0 3px #ff78b8)';
+    h.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><use xlink:href="#icon-liked"/></svg>';
+    tBox.appendChild(h);
+    const ang = (i / 8) * Math.PI * 2 + Math.random() * 0.4;
+    const burst = 12 + Math.random() * 12;
+    const dx = Math.cos(ang) * burst;
+    const dy = Math.sin(ang) * burst;
+    h.animate([
+      { transform: 'translate(-50%, -50%) scale(.25)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(1)`, opacity: 1, offset: .3 },
+      { transform: `translate(calc(-50% + ${(ax - cx).toFixed(1)}px), calc(-50% + ${(ay - cy).toFixed(1)}px)) scale(.65)`, opacity: 0 },
+    ], { duration: 420, delay: i * 22, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => h.remove(), 520 + i * 22);
+  }
+}
+// 超能系命中：目标身上产生一个扭动变形的粉色圆环，和 impact 同时叠放
 function spawnPsychicWrap(tSide) {
   const box = $(`${tSide}-box`);
   const img = $(`${tSide}-img`);
@@ -1835,6 +2595,1140 @@ function spawnPsychicWrap(tSide) {
   fx.appendChild(document.createElement('i'));
   box.appendChild(fx);
   setTimeout(() => fx.remove(), 950);
+}
+// 牙类招式：Gfx_FangAttack 上下牙合拢
+function spawnFangBite(tSide, name) {
+  const color = FANG_COLORS[name];
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!color || !box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = "url('./pe-battle/move-fx-assets/pe/Gfx_SharpTeeth__64x64.png')";
+  const makeJaw = (mirror) => {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+    el.style.width = '64px';
+    el.style.height = '64px';
+    el.style.backgroundImage = url;
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    const start = mirror ? 'translate(-50%, -50%) translateY(28px) scaleY(-1)' : 'translate(-50%, -50%) translateY(-28px)';
+    const close = mirror ? 'translate(-50%, -50%) scaleY(-1)' : 'translate(-50%, -50%)';
+    const hot = name === '剧毒牙';
+    const biteFilter = hot
+      ? 'sepia(1) saturate(4) hue-rotate(250deg) brightness(1.08)'
+      : `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 8px ${color})`;
+    el.animate([
+      { transform: start, opacity: 0, filter: 'none' },
+      { transform: close, opacity: 1, filter: biteFilter, offset: 0.38 },
+      { transform: close, opacity: 0, filter: biteFilter },
+    ], { duration: 460, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => el.remove(), 520);
+  };
+  makeJaw(false);
+  makeJaw(true);
+}
+// 拍落/小偷/渴望：Gfx_TagHand 下半只手，左右对称夹击目标两侧
+function spawnClampHands(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.44;
+  const edge = ir.width / 2 + 2;
+  const url = "url('./pe-battle/move-fx-assets/pe/Gfx_TagHand__32x32.png')";
+  const makeHand = (dir) => {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + dir * edge) + 'px';
+    el.style.top = cy + 'px';
+    el.style.width = '32px';
+    el.style.height = '32px';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = '32px 64px';
+    el.style.backgroundPosition = '0 -32px';
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    const flip = dir > 0 ? ' scaleX(-1)' : '';
+    const base = `translate(-50%,-50%) translateX(${dir * 40}px)${flip} rotate(8deg)`;
+    const hit = `translate(-50%,-50%)${flip} rotate(8deg) scale(1.08)`;
+    const press = `translate(-50%,-50%) translateX(${-dir * 3}px)${flip} rotate(8deg) scale(1.08)`;
+    const out = `translate(-50%,-50%) translateX(${dir * 34}px)${flip} rotate(8deg)`;
+    el.animate([
+      { transform: base, opacity: 0, easing: 'ease-in' },
+      { transform: hit, opacity: 1, offset: 0.42 },
+      { transform: press, opacity: 1, offset: 0.6 },
+      { transform: out, opacity: 0, easing: 'ease-out' },
+    ], { duration: 420, fill: 'both' });
+    setTimeout(() => el.remove(), 460);
+  };
+  makeHand(-1);
+  makeHand(1);
+}
+// 喝牛奶：增益瓶始终在施放者自己身上，玩家右侧、对手左侧，瓶口转向自身中心
+function spawnMilkDrinkFx(side) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const dir = side === 'bp' ? 1 : -1;
+  const bx = cx + dir * 20;
+  const by = cy - 14;
+  let aim = (Math.atan2(cy - by, cx - bx) * 180) / Math.PI + 90;
+  if (aim > 180) aim -= 360;
+  if (aim < -180) aim += 360;
+  const el = document.createElement('span');
+  el.className = 'fx-orig';
+  el.style.left = bx + 'px';
+  el.style.top = by + 'px';
+  el.style.width = '32px';
+  el.style.height = '32px';
+  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_MilkBottle__32x32.png')";
+  el.style.backgroundSize = '32px 32px';
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  el.animate([
+    { transform: 'translate(-50%,-50%) rotate(0deg)', opacity: 0 },
+    { opacity: 1, offset: .12 },
+    { transform: `translate(-50%,-50%) rotate(${aim.toFixed(1)}deg)`, offset: .34 },
+    { transform: `translate(-50%,-50%) rotate(${(aim * 0.92).toFixed(1)}deg)`, offset: .62 },
+    { transform: `translate(-50%,-50%) rotate(${(aim * 1.06).toFixed(1)}deg)`, opacity: 1, offset: .82 },
+    { transform: `translate(-50%,-50%) rotate(${aim.toFixed(1)}deg)`, opacity: 0 },
+  ], { duration: 780, easing: 'ease-in-out', fill: 'both' });
+  setTimeout(() => el.remove(), 820);
+}
+// 龙卷风：从目标脚下卷起树叶和碎石，螺旋上升到目标身上
+function spawnTwisterFx(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.42;
+  const groundY = ir.top - br.top + ir.height * 0.96;
+  const leafUrl = "url('./pe-battle/move-fx-assets/pe/Gfx_Leaf__16x16.png')";
+  const rockUrl = "url('./pe-battle/move-fx-assets/pe/Gfx_Rocks__32x32.png')";
+  for (let i = 0; i < 12; i++) {
+    const rock = i >= 8;
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    const size = rock ? 28 + randInt(0, 10) : 16 + randInt(0, 6);
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+    el.style.backgroundImage = rock ? rockUrl : leafUrl;
+    el.style.backgroundSize = `${size}px ${size * (rock ? 6 : 9)}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, rock ? 5 : 8) * size}px`;
+    el.style.zIndex = '10';
+    el.style.transform = 'translate(-50%,-50%)';
+    box.appendChild(el);
+    const ang = Math.random() * Math.PI * 2;
+    const radius = 44 + randInt(0, 26);
+    const dy0 = groundY - cy + randInt(0, 14);
+    const a1 = ang + Math.PI * 0.9;
+    const a2 = ang + Math.PI * 1.7;
+    const delay = randInt(0, 160) + (rock ? 40 : 0);
+    const dur = 520 + randInt(0, 160);
+    el.animate([
+      { transform: `translate(-50%,-50%) translate(${(Math.cos(ang) * 14).toFixed(1)}px, ${dy0.toFixed(1)}px) rotate(0deg) scale(.55)`, opacity: 0 },
+      { opacity: 1, offset: .14 },
+      { transform: `translate(-50%,-50%) translate(${(Math.cos(a1) * radius).toFixed(1)}px, ${(dy0 * 0.62 + Math.sin(a1) * 10).toFixed(1)}px) rotate(170deg) scale(1)`, offset: .42 },
+      { transform: `translate(-50%,-50%) translate(${(Math.cos(a2) * radius * 0.42).toFixed(1)}px, ${(dy0 * 0.25 + Math.sin(a2) * 7).toFixed(1)}px) rotate(310deg) scale(1.12)`, offset: .7 },
+      { transform: 'translate(-50%,-50%) translate(0, 0) rotate(420deg) scale(1.2)', opacity: 0 },
+    ], { duration: dur, delay, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => el.remove(), dur + delay + 30);
+  }
+}
+// 黑雾：整片暗雾横扫战场，配合压暗遮罩
+function spawnHazeFx() {
+  const field = document.querySelector('.battle-fight');
+  if (!field) return;
+  const fr = field.getBoundingClientRect();
+  const url = './pe-battle/move-fx-assets/pe/Gfx_GraySmoke__32x32.png';
+  const shade = document.createElement('span');
+  shade.style.position = 'absolute';
+  shade.style.inset = '0';
+  shade.style.zIndex = '6';
+  shade.style.background = 'rgba(8, 8, 14, 0.42)';
+  shade.style.opacity = '0';
+  shade.style.pointerEvents = 'none';
+  field.appendChild(shade);
+  shade.animate([{ opacity: 0 }, { opacity: 1, offset: .35 }, { opacity: 1, offset: .65 }, { opacity: 0 }], { duration: 950, fill: 'both' });
+  setTimeout(() => shade.remove(), 1000);
+  for (let i = 0; i < 12; i++) {
+    const dir = i % 2 ? 1 : -1;
+    const w = 60 + randInt(0, 50);
+    const el = document.createElement('span');
+    el.style.position = 'absolute';
+    el.style.left = (dir > 0 ? -w / 2 : fr.width + w / 2) + 'px';
+    el.style.top = fr.height * (0.12 + Math.random() * 0.7) + 'px';
+    el.style.width = w + 'px';
+    el.style.height = w + 'px';
+    el.style.zIndex = '7';
+    el.style.pointerEvents = 'none';
+    el.style.imageRendering = 'pixelated';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${w}px ${w * 5}px`;
+    el.style.filter = 'brightness(.2) saturate(.12)';
+    el.style.opacity = '0';
+    field.appendChild(el);
+    let f = randInt(0, 4);
+    const timer = setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * w}px`; }, 80);
+    const dur = 900 + randInt(0, 260);
+    el.animate([
+      { transform: 'translate(-50%,-50%) translateX(0)', opacity: 0 },
+      { opacity: .9, offset: .2 },
+      { transform: `translate(-50%,-50%) translateX(${dir * (fr.width + w) * 0.55}px)`, opacity: .85, offset: .6 },
+      { transform: `translate(-50%,-50%) translateX(${dir * (fr.width + w)}px)`, opacity: 0 },
+    ], { duration: dur, easing: 'linear', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, dur + 50);
+  }
+}
+// 蓝色星星粒子：自身强化/月光类招式复用
+function spawnBlueStarBurst(side, count = 8) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_BlueStar__32x32.png';
+  for (let i = 0; i < count; i++) {
+    const size = 20 + randInt(0, 12);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + randInt(-Math.round(ir.width * 0.35), Math.round(ir.width * 0.35))) + 'px';
+    el.style.top = (cy + randInt(-Math.round(ir.height * 0.3), Math.round(ir.height * 0.25))) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 7}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 6) * size}px`;
+    el.style.zIndex = '9';
+    box.appendChild(el);
+    let f = randInt(0, 6);
+    const timer = setInterval(() => { f = (f + 1) % 7; el.style.backgroundPosition = `0 -${f * size}px`; }, 70);
+    el.animate([
+      { transform: 'translate(-50%,-50%) translateY(8px) scale(.5)', opacity: 0 },
+      { opacity: 1, offset: .2 },
+      { transform: 'translate(-50%,-50%) translateY(-28px) scale(1.1) rotate(120deg)', opacity: 0 },
+    ], { duration: 780, delay: i * 45, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 850 + i * 45);
+  }
+}
+// 岩石封锁：四块岩石从脚下升起围住目标，最后在目标中心打叉
+function spawnRockTombFx(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const groundY = ir.top - br.top + ir.height * 0.96;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Rocks__32x32.png';
+  const spots = [[-0.34, -0.05], [0.34, -0.05], [-0.27, 0.22], [0.27, 0.22]];
+  spots.forEach(([dx, dy], i) => {
+    const size = 34 + randInt(0, 10);
+    const endX = cx + dx * ir.width;
+    const endY = cy + dy * ir.height;
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = endX + 'px';
+    el.style.top = endY + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 6}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 5) * size}px`;
+    el.style.zIndex = '9';
+    box.appendChild(el);
+    el.animate([
+      { transform: `translate(-50%,-50%) translateY(${(groundY - endY).toFixed(0)}px) scale(.7) rotate(0deg)`, opacity: 0 },
+      { opacity: 1, offset: .18 },
+      { transform: 'translate(-50%,-50%) translateY(0) scale(1) rotate(180deg)', opacity: 1, offset: .8 },
+      { transform: 'translate(-50%,-50%) translateY(0) scale(1) rotate(180deg)', opacity: 0 },
+    ], { duration: 520, delay: i * 40, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => el.remove(), 580 + i * 40);
+  });
+}
+function spawnXMark(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'fx-orig';
+  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  el.style.top = (ir.top - br.top + ir.height / 2) + 'px';
+  el.style.width = '56px';
+  el.style.height = '56px';
+  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_XSign__64x64.png')";
+  el.style.backgroundSize = '56px 56px';
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  el.animate([
+    { transform: 'translate(-50%,-50%) scale(.35)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) scale(1.12)', opacity: 1, offset: .45 },
+    { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: .7 },
+    { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 },
+  ], { duration: 520, fill: 'both' });
+  setTimeout(() => el.remove(), 560);
+}
+// 尖石攻击/岩石炮等：石块沿抛物线从攻击方砸向目标
+function spawnStoneBarrageFx(atkSide, tSide, count = 6) {
+  const box = $(`${tSide}-box`);
+  const from = $(`${atkSide}-img`);
+  const to = $(`${tSide}-img`);
+  if (!box || !from || !to) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.4;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.4;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Rocks__32x32.png';
+  for (let i = 0; i < count; i++) {
+    const size = 26 + randInt(0, 12);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = sx + 'px';
+    el.style.top = sy + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 6}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 5) * size}px`;
+    el.style.zIndex = '9';
+    box.appendChild(el);
+    const tx = ex + randInt(-18, 18);
+    const ty = ey + randInt(-12, 12);
+    el.animate([
+      { transform: 'translate(-50%,-50%) translate(0,0) rotate(0deg)', opacity: 0 },
+      { opacity: 1, offset: .12 },
+      { transform: `translate(-50%,-50%) translate(${((tx - sx) * .5).toFixed(1)}px, ${((ty - sy) * .5 - 90).toFixed(1)}px) rotate(220deg)`, opacity: 1, offset: .55 },
+      { transform: `translate(-50%,-50%) translate(${(tx - sx).toFixed(1)}px, ${(ty - sy).toFixed(1)}px) rotate(400deg)`, opacity: 0 },
+    ], { duration: 560, delay: i * 45, easing: 'ease-in', fill: 'both' });
+    setTimeout(() => el.remove(), 620 + i * 45);
+  }
+}
+// 月亮：压黑背景显示月亮，月光用自身蓝星，月亮之力用蓝星飞向目标
+function spawnMoonFx(side, tSide, mode) {
+  const field = document.querySelector('.battle-fight');
+  if (!field) return;
+  const fr = field.getBoundingClientRect();
+  const shade = document.createElement('span');
+  shade.style.position = 'absolute';
+  shade.style.inset = '0';
+  shade.style.zIndex = '6';
+  shade.style.background = '#050510';
+  shade.style.opacity = '0';
+  shade.style.pointerEvents = 'none';
+  field.appendChild(shade);
+  shade.animate([{ opacity: 0 }, { opacity: .58, offset: .25 }, { opacity: .58, offset: .75 }, { opacity: 0 }], { duration: 950, fill: 'both' });
+  setTimeout(() => shade.remove(), 1000);
+  const moon = document.createElement('span');
+  moon.className = 'fx-orig';
+  moon.style.left = (fr.width / 2) + 'px';
+  moon.style.top = (fr.height * 0.16) + 'px';
+  moon.style.width = '96px';
+  moon.style.height = '96px';
+  moon.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_Moon__64x64.png')";
+  moon.style.backgroundSize = '96px 96px';
+  moon.style.zIndex = '7';
+  field.appendChild(moon);
+  moon.animate([
+    { transform: 'translate(-50%,-50%) scale(.6)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: .25 },
+    { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: .75 },
+    { transform: 'translate(-50%,-50%) scale(.8)', opacity: 0 },
+  ], { duration: 950, fill: 'both' });
+  setTimeout(() => moon.remove(), 1000);
+  if (mode === 'heal') {
+    spawnBlueStarBurst(side, 10);
+    return;
+  }
+  const box = $(`${tSide}-box`);
+  const tgt = $(`${tSide}-img`);
+  if (!box || !tgt) return;
+  const br = box.getBoundingClientRect();
+  const tr = tgt.getBoundingClientRect();
+  const tx = tr.left - br.left + tr.width / 2;
+  const ty = tr.top - br.top + tr.height / 2;
+  const mx = fr.width / 2;
+  const my = fr.height * 0.16;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_BlueStar__32x32.png';
+  for (let i = 0; i < 8; i++) {
+    const size = 18 + randInt(0, 10);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = mx + 'px';
+    el.style.top = my + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 7}px`;
+    el.style.zIndex = '9';
+    field.appendChild(el);
+    let f = randInt(0, 6);
+    const timer = setInterval(() => { f = (f + 1) % 7; el.style.backgroundPosition = `0 -${f * size}px`; }, 70);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.4)', opacity: 0 },
+      { opacity: 1, offset: .15 },
+      { transform: `translate(calc(-50% + ${((tx - mx) * .5).toFixed(1)}px), calc(-50% + ${((ty - my) * .5).toFixed(1)}px)) scale(1.1) rotate(160deg)`, opacity: 1, offset: .55 },
+      { transform: `translate(calc(-50% + ${(tx - mx).toFixed(1)}px), calc(-50% + ${(ty - my).toFixed(1)}px)) scale(.8) rotate(300deg)`, opacity: 0 },
+    ], { duration: 620, delay: 120 + i * 55, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 820 + i * 55);
+  }
+}
+// 地球上投后半段：显隐攻击方，临时替身在对手位置随背景一起下坠
+// 地球上投命中后：背景浮现，攻击方从贴身位置向下滑出，结束后回原位
+// 地球上投命中后：攻击方先钻到对手下方上顶，再随背景一起坠出画面
+function spawnSeismicRocks(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Rocks__32x32.png';
+  for (let i = 0; i < 7; i++) {
+    const size = 14 + randInt(0, 10);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + randInt(-18, 18)) + 'px';
+    el.style.top = (cy + randInt(-16, 16)) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 6}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 5) * size}px`;
+    el.style.zIndex = '9';
+    box.appendChild(el);
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 30 + randInt(0, 45);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.5) rotate(0deg)', opacity: 0 },
+      { opacity: 1, offset: .15 },
+      { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist - 35).toFixed(1)}px)) scale(.9) rotate(220deg)`, opacity: 1, offset: .6 },
+      { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist * 1.2).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist * 1.2 + 35).toFixed(1)}px)) scale(.7) rotate(400deg)`, opacity: 0 },
+    ], { duration: 620, delay: i * 25, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => el.remove(), 700 + i * 25);
+  }
+}
+function spawnSeismicLiftFx(side, tSide, onImpact) {
+  const field = document.querySelector('.battle-fight');
+  const atk = $(`${side}-img`);
+  const tgt = $(`${tSide}-img`);
+  if (!field || !atk || !tgt) return Promise.resolve();
+  resetAnim(atk);
+  const ar = atk.getBoundingClientRect();
+  const tr = tgt.getBoundingClientRect();
+  const acx = ar.left + ar.width / 2;
+  const acy = ar.top + ar.height / 2;
+  const tcx = tr.left + tr.width / 2;
+  const tcy = tr.top + tr.height / 2;
+  const belowDx = tcx - acx;
+  const belowDy = (tcy + tr.height * 0.45 + ar.height * 0.35) - acy;
+  const strikeDy = tcy - acy;
+  const anim = atk.animate([
+    { transform: `translate(${belowDx.toFixed(1)}px, ${belowDy.toFixed(1)}px)`, opacity: 1 },
+    { transform: `translate(${belowDx.toFixed(1)}px, ${belowDy.toFixed(1)}px)`, opacity: 1, offset: .18 },
+    { transform: `translate(${belowDx.toFixed(1)}px, ${strikeDy.toFixed(1)}px)`, opacity: 1, offset: .34 },
+    { transform: `translate(${belowDx.toFixed(1)}px, ${(strikeDy + 520).toFixed(1)}px)`, opacity: 0 },
+  ], { duration: 1100, easing: 'linear', fill: 'both' });
+  const squash = tgt.animate([
+    { transform: 'translateY(0) scale(1,1)', offset: 0 },
+    { transform: 'translateY(-10px) scale(.82,1.28)', offset: .3 },
+    { transform: 'translateY(-22px) scale(.92,1.12)', offset: .62 },
+    { transform: 'translateY(0) scale(1,1)', offset: 1 },
+  ], { duration: 540, delay: 360, easing: 'ease-out', fill: 'both' });
+  const bg = document.createElement('span');
+  bg.style.position = 'absolute';
+  bg.style.inset = '0';
+  bg.style.zIndex = '0';
+  bg.style.pointerEvents = 'none';
+  bg.style.backgroundImage = "url('./pe-battle/move-fx-assets/bg/bg_in_air.png')";
+  bg.style.backgroundRepeat = 'repeat';
+  bg.style.backgroundSize = 'auto';
+  bg.style.backgroundPosition = '0 0';
+  bg.style.opacity = '0';
+  field.insertBefore(bg, field.firstChild);
+  bg.animate([
+    { opacity: 0, backgroundPosition: '0 0' },
+    { opacity: 1, offset: .18 },
+    { opacity: 1, offset: .82 },
+    { opacity: 0, backgroundPosition: '0 520px' },
+  ], { duration: 820, delay: 300, fill: 'both' });
+  setTimeout(() => { spawnSeismicRocks(tSide); if (onImpact) onImpact(); }, 370);
+  setTimeout(spawnSeismicRocks, 520, tSide);
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      anim.cancel();
+      squash.cancel();
+      atk.style.transform = '';
+      atk.style.visibility = '';
+      bg.remove();
+      resolve();
+    }, 1180);
+  });
+}
+// 充电：小电球环绕自身螺旋上升，最后聚成大光球
+function spawnChargeFx(side) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const orbUrl = './pe-battle/move-fx-assets/pe/Gfx_ElectricOrbs__8x8.png';
+  for (let i = 0; i < 12; i++) {
+    const size = 18 + randInt(0, 12);
+    const a0 = (i / 12) * Math.PI * 2;
+    const radius = 46 + randInt(0, 22);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${orbUrl})`;
+    el.style.backgroundSize = `${size}px ${size * 4}px`;
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    let f = randInt(0, 3);
+    const timer = setInterval(() => { f = (f + 1) % 4; el.style.backgroundPosition = `0 -${f * size}px`; }, 70);
+    const a1 = a0 + Math.PI * 1.15;
+    const a2 = a0 + Math.PI * 2.2;
+    el.animate([
+      { transform: `translate(-50%,-50%) translate(${(Math.cos(a0) * radius).toFixed(1)}px, ${(Math.sin(a0) * radius * .55 + 46).toFixed(1)}px) scale(.6)`, opacity: 0 },
+      { opacity: 1, offset: .14 },
+      { transform: `translate(-50%,-50%) translate(${(Math.cos(a1) * radius * .8).toFixed(1)}px, ${(Math.sin(a1) * radius * .4 + 8).toFixed(1)}px) scale(1)`, opacity: 1, offset: .48 },
+      { transform: `translate(-50%,-50%) translate(${(Math.cos(a2) * radius * .35).toFixed(1)}px, ${(Math.sin(a2) * radius * .25 - 58).toFixed(1)}px) scale(1.15)`, opacity: 0 },
+    ], { duration: 820, delay: i * 34, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 940 + i * 34);
+  }
+  const orb = document.createElement('span');
+  orb.className = 'fx-orig';
+  orb.style.left = cx + 'px';
+  orb.style.top = (cy - 12) + 'px';
+  orb.style.width = '64px';
+  orb.style.height = '64px';
+  orb.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_CircleOfLight__64x64.png')";
+  orb.style.backgroundSize = '64px 64px';
+  orb.style.filter = 'drop-shadow(0 0 12px #ffe45c)';
+  orb.style.zIndex = '11';
+  box.appendChild(orb);
+  orb.animate([
+    { transform: 'translate(-50%,-50%) scale(.25)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) scale(1.1)', opacity: 1, offset: .45 },
+    { transform: 'translate(-50%,-50%) scale(1.35)', opacity: 1, offset: .72 },
+    { transform: 'translate(-50%,-50%) scale(1.5)', opacity: 0 },
+  ], { duration: 720, delay: 320, fill: 'both' });
+  setTimeout(() => orb.remove(), 1100);
+}
+// 撒菱/毒菱：三根尖刺从对手上方落到脚边，毒菱用紫色滤镜
+// 破坏光线：光段与小光球粒子同时发出，不再先粒子后光束
+function spawnHyperBeamParticles(side, tSide) {
+  const from = $(`${side}-img`);
+  const to = $(`${tSide}-img`);
+  const box = $(`${tSide}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.4;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.4;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Orbs__8x8.png';
+  for (let i = 0; i < 14; i++) {
+    const size = 10 + randInt(0, 7);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = sx + 'px';
+    el.style.top = sy + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 4}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 3) * size}px`;
+    el.style.filter = 'sepia(1) saturate(3) hue-rotate(-12deg) brightness(1.15)';
+    el.style.zIndex = '9';
+    box.appendChild(el);
+    let f = randInt(0, 3);
+    const timer = setInterval(() => { f = (f + 1) % 4; el.style.backgroundPosition = `0 -${f * size}px`; }, 55);
+    const tx = ex + randInt(-10, 10);
+    const ty = ey + randInt(-8, 8);
+    el.animate([
+      { transform: 'translate(-50%,-50%) translate(0,0) scale(.5)', opacity: 0 },
+      { opacity: 1, offset: .12 },
+      { transform: `translate(calc(-50% + ${(tx - sx).toFixed(1)}px), calc(-50% + ${(ty - sy).toFixed(1)}px)) scale(1)`, opacity: 0 },
+    ], { duration: 380, delay: i * 18, easing: 'linear', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 430 + i * 18);
+  }
+}
+// 喷出：自身短暂压扁蓄力，回弹时以自身为中心爆出多圈橙黄色光球
+function spawnSpitUpFx(side) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  img.animate([
+    { transform: 'scale(1,1)' },
+    { transform: 'scale(1.16,.72)', offset: .3 },
+    { transform: 'scale(.95,1.12)', offset: .58 },
+    { transform: 'scale(1,1)' },
+  ], { duration: 420, easing: 'ease-out' });
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Orbs__8x8.png';
+  for (let wave = 0; wave < 3; wave++) {
+    for (let i = 0; i < 9; i++) {
+      const size = 10 + randInt(0, 7);
+      const ang = (i / 9) * Math.PI * 2 + wave * 0.35 + Math.random() * 0.15;
+      const dist = 64 + wave * 24 + randInt(0, 24);
+      const el = document.createElement('span');
+      el.className = 'fx-orig';
+      el.style.left = cx + 'px';
+      el.style.top = cy + 'px';
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+      el.style.backgroundImage = `url(${url})`;
+      el.style.backgroundSize = `${size}px ${size * 4}px`;
+      el.style.backgroundPosition = `0 -${randInt(0, 3) * size}px`;
+      el.style.filter = 'sepia(1) saturate(3) hue-rotate(-12deg) brightness(1.18)';
+      el.style.zIndex = '9';
+      box.appendChild(el);
+      let f = randInt(0, 3);
+      const timer = setInterval(() => { f = (f + 1) % 4; el.style.backgroundPosition = `0 -${f * size}px`; }, 55);
+      const dx = Math.cos(ang) * dist;
+      const dy = Math.sin(ang) * dist * 0.8;
+      el.animate([
+        { transform: 'translate(-50%,-50%) translate(0,0) scale(.45)', opacity: 0 },
+        { opacity: 1, offset: .12 },
+        { transform: `translate(calc(-50% + ${(dx * .55).toFixed(1)}px), calc(-50% + ${(dy * .55).toFixed(1)}px)) scale(1)`, opacity: 1, offset: .5 },
+        { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(1.65)`, opacity: 0 },
+      ], { duration: 520, delay: wave * 80 + i * 10, easing: 'ease-out', fill: 'both' });
+      setTimeout(() => { clearInterval(timer); el.remove(); }, 820 + wave * 80 + i * 10);
+    }
+  }
+}
+// 拳类招式通用拳头素材
+// 重击背景：命中瞬间从战场后方浮现，随后淡出
+function spawnImpactBg(tSide) {
+  const field = document.querySelector('.battle-fight');
+  if (!field) return;
+  const file = tSide === 'be' ? 'bg_impact_opponent.png' : 'bg_impact_player.png';
+  const el = document.createElement('span');
+  el.className = 'b-impact-bg';
+  el.style.backgroundImage = `url(${new URL('./pe-battle/move-fx-assets/bg/' + file, import.meta.url).href})`;
+  field.appendChild(el);
+  setTimeout(() => el.remove(), 760);
+}
+function spawnPunchFist(tSide, opts = {}) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const size = opts.size || 30;
+  const count = opts.count || 1;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (ir.left - br.left + ir.width / 2 + (i ? 12 : -8)) + 'px';
+    el.style.top = (ir.top - br.top + ir.height * 0.42 + (i ? -6 : 6)) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_HandsAndFeet__32x32.png')";
+    el.style.backgroundSize = `${size}px ${size * 4}px`;
+    el.style.backgroundPosition = '0 0';
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.45) rotate(-8deg)', opacity: 0 },
+      { transform: 'translate(-50%,-50%) scale(1.08) rotate(4deg)', opacity: 1, offset: .22 },
+      { transform: 'translate(-50%,-50%) scale(1) rotate(0deg)', opacity: 0 },
+    ], { duration: 260, delay: i * 90, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => el.remove(), 310 + i * 90);
+  }
+}
+// 拍击/连环巴掌：Gfx_TagHand 上半部分的手掌从上方拍向目标
+function spawnTagHandStrike(tSide, index = 0) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.46;
+  const size = 40;
+  const dir = index % 2 ? -1 : 1;
+  const el = document.createElement('span');
+  el.className = 'fx-orig';
+  el.style.left = (cx + dir * 6) + 'px';
+  el.style.top = (cy + 3) + 'px';
+  el.style.width = size + 'px';
+  el.style.height = size + 'px';
+  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_TagHand__32x32.png')";
+  el.style.backgroundSize = `${size}px ${size * 2}px`;
+  el.style.backgroundPosition = '0 0';
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  el.animate([
+    { transform: `translate(-50%,-120%) translateX(${dir * -10}px) rotate(${dir * -10}deg) scale(.8)`, opacity: 0 },
+    { transform: `translate(-50%,-50%) rotate(${dir * 4}deg) scale(1.08)`, opacity: 1, offset: .35 },
+    { transform: 'translate(-50%,-50%) rotate(0deg) scale(1)', opacity: 0 },
+  ], { duration: 300, delay: index * 55, easing: 'ease-out', fill: 'both' });
+  setTimeout(() => el.remove(), 380 + index * 55);
+}
+// 再来一次：下方手掌固定，上方手掌出现/隐藏三次，并撒彩带
+function spawnEncoreClap(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.46;
+  const size = 40;
+  const handUrl = "url('./pe-battle/move-fx-assets/pe/Gfx_TagHand__32x32.png')";
+  const makeHand = (top) => {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = cx + 'px';
+    el.style.top = top + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = handUrl;
+    el.style.backgroundSize = `${size}px ${size * 2}px`;
+    el.style.backgroundPosition = '0 0';
+    el.style.zIndex = '10';
+    el.style.transform = 'translate(-50%,-50%)';
+    box.appendChild(el);
+    return el;
+  };
+  const lower = makeHand(cy + 18);
+  const upper = makeHand(cy - 8);
+  upper.animate([
+    { transform: 'translate(-50%,-50%) translateY(-18px) scale(.9)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) translateY(0) scale(1)', opacity: 1, offset: .2 },
+    { transform: 'translate(-50%,-50%) translateY(0) scale(1)', opacity: 1, offset: .55 },
+    { transform: 'translate(-50%,-50%) translateY(3px) scale(1)', opacity: 0, offset: .8 },
+    { transform: 'translate(-50%,-50%) translateY(3px) scale(1)', opacity: 0 },
+  ], { duration: 300, delay: 80, iterations: 3, easing: 'ease-in-out', fill: 'both' });
+  const confettiUrl = new URL('./pe-battle/move-fx-assets/pe/Gfx_Confetti__8x8.png', import.meta.url).href;
+  for (let i = 0; i < 10; i++) {
+    const sizeC = 9 + randInt(0, 5);
+    const p = document.createElement('span');
+    p.className = 'fx-orig';
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
+    p.style.width = sizeC + 'px';
+    p.style.height = sizeC + 'px';
+    p.style.backgroundImage = `url(${confettiUrl})`;
+    p.style.backgroundSize = `${sizeC}px ${sizeC * 12}px`;
+    p.style.backgroundPosition = `0 -${randInt(0, 11) * sizeC}px`;
+    p.style.zIndex = '9';
+    box.appendChild(p);
+    const dx = randInt(-42, 42);
+    const dy = -42 - randInt(0, 38);
+    const rot = randInt(-180, 180);
+    p.animate([
+      { transform: 'translate(-50%,-50%) scale(.6) rotate(0deg)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${dx * .35}px), calc(-50% + ${dy * .35}px)) scale(1) rotate(${rot * .4}deg)`, opacity: 1, offset: .25 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.8) rotate(${rot}deg)`, opacity: 0 },
+    ], { duration: 650, delay: 120 + i * 25, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => p.remove(), 840 + i * 25);
+  }
+  setTimeout(() => { lower.remove(); upper.remove(); }, 1100);
+}
+// 吸取拳：命中后绿色光球从目标吸回自身
+// 吸取拳：绿色光球沿目标到自身的连线依次吸回
+// 吸取拳吸取段：复用吸取的大光球，从目标沿直线吸回施放者
+function spawnDrainOrbs(fromSide, toSide) {
+  const box = $(`${fromSide}-box`);
+  const from = $(`${fromSide}-img`);
+  const to = $(`${toSide}-img`);
+  if (!box || !from || !to) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.42;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.42;
+  const dx = ex - sx, dy = ey - sy;
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Orbs__16x16.png';
+  for (let i = 0; i < 8; i++) {
+    const size = 20 + randInt(0, 9);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = sx + 'px';
+    el.style.top = sy + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 3}px`;
+    el.style.backgroundPosition = `0 -${size * 2}px`;
+    el.style.zIndex = '9';
+    box.appendChild(el);
+    const ox = randInt(-18, 18), oy = randInt(-14, 14);
+    el.animate([
+      { transform: `translate(-50%,-50%) translate(${ox}px, ${oy}px) scale(.55)`, opacity: 0 },
+      { opacity: 1, offset: .15 },
+      { transform: `translate(calc(-50% + ${(dx * .5).toFixed(1)}px), calc(-50% + ${(dy * .5).toFixed(1)}px)) scale(1)`, opacity: 1, offset: .52 },
+      { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(1.2)`, opacity: 0 },
+    ], { duration: 500, delay: i * 42, easing: 'ease-in', fill: 'both' });
+    setTimeout(() => el.remove(), 560 + i * 42);
+  }
+}
+// 斜向光束（破坏光线）：白芯光束 + 起点几颗光球
+function spawnCrossBeamFx(side, tSide, color) {
+  const field = document.querySelector('.battle-fight');
+  const atk = $(`${side}-img`);
+  const tgt = $(`${tSide}-img`);
+  if (!field || !atk || !tgt) return;
+  const br = field.getBoundingClientRect();
+  const ar = atk.getBoundingClientRect();
+  const tr = tgt.getBoundingClientRect();
+  const x1 = ar.left - br.left + ar.width / 2;
+  const y1 = ar.top - br.top + ar.height * 0.48;
+  const x2 = tr.left - br.left + tr.width / 2;
+  const y2 = tr.top - br.top + tr.height * 0.48;
+  const len = Math.max(8, Math.hypot(x2 - x1, y2 - y1));
+  const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+  const beam = document.createElement('span');
+  beam.className = 'fx-beam';
+  beam.style.setProperty('--beam', color);
+  beam.style.left = x1 + 'px';
+  beam.style.top = (y1 - 6) + 'px';
+  beam.style.transform = `rotate(${ang}deg)`;
+  field.appendChild(beam);
+  beam.animate([
+    { width: '0px', opacity: 0 },
+    { width: (len * 0.72).toFixed(1) + 'px', opacity: 1, offset: 0.2 },
+    { width: len.toFixed(1) + 'px', opacity: 1, offset: 0.48 },
+    { width: len.toFixed(1) + 'px', opacity: 0 },
+  ], { duration: 560, easing: 'ease-out', fill: 'both' });
+  setTimeout(() => beam.remove(), 700);
+  const url = './pe-battle/move-fx-assets/pe/Gfx_Orbs__16x16.png';
+  for (let i = 0; i < 4; i++) {
+    const size = 18 + randInt(0, 8);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (x1 + randInt(-18, 18)) + 'px';
+    el.style.top = (y1 + randInt(-18, 18)) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 3}px`;
+    el.style.backgroundPosition = `0 -${size * 2}px`;
+    el.style.zIndex = '9';
+    field.appendChild(el);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.5)', opacity: 0 },
+      { opacity: 1, offset: .2 },
+      { transform: `translate(calc(-50% + ${((x2 - x1) * .35).toFixed(1)}px), calc(-50% + ${((y2 - y1) * .35).toFixed(1)}px)) scale(1.1)`, opacity: 0 },
+    ], { duration: 480, delay: i * 45, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => el.remove(), 560 + i * 45);
+  }
+}
+function spawnSmokeScreen(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.42;
+  const url = "url('./pe-battle/move-fx-assets/pe/Gfx_GraySmoke__32x32.png')";
+  for (let i = 0; i < 9; i++) {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    const w = 42 + randInt(0, 20);
+    el.style.width = w + 'px';
+    el.style.height = w + 'px';
+    el.style.left = (cx + randInt(-Math.round(ir.width * 0.34), Math.round(ir.width * 0.34))) + 'px';
+    el.style.top = (cy + randInt(-Math.round(ir.height * 0.3), Math.round(ir.height * 0.08))) + 'px';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = `${w}px ${w * 5}px`;
+    el.style.filter = 'brightness(.34) saturate(.15)';
+    el.style.zIndex = '10';
+    el.style.opacity = '0';
+    box.appendChild(el);
+    let f = randInt(0, 4);
+    const timer = setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * w}px`; }, 80);
+    const dur = 520 + randInt(0, 160);
+    el.animate([
+      { opacity: 0, transform: 'translate(-50%,-50%) scale(.7)' },
+      { opacity: .95, offset: .18 },
+      { opacity: .82, offset: .55 },
+      { opacity: .9, offset: .78 },
+      { opacity: 0, transform: 'translate(-50%,-50%) scale(1.08)' },
+    ], { duration: dur, fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, dur + 40);
+  }
+  const imp = document.createElement('span');
+  imp.className = 'fx-orig';
+  imp.style.left = cx + 'px';
+  imp.style.top = cy + 'px';
+  imp.style.width = '28px';
+  imp.style.height = '28px';
+  imp.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_SmokescreenImpact__16x16.png')";
+  imp.style.backgroundSize = '28px 84px';
+  imp.style.zIndex = '11';
+  box.appendChild(imp);
+  let f = 0;
+  const timer = setInterval(() => { f = (f + 1) % 3; imp.style.backgroundPosition = `0 -${f * 28}px`; }, 55);
+  setTimeout(() => { clearInterval(timer); imp.remove(); }, 220);
+}
+// 电击波：原作 8x8 电花从攻击方连成一串冲向目标
+function spawnShockWaveFx(atkSide, tSide) {
+  const box = $(`${tSide}-box`);
+  const atk = $(`${atkSide}-img`);
+  const tgt = $(`${tSide}-img`);
+  if (!box || !atk || !tgt) return;
+  const br = box.getBoundingClientRect();
+  const ar = atk.getBoundingClientRect();
+  const tr = tgt.getBoundingClientRect();
+  const ax = ar.left - br.left + ar.width / 2;
+  const ay = ar.top - br.top + ar.height / 2;
+  const tx = tr.left - br.left + tr.width / 2;
+  const ty = tr.top - br.top + tr.height / 2;
+  const url = "url('./pe-battle/move-fx-assets/pe/Gfx_Spark__8x8.png')";
+  const n = 12;
+  for (let i = 0; i < n; i++) {
+    const k = i / (n - 1);
+    const el = document.createElement('span');
+    el.style.position = 'absolute';
+    el.style.zIndex = '9';
+    el.style.width = '12px';
+    el.style.height = '12px';
+    el.style.pointerEvents = 'none';
+    el.style.imageRendering = 'pixelated';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = '12px 432px';
+    el.style.backgroundPosition = `0 -${randInt(0, 35) * 12}px`;
+    el.style.left = (ax + (tx - ax) * k + (i % 2 ? -1 : 1) * randInt(7, 14)) + 'px';
+    el.style.top = (ay + (ty - ay) * k + (i % 2 ? -1 : 1) * randInt(6, 12)) + 'px';
+    el.style.transform = 'translate(-50%,-50%)';
+    box.appendChild(el);
+    el.animate([
+      { opacity: 0, transform: 'translate(-50%,-50%) scale(.6)' },
+      { opacity: 1, offset: .25, transform: 'translate(-50%,-50%) scale(1.15)' },
+      { opacity: 0, transform: 'translate(-50%,-50%) scale(.8)' },
+    ], { duration: 170, delay: i * 24, fill: 'both' });
+    setTimeout(() => el.remove(), 220 + i * 24);
+  }
+  setTimeout(() => spawnLightningStrike(tSide, 0), 320);
+}
+// 连续抓痕：乱抓等多段爪击只重复抓痕，不再每击贴身
+function spawnFurySwipes(tSide, hits) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = "url('./pe-battle/move-fx-assets/pe/Gfx_Swipe__32x32.png')";
+  const total = Math.max(2, hits * 2);
+  for (let i = 0; i < total; i++) {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + (i % 2 ? -1 : 1) * randInt(6, 18)) + 'px';
+    el.style.top = (cy + randInt(-14, 14)) + 'px';
+    el.style.width = '36px';
+    el.style.height = '36px';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = '36px 180px';
+    el.style.zIndex = '10';
+    el.style.transform = `translate(-50%,-50%) scaleX(${i % 2 ? -1 : 1})`;
+    box.appendChild(el);
+    el.animate([
+      { opacity: 0, transform: `translate(-50%,-50%) scaleX(${i % 2 ? -1 : 1}) scale(.8)` },
+      { opacity: 1, offset: .2, transform: `translate(-50%,-50%) scaleX(${i % 2 ? -1 : 1}) scale(1.15)` },
+      { opacity: 0, transform: `translate(-50%,-50%) scaleX(${i % 2 ? -1 : 1}) scale(1)` },
+    ], { duration: 300, delay: i * 105, fill: 'both' });
+    let f = 0;
+    const timer = setInterval(() => { f = (f + 1) % 4; el.style.backgroundPosition = `0 -${f * 36}px`; }, 42);
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 320 + i * 105);
+  }
+}
+function spawnPoisonOrbBurst(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_WaterOrb__16x16.png', import.meta.url).href;
+  for (let i = 0; i < 7; i++) {
+    const el = document.createElement('span');
+    el.style.position = 'absolute';
+    el.style.zIndex = '9';
+    el.style.width = '18px';
+    el.style.height = '18px';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+    el.style.pointerEvents = 'none';
+    el.style.imageRendering = 'pixelated';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = '18px 72px';
+    el.style.filter = 'hue-rotate(70deg) saturate(2.2) brightness(.8) drop-shadow(0 0 4px #b35cff)';
+    box.appendChild(el);
+    let frame = 0;
+    const timer = setInterval(() => {
+      frame = (frame + 1) % 4;
+      el.style.backgroundPosition = `0 -${frame * 18}px`;
+    }, 70);
+    const ang = (i / 7) * Math.PI * 2 + Math.random() * 0.45;
+    const dist = 18 + Math.random() * 20;
+    const delay = i * 24;
+    el.animate([
+      { transform: 'translate(-50%, -50%) scale(.45)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist * .45).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist * .45 - 8).toFixed(1)}px)) scale(1)`, opacity: 1, offset: .3 },
+      { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist).toFixed(1)}px)) scale(.7)`, opacity: 0 },
+    ], { duration: 430, delay, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 440 + delay);
+  }
+}
+// 牙招命中粒子：雷电牙复用闪电贴图，冰冻牙大颗碎冰，剧毒牙紫化水泡
+function spawnFangParticles(tSide, name) {
+  if (name === '雷电牙') {
+    spawnVoltFlash();
+    spawnLightningAsset(tSide, 0);
+    return;
+  }
+  if (name === '剧毒牙') {
+    spawnPoisonOrbBurst(tSide);
+    return;
+  }
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const color = FANG_COLORS[name] || '#9beeff';
+  const n = 7;
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i');
+    p.style.position = 'absolute';
+    p.style.zIndex = '9';
+    p.style.pointerEvents = 'none';
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
+    const sz = 9 + Math.random() * 7;
+    p.style.width = sz + 'px';
+    p.style.height = sz * 1.35 + 'px';
+    p.style.background = `linear-gradient(135deg, #f2ffff 0%, ${color} 35%, ${color} 75%, ${color}22 100%)`;
+    p.style.clipPath = 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
+    p.style.filter = `drop-shadow(0 0 3px ${color})`;
+    box.appendChild(p);
+    const ang = (i / n) * Math.PI * 2 + Math.random() * 0.5;
+    const dist = 16 + Math.random() * 18;
+    p.animate([
+      { transform: 'translate(-50%, -50%) scale(.35) rotate(-20deg)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist).toFixed(1)}px)) scale(1) rotate(20deg)`, opacity: 1, offset: .35 },
+      { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist * 1.15).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist * 1.15).toFixed(1)}px)) scale(.6) rotate(50deg)`, opacity: 0 },
+    ], { duration: 420, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => p.remove(), 460);
+  }
+}
+// 精神突进：攻击方自身的紫粉柔光蓄力
+function spawnPsyCharge(side) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  const fx = document.createElement('span');
+  fx.className = 'b-psy-charge';
+  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  fx.style.top = (ir.top - br.top + ir.height / 2) + 'px';
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 650);
+}
+// 流星类招式：宇宙背景
+let _cosmicFx = null;
+function hideCosmicBg() {
+  if (_cosmicFx) {
+    _cosmicFx.remove();
+    _cosmicFx = null;
+  }
+}
+function spawnCosmicBg() {
+  const field = document.querySelector('.battle-fight');
+  if (!field) return;
+  hideCosmicBg();
+  const fx = document.createElement('span');
+  fx.className = 'b-cosmic-fx';
+  fx.style.backgroundImage = "url('./pe-battle/move-fx-assets/bg/bg_cosmic.png')";
+  field.appendChild(fx);
+  _cosmicFx = fx;
+  setTimeout(() => { if (_cosmicFx === fx) hideCosmicBg(); }, 3000);
+}
+// 流星群：从左上斜向砸下多颗彩色描边陨石，逐颗命中
+function spawnMeteorRain(tSide, count = 6) {
+  const field = document.querySelector('.battle-fight');
+  const img = $(`${tSide}-img`);
+  if (!field || !img) return 0;
+  const fr = field.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - fr.left + ir.width / 2;
+  const cy = ir.top - fr.top + ir.height / 2;
+  const colors = ['#ff6ec7', '#69e7ff', '#ffe36a', '#b98cff', '#80ffb0', '#ff9d6b'];
+  const fx = document.createElement('span');
+  fx.className = 'b-meteor-fx';
+  let end = 0;
+  for (let i = 0; i < count; i++) {
+    const rock = document.createElement('i');
+    rock.className = 'meteor';
+    rock.style.left = cx + 'px';
+    rock.style.top = cy + 'px';
+    rock.style.setProperty('--sx', `${-150 - (i % 3) * 34}px`);
+    rock.style.setProperty('--sy', `${-150 - (i % 2) * 26}px`);
+    rock.style.setProperty('--mc', colors[i % colors.length]);
+    rock.style.setProperty('--ms', `${18 + (i % 4) * 4}px`);
+    const delay = i * 95;
+    const dur = 480 + (i % 3) * 45;
+    rock.style.setProperty('--delay', `${delay}ms`);
+    rock.style.setProperty('--md', `${dur}ms`);
+    fx.appendChild(rock);
+    const land = delay + dur;
+    end = Math.max(end, land);
+    setTimeout(() => {
+      if (!field.isConnected) return;
+      spawnImpactAsset(tSide);
+      shake(tSide);
+    }, land);
+  }
+  field.appendChild(fx);
+  setTimeout(() => fx.remove(), end + 260);
+  return end;
 }
 // 异常状态粒子特效：在精灵处生成循环粒子（睡眠头顶飘 Zzz / 混乱旋星 / 麻痹电火花 /
 // 灼伤火焰 / 中毒毒泡 / 冰冻冰晶）。状态未变化时保留现有粒子，避免每次 renderMon 重排跳动；
@@ -1871,7 +3765,7 @@ function syncStatusFx(side, mon, force) {
     // 着迷：头顶四周漂浮粉红爱心（错峰上浮）
     for (let i = 0; i < 4; i++) {
       const p = document.createElement('i');
-      p.textContent = '♥';
+      p.innerHTML = '<svg viewBox="0 0 24 24"><use xlink:href="#icon-liked"/></svg>';
       p.style.left = (Math.random() * ir.width - ir.width / 2) + 'px';
       p.style.top = (-ir.height / 2 - 2) + 'px';
       p.style.animationDelay = (i * 0.4).toFixed(2) + 's';
@@ -1887,12 +3781,45 @@ function syncStatusFx(side, mon, force) {
       p.style.animationDelay = (i * 0.5).toFixed(2) + 's';
       fx.appendChild(p);
     }
+  } else if (st === 'poison') {
+    // 中毒：原作毒泡四帧动画，从脚边缓慢上浮
+    const base = $(`${side}-base`);
+    let groundY = ir.height * 0.36;
+    if (base) {
+      const bRect = base.getBoundingClientRect();
+      groundY = bRect.top - br.top + bRect.height / 2 - (ir.top - br.top + ir.height / 2);
+    }
+    for (let i = 0; i < 3; i++) {
+      const p = document.createElement('i');
+      p.className = 'fx-toxic-bubble';
+      p.style.left = ((i - 1) * 13 + randInt(-3, 3)) + 'px';
+      p.style.top = (groundY - 6 + randInt(-3, 3)) + 'px';
+      p.style.animationDelay = (i * 0.35).toFixed(2) + 's';
+      fx.appendChild(p);
+    }
+  } else if (st === 'paralysis') {
+    // 麻痹：原作 Gfx_Spark2 三帧电花绕身明灭
+    const offs = [[-12, -10], [10, -6], [-6, 10], [12, 12], [0, -2]];
+    offs.forEach(([ox, oy], i) => {
+      const p = document.createElement('i');
+      p.className = 'fx-spark-asset';
+      p.style.left = ox + 'px';
+      p.style.top = oy + 'px';
+      p.style.animationDelay = (i * 0.11).toFixed(2) + 's';
+      fx.appendChild(p);
+    });
   } else {
-    const counts = { paralysis: 6, burn: 5, poison: 5, freeze: 5, confusion: 4 };
+    const counts = { burn: 5, freeze: 5, confusion: 4 };
     const n = counts[st] || 5;
     for (let i = 0; i < n; i++) {
       const p = document.createElement('i');
-      if (st === 'confusion') {
+      if (st === 'burn') {
+        // 灼伤：原作 Gfx_SmallEmber 火苗绕身窜动
+        p.className = 'fx-burn-spr';
+        p.style.left = (Math.random() * ir.width - ir.width / 2) + 'px';
+        p.style.top = (Math.random() * ir.height * 0.8 - ir.height * 0.4) + 'px';
+        p.style.animationDelay = (i * 0.12).toFixed(2) + 's';
+      } else if (st === 'confusion') {
         // 混乱：小星围绕头顶盘旋
         p.textContent = '✧';
         p.style.left = (Math.random() * 28 - 14) + 'px';
@@ -1931,11 +3858,11 @@ function syncSeedFx(side, mon, force) {
   fx._seeded = seeded;
   fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
   fx.style.top = (ir.top - br.top + ir.height) + 'px'; // 幼芽从脚部地面长出
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 3; i++) {
     const p = document.createElement('i');
-    p.style.setProperty('--hd', (i * 0.16).toFixed(2) + 's'); // 错峰起跳
-    p.style.setProperty('--sh', (10 + (i % 2) * 5) + 'px');    // 高矮交替
-    p.style.left = ((i - 1.5) * 7) + 'px';
+    p.className = 'b-seed-sprout';
+    p.style.left = ((i - 1) * 12 + randInt(-2, 2)) + 'px';
+    p.style.animationDelay = (i * 0.18).toFixed(2) + 's';
     fx.appendChild(p);
   }
   box.appendChild(fx);
@@ -1973,17 +3900,22 @@ function shieldHit(side) {
   fx.classList.add('b-shield-hit');
   setTimeout(() => fx.classList.remove('b-shield-hit'), 420);
 }
-// 钉子图标：撒菱每层 4 枚尖刺、毒菱每层 2 枚毒滴、隐形岩 3 枚岩块，
-// 整组渲染在椭圆底座上，每颗错峰掉落入场；层数为 0 时不渲染任何图标
+// 钉子图标：使用原作尖刺/岩块贴图，每层 1 枚，毒菱用紫色滤镜
 function hazardHtml(hz) {
+  const SPIKE = './pe-battle/move-fx-assets/pe/Gfx_Spikes__16x16.png';
+  const ROCK = './pe-battle/move-fx-assets/pe/Gfx_FlatRock__16x16.png';
   let h = '';
   let d = 0;
-  const add = (cls, n) => {
-    for (let k = 0; k < n; k++) h += `<i class="b-hz ${cls}" style="animation-delay:${(d++ * 0.045).toFixed(2)}s"></i>`;
+  const add = (kind, n) => {
+    for (let k = 0; k < n; k++) {
+      const cls = kind === 'tox' ? ' b-hz-tox' : kind === 'rck' ? ' b-hz-rck' : '';
+      const src = kind === 'rck' ? ROCK : SPIKE;
+      h += `<i class="b-hz b-hz-img${cls}" style="animation-delay:${(d++ * 0.045).toFixed(2)}s;background-image:url('${src}')"></i>`;
+    }
   };
-  add('spk', (hz.spikes || 0) * 4); // 撒菱每层 4 枚
-  add('tox', (hz.toxic || 0) * 2);  // 毒菱每层 2 枚
-  if (hz.rock) add('rck', 3);       // 隐形岩 3 枚岩块
+  add('spk', hz.spikes || 0);
+  add('tox', hz.toxic || 0);
+  if (hz.rock) add('rck', 1);
   return h;
 }
 // 同步双方场地钉子图标：种类/层数变化时重建容器并播放掉落入场动画
@@ -1993,6 +3925,14 @@ function syncHazards(battle) {
     if (!el) continue;
     const hz = battle.hazards[key] || { spikes: 0, toxic: 0, rock: false };
     const sig = `${hz.spikes}|${hz.toxic}|${hz.rock ? 1 : 0}`;
+    const img = $(`${boxSide}-img`);
+    if (img) {
+      const ir = img.getBoundingClientRect();
+      const br = el.parentElement.getBoundingClientRect();
+      el.style.top = 'auto';
+      el.style.bottom = Math.round(br.bottom - ir.bottom) + 'px';
+      el.style.transform = 'translate(-50%, 0)';
+    }
     if (el.dataset.sig === sig) continue;
     el.dataset.sig = sig;
     el.innerHTML = `<span class="b-hz-stack">${hazardHtml(hz)}</span>`;
@@ -2322,7 +4262,7 @@ function evSide(battle, ev, hitRef, hitSide, otherSide) {
   return ev.who === hitRef.name ? hitSide : otherSide;
 }
 
-async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts) {
+async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts, opts = null) {
   const hitSide = hitRef === curMon(battle, 'p') ? 'bp' : 'be';
   const otherSide = hitSide === 'bp' ? 'be' : 'bp';
   // 防御：事件承受方已不在场（换人后局部变量残留指向旧宠）时，仅保留文本并等待，
@@ -2330,11 +4270,13 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
   const onField = hitRef === curMon(battle, 'p') || hitRef === curMon(battle, 'e');
   _multiHits = 0;
   const nSteps = events.filter((e) => e.t === 'step').length;
+  const skipFx = !!opts?.skipFx; // 原作动画已播时，不再叠加旧粒子
   for (const ev of events) {
     if (ev.t === 'step') {
       // 物理连击：近战=首击冲贴脸停留，之后在贴脸位小幅挥砍，末击回位；
       // 远程=攻击方站原地逐击喷射一发粒子，等其飞抵目标再结算该段伤害，末击结束回位
       _multiHits++;
+      if (opts?.skipStepAnim) continue;
       if (rangedOpts) {
         await spawnProjOne(multiSide, rangedOpts.shape, rangedOpts.color);
         if (_multiHits === nSteps) lowerAttacker(multiSide);
@@ -2349,7 +4291,7 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       const eCur = curMon(battle, 'e');
       const fromSide = ev.from === pCur ? 'bp' : ev.from === eCur ? 'be' : null;
       const toSide = ev.to === pCur ? 'bp' : ev.to === eCur ? 'be' : null;
-      if (fromSide && toSide) spawnDrainParticles(fromSide, toSide, '#7dc84a', 9);
+      if (fromSide && toSide && !skipFx) spawnDrainParticles(fromSide, toSide, '#7dc84a', 9);
       continue;
     }
     if (ev.t === 'flinch') {
@@ -2357,7 +4299,7 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       setText(ev.text || `${ev.who}畏缩了！`);
       if (onField) {
         playAnim(hitSide, 'flinch');
-        flinchFx(hitSide);
+        if (!skipFx) flinchFx(hitSide);
       }
       await battleSleep(350);
       continue;
@@ -2365,7 +4307,7 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
     if (ev.t === 'miss') {
       // 未命中：目标头顶弹出灰色 MISS（挥空反馈），正文保留招式文案
       setText(ev.text || '没有命中！');
-      if (onField) missFx(hitSide);
+      if (onField && !skipFx) missFx(hitSide);
       await battleSleep(450);
       continue;
     }
@@ -2380,18 +4322,21 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       // 连击等多次伤害：useMove 提前把 HP 全部扣光，renderMon 读到的是最终值；
       // 这里按本次命中前后的 HP 回放血条过渡，逐段扣血，不一次扣完
       if (ev.from != null) animateHpBar(dSide, ev.from, ev.to, dMon.maxHp);
-      shake(dSide); // 渲染后再震：renderMon 会清掉动画类，先渲染才能让受击动画真正播完
-      if (hitType && TYPE_FX[hitType]) spawnTypeFx(dSide, hitType); // 12 元素系属性：专属粒子爆发
-      else spawnHitSpark(dSide); // 其余属性：默认白火花
+      if (!skipFx) shake(dSide); // 原作动画已演过受击，不再叠 CSS 震动
+      if (!skipFx) {
+        spawnImpactAsset(dSide);
+      }
+      if (hitType === '超能') spawnPsychicWrap(dSide);
       flashHitPanel(dSide);
-      if (dMon.maxHp > 0 && ev.amount / dMon.maxHp >= 0.25) stageShake(); // 重创（占比高）才全屏震动
+      if (!skipFx && dMon.maxHp > 0 && ev.amount / dMon.maxHp >= 0.25) stageShake(); // 重创（占比高）才全屏震动
       // 连击命中段：等待缩短到挥砍动画后立即衔接下一击（约 0.2s 动画 + 0.43s 停顿 ≈ 0.6s 一击）；
-      // 普通单发伤害保留 750ms，维持重创一击的停顿感
-      await battleSleep(nSteps ? 300 : 500);
+      // 原作动画已经演过命中，受了伤马上接下一句，不再额外停半秒
+      await battleSleep(skipFx ? (nSteps ? 150 : 220) : (nSteps ? 300 : 500));
+      hideCosmicBg();
     } else if (ev.t === 'heal') {
       const side = evSide(battle, ev, hitRef, hitSide, otherSide);
       popHeal(side, ev.amount);
-      spawnHealFx(side); // 回复加号粒子：绿色十字能量向上飘散
+      if (!skipFx) spawnHealFx(side); // 回复：BlueStar 星光粒子
       setText(ev.text);
       renderMon(side === 'bp' ? curMon(battle, 'p') : curMon(battle, 'e'), side);
       await battleSleep(500);
@@ -2565,17 +4510,100 @@ const CHARGE_OUT_CLS = {
   日光刃: 'cg-glow',
   潜灵奇袭: 'cg-out-vanish',
 };
+// 挖洞/潜水原作素材：土堆、泥点、水花、水滴
+function spawnChargeAssetFx(boxSide, kind) {
+  const img = $(`${boxSide}-img`);
+  const box = $(`${boxSide}-box`);
+  if (!img || !box) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height - 2;
+  const add = (src, w, h, frames, ms, dx, dy, scale, life) => {
+    const el = document.createElement('span');
+    el.className = 'b-charge-asset';
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    el.style.left = (cx + dx) + 'px';
+    el.style.top = (cy + dy) + 'px';
+    el.style.backgroundImage = `url(${src})`;
+    el.style.backgroundSize = `${w}px ${h * frames}px`;
+    el.style.backgroundPosition = '0 0';
+    el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    box.appendChild(el);
+    if (frames > 1) {
+      let f = 0;
+      el._timer = setInterval(() => {
+        f = (f + 1) % frames;
+        el.style.backgroundPosition = `0 -${f * h}px`;
+      }, ms);
+    }
+    el.animate([
+      { opacity: 0, transform: `translate(-50%, -50%) scale(${scale * 0.6})` },
+      { opacity: 1, offset: 0.22 },
+      { opacity: 0, transform: `translate(-50%, -50%) scale(${scale * 1.2})` },
+    ], { duration: life, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(el._timer); el.remove(); }, life + 40);
+  };
+  const A = {
+    dig: './pe-battle/move-fx-assets/pe/Gfx_DirtMound__32x16.png',
+    dirt: './pe-battle/move-fx-assets/pe/Gfx_MudSand__8x8.png',
+    splash: './pe-battle/move-fx-assets/pe/Gfx_Splash__64x64.png',
+    drop: './pe-battle/move-fx-assets/water_droplet.png',
+  };
+  if (kind === 'dig') {
+    add(A.dig, 32, 16, 2, 110, 0, 0, 1.25, 620);
+    for (let i = 0; i < 5; i++) add(A.dirt, 8, 8, 1, 0, Math.random() * 34 - 17, -4, 1.6, 520);
+  } else {
+    add(A.splash, 64, 64, 1, 0, 0, 0, 1.35, 620);
+    for (let i = 0; i < 6; i++) add(A.drop, 32, 32, 8, 70, Math.random() * 44 - 22, -8, 0.6, 620);
+  }
+}
+// 第二段从对手脚边破土/出水：复制攻击方精灵到目标底座
+function spawnChargeEmergeClone(side, targetSide) {
+  const el = $(`${side}-img`);
+  const box = $(`${targetSide}-box`);
+  const tImg = $(`${targetSide}-img`);
+  if (!el || !box || !tImg) return null;
+  const br = box.getBoundingClientRect();
+  const ir = tImg.getBoundingClientRect();
+  const clone = document.createElement('img');
+  clone.className = 'b-charge-clone';
+  clone.src = el.currentSrc || el.src;
+  clone.alt = '';
+  clone.draggable = false;
+  clone.style.width = ir.width + 'px';
+  clone.style.height = ir.height + 'px';
+  clone.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  clone.style.top = (ir.top - br.top + ir.height) + 'px';
+  clone.style.marginLeft = (-ir.width / 2) + 'px';
+  clone.style.marginTop = (-ir.height) + 'px';
+  clone.style.zIndex = '6';
+  box.appendChild(clone);
+  el.style.visibility = 'hidden';
+  void clone.offsetWidth;
+  clone.classList.add('cg-out-sink');
+  return clone;
+}
 // 第一回合蓄力进入：播放对应离场动画（飞翔升空/挖洞钻地等，过程完整可见），钻地/潜水在脚部溅起尘土与水花。
 // 离场状态用 dataset.charged 标记（供对方攻击瞄准底座），不直接隐藏本体以免遮掉动画
-function playChargeEnter(side, mvName) {
+async function playChargeEnter(side, mvName, moveId) {
+  if (mvName === '神鸟猛击') {
+    nudgeAttacker(side); // 跳过原作耗时的调色前摇，只保留施法平移
+    await battleSleep(300);
+    return true;
+  }
+  const pe = await playPeMove(moveId, side, { twoTurn: true, turn: 1 });
+  if (pe) return true;
   const el = $(`${side}-img`);
-  if (!el) return;
+  if (!el) return false;
   resetAnim(el);
   void el.offsetWidth;
   el.classList.add(CHARGE_ENTER_CLS[mvName] || 'cg-vanish');
   el.dataset.charged = CHARGE_HIDES[mvName] ? '1' : ''; // 神鸟猛击原地蓄光不标记离场
   if (mvName === '挖洞') spawnGroundBurst(side, '#b98f5e', 9);
   else if (mvName === '潜水') spawnGroundBurst(side, '#7fd0f5', 7);
+  return false;
 }
 // 第二回合攻击：先播现身动画（破土/俯冲/跃出），再冲到对手面前结算伤害；日光束原地发射光柱
 async function playChargeAttack(actor, side, moveId, battle) {
@@ -2584,7 +4612,25 @@ async function playChargeAttack(actor, side, moveId, battle) {
   const el = $(`${side}-img`);
   const solarBeam = mv.name === '日光束';
   setText(`${actor.name}使用${mv.name}攻击！`);
+  const evs = [];
+  useMove(actor, foe, moveId, _data, evs, battle);
+  const missed = evs.some((e) => e.t === 'miss') && !evs.some((e) => e.t === 'dmg' && e.uid === foe.uid);
+  const peDone = missed ? false : await playPeMove(moveId, side, {
+    twoTurn: true,
+    turn: 2,
+    melee: true,
+    cast: mv.name === '神鸟猛击',
+    keepHidden: mv.name === '飞翔' || mv.name === '挖洞',
+    onReveal: () => { if (el) el.style.visibility = ''; },
+  });
+  if (peDone) {
+    if (el && CHARGE_HIDES[mv.name]) el.style.visibility = '';
+    if (_fleeing || _activeBattle !== battle) return;
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    return;
+  }
   if (el) {
+    el.style.visibility = ''; // 飞翔等 PE 蓄力会隐藏本体，miss 时也要归位
     el.dataset.charged = ''; // 结束离场蓄力，恢复可被瞄准的在场状态
     resetAnim(el);
     void el.offsetWidth;
@@ -2593,16 +4639,18 @@ async function playChargeAttack(actor, side, moveId, battle) {
   if (mv.name === '挖洞') spawnGroundBurst(side, '#b98f5e', 10);
   else if (mv.name === '潜水') spawnGroundBurst(side, '#7fd0f5', 8);
   await battleSleep(340); // 等现身动画播完
-  if (solarBeam) {
-    spawnSolarBeam(side === 'bp' ? 'be' : 'bp'); // 对手脚下向上射出一根柔光细柱
-    await battleSleep(500);
+  if (!missed) {
+    if (solarBeam) {
+      spawnSolarBeam(side === 'bp' ? 'be' : 'bp'); // 对手脚下向上射出一根柔光细柱
+      await battleSleep(500);
+    } else {
+      lungeAttack(side); // 近身招式：冲撞对手
+      await battleSleep(280);
+    }
   } else {
-    lungeAttack(side); // 近身招式：冲撞对手
-    await battleSleep(280);
+    await battleSleep(200);
   }
-  const evs = [];
-  useMove(actor, foe, moveId, _data, evs, battle);
-  await playEvents(evs, battle, foe, mv.type);
+  await playEvents(evs, battle, foe, mv.type, null, null, missed ? { skipStepAnim: true, skipFx: true } : null);
 }
 // 尘土/水花：精灵脚部向两侧溅起一圈小颗粒（挖洞钻地/破土、潜水入水/跃出用）
 function spawnGroundBurst(side, color, count) {
@@ -2632,6 +4680,19 @@ function spawnGroundBurst(side, color, count) {
 // 执行一次出招：攻击方前冲使用招式，目标实时取对方当前在场宝可梦；
 // 任一方已倒下（先动者击倒后动者）则后动者本回合不再行动，避免对已倒下目标出手
 async function doAttack(actor, side, moveId, battle) {
+  // 麻痹的宝可梦成功出招时，先收起身上常驻的电花，动画结束再恢复
+  const statusFx = actor.status === 'paralysis'
+    ? $(`${side}-box`)?.querySelector('.b-status-fx')
+    : null;
+  if (statusFx) statusFx.style.visibility = 'hidden';
+  try {
+    await doAttackInner(actor, side, moveId, battle);
+  } finally {
+    if (statusFx && statusFx.isConnected && actor.hp > 0 && actor.status === 'paralysis') statusFx.style.visibility = '';
+  }
+}
+
+async function doAttackInner(actor, side, moveId, battle) {
   if (!moveId || actor.hp <= 0) return;
   const foe = curMon(battle, side === 'bp' ? 'e' : 'p');
   if (foe.hp <= 0) return; // 对手已被击倒：本回合不再行动
@@ -2649,13 +4710,555 @@ async function doAttack(actor, side, moveId, battle) {
     actor.chargeMove = moveId;
     actor.chargeHidden = !!CHARGE_HIDES[mv.name];
     setText(CHARGE_ENTER_TEXT[mv.name](actor.name));
-    playChargeEnter(side, mv.name);
-    await battleSleep(720); // 等蓄力动画播完，本回合行动结束
+    const pePrep = await playChargeEnter(side, mv.name, moveId);
+    if (pePrep && CHARGE_HIDES[mv.name]) $(`${side}-img`).style.visibility = 'hidden';
+    await battleSleep(pePrep ? (mv.name === '挖洞' ? 120 : 260) : 720); // 等蓄力动画播完，本回合行动结束
     return;
   }
   setText(`${actor.name}使用了${mv.name}！`);
+  const evs = [];
+  useMove(actor, foe, moveId, _data, evs, battle);
+  const missed = evs.some((e) => e.t === 'miss') && !evs.some((e) => e.t === 'dmg' && e.uid === foe.uid);
+  if (missed) {
+    await battleSleep(200);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    return;
+  }
+  if (mv.name === '吸取之吻') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
+    await battleSleep(80);
+    spawnDrainingKissFx(side, tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '拍击') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(220);
+    spawnTagHandStrike(tSide, 0);
+    spawnImpactAsset(tSide);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '连环巴掌') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    const hits = evs.filter((e) => e.t === 'step').length || 2;
+    lungeAttack(side);
+    await battleSleep(220);
+    const hands = (async () => {
+      for (let i = 0; i < hits; i++) {
+        spawnTagHandStrike(tSide, i);
+        shake(tSide);
+        await battleSleep(170);
+      }
+    })();
+    await Promise.all([hands, playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true })]);
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '再来一次') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnEncoreClap(tSide);
+    await battleSleep(900);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '百万吨重拳') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(240);
+    spawnImpactBg(tSide);
+    spawnPunchFist(tSide, { size: 46 });
+    spawnImpactAsset(tSide);
+    shake(tSide);
+    await battleSleep(320);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '花瓣舞') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    await spawnPetalDanceFx(tSide);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '归天之翼') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
+    await spawnAirBladeStream(side, 2);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    spawnDrainParticles(tSide, side, '#9bd9ff', 8);
+    await battleSleep(520);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    spawnHealFx(side);
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '幻象光线' || mv.name === '精神波') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    await spawnProjStream(side, 'ring', '#F8669C');
+    spawnImpactAsset(tSide);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '空气之刃' || mv.name === '空气利刃') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side); // 施法前倾，同时把风刃甩出去
+    await spawnAirBladeStream(side, 2);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '十万伏特' || mv.name === '伏特攻击') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    if (mv.name === '伏特攻击') lungeAttack(side);
+    spawnVoltFlash();
+    spawnLightningAsset(tSide, mv.name === '伏特攻击' ? 1 : 2);
+    await battleSleep(300);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '雷电牙' || mv.name === '冰冻牙' || mv.name === '剧毒牙' || mv.name === '虫咬') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    spawnFangBite(tSide, mv.name);
+    await battleSleep(170);
+    spawnFangParticles(tSide, mv.name);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '精神突进') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnPsyCharge(side);
+    await battleSleep(600);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null);
+    syncFieldFx(battle);
+    return;
+  }
+  if (METEOR_MOVES.has(mv.name)) spawnCosmicBg();
+  if (mv.name === '流星群') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    const dur = spawnMeteorRain(tSide, 6);
+    await battleSleep(dur);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    hideCosmicBg();
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '临别礼物') {
+    await playMementoFx(side);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    return;
+  }
+  if (mv.name === '抓狂') {
+    await flailWindup(side);
+    await playEvents(evs, battle, foe, mv.type, null, null);
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '冰冻之风') {
+    spawnMistStream(side);
+    await battleSleep(560);
+    await playEvents(evs, battle, foe, mv.type, null, null);
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '水枪' || mv.name === '喷水') {
+    spawnHydroOrbStream(side);
+    await battleSleep(420);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '盐水') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnBrineRain(tSide);
+    await battleSleep(520);
+    spawnImpactTint(tSide, TYPE_COLORS['水']);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '水流环') {
+    spawnAquaRing(side);
+    await battleSleep(1000);
+    await playEvents(evs, battle, foe, mv.type, null, null);
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '电击') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnVoltFlash();
+    spawnLightningAsset(tSide, 3);
+    await battleSleep(360);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '电击波') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnShockWaveFx(side, tSide);
+    await battleSleep(520);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '喝牛奶') {
+    spawnMilkDrinkFx(side);
+    await battleSleep(780);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '双针') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnNeedleAsset(side, tSide);
+    await battleSleep(160);
+    spawnNeedleAsset(side, tSide);
+    await battleSleep(380);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '溶解液') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    await spawnProjStream(side, 'acid', TYPE_COLORS['毒']);
+    spawnPoisonOrbBurst(tSide);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '毒千针') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    const ok = await playPeMove(40, side, { melee: false, cast: true });
+    if (!ok) {
+      spawnNeedleAsset(side, tSide);
+      await battleSleep(380);
+      spawnPoisonOrbBurst(tSide);
+    }
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '破坏光线') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnCrossBeamFx(side, tSide, '#ffc46b');
+    await battleSleep(360);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '撒菱' || mv.name === '毒菱') {
+    const toxic = mv.name === '毒菱';
+    const host = document.querySelector('.battle-stage-top') || document.querySelector('.battle-fight');
+    if (toxic) host?.classList.add('pe-toxic-hazards');
+    try {
+      await playPeMove(191, side, { melee: false, cast: true });
+    } finally {
+      if (toxic) host?.classList.remove('pe-toxic-hazards');
+    }
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '汲取') {
+    await playPeMove(141, side, { melee: false, cast: true });
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (BIND_MOVES.has(mv.name)) {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
+    await battleSleep(160);
+    spawnBindWrapFx(tSide);
+    await battleSleep(560);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '踢倒') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(300);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '吸取拳') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(200);
+    spawnPunchFist(tSide);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    // 等贴身冲撞回到原位后，再完整播放吸取的吸取段
+    await battleSleep(340);
+    await playPeLabel('AbsorbEffect', side);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (FIST_MOVES.has(mv.name)) {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(200);
+    spawnPunchFist(tSide, {
+      count: mv.name === '钢拳双击' ? 2 : 1,
+      size: mv.name === '极巨拳斗' ? 50 : 30,
+    });
+    if (mv.name === '等离子闪电拳') {
+      spawnVoltFlash();
+      spawnParalysisBurst(tSide);
+    }
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '喷出') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnSpitUpFx(side);
+    await battleSleep(560);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '充电') {
+    spawnChargeFx(side);
+    await battleSleep(1000);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '地球上投') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(280);
+    let evP = null;
+    await spawnSeismicLiftFx(side, tSide, () => {
+      spawnImpactAsset(tSide);
+      evP = playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    });
+    if (evP) await evP;
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '岩崩') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnRockSlide(tSide);
+    await battleSleep(820);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '击落') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnStoneBarrageFx(side, tSide, 1);
+    await battleSleep(800);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '原始之力') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnStoneBarrageFx(side, tSide, 4);
+    await battleSleep(800);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '岩石爆击') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    const hits = evs.filter((e) => e.t === 'step').length || 3;
+    spawnStoneBarrageFx(side, tSide, hits);
+    await battleSleep(800);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '岩石封锁') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnRockTombFx(tSide);
+    await battleSleep(620);
+    spawnXMark(tSide);
+    shake(tSide);
+    await battleSleep(260);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '岩石打磨') {
+    spawnBlueStarBurst(side, 10);
+    await battleSleep(760);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (STONE_RANGED.has(mv.name)) {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnStoneBarrageFx(side, tSide);
+    await battleSleep(700);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '月光') {
+    spawnMoonFx(side, side, 'heal');
+    await battleSleep(960);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '月亮之力') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnMoonFx(side, tSide, 'attack');
+    await battleSleep(960);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '落石') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnRockDrop(tSide);
+    await battleSleep(760);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '黑雾') {
+    spawnHazeFx();
+    await battleSleep(1000);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '烟幕') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnSmokeScreen(tSide);
+    await battleSleep(160);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '龙卷风') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnTwisterFx(tSide);
+    await battleSleep(900);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '乱抓') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    const hits = evs.filter((e) => e.t === 'step').length || 2;
+    spawnFurySwipes(tSide, hits);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '电磁炮' || mv.name === '电球') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnElectricBall(side, mv.name === '电磁炮' ? 1 : 2);
+    await battleSleep(440);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '火之舞' || mv.name === '烈火深渊') {
+    await playPeMove(83, side, { melee: false });
+    await playEvents(evs, battle, foe, mv.type, null, null);
+    syncFieldFx(battle);
+    return;
+  }
+  if (HAND_CLAMP_MOVES.has(mv.name)) {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(60);
+    spawnClampHands(tSide);
+    await battleSleep(150);
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  // 冲浪/浊流走 battle-fx.css 的水线 + 浪冠特效，跳过原作的整张背景
+  let impactPromise = null;
+  const playImpact = () => {
+    if (!impactPromise) impactPromise = playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    return impactPromise;
+  };
+  const peId = mv.name === '骨棒乱打' ? 125 : mv.name === '蛮力' ? 70 : moveId;
+  const peDone = (mv.name === '冲浪' || mv.name === '浊流') ? false : await playPeMove(peId, side, {
+    speed: mv.name === '晨光' ? 2 : 1,
+    // 远程物理/多段远程由原作脚本自己发射弹道，不能再叠加贴身扑击
+    melee: moveCat(mv) === 'phys' && !RANGED_SINGLE[mv.name] && !RANGED_PHYS_MULTI[mv.name],
+    cast: moveCat(mv) === 'spec'
+      || (moveCat(mv) === 'phys' && (mv.name === '攀瀑' || !!(RANGED_SINGLE[mv.name] || RANGED_PHYS_MULTI[mv.name])))
+      || (moveCat(mv) === 'status' && mv.effect?.target === 'foe'),
+    onImpact: () => {
+      if (mv.name === '打雷') {
+        const tSide = side === 'bp' ? 'be' : 'bp';
+        spawnImpactAsset(tSide);
+        playAnim(tSide, 'thunder-hit');
+      }
+      void playImpact();
+    },
+  });
+  if (peDone) {
+    if (_fleeing || _activeBattle !== battle) return;
+    await playImpact();
+    return;
+  }
+  if (impactPromise) { await impactPromise; return; }
   const isPhys = moveCat(mv) === 'phys';
-  const isSound = mv.name === '叫声' || mv.name === '唱歌' || mv.name === '哈欠' || mv.name === '巨声' || mv.name === '金属音' || mv.name === '长嚎' || mv.name === '治愈铃声' || mv.name === '虫鸣' || mv.name === '梦话' || mv.name === '超音波' || mv.name === '打嗝'; // 发声招式：声波弹道
+  const isSound = SOUND_MOVES.has(mv.name); // 发声招式：声波弹道
   const isBubble = mv.name === '泡沫' || mv.name === '泡沫光线' || mv.name === '水枪' || mv.name === '喷水'; // 水系弹道招式：气泡特效
   const isStar = mv.name === '高速星星'; // 高速星星：星形弹道特效
   // 圆环弹道（幻象光线/精神波 超能粉；水炮 水系蓝）
@@ -2666,14 +5269,14 @@ async function doAttack(actor, side, moveId, battle) {
   const isIceBeam = mv.name === '冰冻光束' || mv.name === '极光束' || mv.name === '铁蹄光线'; // 冰冻光束/极光束/铁蹄光线：直线光束
   const isSolarBeam = mv.name === '日光束'; // 日光束：对手脚下向上射出一根柔光细柱
   const isConfuse = mv.name === '奇异之光'; // 奇异之光：柔和描边黄色球
-  const isFireStream = mv.name === '喷射火焰'; // 喷射火焰：火系一串弹道
+  const isFireStream = mv.name === '喷射火焰' || mv.name === '喷火'; // 喷射火焰/喷火：火系一串弹道
   const isAcidStream = mv.name === '溶解液'; // 溶解液：毒系一串酸液滴弹道
   const isScreenFlash = mv.name === '魔法闪耀' || mv.name === '电光' || mv.name === '精神强念'; // 全屏遮罩闪光：魔法闪耀/电光/精神强念
   // 叶片弹道（飞叶快刀/飞叶风暴 绿 / 花瓣舞 粉）：一串叶片飞向对手，颜色按招注入
   const isLeafStream = mv.name === '飞叶快刀' || mv.name === '花瓣舞' || mv.name === '飞叶风暴';
   const LEAF_COLOR = { '飞叶快刀': '#3fa129', '花瓣舞': '#f8669c', '飞叶风暴': '#3fa129' };
   // 风系/龙卷风类招式（起风/翅膀攻击/龙卷风/暴风/空气利刃 青白，热风红，妖精之风粉，冰冻之风蓝）
-  const isWind = mv.name === '起风' || mv.name === '翅膀攻击' || mv.name === '龙卷风' || mv.name === '暴风' || mv.name === '空气利刃' || mv.name === '热风' || mv.name === '妖精之风' || mv.name === '冰冻之风';
+  const isWind = mv.name === '起风' || mv.name === '翅膀攻击' || mv.name === '暴风' || mv.name === '空气利刃' || mv.name === '热风' || mv.name === '妖精之风' || mv.name === '冰冻之风';
   const WIND_COLOR = { '热风': '#ff5a3c', '妖精之风': '#f8669c', '冰冻之风': '#7fd0f5' };
   // 龙系特殊招式（龙息/龙之波动/流星群/时光咆哮/亚空裂斩/鳞片噪音/巨龙威能/归无之光/随机光）：龙息能量波弹道；龙卷风走旋风特效
   const isDragon = mv.type === '龙' && moveCat(mv) === 'spec' && mv.name !== '龙卷风';
@@ -2686,8 +5289,9 @@ async function doAttack(actor, side, moveId, battle) {
     地狱突刺: '#9a6cd0', 灵魂吸取: '#9a6cd0', // 幽灵紫
     深渊汲取: '#3F98EA', // 水系蓝
   };
-  // 大面积水系招式（潮旋/水之波动/泼冷水/冲浪/热水）：蓝色半透明水幕沿对角线涌过战场
-  const isWaterSweep = mv.name === '潮旋' || mv.name === '水之波动' || mv.name === '泼冷水' || mv.name === '冲浪' || mv.name === '热水';
+  // 大面积水系招式（潮旋/水之波动/泼冷水/冲浪）：蓝色半透明水幕沿对角线涌过战场
+  const isWaterSweep = mv.name === '潮旋' || mv.name === '水之波动' || mv.name === '泼冷水' || mv.name === '冲浪' || mv.name === '浊流';
+  const isHotWater = mv.name === '热水';
   // 圆球弹道招式（按属性着色）；火花/磷火复用火焰球
   const BALL_COLOR = { '能量球': '#3fa129', '暗影球': '#7a52c9', '电球': '#ffd93b', '火焰球': '#ff7a2e', '火花': '#ff7a2e', '磷火': '#ff7a2e', '大字爆炎': '#ff7a2e', '意念头锤': '#F8669C', '污泥炸弹': '#8943B0', '击落': '#D3A865', '加农光炮': '#60a1b8' };
   const isBall = Object.prototype.hasOwnProperty.call(BALL_COLOR, mv.name);
@@ -2707,50 +5311,44 @@ async function doAttack(actor, side, moveId, battle) {
   const rangedSingle = RANGED_SINGLE[mv.name];
   if (!multiPhys) {
     if (isSound) {
-      spawnSoundWave(side); // 从攻击方发出扩散的声波圈
+      const selfSound = mv.effect?.target === 'self' || mv.effect?.kind === 'cure';
+      spawnSoundWave(side, selfSound ? side : (side === 'bp' ? 'be' : 'bp')); // 从攻击方发出声波，自身增益只原地扩散
       await battleSleep(320); // 等声波扩散起效再结算
     } else if (isWind) {
       spawnWindTornado(side, WIND_COLOR[mv.name]); // 彩色旋风刮向对手
-      await battleSleep(430); // 等旋风刮到对手处再结算伤害
+      await battleSleep(mv.name === '翅膀攻击' ? 500 : 430); // 等旋风消失时再结算
+    } else if (isHotWater) {
+      await spawnProjStream(side, 'drop', '#ffb36b');
     } else if (isWaterSweep) {
-      spawnWaterSweep(side); // 蓝色水幕沿对角线涌过战场
+      if (mv.name === '冲浪' || mv.name === '浊流') spawnSurfWave(side, mv.name === '浊流'); // 冲浪/浊流：原版浪花贴图
+      else spawnWaterSweep(side); // 其余水系：蓝色水幕沿对角线涌过战场
       await battleSleep(560); // 等水幕涌到对手处再结算伤害
     } else if (isDragon) {
       spawnDragonWave(side); // 龙息能量波弹道
       await battleSleep(480); // 等能量波飞抵目标再结算伤害（动画 0.6s，到位约 0.5s）
     } else if (isBubble) {
-      spawnProjStream(side, 'bubble'); // 一串气泡飞向对手，逐一消失
-      await battleSleep(300); // 等气泡飞到对手处再结算伤害
+      await spawnProjStream(side, 'bubble');
     } else if (isStar) {
-      spawnProjStream(side, 'star'); // 一串星星飞向对手，逐一消失
-      await battleSleep(300);
+      await spawnProjStream(side, 'star');
     } else if (isPebble) {
-      spawnProjStream(side, 'pebble', PEBBLE_COLOR[mv.name]); // 一串圆石飞向对手，逐一命中
-      await battleSleep(320); // 等圆石飞到对手处再结算伤害
+      await spawnProjStream(side, 'pebble', PEBBLE_COLOR[mv.name]);
     } else if (isRing) {
-      spawnProjStream(side, 'ring', RING_COLOR[mv.name]); // 一串彩色圆环飞向对手，逐一消失
-      await battleSleep(300);
+      await spawnProjStream(side, 'ring', RING_COLOR[mv.name]);
     } else if (isPsychicWrap) {
-      spawnPsychicWrap(side === 'bp' ? 'be' : 'bp'); // 目标身上扭动圆环（精神波动）
-      await battleSleep(480); // 等圆环扭动起来再结算伤害
+      await battleSleep(480); // 等念力前摇结束，粉色圆环随命中结算出现
     } else if (isConfuse) {
-      spawnProjStream(side, 'confuse'); // 一颗柔和描边黄色球飞向对手
-      await battleSleep(560); // 等球蓄力完成并飞抵目标再结算伤害
+      await spawnProjStream(side, 'confuse');
     } else if (isFireStream) {
-      spawnProjStream(side, 'flame', '#ff7a2e'); // 一串火焰弹飞向对手，逐一命中
-      await battleSleep(320); // 等火焰飞到对手处再结算伤害
+      await spawnProjStream(side, 'flame', '#ff7a2e');
     } else if (isAcidStream) {
-      spawnProjStream(side, 'acid', TYPE_COLORS['毒']); // 一串酸液滴飞向对手，逐一命中
-      await battleSleep(320); // 等酸液飞到对手处再结算伤害
+      await spawnProjStream(side, 'acid', TYPE_COLORS['毒']);
     } else if (isScreenFlash) {
       spawnScreenFlash(); // 粉色半透明遮罩全屏一闪
       await battleSleep(320); // 等遮罩闪光扩散完再结算伤害
     } else if (isLeafStream) {
-      spawnProjStream(side, 'leaf', LEAF_COLOR[mv.name]); // 一串叶片/花瓣飞向对手，逐一命中
-      await battleSleep(320); // 等叶片飞到对手处再结算伤害
+      await spawnProjStream(side, 'leaf', LEAF_COLOR[mv.name]);
     } else if (isBall) {
-      spawnProjStream(side, 'ball', BALL_COLOR[mv.name], mv.name === '击落'); // 单球蓄力后飞向对手；击落为实心岩石球
-      await battleSleep(560); // 等球蓄力完成并飞抵目标再结算伤害（动画 0.7s，飞行到位约 0.6s）
+      await spawnProjStream(side, 'ball', BALL_COLOR[mv.name], mv.name === '击落');
     } else if (isBeam) {
       spawnLightSweep(side); // 一截光段飞向对手并冲出屏幕
       await battleSleep(350); // 光段飞抵对手即结算伤害（飞行 0.7s、距离 1.9 倍，到点时刻恒定 ≈0.37s）
@@ -2775,8 +5373,13 @@ async function doAttack(actor, side, moveId, battle) {
     } else if (isElectric) {
       // 物理电系（伏特攻击/疯狂伏特/雷电拳等）：贴身冲撞撞进对手，同时头顶闪电劈下
       if (isPhys) lungeAttack(side);
-      spawnLightningStrike(side === 'bp' ? 'be' : 'bp'); // 闪电劈中对手头部
+      const tSide = side === 'bp' ? 'be' : 'bp';
+      spawnLightningStrike(tSide, lightningVariant(mv)); // 闪电劈中对手头部
       await battleSleep(isPhys ? 430 : 400); // 等冲撞贴脸/闪电劈到再结算伤害
+      shake(tSide);
+      await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+      syncFieldFx(battle);
+      return;
     } else if (isDrain) {
       // 吸血招式：先攻击命中，命中后粒子从目标身上吸回攻击方
       if (isPhys) lungeAttack(side);
@@ -2799,11 +5402,12 @@ async function doAttack(actor, side, moveId, battle) {
       }
     }
   }
-  const evs = [];
-  useMove(actor, foe, moveId, _data, evs, battle);
   if (rangedPhys) raiseAttacker(side); // 远程连击：攻击方留在原位，期间置顶层
   // 近战多段：各击在 playEvents 的 step 里逐击摆动；远程多段：逐击喷射粒子，弹到即结算伤害
+  if (mv.type === '火' && moveCat(mv) !== 'status') spawnFireBurst(side === 'bp' ? 'be' : 'bp');
+  if (moveCat(mv) !== 'status' && IMPACT_TINT_TYPES.has(mv.type)) spawnImpactTint(side === 'bp' ? 'be' : 'bp', TYPE_COLORS[mv.type]);
   await playEvents(evs, battle, foe, mv.type, multiPhys ? side : null, rangedPhys || null);
+  hideCosmicBg();
   syncFieldFx(battle); // 出招结算后刷新护盾/钉子表现（守住生效、撒菱/毒菱/隐形岩落场）
 }
 

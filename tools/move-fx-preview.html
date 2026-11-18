@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>招式特效预览 · 口袋挂机</title>
+  <link rel="stylesheet" href="../src/styles.css">
+  <link rel="stylesheet" href="../src/battle-fx.css">
+  <link rel="stylesheet" href="./move-fx-preview.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="icon-liked" viewBox="0 0 24 24">
+      <path fill="currentColor" d="m20.17 13.537-7.122 7.034a1.494 1.494 0 0 1-2.096 0l-7.128-7.04a6.125 6.125 0 0 1 .006-8.728A6.25 6.25 0 0 1 8.233 3c1.36 0 2.68.436 3.767 1.253A6.26 6.26 0 0 1 15.767 3a6.25 6.25 0 0 1 4.404 1.803 6.127 6.127 0 0 1 0 8.734"/>
+    </symbol>
+  </svg>
+  <div class="fx-app">
+    <aside class="fx-side">
+      <div class="fx-side-head">
+        <h1>招式特效预览</h1>
+        <p>绿宝石有原版脚本的招式按原作动画播放；其余招式沿用旧特效。列表开头的「状态动画」含原作混乱（鸭子）等效果。</p>
+        <p class="fx-status-link"><a href="./status-fx-preview.html">→ 异常状态特效预览（睡眠 / 着迷）</a></p>
+      </div>
+      <div class="fx-filters">
+        <input id="fxSearch" type="search" placeholder="搜索招式名 / 编号">
+        <div class="fx-filter-row">
+          <select id="fxType"><option value="">全部属性</option></select>
+          <select id="fxCategory">
+            <option value="">全部类别</option>
+            <option value="物理">物理</option>
+            <option value="特殊">特殊</option>
+            <option value="变化">变化</option>
+          </select>
+        </div>
+        <div class="fx-filter-row">
+          <select id="fxGroup"><option value="">全部效果</option></select>
+          <label class="fx-check"><input id="fxReps" type="checkbox"> 只看每类代表</label>
+        </div>
+      </div>
+      <div class="fx-count" id="fxCount"></div>
+      <div class="fx-list" id="fxList"></div>
+    </aside>
+
+    <main class="fx-main">
+      <div class="fx-toolbar">
+        <div class="fx-title">
+          <b id="fxName">—</b>
+          <span id="fxMeta"></span>
+        </div>
+        <div class="fx-controls">
+          <label class="fx-check"><input id="fxOrig" type="checkbox" checked> 原作动画</label>
+          <label class="fx-check" title="让对手（右上）作为出招方，仅对原作动画生效"><input id="fxOpp" type="checkbox"> 对手出招</label>
+          <select id="fxSpeed" title="动画速度">
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.5">1.5×</option>
+            <option value="2">2×</option>
+          </select>
+          <button id="fxReplay" type="button">重播</button>
+          <button id="fxNext" type="button">下一个</button>
+        </div>
+      </div>
+
+      <div class="fx-stage-wrap">
+        <div class="fx-screen-box">
+          <div class="screen fx-screen" id="fxScreen">
+            <div class="battle-fight t-tent" id="battleContent">
+              <div class="battle-stage-top">
+                <div class="b-enemy-box" id="be-box">
+                  <div class="b-info">
+                    <div class="b-panel">
+                      <div class="b-meta-row">
+                        <div class="b-name-row"><div class="b-name" id="be-name">妙蛙种子</div><div class="b-lv" id="be-lv">Lv50</div></div>
+                        <div class="b-types" id="be-types"></div>
+                      </div>
+                      <div class="b-hp"><i id="be-hp"></i></div>
+                    </div>
+                  </div>
+                  <span class="b-base" id="be-base"></span>
+                  <img id="be-img" alt="">
+                </div>
+                <div class="b-player-box" id="bp-box">
+                  <span class="b-base" id="bp-base"></span>
+                  <div class="b-flip"><img id="bp-img" alt=""></div>
+                  <div class="b-info">
+                    <div class="b-panel">
+                      <div class="b-meta-row">
+                        <div class="b-name-row"><div class="b-name" id="bp-name">皮卡丘</div><div class="b-lv" id="bp-lv">Lv50</div></div>
+                        <div class="b-types" id="bp-types"></div>
+                      </div>
+                      <div class="b-hp"><i id="bp-hp"></i></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="b-bottom">
+              <div class="b-left">
+                <div class="b-text" id="fxText">选择左侧招式开始预览</div>
+                <div class="b-cmd"></div>
+              </div>
+              <div class="b-right">
+                <div class="b-actions">
+                  <div class="b-act-row">
+                    <button class="b-act" type="button">攻击</button>
+                    <button class="b-act" type="button">替换</button>
+                  </div>
+                  <button class="b-act auto" type="button">自动</button>
+                </div>
+                <div class="b-right-info">
+                  <div class="b-npc-name">预览</div>
+                  <div class="b-round">回合 <span>1</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="./move-fx-preview.js"></script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+html, body { height: 100%; }
+body {
+  display: block;
+  overflow: hidden;
+  background: #e9f3ee;
+  color: #1f1f1f;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+.fx-app {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  height: 100vh;
+}
+
+.fx-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid #c4d8ce;
+  background: #f6fbf8;
+}
+
+.fx-side-head { padding: 16px 16px 10px; }
+.fx-side-head h1 { font-size: 18px; line-height: 1.3; color: #24563f; }
+.fx-side-head p { margin-top: 4px; font-size: 11px; line-height: 1.5; color: #6c8579; }
+
+.fx-filters { padding: 0 12px 8px; }
+.fx-filters input,
+.fx-filters select {
+  width: 100%;
+  height: 28px;
+  border: 1px solid #b7d2c5;
+  border-radius: 5px;
+  background: #fff;
+  color: #24563f;
+  font: inherit;
+  font-size: 12px;
+  padding: 0 8px;
+  outline: none;
+}
+.fx-filter-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.fx-filter-row select { flex: 1; min-width: 0; }
+.fx-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #376d56;
+  white-space: nowrap;
+}
+.fx-check input { width: 13px; height: 13px; }
+.fx-status-link { margin-top: 6px; font-size: 11px; }
+.fx-status-link a { color: #376d56; }
+
+.fx-count {
+  padding: 0 14px 6px;
+  font-size: 10px;
+  color: #789285;
+}
+
+.fx-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 8px 12px;
+}
+.fx-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #24563f;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fx-item:hover { background: #eaf5ef; }
+.fx-item.active { border-color: #376d56; background: #e1f1e8; }
+.fx-item-id { font-size: 9px; color: #8aa297; font-variant-numeric: tabular-nums; }
+.fx-item-main { min-width: 0; }
+.fx-item-name {
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fx-item-sub { margin-top: 1px; font-size: 9px; color: #789285; }
+.fx-item-group {
+  max-width: 76px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: #dfeee6;
+  color: #416d59;
+  font-size: 9px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.fx-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 18px 18px;
+}
+.fx-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding-bottom: 10px;
+}
+.fx-title { min-width: 0; }
+.fx-title b { font-size: 18px; color: #24563f; }
+.fx-title span { margin-left: 8px; font-size: 11px; color: #6c8579; }
+.fx-controls { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex-shrink: 0; }
+.fx-controls select,
+.fx-controls button {
+  height: 30px;
+  border: 1px solid #9fbfaf;
+  border-radius: 5px;
+  background: #fff;
+  color: #24563f;
+  font: inherit;
+  font-size: 12px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+.fx-controls button:hover { background: #eaf5ef; }
+
+.fx-stage-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 按游戏逻辑尺寸 274×228 渲染，再整体放大；布局全部交给 styles.css */
+.fx-screen-box { width: 548px; height: 456px; flex: none; }
+.fx-screen {
+  display: flex;
+  flex-direction: column;
+  width: 274px;
+  height: 228px;
+  transform: scale(2);
+  transform-origin: top left;
+  background: var(--screen-bg);
+}
+.fx-screen > .battle-fight {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.fx-screen > .b-bottom { flex: 0 0 56px; }
+.fx-screen .b-act { pointer-events: none; }
+
+@media (max-width: 900px) {
+  .fx-app { grid-template-columns: 280px minmax(0, 1fr); }
+  .fx-screen-box { width: 411px; height: 342px; }
+  .fx-screen { transform: scale(1.5); }
+}
+
+.fx-orig {
+  position: absolute;
+  pointer-events: none;
+  z-index: 9;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  will-change: transform, opacity;
+}
+
+/* ===== 绿宝石原作动画层 ===== */
+.pe-root {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: hidden;
+  pointer-events: none;
+}
+.pe-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: #000;
+}
+.pe-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.pe-screenfx {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.pe-weather {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+}
+.pe-spr {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  will-change: transform, background-position;
+  pointer-events: none;
+}
+.pe-blend { mix-blend-mode: normal; }
+.pe-heart svg { display: block; width: 100%; height: 100%; color: #ff6fa5; }
+.pe-screenfx.pe-spotlight {
+  background: radial-gradient(circle at 50% 38%, rgba(255, 244, 190, 0.45) 0%, rgba(255, 244, 190, 0.12) 38%, rgba(0, 0, 0, 0.55) 72%);
+}
+.pe-weather.pe-rain {
+  opacity: 1;
+  background-image: repeating-linear-gradient(104deg, rgba(200, 232, 255, 0.55) 0 1px, transparent 1px 8px);
+  background-size: 100% 100%;
+  animation: peRain 0.55s linear infinite;
+}
+@keyframes peRain {
+  from { background-position: 0 0; }
+  to { background-position: -22px 44px; }
+}
+.pe-weather.pe-hail {
+  opacity: 1;
+  overflow: hidden;
+}
+.pe-hail-stone {
+  position: absolute;
+  display: block;
+  background: url("./move-fx-assets/pe/Gfx_Hail__16x16.png") center / contain no-repeat;
+  image-rendering: pixelated;
+  opacity: 0.92;
+  animation: peHailFall linear infinite;
+  will-change: transform;
+}
+@keyframes peHailFall {
+  from { transform: translate(0, -40px) rotate(0deg); }
+  to { transform: translate(var(--drift, -16px), 220px) rotate(var(--spin, 30deg)); }
+}
+.pe-weather.pe-sand {
+  opacity: 0.85;
+  background-image: repeating-linear-gradient(96deg, rgba(224, 190, 120, 0.5) 0 2px, transparent 2px 11px);
+  animation: peSand 0.45s linear infinite;
+}
+@keyframes peSand {
+  from { background-position: 0 0; }
+  to { background-position: -26px 6px; }
+}
+.pe-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.pe-surf {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  opacity: 0;
+  pointer-events: none;
+  background-image: url("./move-fx-assets/bg/bg_surf_player.png");
+  background-size: 512px 256px;
+  background-repeat: repeat-x;
+  background-position: 0 -48px;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent var(--surf-top, 30%), #000 var(--surf-top, 30%), #000 var(--surf-bottom, 70%), transparent var(--surf-bottom, 70%), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent var(--surf-top, 30%), #000 var(--surf-top, 30%), #000 var(--surf-bottom, 70%), transparent var(--surf-bottom, 70%), transparent 100%);
+}
+.battle-fight .battle-stage-top { position: relative; z-index: auto; }
+
+/* “束”类招式的可见光束 */
+.fx-beam {
+  position: absolute;
+  z-index: 8;
+  height: 12px;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, transparent 0%, var(--beam) 10%, #fff 50%, var(--beam) 90%, transparent 100%);
+  filter: drop-shadow(0 0 6px var(--beam));
+}
+.fx-beam::after {
+  content: '';
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 50%;
+  height: 3px;
+  border-radius: 999px;
+  background: #fff;
+  transform: translateY(-50%);
+  filter: blur(0.4px);
+}
+
+/* 命中瞬间的白闪 */
+.b-status-flash {
+  position: absolute;
+  z-index: 20;
+  border-radius: 50%;
+  background: #fff;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* 冲浪水面盖住精灵，但信息面板保持在最上层 */
+.battle-stage-top .b-info {
+  position: relative;
+  z-index: 9;
+}
+
+/* 环绕粒子：back 在精灵后面、front 在前面，靠 DOM 层实现遮挡 */
+.fx-orbit-back,
+.fx-orbit-front {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.fx-orbit-back { z-index: 0; }
+.fx-orbit-front { z-index: 2; }
+.fx-petal {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 7px;
+  height: 9px;
+  border-radius: 60% 40% 55% 45% / 70% 60% 40% 30%;
+  background: linear-gradient(160deg, #ff9ac4, #e84c96);
+  box-shadow: 0 0 6px rgba(248, 102, 156, 0.55);
+}
+.fx-duck {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  background: url("./move-fx-assets/pe/Gfx_Duck__16x16.png") 0 0 / 16px 48px no-repeat;
+  image-rendering: pixelated;
+  animation: fxDuckFrames 0.54s steps(1, end) infinite;
+}
+@keyframes fxDuckFrames {
+  0%, 33% { background-position: 0 0; }
+  34%, 66% { background-position: 0 -16px; }
+  67%, 100% { background-position: 0 -32px; }
+}

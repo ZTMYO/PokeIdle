@@ -1,0 +1,114 @@
+/* 原作战斗动画叠层（游戏内嵌） */
+.battle-stage-top.pe-anim-host { position: relative; }
+/* ===== 绿宝石原作动画层 ===== */
+.pe-root {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: hidden;
+  pointer-events: none;
+}
+.pe-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: #000;
+}
+.pe-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.pe-screenfx {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.pe-weather {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+}
+.pe-spr {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  will-change: transform, background-position;
+  pointer-events: none;
+}
+.pe-heart svg { display: block; width: 100%; height: 100%; color: #ff6fa5; }
+.pe-blend { mix-blend-mode: normal; }
+.pe-screenfx.pe-spotlight {
+  background: radial-gradient(circle at 50% 38%, rgba(255, 244, 190, 0.45) 0%, rgba(255, 244, 190, 0.12) 38%, rgba(0, 0, 0, 0.55) 72%);
+}
+.pe-weather.pe-rain {
+  opacity: 1;
+  background-image: repeating-linear-gradient(104deg, rgba(200, 232, 255, 0.55) 0 1px, transparent 1px 8px);
+  background-size: 100% 100%;
+  animation: peRain 0.55s linear infinite;
+}
+@keyframes peRain {
+  from { background-position: 0 0; }
+  to { background-position: -22px 44px; }
+}
+.pe-weather.pe-hail {
+  opacity: 1;
+  overflow: hidden;
+}
+.pe-hail-stone {
+  position: absolute;
+  display: block;
+  background: url("./pe-battle/move-fx-assets/pe/Gfx_Hail__16x16.png") center / contain no-repeat;
+  image-rendering: pixelated;
+  opacity: 0.92;
+  animation: peHailFall linear infinite;
+  will-change: transform;
+}
+@keyframes peHailFall {
+  from { transform: translate(0, -40px) rotate(0deg); }
+  to { transform: translate(var(--drift, -16px), 220px) rotate(var(--spin, 30deg)); }
+}
+.pe-weather.pe-sand {
+  opacity: 0.85;
+  background-image: repeating-linear-gradient(96deg, rgba(224, 190, 120, 0.5) 0 2px, transparent 2px 11px);
+  animation: peSand 0.45s linear infinite;
+}
+@keyframes peSand {
+  from { background-position: 0 0; }
+  to { background-position: -26px 6px; }
+}
+.pe-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.pe-surf {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  opacity: 0;
+  pointer-events: none;
+  background-image: url("./pe-battle/move-fx-assets/bg/bg_surf_player.png");
+  background-size: 512px 256px;
+  background-repeat: repeat-x;
+  background-position: 0 -48px;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent var(--surf-top, 30%), #000 var(--surf-top, 30%), #000 var(--surf-bottom, 70%), transparent var(--surf-bottom, 70%), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent var(--surf-top, 30%), #000 var(--surf-top, 30%), #000 var(--surf-bottom, 70%), transparent var(--surf-bottom, 70%), transparent 100%);
+}
+
+.pe-anim-host #bp-img.pe-anim-hidden,
+.pe-anim-host #be-img.pe-anim-hidden,
+.pe-anim-host #bp-base.pe-anim-hidden,
+.pe-anim-host #be-base.pe-anim-hidden { visibility: hidden !important; }
+.pe-anim-host #bp-img.ps-anim-hidden ~ svg,
+.pe-anim-host #be-img.ps-anim-hidden ~ svg { visibility: hidden !important; }

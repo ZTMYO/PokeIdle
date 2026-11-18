@@ -1,0 +1,19 @@
+templates: 388, with image: 374, callbacks: 314
+images used: 193
+move scripts: 356
+gBowMonSpriteTemplate: no image (cb AnimBowMon)
+sTipMonSpriteTemplate: no image (cb AnimTipMon)
+sVibrateBattlerBackSpriteTemplate: no image (cb AnimVibrateBattlerBack)
+sMonMoveCircularSpriteTemplate: no image (cb AnimMonMoveCircular)
+gHorizontalLungeSpriteTemplate: no image (cb DoHorizontalLunge)
+gVerticalDipSpriteTemplate: no image (cb DoVerticalDip)
+gSlideMonToOriginalPosSpriteTemplate: no image (cb SlideMonToOriginalPos)
+gSlideMonToOffsetSpriteTemplate: no image (cb SlideMonToOffset)
+gSlideMonToOffsetAndBackSpriteTemplate: no image (cb SlideMonToOffsetAndBack)
+gSimplePaletteBlendSpriteTemplate: no image (cb AnimSimplePaletteBlend)
+gComplexPaletteBlendSpriteTemplate: no image (cb AnimComplexPaletteBlend)
+gShakeMonOrTerrainSpriteTemplate: no image (cb AnimShakeMonOrBattleTerrain)
+sSmokescreenImpactSpriteTemplate: no image (cb SpriteCB_SmokescreenImpact)
+gSpriteTemplate_EnemyShadow: no image (cb SpriteCB_SetInvisible)
+backgrounds: 27 reconstructed
+Unknown script commands: gBattleAnims_General gBattleAnims_Moves gBattleAnims_Special gBattleAnims_StatusConditions gMovesWithQuietBGM

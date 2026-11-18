@@ -9279,6 +9279,8 @@ body.booting { visibility: hidden; }
 }
 .b-enemy-box .b-panel,
 .b-player-box .b-panel {
+  position: relative;
+  z-index: 20;
   background: var(--item-hover-bg);
   padding: 4px 8px;
   min-width: 0;
@@ -9428,7 +9430,7 @@ body.booting { visibility: hidden; }
   position: relative; /* 自动战斗遮罩定位基准 */
   background: var(--console-body);
   border-top: 2px solid var(--console-border);
-  z-index: 3;
+  z-index: 30;
 }
 /* 自动战斗遮罩：覆盖底部文案区，右下角闪烁提示，点击恢复手动 */
 .b-auto-mask {
