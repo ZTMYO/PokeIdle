@@ -643,6 +643,16 @@ const CB = {
     initAtk(s);
     linearTo(s, 14, TGT_X, TGT_Y, 24);
   },
+  AnimStompFoot(s) {
+    initTgt(s);
+    s.anim = { cmds: [], i: 0, frame: 2, timer: 0, ended: true, started: true };
+    let t = 0;
+    const delay = Math.max(1, A(s.args, 2, 15));
+    s.onTick = () => {
+      t++;
+      if (t >= delay) linearTo(s, 6, TGT_X, TGT_Y, 0, true);
+    };
+  },
   // ----------------------------------------------------------------- orbs
   AnimAbsorptionOrb(s) {
     initTgt(s);
@@ -734,7 +744,8 @@ const CB = {
     linearTo(s, 18, TGT_X, TGT_Y, 14);
   },
   AnimShadowBall(s) {
-    initAtk(s);
+    s.gx = ATK_X;
+    s.gy = ATK_Y;
     linearTo(s, 22, TGT_X, TGT_Y, 6);
   },
   AnimOctazookaBall(s) {
@@ -769,6 +780,24 @@ const CB = {
     popAndFade(s, Math.max(8, A(s.args, 3, 30)));
   },
   AnimOutrageFlame(s) {
+    const outrage = s.E.label === 'Move_OUTRAGE';
+    if (outrage) {
+      // 逆鳞：火焰贴着攻击方自身翻腾，不向对手漂移
+      s.gx = ATK_X + rnd(-14, 14);
+      s.gy = ATK_Y + rnd(-12, 12);
+      let phase = rnd(0, 255);
+      let t = 0;
+      const dur = Math.max(6, A(s.args, 2, 30));
+      s.onTick = () => {
+        t++;
+        s.x2 = angleSin(phase, 8);
+        s.y2 -= 0.8;
+        phase = (phase + 8) & 255;
+        s.visible = (t & 1) === 0;
+        if (t > dur) s.dead = true;
+      };
+      return;
+    }
     initAtk(s);
     s.y2 += A(s.args, 1);
     const vx = A(s.args, 3, 0) / 256;
@@ -1134,9 +1163,9 @@ const CB = {
         seg.sy = (step / 32) * 1.04;
       }
       session._thunderBuilding = false;
-      if (xoff === 0) {
-        const hit = session.createSprite('gBasicHitSplatSpriteTemplate', true, 3, [0, 0, 1, 1]);
-        if (hit) { hit.gx = TGT_X; hit.gy = TGT_Y; }
+      if (xoff === 0 && !session._thunderImpacted) {
+        session._thunderImpacted = true;
+        try { session.opts?.onImpact?.(); } catch (_) {}
       }
       return;
     }
@@ -1261,6 +1290,8 @@ const CB = {
   AnimParticleInVortex(s) {
     const sand = (s.tmpl.img || '').includes('MudSand');
     const fireSpin = s.E.label === 'Move_FIRE_SPIN';
+    const whirlpool = s.E.label === 'Move_WHIRLPOOL';
+    const dragonClaw = s.E.label === 'Move_DRAGON_CLAW';
     if (A(s.args, 6, 1) === 0) initAtk(s); else initTgt(s);
     let life = Math.max(4, A(s.args, 3, 20));
     let y = 0;
@@ -1286,6 +1317,32 @@ const CB = {
       speed = 18;
       amp = 16;
       phase = rnd(0, 255);
+    } else if (dragonClaw) {
+      // 龙爪：火焰贴着攻击方小范围上卷
+      life = 24;
+      yv = 0.65;
+      speed = 18;
+      amp = 12;
+      phase = rnd(0, 255);
+      s.sx = 0.65;
+      s.sy = 0.65;
+    } else if (whirlpool) {
+      // 潮旋：贴着目标螺旋向上收拢，y 方向按敌方镜像
+      s.gx = TGT_X;
+      s.gy = TGT_Y + 8;
+      s.sx = 0.9;
+      s.sy = 0.9;
+      let angle = rnd(0, 255);
+      let rise = 0;
+      let left = 34;
+      s.onTick = () => {
+        if (--left <= 0) { s.dead = true; return; }
+        rise += 0.9;
+        s.x2 = angleSin(angle, 16);
+        s.y2 = -rise * s.E.dirY;
+        angle = (angle + 16) & 255;
+      };
+      return;
     }
     s.onTick = () => {
       if (--life <= 0) { s.dead = true; return; }
@@ -1347,15 +1404,15 @@ const CB = {
   AnimFlyingParticle(s) {
     const battler = A(s.args, 6, 0) ? 'be' : 'bp';
     const m = gba(battler);
-    s.gx = battler === 'bp' ? -10 : 250;
+    s.gx = rnd(-24, 240);
     s.gy = A(s.args, 5, 0) === 2 || A(s.args, 5, 0) === 3 ? m.y + A(s.args, 0) : A(s.args, 0);
-    const speed = Math.abs(A(s.args, 3, 2)) || 2;
+    const speed = 3 + Math.min(4, Math.abs(A(s.args, 3, 0)) / 48);
     let t = 0;
     s.onTick = () => {
       t++;
-      s.x2 += battler === 'bp' ? speed : -speed;
+      s.x2 += speed;
       s.y2 = angleSin(t * A(s.args, 2, 6), A(s.args, 1, 8));
-      if (s.x2 > 300 || s.x2 < -300) s.dead = true;
+      if (s.x2 > 300) s.dead = true;
     };
   },
   AnimSword(s) {
@@ -1992,19 +2049,25 @@ const CB = {
   AnimMoonlightSparkle(s) { initAtk(s); drift(s, rnd(-0.7, 0.7), -1.1, 36); },
   AnimWallSparkle(s) { initTgt(s); s.x2 = A(s.args, 0); s.y2 = A(s.args, 1); flicker(s, 24); },
   AnimProtect(s) {
-    s.gx = ATK_X + A(s.args, 0, 24);
-    s.gy = ATK_Y + A(s.args, 1, 0) * s.E.dirY;
-    const dur = Math.max(20, A(s.args, 2, 90));
-    s.onTick = () => {
-      const t = s.age;
-      s.x2 = -t * 0.375 * s.E.dirX;
-      s.rot = t * 1.2;
-      s.alpha = t > dur - 12 ? Math.max(0, (dur - t) / 12) : 1;
-      if (s.el) {
-        s.el.style.filter = `hue-rotate(${(Math.sin(t / 7) * 28).toFixed(1)}deg) saturate(1.35) brightness(${(1 + Math.sin(t / 5) * 0.12).toFixed(2)})`;
-      }
-      if (t >= dur) s.dead = true;
-    };
+    s.visible = false;
+    const dur = Math.max(30, A(s.args, 2, 90));
+    [-34, -17, 0, 17, 34].forEach((off, i) => {
+      const ring = s.E.createSprite('gGuardRingSpriteTemplate', false, 2, []);
+      if (!ring) return;
+      ring.gx = ATK_X;
+      ring.gy = ATK_Y + off;
+      ring.sx = ring.sy = 0.82;
+      ring.alpha = 0;
+      let t = 0;
+      ring.onTick = () => {
+        t++;
+        const k = Math.min(1, t / 10);
+        ring.alpha = Math.min(1, k) * (t > dur - 10 ? Math.max(0, (dur - t) / 10) : 0.9);
+        ring.sx = ring.sy = 0.82 + Math.sin(t * 0.12 + i) * 0.04;
+        if (t >= dur) ring.dead = true;
+      };
+    });
+    s.dead = true;
   },
   AnimSwordsDanceBlade(s) {
     s.gx = ATK_X;
@@ -2608,6 +2671,35 @@ function floatAtTarget(s) {
   initTgt(s);
   drift(s, 0, -0.6, 44);
 }
+function AnimDevil(s) {
+  initTgt(s);
+  // 我方打对手用背面，对手打我方用正脸；从目标脚下浮上来
+  const eng = s.E.E;
+  const img = s.E.imgFor('be');
+  const sr = eng.stage.getBoundingClientRect();
+  const ir = img?.getBoundingClientRect();
+  const a = eng.anchors || { atk: { x: ATK_X, y: ATK_Y }, tgt: { x: TGT_X, y: TGT_Y } };
+  const sy = (a.tgt.y - a.atk.y) / (TGT_Y - ATK_Y) || 1;
+  const bottomGba = ir
+    ? TGT_Y + ((ir.top - sr.top + ir.height) * (eng.rectScale || 1) - a.tgt.y) / sy
+    : TGT_Y + 24;
+  s.gx = TGT_X;
+  s.gy = bottomGba + 32 * s.E.dirY;
+  startAnim(s, s.E.opponent ? 0 : 1);
+  let rise = 0;
+  s.onTick = () => {
+    rise += 1.25;
+    if (s.age >= 20) s.noWait = true; // 升到一定高度就让脚本接爱心，不必等小恶魔消失
+    s.x2 = angleSin(s.age * 4, 3);
+    s.y2 = -rise * s.E.dirY;
+    if (s.age > 62) s.dead = true;
+  };
+}
+CB.AnimDevil = AnimDevil;
+CB.AnimGhostStatusSprite = (s) => {
+  if ((s.tmpl.img || '').includes('Devil')) AnimDevil(s);
+  else floatAtTarget(s);
+};
 
 // ------------------------------------------------------------------- tasks
 const TASKS = {
@@ -3058,7 +3150,11 @@ const TASKS = {
   AnimTask_GrudgeFlames(E) { return () => false; },
   AnimTask_DoomDesireLightBeam(E) { return () => false; },
   AnimTask_NightShadeClone(E) { return () => false; },
-  AnimTask_NightmareClone(E) { return TASKS.AnimTask_NightShadeClone(E); },
+  AnimTask_NightmareClone(E) {
+    // 交给 AnimDevil：从目标脚下升起，并按敌我选择正/背面
+    E.createSprite('gDevilSpriteTemplate', true, 3, []);
+    return () => false;
+  },
   AnimTask_TransformMon(E) {
     const m = E.mon('be');
     let t = 0;
@@ -3967,6 +4063,10 @@ class Session {
       switch (op) {
         case 'd':
           if (this.label === 'Move_FORESIGHT') break;
+          if (this.label === 'Move_THUNDER') {
+            this.wait = Math.max(1, Math.round((Number(cmd[1]) || 1) * 0.55));
+            break;
+          }
           if (FAST_POWDER_MOVES.test(this.label)) {
             this.wait = Math.max(1, Math.round((Number(cmd[1]) || 1) * 0.55));
             break;
@@ -4001,6 +4101,11 @@ class Session {
         case 'w':
           if (this.label === 'Move_PSYCHIC' && !this._psyWaitSkipped) {
             this._psyWaitSkipped = true;
+            break;
+          }
+          // 碎岩：命中与碎石同帧，不再等拳头动画播完才爆石
+          if (this.label === 'Move_ROCK_SMASH' && !this._rockSmashWaitSkipped) {
+            this._rockSmashWaitSkipped = true;
             break;
           }
           if (this.visualBusy()) this.waitVisual = true;
@@ -4208,7 +4313,7 @@ class Session {
       }
       this._hydroSplatPair = true;
     }
-    if (this.opts?.onImpact && !this._impactFired && /Fist|Foot|HitSplat|Impact/i.test(name)) {
+    if (this.opts?.onImpact && !this._impactFired && !/StompFoot/.test(name) && /Fist|Foot|HitSplat|Impact/i.test(name)) {
       this._impactFired = true;
       try { this.opts.onImpact(); } catch (_) {}
     }
@@ -4218,8 +4323,14 @@ class Session {
       this.spawnIceShards();
     }
     this.maybeMeleeLunge(name);
-    const tmpl = PE.templates[name];
+    let tmpl = PE.templates[name];
     if (!tmpl) return null;
+    // 龙爪/龙息/逆鳞的火焰统一用 WispFire
+    if ((this.label === 'Move_DRAGON_CLAW' && name === 'gFireSpinSpriteTemplate')
+      || (this.label === 'Move_DRAGON_BREATH' && name === 'gDragonBreathFireSpriteTemplate')
+      || (this.label === 'Move_OUTRAGE' && name === 'gOutrageFlameSpriteTemplate')) {
+      tmpl = { ...tmpl, img: 'pe/Gfx_WispFire__32x32.png', frames: 4 };
+    }
     if (this.label === 'Move_LEECH_LIFE' && name === 'gLeechLifeNeedleSpriteTemplate') { this._projFired = true; return null; }
     if (this.noContact && /Fist|Foot/i.test(name)) return null;
     if (/Ball|Orb|Projectile|Pulse|Beam|Bubble|Droplet|Seed|Needle|Rock|Wave|Cannon|Missile|Blast|Stinger|Sting|ShadowBall|Gust|RazorLeaf|Present/i.test(name)) this._projFired = true;

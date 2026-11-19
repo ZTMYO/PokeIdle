@@ -235,6 +235,18 @@ function lungeAttack(side) {
   });
 }
 function shake(side) { playAnim(side, 'hit'); }
+function hitRecoil(side) {
+  const el = $(`${side}-img`);
+  if (!el) return;
+  el.classList.remove('hit-recoil');
+  void el.offsetWidth;
+  el.classList.add('hit-recoil');
+  el.addEventListener('animationend', function h(ev) {
+    if (ev.target !== el) return;
+    el.classList.remove('hit-recoil');
+    el.removeEventListener('animationend', h);
+  });
+}
 function popDmg(side, amount, maxHp = 100) {
   const s = document.createElement('span');
   s.className = 'b-dmg';
@@ -345,9 +357,10 @@ function spawnProjStream(side, shape, color, solid) {
   fx.className = 'b-proj-fx proj-' + shape;
   if (color) fx.style.setProperty('--fc', color);
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.38;
+  const yk = shape === 'ball' ? 0.5 : 0.38;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.38;
+  const ey = tr.top - br.top + tr.height * yk;
   fx.style.left = sx + 'px';
   fx.style.top = sy + 'px';
   if (shape === 'ball' || shape === 'confuse') {
@@ -387,9 +400,10 @@ function spawnProjOne(side, shape, color) {
   fx.className = 'b-proj-fx proj-' + shape;
   if (color) fx.style.setProperty('--fc', color);
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.38;
+  const yk = shape === 'ball' ? 0.5 : 0.38;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.38;
+  const ey = tr.top - br.top + tr.height * yk;
   fx.style.left = sx + 'px';
   fx.style.top = sy + 'px';
   const b = document.createElement('i');
@@ -455,9 +469,10 @@ function spawnNeedleAsset(side, tSide) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   const ang = (Math.atan2(ey - sy, ex - sx) * 180) / Math.PI + 90;
   const el = document.createElement('span');
   el.className = 'fx-orig';
@@ -867,9 +882,10 @@ function spawnDragonWave(side) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.38;
+  const yk = shape === 'ball' ? 0.5 : 0.38;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.38;
+  const ey = tr.top - br.top + tr.height * yk;
   const fx = document.createElement('span');
   fx.className = 'b-dragon-fx';
   fx.style.left = sx + 'px';
@@ -896,9 +912,10 @@ function spawnDrainParticles(fromSide, toSide, color, count = 10) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   const url = new URL('./move-fx-assets/pe/Gfx_Orbs__16x16.png', import.meta.url).href;
   for (let i = 0; i < count; i++) {
     const size = 14 + rnd(0, 10);
@@ -1048,21 +1065,15 @@ function spawnMeteorRain(tSide, count = 6) {
   return end;
 }
 
+// 灼伤闪烁：直接让精灵本体红光脉冲两下（不再叠白色圆片）
 function spawnStatusFlash(side) {
-  const box = $(`${side}-box`);
   const img = $(`${side}-img`);
-  if (!box || !img) return;
-  const br = box.getBoundingClientRect();
-  const ir = img.getBoundingClientRect();
-  const el = document.createElement('span');
-  el.className = 'b-status-flash';
-  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
-  el.style.top = (ir.top - br.top + ir.height / 2) + 'px';
-  el.style.width = Math.max(42, ir.width + 14) + 'px';
-  el.style.height = Math.max(42, ir.height + 14) + 'px';
-  box.appendChild(el);
-  el.animate([{ opacity: 0.85 }, { opacity: 0 }], { duration: 180 / speed, easing: 'ease-out', fill: 'both' });
-  setTimeout(() => el.remove(), 220 / speed);
+  if (!img) return;
+  img.classList.remove('b-burn-flash');
+  void img.offsetWidth;
+  img.classList.add('b-burn-flash');
+  clearTimeout(img._burnFlashT);
+  img._burnFlashT = setTimeout(() => img.classList.remove('b-burn-flash'), 620 / speed);
 }
 
 const HEART_SVG = '<svg viewBox="0 0 24 24" width="11" height="11"><path fill="currentColor" d="m20.17 13.537-7.122 7.034a1.494 1.494 0 0 1-2.096 0l-7.128-7.04a6.125 6.125 0 0 1 .006-8.728A6.25 6.25 0 0 1 8.233 3c1.36 0 2.68.436 3.767 1.253A6.26 6.26 0 0 1 15.767 3a6.25 6.25 0 0 1 4.404 1.803 6.127 6.127 0 0 1 0 8.734"/></svg>';
@@ -1106,18 +1117,15 @@ function showStatusFx(side, status) {
       fx.appendChild(p);
     }
   } else if (status === 'poison') {
-    const base = $(`${side}-base`);
-    let groundY = ir.height * 0.36;
-    if (base) {
-      const bRect = base.getBoundingClientRect();
-      groundY = bRect.top - br.top + bRect.height / 2 - (ir.top - br.top + ir.height / 2);
-    }
-    for (let i = 0; i < 3; i++) {
+    // 中毒：原作 Gfx_PoisonBubble 第一帧毒泡，大大小小从身上冒出
+    for (let i = 0; i < 7; i++) {
       const p = document.createElement('i');
-      p.className = 'fx-toxic-bubble';
-      p.style.left = ((i - 1) * 13 + rnd(-3, 3)) + 'px';
-      p.style.top = (groundY - 6 + rnd(-3, 3)) + 'px';
-      p.style.animationDelay = (i * 0.35).toFixed(2) + 's';
+      p.className = 'fx-poison-bubble';
+      p.style.setProperty('--s', rnd(10, 22) + 'px');
+      p.style.left = rnd(-ir.width / 2 + 6, ir.width / 2 - 6) + 'px';
+      p.style.top = rnd(-ir.height * 0.25, ir.height * 0.3) + 'px';
+      p.style.animationDelay = (Math.random() * 2.4).toFixed(2) + 's';
+      p.style.animationDuration = (2.2 + Math.random() * 1.2).toFixed(2) + 's';
       fx.appendChild(p);
     }
   } else if (status === 'paralysis') {
@@ -1210,9 +1218,10 @@ function spawnOrigStream(key, opts = {}, fromSide = 'bp', toSide = 'be') {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = key === 'blackBall' ? 0.5 : 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   const count = opts.count || 7;
   const duration = (opts.duration || 420) / speed;
   const delayStep = (opts.delay || 65) / speed;
@@ -1381,6 +1390,82 @@ function spawnOrbitFx(targetSide, { count, duration, radius, yRadius, rise, duck
     else { back.remove(); front.remove(); }
   };
   requestAnimationFrame(tick);
+}
+// 大字爆炎：直线发射火焰，命中后由火焰素材拼成“大”字炸开
+function spawnFireBlastShot(side) {
+  const tSide = side === 'bp' ? 'be' : 'bp';
+  const from = $(`${side}-img`);
+  const to = $(`${tSide}-img`);
+  const box = $(`${tSide}-box`);
+  if (!from || !to || !box) return Promise.resolve();
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height / 2;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height / 2;
+  const size = 42;
+  const url = new URL('./move-fx-assets/pe/Gfx_FirePlume__32x32.png', import.meta.url).href;
+  const el = document.createElement('span');
+  el.className = 'fx-orig';
+  el.style.left = sx + 'px';
+  el.style.top = sy + 'px';
+  el.style.width = size + 'px';
+  el.style.height = size + 'px';
+  el.style.backgroundImage = `url(${url})`;
+  el.style.backgroundSize = `${size}px ${size * 5}px`;
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  let f = 0;
+  const timer = setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * size}px`; }, 70 / speed);
+  el.animate([
+    { transform: 'translate(-50%,-50%) scale(.55)', opacity: 0 },
+    { opacity: 1, offset: .12 },
+    { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${(ey - sy).toFixed(1)}px)) scale(1)`, opacity: 1, offset: .92 },
+    { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${(ey - sy).toFixed(1)}px)) scale(1.15)`, opacity: 0 },
+  ], { duration: 330 / speed, easing: 'linear', fill: 'both' });
+  setTimeout(() => { clearInterval(timer); el.remove(); }, 380 / speed);
+  return new Promise((resolve) => setTimeout(resolve, 350 / speed));
+}
+function spawnFireBigExplosion(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.46;
+  const big = Math.max(74, Math.min(118, ir.width * 0.8));
+  const half = big / 2;
+  const pts = [
+    [-half, -half * 0.38], [-half * 0.5, -half * 0.38], [0, -half * 0.38], [half * 0.5, -half * 0.38], [half, -half * 0.38],
+    [0, -half * 0.42], [-half * 0.28, -half * 0.08], [-half * 0.55, half * 0.35], [-half * 0.78, half * 0.78],
+    [0, -half * 0.42], [half * 0.28, -half * 0.08], [half * 0.55, half * 0.35], [half * 0.78, half * 0.78],
+  ];
+  const url = new URL('./move-fx-assets/pe/Gfx_FirePlume__32x32.png', import.meta.url).href;
+  pts.forEach(([dx, dy], i) => {
+    const size = 24 + rnd(0, 10);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + dx) + 'px';
+    el.style.top = (cy + dy) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 5}px`;
+    el.style.backgroundPosition = `0 -${rnd(0, 4) * size}px`;
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    let f = rnd(0, 4);
+    const timer = setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * size}px`; }, 70 / speed);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.35)', opacity: 0 },
+      { transform: 'translate(-50%,-50%) scale(1.12)', opacity: 1, offset: .22 },
+      { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 },
+    ], { duration: 420 / speed, delay: (i * 18) / speed, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, (500 + i * 18) / speed);
+  });
 }
 function spawnPetalDance(targetSide) {
   const box = $(`${targetSide}-box`);
@@ -1846,6 +1931,57 @@ function spawnClampHands(tSide) {
   makeHand(-1);
   makeHand(1);
 }
+// 紧束/绑紧/缠绕：原作 Gfx_Tendrils 四帧藤蔓缠住目标，左右交错收紧两轮
+function spawnBindWrapFx(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const scale = Math.max(0.8, Math.min(1.35, ir.width / 64));
+  const sway = 11 * scale;
+  const el = document.createElement('span');
+  el.className = 'fx-orig b-bind-wrap';
+  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  el.style.top = (ir.top - br.top + ir.height * 0.55) + 'px';
+  el.style.width = 64 * scale + 'px';
+  el.style.height = 32 * scale + 'px';
+  el.style.backgroundImage = `url(${new URL('./move-fx-assets/pe/Gfx_Tendrils__64x32.png', import.meta.url).href})`;
+  el.style.backgroundSize = `${64 * scale}px ${128 * scale}px`;
+  el.style.backgroundPosition = '0 0';
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  let frame = 0;
+  const timer = setInterval(() => {
+    frame = (frame + 1) % 4;
+    el.style.backgroundPosition = `0 ${-32 * scale * frame}px`;
+  }, 66 / speed);
+  const dur = 560 / speed;
+  const anim = el.animate([
+    { transform: 'translate(-50%,-50%) scale(0.86)', opacity: 0 },
+    { transform: `translate(-50%,-50%) translateX(${-sway}px) scale(1)`, opacity: 1, offset: 0.14 },
+    { transform: `translate(-50%,-50%) translateX(${sway}px) scale(1.04)`, opacity: 1, offset: 0.32 },
+    { transform: `translate(-50%,-50%) translateX(${-sway}px) scale(1.04)`, opacity: 1, offset: 0.52 },
+    { transform: `translate(-50%,-50%) translateX(${sway}px) scale(1.04)`, opacity: 1, offset: 0.72 },
+    { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: 0.84 },
+    { transform: 'translate(-50%,-50%) scale(0.92)', opacity: 0 },
+  ], { duration: dur, easing: 'ease-in-out', fill: 'both' });
+  const squeeze = img.animate([
+    { transform: 'scale(1, 1)' },
+    { transform: 'scale(0.94, 1.06)', offset: 0.2 },
+    { transform: 'scale(1.04, 0.96)', offset: 0.38 },
+    { transform: 'scale(0.96, 1.04)', offset: 0.56 },
+    { transform: 'scale(1, 1)' },
+  ], { duration: dur, easing: 'ease-in-out' });
+  const done = () => {
+    clearInterval(timer);
+    anim.cancel();
+    squeeze.cancel();
+    el.remove();
+  };
+  anim.onfinish = done;
+  setTimeout(done, 650 / speed);
+}
 // 喝牛奶：增益瓶始终在施放者自己身上，玩家右侧、对手左侧
 function spawnMilkDrinkFx(side) {
   const box = $(`${side}-box`);
@@ -2074,9 +2210,10 @@ function spawnStoneBarrageFx(atkSide, tSide, count = 6) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   const url = new URL('./move-fx-assets/pe/Gfx_Rocks__32x32.png', import.meta.url).href;
   for (let i = 0; i < count; i++) {
     const size = 26 + rnd(0, 12);
@@ -2141,10 +2278,10 @@ function spawnMoonFx(side, tSide, mode) {
   const box = $(`${tSide}-box`);
   const tgt = $(`${tSide}-img`);
   if (!box || !tgt) return;
-  const br = box.getBoundingClientRect();
   const tr = tgt.getBoundingClientRect();
-  const tx = tr.left - br.left + tr.width / 2;
-  const ty = tr.top - br.top + tr.height / 2;
+  // 粒子挂在战场上，落点用战场坐标；box 坐标会导致方向乱飞
+  const tx = tr.left - fr.left + tr.width / 2;
+  const ty = tr.top - fr.top + tr.height / 2;
   const mx = fr.width / 2;
   const my = fr.height * 0.16;
   const url = new URL('./move-fx-assets/pe/Gfx_BlueStar__32x32.png', import.meta.url).href;
@@ -2213,27 +2350,45 @@ function spawnSeismicLiftFx(side, tSide, onImpact) {
   const tgt = $(`${tSide}-img`);
   if (!field || !atk || !tgt) return Promise.resolve();
   resetAnim(atk);
+  atk.style.transform = '';
   const ar = atk.getBoundingClientRect();
   const tr = tgt.getBoundingClientRect();
   const acx = ar.left + ar.width / 2;
   const acy = ar.top + ar.height / 2;
   const tcx = tr.left + tr.width / 2;
   const tcy = tr.top + tr.height / 2;
-  const belowDx = tcx - acx;
-  const belowDy = (tcy + tr.height * 0.45 + ar.height * 0.35) - acy;
-  const strikeDy = tcy - acy;
+  // 我方在 scaleX(-1) 容器内，translateX 方向与屏幕相反
+  const dx = (side === 'bp' ? -1 : 1) * (tcx - acx);
+  // 位移目标（对手正下方）：攻击方头顶贴住对手脚底
+  const belowDy = (tcy + tr.height * 0.5 + ar.height * 0.5) - acy;
+  // 向上顶：攻击方中心顶到对手下半身（接触点），不再继续上冲
+  const strikeDy = (tcy + tr.height * 0.15) - acy;
+  raiseAttacker(side);
   const anim = atk.animate([
-    { transform: `translate(${belowDx.toFixed(1)}px, ${belowDy.toFixed(1)}px)`, opacity: 1 },
-    { transform: `translate(${belowDx.toFixed(1)}px, ${belowDy.toFixed(1)}px)`, opacity: 1, offset: .18 },
-    { transform: `translate(${belowDx.toFixed(1)}px, ${strikeDy.toFixed(1)}px)`, opacity: 1, offset: .34 },
-    { transform: `translate(${belowDx.toFixed(1)}px, ${(strikeDy + 520).toFixed(1)}px)`, opacity: 0 },
-  ], { duration: 1100, easing: 'linear', fill: 'both' });
+    // 从原位快速冲到对手正下方（不闪现）
+    { transform: 'translate(0, 0) scale(1)', offset: 0, easing: 'cubic-bezier(.35,.8,.35,1)' },
+    { transform: `translate(${dx.toFixed(1)}px, ${belowDy.toFixed(1)}px) scale(.96)`, offset: .18, easing: 'ease-out' },
+    { transform: `translate(${dx.toFixed(1)}px, ${belowDy.toFixed(1)}px) scale(1)`, offset: .24, easing: 'ease-in' },
+    // 下蹲蓄力
+    { transform: `translate(${dx.toFixed(1)}px, ${(belowDy + 6).toFixed(1)}px) scale(.9, 1.12)`, offset: .31, easing: 'cubic-bezier(.15,.85,.3,1)' },
+    // 向上顶：接触瞬间压扁拉长
+    { transform: `translate(${dx.toFixed(1)}px, ${strikeDy.toFixed(1)}px) scale(1.08, .94)`, offset: .41, easing: 'ease-out' },
+    { transform: `translate(${dx.toFixed(1)}px, ${(strikeDy - 4).toFixed(1)}px) scale(1.03, .98)`, offset: .44, easing: 'cubic-bezier(.4,0,.9,.6)' },
+    // 顶完以很快的速度向下坠落出视口（衬托对手被巨力打飞到天上）
+    { transform: `translate(${dx.toFixed(1)}px, ${(strikeDy + 420).toFixed(1)}px) scale(1)`, offset: .60 },
+    { transform: `translate(${dx.toFixed(1)}px, ${(strikeDy + 420).toFixed(1)}px) scale(1)`, offset: 1 },
+  ], { duration: 1200 / speed, fill: 'both' });
+  // 被顶飞：受击压扁 → 被巨力打飞到天上 → 落回原处（结束时回到原位，不留下位移残留）
   const squash = tgt.animate([
     { transform: 'translateY(0) scale(1,1)', offset: 0 },
-    { transform: 'translateY(-10px) scale(.82,1.28)', offset: .3 },
-    { transform: 'translateY(-22px) scale(.92,1.12)', offset: .62 },
+    { transform: 'translateY(4px) scale(.84,1.18)', offset: .06, easing: 'ease-out' },
+    { transform: 'translateY(-34px) scale(1.1,.9)', offset: .18, easing: 'ease-out' },
+    { transform: 'translateY(-102px) scale(1.03,.97)', offset: .44, easing: 'ease-in' },
+    { transform: 'translateY(-108px) scale(1,1)', offset: .54, easing: 'cubic-bezier(.6,0,.9,.5)' },
+    { transform: 'translateY(-16px) scale(1,1)', offset: .84, easing: 'ease-in' },
+    { transform: 'translateY(0) scale(.9,1.12)', offset: .93 },
     { transform: 'translateY(0) scale(1,1)', offset: 1 },
-  ], { duration: 540 / speed, delay: 360 / speed, easing: 'ease-out', fill: 'both' });
+  ], { duration: 710 / speed, delay: 490 / speed, fill: 'forwards' });
   const bg = document.createElement('span');
   bg.style.position = 'absolute';
   bg.style.inset = '0';
@@ -2247,21 +2402,22 @@ function spawnSeismicLiftFx(side, tSide, onImpact) {
   field.insertBefore(bg, field.firstChild);
   bg.animate([
     { opacity: 0, backgroundPosition: '0 0' },
-    { opacity: 1, offset: .18 },
-    { opacity: 1, offset: .82 },
+    { opacity: 1, offset: .2 },
+    { opacity: 1, offset: .84 },
     { opacity: 0, backgroundPosition: '0 520px' },
-  ], { duration: 820 / speed, delay: 300 / speed, fill: 'both' });
-  setTimeout(() => { spawnSeismicRocks(tSide); if (onImpact) onImpact(); }, 370 / speed);
-  setTimeout(spawnSeismicRocks, 520, tSide);
+  ], { duration: 960 / speed, delay: 240 / speed, fill: 'both' });
+  setTimeout(() => { spawnSeismicRocks(tSide); if (onImpact) onImpact(); }, 490 / speed);
+  setTimeout(spawnSeismicRocks, 650 / speed, tSide);
   return new Promise((resolve) => {
     setTimeout(() => {
       anim.cancel();
       squash.cancel();
       atk.style.transform = '';
       atk.style.visibility = '';
+      lowerAttacker(side);
       bg.remove();
       resolve();
-    }, 1180 / speed);
+    }, 1210 / speed);
   });
 }
 // 充电：小电球环绕自身螺旋上升，最后聚成大光球
@@ -2330,9 +2486,10 @@ function spawnHyperBeamParticles(side, tSide) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   const url = new URL('./move-fx-assets/pe/Gfx_Orbs__8x8.png', import.meta.url).href;
   for (let i = 0; i < 14; i++) {
     const size = 10 + rnd(0, 7);
@@ -2358,6 +2515,49 @@ function spawnHyperBeamParticles(side, tSide) {
       { transform: `translate(calc(-50% + ${(tx - sx).toFixed(1)}px), calc(-50% + ${(ty - sy).toFixed(1)}px)) scale(1)`, opacity: 0 },
     ], { duration: 380 / speed, delay: (i * 18) / speed, easing: 'linear', fill: 'both' });
     setTimeout(() => { clearInterval(timer); el.remove(); }, (430 + i * 18) / speed);
+  }
+}
+// 恶之波动：四帧紫焰从施法者中心向外扩散
+function spawnDarkPulseFx(side) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = new URL('./move-fx-assets/pe/Gfx_PurpleFlame__16x32.png', import.meta.url).href;
+  for (let wave = 0; wave < 3; wave++) {
+    for (let i = 0; i < 8; i++) {
+      const w = 16 + rnd(0, 6);
+      const h = w * 2;
+      const ang = (i / 8) * Math.PI * 2 + wave * 0.3 + Math.random() * 0.2;
+      const dist = 56 + wave * 26 + rnd(0, 22);
+      const el = document.createElement('span');
+      el.className = 'fx-orig';
+      el.style.left = cx + 'px';
+      el.style.top = cy + 'px';
+      el.style.width = w + 'px';
+      el.style.height = h + 'px';
+      el.style.backgroundImage = `url(${url})`;
+      el.style.backgroundSize = `${w}px ${h * 4}px`;
+      el.style.backgroundPosition = '0 0';
+      el.style.filter = 'drop-shadow(0 0 5px #b35cff)';
+      el.style.zIndex = '9';
+      box.appendChild(el);
+      let f = rnd(0, 3);
+      const timer = setInterval(() => { f = (f + 1) % 4; el.style.backgroundPosition = `0 -${f * h}px`; }, 65 / speed);
+      const dx = Math.cos(ang) * dist;
+      const dy = Math.sin(ang) * dist * 0.8;
+      const rot = (ang * 180) / Math.PI + 90;
+      el.animate([
+        { transform: `translate(-50%,-50%) rotate(${rot.toFixed(1)}deg) scale(.55)`, opacity: 0 },
+        { opacity: 1, offset: .12 },
+        { transform: `translate(calc(-50% + ${(dx * .55).toFixed(1)}px), calc(-50% + ${(dy * .55).toFixed(1)}px)) rotate(${rot.toFixed(1)}deg) scale(1)`, opacity: 1, offset: .5 },
+        { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) rotate(${rot.toFixed(1)}deg) scale(1.15)`, opacity: 0 },
+      ], { duration: 520 / speed, delay: (wave * 75 + i * 10) / speed, easing: 'ease-out', fill: 'both' });
+      setTimeout(() => { clearInterval(timer); el.remove(); }, (820 + wave * 75 + i * 10) / speed);
+    }
   }
 }
 // 喷出：自身短暂压扁蓄力，回弹时以自身为中心爆出多圈橙黄色光球
@@ -2445,6 +2645,64 @@ function spawnPunchFist(tSide, opts = {}) {
     ], { duration: 260 / speed, delay: (i * 90) / speed, easing: 'ease-out', fill: 'both' });
     setTimeout(() => el.remove(), (310 + i * 90) / speed);
   }
+}
+// 暗影爪/克命爪：复用金属爪的 Gfx_ClawSlash 五帧爪痕
+function spawnClawSlashFx(tSide, color) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const size = 54;
+  const url = `url(${new URL('./move-fx-assets/pe/Gfx_ClawSlash__32x32.png', import.meta.url).href})`;
+  for (let i = 0; i < 2; i++) {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+    el.style.top = (ir.top - br.top + ir.height * 0.46) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = `${size}px ${size * 5}px`;
+    el.style.backgroundPosition = '0 0';
+    el.style.zIndex = '10';
+    if (color) el.style.filter = `drop-shadow(0 0 5px ${color})`;
+    box.appendChild(el);
+    let f = 0;
+    const timer = setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * size}px`; }, 55 / speed);
+    const rot = i ? 24 : -24;
+    el.animate([
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(.75)`, opacity: 0 },
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1.15)`, opacity: 1, offset: .25 },
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1.05)`, opacity: 0 },
+    ], { duration: 320 / speed, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 370 / speed);
+  }
+}
+// 贝壳刃：Sparkle4 第四个分片作为斩击特效
+function spawnSparkleSlash(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'fx-orig';
+  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  el.style.top = (ir.top - br.top + ir.height * 0.46) + 'px';
+  el.style.width = '52px';
+  el.style.height = '52px';
+  el.style.backgroundImage = `url(${new URL('./move-fx-assets/pe/Gfx_Sparkle4__32x32.png', import.meta.url).href})`;
+  el.style.backgroundSize = '52px 260px';
+  el.style.backgroundPosition = '0 -156px';
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  el.animate([
+    { transform: 'translate(-50%,-50%) scale(.45) rotate(-35deg)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) scale(1.16) rotate(-10deg)', opacity: 1, offset: .24 },
+    { transform: 'translate(-50%,-50%) scale(1) rotate(0deg)', opacity: 0 },
+  ], { duration: 300 / speed, easing: 'ease-out', fill: 'both' });
+  setTimeout(() => el.remove(), 340 / speed);
 }
 // 拍击/连环巴掌：Gfx_TagHand 上半部分的手掌从上方拍向目标
 function spawnTagHandStrike(tSide, index = 0) {
@@ -2797,6 +3055,10 @@ function spawnFangParticles(tSide, name) {
     spawnPoisonOrbBurst(tSide);
     return;
   }
+  if (name === '火焰牙') {
+    spawnFireBurst(tSide);
+    return;
+  }
   const box = $(`${tSide}-box`);
   const img = $(`${tSide}-img`);
   if (!box || !img) return;
@@ -2937,6 +3199,41 @@ function spawnWaterImpact(tSide) {
   ], { duration: 280 / speed, easing: 'ease-out', fill: 'both' });
   setTimeout(() => el.remove(), 320 / speed);
 }
+// 蟹钳锤小气泡：原作 gSmallBubblePair（Gfx_IceCrystals 第 12/13 帧）围目标错峰上浮
+function spawnSmallBubblesFx(tSide) {
+  const img = $(`${tSide}-img`);
+  const box = $(`${tSide}-box`);
+  if (!img || !box) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = `url(${new URL('./move-fx-assets/pe/Gfx_IceCrystals__8x8.png', import.meta.url).href})`;
+  const offs = [[10, 10], [20, -20], [-15, 15], [0, 0], [-10, -20], [16, -8], [5, 8], [-16, 0]];
+  offs.forEach(([ox, oy], i) => {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + ox) + 'px';
+    el.style.top = (cy + oy) + 'px';
+    el.style.width = '10px';
+    el.style.height = '10px';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = '10px 140px';
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    let frame = 12;
+    const timer = setInterval(() => {
+      frame = frame === 12 ? 13 : 12;
+      el.style.backgroundPosition = `0 -${frame * 10}px`;
+    }, 70 / speed);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.6)', opacity: 0 },
+      { opacity: 1, offset: .2 },
+      { transform: `translate(calc(-50% + ${(Math.random() * 8 - 4).toFixed(1)}px), calc(-50% - ${20 + Math.random() * 14}px)) scale(1)`, opacity: 0 },
+    ], { duration: 520 / speed, delay: (i * 40) / speed, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, (560 + i * 40) / speed);
+  });
+}
 function spawnImpactTint(side, color) {
   if (!color) return;
   const img = $(`${side}-img`);
@@ -3049,16 +3346,45 @@ function showShield(side) {
   const img = $(`${side}-img`);
   const box = $(`${side}-box`);
   if (!img || !box) return;
-  const ir = img.getBoundingClientRect();
-  const br = box.getBoundingClientRect();
+  // 与游戏一致：用布局坐标定位，避免预览页 scale(2) 下 rect 放大导致环又大又偏
+  const flip = side === 'bp' ? img.closest('.b-flip') : null;
+  const cx = (flip ? flip.offsetLeft + img.offsetLeft : img.offsetLeft) + img.offsetWidth / 2;
+  const cy = (flip ? flip.offsetTop + img.offsetTop : img.offsetTop) + img.offsetHeight / 2;
+  const w = img.offsetWidth;
+  const h = img.offsetHeight;
   const fx = document.createElement('span');
   fx.className = 'b-shield';
-  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
-  fx.style.top = (ir.top - br.top + ir.height / 2) + 'px';
-  fx.style.width = Math.max(48, ir.width + 26) + 'px';
-  fx.style.height = Math.max(48, ir.height + 26) + 'px';
+  fx.style.left = cx + 'px';
+  fx.style.top = cy + 'px';
+  const ringW = Math.max(28, Math.min(80, w * 0.78));
+  const ringH = Math.min(ringW / 2, Math.max(7, h * 0.24));
+  const n = 6;
+  const span = Math.min(h * 0.7, ringH * 2.2);
+  const step = span / (n - 1);
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i');
+    p.className = 'b-shield-ring';
+    p.style.width = ringW + 'px';
+    p.style.height = ringH + 'px';
+    p.style.top = (step * ((n - 1) / 2 - i)) + 'px';
+    p.style.opacity = '0';
+    p.animate([
+      { opacity: 0, transform: 'translate(-50%,-50%) scale(0.7)' },
+      { opacity: 0.9, transform: 'translate(-50%,-50%) scale(1)', offset: 0.6 },
+      { opacity: 0.9, transform: 'translate(-50%,-50%) scale(1.02)' },
+    ], { duration: 170 / speed, delay: (i * 90) / speed, easing: 'ease-out', fill: 'both' });
+    fx.appendChild(p);
+  }
   box.appendChild(fx);
-  setTimeout(() => fx.remove(), 1100);
+  const hold = ((n - 1) * 90 + 170 + 140) / speed;
+  const fadeDur = 220 / speed;
+  const fade = fx.animate([
+    { opacity: 1 },
+    { opacity: 1, offset: hold / (hold + fadeDur) },
+    { opacity: 0 },
+  ], { duration: hold + fadeDur, easing: 'linear' });
+  fade.onfinish = () => { fx.style.opacity = '0'; };
+  setTimeout(() => fx.remove(), hold + fadeDur + 300);
 }
 function stageShake() {
   const st = stage();
@@ -3093,14 +3419,14 @@ function clearFx() {
   emerald?.stop();
   const root = stage();
   if (!root) return;
-  const sel = '.b-dmg,.b-spark,.b-type-fx,.b-proj-fx,.b-light-fx,.b-solar-fx,.b-lightning-fx,.b-rock-fx,.b-snow-fx,.b-sonic-fx,.b-beam-fx,.b-fairy-fx,.b-water-fx,.b-surf-fx,.fx-orbit-back,.fx-orbit-front,.b-charge-asset,.b-charge-clone,.b-wind-fx,.b-dragon-fx,.b-psy-fx,.b-ground-fx,.b-shield,.b-status-fx,.fx-spark-asset,.fx-toxic-bubble';
+  const sel = '.b-dmg,.b-spark,.b-type-fx,.b-proj-fx,.b-light-fx,.b-solar-fx,.b-lightning-fx,.b-rock-fx,.b-snow-fx,.b-sonic-fx,.b-beam-fx,.b-fairy-fx,.b-water-fx,.b-surf-fx,.fx-orbit-back,.fx-orbit-front,.b-charge-asset,.b-charge-clone,.b-wind-fx,.b-dragon-fx,.b-psy-fx,.b-ground-fx,.b-shield,.b-status-fx,.fx-spark-asset,.fx-poison-bubble';
   root.querySelectorAll(sel).forEach((el) => el.remove());
   root.classList.remove('battle-shake');
   for (const side of ['bp', 'be']) {
     const img = $(`${side}-img`);
     if (img) {
       resetAnim(img);
-      img.classList.remove('quake-hop');
+      img.classList.remove('quake-hop', 'b-burn-flash');
       img.dataset.charged = '';
       img.style.removeProperty('--lunge-dx');
       img.style.removeProperty('--lunge-dy');
@@ -3129,7 +3455,7 @@ async function impact(mv, tailScale = 1, tgt = 'be') {
     spawnHitSpark(tgt);
     spawnTypeFx(tgt, mv.type);
   }
-  if (FIRE_IMPACT.has(mv.name) || mv.type === '火' || mv.name.includes('火')) spawnFireBurst(tgt);
+  if (FIRE_IMPACT.has(mv.name) || mv.type === '火') spawnFireBurst(tgt);
   if (mv.type === '超能') spawnPsychicWrap(tgt);
   spawnImpactTint(tgt, color);
   flashHitPanel(tgt);
@@ -3267,22 +3593,31 @@ async function playMove(mv) {
     highlight(mv);
     updateTitle(mv);
     if (mv.statusKind) {
+      // 勾选「对手出招」时把状态动画施加到我方身上，方便预览
+      const opp = $('fxOpp')?.checked === true;
+      const tSide = opp ? 'bp' : 'be';
       if (mv.statusKind === 'confusion') {
-        setText(`${E_NAME}混乱了！`);
-        spawnDuckOrbit('be');
+        setText(`${opp ? P_NAME : E_NAME}混乱了！`);
+        spawnDuckOrbit(tSide);
         await sleep(1000 / speed);
         return;
       }
-      if (origOn() && emerald && emerald.hasStatus(mv.statusKind)) {
-        setText(`${E_NAME}${mv.statusText}！`);
-        if (mv.statusKind === 'burn') { spawnStatusFlash('be'); shake('be'); }
-        await emerald.playStatus(mv.statusKind, { speed });
-      } else {
-        lunge('bp');
+      if (mv.statusKind === 'burn') {
+        // 灼伤：身上常驻火苗贴图，再让精灵本体红光闪一下（与游戏实装一致）
+        lunge(opp ? 'be' : 'bp');
         await sleep(160 / speed);
-        showStatusFx('be', mv.statusKind);
-        if (mv.statusKind === 'burn') { spawnStatusFlash('be'); shake('be'); }
-        setText(`${E_NAME}${mv.statusText}！`);
+        setText(`${opp ? P_NAME : E_NAME}${mv.statusText}！`);
+        showStatusFx(tSide, 'burn');
+        spawnStatusFlash(tSide); // 红光闪烁 + 抖动（代替白色受击闪）
+        await sleep(650 / speed);
+      } else if (origOn() && emerald && emerald.hasStatus(mv.statusKind)) {
+        setText(`${opp ? P_NAME : E_NAME}${mv.statusText}！`);
+        await emerald.playStatus(mv.statusKind, { speed, targetSide: tSide });
+      } else {
+        lunge(opp ? 'be' : 'bp');
+        await sleep(160 / speed);
+        showStatusFx(tSide, mv.statusKind);
+        setText(`${opp ? P_NAME : E_NAME}${mv.statusText}！`);
         await sleep(650 / speed);
       }
       return;
@@ -3321,6 +3656,56 @@ async function playMove(mv) {
       setText(`${opp ? E_NAME : P_NAME}接受了再来一次！`);
       spawnEncoreClap(opp ? 'bp' : 'be');
       await sleep(1100 / speed);
+      return;
+    }
+    if (mv.name === '暗影爪' || mv.name === '克命爪') {
+      const opp = $('fxOpp')?.checked === true;
+      setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
+      const atkSide = opp ? 'be' : 'bp';
+      const tSide = opp ? 'bp' : 'be';
+      lungeAttack(atkSide);
+      await sleep(220 / speed);
+      spawnClawSlashFx(tSide, mv.name === '暗影爪' ? '#9a6cd0' : '#b35cff');
+      spawnHitSpark(tSide);
+      shake(tSide);
+      popDmg(tSide, rnd(16, 30));
+      await sleep(300 / speed);
+      return;
+    }
+    if (mv.name === '大字爆炎') {
+      const opp = $('fxOpp')?.checked === true;
+      setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
+      const atkSide = opp ? 'be' : 'bp';
+      const tSide = opp ? 'bp' : 'be';
+      await spawnFireBlastShot(atkSide);
+      spawnFireBigExplosion(tSide);
+      shake(tSide);
+      popDmg(tSide, rnd(16, 30));
+      await sleep(380 / speed);
+      return;
+    }
+    if (mv.name === '贝壳刃') {
+      const opp = $('fxOpp')?.checked === true;
+      setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
+      const atkSide = opp ? 'be' : 'bp';
+      const tSide = opp ? 'bp' : 'be';
+      lungeAttack(atkSide);
+      await sleep(220 / speed);
+      spawnSparkleSlash(tSide);
+      spawnHitSpark(tSide);
+      shake(tSide);
+      popDmg(tSide, rnd(16, 30));
+      await sleep(300 / speed);
+      return;
+    }
+    if (mv.name === '头锤' || mv.name === '火箭头锤') {
+      const opp = $('fxOpp')?.checked === true;
+      setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
+      const atkSide = opp ? 'be' : 'bp';
+      const tSide = opp ? 'bp' : 'be';
+      lungeAttack(atkSide);
+      await sleep(240 / speed);
+      await impact(mv, 1, tSide);
       return;
     }
     if (mv.name === '百万吨重拳') {
@@ -3418,7 +3803,7 @@ async function playMove(mv) {
       popDmg(tSide, rnd(16, 30));
       return;
     }
-    if (mv.name === '雷电牙' || mv.name === '冰冻牙' || mv.name === '剧毒牙' || mv.name === '虫咬') {
+    if (mv.name === '雷电牙' || mv.name === '冰冻牙' || mv.name === '火焰牙' || mv.name === '精神之牙' || mv.name === '剧毒牙' || mv.name === '虫咬') {
       setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
       const atkSide = opp ? 'be' : 'bp';
       const tSide = opp ? 'bp' : 'be';
@@ -3594,6 +3979,20 @@ async function playMove(mv) {
       popDmg(tSide, rnd(16, 30));
       return;
     }
+    if (mv.name === '蟹钳锤') {
+      setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
+      const atkSide = opp ? 'be' : 'bp';
+      const tSide = opp ? 'bp' : 'be';
+      lungeAttack(atkSide); // 贴脸挥钳
+      await sleep(220 / speed);
+      spawnWaterImpact(tSide);
+      spawnSmallBubblesFx(tSide);
+      spawnHitSpark(tSide);
+      hitRecoil(tSide);
+      popDmg(tSide, rnd(16, 30));
+      await sleep(180 / speed);
+      return;
+    }
     if (mv.name === '吸取拳') {
       setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
       const atkSide = opp ? 'be' : 'bp';
@@ -3622,6 +4021,17 @@ async function playMove(mv) {
       popDmg(tSide, rnd(16, 30));
       return;
     }
+    if (mv.name === '恶之波动' || mv.name === '怒火中烧') {
+      setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
+      const atkSide = opp ? 'be' : 'bp';
+      const tSide = opp ? 'bp' : 'be';
+      spawnDarkPulseFx(atkSide);
+      await sleep(620 / speed);
+      spawnHitSpark(tSide);
+      shake(tSide);
+      popDmg(tSide, rnd(16, 30));
+      return;
+    }
     if (mv.name === '喷出') {
       setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
       const atkSide = opp ? 'be' : 'bp';
@@ -3645,9 +4055,7 @@ async function playMove(mv) {
       setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
       const atkSide = opp ? 'be' : 'bp';
       const tSide = opp ? 'bp' : 'be';
-      lungeAttack(atkSide);
-      await sleep(280 / speed);
-      await spawnSeismicLiftFx(atkSide, tSide, () => spawnHitSpark(tSide));
+      await spawnSeismicLiftFx(atkSide, tSide, () => { shake(tSide); spawnHitSpark(tSide); });
       popDmg(tSide, rnd(16, 30));
       return;
     }
@@ -3723,7 +4131,7 @@ async function playMove(mv) {
       popDmg(tSide, rnd(16, 30));
       return;
     }
-    if (mv.name === '月光') {
+    if (mv.name === '月光' || mv.name === '新月祈祷') {
       setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
       const atkSide = opp ? 'be' : 'bp';
       spawnMoonFx(atkSide, atkSide, 'heal');
@@ -3864,7 +4272,20 @@ async function playMove(mv) {
       });
       return;
     }
-    const peId = mv.name === '骨棒乱打' ? 125 : mv.name === '蛮力' ? 70 : mv.id;
+    if (mv.name === '模仿') {
+      // 模仿：原作脚本复用的是命中泼溅帧，观感不对；改成把对手身上的能量吸过来
+      setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
+      const atkSide = opp ? 'be' : 'bp';
+      const tSide = opp ? 'bp' : 'be';
+      lunge(atkSide);
+      await sleep(160 / speed);
+      spawnDrainParticles(tSide, atkSide, '#9bd9ff', 12);
+      await sleep(600 / speed);
+      setText(`${opp ? P_NAME : E_NAME}模仿了对手的招式！`);
+      return;
+    }
+    const peId = mv.name === '骨棒乱打' ? 125 : mv.name === '蛮力' ? 70 : mv.name === '龙之怒' ? 225
+      : mv.name === '雷击' ? 87 : mv.id; // 雷击复用打雷（已简化为单段落雷）
     if (origOn() && emerald && emerald.hasMove(peId)) {
       const opp = $('fxOpp')?.checked === true;
       setText(`${opp ? E_NAME : P_NAME}使用了${mv.name}！`);
@@ -3874,11 +4295,25 @@ async function playMove(mv) {
       if (mv.effect?.kind === 'multihit') fast *= 1.3; // 多段招式后摇偏长，整体适当提速
       const two = TWO_TURN_MOVES.has(mv.id);
       const peCat = moveCat(mv);
-      const peCast = peCat === 'spec'
+      const bolt = mv.name === '雷击'; // 雷击复用打雷的施法式落雷，不做近身冲撞
+      const peCast = bolt || peCat === 'spec'
         || (peCat === 'phys' && (mv.name === '攀瀑' || !!(RANGED_SINGLE[mv.name] || RANGED_PHYS_MULTI[mv.name])))
         || (peCat === 'status' && mv.effect?.target === 'foe');
-      const peMelee = peCat === 'phys' && !RANGED_SINGLE[mv.name] && !RANGED_PHYS_MULTI[mv.name];
+      const peMelee = !bolt && peCat === 'phys' && !RANGED_SINGLE[mv.name] && !RANGED_PHYS_MULTI[mv.name];
       const peOpts = { speed: speed * fast, melee: peMelee, cast: peCast, twoTurn: two, opponent: opp };
+      if (mv.name === '打雷' || bolt) {
+        // 击中瞬间：震屏 + 从目标头顶正中心劈下的闪电
+        const tSide = opp ? 'bp' : 'be';
+        peOpts.onImpact = () => {
+          const img = $(`${tSide}-img`);
+          const layer = tSide === 'bp' ? img?.parentElement : img;
+          const prevZ = layer?.style.zIndex;
+          if (layer) layer.style.zIndex = '7';
+          shake(tSide);
+          spawnLightningAsset(tSide, 1);
+          setTimeout(() => { if (layer && layer.isConnected) layer.style.zIndex = prevZ; }, 520 / speed);
+        };
+      }
       if (mv.id === 143) {
         await emerald.playMove(peId, { ...peOpts, turn: 2 });
       } else if (mv.id === 117) {
@@ -3948,6 +4383,7 @@ async function playMove(mv) {
     const status = mv.effect?.status || mv.effect?.attach?.status;
     if (status) {
       showStatusFx(tSide, status);
+      if (status === 'burn') spawnStatusFlash(tSide); // 灼伤：红光闪烁
       const cn = { sleep: '睡着了', poison: '中毒了', burn: '灼伤了', paralysis: '麻痹了', freeze: '冰冻了', confusion: '混乱了', infatuation: '着迷了', curse: '被诅咒了' }[status] || '状态变化了';
       setText(`${opp ? P_NAME : E_NAME}${cn}`);
     } else {

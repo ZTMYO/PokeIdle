@@ -32,6 +32,7 @@ let _phase = 'idle';            // idle | rollFlip | rolling | locking | waiting
 let _actionLock = false;
 let _rollState = null;          // RAF 动画状态
 let _slideNext = false;         // 十连下一张是否带滑入动画
+let _drawToken = 0;             // 抽卡流程令牌：离开/重开时让旧定时器失效
 
 function coin() { return gameData.items['casinoCoin'] || 0; }
 
@@ -120,6 +121,7 @@ async function loadPool(id) {
 
 export async function showGachaView(poolId) {
   _currentPoolId = poolId;
+  _drawToken++;
   _results = [];
   _dealIdx = 0;
   _totalDeal = 0;
@@ -150,6 +152,13 @@ function renderGacha() {
   const box = $('gachaContent');
   if (!box) return;
   ensureCards();
+  if ((_phase === 'waiting' || _phase === 'done') && !_results[_dealIdx]) {
+    _phase = 'idle';
+    _drawing = false;
+    _results = [];
+    _dealIdx = 0;
+    _totalDeal = 0;
+  }
 
   let displayHtml, actionsHtml;
   // 收集标签只在空闲态（走马灯预览页）显示
@@ -246,6 +255,7 @@ function buildLockingDisplay() {
 
 function buildWaitingDisplay() {
   const r = _results[_dealIdx];
+  if (!r) return '<div class="gacha-display"></div>';
   const card = r.card;
   const poolDir = `pool${_currentPoolId}`;
   const slideClass = _slideNext ? ' gacha-card-slide-in' : '';
@@ -373,28 +383,34 @@ function bindEvents(box) {
       });
       break;
 
-    case 'rollFlip':
+    case 'rollFlip': {
+      const token = _drawToken;
       // 翻面动画结束后 → 进入滚动阶段
       setTimeout(() => {
+        if (token !== _drawToken) return;
         _phase = 'rolling';
         playSpinSfx('spin2');
         renderGacha();
       }, ROLL_FLIP_MS);
       break;
+    }
 
     case 'rolling':
       // RAF 由 startRolling 启动
       startRollAnimation();
       break;
 
-    case 'locking':
+    case 'locking': {
+      const token = _drawToken;
       // 锁定动画结束后 → waiting
       setTimeout(() => {
+        if (token !== _drawToken) return;
         _phase = 'waiting';
         _slideNext = false;
         renderGacha();
       }, LOCK_MS);
       break;
+    }
 
     case 'waiting':
       box.querySelector('.gacha-card-inner')?.addEventListener('click', (e) => {
@@ -531,6 +547,7 @@ async function doDraw(count) {
   if (coin() < DRAW_COST * count) return;
 
   _drawing = true;
+  _drawToken++;
   _results = [];
   _dealIdx = 0;
   _totalDeal = count;
@@ -566,6 +583,14 @@ async function doDraw(count) {
     // 保留最近50条
     if (gameData.gachaLogs[_currentPoolId].length > 50) gameData.gachaLogs[_currentPoolId].length = 50;
   }
+  if (_results.length === 0) {
+    gameData.items['casinoCoin'] += totalCost;
+    _drawing = false;
+    _phase = 'idle';
+    updateStats();
+    renderGacha();
+    return;
+  }
   await saveGame();
 
   // 翻面动画 → 滚动
@@ -584,7 +609,7 @@ function onCardFlip(el) {
   setTimeout(() => { _actionLock = false; }, 400);
 
   const idx = Number(el.dataset.idx);
-  if (isNaN(idx) || _results[idx].revealed) return;
+  if (isNaN(idx) || !_results[idx] || _results[idx].revealed) return;
   _results[idx].revealed = true;
   _phase = 'done';
   el.classList.add('flipped');

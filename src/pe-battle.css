@@ -50,13 +50,22 @@
 }
 .pe-weather.pe-rain {
   opacity: 1;
-  background-image: repeating-linear-gradient(104deg, rgba(200, 232, 255, 0.55) 0 1px, transparent 1px 8px);
-  background-size: 100% 100%;
-  animation: peRain 0.55s linear infinite;
+  overflow: hidden;
 }
-@keyframes peRain {
-  from { background-position: 0 0; }
-  to { background-position: -22px 44px; }
+/* 雨天：原作 Gfx_RainDrops 雨滴素材（取第 4 帧），斜向快速落下 */
+.pe-rain-drop {
+  position: absolute;
+  display: block;
+  background: url("./pe-battle/move-fx-assets/pe/Gfx_RainDrops__16x32.png") no-repeat 0 50%;
+  background-size: 100% 700%;
+  image-rendering: pixelated;
+  opacity: 0.9;
+  animation: peRainFall linear infinite;
+  will-change: transform;
+}
+@keyframes peRainFall {
+  from { transform: translate(0, -80px) rotate(14deg); }
+  to { transform: translate(var(--drift, -30px), 420px) rotate(14deg); }
 }
 .pe-weather.pe-hail {
   opacity: 1;
@@ -76,13 +85,27 @@
   to { transform: translate(var(--drift, -16px), 220px) rotate(var(--spin, 30deg)); }
 }
 .pe-weather.pe-sand {
-  opacity: 0.85;
-  background-image: repeating-linear-gradient(96deg, rgba(224, 190, 120, 0.5) 0 2px, transparent 2px 11px);
-  animation: peSand 0.45s linear infinite;
+  opacity: 1;
+  overflow: hidden;
 }
-@keyframes peSand {
-  from { background-position: 0 0; }
-  to { background-position: -26px 6px; }
+/* 沙暴：原作 Gfx_FlyingDirt 飞沙弯月，横向快速刮过战场并两帧翻转 */
+.pe-sand-dust {
+  position: absolute;
+  display: block;
+  background: url("./pe-battle/move-fx-assets/pe/Gfx_FlyingDirt__32x16.png") no-repeat 0 0;
+  background-size: 100% 200%;
+  image-rendering: pixelated;
+  opacity: 0.85;
+  animation: peSandDrift linear infinite, peSandFrames 0.24s steps(1) infinite;
+  will-change: transform;
+}
+@keyframes peSandDrift {
+  from { transform: translate(-70px, 0); }
+  to { transform: translate(360px, var(--dy, -10px)); }
+}
+@keyframes peSandFrames {
+  0%, 49% { background-position-y: 0; }
+  50%, 100% { background-position-y: 50%; }
 }
 .pe-tint {
   position: absolute;

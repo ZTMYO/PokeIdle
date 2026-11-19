@@ -11,7 +11,7 @@ import { BATTLE_REFRESH_MS, BATTLE_TIER_ITEMS, BATTLE_EVO_POOLS, MAX_LEVEL, SPEC
 import { playBattle, endBattle, playVictory, stopVictory, playShiny } from './audio.js';
 import { burstShinySparkle } from './animation.js';
 import { createRainbowSprite } from './rainbow-fx.js';
-import { playPeMove, playPeLabel } from './pe-battle-anim.js';
+import { playPeMove, playPeLabel, setPeSpeedFactor, setPeEnabled } from './pe-battle-anim.js';
 import * as road from './road.js';
 
 // 18 属性标签色（与图鉴/遇敌一致）
@@ -23,16 +23,13 @@ export const TYPE_COLORS = {
   '恶': '#553F42', '妖精': '#C74ECB',
 };
 
-// 属性特攻特效：命中瞬间按招式属性迸发专属粒子（12 个元素系属性专属，其余属性保留默认白火花）。
-// 值为粒子形状类名，颜色直接取 TYPE_COLORS，纯扁平无阴影。
-const TYPE_FX = {
-  火: 'flame', 水: 'drop', 草: 'leaf', 电: 'spark', 冰: 'ice', 毒: 'bubble',
-  地面: 'clump', 岩石: 'rock', 飞行: 'streak', 虫: 'dot', 超能: 'swirl', 龙: 'dragon',
-};
+// 命中染色：这些属性的伤害招式会在命中时给对手叠一层属性色（见 spawnImpactTint）
 const IMPACT_TINT_TYPES = new Set(['火', '水', '草', '毒', '冰']);
 const METEOR_MOVES = new Set(['流星群', '流星闪冲', '流星突击', '流星光束']);
-const FANG_COLORS = { 雷电牙: '#ffe066', 冰冻牙: '#23d7ff', 剧毒牙: '#b35cff', 虫咬: '#a8c93f' };
+const FANG_COLORS = { 雷电牙: '#ffe066', 冰冻牙: '#23d7ff', 火焰牙: '#ff9a4d', 精神之牙: '#f08bd0', 剧毒牙: '#b35cff', 虫咬: '#a8c93f' };
 const HAND_CLAMP_MOVES = new Set(['拍落', '小偷', '渴望', '击掌奇袭']);
+// 原作 FlyingParticle 粒子流招式：命中结算时补一个左右颤抖，避免打完没打击感
+const PARTICLE_HIT_SHAKE_MOVES = new Set(['银色旋风', '爆炸烈焰', '岩石封锁', '尖刺臂', '撕裂爪']);
 
 let _data = null;
 let _learnset = null;
@@ -46,6 +43,11 @@ let _retryAuto = false;   // 记住上一把战斗结束时的自动状态（「
 let _battleLogs = [];     // 本次对战的完整文本日志（右键文案区可查看）
 let _logCtx = null;       // 本局日志上下文（双方宝可梦名 + NPC 名），结算后「回顾」仍可正确渲染敌我
 let _logMenu = null;      // 右键菜单元素
+// 招式调试面板：在真实战斗里用克隆个体跑 doAttackInner，动作/节奏与正式战斗同一条代码
+let _fxdbgSpeed = 1;      // 调试播放倍速（battleSleep 与 PE 引擎共用，播放结束复位）
+let _fxdbgPlaying = false;
+let _fxdbgLast = null;    // { id, side } 最近一次调试播放
+let _fxdbgRestore = null; // 面板关闭/播放结束后恢复玩家操作界面（askPlayerMove 注册）
 
 // 僵局判定：连续多少回合双方均未造成伤害（回合首尾 HP 均无变化）视为死循环，自动战斗主动换人/判负
 const STALL_LIMIT = 10;
@@ -224,7 +226,7 @@ const battleSleep = (ms) => new Promise((res, rej) => {
   setTimeout(() => {
     if (_fleeing) rej(new BattleFled());
     else res();
-  }, ms);
+  }, ms / _fxdbgSpeed);
 });
 
 // 挣扎：四招全没 PP 时的兜底招式（无属性=不被免疫也不吃克制，必中；按伤害的 1/4 反伤）
@@ -786,6 +788,7 @@ async function renderBattlePage(battle) {
 ${bottomHtml}
     </div>`;
   const npcName = $('b-npc-name'); if (npcName) npcName.textContent = battle.preset.name;
+  _fxdbgRestore = null; // 上一场战斗的恢复回调不能留到这一场
   // 自动战斗遮罩：点击恢复手动操作（同时清除遮罩与隐藏态右栏）
   $('b-auto-mask')?.addEventListener('click', () => {
     _auto = false;
@@ -799,6 +802,7 @@ ${bottomHtml}
     e.stopPropagation(); // 阻止冒泡到全局右键禁用监听
     showLogMenu(e.clientX, e.clientY);
   };
+  // 招式调试只在控制台用 __fxdbg() 打开，战斗界面不显示入口
   (box.querySelector('.b-left') || box.querySelector('.tent-battle-text'))?.addEventListener('contextmenu', onLogCtx);
   box.querySelector('.b-auto-mask')?.addEventListener('contextmenu', onLogCtx);
   const balls = [
@@ -1027,7 +1031,8 @@ function ballEntry(side, img) {
 
 function setText(t) {
   hideRight(); // 动画播放期间隐藏右栏（操作按钮 + NPC 信息），左栏拉满全宽显示文本
-  $('b-text').textContent = t;
+  const el = $('b-text');
+  if (el) el.textContent = t;
   if (t) {
     _battleLogs.push(t); // 收集本次对战日志（右键文案区可查看）
     appendLogLine(t); // 记录页打开时实时追加新日志并滚到底部
@@ -1185,7 +1190,7 @@ export function closeLogPage() {
   }
 }
 // 战斗动画互斥：lunge/hit/faint 同时存在时会按 CSS 后定义者覆盖，取动画前必须清掉全部
-const B_ANIM_CLS = ['lunge', 'lunge-attack', 'hit', 'faint', 'lunge-stay', 'b-strike', 'flinch', 'b-enter', 'thunder-hit',
+const B_ANIM_CLS = ['lunge', 'lunge-attack', 'hit', 'hit-recoil', 'faint', 'lunge-stay', 'b-strike', 'flinch', 'b-enter', 'thunder-hit', 'shell-tuck',
   'cg-sink', 'cg-rise', 'cg-vanish', 'cg-glow', 'cg-out-sink', 'cg-out-rise', 'cg-out-vanish'];
 function resetAnim(el) {
   el.classList.remove(...B_ANIM_CLS);
@@ -1304,38 +1309,6 @@ function nudgeAttacker(side) {
   ], { duration: 280, easing: 'ease-out' });
   setTimeout(() => lowerAttacker(side), 300);
 }
-// 居合劈：原作斩击贴图
-function spawnSlashAsset(boxSide) {
-  const img = $(`${boxSide}-img`);
-  const box = $(`${boxSide}-box`);
-  if (!img || !box) return;
-  const ir = img.getBoundingClientRect();
-  const br = box.getBoundingClientRect();
-  const cx = ir.left - br.left + ir.width / 2;
-  const cy = ir.top - br.top + ir.height / 2;
-  const el = document.createElement('span');
-  el.className = 'b-charge-asset';
-  el.style.width = '32px';
-  el.style.height = '32px';
-  el.style.left = cx + 'px';
-  el.style.top = cy + 'px';
-  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_Cut__32x32.png')";
-  el.style.backgroundSize = '32px 128px';
-  el.style.backgroundPosition = '0 0';
-  el.style.transform = 'translate(-50%, -50%) scale(1.1)';
-  box.appendChild(el);
-  let f = 0;
-  const timer = setInterval(() => {
-    f = (f + 1) % 4;
-    el.style.backgroundPosition = `0 -${f * 32}px`;
-  }, 45);
-  el.animate([
-    { opacity: 0, transform: 'translate(-50%, -50%) scale(.8)' },
-    { opacity: 1, transform: 'translate(-50%, -50%) scale(1.1)', offset: 0.3 },
-    { opacity: 0, transform: 'translate(-50%, -50%) scale(1.2)' },
-  ], { duration: 300, easing: 'ease-out', fill: 'both' });
-  setTimeout(() => { clearInterval(timer); el.remove(); }, 340);
-}
 // 目标侧命中贴图（风/斩击到达即出现，不和伤害结算的旧粒子错位）
 function spawnImpactAsset(boxSide) {
   const img = $(`${boxSide}-img`);
@@ -1361,6 +1334,20 @@ function spawnImpactAsset(boxSide) {
   setTimeout(() => el.remove(), 340);
 }
 function shake(side) { playAnim(side, 'hit'); }
+// 定向受击：目标沿远离攻击方的方向弹一下（我方向左、敌方向右）。
+// 我方图片在 scaleX(-1) 容器里，同一个正 translateX 渲染出来正好是向左。
+function hitRecoil(side) {
+  const el = $(`${side}-img`);
+  if (!el) return;
+  el.classList.remove('hit-recoil');
+  void el.offsetWidth;
+  el.classList.add('hit-recoil');
+  el.addEventListener('animationend', function h(ev) {
+    if (ev.target !== el) return;
+    el.classList.remove('hit-recoil');
+    el.removeEventListener('animationend', h);
+  });
+}
 function popDmg(side, amount, mon) {
   const s = document.createElement('span');
   s.className = 'b-dmg';
@@ -1406,65 +1393,10 @@ function faintAnim(side) {
   el.classList.add('faint');
   panelOut(side); // 宝可梦倒下退场：信息卡片同步滑出屏幕
 }
-// 受击火花：在受击宝可梦中心迸发一圈白色像素火花（纯 CSS 动画，无资源依赖）
-function spawnHitSpark(side) {
-  const img = $(`${side}-img`);
-  const box = $(`${side}-box`);
-  if (!img || !box) return;
-  const spark = document.createElement('span');
-  spark.className = 'b-spark';
-  const ir = img.getBoundingClientRect();
-  const br = box.getBoundingClientRect();
-  spark.style.left = (ir.left - br.left + ir.width / 2) + 'px';
-  spark.style.top = (ir.top - br.top + ir.height / 2) + 'px';
-  for (let i = 0; i < 8; i++) {
-    const p = document.createElement('i');
-    const ang = (i / 8) * Math.PI * 2 + Math.random() * 0.7;
-    const dist = 13 + Math.random() * 9;
-    p.style.setProperty('--dx', (Math.cos(ang) * dist).toFixed(1) + 'px');
-    p.style.setProperty('--dy', (Math.sin(ang) * dist).toFixed(1) + 'px');
-    spark.appendChild(p);
-  }
-  box.appendChild(spark);
-  setTimeout(() => spark.remove(), 480);
-}
-// 属性专属命中爆发：命中瞬间围绕受击宝可梦迸发一圈该属性的扁平粒子。
-// 颜色取自 TYPE_COLORS（--fc），粒子按属性形状（火苗/水滴/叶片/星芒…）由 CSS 类区分，
-// 全部共用同一个 tfFly 扩散动画（沿 --dx/--dy 飞散淡出），无阴影纯扁平。
-const TYPE_FX_COUNT = { flame: 6, drop: 6, leaf: 6, spark: 7, ice: 5, bubble: 6, clump: 5, rock: 5, streak: 5, dot: 6, swirl: 5, dragon: 6 };
-function spawnTypeFx(side, type) {
-  const shape = TYPE_FX[type];
-  if (!shape) return;
-  const img = $(`${side}-img`);
-  const box = $(`${side}-box`);
-  if (!img || !box) return;
-  const fx = document.createElement('span');
-  fx.className = 'b-type-fx tf-' + shape;
-  fx.style.setProperty('--fc', TYPE_COLORS[type] || '#fff');
-  const ir = img.getBoundingClientRect();
-  const br = box.getBoundingClientRect();
-  fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
-  fx.style.top = (ir.top - br.top + ir.height / 2) + 'px';
-  const n = TYPE_FX_COUNT[shape] || 5;
-  for (let i = 0; i < n; i++) {
-    const p = document.createElement('i');
-    const ang = (i / n) * Math.PI * 2 + Math.random() * 0.8;
-    const dist = 12 + Math.random() * 12;
-    p.style.setProperty('--dx', (Math.cos(ang) * dist).toFixed(1) + 'px');
-    p.style.setProperty('--dy', (Math.sin(ang) * dist).toFixed(1) + 'px');
-    p.style.animationDelay = (Math.random() * 0.12).toFixed(2) + 's';
-    p.style.animationDuration = (0.5 + Math.random() * 0.3).toFixed(2) + 's';
-    fx.appendChild(p);
-  }
-  box.appendChild(fx);
-  setTimeout(() => fx.remove(), 900);
-}
 // 回复：统一使用原作 Gfx_BlueStar 星星粒子
 function spawnHealFx(side) {
   spawnBlueStarBurst(side, 10);
 }
-// 远程多段物理招式（种子机关枪/冰锥/岩石暴击/飞弹针/骨棒乱打/鳞射/尖刺加农炮）：
-// 攻击方不贴脸，站原地朝对手逐发喷射实心粒子，粒子形状按招区分、颜色取属性色
 const SOUND_MOVES = new Set([
   '叫声', '吼叫', '唱歌', '超音波', '音爆', '刺耳声', '打鼾', '终焉之歌', '治愈铃声',
   '巨声', '金属音', '长嚎', '虫鸣', '轮唱', '回声', '大声咆哮', '打嗝', '战吼',
@@ -1474,6 +1406,8 @@ const SOUND_MOVES = new Set([
 const BIND_MOVES = new Set(['缠绕', '紧束', '绑紧']);
 const FIST_MOVES = new Set(['子弹拳', '增强拳', '等离子闪电拳', '钢拳双击', '极巨拳斗', '喷射拳', '愤怒之拳']);
 const STONE_RANGED = new Set(['尖石攻击', '岩石炮', '钻石风暴', '岩斧', '冲岩']);
+// 远程多段物理招式（种子机关枪/冰锥/岩石爆击/飞弹针/骨棒乱打/鳞射/尖刺加农炮）：
+// 攻击方不贴脸，站原地朝对手逐发喷射实心粒子，粒子形状按招区分、颜色取属性色
 const RANGED_PHYS_MULTI = {
   '种子机关枪': { shape: 'pill',    color: TYPE_COLORS['草'] },
   '冰锥':       { shape: 'crystal', color: TYPE_COLORS['冰'] },
@@ -1509,9 +1443,10 @@ function spawnProjStream(side, shape, color, solid) {
   fx.className = 'b-proj-fx proj-' + shape;
   if (color) fx.style.setProperty('--fc', color);
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.38;
+  const yk = shape === 'ball' ? 0.5 : 0.38;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.38;
+  const ey = tr.top - br.top + tr.height * yk;
   fx.style.left = sx + 'px';
   fx.style.top = sy + 'px';
   if (shape === 'ball' || shape === 'confuse') {
@@ -1534,6 +1469,12 @@ function spawnProjStream(side, shape, color, solid) {
     b.style.setProperty('--se', shrink ? 0.45 : 1.5);
     b.style.setProperty('--bs', (10 + Math.random() * 7).toFixed(1) + 'px');
     b.style.setProperty('--bd', (i * 0.06).toFixed(2) + 's');
+    // 树叶/花瓣素材是多帧纵向图：每片随机取一帧，避免整串长得一模一样
+    if (shape === 'leaf' || shape === 'petal') {
+      const frames = shape === 'leaf' ? 9 : 4;
+      const f = Math.floor(Math.random() * frames);
+      b.style.backgroundPosition = `0 ${((f / (frames - 1)) * 100).toFixed(1)}%`;
+    }
     fx.appendChild(b);
   }
   box.appendChild(fx);
@@ -1552,9 +1493,10 @@ function spawnProjOne(side, shape, color) {
   if (color) fx.style.setProperty('--fc', color);
   // 起点：攻击方中心略偏上（模拟喷射口）；终点：目标中心略偏上，带随机散布
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.38;
+  const yk = shape === 'ball' ? 0.5 : 0.38;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.38;
+  const ey = tr.top - br.top + tr.height * yk;
   fx.style.left = sx + 'px';
   fx.style.top = sy + 'px';
   const b = document.createElement('i');
@@ -1621,9 +1563,10 @@ function spawnNeedleAsset(side, tSide) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   const ang = (Math.atan2(ey - sy, ex - sx) * 180) / Math.PI + 90;
   const el = document.createElement('span');
   el.className = 'fx-orig';
@@ -1643,33 +1586,6 @@ function spawnNeedleAsset(side, tSide) {
     { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${(ey - sy).toFixed(1)}px)) rotate(${ang.toFixed(1)}deg)`, opacity: 0 },
   ], { duration: 330, easing: 'linear', fill: 'both' });
   setTimeout(() => el.remove(), 370);
-}
-// 破坏光线：一截橙色带白边光段，从攻击方中心沿目标方向飞出，穿过对手后冲出屏幕。
-// 发射点为容器原点并旋转对齐方向；--td 为沿该方向的飞行总距离
-function spawnLightSweep(side) {
-  const from = $(`${side}-img`);
-  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
-  const box = $(`${side}-box`);
-  if (!from || !to || !box) return;
-  const br = box.getBoundingClientRect();
-  const fr = from.getBoundingClientRect();
-  const tr = to.getBoundingClientRect();
-  const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.42;
-  const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.42;
-  const fx = document.createElement('span');
-  fx.className = 'b-light-fx';
-  fx.style.left = sx + 'px';
-  fx.style.top = sy + 'px';
-  fx.style.transform = `rotate(${Math.atan2(ey - sy, ex - sx)}rad)`;
-  const seg = document.createElement('i');
-  seg.className = 'seg';
-  // 飞行距离超出目标继续延伸，冲向屏幕边缘后淡出
-  seg.style.setProperty('--td', (Math.hypot(ex - sx, ey - sy) * 1.9).toFixed(0) + 'px');
-  fx.appendChild(seg);
-  box.appendChild(fx);
-  setTimeout(() => fx.remove(), 1000);
 }
 // 日光束：从对手地面底座椭圆中心向上射出一根柔光淡黄细柱
 function spawnSolarBeam(tSide) {
@@ -2003,6 +1919,57 @@ function spawnIceBeam(side) {
   box.appendChild(fx);
   setTimeout(() => fx.remove(), 450);
 }
+// 极光束：彩虹光束从攻击方射向对手，光束上错峰飞出一串彩虹光环（不再用原作那套看不清的圆环素材）
+function spawnAuroraBeam(side) {
+  const from = $(`${side}-img`);
+  const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
+  const box = $(`${side}-box`);
+  if (!from || !to || !box) return;
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height * 0.35;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height * 0.35;
+  const dx = ex - sx, dy = ey - sy;
+  const dist = Math.hypot(dx, dy);
+  const fx = document.createElement('span');
+  fx.className = 'b-aurora-fx';
+  fx.style.left = sx + 'px';
+  fx.style.top = sy + 'px';
+  fx.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`; // 光束指向目标
+  const core = document.createElement('b');
+  core.style.width = dist + 'px';
+  fx.appendChild(core);
+  for (let i = 0; i < 5; i++) {
+    const r = document.createElement('i');
+    r.style.setProperty('--tx', (dist * (0.5 + i * 0.12)).toFixed(1) + 'px');
+    r.style.setProperty('--bd', (i * 0.07).toFixed(2) + 's');
+    fx.appendChild(r);
+  }
+  box.appendChild(fx);
+  setTimeout(() => fx.remove(), 950);
+}
+// 极光束：原作极光背景，出招时浮现、光束射完淡出
+let _auroraBgFx = null;
+function hideAuroraBg() {
+  if (_auroraBgFx) {
+    _auroraBgFx.remove();
+    _auroraBgFx = null;
+  }
+}
+function spawnAuroraBg() {
+  const field = document.querySelector('.battle-fight');
+  if (!field) return;
+  hideAuroraBg();
+  const fx = document.createElement('span');
+  fx.className = 'b-aurora-bg-fx';
+  fx.style.backgroundImage = "url('./pe-battle/move-fx-assets/bg/bg_aurora.png')";
+  field.appendChild(fx);
+  _auroraBgFx = fx;
+  setTimeout(() => { if (_auroraBgFx === fx) hideAuroraBg(); }, 1100);
+}
 // 全屏遮罩闪光（魔法闪耀/电光/精神强念）：半透明粉紫色遮罩覆盖整个战场，从中心扩散后迅速淡出（无方向性）
 function spawnScreenFlash() {
   const stage = document.querySelector('.battle-fight');
@@ -2141,9 +2108,10 @@ function spawnWindTornado(side, color) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   const url = new URL('./pe-battle/move-fx-assets/gust.png', import.meta.url).href;
   for (let i = 0; i < 3; i++) {
     const el = document.createElement('span');
@@ -2244,6 +2212,41 @@ function spawnWaterImpact(tSide) {
     { transform: 'translate(-50%,-50%) scale(1.55)', opacity: 0 },
   ], { duration: 280, easing: 'ease-out', fill: 'both' });
   setTimeout(() => el.remove(), 320);
+}
+// 蟹钳锤小气泡：原作 gSmallBubblePair（Gfx_IceCrystals 第 12/13 帧）围目标错峰上浮
+function spawnSmallBubblesFx(tSide) {
+  const img = $(`${tSide}-img`);
+  const box = $(`${tSide}-box`);
+  if (!img || !box) return;
+  const ir = img.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = "url('./pe-battle/move-fx-assets/pe/Gfx_IceCrystals__8x8.png')";
+  const offs = [[10, 10], [20, -20], [-15, 15], [0, 0], [-10, -20], [16, -8], [5, 8], [-16, 0]];
+  offs.forEach(([ox, oy], i) => {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + ox) + 'px';
+    el.style.top = (cy + oy) + 'px';
+    el.style.width = '10px';
+    el.style.height = '10px';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = '10px 140px'; // 14 帧，第 12/13 帧是气泡
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    let frame = 12;
+    const timer = setInterval(() => {
+      frame = frame === 12 ? 13 : 12;
+      el.style.backgroundPosition = `0 -${frame * 10}px`;
+    }, 70);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.6)', opacity: 0 },
+      { opacity: 1, offset: .2 },
+      { transform: `translate(calc(-50% + ${(Math.random() * 8 - 4).toFixed(1)}px), calc(-50% - ${20 + Math.random() * 14}px)) scale(1)`, opacity: 0 },
+    ], { duration: 520, delay: i * 40, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 560 + i * 40);
+  });
 }
 function spawnHydroOrbStream(side) {
   const from = $(`${side}-img`);
@@ -2362,6 +2365,26 @@ function spawnAquaRing(side) {
   requestAnimationFrame(tick);
   setTimeout(() => host.remove(), 980);
 }
+// 缩入壳中：上下两片水色壳盖合拢把宝可梦收进去（本体同步压扁变暗），
+// 闭合瞬间闪白，停顿后张开并向外推出一圈防御脉冲
+function spawnShellTuckFx(side) {
+  const img = $(`${side}-img`);
+  const box = $(`${side}-box`);
+  if (!img || !box) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const host = document.createElement('span');
+  host.className = 'b-shell-fx';
+  host.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  host.style.top = (ir.top - br.top + ir.height / 2) + 'px';
+  host.style.width = Math.max(30, Math.round(ir.width * 1.35)) + 'px';
+  host.style.height = Math.max(28, Math.round(ir.height * 1.1)) + 'px';
+  host.innerHTML = '<i class="b-shell-half is-top"></i><i class="b-shell-half is-bottom"></i>'
+    + '<i class="b-shell-flash"></i><i class="b-shell-pulse"></i>';
+  box.appendChild(host);
+  playAnim(side, 'shell-tuck'); // 本体缩一下：壳合拢时看得出"钻进去"
+  setTimeout(() => host.remove(), 1250);
+}
 function spawnMistStream(side) {
   const from = $(`${side}-img`);
   const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
@@ -2371,9 +2394,10 @@ function spawnMistStream(side) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   for (let i = 0; i < 10; i++) {
     const el = document.createElement('span');
     el.className = 'b-mist-stream';
@@ -2421,7 +2445,7 @@ function spawnDragonWave(side) {
   setTimeout(() => fx.remove(), 750);
 }
 // 吸血粒子：从来源精灵身上飞出一串原作吸收光球，收拢吸回目标。
-function spawnDrainParticles(fromSide, toSide, color, count = 10) {
+function spawnDrainParticles(fromSide, toSide, count = 10) {
   const from = $(`${fromSide}-img`);
   const to = $(`${toSide}-img`);
   const box = $(`${toSide}-box`);
@@ -2460,6 +2484,81 @@ function spawnDrainParticles(fromSide, toSide, color, count = 10) {
     ], { duration: 480, delay: i * 22, easing: 'ease-in', fill: 'both' });
     setTimeout(() => el.remove(), 540 + i * 22);
   }
+}
+function spawnFireBlastShot(side) {
+  const tSide = side === 'bp' ? 'be' : 'bp';
+  const from = $(`${side}-img`);
+  const to = $(`${tSide}-img`);
+  const box = $(`${tSide}-box`);
+  if (!from || !to || !box) return Promise.resolve();
+  const br = box.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+  const sx = fr.left - br.left + fr.width / 2;
+  const sy = fr.top - br.top + fr.height / 2;
+  const ex = tr.left - br.left + tr.width / 2;
+  const ey = tr.top - br.top + tr.height / 2;
+  const size = 42;
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_FirePlume__32x32.png', import.meta.url).href;
+  const el = document.createElement('span');
+  el.className = 'fx-orig';
+  el.style.left = sx + 'px';
+  el.style.top = sy + 'px';
+  el.style.width = size + 'px';
+  el.style.height = size + 'px';
+  el.style.backgroundImage = `url(${url})`;
+  el.style.backgroundSize = `${size}px ${size * 5}px`;
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  let f = 0;
+  const timer = setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * size}px`; }, 70);
+  el.animate([
+    { transform: 'translate(-50%,-50%) scale(.55)', opacity: 0 },
+    { opacity: 1, offset: .12 },
+    { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${(ey - sy).toFixed(1)}px)) scale(1)`, opacity: 1, offset: .92 },
+    { transform: `translate(calc(-50% + ${(ex - sx).toFixed(1)}px), calc(-50% + ${(ey - sy).toFixed(1)}px)) scale(1.15)`, opacity: 0 },
+  ], { duration: 330, easing: 'linear', fill: 'both' });
+  setTimeout(() => { clearInterval(timer); el.remove(); }, 380);
+  return new Promise((resolve) => setTimeout(resolve, 350));
+}
+function spawnFireBigExplosion(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.46;
+  const big = Math.max(74, Math.min(118, ir.width * 0.8));
+  const half = big / 2;
+  const pts = [
+    [-half, -half * 0.38], [-half * 0.5, -half * 0.38], [0, -half * 0.38], [half * 0.5, -half * 0.38], [half, -half * 0.38],
+    [0, -half * 0.42], [-half * 0.28, -half * 0.08], [-half * 0.55, half * 0.35], [-half * 0.78, half * 0.78],
+    [0, -half * 0.42], [half * 0.28, -half * 0.08], [half * 0.55, half * 0.35], [half * 0.78, half * 0.78],
+  ];
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_FirePlume__32x32.png', import.meta.url).href;
+  pts.forEach(([dx, dy], i) => {
+    const size = 24 + randInt(0, 10);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (cx + dx) + 'px';
+    el.style.top = (cy + dy) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = `url(${url})`;
+    el.style.backgroundSize = `${size}px ${size * 5}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 4) * size}px`;
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    let f = randInt(0, 4);
+    const timer = setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * size}px`; }, 70);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.35)', opacity: 0 },
+      { transform: 'translate(-50%,-50%) scale(1.12)', opacity: 1, offset: .22 },
+      { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 },
+    ], { duration: 420, delay: i * 18, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 500 + i * 18);
+  });
 }
 // 花瓣舞：花朵和花瓣都使用特效素材，前后分层绕目标旋转
 function spawnPetalDanceFx(targetSide) {
@@ -2671,6 +2770,58 @@ function spawnClampHands(tSide) {
   };
   makeHand(-1);
   makeHand(1);
+}
+// 紧束/绑紧/缠绕：原作 Gfx_Tendrils 四帧藤蔓缠住目标，左右交错收紧两轮（约 0.56s）
+function spawnBindWrapFx(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const scale = Math.max(0.8, Math.min(1.35, ir.width / 64)); // 藤蔓宽度跟随目标体型
+  const sway = 11 * scale;
+  const el = document.createElement('span');
+  el.className = 'fx-orig b-bind-wrap';
+  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  el.style.top = (ir.top - br.top + ir.height * 0.55) + 'px';
+  el.style.width = 64 * scale + 'px';
+  el.style.height = 32 * scale + 'px';
+  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_Tendrils__64x32.png')";
+  el.style.backgroundSize = `${64 * scale}px ${128 * scale}px`;
+  el.style.backgroundPosition = '0 0';
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  // 四帧 ×4 tick 循环两轮，与原作 an 数据一致
+  let frame = 0;
+  const timer = setInterval(() => {
+    frame = (frame + 1) % 4;
+    el.style.backgroundPosition = `0 ${-32 * scale * frame}px`;
+  }, 66);
+  const anim = el.animate([
+    { transform: 'translate(-50%,-50%) scale(0.86)', opacity: 0 },
+    { transform: `translate(-50%,-50%) translateX(${-sway}px) scale(1)`, opacity: 1, offset: 0.14 },
+    { transform: `translate(-50%,-50%) translateX(${sway}px) scale(1.04)`, opacity: 1, offset: 0.32 },
+    { transform: `translate(-50%,-50%) translateX(${-sway}px) scale(1.04)`, opacity: 1, offset: 0.52 },
+    { transform: `translate(-50%,-50%) translateX(${sway}px) scale(1.04)`, opacity: 1, offset: 0.72 },
+    { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: 0.84 },
+    { transform: 'translate(-50%,-50%) scale(0.92)', opacity: 0 },
+  ], { duration: 560, easing: 'ease-in-out', fill: 'both' });
+  // 目标同步被勒紧：横向压、纵向拉
+  const squeeze = img.animate([
+    { transform: 'scale(1, 1)' },
+    { transform: 'scale(0.94, 1.06)', offset: 0.2 },
+    { transform: 'scale(1.04, 0.96)', offset: 0.38 },
+    { transform: 'scale(0.96, 1.04)', offset: 0.56 },
+    { transform: 'scale(1, 1)' },
+  ], { duration: 560, easing: 'ease-in-out' });
+  const done = () => {
+    clearInterval(timer);
+    anim.cancel();
+    squeeze.cancel();
+    el.remove();
+  };
+  anim.onfinish = done;
+  setTimeout(done, 650); // 兜底：动画被中断也要收掉
 }
 // 喝牛奶：增益瓶始终在施放者自己身上，玩家右侧、对手左侧，瓶口转向自身中心
 function spawnMilkDrinkFx(side) {
@@ -2899,9 +3050,10 @@ function spawnStoneBarrageFx(atkSide, tSide, count = 6) {
   const fr = from.getBoundingClientRect();
   const tr = to.getBoundingClientRect();
   const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
+  const yk = 0.4;
+  const sy = fr.top - br.top + fr.height * yk;
   const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
+  const ey = tr.top - br.top + tr.height * yk;
   const url = './pe-battle/move-fx-assets/pe/Gfx_Rocks__32x32.png';
   for (let i = 0; i < count; i++) {
     const size = 26 + randInt(0, 12);
@@ -2966,10 +3118,10 @@ function spawnMoonFx(side, tSide, mode) {
   const box = $(`${tSide}-box`);
   const tgt = $(`${tSide}-img`);
   if (!box || !tgt) return;
-  const br = box.getBoundingClientRect();
   const tr = tgt.getBoundingClientRect();
-  const tx = tr.left - br.left + tr.width / 2;
-  const ty = tr.top - br.top + tr.height / 2;
+  // 粒子挂在 .battle-fight 上，落点必须用战场坐标；以前拿目标 box 的坐标当战场坐标，方向会乱飞
+  const tx = tr.left - fr.left + tr.width / 2;
+  const ty = tr.top - fr.top + tr.height / 2;
   const mx = fr.width / 2;
   const my = fr.height * 0.16;
   const url = './pe-battle/move-fx-assets/pe/Gfx_BlueStar__32x32.png';
@@ -3038,27 +3190,45 @@ function spawnSeismicLiftFx(side, tSide, onImpact) {
   const tgt = $(`${tSide}-img`);
   if (!field || !atk || !tgt) return Promise.resolve();
   resetAnim(atk);
+  atk.style.transform = '';
   const ar = atk.getBoundingClientRect();
   const tr = tgt.getBoundingClientRect();
   const acx = ar.left + ar.width / 2;
   const acy = ar.top + ar.height / 2;
   const tcx = tr.left + tr.width / 2;
   const tcy = tr.top + tr.height / 2;
-  const belowDx = tcx - acx;
-  const belowDy = (tcy + tr.height * 0.45 + ar.height * 0.35) - acy;
-  const strikeDy = tcy - acy;
+  // 我方在 scaleX(-1) 容器内，translateX 方向与屏幕相反
+  const dx = (side === 'bp' ? -1 : 1) * (tcx - acx);
+  // 位移目标（对手正下方）：攻击方头顶贴住对手脚底
+  const belowDy = (tcy + tr.height * 0.5 + ar.height * 0.5) - acy;
+  // 向上顶：攻击方中心顶到对手下半身（接触点），不再继续上冲
+  const strikeDy = (tcy + tr.height * 0.15) - acy;
+  raiseAttacker(side);
   const anim = atk.animate([
-    { transform: `translate(${belowDx.toFixed(1)}px, ${belowDy.toFixed(1)}px)`, opacity: 1 },
-    { transform: `translate(${belowDx.toFixed(1)}px, ${belowDy.toFixed(1)}px)`, opacity: 1, offset: .18 },
-    { transform: `translate(${belowDx.toFixed(1)}px, ${strikeDy.toFixed(1)}px)`, opacity: 1, offset: .34 },
-    { transform: `translate(${belowDx.toFixed(1)}px, ${(strikeDy + 520).toFixed(1)}px)`, opacity: 0 },
-  ], { duration: 1100, easing: 'linear', fill: 'both' });
+    // 从原位快速冲到对手正下方（不闪现）
+    { transform: 'translate(0, 0) scale(1)', offset: 0, easing: 'cubic-bezier(.35,.8,.35,1)' },
+    { transform: `translate(${dx.toFixed(1)}px, ${belowDy.toFixed(1)}px) scale(.96)`, offset: .18, easing: 'ease-out' },
+    { transform: `translate(${dx.toFixed(1)}px, ${belowDy.toFixed(1)}px) scale(1)`, offset: .24, easing: 'ease-in' },
+    // 下蹲蓄力
+    { transform: `translate(${dx.toFixed(1)}px, ${(belowDy + 6).toFixed(1)}px) scale(.9, 1.12)`, offset: .31, easing: 'cubic-bezier(.15,.85,.3,1)' },
+    // 向上顶：接触瞬间压扁拉长
+    { transform: `translate(${dx.toFixed(1)}px, ${strikeDy.toFixed(1)}px) scale(1.08, .94)`, offset: .41, easing: 'ease-out' },
+    { transform: `translate(${dx.toFixed(1)}px, ${(strikeDy - 4).toFixed(1)}px) scale(1.03, .98)`, offset: .44, easing: 'cubic-bezier(.4,0,.9,.6)' },
+    // 顶完以很快的速度向下坠落出视口（衬托对手被巨力打飞到天上）
+    { transform: `translate(${dx.toFixed(1)}px, ${(strikeDy + 420).toFixed(1)}px) scale(1)`, offset: .60 },
+    { transform: `translate(${dx.toFixed(1)}px, ${(strikeDy + 420).toFixed(1)}px) scale(1)`, offset: 1 },
+  ], { duration: 1200, fill: 'both' });
+  // 被顶飞：受击压扁 → 被巨力打飞到天上 → 落回原处（结束时回到原位，不留下位移残留）
   const squash = tgt.animate([
     { transform: 'translateY(0) scale(1,1)', offset: 0 },
-    { transform: 'translateY(-10px) scale(.82,1.28)', offset: .3 },
-    { transform: 'translateY(-22px) scale(.92,1.12)', offset: .62 },
+    { transform: 'translateY(4px) scale(.84,1.18)', offset: .06, easing: 'ease-out' },
+    { transform: 'translateY(-34px) scale(1.1,.9)', offset: .18, easing: 'ease-out' },
+    { transform: 'translateY(-102px) scale(1.03,.97)', offset: .44, easing: 'ease-in' },
+    { transform: 'translateY(-108px) scale(1,1)', offset: .54, easing: 'cubic-bezier(.6,0,.9,.5)' },
+    { transform: 'translateY(-16px) scale(1,1)', offset: .84, easing: 'ease-in' },
+    { transform: 'translateY(0) scale(.9,1.12)', offset: .93 },
     { transform: 'translateY(0) scale(1,1)', offset: 1 },
-  ], { duration: 540, delay: 360, easing: 'ease-out', fill: 'both' });
+  ], { duration: 710, delay: 490, fill: 'forwards' });
   const bg = document.createElement('span');
   bg.style.position = 'absolute';
   bg.style.inset = '0';
@@ -3070,23 +3240,26 @@ function spawnSeismicLiftFx(side, tSide, onImpact) {
   bg.style.backgroundPosition = '0 0';
   bg.style.opacity = '0';
   field.insertBefore(bg, field.firstChild);
+  // 背景等攻击方顶完、开始向下坠的这一刻才浮现并向上滚动，
+  // 攻击方下落 + 背景上移形成相对运动，衬托对手被打飞到高空
   bg.animate([
     { opacity: 0, backgroundPosition: '0 0' },
     { opacity: 1, offset: .18 },
     { opacity: 1, offset: .82 },
     { opacity: 0, backgroundPosition: '0 520px' },
-  ], { duration: 820, delay: 300, fill: 'both' });
-  setTimeout(() => { spawnSeismicRocks(tSide); if (onImpact) onImpact(); }, 370);
-  setTimeout(spawnSeismicRocks, 520, tSide);
+  ], { duration: 660, delay: 520, fill: 'both' });
+  setTimeout(() => { spawnSeismicRocks(tSide); if (onImpact) onImpact(); }, 490);
+  setTimeout(spawnSeismicRocks, 650, tSide);
   return new Promise((resolve) => {
     setTimeout(() => {
       anim.cancel();
       squash.cancel();
       atk.style.transform = '';
       atk.style.visibility = '';
+      lowerAttacker(side);
       bg.remove();
       resolve();
-    }, 1180);
+    }, 1210);
   });
 }
 // 充电：小电球环绕自身螺旋上升，最后聚成大光球
@@ -3144,45 +3317,47 @@ function spawnChargeFx(side) {
   ], { duration: 720, delay: 320, fill: 'both' });
   setTimeout(() => orb.remove(), 1100);
 }
-// 撒菱/毒菱：三根尖刺从对手上方落到脚边，毒菱用紫色滤镜
-// 破坏光线：光段与小光球粒子同时发出，不再先粒子后光束
-function spawnHyperBeamParticles(side, tSide) {
-  const from = $(`${side}-img`);
-  const to = $(`${tSide}-img`);
-  const box = $(`${tSide}-box`);
-  if (!from || !to || !box) return;
+// 恶之波动：四帧紫焰从施法者中心向外扩散
+function spawnDarkPulseFx(side) {
+  const box = $(`${side}-box`);
+  const img = $(`${side}-img`);
+  if (!box || !img) return;
   const br = box.getBoundingClientRect();
-  const fr = from.getBoundingClientRect();
-  const tr = to.getBoundingClientRect();
-  const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.4;
-  const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.4;
-  const url = './pe-battle/move-fx-assets/pe/Gfx_Orbs__8x8.png';
-  for (let i = 0; i < 14; i++) {
-    const size = 10 + randInt(0, 7);
-    const el = document.createElement('span');
-    el.className = 'fx-orig';
-    el.style.left = sx + 'px';
-    el.style.top = sy + 'px';
-    el.style.width = size + 'px';
-    el.style.height = size + 'px';
-    el.style.backgroundImage = `url(${url})`;
-    el.style.backgroundSize = `${size}px ${size * 4}px`;
-    el.style.backgroundPosition = `0 -${randInt(0, 3) * size}px`;
-    el.style.filter = 'sepia(1) saturate(3) hue-rotate(-12deg) brightness(1.15)';
-    el.style.zIndex = '9';
-    box.appendChild(el);
-    let f = randInt(0, 3);
-    const timer = setInterval(() => { f = (f + 1) % 4; el.style.backgroundPosition = `0 -${f * size}px`; }, 55);
-    const tx = ex + randInt(-10, 10);
-    const ty = ey + randInt(-8, 8);
-    el.animate([
-      { transform: 'translate(-50%,-50%) translate(0,0) scale(.5)', opacity: 0 },
-      { opacity: 1, offset: .12 },
-      { transform: `translate(calc(-50% + ${(tx - sx).toFixed(1)}px), calc(-50% + ${(ty - sy).toFixed(1)}px)) scale(1)`, opacity: 0 },
-    ], { duration: 380, delay: i * 18, easing: 'linear', fill: 'both' });
-    setTimeout(() => { clearInterval(timer); el.remove(); }, 430 + i * 18);
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height / 2;
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_PurpleFlame__16x32.png', import.meta.url).href;
+  for (let wave = 0; wave < 3; wave++) {
+    for (let i = 0; i < 8; i++) {
+      const w = 16 + randInt(0, 6);
+      const h = w * 2;
+      const ang = (i / 8) * Math.PI * 2 + wave * 0.3 + Math.random() * 0.2;
+      const dist = 56 + wave * 26 + randInt(0, 22);
+      const el = document.createElement('span');
+      el.className = 'fx-orig';
+      el.style.left = cx + 'px';
+      el.style.top = cy + 'px';
+      el.style.width = w + 'px';
+      el.style.height = h + 'px';
+      el.style.backgroundImage = `url(${url})`;
+      el.style.backgroundSize = `${w}px ${h * 4}px`;
+      el.style.backgroundPosition = '0 0';
+      el.style.filter = 'drop-shadow(0 0 5px #b35cff)';
+      el.style.zIndex = '9';
+      box.appendChild(el);
+      let f = randInt(0, 3);
+      const timer = setInterval(() => { f = (f + 1) % 4; el.style.backgroundPosition = `0 -${f * h}px`; }, 65);
+      const dx = Math.cos(ang) * dist;
+      const dy = Math.sin(ang) * dist * 0.8;
+      const rot = (ang * 180) / Math.PI + 90;
+      el.animate([
+        { transform: `translate(-50%,-50%) rotate(${rot.toFixed(1)}deg) scale(.55)`, opacity: 0 },
+        { opacity: 1, offset: .12 },
+        { transform: `translate(calc(-50% + ${(dx * .55).toFixed(1)}px), calc(-50% + ${(dy * .55).toFixed(1)}px)) rotate(${rot.toFixed(1)}deg) scale(1)`, opacity: 1, offset: .5 },
+        { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) rotate(${rot.toFixed(1)}deg) scale(1.15)`, opacity: 0 },
+      ], { duration: 520, delay: wave * 75 + i * 10, easing: 'ease-out', fill: 'both' });
+      setTimeout(() => { clearInterval(timer); el.remove(); }, 820 + wave * 75 + i * 10);
+    }
   }
 }
 // 喷出：自身短暂压扁蓄力，回弹时以自身为中心爆出多圈橙黄色光球
@@ -3271,6 +3446,64 @@ function spawnPunchFist(tSide, opts = {}) {
     ], { duration: 260, delay: i * 90, easing: 'ease-out', fill: 'both' });
     setTimeout(() => el.remove(), 310 + i * 90);
   }
+}
+// 暗影爪/克命爪：复用金属爪的 Gfx_ClawSlash 五帧爪痕
+function spawnClawSlashFx(tSide, color) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const size = 54;
+  const url = "url('./pe-battle/move-fx-assets/pe/Gfx_ClawSlash__32x32.png')";
+  for (let i = 0; i < 2; i++) {
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+    el.style.top = (ir.top - br.top + ir.height * 0.46) + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = `${size}px ${size * 5}px`;
+    el.style.backgroundPosition = '0 0';
+    el.style.zIndex = '10';
+    if (color) el.style.filter = `drop-shadow(0 0 5px ${color})`;
+    box.appendChild(el);
+    let f = 0;
+    const timer = setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * size}px`; }, 55);
+    const rot = i ? 24 : -24;
+    el.animate([
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(.75)`, opacity: 0 },
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1.15)`, opacity: 1, offset: .25 },
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1.05)`, opacity: 0 },
+    ], { duration: 320, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 370);
+  }
+}
+// 贝壳刃：Sparkle4 第四个分片作为斩击特效
+function spawnSparkleSlash(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'fx-orig';
+  el.style.left = (ir.left - br.left + ir.width / 2) + 'px';
+  el.style.top = (ir.top - br.top + ir.height * 0.46) + 'px';
+  el.style.width = '52px';
+  el.style.height = '52px';
+  el.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_Sparkle4__32x32.png')";
+  el.style.backgroundSize = '52px 260px';
+  el.style.backgroundPosition = '0 -156px';
+  el.style.zIndex = '10';
+  box.appendChild(el);
+  el.animate([
+    { transform: 'translate(-50%,-50%) scale(.45) rotate(-35deg)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) scale(1.16) rotate(-10deg)', opacity: 1, offset: .24 },
+    { transform: 'translate(-50%,-50%) scale(1) rotate(0deg)', opacity: 0 },
+  ], { duration: 300, easing: 'ease-out', fill: 'both' });
+  setTimeout(() => el.remove(), 340);
 }
 // 拍击/连环巴掌：Gfx_TagHand 上半部分的手掌从上方拍向目标
 function spawnTagHandStrike(tSide, index = 0) {
@@ -3362,46 +3595,6 @@ function spawnEncoreClap(tSide) {
   }
   setTimeout(() => { lower.remove(); upper.remove(); }, 1100);
 }
-// 吸取拳：命中后绿色光球从目标吸回自身
-// 吸取拳：绿色光球沿目标到自身的连线依次吸回
-// 吸取拳吸取段：复用吸取的大光球，从目标沿直线吸回施放者
-function spawnDrainOrbs(fromSide, toSide) {
-  const box = $(`${fromSide}-box`);
-  const from = $(`${fromSide}-img`);
-  const to = $(`${toSide}-img`);
-  if (!box || !from || !to) return;
-  const br = box.getBoundingClientRect();
-  const fr = from.getBoundingClientRect();
-  const tr = to.getBoundingClientRect();
-  const sx = fr.left - br.left + fr.width / 2;
-  const sy = fr.top - br.top + fr.height * 0.42;
-  const ex = tr.left - br.left + tr.width / 2;
-  const ey = tr.top - br.top + tr.height * 0.42;
-  const dx = ex - sx, dy = ey - sy;
-  const url = './pe-battle/move-fx-assets/pe/Gfx_Orbs__16x16.png';
-  for (let i = 0; i < 8; i++) {
-    const size = 20 + randInt(0, 9);
-    const el = document.createElement('span');
-    el.className = 'fx-orig';
-    el.style.left = sx + 'px';
-    el.style.top = sy + 'px';
-    el.style.width = size + 'px';
-    el.style.height = size + 'px';
-    el.style.backgroundImage = `url(${url})`;
-    el.style.backgroundSize = `${size}px ${size * 3}px`;
-    el.style.backgroundPosition = `0 -${size * 2}px`;
-    el.style.zIndex = '9';
-    box.appendChild(el);
-    const ox = randInt(-18, 18), oy = randInt(-14, 14);
-    el.animate([
-      { transform: `translate(-50%,-50%) translate(${ox}px, ${oy}px) scale(.55)`, opacity: 0 },
-      { opacity: 1, offset: .15 },
-      { transform: `translate(calc(-50% + ${(dx * .5).toFixed(1)}px), calc(-50% + ${(dy * .5).toFixed(1)}px)) scale(1)`, opacity: 1, offset: .52 },
-      { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(1.2)`, opacity: 0 },
-    ], { duration: 500, delay: i * 42, easing: 'ease-in', fill: 'both' });
-    setTimeout(() => el.remove(), 560 + i * 42);
-  }
-}
 // 斜向光束（破坏光线）：白芯光束 + 起点几颗光球
 function spawnCrossBeamFx(side, tSide, color) {
   const field = document.querySelector('.battle-fight');
@@ -3431,27 +3624,35 @@ function spawnCrossBeamFx(side, tSide, color) {
     { width: len.toFixed(1) + 'px', opacity: 0 },
   ], { duration: 560, easing: 'ease-out', fill: 'both' });
   setTimeout(() => beam.remove(), 700);
+  // 光球：不是弹道，而是光束打到对手之后在对手身上生成并炸开
   const url = './pe-battle/move-fx-assets/pe/Gfx_Orbs__16x16.png';
-  for (let i = 0; i < 4; i++) {
-    const size = 18 + randInt(0, 8);
-    const el = document.createElement('span');
-    el.className = 'fx-orig';
-    el.style.left = (x1 + randInt(-18, 18)) + 'px';
-    el.style.top = (y1 + randInt(-18, 18)) + 'px';
-    el.style.width = size + 'px';
-    el.style.height = size + 'px';
-    el.style.backgroundImage = `url(${url})`;
-    el.style.backgroundSize = `${size}px ${size * 3}px`;
-    el.style.backgroundPosition = `0 -${size * 2}px`;
-    el.style.zIndex = '9';
-    field.appendChild(el);
-    el.animate([
-      { transform: 'translate(-50%,-50%) scale(.5)', opacity: 0 },
-      { opacity: 1, offset: .2 },
-      { transform: `translate(calc(-50% + ${((x2 - x1) * .35).toFixed(1)}px), calc(-50% + ${((y2 - y1) * .35).toFixed(1)}px)) scale(1.1)`, opacity: 0 },
-    ], { duration: 480, delay: i * 45, easing: 'ease-out', fill: 'both' });
-    setTimeout(() => el.remove(), 560 + i * 45);
-  }
+  setTimeout(() => {
+    if (!field.isConnected) return;
+    for (let i = 0; i < 6; i++) {
+      const size = 16 + randInt(0, 8);
+      const el = document.createElement('span');
+      el.className = 'fx-orig';
+      el.style.left = (x2 + randInt(-8, 8)) + 'px';
+      el.style.top = (y2 + randInt(-8, 8)) + 'px';
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+      el.style.backgroundImage = `url(${url})`;
+      el.style.backgroundSize = `${size}px ${size * 3}px`;
+      el.style.backgroundPosition = `0 -${size * 2}px`;
+      el.style.zIndex = '9';
+      field.appendChild(el);
+      const ang = (i / 6) * Math.PI * 2 + Math.random() * 0.6;
+      const dist = 26 + randInt(0, 24);
+      const dx = Math.cos(ang) * dist;
+      const dy = Math.sin(ang) * dist;
+      el.animate([
+        { transform: 'translate(-50%,-50%) scale(.4)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(1.05)', opacity: 1, offset: .22 },
+        { transform: `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px)) scale(.7)`, opacity: 0 },
+      ], { duration: 420, delay: i * 30, easing: 'ease-out', fill: 'both' });
+      setTimeout(() => el.remove(), 480 + i * 30);
+    }
+  }, 300);
 }
 function spawnSmokeScreen(tSide) {
   const box = $(`${tSide}-box`);
@@ -3501,6 +3702,130 @@ function spawnSmokeScreen(tSide) {
   let f = 0;
   const timer = setInterval(() => { f = (f + 1) % 3; imp.style.backgroundPosition = `0 -${f * 28}px`; }, 55);
   setTimeout(() => { clearInterval(timer); imp.remove(); }, 220);
+}
+// 清除之烟：一缕缕紫灰毒烟从攻击方飘向对手，抵达后炸开一团烟气（复用烟幕的灰烟素材）
+function spawnClearSmogFx(atkSide, tSide) {
+  const box = $(`${tSide}-box`);
+  const atk = $(`${atkSide}-img`);
+  const tgt = $(`${tSide}-img`);
+  if (!box || !atk || !tgt) return;
+  const br = box.getBoundingClientRect();
+  const ar = atk.getBoundingClientRect();
+  const tr = tgt.getBoundingClientRect();
+  const ax = ar.left - br.left + ar.width / 2;
+  const ay = ar.top - br.top + ar.height * 0.42;
+  const tx = tr.left - br.left + tr.width / 2;
+  const ty = tr.top - br.top + tr.height * 0.42;
+  const smoke = "url('./pe-battle/move-fx-assets/pe/Gfx_GraySmoke__32x32.png')";
+  // 灰烟整体染成毒系紫灰
+  const tint = 'sepia(1) saturate(3.5) hue-rotate(245deg) brightness(1.15)';
+  const playFrames = (el, w, speed) => {
+    let f = randInt(0, 4);
+    return setInterval(() => { f = (f + 1) % 5; el.style.backgroundPosition = `0 -${f * w}px`; }, speed);
+  };
+  // 前进的烟团：从攻击方身前往对手飘，边飘边翻帧
+  for (let i = 0; i < 6; i++) {
+    const w = 28 + randInt(0, 14);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.width = w + 'px';
+    el.style.height = w + 'px';
+    el.style.left = (ax + randInt(-12, 12)) + 'px';
+    el.style.top = (ay + randInt(-16, 10)) + 'px';
+    el.style.backgroundImage = smoke;
+    el.style.backgroundSize = `${w}px ${w * 5}px`;
+    el.style.filter = tint;
+    el.style.opacity = '0';
+    box.appendChild(el);
+    const timer = playFrames(el, w, 90);
+    const delay = i * 55;
+    const dx = tx - ax + randInt(-16, 16);
+    const dy = ty - ay + randInt(-12, 12);
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.55)', opacity: 0 },
+      { opacity: .8, offset: .22 },
+      { transform: `translate(calc(-50% + ${(dx * .68).toFixed(0)}px), calc(-50% + ${(dy * .68 - 8).toFixed(0)}px)) scale(1.02)`, opacity: .7, offset: .68 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1.3)`, opacity: 0 },
+    ], { duration: 620, delay, easing: 'ease-out', fill: 'both' });
+    setTimeout(() => { clearInterval(timer); el.remove(); }, 660 + delay);
+  }
+  // 抵达对手：原作烟雾冲击帧 + 几团在对手身上散开的烟
+  setTimeout(() => {
+    if (!box.isConnected) return;
+    const imp = document.createElement('span');
+    imp.className = 'fx-orig';
+    imp.style.left = tx + 'px';
+    imp.style.top = ty + 'px';
+    imp.style.width = '30px';
+    imp.style.height = '30px';
+    imp.style.backgroundImage = "url('./pe-battle/move-fx-assets/pe/Gfx_SmokescreenImpact__16x16.png')";
+    imp.style.backgroundSize = '30px 90px';
+    imp.style.filter = tint;
+    imp.style.zIndex = '11';
+    box.appendChild(imp);
+    let f = 0;
+    const timer = setInterval(() => { f = (f + 1) % 3; imp.style.backgroundPosition = `0 -${f * 30}px`; }, 55);
+    setTimeout(() => { clearInterval(timer); imp.remove(); }, 200);
+    for (let i = 0; i < 4; i++) {
+      const w = 34 + randInt(0, 16);
+      const el = document.createElement('span');
+      el.className = 'fx-orig';
+      el.style.width = w + 'px';
+      el.style.height = w + 'px';
+      el.style.left = (tx + randInt(-Math.round(tr.width * 0.3), Math.round(tr.width * 0.3))) + 'px';
+      el.style.top = (ty + randInt(-Math.round(tr.height * 0.28), Math.round(tr.height * 0.2))) + 'px';
+      el.style.backgroundImage = smoke;
+      el.style.backgroundSize = `${w}px ${w * 5}px`;
+      el.style.filter = tint;
+      el.style.zIndex = '10';
+      el.style.opacity = '0';
+      box.appendChild(el);
+      const t2 = playFrames(el, w, 90);
+      el.animate([
+        { transform: 'translate(-50%,-50%) scale(.7)', opacity: 0 },
+        { opacity: .9, offset: .2 },
+        { opacity: .75, offset: .6 },
+        { transform: 'translate(-50%,-50%) scale(1.15)', opacity: 0 },
+      ], { duration: 460, fill: 'both' });
+      setTimeout(() => { clearInterval(t2); el.remove(); }, 500);
+    }
+  }, 620);
+}
+// 打草结命中：一簇树叶在对手身上炸开
+function spawnLeafBurstFx(tSide) {
+  const box = $(`${tSide}-box`);
+  const img = $(`${tSide}-img`);
+  if (!box || !img) return;
+  const br = box.getBoundingClientRect();
+  const ir = img.getBoundingClientRect();
+  const cx = ir.left - br.left + ir.width / 2;
+  const cy = ir.top - br.top + ir.height * 0.45;
+  const url = "url('./pe-battle/move-fx-assets/pe/Gfx_Leaf__16x16.png')";
+  for (let i = 0; i < 14; i++) {
+    const size = 12 + randInt(0, 8);
+    const el = document.createElement('span');
+    el.className = 'fx-orig';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.backgroundImage = url;
+    el.style.backgroundSize = `${size}px ${size * 9}px`;
+    el.style.backgroundPosition = `0 -${randInt(0, 8) * size}px`;
+    el.style.zIndex = '10';
+    box.appendChild(el);
+    const ang = (i / 14) * Math.PI * 2 + Math.random() * 0.5;
+    const dist = 34 + randInt(0, 34);
+    const dx = Math.cos(ang) * dist;
+    const dy = Math.sin(ang) * dist - 10; // 整体略向上散开
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.4) rotate(0deg)', opacity: 0 },
+      { opacity: 1, offset: .18 },
+      { transform: `translate(calc(-50% + ${(dx * .7).toFixed(0)}px), calc(-50% + ${(dy * .7).toFixed(0)}px)) scale(1) rotate(${randInt(-160, 160)}deg)`, opacity: 1, offset: .68 },
+      { transform: `translate(calc(-50% + ${dx.toFixed(0)}px), calc(-50% + ${(dy + 14).toFixed(0)}px)) scale(.75) rotate(${randInt(-220, 220)}deg)`, opacity: 0 },
+    ], { duration: 520 + randInt(0, 140), easing: 'ease-out', fill: 'both' });
+    setTimeout(() => el.remove(), 700);
+  }
 }
 // 电击波：原作 8x8 电花从攻击方连成一串冲向目标
 function spawnShockWaveFx(atkSide, tSide) {
@@ -3583,7 +3908,9 @@ function spawnPoisonOrbBurst(tSide) {
   const ir = img.getBoundingClientRect();
   const cx = ir.left - br.left + ir.width / 2;
   const cy = ir.top - br.top + ir.height / 2;
-  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_WaterOrb__16x16.png', import.meta.url).href;
+  // 毒系泡泡统一用 Gfx_PoisonBubble 的第一份（最上面的圆形毒泡泡），
+  // 与中毒状态的 .fx-poison-bubble 切帧一致：贴图高按 3 倍铺，只露最上面 1/3
+  const url = new URL('./pe-battle/move-fx-assets/pe/Gfx_PoisonBubble__16x16.png', import.meta.url).href;
   for (let i = 0; i < 7; i++) {
     const el = document.createElement('span');
     el.style.position = 'absolute';
@@ -3595,14 +3922,11 @@ function spawnPoisonOrbBurst(tSide) {
     el.style.pointerEvents = 'none';
     el.style.imageRendering = 'pixelated';
     el.style.backgroundImage = `url(${url})`;
-    el.style.backgroundSize = '18px 72px';
-    el.style.filter = 'hue-rotate(70deg) saturate(2.2) brightness(.8) drop-shadow(0 0 4px #b35cff)';
+    el.style.backgroundRepeat = 'no-repeat';
+    el.style.backgroundPosition = '0 0';
+    el.style.backgroundSize = '18px 54px';
+    el.style.filter = 'drop-shadow(0 0 4px #b35cff)';
     box.appendChild(el);
-    let frame = 0;
-    const timer = setInterval(() => {
-      frame = (frame + 1) % 4;
-      el.style.backgroundPosition = `0 -${frame * 18}px`;
-    }, 70);
     const ang = (i / 7) * Math.PI * 2 + Math.random() * 0.45;
     const dist = 18 + Math.random() * 20;
     const delay = i * 24;
@@ -3611,10 +3935,11 @@ function spawnPoisonOrbBurst(tSide) {
       { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist * .45).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist * .45 - 8).toFixed(1)}px)) scale(1)`, opacity: 1, offset: .3 },
       { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist).toFixed(1)}px)) scale(.7)`, opacity: 0 },
     ], { duration: 430, delay, easing: 'ease-out', fill: 'both' });
-    setTimeout(() => { clearInterval(timer); el.remove(); }, 440 + delay);
+    setTimeout(() => el.remove(), 440 + delay);
   }
 }
-// 牙招命中粒子：雷电牙复用闪电贴图，冰冻牙大颗碎冰，剧毒牙紫化水泡
+// 牙招命中粒子：雷电牙复用闪电贴图，剧毒牙撒圆形毒泡泡，火焰牙火团
+// （其余牙招只用牙齿咬合 + 命中贴图，不再撒菱形碎片）
 function spawnFangParticles(tSide, name) {
   if (name === '雷电牙') {
     spawnVoltFlash();
@@ -3625,37 +3950,9 @@ function spawnFangParticles(tSide, name) {
     spawnPoisonOrbBurst(tSide);
     return;
   }
-  const box = $(`${tSide}-box`);
-  const img = $(`${tSide}-img`);
-  if (!box || !img) return;
-  const br = box.getBoundingClientRect();
-  const ir = img.getBoundingClientRect();
-  const cx = ir.left - br.left + ir.width / 2;
-  const cy = ir.top - br.top + ir.height / 2;
-  const color = FANG_COLORS[name] || '#9beeff';
-  const n = 7;
-  for (let i = 0; i < n; i++) {
-    const p = document.createElement('i');
-    p.style.position = 'absolute';
-    p.style.zIndex = '9';
-    p.style.pointerEvents = 'none';
-    p.style.left = cx + 'px';
-    p.style.top = cy + 'px';
-    const sz = 9 + Math.random() * 7;
-    p.style.width = sz + 'px';
-    p.style.height = sz * 1.35 + 'px';
-    p.style.background = `linear-gradient(135deg, #f2ffff 0%, ${color} 35%, ${color} 75%, ${color}22 100%)`;
-    p.style.clipPath = 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
-    p.style.filter = `drop-shadow(0 0 3px ${color})`;
-    box.appendChild(p);
-    const ang = (i / n) * Math.PI * 2 + Math.random() * 0.5;
-    const dist = 16 + Math.random() * 18;
-    p.animate([
-      { transform: 'translate(-50%, -50%) scale(.35) rotate(-20deg)', opacity: 0 },
-      { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist).toFixed(1)}px)) scale(1) rotate(20deg)`, opacity: 1, offset: .35 },
-      { transform: `translate(calc(-50% + ${(Math.cos(ang) * dist * 1.15).toFixed(1)}px), calc(-50% + ${(Math.sin(ang) * dist * 1.15).toFixed(1)}px)) scale(.6) rotate(50deg)`, opacity: 0 },
-    ], { duration: 420, easing: 'ease-out', fill: 'both' });
-    setTimeout(() => p.remove(), 460);
+  if (name === '火焰牙') {
+    spawnFireBurst(tSide);
+    return;
   }
 }
 // 精神突进：攻击方自身的紫粉柔光蓄力
@@ -3730,6 +4027,16 @@ function spawnMeteorRain(tSide, count = 6) {
   setTimeout(() => fx.remove(), end + 260);
   return end;
 }
+// 灼伤触发闪红：精灵本体红光脉冲两下（与预览页同一套 .b-burn-flash）
+function burnFlash(side) {
+  const img = $(`${side}-img`);
+  if (!img) return;
+  img.classList.remove('b-burn-flash');
+  void img.offsetWidth;
+  img.classList.add('b-burn-flash');
+  clearTimeout(img._burnFlashT);
+  img._burnFlashT = setTimeout(() => img.classList.remove('b-burn-flash'), 620);
+}
 // 异常状态粒子特效：在精灵处生成循环粒子（睡眠头顶飘 Zzz / 混乱旋星 / 麻痹电火花 /
 // 灼伤火焰 / 中毒毒泡 / 冰冻冰晶）。状态未变化时保留现有粒子，避免每次 renderMon 重排跳动；
 // force 用于图片尺寸确定后（applySpriteSize 异步缩放完成）校正粒子挂点位置
@@ -3782,19 +4089,15 @@ function syncStatusFx(side, mon, force) {
       fx.appendChild(p);
     }
   } else if (st === 'poison') {
-    // 中毒：原作毒泡四帧动画，从脚边缓慢上浮
-    const base = $(`${side}-base`);
-    let groundY = ir.height * 0.36;
-    if (base) {
-      const bRect = base.getBoundingClientRect();
-      groundY = bRect.top - br.top + bRect.height / 2 - (ir.top - br.top + ir.height / 2);
-    }
-    for (let i = 0; i < 3; i++) {
+    // 中毒：原作 Gfx_PoisonBubble 第一帧毒泡，大大小小从身上冒出
+    for (let i = 0; i < 7; i++) {
       const p = document.createElement('i');
-      p.className = 'fx-toxic-bubble';
-      p.style.left = ((i - 1) * 13 + randInt(-3, 3)) + 'px';
-      p.style.top = (groundY - 6 + randInt(-3, 3)) + 'px';
-      p.style.animationDelay = (i * 0.35).toFixed(2) + 's';
+      p.className = 'fx-poison-bubble';
+      p.style.setProperty('--s', randInt(10, 22) + 'px');
+      p.style.left = randInt(-ir.width / 2 + 6, ir.width / 2 - 6) + 'px';
+      p.style.top = randInt(-ir.height * 0.25, ir.height * 0.3) + 'px';
+      p.style.animationDelay = (Math.random() * 2.4).toFixed(2) + 's';
+      p.style.animationDuration = (2.2 + Math.random() * 1.2).toFixed(2) + 's';
       fx.appendChild(p);
     }
   } else if (st === 'paralysis') {
@@ -3867,37 +4170,74 @@ function syncSeedFx(side, mon, force) {
   }
   box.appendChild(fx);
 }
-// 守住系护盾特效：宝可梦当前回合带 protected 标记时，周身罩一层淡蓝护盾光圈（扁平样式）。
-// 生命周期与 syncStatusFx 一致：回合重置（protected=false）或换人后自动撤下
+// 守住系护盾特效：宝可梦当前回合带 protected 标记时，Gfx_GuardRing 圆环从脚下往头顶依次出现，
+// 全部亮起后整组一起收起；被挡下（block 事件）时再短暂亮一次。
+// 生命周期与 syncStatusFx 一致：回合重置（protected=false）或换人后撤下
 function syncShieldFx(side, mon) {
   const box = $(`${side}-box`);
   const img = $(`${side}-img`);
   if (!box || !img || !mon) return;
   let fx = box.querySelector('.b-shield');
   if (mon.protected) {
-    if (fx && fx._mon === mon) return; // 同宠护盾已挂载：不重建，避免重触发入场动画
+    if (fx && fx._mon === mon) return; // 同宠护盾已挂载：不重建，避免重触发出现动画
     if (fx) fx.remove();
-    const ir = img.getBoundingClientRect();
-    const br = box.getBoundingClientRect();
+    // 用元素自身的布局坐标定位：rect 在手机 transform 缩放/桌面 zoom 下会整体放大偏移
+    const flip = side === 'bp' ? img.closest('.b-flip') : null;
+    const cx = (flip ? flip.offsetLeft + img.offsetLeft : img.offsetLeft) + img.offsetWidth / 2;
+    const cy = (flip ? flip.offsetTop + img.offsetTop : img.offsetTop) + img.offsetHeight / 2;
     fx = document.createElement('span');
     fx.className = 'b-shield';
     fx._mon = mon;
-    fx.style.left = (ir.left - br.left + ir.width / 2) + 'px';
-    fx.style.top = (ir.top - br.top + ir.height / 2) + 'px';
-    fx.style.width = Math.max(48, ir.width + 26) + 'px';
-    fx.style.height = Math.max(48, ir.height + 26) + 'px';
+    fx.style.left = cx + 'px';
+    fx.style.top = cy + 'px';
+    const w = img.offsetWidth;
+    const h = img.offsetHeight;
+    const ringW = Math.max(28, Math.min(80, w * 0.78));
+    const ringH = Math.min(ringW / 2, Math.max(7, h * 0.24)); // 扁环贴着身体叠
+    const n = 6;
+    // 整组高度压到身高的 0.7 以内，环距不再按环高放大
+    const span = Math.min(h * 0.7, ringH * 2.2);
+    const step = span / (n - 1);
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('i');
+      p.className = 'b-shield-ring';
+      p.style.width = ringW + 'px';
+      p.style.height = ringH + 'px';
+      p.style.top = (step * ((n - 1) / 2 - i)) + 'px'; // i=0 在最下，向上依次出现
+      p.style.opacity = '0';
+      p.animate([
+        { opacity: 0, transform: 'translate(-50%,-50%) scale(0.7)' },
+        { opacity: 0.9, transform: 'translate(-50%,-50%) scale(1)', offset: 0.6 },
+        { opacity: 0.9, transform: 'translate(-50%,-50%) scale(1.02)' },
+      ], { duration: 170, delay: i * 90, easing: 'ease-out', fill: 'both' });
+      fx.appendChild(p);
+    }
     box.appendChild(fx);
+    // 最后一环亮完停一小拍，整组同时隐掉
+    const hold = (n - 1) * 90 + 170 + 140;
+    const fade = fx.animate([
+      { opacity: 1 },
+      { opacity: 1, offset: hold / (hold + 220) },
+      { opacity: 0 },
+    ], { duration: hold + 220, easing: 'linear' });
+    fade.onfinish = () => { fx.style.opacity = '0'; };
   } else if (fx) {
     fx.remove();
   }
 }
-// 护盾挡下攻击（block 事件）：白光一闪 + 光圈扩张，短暂覆盖常驻的脉冲动画后复原
+// 护盾挡下攻击（block 事件）：白光一闪 + 光圈扩张；护盾成形后已收起，先短暂亮出来
 function shieldHit(side) {
   const fx = $(`${side}-box`)?.querySelector('.b-shield');
   if (!fx) return;
   fx.classList.remove('b-shield-hit');
   void fx.offsetWidth;
   fx.classList.add('b-shield-hit');
+  fx.animate([
+    { opacity: 0 },
+    { opacity: 1, offset: 0.3 },
+    { opacity: 1, offset: 0.6 },
+    { opacity: 0 },
+  ], { duration: 420, easing: 'ease-out' });
   setTimeout(() => fx.classList.remove('b-shield-hit'), 420);
 }
 // 钉子图标：使用原作尖刺/岩块贴图，每层 1 枚，毒菱用紫色滤镜
@@ -3959,7 +4299,17 @@ function syncFieldFx(battle) {
   syncShieldFx('be', curMon(battle, 'e'));
   syncHazards(battle);
 }
-// 重踏/地震：攻击方原地跳起后砸地，落地瞬间整个战斗画面震动
+// 重踏/地震：攻击方原地跳起后砸地，落地瞬间整个战斗画面震动，双方宝可梦跟着地面颠动
+function quakeRattle() {
+  for (const s of ['bp', 'be']) {
+    const img = $(`${s}-img`);
+    if (!img) continue;
+    img.classList.remove('quake-rattle');
+    void img.offsetWidth;
+    img.classList.add('quake-rattle');
+    setTimeout(() => img.classList.remove('quake-rattle'), 620);
+  }
+}
 function quakeAttack(side) {
   const img = $(`${side}-img`);
   if (img) {
@@ -3968,7 +4318,10 @@ function quakeAttack(side) {
     img.classList.add('quake-hop');
     setTimeout(() => img.classList.remove('quake-hop'), 450);
   }
-  setTimeout(stageShake, 300); // 跳起动画 0.4s，约 75% 处落地触发震屏
+  setTimeout(() => {
+    quakeRattle(); // 落地：双方宝可梦跟着一起震
+    stageShake();
+  }, 300); // 跳起动画 0.4s，约 75% 处落地触发震屏
 }
 // 重创（伤害 ≥25% 最大 HP）：战斗画面整体震动一下
 function stageShake() {
@@ -4089,8 +4442,10 @@ function askPlayerMove(battle) {
   if (battle.custom?.tentBattle) return askTentMove(battle);
   return new Promise((resolve) => {
     _pendingAsk = resolve; // 撤退时强制结束挂起的选择
-    const done = (act) => { _pendingAsk = null; resolve(act); };
+    const done = (act) => { _pendingAsk = null; _fxdbgRestore = null; resolve(act); };
     const pMon = curMon(battle, 'p');
+    // 招式调试面板关闭/播放结束后恢复行动按钮（showActions 是同作用域函数声明，向上提升）
+    _fxdbgRestore = () => { if (_activeBattle === battle && !_auto) showActions(); };
     // 自动战斗：不弹操作界面，直接按 AI 逻辑自动出招（遮罩在点「自动」按钮时已显示）
     if (_auto) {
       const mid = aiMove(pMon, curMon(battle, 'e'), _data) ?? firstUsableMove(pMon);
@@ -4291,7 +4646,7 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       const eCur = curMon(battle, 'e');
       const fromSide = ev.from === pCur ? 'bp' : ev.from === eCur ? 'be' : null;
       const toSide = ev.to === pCur ? 'bp' : ev.to === eCur ? 'be' : null;
-      if (fromSide && toSide && !skipFx) spawnDrainParticles(fromSide, toSide, '#7dc84a', 9);
+      if (fromSide && toSide && !skipFx) spawnDrainParticles(fromSide, toSide, 9);
       continue;
     }
     if (ev.t === 'flinch') {
@@ -4322,9 +4677,16 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       // 连击等多次伤害：useMove 提前把 HP 全部扣光，renderMon 读到的是最终值；
       // 这里按本次命中前后的 HP 回放血条过渡，逐段扣血，不一次扣完
       if (ev.from != null) animateHpBar(dSide, ev.from, ev.to, dMon.maxHp);
-      if (!skipFx) shake(dSide); // 原作动画已演过受击，不再叠 CSS 震动
+      // 原作粒子流招式命中时补抖动/后撤；knockback 用定向后撤（远离攻击方）
+      if (opts?.knockback) hitRecoil(dSide);
+      else if (!skipFx || opts?.hitShake) shake(dSide);
       if (!skipFx) {
         spawnImpactAsset(dSide);
+      }
+      // 水系近战命中：原作 WaterImpact 水花 + 蟹钳锤同款小气泡
+      if (opts?.waterBubbles) {
+        spawnWaterImpact(dSide);
+        spawnSmallBubblesFx(dSide);
       }
       if (hitType === '超能') spawnPsychicWrap(dSide);
       flashHitPanel(dSide);
@@ -4357,7 +4719,9 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       if (ev.uid === hitRef.uid && !onField) { setText(ev.text); await battleSleep(700); continue; }
       setText(ev.text);
       renderMon(hitRef, hitSide); // 立即刷新，属性后显示状态圆点
-      shake(hitSide); // 渲染后再震，避免被 renderMon 清掉动画类
+      // 灼伤用红光闪烁代替受击白闪，其它状态照常震动
+      if (ev.status === 'burn') burnFlash(hitSide);
+      else shake(hitSide); // 渲染后再震，避免被 renderMon 清掉动画类
       await battleSleep(450);
     } else if (ev.t === 'transform') {
       // 变身成功：立即切换对应侧外观/属性/招式（手动使用变身招式时触发；登场自动变身走 autoTransform）
@@ -4510,81 +4874,6 @@ const CHARGE_OUT_CLS = {
   日光刃: 'cg-glow',
   潜灵奇袭: 'cg-out-vanish',
 };
-// 挖洞/潜水原作素材：土堆、泥点、水花、水滴
-function spawnChargeAssetFx(boxSide, kind) {
-  const img = $(`${boxSide}-img`);
-  const box = $(`${boxSide}-box`);
-  if (!img || !box) return;
-  const ir = img.getBoundingClientRect();
-  const br = box.getBoundingClientRect();
-  const cx = ir.left - br.left + ir.width / 2;
-  const cy = ir.top - br.top + ir.height - 2;
-  const add = (src, w, h, frames, ms, dx, dy, scale, life) => {
-    const el = document.createElement('span');
-    el.className = 'b-charge-asset';
-    el.style.width = w + 'px';
-    el.style.height = h + 'px';
-    el.style.left = (cx + dx) + 'px';
-    el.style.top = (cy + dy) + 'px';
-    el.style.backgroundImage = `url(${src})`;
-    el.style.backgroundSize = `${w}px ${h * frames}px`;
-    el.style.backgroundPosition = '0 0';
-    el.style.transform = `translate(-50%, -50%) scale(${scale})`;
-    box.appendChild(el);
-    if (frames > 1) {
-      let f = 0;
-      el._timer = setInterval(() => {
-        f = (f + 1) % frames;
-        el.style.backgroundPosition = `0 -${f * h}px`;
-      }, ms);
-    }
-    el.animate([
-      { opacity: 0, transform: `translate(-50%, -50%) scale(${scale * 0.6})` },
-      { opacity: 1, offset: 0.22 },
-      { opacity: 0, transform: `translate(-50%, -50%) scale(${scale * 1.2})` },
-    ], { duration: life, easing: 'ease-out', fill: 'both' });
-    setTimeout(() => { clearInterval(el._timer); el.remove(); }, life + 40);
-  };
-  const A = {
-    dig: './pe-battle/move-fx-assets/pe/Gfx_DirtMound__32x16.png',
-    dirt: './pe-battle/move-fx-assets/pe/Gfx_MudSand__8x8.png',
-    splash: './pe-battle/move-fx-assets/pe/Gfx_Splash__64x64.png',
-    drop: './pe-battle/move-fx-assets/water_droplet.png',
-  };
-  if (kind === 'dig') {
-    add(A.dig, 32, 16, 2, 110, 0, 0, 1.25, 620);
-    for (let i = 0; i < 5; i++) add(A.dirt, 8, 8, 1, 0, Math.random() * 34 - 17, -4, 1.6, 520);
-  } else {
-    add(A.splash, 64, 64, 1, 0, 0, 0, 1.35, 620);
-    for (let i = 0; i < 6; i++) add(A.drop, 32, 32, 8, 70, Math.random() * 44 - 22, -8, 0.6, 620);
-  }
-}
-// 第二段从对手脚边破土/出水：复制攻击方精灵到目标底座
-function spawnChargeEmergeClone(side, targetSide) {
-  const el = $(`${side}-img`);
-  const box = $(`${targetSide}-box`);
-  const tImg = $(`${targetSide}-img`);
-  if (!el || !box || !tImg) return null;
-  const br = box.getBoundingClientRect();
-  const ir = tImg.getBoundingClientRect();
-  const clone = document.createElement('img');
-  clone.className = 'b-charge-clone';
-  clone.src = el.currentSrc || el.src;
-  clone.alt = '';
-  clone.draggable = false;
-  clone.style.width = ir.width + 'px';
-  clone.style.height = ir.height + 'px';
-  clone.style.left = (ir.left - br.left + ir.width / 2) + 'px';
-  clone.style.top = (ir.top - br.top + ir.height) + 'px';
-  clone.style.marginLeft = (-ir.width / 2) + 'px';
-  clone.style.marginTop = (-ir.height) + 'px';
-  clone.style.zIndex = '6';
-  box.appendChild(clone);
-  el.style.visibility = 'hidden';
-  void clone.offsetWidth;
-  clone.classList.add('cg-out-sink');
-  return clone;
-}
 // 第一回合蓄力进入：播放对应离场动画（飞翔升空/挖洞钻地等，过程完整可见），钻地/潜水在脚部溅起尘土与水花。
 // 离场状态用 dataset.charged 标记（供对方攻击瞄准底座），不直接隐藏本体以免遮掉动画
 async function playChargeEnter(side, mvName, moveId) {
@@ -4611,6 +4900,7 @@ async function playChargeAttack(actor, side, moveId, battle) {
   const foe = curMon(battle, side === 'bp' ? 'e' : 'p');
   const el = $(`${side}-img`);
   const solarBeam = mv.name === '日光束';
+  const waterPhys = mv.type === '水' && moveCat(mv) === 'phys'; // 潜水等水系近战：命中补小气泡
   setText(`${actor.name}使用${mv.name}攻击！`);
   const evs = [];
   useMove(actor, foe, moveId, _data, evs, battle);
@@ -4625,8 +4915,8 @@ async function playChargeAttack(actor, side, moveId, battle) {
   });
   if (peDone) {
     if (el && CHARGE_HIDES[mv.name]) el.style.visibility = '';
-    if (_fleeing || _activeBattle !== battle) return;
-    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    if (_fleeing || (_activeBattle !== battle && !battle.__fxdbg)) return;
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true, waterBubbles: waterPhys });
     return;
   }
   if (el) {
@@ -4650,7 +4940,7 @@ async function playChargeAttack(actor, side, moveId, battle) {
   } else {
     await battleSleep(200);
   }
-  await playEvents(evs, battle, foe, mv.type, null, null, missed ? { skipStepAnim: true, skipFx: true } : null);
+  await playEvents(evs, battle, foe, mv.type, null, null, missed ? { skipStepAnim: true, skipFx: true } : (waterPhys ? { waterBubbles: true } : null));
 }
 // 尘土/水花：精灵脚部向两侧溅起一圈小颗粒（挖洞钻地/破土、潜水入水/跃出用）
 function spawnGroundBurst(side, color, count) {
@@ -4769,6 +5059,52 @@ async function doAttackInner(actor, side, moveId, battle) {
     syncFieldFx(battle);
     return;
   }
+  if (mv.name === '暗影爪' || mv.name === '克命爪') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(220);
+    spawnClawSlashFx(tSide, mv.name === '暗影爪' ? '#9a6cd0' : '#b35cff');
+    spawnImpactAsset(tSide);
+    shake(tSide);
+    await battleSleep(280);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '大字爆炎') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    await spawnFireBlastShot(side);
+    spawnFireBigExplosion(tSide);
+    shake(tSide);
+    await battleSleep(380);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '贝壳刃') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(220);
+    spawnSparkleSlash(tSide);
+    spawnImpactAsset(tSide);
+    spawnWaterImpact(tSide); // 水系近战命中：水花与小气泡和命中贴图同帧叠加
+    spawnSmallBubblesFx(tSide);
+    shake(tSide);
+    await battleSleep(260);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '头锤' || mv.name === '火箭头锤') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side);
+    await battleSleep(240);
+    spawnImpactAsset(tSide);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
   if (mv.name === '百万吨重拳') {
     const tSide = side === 'bp' ? 'be' : 'bp';
     lungeAttack(side);
@@ -4796,7 +5132,7 @@ async function doAttackInner(actor, side, moveId, battle) {
     await spawnAirBladeStream(side, 2);
     shake(tSide);
     spawnImpactAsset(tSide);
-    spawnDrainParticles(tSide, side, '#9bd9ff', 8);
+    spawnDrainParticles(tSide, side, 8);
     await battleSleep(520);
     await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
     spawnHealFx(side);
@@ -4805,6 +5141,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   }
   if (mv.name === '幻象光线' || mv.name === '精神波') {
     const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
     await spawnProjStream(side, 'ring', '#F8669C');
     spawnImpactAsset(tSide);
     shake(tSide);
@@ -4825,6 +5162,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   if (mv.name === '十万伏特' || mv.name === '伏特攻击') {
     const tSide = side === 'bp' ? 'be' : 'bp';
     if (mv.name === '伏特攻击') lungeAttack(side);
+    else lunge(side); // 特殊十万伏特：施法前倾与闪电同时
     spawnVoltFlash();
     spawnLightningAsset(tSide, mv.name === '伏特攻击' ? 1 : 2);
     await battleSleep(300);
@@ -4833,13 +5171,14 @@ async function doAttackInner(actor, side, moveId, battle) {
     syncFieldFx(battle);
     return;
   }
-  if (mv.name === '雷电牙' || mv.name === '冰冻牙' || mv.name === '剧毒牙' || mv.name === '虫咬') {
+  if (mv.name === '雷电牙' || mv.name === '冰冻牙' || mv.name === '火焰牙' || mv.name === '精神之牙' || mv.name === '剧毒牙' || mv.name === '虫咬') {
     const tSide = side === 'bp' ? 'be' : 'bp';
     lungeAttack(side);
     spawnFangBite(tSide, mv.name);
     await battleSleep(170);
     spawnFangParticles(tSide, mv.name);
     spawnImpactAsset(tSide);
+    shake(tSide);
     await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
     syncFieldFx(battle);
     return;
@@ -4875,13 +5214,28 @@ async function doAttackInner(actor, side, moveId, battle) {
     return;
   }
   if (mv.name === '冰冻之风') {
+    lunge(side); // 施法前倾与寒气同时
     spawnMistStream(side);
     await battleSleep(560);
     await playEvents(evs, battle, foe, mv.type, null, null);
     syncFieldFx(battle);
     return;
   }
+  if (mv.name === '极光束') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side); // 施法前倾与彩虹光束同时
+    spawnAuroraBg(); // 原作同款极光背景
+    spawnAuroraBeam(side);
+    await battleSleep(460); // 等光束与彩虹光环射到对手再结算
+    shake(tSide);
+    spawnImpactAsset(tSide);
+    spawnImpactTint(tSide, TYPE_COLORS['冰']);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
   if (mv.name === '水枪' || mv.name === '喷水') {
+    lunge(side); // 施法前倾与水流同时（之前漏了前倾）
     spawnHydroOrbStream(side);
     await battleSleep(420);
     await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
@@ -4906,6 +5260,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   }
   if (mv.name === '电击') {
     const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side); // 施法前倾与落雷同时
     spawnVoltFlash();
     spawnLightningAsset(tSide, 3);
     await battleSleep(360);
@@ -4916,6 +5271,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   }
   if (mv.name === '电击波') {
     const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
     spawnShockWaveFx(side, tSide);
     await battleSleep(520);
     shake(tSide);
@@ -4942,6 +5298,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   }
   if (mv.name === '溶解液') {
     const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
     await spawnProjStream(side, 'acid', TYPE_COLORS['毒']);
     spawnPoisonOrbBurst(tSide);
     shake(tSide);
@@ -4963,6 +5320,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   }
   if (mv.name === '破坏光线') {
     const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
     spawnCrossBeamFx(side, tSide, '#ffc46b');
     await battleSleep(360);
     shake(tSide);
@@ -4998,6 +5356,17 @@ async function doAttackInner(actor, side, moveId, battle) {
     await battleSleep(560);
     spawnImpactAsset(tSide);
     await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '蟹钳锤') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lungeAttack(side); // 贴脸：攻击方冲到对手面前再挥钳
+    await battleSleep(220);
+    spawnWaterImpact(tSide);
+    spawnSmallBubblesFx(tSide);
+    spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true, knockback: true });
     syncFieldFx(battle);
     return;
   }
@@ -5038,16 +5407,39 @@ async function doAttackInner(actor, side, moveId, battle) {
     }
     shake(tSide);
     spawnImpactAsset(tSide);
+    if (mv.type === '水') {
+      spawnWaterImpact(tSide); // 水系拳招（喷射拳）：水花与小气泡和命中贴图同帧叠加
+      spawnSmallBubblesFx(tSide);
+    }
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '恶之波动' || mv.name === '怒火中烧') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
+    spawnDarkPulseFx(side);
+    await battleSleep(620);
+    shake(tSide);
+    spawnImpactAsset(tSide);
     await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
     syncFieldFx(battle);
     return;
   }
   if (mv.name === '喷出') {
     const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
     spawnSpitUpFx(side);
     await battleSleep(560);
     shake(tSide);
     spawnImpactAsset(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '缩入壳中') {
+    spawnShellTuckFx(side); // 壳盖合拢收进去，张开时弹出防御脉冲
+    await battleSleep(840);
     await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
     syncFieldFx(battle);
     return;
@@ -5061,14 +5453,23 @@ async function doAttackInner(actor, side, moveId, battle) {
   }
   if (mv.name === '地球上投') {
     const tSide = side === 'bp' ? 'be' : 'bp';
-    lungeAttack(side);
-    await battleSleep(280);
-    let evP = null;
+    // 命中帧只叠打击视觉；扣血与倒下一律等整套抛起落地动画播完再执行
     await spawnSeismicLiftFx(side, tSide, () => {
+      shake(tSide);
       spawnImpactAsset(tSide);
-      evP = playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
     });
-    if (evP) await evP;
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '模仿') {
+    // 模仿：原作脚本复用的是命中泼溅帧，观感不对；改成把对手身上的能量吸过来
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
+    await battleSleep(160);
+    spawnDrainParticles(tSide, side, 12);
+    await battleSleep(600);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
     syncFieldFx(battle);
     return;
   }
@@ -5141,7 +5542,7 @@ async function doAttackInner(actor, side, moveId, battle) {
     syncFieldFx(battle);
     return;
   }
-  if (mv.name === '月光') {
+  if (mv.name === '月光' || mv.name === '新月祈祷') {
     spawnMoonFx(side, side, 'heal');
     await battleSleep(960);
     await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
@@ -5183,6 +5584,25 @@ async function doAttackInner(actor, side, moveId, battle) {
     syncFieldFx(battle);
     return;
   }
+  if (mv.name === '清除之烟') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    spawnClearSmogFx(side, tSide);
+    await battleSleep(780);
+    shake(tSide);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
+  if (mv.name === '打草结') {
+    const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side); // 施法前倾
+    shake(tSide);
+    spawnLeafBurstFx(tSide); // 直接在对手身上炸开树叶
+    await battleSleep(320);
+    await playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
+    syncFieldFx(battle);
+    return;
+  }
   if (mv.name === '龙卷风') {
     const tSide = side === 'bp' ? 'be' : 'bp';
     spawnTwisterFx(tSide);
@@ -5203,6 +5623,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   }
   if (mv.name === '电磁炮' || mv.name === '电球') {
     const tSide = side === 'bp' ? 'be' : 'bp';
+    lunge(side);
     spawnElectricBall(side, mv.name === '电磁炮' ? 1 : 2);
     await battleSleep(440);
     shake(tSide);
@@ -5211,7 +5632,7 @@ async function doAttackInner(actor, side, moveId, battle) {
     return;
   }
   if (mv.name === '火之舞' || mv.name === '烈火深渊') {
-    await playPeMove(83, side, { melee: false });
+    await playPeMove(83, side, { melee: false, cast: true });
     await playEvents(evs, battle, foe, mv.type, null, null);
     syncFieldFx(battle);
     return;
@@ -5228,53 +5649,67 @@ async function doAttackInner(actor, side, moveId, battle) {
     syncFieldFx(battle);
     return;
   }
-  // 冲浪/浊流走 battle-fx.css 的水线 + 浪冠特效，跳过原作的整张背景
-  let impactPromise = null;
-  const playImpact = () => {
-    if (!impactPromise) impactPromise = playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true });
-    return impactPromise;
-  };
-  const peId = mv.name === '骨棒乱打' ? 125 : mv.name === '蛮力' ? 70 : moveId;
-  const peDone = (mv.name === '冲浪' || mv.name === '浊流') ? false : await playPeMove(peId, side, {
+  const hitShakeOnImpact = PARTICLE_HIT_SHAKE_MOVES.has(mv.name);
+  // 水系近战 + 活活气泡：命中时补水花 + 小气泡（和命中贴图同帧叠加，不另起一段）
+  const waterBubbles = mv.type === '水' && (moveCat(mv) === 'phys' || mv.name === '活活气泡');
+  const playImpact = () => playEvents(evs, battle, foe, mv.type, null, null, { skipStepAnim: true, skipFx: true, hitShake: hitShakeOnImpact, waterBubbles });
+  const peId = mv.name === '骨棒乱打' ? 125 : mv.name === '蛮力' ? 70 : mv.name === '龙之怒' ? 225
+    : mv.name === '雷击' ? 87 : moveId; // 雷击复用打雷（已简化为单段落雷）
+  // 重踏/地震：原作动画一开场就是地面震动，让双方宝可梦同步跟着颠动
+  if (mv.name === '地震' || mv.name === '重踏') quakeRattle();
+  // 冰冻光束：原作那套冰晶串在游戏里看不清光束，改走手写的直线光束
+  const peDone = (mv.name === '冲浪' || mv.name === '浊流' || mv.name === '冰冻光束') ? false : await playPeMove(peId, side, {
     speed: mv.name === '晨光' ? 2 : 1,
+    type: mv.type,
+    // 暗影球：弹道命中时没有命中类 sprite，把命中帧挂在目标被震那一帧，好补 impact 贴图
+    hitOnShake: mv.name === '暗影球',
     // 远程物理/多段远程由原作脚本自己发射弹道，不能再叠加贴身扑击
-    melee: moveCat(mv) === 'phys' && !RANGED_SINGLE[mv.name] && !RANGED_PHYS_MULTI[mv.name],
-    cast: moveCat(mv) === 'spec'
+    // 雷击复用打雷的施法式落雷，不做近身冲撞
+    melee: mv.name !== '雷击' && moveCat(mv) === 'phys' && !RANGED_SINGLE[mv.name] && !RANGED_PHYS_MULTI[mv.name],
+    cast: mv.name === '雷击' || moveCat(mv) === 'spec'
       || (moveCat(mv) === 'phys' && (mv.name === '攀瀑' || !!(RANGED_SINGLE[mv.name] || RANGED_PHYS_MULTI[mv.name])))
       || (moveCat(mv) === 'status' && mv.effect?.target === 'foe'),
+    // 命中帧只叠打击视觉；扣血、伤害数字与倒下一律等整段动画播完再执行
     onImpact: () => {
-      if (mv.name === '打雷') {
-        const tSide = side === 'bp' ? 'be' : 'bp';
-        spawnImpactAsset(tSide);
-        playAnim(tSide, 'thunder-hit');
+      // 打雷/雷击：保留击中瞬间的震屏与头顶落雷，打击感更强
+      if (mv.name === '打雷' || mv.name === '雷击') {
+        const tSide = foe === curMon(battle, 'p') ? 'bp' : 'be';
+        const img = $(`${tSide}-img`);
+        const layer = tSide === 'bp' ? img?.parentElement : img;
+        const prevZ = layer?.style.zIndex;
+        if (layer) layer.style.zIndex = '7';
+        shake(tSide);
+        spawnLightningAsset(tSide, 1);
+        setTimeout(() => { if (layer && layer.isConnected) layer.style.zIndex = prevZ; }, 520);
       }
-      void playImpact();
+      // 暗影球：命中帧在对手身上叠一张 impact 贴图，增强打击感
+      if (mv.name === '暗影球') {
+        const tSide = foe === curMon(battle, 'p') ? 'bp' : 'be';
+        spawnImpactAsset(tSide);
+      }
     },
   });
   if (peDone) {
-    if (_fleeing || _activeBattle !== battle) return;
+    if (_fleeing || (_activeBattle !== battle && !battle.__fxdbg)) return;
     await playImpact();
     return;
   }
-  if (impactPromise) { await impactPromise; return; }
   const isPhys = moveCat(mv) === 'phys';
   const isSound = SOUND_MOVES.has(mv.name); // 发声招式：声波弹道
-  const isBubble = mv.name === '泡沫' || mv.name === '泡沫光线' || mv.name === '水枪' || mv.name === '喷水'; // 水系弹道招式：气泡特效
+  const isBubble = mv.name === '泡沫' || mv.name === '泡沫光线' || mv.name === '水枪' || mv.name === '喷水' || mv.name === '活活气泡'; // 水系弹道招式：气泡特效
   const isStar = mv.name === '高速星星'; // 高速星星：星形弹道特效
   // 圆环弹道（幻象光线/精神波 超能粉；水炮 水系蓝）
   const isRing = mv.name === '幻象光线' || mv.name === '精神波' || mv.name === '水炮';
   const RING_COLOR = { '幻象光线': '#F8669C', '精神波': '#F8669C', '水炮': '#3F98EA' };
   const isPsychicWrap = mv.name === '念力'; // 念力：目标身上扭动圆环
-  const isBeam = mv.name === '破坏光线'; // 破坏光线：光束弹道特效
-  const isIceBeam = mv.name === '冰冻光束' || mv.name === '极光束' || mv.name === '铁蹄光线'; // 冰冻光束/极光束/铁蹄光线：直线光束
+  const isIceBeam = mv.name === '冰冻光束' || mv.name === '铁蹄光线'; // 冰冻光束/铁蹄光线：直线光束
   const isSolarBeam = mv.name === '日光束'; // 日光束：对手脚下向上射出一根柔光细柱
   const isConfuse = mv.name === '奇异之光'; // 奇异之光：柔和描边黄色球
   const isFireStream = mv.name === '喷射火焰' || mv.name === '喷火'; // 喷射火焰/喷火：火系一串弹道
   const isAcidStream = mv.name === '溶解液'; // 溶解液：毒系一串酸液滴弹道
   const isScreenFlash = mv.name === '魔法闪耀' || mv.name === '电光' || mv.name === '精神强念'; // 全屏遮罩闪光：魔法闪耀/电光/精神强念
-  // 叶片弹道（飞叶快刀/飞叶风暴 绿 / 花瓣舞 粉）：一串叶片飞向对手，颜色按招注入
+  // 叶片弹道：飞叶快刀/飞叶风暴 用原作树叶素材，花瓣舞用原作粉色花瓣素材
   const isLeafStream = mv.name === '飞叶快刀' || mv.name === '花瓣舞' || mv.name === '飞叶风暴';
-  const LEAF_COLOR = { '飞叶快刀': '#3fa129', '花瓣舞': '#f8669c', '飞叶风暴': '#3fa129' };
   // 风系/龙卷风类招式（起风/翅膀攻击/龙卷风/暴风/空气利刃 青白，热风红，妖精之风粉，冰冻之风蓝）
   const isWind = mv.name === '起风' || mv.name === '翅膀攻击' || mv.name === '暴风' || mv.name === '空气利刃' || mv.name === '热风' || mv.name === '妖精之风' || mv.name === '冰冻之风';
   const WIND_COLOR = { '热风': '#ff5a3c', '妖精之风': '#f8669c', '冰冻之风': '#7fd0f5' };
@@ -5282,14 +5717,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   const isDragon = mv.type === '龙' && moveCat(mv) === 'spec' && mv.name !== '龙卷风';
   // 吸血招式（吸取/超级吸取/终极吸取/吸取拳/吸取之吻等 drain 类）：命中后粒子从目标吸回攻击方
   const isDrain = mv.effect && mv.effect.kind === 'drain';
-  const DRAIN_COLOR = {
-    吸取: '#7dc84a', 超级吸取: '#7dc84a', 终极吸取: '#7dc84a', 强力吸取: '#7dc84a', // 草系绿
-    吸取之吻: '#f8669c', // 妖精粉
-    吸取拳: '#9CAE1E', 吸血: '#9CAE1E', 吸血轮盘: '#9CAE1E', // 虫系黄绿
-    地狱突刺: '#9a6cd0', 灵魂吸取: '#9a6cd0', // 幽灵紫
-    深渊汲取: '#3F98EA', // 水系蓝
-  };
-  // 大面积水系招式（潮旋/水之波动/泼冷水/冲浪）：蓝色半透明水幕沿对角线涌过战场
+  // 大面积水系招式（潮旋/水之波动/泼冷水/冲浪/浊流）：蓝色半透明水幕沿对角线涌过战场
   const isWaterSweep = mv.name === '潮旋' || mv.name === '水之波动' || mv.name === '泼冷水' || mv.name === '冲浪' || mv.name === '浊流';
   const isHotWater = mv.name === '热水';
   // 圆球弹道招式（按属性着色）；火花/磷火复用火焰球
@@ -5310,6 +5738,8 @@ async function doAttackInner(actor, side, moveId, battle) {
   // 远程单体物理（冰砾/毒针/毒千针/垃圾射击）：不贴脸，发射一发粒子飞向对手（形状/颜色见 RANGED_SINGLE）
   const rangedSingle = RANGED_SINGLE[mv.name];
   if (!multiPhys) {
+    // 特攻弹道招式：出手的同一下前倾，和发射物同帧（物理冲撞走下面的 lungeAttack，吸血招式在命中段自带前倾）
+    if (!isPhys && !isDrain && moveCat(mv) === 'spec' && mv.effect?.target !== 'self') lunge(side);
     if (isSound) {
       const selfSound = mv.effect?.target === 'self' || mv.effect?.kind === 'cure';
       spawnSoundWave(side, selfSound ? side : (side === 'bp' ? 'be' : 'bp')); // 从攻击方发出声波，自身增益只原地扩散
@@ -5320,9 +5750,11 @@ async function doAttackInner(actor, side, moveId, battle) {
     } else if (isHotWater) {
       await spawnProjStream(side, 'drop', '#ffb36b');
     } else if (isWaterSweep) {
-      if (mv.name === '冲浪' || mv.name === '浊流') spawnSurfWave(side, mv.name === '浊流'); // 冲浪/浊流：原版浪花贴图
+      const isSurfWave = mv.name === '冲浪' || mv.name === '浊流';
+      if (isSurfWave) spawnSurfWave(side, mv.name === '浊流'); // 冲浪/浊流：原版浪花贴图
       else spawnWaterSweep(side); // 其余水系：蓝色水幕沿对角线涌过战场
-      await battleSleep(560); // 等水幕涌到对手处再结算伤害
+      // 冲浪水层 0.9s 才涌到对面，等浪拍到目标身上再结算（受击颤抖与浪头同帧）
+      await battleSleep(isSurfWave ? 700 : 560);
     } else if (isDragon) {
       spawnDragonWave(side); // 龙息能量波弹道
       await battleSleep(480); // 等能量波飞抵目标再结算伤害（动画 0.6s，到位约 0.5s）
@@ -5346,12 +5778,9 @@ async function doAttackInner(actor, side, moveId, battle) {
       spawnScreenFlash(); // 粉色半透明遮罩全屏一闪
       await battleSleep(320); // 等遮罩闪光扩散完再结算伤害
     } else if (isLeafStream) {
-      await spawnProjStream(side, 'leaf', LEAF_COLOR[mv.name]);
+      await spawnProjStream(side, mv.name === '花瓣舞' ? 'petal' : 'leaf');
     } else if (isBall) {
       await spawnProjStream(side, 'ball', BALL_COLOR[mv.name], mv.name === '击落');
-    } else if (isBeam) {
-      spawnLightSweep(side); // 一截光段飞向对手并冲出屏幕
-      await battleSleep(350); // 光段飞抵对手即结算伤害（飞行 0.7s、距离 1.9 倍，到点时刻恒定 ≈0.37s）
     } else if (isIceBeam) {
       spawnIceBeam(side); // 一道淡蓝色直线射到对手
       await battleSleep(360); // 等光束射到对手处再结算伤害
@@ -5385,7 +5814,7 @@ async function doAttackInner(actor, side, moveId, battle) {
       if (isPhys) lungeAttack(side);
       else lunge(side);
       await battleSleep(isPhys ? 280 : 160);
-      spawnDrainParticles(side === 'bp' ? 'be' : 'bp', side, DRAIN_COLOR[mv.name] || '#7dc84a');
+      spawnDrainParticles(side === 'bp' ? 'be' : 'bp', side);
       await battleSleep(520); // 等粒子吸回再结算伤害（粒子约 0.45-0.65s）
     } else {
       // 远程单体物理（冰砾）：留原位射一发冰球，等弹到对手处再结算伤害
@@ -5406,9 +5835,231 @@ async function doAttackInner(actor, side, moveId, battle) {
   // 近战多段：各击在 playEvents 的 step 里逐击摆动；远程多段：逐击喷射粒子，弹到即结算伤害
   if (mv.type === '火' && moveCat(mv) !== 'status') spawnFireBurst(side === 'bp' ? 'be' : 'bp');
   if (moveCat(mv) !== 'status' && IMPACT_TINT_TYPES.has(mv.type)) spawnImpactTint(side === 'bp' ? 'be' : 'bp', TYPE_COLORS[mv.type]);
-  await playEvents(evs, battle, foe, mv.type, multiPhys ? side : null, rangedPhys || null);
+  await playEvents(evs, battle, foe, mv.type, multiPhys ? side : null, rangedPhys || null, waterBubbles ? { waterBubbles: true } : null);
   hideCosmicBg();
   syncFieldFx(battle); // 出招结算后刷新护盾/钉子表现（守住生效、撒菱/毒菱/隐形岩落场）
+}
+
+// ==================== 招式调试面板（开发用） ====================
+// 播放直接走真实战斗的 doAttackInner：把双方战斗个体克隆一份给调试用，
+// 招式/节奏/命中反馈与正式战斗完全同一条代码，不用再在预览页维护第二份特效副本。
+const FXDBG_TYPES = ['一般', '格斗', '飞行', '毒', '地面', '岩石', '虫', '幽灵', '钢', '火', '水', '草', '电', '超能', '冰', '龙', '恶', '妖精'];
+let _fxdbgFiltered = [];
+
+function fxdbgMoves() {
+  if (!_data?.moves) return [];
+  return Object.values(_data.moves)
+    .filter((m) => m && m.id !== STRUGGLE_ID && m.effect && m.effect.kind !== 'unimplemented')
+    .sort((a, b) => a.id - b.id);
+}
+
+// 调试用战斗个体：浅拷贝本体可变的几项，所有消耗/伤害都只落在副本上
+function fxdbgCloneMon(mon) {
+  const c = {
+    ...mon,
+    types: [...(mon.types || [])],
+    moves: [...(mon.moves || [])],
+    pp: (mon.moves || []).map((id) => (id != null && _data?.moves?.[id] ? _data.moves[id].pp ?? null : null)), // 不让真实 PP 耗尽挡住调试
+    stats: [...mon.stats],
+    stages: [...(mon.stages || [])],
+    stageTypes: [...(mon.stageTypes || [])],
+    ivs: { ...(mon.ivs || {}) },
+  };
+  c.chargeMove = null; // 永远从第一回合开始，蓄力招式会由调试面板自己补播第二段
+  c.chargeHidden = false;
+  c.entryRound = null; // 击掌奇袭等"刚出场"招式在调试里一律可用
+  return c;
+}
+
+function fxdbgBattleOf(battle) {
+  return {
+    ...battle,
+    pIdx: 0,
+    eIdx: 0,
+    __fxdbg: true, // 放行 doAttackInner/playChargeAttack 里的「战斗是否还在」身份判断
+    // 场地/天气是值拷贝，但 hazards 是对象：必须另开一层，否则调试招式（撒菱等）会改到真实战斗
+    hazards: {
+      p: { ...(battle.hazards?.p || {}) },
+      e: { ...(battle.hazards?.e || {}) },
+    },
+    pTeam: [{ ...battle.pTeam[battle.pIdx], mon: fxdbgCloneMon(curMon(battle, 'p')) }],
+    eTeam: [{ ...battle.eTeam[battle.eIdx], mon: fxdbgCloneMon(curMon(battle, 'e')) }],
+  };
+}
+
+function fxdbgSide() {
+  return $('fxdbgOpp')?.checked ? 'be' : 'bp';
+}
+
+function renderFxdbgList() {
+  const list = $('fxdbgList');
+  if (!list) return;
+  const q = ($('fxdbgSearch')?.value || '').trim().toLowerCase();
+  const type = $('fxdbgType')?.value || '';
+  const cat = $('fxdbgCat')?.value || '';
+  const all = fxdbgMoves();
+  _fxdbgFiltered = all.filter((m) => (!q || m.name.toLowerCase().includes(q) || String(m.id).includes(q))
+    && (!type || m.type === type)
+    && (!cat || m.category === cat));
+  const count = $('fxdbgCount');
+  if (count) count.textContent = `${_fxdbgFiltered.length} / ${all.length}`;
+  const shown = _fxdbgFiltered.slice(0, 200); // 手机上一次铺 200 行够用，再多用搜索缩小
+  list.innerHTML = shown.length ? shown.map((m) => `<button type="button" class="b-fxdbg-row" data-id="${m.id}">
+      <span class="b-fxdbg-id">${String(m.id).padStart(3, '0')}</span>
+      <span class="b-fxdbg-name">${m.name}${CHARGE_MOVES.has(m.name) ? '<i class="b-fxdbg-tag">两回合</i>' : ''}</span>
+      <span class="b-fxdbg-type" style="background:${TYPE_COLORS[m.type] || '#9F9E9A'}">${m.type}</span>
+      <span class="b-fxdbg-cat">${m.category || ''}</span>
+    </button>`).join('') : '<div class="b-fxdbg-empty">没有匹配的招式</div>';
+}
+
+function openFxDebugPanel(battle) {
+  if (_fxdbgPlaying || _activeBattle !== battle) return;
+  if (!_pendingAsk || _auto) return; // 只在轮到玩家选行动时开，否则战斗会从面板底下继续走
+  const fight = $('battleContent')?.querySelector('.battle-fight');
+  if (!fight) return;
+  const old = $('b-fxdbg');
+  if (old) { old.style.display = 'flex'; return; }
+  const panel = document.createElement('div');
+  panel.id = 'b-fxdbg';
+  panel.className = 'b-fxdbg';
+  panel.innerHTML = `
+    <div class="b-fxdbg-head">
+      <b class="b-fxdbg-title">招式调试</b>
+      <span class="b-fxdbg-count" id="fxdbgCount"></span>
+      <button class="b-fxdbg-x" id="fxdbgClose" type="button">关闭</button>
+    </div>
+    <div class="b-fxdbg-bar">
+      <input class="b-fxdbg-search" id="fxdbgSearch" type="search" placeholder="搜索招式名 / 编号">
+      <select class="b-fxdbg-sel" id="fxdbgType"><option value="">属性</option>${FXDBG_TYPES.map((t) => `<option>${t}</option>`).join('')}</select>
+      <select class="b-fxdbg-sel" id="fxdbgCat">
+        <option value="">类别</option><option>物理</option><option>特殊</option><option>变化</option>
+      </select>
+    </div>
+    <div class="b-fxdbg-bar">
+      <label class="b-fxdbg-check"><input type="checkbox" id="fxdbgOpp"> 对手出招</label>
+      <label class="b-fxdbg-check"><input type="checkbox" id="fxdbgHit" checked> 必中</label>
+      <label class="b-fxdbg-check"><input type="checkbox" id="fxdbgPe" checked> 原作动画</label>
+      <label class="b-fxdbg-check">速度<select class="b-fxdbg-sel" id="fxdbgSpeed">
+        <option value="0.5">0.5×</option><option value="1" selected>1×</option>
+        <option value="1.5">1.5×</option><option value="2">2×</option>
+      </select></label>
+      <span class="b-fxdbg-now" id="fxdbgNow"></span>
+    </div>
+    <div class="b-fxdbg-list" id="fxdbgList"></div>
+    <div class="b-fxdbg-foot">
+      <button class="b-fxdbg-btn2" id="fxdbgPrev" type="button">上一个</button>
+      <button class="b-fxdbg-btn2" id="fxdbgReplay" type="button">重播</button>
+      <button class="b-fxdbg-btn2" id="fxdbgNext" type="button">下一个</button>
+    </div>`;
+  fight.appendChild(panel);
+  const close = () => {
+    panel.remove();
+    _fxdbgRestore?.();
+  };
+  $('fxdbgClose')?.addEventListener('click', close);
+  ['fxdbgSearch', 'fxdbgType', 'fxdbgCat'].forEach((id) => {
+    $(id)?.addEventListener('input', renderFxdbgList);
+    $(id)?.addEventListener('change', renderFxdbgList);
+  });
+  $('fxdbgList')?.addEventListener('click', (e) => {
+    const row = e.target.closest('.b-fxdbg-row');
+    if (row) fxdbgPlay(battle, Number(row.dataset.id), fxdbgSide());
+  });
+  $('fxdbgSearch')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && _fxdbgFiltered[0]) fxdbgPlay(battle, _fxdbgFiltered[0].id, fxdbgSide());
+  });
+  $('fxdbgReplay')?.addEventListener('click', () => {
+    if (_fxdbgLast) fxdbgPlay(battle, _fxdbgLast.id, fxdbgSide());
+  });
+  const step = (dir) => {
+    if (!_fxdbgFiltered.length) return;
+    let i = _fxdbgLast ? _fxdbgFiltered.findIndex((m) => String(m.id) === String(_fxdbgLast.id)) : -1;
+    i = i < 0 ? (dir > 0 ? 0 : _fxdbgFiltered.length - 1) : (i + dir + _fxdbgFiltered.length) % _fxdbgFiltered.length;
+    fxdbgPlay(battle, _fxdbgFiltered[i].id, fxdbgSide());
+  };
+  $('fxdbgPrev')?.addEventListener('click', () => step(-1));
+  $('fxdbgNext')?.addEventListener('click', () => step(1));
+  renderFxdbgList();
+}
+
+// 播放结束后把真实个体重新画回界面（调试期间所有数值变化都只发生在克隆上）
+function fxdbgRestoreDom(battle) {
+  const fight = $('battleContent')?.querySelector('.battle-fight');
+  if (!fight) return;
+  // 动画被打断时原作引擎的临时层可能残留（pe-surf 以前不清理，这里一并扫掉）
+  fight.querySelectorAll('.pe-root, .pe-bg, .pe-surf, .pe-tint').forEach((el) => el.remove());
+  // 一次性特效若没等到 animationend 也会残留，重播前统一清场（常驻状态粒子不动）
+  fight.querySelectorAll('.b-dmg, .b-proj-fx, .b-solar-fx,'
+    + ' .b-lightning-fx, .b-rock-fx, .b-snow-fx, .b-sonic-fx, .b-beam-fx, .b-aurora-fx, .b-aurora-bg-fx, .b-fairy-fx, .b-water-fx, .b-surf-fx, .b-shell-fx,'
+    + ' .fx-orbit-back, .fx-orbit-front, .b-charge-asset, .b-wind-fx, .b-dragon-fx, .b-psy-fx, .b-ground-fx, .fx-spark-asset, .fx-orig,'
+    + ' .b-screen-flash, .b-cosmic-bg, .b-impact-bg, .b-impact-tint, .b-fire-burst, .b-gust-stream,'
+    + ' .b-memento-orb, .b-mist-stream, .b-volt-flash, .b-aqua-ring, .aqua-band, .aqua-drop')
+    .forEach((el) => el.remove());
+  for (const side of ['bp', 'be']) {
+    const img = $(`${side}-img`);
+    if (!img) continue;
+    resetAnim(img);
+    img.style.visibility = '';
+    img.style.zIndex = '';
+    img.style.removeProperty('transform');
+    img.style.removeProperty('filter');
+    img.style.removeProperty('opacity');
+    img.dataset.charged = '';
+    renderMon(curMon(battle, side === 'bp' ? 'p' : 'e'), side);
+  }
+  const flip = $('bp-box')?.querySelector('.b-flip');
+  if (flip) flip.style.transform = '';
+  panelIn('bp'); // 调试时若把克隆打到倒下，信息卡会被 panelOut 滑出，这里滑回来
+  panelIn('be');
+  renderTeamInfo(battle);
+  syncFieldFx(battle);
+}
+
+async function fxdbgPlay(battle, id, side) {
+  const mv = _data?.moves?.[id];
+  if (!mv || _fxdbgPlaying || _activeBattle !== battle) return;
+  const panel = $('b-fxdbg');
+  const now = $('fxdbgNow');
+  _fxdbgPlaying = true;
+  _fxdbgLast = { id, side };
+  if (now) now.textContent = `${String(mv.id).padStart(3, '0')} ${mv.name}`;
+  if (panel) panel.style.display = 'none'; // 先收起面板，让整块战场都能看到
+  _fxdbgSpeed = Number($('fxdbgSpeed')?.value || 1) || 1;
+  setPeSpeedFactor(_fxdbgSpeed);
+  setPeEnabled($('fxdbgPe')?.checked !== false);
+  try {
+    const dbg = fxdbgBattleOf(battle);
+    const actor = curMon(dbg, side === 'bp' ? 'p' : 'e');
+    const foe = curMon(dbg, side === 'bp' ? 'e' : 'p');
+    // 必中：命中率等级拉满（×4 上限）、对方闪避归零，低命中招式也能稳定看到完整动作
+    if ($('fxdbgHit')?.checked !== false) { actor.stages[5] = 6; foe.stages[6] = 0; }
+    setText(`${actor.name}使用了${mv.name}！`);
+    await doAttackInner(actor, side, id, dbg);
+    if (CHARGE_MOVES.has(mv.name) && actor.chargeMove != null) {
+      await doAttackInner(actor, side, id, dbg); // 两回合招式：紧接着补播攻击段
+    }
+  } catch (e) {
+    if (!(e instanceof BattleFled)) console.warn('fxdbg', e);
+  } finally {
+    _fxdbgSpeed = 1;
+    setPeSpeedFactor(1);
+    setPeEnabled(true);
+    _fxdbgPlaying = false;
+    if (_activeBattle === battle) {
+      fxdbgRestoreDom(battle);
+      _fxdbgRestore?.(); // 恢复「攻击/替换/自动」操作界面
+      const p = $('b-fxdbg');
+      if (p) p.style.display = 'flex';
+    }
+  }
+}
+
+// 控制台入口：战斗中点 __fxdbg() 直接打开面板
+export function openMoveFxDebug() {
+  if (!_activeBattle) { console.warn('openMoveFxDebug: 当前没有进行中的战斗'); return false; }
+  if (!_pendingAsk || _auto) { console.warn('openMoveFxDebug: 只在手动战斗、轮到玩家选行动时可用'); return false; }
+  openFxDebugPanel(_activeBattle);
+  return true;
 }
 
 async function battleLoop(battle) {

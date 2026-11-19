@@ -650,6 +650,8 @@ def build_backgrounds():
         return tile
 
     name_by_code = {v: k[3:].lower() for k, v in C_CONST.items() if k.startswith('BG_')}
+    # 会纵向滚动/纵向定位的背景（角钻、宇宙力量、上天拳、天空、地裂），tilemap 下半截是真实画面
+    VERTICAL_SCROLL_BG = {7, 16, 17, 18, 21}
     out = {}
     for code, (img_sym, pal_sym, map_sym) in sorted(table.items()):
         if code == 15:  # 冰系背景（冰冻之风/绝对零度/冰球）与战斗界面不搭，不再生成
@@ -690,6 +692,10 @@ def build_backgrounds():
                     break
             if cut < canvas.height:
                 canvas = canvas.crop((0, 0, canvas.width, cut))
+        if canvas.height > 160 and code not in VERTICAL_SCROLL_BG:
+            # GBA 屏幕只有 240x160，非纵向滚动的背景在 tilemap 第 20 行之后是纯填充，
+            # 保留整张 256 高会在 cover 时露出接缝，这里只保留屏幕可见的顶部 160px。
+            canvas = canvas.crop((0, 0, canvas.width, 160))
         name = f'bg_{name_by_code.get(code, str(code))}.png'
         canvas.save(os.path.join(out_dir, name))
         out[code] = 'bg/' + name

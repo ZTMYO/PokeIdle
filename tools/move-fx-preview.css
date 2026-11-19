@@ -315,16 +315,6 @@ body {
   filter: blur(0.4px);
 }
 
-/* 命中瞬间的白闪 */
-.b-status-flash {
-  position: absolute;
-  z-index: 20;
-  border-radius: 50%;
-  background: #fff;
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
-
 /* 冲浪水面盖住精灵，但信息面板保持在最上层 */
 .battle-stage-top .b-info {
   position: relative;

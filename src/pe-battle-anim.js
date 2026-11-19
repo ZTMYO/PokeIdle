@@ -1,6 +1,18 @@
 // Emerald 原作战斗动画接入：只接管有原作脚本的招式，其余继续走旧特效。
 let runtimePromise = null;
 let engine = null;
+// 招式调试面板用的临时倍速/原作动画开关：正常战斗恒为 1/开启，调试播放结束后必须复位
+let speedFactor = 1;
+let enabled = true;
+
+export function setPeSpeedFactor(f = 1) {
+  speedFactor = f > 0 ? f : 1;
+}
+
+// 调试时关掉原作动画，可以单独验收 battle-view/battle-fx.css 的兼容特效
+export function setPeEnabled(v = true) {
+  enabled = !!v;
+}
 
 async function getEngine() {
   const stage = document.querySelector('.battle-stage-top');
@@ -23,7 +35,8 @@ function clearOldAnim(img) {
   img.style.visibility = '';
 }
 
-export async function playPeMove(moveId, side, { melee = false, cast = false, twoTurn = false, turn = 1, onImpact = null, onReveal = null, keepHidden = false, speed = 1 } = {}) {
+export async function playPeMove(moveId, side, { melee = false, cast = false, twoTurn = false, turn = 1, onImpact = null, onReveal = null, keepHidden = false, speed = 1, type = null, hitOnShake = false } = {}) {
+  if (!enabled) return false;
   let restoreLayer = () => {};
   try {
     const eng = await getEngine();
@@ -44,7 +57,7 @@ export async function playPeMove(moveId, side, { melee = false, cast = false, tw
       restoreLayer = () => { layer.style.zIndex = prev; };
     }
     await eng.playMove(moveId, {
-      speed,
+      speed: (speed || 1) * speedFactor,
       melee,
       cast,
       twoTurn,
@@ -52,6 +65,8 @@ export async function playPeMove(moveId, side, { melee = false, cast = false, tw
       opponent: side === 'be',
       onImpact,
       onReveal,
+      type,
+      hitOnShake,
     });
     return true;
   } catch (e) {
@@ -65,10 +80,11 @@ export async function playPeMove(moveId, side, { melee = false, cast = false, tw
 
 
 export async function playPeLabel(label, side, opts = {}) {
+  if (!enabled) return false;
   try {
     const eng = await getEngine();
     if (!eng) return false;
-    await eng.play(label, { ...opts, opponent: side === 'be' });
+    await eng.play(label, { ...opts, speed: (opts.speed || 1) * speedFactor, opponent: side === 'be' });
     return true;
   } catch (e) {
     console.warn('pe battle label', e);

@@ -10,17 +10,18 @@ const ATK_Y = 80;
 const TGT_X = 176;
 const TGT_Y = 40;
 const SPR_SCALE = 1;
-// 烟幕命中：原作单独压缩的 16x16 三帧小爆点，数据里没有贴图，这里补上
 PE.templates.__smokescreenImpact = {
   cb: 'AnimSmokescreenImpact', img: 'pe/Gfx_SmokescreenImpact__16x16.png',
   fw: 16, fh: 16, cols: 1, frames: 3, am: 0, ob: 0,
   an: [[['f', 0, 4], ['f', 1, 4], ['f', 2, 4], ['e']]], af: [[]],
 };
-// 心形/聚光灯素材不再使用：心形统一走内联 SVG，聚光灯直接隐藏
 for (const t of Object.values(PE.templates)) {
   if (/Gfx_MagentaHeart/i.test(t.img || '')) { t.img = null; t.heart = true; }
   if (/Gfx_Spotlight/i.test(t.img || '')) t.img = null;
 }
+// 泥巴射击：原作和高压水枪共用同一颗蓝色水球（Gfx_WaterOrb），这里保留球体形状与 4 帧流光，
+// 只在渲染时染成泥巴色（素材库里没有现成泥球，Gfx_MudSand 是方形噪点土粒，直接换贴图更难看）
+if (PE.templates.gMudShotOrbSpriteTemplate) PE.templates.gMudShotOrbSpriteTemplate.mudTint = true;
 for (const k of Object.keys(PE.backgrounds)) {
   if (/_contests\.png$/.test(PE.backgrounds[k] || '')) delete PE.backgrounds[k];
 }
@@ -44,6 +45,8 @@ const NO_CONTACT_LABELS = new Set([
   'Move_EARTHQUAKE', 'Move_MAGNITUDE', 'Move_FISSURE', 'Move_SELF_DESTRUCT', 'Move_EXPLOSION', 'Move_SAND_TOMB',
 ]);
 const FAST_POWDER_MOVES = /^Move_(POISON_POWDER|STUN_SPORE|SLEEP_POWDER|SPORE|COTTON_SPORE)$/;
+// 吸取类：伤害/吸血靠吸收光球表现，不做命中贴图，也不做草系树叶炸开
+const DRAIN_MOVE_LABELS = /^Move_(ABSORB|MEGA_DRAIN|GIGA_DRAIN|LEECH_LIFE|DREAM_EATER|DRAIN_PUNCH)$/;
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const rgb555 = (c) => [c & 31, (c >> 5) & 31, (c >> 10) & 31];
 const hex = (c) => {
@@ -59,7 +62,59 @@ const hexToRgba = (color, alpha) => {
   return `rgba(${r}, ${g}, ${b}, ${clamp(alpha, 0, 1)})`;
 };
 
-// 冰雹天气：用原作冰雹贴图生成随机大小的斜向落雹，而不是规则点阵
+const protectTexCache = new Map();
+
+// Gfx_Protect is a 7-color diagonal band texture; the original animation cycles its
+// palette every 2 frames. Pre-render one frame per palette offset and swap images.
+function protectTexture(src) {
+  let rec = protectTexCache.get(src);
+  if (rec) return rec;
+  rec = { ready: false, frames: [] };
+  protectTexCache.set(src, rec);
+  const img = new Image();
+  img.onload = () => {
+    const w = img.width;
+    const h = img.height;
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = h;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const px = ctx.getImageData(0, 0, w, h).data;
+    const colors = [];
+    const idOf = new Map();
+    for (let i = 0; i < px.length; i += 4) {
+      if (!px[i + 3]) continue;
+      const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+      if (!idOf.has(key)) {
+        idOf.set(key, colors.length);
+        colors.push([px[i], px[i + 1], px[i + 2]]);
+      }
+    }
+    if (colors.length < 2) return;
+    for (let step = 0; step < colors.length; step++) {
+      const out = ctx.createImageData(w, h);
+      for (let i = 0; i < px.length; i += 4) {
+        out.data[i + 3] = px[i + 3];
+        if (!px[i + 3]) continue;
+        const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+        const c = colors[(idOf.get(key) + step) % colors.length];
+        out.data[i] = c[0];
+        out.data[i + 1] = c[1];
+        out.data[i + 2] = c[2];
+      }
+      const fc = document.createElement('canvas');
+      fc.width = w;
+      fc.height = h;
+      fc.getContext('2d').putImageData(out, 0, 0);
+      rec.frames.push(fc.toDataURL());
+    }
+    rec.ready = true;
+  };
+  img.src = src;
+  return rec;
+}
+
 function buildHailWeather(el) {
   el.innerHTML = '';
   for (let i = 0; i < 18; i++) {
@@ -75,6 +130,40 @@ function buildHailWeather(el) {
     stone.style.setProperty('--drift', (-10 - Math.random() * 22).toFixed(0) + 'px');
     stone.style.setProperty('--spin', (rnd(-30, 60)).toFixed(0) + 'deg');
     el.appendChild(stone);
+  }
+}
+
+function buildRainWeather(el) {
+  el.innerHTML = '';
+  for (let i = 0; i < 30; i++) {
+    const drop = document.createElement('i');
+    drop.className = 'pe-rain-drop';
+    drop.style.left = rnd(-10, 100) + '%';
+    drop.style.top = rnd(-45, 100) + '%';
+    const w = rnd(8, 14);
+    drop.style.width = w + 'px';
+    drop.style.height = w * 2 + 'px';
+    drop.style.animationDuration = (0.55 + Math.random() * 0.35).toFixed(2) + 's';
+    drop.style.animationDelay = (-Math.random() * 1.2).toFixed(2) + 's';
+    drop.style.setProperty('--drift', (-22 - Math.random() * 22).toFixed(0) + 'px');
+    el.appendChild(drop);
+  }
+}
+
+function buildSandWeather(el) {
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const dust = document.createElement('i');
+    dust.className = 'pe-sand-dust';
+    dust.style.left = rnd(-25, 60) + '%';
+    dust.style.top = rnd(-5, 95) + '%';
+    const w = rnd(26, 44);
+    dust.style.width = w + 'px';
+    dust.style.height = Math.round(w / 2) + 'px';
+    dust.style.animationDuration = (0.75 + Math.random() * 0.7).toFixed(2) + 's';
+    dust.style.animationDelay = (-Math.random() * 1.4).toFixed(2) + 's';
+    dust.style.setProperty('--dy', rnd(-18, 18) + 'px');
+    el.appendChild(dust);
   }
 }
 
@@ -438,7 +527,6 @@ const CB = {
     const m = E.mon('bp');
     m.hidden = true;
     startAffine(s, E.opponent ? 1 : 0);
-    // 原作从屏幕上方边缘斜着砸向目标，不能按敌方锚点算成从下方出来
     absToGba(s, E.opponent ? 272 : -32, -32);
     s.sx = -1;
     const dur = 20;
@@ -643,6 +731,17 @@ const CB = {
     initAtk(s);
     linearTo(s, 14, TGT_X, TGT_Y, 24);
   },
+  AnimStompFoot(s) {
+    initTgt(s); // 参数 0/1 是相对目标的落点偏移（踩踏脚本为 0,-32）
+    // 第三帧是脚掌：0 拳 / 1 宽脚印 / 2 高脚印 / 3 手
+    s.anim = { cmds: [], i: 0, frame: 2, timer: 0, ended: true, started: true };
+    let t = 0;
+    const delay = Math.max(1, A(s.args, 2, 15));
+    s.onTick = () => {
+      t++;
+      if (t >= delay) linearTo(s, 6, TGT_X, TGT_Y, 0, true);
+    };
+  },
   // ----------------------------------------------------------------- orbs
   AnimAbsorptionOrb(s) {
     initTgt(s);
@@ -685,7 +784,6 @@ const CB = {
     burstAround(s, 26, 2.4, -0.03);
   },
   AnimReversalOrb(s) {
-    // 原作：围着攻击方旋转，半径先胀后缩；arg0 时长、arg1 初始相位
     s.gx = ATK_X;
     s.gy = ATK_Y;
     const dur = Math.max(1, A(s.args, 0, 26));
@@ -734,7 +832,8 @@ const CB = {
     linearTo(s, 18, TGT_X, TGT_Y, 14);
   },
   AnimShadowBall(s) {
-    initAtk(s);
+    s.gx = ATK_X;
+    s.gy = ATK_Y;
     linearTo(s, 22, TGT_X, TGT_Y, 6);
   },
   AnimOctazookaBall(s) {
@@ -769,6 +868,23 @@ const CB = {
     popAndFade(s, Math.max(8, A(s.args, 3, 30)));
   },
   AnimOutrageFlame(s) {
+    const outrage = s.E.label === 'Move_OUTRAGE';
+    if (outrage) {
+      s.gx = ATK_X + rnd(-14, 14);
+      s.gy = ATK_Y + rnd(-12, 12);
+      let phase = rnd(0, 255);
+      let t = 0;
+      const dur = Math.max(6, A(s.args, 2, 30));
+      s.onTick = () => {
+        t++;
+        s.x2 = angleSin(phase, 8);
+        s.y2 -= 0.8;
+        phase = (phase + 8) & 255;
+        s.visible = (t & 1) === 0;
+        if (t > dur) s.dead = true;
+      };
+      return;
+    }
     initAtk(s);
     s.y2 += A(s.args, 1);
     const vx = A(s.args, 3, 0) / 256;
@@ -885,7 +1001,6 @@ const CB = {
     };
   },
   AnimBurnFlame(s) {
-    // 灼烧状态的火苗：从目标身上垂直向上窜，不再横向斜移
     s.gx = TGT_X + A(s.args, 0, 0);
     s.gy = TGT_Y + A(s.args, 1, 0);
     s.onTick = () => {
@@ -1094,56 +1209,21 @@ const CB = {
   AnimIcePunchSwirlingParticle(s) { spiralIn(s, 'be', 22); },
   // -------------------------------------------------------------- electric
   AnimLightning(s) {
-    // Gfx_Lightning 是 5 种不同的电，不是动画帧：按招式强度取对应分片
-    const frame = s.E.label === 'Move_THUNDER' ? 1
-      : s.E.label === 'Move_THUNDER_PUNCH' ? 0
-        : s.E.label === 'Move_TRI_ATTACK' ? 1 : 3;
-    if (s.E.label === 'Move_THUNDER') {
+    const thunder = s.E.label === 'Move_THUNDER';
+    if (thunder) {
+      if (A(s.args, 0) !== 16) { s.dead = true; return; }
       const session = s.E;
-      if (session._thunderBuilding) {
-        s.gx = TGT_X; s.gy = TGT_Y; s.sx = 1; s.sy = 1;
-        s.anim = { cmds: [['f', frame, 16], ['e']], i: 0, frame, timer: 16, ended: false, started: true };
-        animApply(s);
-        dieWhenAnimEnds(s, 30);
-        return;
+      if (!session._thunderImpacted) {
+        session._thunderImpacted = true;
+        try { session.opts?.onImpact?.(); } catch (_) {}
       }
-      const xoff = A(s.args, 0);
-      const seen = session._thunderCols || (session._thunderCols = new Set());
-      s.dead = true;
-      if (seen.has(xoff)) return;
-      seen.add(xoff);
-      const eng = session.E;
-      const img = session.imgFor('be');
-      const sr = eng.stage.getBoundingClientRect();
-      const ir = img.getBoundingClientRect();
-      const k = eng.rectScale || 1;
-      const targetCssY = (ir.top - sr.top + ir.height / 2) * k;
-      const a = eng.anchors || { atk: { x: ATK_X, y: ATK_Y }, tgt: { x: TGT_X, y: TGT_Y } };
-      const sy = (a.tgt.y - a.atk.y) / (TGT_Y - ATK_Y) || 1;
-      const topCss = -40 * k;
-      const span = Math.max(48, targetCssY - topCss);
-      const n = Math.min(24, Math.max(3, Math.ceil(span / 30)));
-      const step = span / n;
-      session._thunderBuilding = true;
-      for (let i = 0; i < n; i++) {
-        const seg = session.createSprite('gLightningSpriteTemplate', true, 2, [xoff, 0]);
-        if (!seg) continue;
-        seg.gx = TGT_X + (session.opponent ? -xoff : xoff);
-        seg.gy = TGT_Y + (topCss + step * (i + 0.5) - targetCssY) / sy;
-        seg.sx = 1;
-        seg.sy = (step / 32) * 1.04;
-      }
-      session._thunderBuilding = false;
-      if (xoff === 0) {
-        const hit = session.createSprite('gBasicHitSplatSpriteTemplate', true, 3, [0, 0, 1, 1]);
-        if (hit) { hit.gx = TGT_X; hit.gy = TGT_Y; }
-      }
-      return;
     }
-    s.gx = TGT_X + (s.E.opponent ? -A(s.args, 0) : A(s.args, 0)); s.gy = TGT_Y + A(s.args, 1);
-    s.anim = { cmds: [['f', frame, 16], ['e']], i: 0, frame, timer: 16, ended: false, started: true };
-    animApply(s);
-    dieWhenAnimEnds(s, 30);
+    const xoff = thunder ? 0 : A(s.args, 0);
+    s.gx = TGT_X + (s.E.opponent ? -xoff : xoff);
+    s.gy = TGT_Y + A(s.args, 1);
+    startAnim(s, 0);
+    s.life = 30;
+    s.dieOnLife = true;
   },
   AnimThunderWave(s) {
     s.gx = TGT_X + A(s.args, 0, 0);
@@ -1261,6 +1341,8 @@ const CB = {
   AnimParticleInVortex(s) {
     const sand = (s.tmpl.img || '').includes('MudSand');
     const fireSpin = s.E.label === 'Move_FIRE_SPIN';
+    const whirlpool = s.E.label === 'Move_WHIRLPOOL';
+    const dragonClaw = s.E.label === 'Move_DRAGON_CLAW';
     if (A(s.args, 6, 1) === 0) initAtk(s); else initTgt(s);
     let life = Math.max(4, A(s.args, 3, 20));
     let y = 0;
@@ -1269,7 +1351,6 @@ const CB = {
     let amp = A(s.args, 5, 16);
     let phase = 0;
     if (sand) {
-      // 流沙深渊：收成贴身的沙旋，粒子放大并错开相位
       s.gy = TGT_Y + 8;
       life = 36;
       yv = 0.75;
@@ -1279,13 +1360,36 @@ const CB = {
       s.sx = 1.4;
       s.sy = 1.4;
     } else if (fireSpin) {
-      // 火焰旋涡：从底座起向上收成螺旋，不是同一平面的圆环
       s.gy = TGT_Y + 10 * s.E.dirY;
       life = 40;
       yv = 0.55;
       speed = 18;
       amp = 16;
       phase = rnd(0, 255);
+    } else if (dragonClaw) {
+      life = 24;
+      yv = 0.65;
+      speed = 18;
+      amp = 12;
+      phase = rnd(0, 255);
+      s.sx = 0.65;
+      s.sy = 0.65;
+    } else if (whirlpool) {
+      s.gx = TGT_X;
+      s.gy = TGT_Y + 8;
+      s.sx = 0.9;
+      s.sy = 0.9;
+      let angle = rnd(0, 255);
+      let rise = 0;
+      let left = 34;
+      s.onTick = () => {
+        if (--left <= 0) { s.dead = true; return; }
+        rise += 0.9;
+        s.x2 = angleSin(angle, 16);
+        s.y2 = -rise * s.E.dirY;
+        angle = (angle + 16) & 255;
+      };
+      return;
     }
     s.onTick = () => {
       if (--life <= 0) { s.dead = true; return; }
@@ -1347,15 +1451,16 @@ const CB = {
   AnimFlyingParticle(s) {
     const battler = A(s.args, 6, 0) ? 'be' : 'bp';
     const m = gba(battler);
-    s.gx = battler === 'bp' ? -10 : 250;
+    // 全屏风粒子：铺满整个宽度，统一沿 +x 吹；stagePoint 在敌方出招时会自动映射成向左
+    s.gx = rnd(-24, 240);
     s.gy = A(s.args, 5, 0) === 2 || A(s.args, 5, 0) === 3 ? m.y + A(s.args, 0) : A(s.args, 0);
-    const speed = Math.abs(A(s.args, 3, 2)) || 2;
+    const speed = 3 + Math.min(4, Math.abs(A(s.args, 3, 0)) / 48);
     let t = 0;
     s.onTick = () => {
       t++;
-      s.x2 += battler === 'bp' ? speed : -speed;
+      s.x2 += speed;
       s.y2 = angleSin(t * A(s.args, 2, 6), A(s.args, 1, 8));
-      if (s.x2 > 300 || s.x2 < -300) s.dead = true;
+      if (s.x2 > 300) s.dead = true;
     };
   },
   AnimSword(s) {
@@ -1794,9 +1899,10 @@ const CB = {
     const dur = Math.max(1, A(s.args, 3, 240));
     const onTarget = A(s.args, 4, 0) !== 0;
     const mist = s.E.label === 'Move_MIST';
+    const smog = s.E.label === 'Move_SMOG';
     s.gx = (onTarget ? TGT_X : ATK_X) + xOff;
     s.gy = (onTarget ? TGT_Y : ATK_Y) + yOff * s.E.dirY;
-    const life = mist ? Math.min(60, dur) : dur;
+    const life = mist ? Math.min(60, dur) : smog ? Math.min(44, dur) : dur;
     const amp = mist ? 24 : 32;
     const step = mist ? 2 : 3;
     let t = 0;
@@ -1992,16 +2098,31 @@ const CB = {
   AnimMoonlightSparkle(s) { initAtk(s); drift(s, rnd(-0.7, 0.7), -1.1, 36); },
   AnimWallSparkle(s) { initTgt(s); s.x2 = A(s.args, 0); s.y2 = A(s.args, 1); flicker(s, 24); },
   AnimProtect(s) {
-    s.gx = ATK_X + A(s.args, 0, 24);
-    s.gy = ATK_Y + A(s.args, 1, 0) * s.E.dirY;
-    const dur = Math.max(20, A(s.args, 2, 90));
+    const dur = Math.max(24, Math.round(A(s.args, 2, 90) * 0.65));
+    const mon = s.E.imgFor('bp');
+    const monW = mon && mon.offsetWidth ? mon.offsetWidth : 50;
+    const base = monW / 64;
+    const perGba = Math.abs((s.E.E.stagePoint(ATK_X + 10, ATK_Y).x - s.E.E.stagePoint(ATK_X, ATK_Y).x) / 10) || 1;
+    s.gx = ATK_X + (A(s.args, 0, 24) * base) / perGba;
+    s.gy = ATK_Y + A(s.args, 1, 0);
+    s.sx = s.sy = base;
+    s.alpha = 0;
+    const slide = (34 * base) / perGba;
+    const tex = protectTexture(new URL(s.tmpl.img, ASSET_BASE).href);
+    let pal = -1;
+    let t = 0;
     s.onTick = () => {
-      const t = s.age;
-      s.x2 = -t * 0.375 * s.E.dirX;
-      s.rot = t * 1.2;
-      s.alpha = t > dur - 12 ? Math.max(0, (dur - t) / 12) : 1;
-      if (s.el) {
-        s.el.style.filter = `hue-rotate(${(Math.sin(t / 7) * 28).toFixed(1)}deg) saturate(1.35) brightness(${(1 + Math.sin(t / 5) * 0.12).toFixed(2)})`;
+      t++;
+      s.x2 = -slide * (t / dur);
+      const fade = Math.max(0, Math.min(1, t / 6, (dur - t) / 10));
+      s.alpha = fade * (t < 13 ? 1 - (t / 13) * 0.6 : 0.4);
+      s.sx = s.sy = base * (t < 6 ? 0.86 + (t / 6) * 0.16 : 1);
+      if (s.el && tex.ready && tex.frames.length) {
+        const idx = (t >> 1) % tex.frames.length;
+        if (idx !== pal) {
+          pal = idx;
+          s.el.style.backgroundImage = `url(${tex.frames[idx]})`;
+        }
       }
       if (t >= dur) s.dead = true;
     };
@@ -2149,7 +2270,6 @@ const CB = {
   AnimBrickBreakWall(s) { initTgt(s); dieWhenAnimEnds(s, 40); },
   AnimBrickBreakWallShard(s) { initTgt(s); burstAround(s, 26, 2, 0.16); },
   AnimDefensiveWall(s) {
-    // 光墙的 40 是持续帧数，不是位置偏移；墙要贴在使用者身上渐入
     s.gx = s.E.statusSide ? TGT_X : ATK_X;
     s.gy = s.E.statusSide ? TGT_Y : ATK_Y;
     s.sx = 1.15;
@@ -2160,7 +2280,7 @@ const CB = {
     s.onTick = () => {
       t++;
       s.alpha = Math.min(1, t / 8);
-      if (t > 90) s.dead = true;
+      if (t > 60) s.dead = true; // 墙体停留 1s 即可，别把对战节奏拖慢
     };
   },
   AnimLightScreenWall(s) { initAtk(s); dieWhenAnimEnds(s, 60); },
@@ -2322,7 +2442,8 @@ const CB = {
 };
 
 function flameDrift(s) {
-  initAtk(s);
+  if (s.isTarget) initTgt(s);
+  else initAtk(s);
   const life = Math.max(6, A(s.args, 2, 20));
   const driftFrames = Math.max(0, A(s.args, 3, life));
   const vx = A(s.args, 4, 1);
@@ -2408,6 +2529,71 @@ function monDip(s) {
     if (t <= dur) m.oy = -step * t;
     else if (t <= dur * 2) m.oy = -step * (dur * 2 - t);
     else { m.oy = 0; s.dead = true; }
+  };
+}
+// 泰山压顶：原地压扁蓄力 → 恢复的同时沿抛物线跃到对手头上砸下
+function bodySlamJump(s) {
+  const E = s.E;      // Session
+  const eng = E.E;    // EmeraldFx
+  const m = E.mon('bp');
+  const a = eng.anchors?.atk;
+  const t = eng.anchors?.tgt;
+  const k = eng.rectScale || 1;
+  const ah = (E.imgFor('bp')?.getBoundingClientRect().height || 64) * k;
+  const th = (E.imgFor('be')?.getBoundingClientRect().height || 64) * k;
+  // ox 渲染时会乘 dirX，这里先按屏幕方向换算；oy 直接用屏幕方向
+  const dx = a && t ? (t.x - a.x) / E.dirX : 26;
+  const dy = a && t ? t.y - a.y : -40;
+  // 落点：攻击方脚底压在对手头顶
+  const land = dy - (ah + th) * 0.5 + 4;
+  const hop = Math.max(18, Math.abs(land) * 0.22);
+  const squash = 4, leap = 15, settle = 8;
+  const tgt = E.mon('be');
+  let n = 0, landed = false, tl = 0;
+  s.onTick = () => {
+    if (landed) {
+      // 落地后：被踩的目标压扁再弹回，攻击方体型恢复；这段时间不阻塞脚本结算
+      tl++;
+      const q = Math.min(1, tl / settle);
+      const e = 1 - (1 - q) ** 2;
+      tgt.sx = 1.3 - 0.3 * e;
+      tgt.sy = 0.6 + 0.4 * e;
+      m.sx = 1.1 - 0.1 * e;
+      m.sy = 0.9 + 0.1 * e;
+      if (q >= 1) {
+        tgt.sx = 1; tgt.sy = 1;
+        m.sx = 1; m.sy = 1;
+        s.dead = true;
+      }
+      return;
+    }
+    n++;
+    if (n <= squash) {
+      // 原地压扁
+      const q = n / squash;
+      m.ox = 0;
+      m.oy = 3 * q;
+      m.sx = 1 + 0.16 * q;
+      m.sy = 1 - 0.22 * q;
+    } else if (n <= squash + leap) {
+      // 一边恢复体型一边沿抛物线飞向对手头顶
+      const q = (n - squash) / leap;
+      const e = q < 0.5 ? 2 * q * q : 1 - ((-2 * q + 2) ** 2) / 2;
+      m.ox = dx * e;
+      m.oy = 3 + (land - 3) * e - hop * Math.sin(Math.PI * q);
+      const rec = Math.min(1, q / 0.3);
+      m.sx = (1.16 - 0.16 * rec) * (1 + 0.05 * q);
+      m.sy = (0.78 + 0.22 * rec) * (1 - 0.04 * q);
+    } else {
+      // 砸在对手头上
+      m.ox = dx;
+      m.oy = land;
+      m.sx = 1.1;
+      m.sy = 0.9;
+      landed = true;
+      tl = 0;
+      s.noWait = true;
+    }
   };
 }
 function monSlideOffset(s) {
@@ -2559,7 +2745,6 @@ function puffAtTarget(s) {
   initTgt(s);
   drift(s, rnd(-0.6, 0.6), -0.8, 26);
 }
-// 龙卷风：绕目标螺旋上升，最后散开
 function twisterParticle(s) {
   s.gx = TGT_X;
   s.gy = TGT_Y + 32 * s.E.dirY;
@@ -2608,14 +2793,82 @@ function floatAtTarget(s) {
   initTgt(s);
   drift(s, 0, -0.6, 44);
 }
+function stageToGba(eng, px, py) {
+  if (ACTIVE_STATUS_SIDE) {
+    const t = eng.anchors?.tgt || { x: TGT_X, y: TGT_Y };
+    return { gx: TGT_X + (px - t.x), gy: TGT_Y + (py - t.y) };
+  }
+  const a = eng.anchors || { atk: { x: ATK_X, y: ATK_Y }, tgt: { x: TGT_X, y: TGT_Y } };
+  const sx = (a.tgt.x - a.atk.x) / (TGT_X - ATK_X) || 1;
+  const sy = (a.tgt.y - a.atk.y) / (TGT_Y - ATK_Y) || 1;
+  return {
+    gx: ATK_X + (px - a.atk.x) / sx,
+    gy: ATK_Y + (py - a.atk.y) / sy,
+  };
+}
+function AnimDevil(s) {
+  const eng = s.E.E;
+  const targetSide = s.E.statusSide || (s.E.opponent ? 'bp' : 'be');
+  const img = targetSide === 'bp' ? eng.atkImg : eng.tgtImg;
+  const sr = eng.stage.getBoundingClientRect();
+  const ir = img?.getBoundingClientRect();
+  const a = eng.anchors || { atk: { x: ATK_X, y: ATK_Y }, tgt: { x: TGT_X, y: TGT_Y } };
+  const k = eng.rectScale || 1;
+  const fx = ir ? (ir.left - sr.left + ir.width / 2) * k : a.tgt.x;
+  const fy = ir ? (ir.top - sr.top + ir.height) * k + 24 : a.tgt.y + 24;
+  const p = stageToGba(eng, fx, fy);
+  s.gx = p.gx;
+  s.gy = p.gy;
+  const frame = targetSide === 'bp' ? 0 : 1;
+  s.anim = { cmds: [['f', frame, 60], ['j', 0]], i: 0, frame, timer: 60, ended: false, started: true };
+  let rise = 0;
+  s.onTick = () => {
+    rise += 1.25;
+    if (s.age >= 20) s.noWait = true;
+    s.x2 = angleSin(s.age * 4, 3);
+    s.y2 = -rise;
+    if (s.age > 62) s.dead = true;
+  };
+}
+CB.AnimDevil = AnimDevil;
+function AnimAngel(s) {
+  const dur = 46;
+  s.gx = ATK_X;
+  s.gy = ATK_Y - 8;
+  s.sx = s.E.opponent ? 1 : -1;
+  let t = 0;
+  s.onTick = () => {
+    t++;
+    const k = Math.min(1, t / dur);
+    const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+    s.x2 = (TGT_X - ATK_X) * e;
+    s.y2 = ((TGT_Y - ATK_Y) * e - Math.sin(k * Math.PI) * 14 * s.E.dirY) * s.E.dirY;
+    if (t >= dur + 6) s.dead = true;
+  };
+}
+CB.AnimAngel = AnimAngel;
+function AnimTriAttackTriangle(s) {
+  s.gx = ATK_X;
+  s.gy = ATK_Y;
+  startAffine(s, 0);
+  s.life = 52;
+  s.dieOnLife = true;
+}
+CB.AnimTriAttackTriangle = AnimTriAttackTriangle;
+CB.AnimGhostStatusSprite = (s) => {
+  if ((s.tmpl.img || '').includes('Devil')) AnimDevil(s);
+  else floatAtTarget(s);
+};
 
 // ------------------------------------------------------------------- tasks
 const TASKS = {
   AnimTask_ShakeMon(E, args) {
     if (E.label === 'Move_STRENGTH' && E.strengthImpacted) return () => false;
-    if (E.label === 'Move_PSYCHIC' && A(args, 0) === 1 && !E._psyImpacted) {
+    // hitOnShake：暗影球这类没有命中类 sprite 的弹道招，把命中回调挂在目标被震那一帧，
+    // 只在命中帧叠加打击视觉；扣血与倒下由战斗页等整段动画播完再执行
+    if (E.opts?.hitOnShake && E.opts.onImpact && !E._psyImpacted && sideOf(A(args, 0)) === 'be') {
       E._psyImpacted = true;
-      try { E.opts?.onImpact?.(); } catch (_) {}
+      try { E.opts.onImpact(); } catch (_) {}
     }
     const side = sideOf(A(args, 0));
     const ox = s16(A(args, 1)), oy = s16(A(args, 2));
@@ -2633,7 +2886,13 @@ const TASKS = {
     };
   },
   AnimTask_ShakeMon2(E, args) { return TASKS.AnimTask_ShakeMon(E, args); },
-  AnimTask_ShakeMonInPlace(E, args) { return TASKS.AnimTask_ShakeMon(E, args); },
+  AnimTask_ShakeMonInPlace(E, args) {
+    // 愤怒门牙：原作前摇是两段长抖动（合计约 1.5s），压缩抖动次数，出手不再拖沓
+    if (E.label === 'Move_SUPER_FANG') {
+      return TASKS.AnimTask_ShakeMon(E, [A(args, 0, 1), A(args, 1, 3), A(args, 2, 0), Math.min(16, A(args, 3, 1)), A(args, 4, 1)]);
+    }
+    return TASKS.AnimTask_ShakeMon(E, args);
+  },
   AnimTask_ShakeTargetBasedOnMovePowerOrDmg(E, args) {
     return TASKS.AnimTask_ShakeMon(E, [A(args, 0, 1), A(args, 1, 3), A(args, 2, 0), A(args, 3, 6), A(args, 4, 1)]);
   },
@@ -2651,6 +2910,17 @@ const TASKS = {
         }
         return tick();
       };
+    }
+    if (E.label === 'Move_FIRE_PUNCH') {
+      // 原作脚本在出拳前就把对手染红；这里只保留淡出，泛红推迟到拳头命中那一刻（见 createSprite）
+      const color = A(args, 4, 0);
+      const sel = trimPalSelector(A(args, 0, 1), color);
+      const start = A(args, 2, 0), end = A(args, 3, 0);
+      if (sel && start < end) {
+        E._firePunchPal = { sel, color, amount: end };
+        return () => false;
+      }
+      return blendPalTask(E, args);
     }
     return blendPalTask(E, args);
   },
@@ -2684,7 +2954,6 @@ const TASKS = {
     const side = sideOf(A(args, 3, 0));
     const m = E.mon(side);
     if (E.label === 'Move_GROWTH') {
-      // 生长：快速向上拉伸两下，不压扁
       let t = 0;
       return () => {
         t++;
@@ -2753,13 +3022,16 @@ const TASKS = {
   AnimTask_HorizontalShake(E, args) {
     const target = A(args, 0, 0);
     const intensity = A(args, 1, 0);
-    const amp = intensity ? intensity + 3 : 8;
+    // 地震：幅度收紧、频率提高，变成细密的高频颤动，而不是大幅甩动
+    const isQuake = E.label === 'Move_EARTHQUAKE';
+    const amp = isQuake ? 4 : intensity ? intensity + 3 : 8;
+    const freq = isQuake ? 34 : 16;
     const dur = Math.min(60, Math.max(6, A(args, 2, 40)));
     const mons = target === 4 ? [E.mon('bp'), E.mon('be')] : target >= 5 ? null : [E.mon(sideOf(target))];
     let t = 0;
     return () => {
       t++;
-      const dx = angleSin(t * 16, amp);
+      const dx = angleSin(t * freq, amp);
       if (target >= 5) E.shakeX = dx;
       else for (const m of mons) m.ox = dx;
       if (t > dur) {
@@ -2866,7 +3138,50 @@ const TASKS = {
   AnimTask_StretchTargetUp(E, args) { return TASKS.AnimTask_StretchAttackerUp(E, args); },
   AnimTask_DeepInhale(E, args) { return TASKS.AnimTask_GrowAndShrink(E, [18, 18, 0, 0, 24]); },
   AnimTask_Teleport(E) { return TASKS.AnimTask_AttackerFadeToInvisible(E); },
-  AnimTask_DoubleTeam(E) { return TASKS.AnimTask_AttackerFadeFromInvisible(E); },
+  AnimTask_DoubleTeam(E) {
+    const img = E.imgFor('bp');
+    const st = E.mon('bp');
+    const layer = E.layer;
+    const stage = E.E.stage;
+    if (!img || !layer || !stage) return () => false;
+    const k = E.E.rectScale || 1;
+    const ir0 = img.getBoundingClientRect();
+    const amp = Math.max(6, ir0.width * k * 0.32);
+    const flip = img.closest('.b-flip') ? 'scaleX(-1)' : '';
+    const ghosts = [];
+    const spawnGhost = () => {
+      const sr = stage.getBoundingClientRect();
+      const r = img.getBoundingClientRect();
+      const g = img.cloneNode(false);
+      g.removeAttribute('id');
+      g.style.cssText = 'position:absolute;margin:0;pointer-events:none;transform-origin:center;';
+      g.style.left = ((r.left - sr.left) * k).toFixed(1) + 'px';
+      g.style.top = ((r.top - sr.top) * k).toFixed(1) + 'px';
+      g.style.width = (r.width * k).toFixed(1) + 'px';
+      g.style.height = (r.height * k).toFixed(1) + 'px';
+      g.style.objectFit = 'contain';
+      g.style.imageRendering = 'pixelated';
+      if (flip) g.style.transform = flip;
+      g.style.opacity = '0.45';
+      g.style.filter = 'brightness(1.1) saturate(0.3)';
+      layer.appendChild(g);
+      const fade = g.animate(
+        [{ opacity: 0.5 }, { opacity: 0.22, offset: 0.5 }, { opacity: 0 }],
+        { duration: 300, easing: 'ease-out', fill: 'forwards' },
+      );
+      fade.onfinish = () => g.remove();
+      ghosts.push(g);
+      if (ghosts.length > 6) ghosts.shift().remove();
+    };
+    let t = 0;
+    return () => {
+      t++;
+      st.ox = Math.sin(t * 0.5) * amp;
+      if (t <= 38 && t % 5 === 0) spawnGhost();
+      if (t >= 44) { st.ox = 0; return false; }
+      return true;
+    };
+  },
   AnimTask_Minimize(E, args) {
     const m = E.mon(sideOf(A(args, 0, 0)));
     let t = 0;
@@ -2954,7 +3269,6 @@ const TASKS = {
   AnimTask_ShockWaveLightning(E) { spawnBolt(E, 0, -50, 0); return () => false; },
   AnimTask_ElectricChargingParticles(E) { return () => false; },
   AnimTask_CreateSurfWave(E) {
-    // 原作：整张 BG1 水波 tilemap 滚动，并用扫描线 alpha 把水波带从 30%~70% 逐步展开到全屏
     E.surfX = 0;
     E.surfY = -48;
     E.surfTop = 30;
@@ -3058,7 +3372,10 @@ const TASKS = {
   AnimTask_GrudgeFlames(E) { return () => false; },
   AnimTask_DoomDesireLightBeam(E) { return () => false; },
   AnimTask_NightShadeClone(E) { return () => false; },
-  AnimTask_NightmareClone(E) { return TASKS.AnimTask_NightShadeClone(E); },
+  AnimTask_NightmareClone(E) {
+    E.createSprite('gDevilSpriteTemplate', true, 3, []);
+    return () => false;
+  },
   AnimTask_TransformMon(E) {
     const m = E.mon('be');
     let t = 0;
@@ -3118,6 +3435,9 @@ const TASKS = {
     return TASKS.AnimTask_ShakeMon(E, [A(args, 0, 1), 4, 0, 6, 2]);
   },
   AnimTask_ShakeTargetInPattern(E, args) {
+    // 打雷/雷击：脚本这里的抖动会被识别成攻击方，命中特效结束后攻击方还会左右震一下；
+    // 受击抖动已由战斗页在命中帧处理，这里直接跳过
+    if (E.label === 'Move_THUNDER') return () => false;
     return TASKS.AnimTask_ShakeMon(E, [A(args, 0, 1), 3, 0, 8, 2]);
   },
   AnimTask_HardwarePaletteFade() { return () => false; },
@@ -3696,7 +4016,8 @@ export class EmeraldFx {
   playStatus(kind, opts = {}) {
     const label = PE.status[kind];
     if (!label) return Promise.resolve();
-    return this.play(label, { ...opts, moveTurn: 1, statusSide: 'be' });
+    const targetSide = opts.targetSide === 'bp' ? 'bp' : 'be';
+    return this.play(label, { ...opts, moveTurn: 1, statusSide: targetSide });
   }
 
   play(label, opts = {}) {
@@ -3764,7 +4085,7 @@ class Session {
     this.invert = 0;
     this.shakeX = 0;
     this.weather = null;
-    this.hailBuilt = false;
+    this.builtWeather = null;
     this.surf = 0;
     this.surfAlpha = 0;
     this.surfTop = 30;
@@ -3833,8 +4154,11 @@ class Session {
     // Fall back to sensible stage defaults if the preview layout isn't ready.
     if (!isFinite(anchors.atk.x) || anchors.atk.x <= 0) anchors.atk = { x: 52, y: 112 };
     if (!isFinite(anchors.tgt.x) || anchors.tgt.x <= 0) anchors.tgt = { x: 200, y: 56 };
-    if (this.statusSide) anchors.atk = { ...anchors.tgt };
-    else if (this.opponent) {
+    if (this.statusSide) {
+      const t = this.statusSide === 'bp' ? { ...anchors.atk } : { ...anchors.tgt };
+      anchors.atk = t;
+      anchors.tgt = t;
+    } else if (this.opponent) {
       const t = anchors.atk;
       anchors.atk = anchors.tgt;
       anchors.tgt = t;
@@ -3862,7 +4186,9 @@ class Session {
     stage.insertBefore(this.tintEl, this.bgEl.nextSibling);
 
     this.resetMons();
-    if (this.castReady) this.cast = { t: 0 };
+    // 有发射物的招式不在这里起手：等弹道 sprite 真正出手时再前倾，保证施法动作与发射物同步
+    // （近身招式没有"发射物"这一拍，仍然开场就前倾）
+    if (this.castReady && (!this.hasProjectile || this.opts?.melee)) this.cast = { t: 0 };
     this.shakeEl = stage.querySelector ? (stage.querySelector('.battle-stage-top') || stage) : stage;
     this.last = performance.now();
     this.acc = 0;
@@ -3967,6 +4293,14 @@ class Session {
       switch (op) {
         case 'd':
           if (this.label === 'Move_FORESIGHT') break;
+          if (this.label === 'Move_SUPER_FANG' && Number(cmd[1]) >= 15) {
+            this.wait = 6; // 蓄力抖完立刻扑出去，不再多等 20 帧
+            break;
+          }
+          if (this.label === 'Move_THUNDER') {
+            this.wait = Math.max(1, Math.round((Number(cmd[1]) || 1) * 0.55));
+            break;
+          }
           if (FAST_POWDER_MOVES.test(this.label)) {
             this.wait = Math.max(1, Math.round((Number(cmd[1]) || 1) * 0.55));
             break;
@@ -3987,12 +4321,29 @@ class Session {
             this.wait = 1;
             break;
           }
+          if (this.label === 'Move_BODY_SLAM') {
+            const n = Number(cmd[1]) || 1;
+            // 落地即结算：击退/命中贴图不再额外等待
+            if (n === 11 || n === 6) break;
+          }
+          if (this.label === 'Move_RAZOR_LEAF') {
+            const n = Number(cmd[1]) || 1;
+            if (n === 60) { this.wait = 20; break; }
+            if (n === 20) { this.wait = 6; break; }
+          }
           if (this.label === 'Move_TOXIC' && Number(cmd[1]) === 15) {
             this.wait = 7;
             break;
           }
-          // 远程投射物在施法前倾到位时尽快发射，不拖到归位后
-          if (this.cast && this.hasProjectile && !this._projFired) {
+          if (this.label === 'Move_SMOG' && Number(cmd[1]) >= 100) {
+            this.wait = 24;
+            break;
+          }
+          if (this.label === 'Move_DOUBLE_TEAM' && Number(cmd[1]) > 4) {
+            this.wait = 4;
+            break;
+          }
+          if (this.castReady && this.hasProjectile && !this._projFired) {
             this.wait = Math.min(6, Math.max(1, Number(cmd[1]) || 1));
             break;
           }
@@ -4001,6 +4352,10 @@ class Session {
         case 'w':
           if (this.label === 'Move_PSYCHIC' && !this._psyWaitSkipped) {
             this._psyWaitSkipped = true;
+            break;
+          }
+          if (this.label === 'Move_ROCK_SMASH' && !this._rockSmashWaitSkipped) {
+            this._rockSmashWaitSkipped = true;
             break;
           }
           if (this.visualBusy()) this.waitVisual = true;
@@ -4015,7 +4370,6 @@ class Session {
           }
           break;
         case 's':
-          // 绝处逢生简化：去掉两段长 palette 闪白，只留能量球和突进
           if (this.label === 'Move_REVERSAL' && cmd[1] === 'gComplexPaletteBlendSpriteTemplate') break;
           this.createSprite(cmd[1], cmd[2] === 'TARGET', cmd[3] || 0, cmd.slice(4));
           break;
@@ -4026,11 +4380,12 @@ class Session {
           this.createTask(cmd[1], cmd.slice(3));
           break;
         case 'c': {
-          // 冰冻光束主体结束后还有一串冰晶命中，观感上像多补了一次，跳过
           if (cmd[1] === 'IceCrystalEffectShort' && (this.label === 'Move_ICE_BEAM' || this.label === 'Move_ICE_PUNCH')) break;
-          // 潜水第二回合从对手脚下冒水，不再复用攀瀑的 RisingWaterHitEffect
+          if (cmd[1] === 'SmogCloud' && this.label === 'Move_SMOG') {
+            this._smogClouds = (this._smogClouds || 0) + 1;
+            if (this._smogClouds > 3) break;
+          }
           if (cmd[1] === 'RisingWaterHitEffect' && this.label === 'Move_DIVE') break;
-          // 挖洞第一回合只保留一轮快速抛土，向下钻入后不再重复
           if (cmd[1] === 'DigThrowDirt' && this.label === 'Move_DIG' && this.twoTurn && this.turn === 1) {
             if (this._digDirtDone) break;
             this._digDirtDone = true;
@@ -4092,7 +4447,6 @@ class Session {
         case 'f': {
           const id = cmd.length > 3 ? (this.opponent ? cmd[2] : cmd[1]) : cmd[1];
           const bg = Number(id);
-          // 精神背景贴图与战斗界面格格不入，Luster Purge / Psycho Boost 等统一不用
           this.bgTarget = (bg === 3 || bg === 15) ? null : (PE.backgrounds[bg] || BG_STYLE[bg] || null);
           this.bgOffsetX = 0;
           this.bgOffsetY = 0;
@@ -4100,6 +4454,10 @@ class Session {
           this.bgSlideVY = 0;
           this.bgSlideUntil = -1;
           this.bgFadeIn = true;
+          // 真气拳/必杀门牙：冲击背景瞬现，和拳头/牙齿特效同帧，不再提前淡入抢拍
+          if (this.bgTarget && (this.label === 'Move_FOCUS_PUNCH' || this.label === 'Move_HYPER_FANG')) {
+            this.bgAlpha = 1;
+          }
           break;
         }
         case 'R':
@@ -4180,7 +4538,11 @@ class Session {
   }
 
   tickCast() {
-    if (!this.cast) return;
+    if (!this.cast) {
+      // 兜底：脚本里的弹道 sprite 没被识别出来时，开场 24 帧后也补上前倾，避免整招没有施法动作
+      if (this.castReady && this.hasProjectile && !this._projFired && this.frame > 24) this.cast = { t: 0 };
+      return;
+    }
     const m = this.mons.bp;
     const t = ++this.cast.t;
     const out = 7, hold = 5, back = 10;
@@ -4208,7 +4570,14 @@ class Session {
       }
       this._hydroSplatPair = true;
     }
-    if (this.opts?.onImpact && !this._impactFired && /Fist|Foot|HitSplat|Impact/i.test(name)) {
+    // 踩踏的脚是“抬起→下砸”，命中要等 HitSplat 再触发，不能一脚生成就结算
+    if (this.opts?.onImpact && !this._impactFired && !/StompFoot/.test(name) && /Fist|Foot|HitSplat|Impact/i.test(name)) {
+      this._impactFired = true;
+      try { this.opts.onImpact(); } catch (_) {}
+    }
+    // 光墙/反射壁等护墙：墙面出现的这一刻就播报文字，不等后面的闪光与墙体收尾
+    if (this.opts?.onImpact && !this._impactFired && /Wall/i.test(name)
+      && /^Move_(LIGHT_SCREEN|REFLECT|MIRROR_COAT|BARRIER|MAGIC_COAT)$/.test(this.label)) {
       this._impactFired = true;
       try { this.opts.onImpact(); } catch (_) {}
     }
@@ -4218,30 +4587,51 @@ class Session {
       this.spawnIceShards();
     }
     this.maybeMeleeLunge(name);
-    const tmpl = PE.templates[name];
+    let tmpl = PE.templates[name];
     if (!tmpl) return null;
+    // 泰山压顶：跳跃已经把攻击方送到对手头顶，脚本里的滑步/击退都不再需要
+    if (this.label === 'Move_BODY_SLAM' && name === 'gSlideMonToOffsetSpriteTemplate') return null;
+    // 飞叶快刀：不再发射整片大字素材，直接让炸开的树叶沿敌我连线飞出去
+    if (this.label === 'Move_RAZOR_LEAF' && name === 'gRazorLeafCutterSpriteTemplate') return null;
+    // 攀瀑：原作命中段另撒了一层 SmallBubbles 的四分之一圆碎片，观感杂乱；
+    // 只保留 WaterHitSplat 水花，气泡由战斗页在命中帧统一补
+    if (this.label === 'Move_WATERFALL' && name === 'gSmallDriftingBubblesSpriteTemplate') return null;
+    // 草系招式命中：用飞叶快刀同款树叶炸开，替代通用白色命中贴图（吸取类除外，它们的贴图落在自己身上）
+    if (this.opts?.type === '草' && !DRAIN_MOVE_LABELS.test(this.label) && !this._leafBurstDone && /HitSplat|Impact|Whip/i.test(name)) {
+      this._leafBurstDone = true;
+      this.spawnLeafBurst();
+    }
+    if (this.opts?.type === '草' && /HitSplat/i.test(name)) return null;
+    if (this.label === 'Move_THUNDER' && name === 'gLightningSpriteTemplate' && A(args, 0) !== 16) return null;
+    if ((this.label === 'Move_DRAGON_CLAW' && name === 'gFireSpinSpriteTemplate')
+      || (this.label === 'Move_DRAGON_BREATH' && name === 'gDragonBreathFireSpriteTemplate')
+      || (this.label === 'Move_OUTRAGE' && name === 'gOutrageFlameSpriteTemplate')) {
+      tmpl = { ...tmpl, img: 'pe/Gfx_WispFire__32x32.png', frames: 4 };
+    }
     if (this.label === 'Move_LEECH_LIFE' && name === 'gLeechLifeNeedleSpriteTemplate') { this._projFired = true; return null; }
     if (this.noContact && /Fist|Foot/i.test(name)) return null;
-    if (/Ball|Orb|Projectile|Pulse|Beam|Bubble|Droplet|Seed|Needle|Rock|Wave|Cannon|Missile|Blast|Stinger|Sting|ShadowBall|Gust|RazorLeaf|Present/i.test(name)) this._projFired = true;
-    // 聚光灯素材被提取成实心红块，所有招式都不再使用
+    // 弹道 sprite 出现才算真正出手：前倾跟着这一刻起手，和发射物同帧（充能用的 Charge 球不算出手）
+    if (!/Charge/i.test(name) && /Ball|Orb|Projectile|Pulse|Beam|Bubble|Droplet|Seed|Needle|Rock|Wave|Cannon|Missile|Blast|Stinger|Sting|ShadowBall|Gust|RazorLeaf|Present/i.test(name)) {
+      if (!this._projFired) {
+        this._projFired = true;
+        if (this.castReady && !this.cast) this.cast = { t: 0 };
+      }
+    }
     if (/Spotlight/i.test(tmpl.img || '') || /Spotlight/i.test(tmpl.cb || '') || /Spotlight/.test(name)) return null;
-    // 白雾只保留 4 团，原作 7 团叠起来拖太久
     if (this.label === 'Move_MIST' && name === 'gMistCloudSpriteTemplate') {
       this._mistN = (this._mistN || 0) + 1;
       if (this._mistN > 4) return null;
     }
-    // 火焰轮前半段只要 4 个火焰组成弧形，后面的生成请求丢弃
     if (this.label === 'Move_FLAME_WHEEL' && name === 'gFireSpiralOutwardSpriteTemplate') {
       if (A(args, 3, 0) > 12) return null;
       if (this._flameStart == null) this._flameStart = this.frame;
     }
-    // 泡沫光线第一段少射一半粒子，缩短铺场时间
     if (this.label === 'Move_BUBBLE_BEAM' && name === 'gWaterBubbleProjectileSpriteTemplate') {
       this._bubbleN = (this._bubbleN || 0) + 1;
       if (this._bubbleN % 2 === 0) return null;
     }
     // 吸取类不弹 impact 贴图，保留吸血粒子/光球
-    if (/HitSplat/.test(tmpl.cb || '') && /^Move_(ABSORB|MEGA_DRAIN|GIGA_DRAIN|LEECH_LIFE|DREAM_EATER|DRAIN_PUNCH)$/.test(this.label)) return null;
+    if (/HitSplat/.test(tmpl.cb || '') && DRAIN_MOVE_LABELS.test(this.label)) return null;
     const spr = {
       E: this,
       name,
@@ -4278,6 +4668,7 @@ class Session {
       el.style.height = tmpl.fh + 'px';
       if (heart) el.innerHTML = '<svg viewBox="0 0 24 24"><use xlink:href="#icon-liked"/></svg>';
       else el.style.backgroundImage = `url(${new URL(tmpl.img, ASSET_BASE).href})`;
+      if (tmpl.mudTint) el.style.filter = 'sepia(.9) saturate(2.2) hue-rotate(-15deg) brightness(.85)';
       el.style.zIndex = String(10 + (sub | 0));
       el.style.transformOrigin = '50% 50%';
       this.layer.appendChild(el);
@@ -4290,6 +4681,20 @@ class Session {
       spr.gx = TGT_X;
       spr.gy = TGT_Y;
     }
+    if (this.label === 'Move_BODY_SLAM' && name === 'gVerticalDipSpriteTemplate') bodySlamJump(spr);
+    if (this.label === 'Move_BODY_SLAM' && name === 'gBasicHitSplatSpriteTemplate') {
+      spr.gx = TGT_X;
+      spr.gy = TGT_Y;
+      // 砸中的一刻恢复压扁的体型
+      this.mons.bp.sx = 1;
+      this.mons.bp.sy = 1;
+      this.createTask('AnimTask_ShakeBattleTerrain', [3, 12]);
+    }
+    if (this.label === 'Move_RAZOR_LEAF' && name === 'gRazorLeafParticleSpriteTemplate') this.razorLeafFlight(spr);
+    if (this.label === 'Move_FIRE_PUNCH' && this._firePunchPal && !this._firePunchFlashed && /Fist|HitSplat/i.test(name)) {
+      this._firePunchFlashed = true;
+      applyPalSelector(this, this._firePunchPal.sel, this._firePunchPal.color, this._firePunchPal.amount);
+    }
     this.sprites.push(spr);
     return spr;
   }
@@ -4301,6 +4706,92 @@ class Session {
     ];
     for (const [x, y, sz] of list) {
       this.createSprite(sz === 'L' ? 'gIceCrystalHitLargeSpriteTemplate' : 'gIceCrystalHitSmallSpriteTemplate', true, 3, [x, y, 0]);
+    }
+  }
+
+  // 飞叶快刀：树叶先在攻击方身边浮现，旋着聚拢到身前，再沿敌我连线一起射出去
+  razorLeafFlight(spr) {
+    const idx = (this._leafN = (this._leafN || 0) + 1);
+    const dirY = this.dirY;
+    const startAng = (rnd(0, 359) / 180) * Math.PI;
+    const rad = 8 + rnd(0, 10);
+    // 聚拢点：攻击方身前（GBA 坐标里 +x 恒指向对手）
+    const hub = { x: 18 + rnd(-2, 2), y: (-6 + rnd(-2, 2)) * dirY };
+    const to = {
+      x: TGT_X - ATK_X + rnd(-4, 4),
+      y: (TGT_Y - ATK_Y) * dirY + rnd(-4, 4) * dirY,
+    };
+    const gather = 9, fly = 12, fade = 9;
+    const spin = 8 + rnd(0, 6);
+    let phase = 0, k = 0, x = hub.x, y = hub.y, bvx = 0, bvy = 0;
+    spr.gx = ATK_X;
+    spr.gy = ATK_Y;
+    spr.rot = rnd(0, 359);
+    spr.onTick = () => {
+      if (phase === 0) {
+        // 从四周旋进聚拢点
+        k = Math.min(1, spr.age / gather);
+        const e = k * k;
+        const a = startAng + Math.PI * 0.6 * e;
+        const r = rad * (1 - e);
+        x = hub.x + Math.cos(a) * r * 0.6;
+        y = hub.y + Math.sin(a) * r * 0.6;
+        spr.rot += spin * (0.4 + e);
+        if (k >= 1) { phase = 1; k = 0; }
+      } else if (phase === 1) {
+        // 沿敌我连线射出，轻微摆动后收束
+        k = Math.min(1, k + 1 / fly);
+        const e = 1 - (1 - k) ** 2;
+        const wob = Math.sin(k * Math.PI * 2 + idx) * 3 * (1 - k);
+        x = hub.x + (to.x - hub.x) * e + wob;
+        y = hub.y + (to.y - hub.y) * e - wob * 0.5;
+        spr.rot += spin * 1.6;
+        if (k >= 1) {
+          phase = 2;
+          k = 0;
+          const a2 = (idx / 10) * Math.PI * 2;
+          bvx = Math.cos(a2) * (1.4 + Math.random());
+          bvy = Math.sin(a2) * (1.1 + Math.random() * 0.8) * dirY;
+        }
+      } else {
+        // 命中后散开淡出
+        k += 1 / fade;
+        x += bvx;
+        y += bvy;
+        bvx *= 0.86;
+        bvy = bvy * 0.86 + 0.12 * dirY;
+        spr.rot += spin * 0.7;
+        if (k >= 0.35) spr.alpha = Math.max(0, 1 - (k - 0.35) / 0.65);
+        if (k >= 1) spr.dead = true;
+      }
+      spr.x2 = x;
+      spr.y2 = y;
+    };
+  }
+
+  // 树叶炸开：围绕命中点向四周迸散（与飞叶快刀同款 Gfx_Leaf）
+  spawnLeafBurst(cx = TGT_X, cy = TGT_Y) {
+    const n = 9;
+    for (let i = 0; i < n; i++) {
+      const spr = this.createSprite('gRazorLeafParticleSpriteTemplate', true, 3, [0, 0, 0]);
+      if (!spr) continue;
+      spr.gx = cx + rnd(-6, 6);
+      spr.gy = cy + rnd(-8, 5);
+      spr.rot = rnd(0, 359);
+      const ang = (i / n) * Math.PI * 2 + rnd(-18, 18) / 100;
+      const sp = 1.4 + Math.random() * 1.2;
+      let vx = Math.cos(ang) * sp;
+      let vy = Math.sin(ang) * sp * 0.8;
+      const life = 22 + rnd(0, 8);
+      spr.onTick = () => {
+        spr.x2 += vx;
+        spr.y2 += vy;
+        vx *= 0.93;
+        vy = vy * 0.93 + 0.1;
+        spr.rot += 9;
+        if (spr.age > life - 7) spr.alpha = Math.max(0, (life - spr.age) / 7);
+        if (spr.age >= life) spr.dead = true;
+      };
     }
   }
 
@@ -4370,12 +4861,12 @@ class Session {
         if (typeof bg === 'string' && bg.startsWith('bg/')) {
           const url = new URL(bg, ASSET_BASE).href;
           this.bgEl.style.backgroundImage = `url("${url}")`;
-          // 原作滑屏背景是 256×256 的无缝拼接图，靠 background-position 滚动；
-          // 不能平移整块背景，否则会露出边缘、只剩一个矩形。
-          this.bgEl.style.backgroundSize = sliding ? 'auto' : 'cover';
+          // 背景图是 GBA 240x160 画面（滚动时 256 宽可横向循环），统一 cover 缩放并锚左上，
+          // 位移直接叠加，静止与滚动切换时尺寸不会跳变。
+          this.bgEl.style.backgroundSize = 'cover';
           this.bgEl.style.backgroundPosition = sliding
-            ? `${this.bgOffsetX}px ${this.bgOffsetY}px`
-            : 'center';
+            ? `${this.bgOffsetX * this.dirX}px ${this.bgOffsetY}px`
+            : 'left top';
           this.bgEl.style.backgroundRepeat = sliding ? 'repeat' : 'no-repeat';
         } else {
           this.bgEl.style.backgroundImage = bg;
@@ -4419,11 +4910,11 @@ class Session {
     if (this.weatherEl) {
       const cls = 'pe-weather' + (this.weather ? ' pe-' + this.weather : '');
       if (this.weatherEl.className !== cls) this.weatherEl.className = cls;
-      if (this.weather === 'hail') {
-        if (!this.hailBuilt) { buildHailWeather(this.weatherEl); this.hailBuilt = true; }
-      } else if (this.hailBuilt) {
+      if (this.weather !== this.builtWeather) {
         this.weatherEl.innerHTML = '';
-        this.hailBuilt = false;
+        const build = { hail: buildHailWeather, rain: buildRainWeather, sand: buildSandWeather }[this.weather];
+        if (build) build(this.weatherEl);
+        this.builtWeather = this.weather;
       }
     }
     for (const s of this.sprites) {
@@ -4463,6 +4954,7 @@ class Session {
     }
     if (this.root) this.root.remove();
     if (this.bgEl) this.bgEl.remove();
+    if (this.surfEl) this.surfEl.remove();
     if (this.tintEl) this.tintEl.remove();
     if (this.E.stage) {
       this.E.stage.style.removeProperty('transform');

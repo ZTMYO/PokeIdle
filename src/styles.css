@@ -9467,6 +9467,159 @@ body.booting { visibility: hidden; }
   padding: 4px 6px;
 }
 
+/* ---- 招式调试面板（开发用，控制台 __fxdbg() 打开） ---- */
+.b-fxdbg {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 22;
+  display: flex;
+  flex-direction: column;
+  background: var(--screen-bg-light);
+  color: var(--ui-color);
+  text-align: left;
+  padding: 4px 6px;
+}
+.b-fxdbg-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  padding-bottom: 3px;
+}
+.b-fxdbg-title { font-size: 11px; font-weight: 800; }
+.b-fxdbg-count { flex: 1; min-width: 0; font-size: 8px; opacity: 0.6; }
+.b-fxdbg-x {
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: transparent;
+  border: 1px solid var(--ui-color);
+  border-radius: 5px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.b-fxdbg-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 3px 0;
+}
+.b-fxdbg-search {
+  flex: 1;
+  min-width: 90px;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: transparent;
+  border: 1px solid var(--ui-color);
+  border-radius: 5px;
+  padding: 2px 5px;
+  outline: none;
+}
+.b-fxdbg-search::placeholder { color: var(--ui-color); opacity: 0.5; }
+.b-fxdbg-sel {
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: transparent;
+  border: 1px solid var(--ui-color);
+  border-radius: 5px;
+  padding: 1px 2px;
+}
+.b-fxdbg-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.b-fxdbg-check input { margin: 0; }
+.b-fxdbg-now {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 8px;
+  font-weight: 700;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.b-fxdbg-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0;
+}
+.b-fxdbg-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  text-align: left;
+}
+@media (hover: hover) {
+  .b-fxdbg-row:hover { background: rgba(var(--ui-color-rgb), 0.08); border-color: rgba(var(--ui-color-rgb), 0.25); }
+}
+.b-fxdbg-id { width: 24px; flex-shrink: 0; opacity: 0.55; font-size: 8px; }
+.b-fxdbg-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.b-fxdbg-tag {
+  font-style: normal;
+  font-size: 7px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 2px;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+.b-fxdbg-type {
+  flex-shrink: 0;
+  min-width: 30px;
+  text-align: center;
+  color: #fff;
+  font-size: 8px;
+  border-radius: 3px;
+  padding: 0 3px;
+}
+.b-fxdbg-cat { flex-shrink: 0; width: 24px; opacity: 0.7; font-size: 8px; }
+.b-fxdbg-empty { padding: 12px 4px; text-align: center; font-size: 10px; opacity: 0.6; }
+.b-fxdbg-foot {
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid rgba(var(--ui-color-rgb), 0.35);
+  padding-top: 3px;
+}
+.b-fxdbg-btn2 {
+  flex: 1;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-color);
+  background: transparent;
+  border: 1px solid var(--ui-color);
+  border-radius: 5px;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.b-fxdbg-btn2:active { transform: scale(0.96); }
+
 /* === 记录列表统一样式（抽卡记录/战绩/系统日志/孵蛋记录/对战记录） === */
 .rec-view {
   display: none;

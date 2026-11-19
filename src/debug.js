@@ -14,6 +14,7 @@
 //   __refreshAll()                    一键刷新：对战/交换/大量出没/时空扭曲/悬赏/商店每日限量货
 //   __npcTeam(25, 6, 149)             对战 NPC 全部使用指定精灵
 //   __ppZero()                        清空当前对战双方的 PP（验证「挣扎」兜底）
+//   __fxdbg()                         战斗中打开「招式调试」面板
 import {
   gameData, allPokemon, getPokemonByIndex, addRosterEntry, addEncounterLog, saveGame,
   ensureGpsState, setLastRegionId, syncGpsPosition, rollGender, rollNature,
@@ -273,6 +274,9 @@ window.__ppZero = () => {
   console.log(n ? `__ppZero: 已清空 ${n} 只宝可梦的 PP，回到出招面板看「挣扎」` : '__ppZero: 当前没有进行中的对战');
   return n;
 };
+
+// 招式调试面板：在战斗中打开后可直接点任意招式播放真实战斗动画（不改存档/血量）
+window.__fxdbg = () => import('./battle-view.js').then((m) => m.openMoveFxDebug());
 
 // ---------- 一键完成所有进度 ----------
 // 完成：孵蛋器里的蛋、饲育屋当前繁殖批次、全部派遣（一次调用，返回各项完成数量）

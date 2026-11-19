@@ -44,6 +44,24 @@
   75% { transform: translate(0, 0); }
   100% { transform: translate(0, 0); }
 }
+/* 地震/重踏落地：双方宝可梦跟着地面一起颠动（小幅度、高频率的细密颤动） */
+#bp-img.quake-rattle, #be-img.quake-rattle { animation: bQuakeRattle 0.5s linear; }
+@keyframes bQuakeRattle {
+  0% { transform: translate(0, 0); }
+  6% { transform: translate(0, 2px); }
+  14% { transform: translate(0, -2px); }
+  22% { transform: translate(0, 2px); }
+  30% { transform: translate(0, -2px); }
+  38% { transform: translate(0, 1px); }
+  46% { transform: translate(0, -1px); }
+  54% { transform: translate(0, 2px); }
+  62% { transform: translate(0, -1px); }
+  70% { transform: translate(0, 1px); }
+  78% { transform: translate(0, -1px); }
+  86% { transform: translate(0, 1px); }
+  94% { transform: translate(0, -1px); }
+  100% { transform: translate(0, 0); }
+}
 @keyframes bLungeStayR {
   0% { transform: translate(0, 0) scale(1); }
   55% { transform: translate(var(--lunge-dx, -112px), var(--lunge-dy, -42px)) scale(0.78); }
@@ -78,6 +96,14 @@
   80% { transform: translateX(2px); filter: brightness(1); }
   100% { transform: translateX(0); filter: brightness(1); }
 }
+/* 定向受击：沿远离攻击方的方向后撤（我方在 scaleX(-1) 容器里，正位移渲染出来是向左） */
+#bp-img.hit-recoil, #be-img.hit-recoil { animation: bHitRecoil 0.34s ease-out; }
+@keyframes bHitRecoil {
+  0% { transform: translateX(0) scale(1); filter: brightness(1); }
+  16% { transform: translateX(10px) scale(1.04, 0.96); filter: brightness(2.2); }
+  48% { transform: translateX(5px) scale(1.01, 0.99); filter: brightness(1.5); }
+  100% { transform: translateX(0) scale(1); filter: brightness(1); }
+}
 /* 打雷命中：目标先电黄闪烁，再连续颤抖，比普通受击更长更重 */
 #bp-img.thunder-hit, #be-img.thunder-hit { animation: bThunderHit .46s ease-out; }
 @keyframes bThunderHit {
@@ -92,6 +118,15 @@
 #bp-img.faint, #be-img.faint { animation: bFaintFall 0.45s forwards; }
 @keyframes bFaintFall {
   to { opacity: 0; transform: translateY(26px) rotate(-10deg); }
+}
+/* 缩入壳中：本体压扁变暗缩进壳里，壳张开时再弹回 */
+#bp-img.shell-tuck, #be-img.shell-tuck { animation: bShellTuck 1s ease-in-out; }
+@keyframes bShellTuck {
+  0% { transform: translateY(0) scale(1, 1); filter: brightness(1); }
+  22% { transform: translateY(4px) scale(1.1, 0.76); filter: brightness(0.78); }
+  64% { transform: translateY(4px) scale(1.1, 0.76); filter: brightness(0.78); }
+  80% { transform: translateY(-2px) scale(0.96, 1.06); filter: brightness(1.18); }
+  100% { transform: translateY(0) scale(1, 1); filter: brightness(1); }
 }
 /* 畏缩：向后退一步*/
 #bp-img.flinch, #be-img.flinch { animation: bFlinchBack 0.3s ease-out; }
@@ -155,77 +190,6 @@
 /* 精灵登场淡入 */
 #bp-img.b-enter, #be-img.b-enter { animation: bEnter 0.3s ease-out; }
 @keyframes bEnter { from { opacity: 0; } to { opacity: 1; } }
-/* 受击火花：受击宝可梦中心迸发一圈白色像素火花 */
-.b-spark {
-  position: absolute;
-  width: 0;
-  height: 0;
-  z-index: 6;
-  pointer-events: none;
-}
-.b-spark i {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 3px;
-  height: 3px;
-  background: #fff;
-  box-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
-  animation: bSparkFly 0.35s ease-out forwards;
-}
-.b-spark i:nth-child(odd) { background: #ffd7a3; }
-@keyframes bSparkFly {
-  0% { transform: translate(0, 0) scale(1.2); opacity: 1; }
-  100% { transform: translate(var(--dx), var(--dy)) scale(0.15); opacity: 0; }
-}
-/* 属性专属命中爆发：命中瞬间围绕精灵迸发一圈该属性粒子（12 元素系属性专属，其余用默认白火花）。
-   颜色由 JS 按属性写入 --fc，全部粒子共用 tfFly 扩散动画（沿 --dx/--dy 飞散淡出），
-   各属性只靠形状（火苗/水滴/叶片/星芒/毒泡/碎石/风刃…）区分，纯扁平无阴影 */
-.b-type-fx {
-  position: absolute;
-  width: 0;
-  height: 0;
-  z-index: 6;
-  pointer-events: none;
-}
-.b-type-fx i {
-  position: absolute;
-  left: 0;
-  top: 0;
-  background: var(--fc, #fff);
-  animation: tfFly 0.45s ease-out forwards;
-}
-@keyframes tfFly {
-  0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
-  30% { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
-}
-/* 火：扁平火苗 */
-.tf-flame i { width: 5px; height: 8px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; }
-/* 水：圆润水滴（一半纯圆、一半尖底水滴） */
-.tf-drop i { width: 6px; height: 6px; border-radius: 50%; }
-.tf-drop i:nth-child(2n) { border-radius: 50% 50% 50% 0; }
-/* 草：斜向叶片 */
-.tf-leaf i { width: 7px; height: 4px; border-radius: 70% 10% 70% 10%; }
-/* 电：电芒星 */
-.tf-spark i { width: 5px; height: 5px; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
-/* 冰：冰晶菱形 */
-.tf-ice i { width: 5px; height: 5px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
-/* 毒：空心毒泡 */
-.tf-bubble i { width: 6px; height: 6px; border-radius: 50%; background: none; border: 1.5px solid var(--fc); }
-/* 地面：尘土块 */
-.tf-clump i { width: 6px; height: 5px; border-radius: 2px; }
-/* 岩石：碎石块 */
-.tf-rock i { width: 5px; height: 5px; clip-path: polygon(20% 0, 80% 10%, 100% 60%, 70% 100%, 10% 90%, 0 40%); }
-/* 飞行：风刃 */
-.tf-streak i { width: 10px; height: 2px; border-radius: 2px; }
-/* 虫：虫粉圆点 */
-.tf-dot i { width: 4px; height: 4px; border-radius: 50%; }
-/* 超能：念力漩涡（圆点与星芒交替） */
-.tf-swirl i { width: 6px; height: 6px; border-radius: 50%; }
-.tf-swirl i:nth-child(2n) { clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); border-radius: 0; }
-/* 龙：拉长龙焰 */
-.tf-dragon i { width: 6px; height: 9px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; }
 /* 异常状态粒子特效（挂在精灵所在盒子上，原点为精灵中心/头顶）：
    睡眠头顶飘 Zzz / 混乱旋星 / 麻痹电火花 / 灼伤火焰 / 中毒毒泡 / 冰冻冰晶 */
 .b-status-fx {
@@ -294,27 +258,35 @@
   0%, 100% { opacity: 0.65; transform: translate(-50%, -50%) translateY(2px) scale(0.9); }
   50% { opacity: 1; transform: translate(-50%, -50%) translateY(-9px) scale(1.08); }
 }
-/* 中毒：原作 Gfx_ToxicBubble 四帧毒泡 */
-.fx-toxic-bubble {
+/* 灼伤触发：被灼伤的宝可梦本体红光脉冲两下（不再是受击的白色提亮） */
+.b-burn-flash { animation: bBurnFlash 0.6s ease-out; }
+@keyframes bBurnFlash {
+  0% { transform: translateX(0); filter: none; }
+  12% { transform: translateX(-6px) scale(1.04); filter: brightness(1.05) sepia(1) saturate(9) hue-rotate(-30deg); }
+  26% { transform: translateX(5px) scale(1.02); filter: brightness(1.05) sepia(1) saturate(9) hue-rotate(-30deg); }
+  40% { transform: translateX(-3px); filter: none; }
+  56% { transform: translateX(3px); filter: brightness(1.05) sepia(1) saturate(9) hue-rotate(-30deg); }
+  72% { transform: translateX(-1px); filter: none; }
+  100% { transform: translateX(0); filter: none; }
+}
+/* 中毒：原作 Gfx_PoisonBubble 第一帧毒泡，大小不一地从身上冒出 */
+.fx-poison-bubble {
   position: absolute;
   z-index: 8;
-  width: 16px;
-  height: 32px;
+  width: var(--s, 16px);
+  height: var(--s, 16px);
   pointer-events: none;
   image-rendering: pixelated;
-  background: url('./pe-battle/move-fx-assets/pe/Gfx_ToxicBubble__16x32.png') no-repeat 0 0 / 16px 128px;
+  background: url('./pe-battle/move-fx-assets/pe/Gfx_PoisonBubble__16x16.png') no-repeat 0 0;
+  background-size: 100% calc(var(--s, 16px) * 3);
   transform: translate(-50%, -50%);
-  animation: fxToxicFrames 0.36s steps(1) infinite, fxToxicFloat 2.2s ease-in-out infinite;
+  animation: fxPoisonRise 2.6s ease-in infinite;
 }
-@keyframes fxToxicFrames {
-  0%, 25% { background-position: 0 0; }
-  26%, 50% { background-position: 0 -32px; }
-  51%, 75% { background-position: 0 -64px; }
-  76%, 100% { background-position: 0 -96px; }
-}
-@keyframes fxToxicFloat {
-  0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) translateY(2px) scale(0.85); }
-  50% { opacity: 0.95; transform: translate(-50%, -50%) translateY(-8px) scale(1); }
+@keyframes fxPoisonRise {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
+  18% { opacity: 0.95; transform: translate(-50%, -50%) scale(1); }
+  70% { opacity: 0.9; transform: translate(-50%, -50%) translateY(-16px) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -50%) translateY(-28px) scale(1.1); }
 }
 /* 冰冻：淡蓝冰晶闪烁 */
 .fx-freeze i {
@@ -534,15 +506,25 @@
   background: radial-gradient(circle at 50% 62%, #fff8cf 0%, #ffd84a 40%, #ff8a2a 78%, rgba(255, 90, 20, 0.3) 100%);
   box-shadow: 0 0 10px rgba(255, 130, 40, 0.75);
 }
-/* 叶片弹道（飞叶快刀/花瓣舞）：斜向叶片形，颜色由 JS 经 --fc 注入（草绿/花瓣粉），带同色柔光 */
+/* 叶片弹道（飞叶快刀/飞叶风暴）：原作 Gfx_Leaf 树叶素材，逐片随机取帧，形态各异 */
 .b-proj-fx.proj-leaf i {
   width: calc(var(--bs, 14px) * 1.3);
-  height: calc(var(--bs, 14px) * 0.72);
+  height: calc(var(--bs, 14px) * 1.3);
   margin-left: calc(var(--bs, 14px) * 1.3 / -2);
-  margin-top: calc(var(--bs, 14px) * 0.72 / -2);
-  border-radius: 70% 10% 70% 10%;
-  background: var(--fc, #3fa129);
-  box-shadow: 0 0 6px var(--fc, rgba(63, 161, 41, 0.6));
+  margin-top: calc(var(--bs, 14px) * 1.3 / -2);
+  background: url('./pe-battle/move-fx-assets/pe/Gfx_Leaf__16x16.png') no-repeat 0 0;
+  background-size: 100% 900%;
+  image-rendering: pixelated;
+}
+/* 花瓣舞：原作 Gfx_PinkPetal 粉色花瓣素材，逐片随机取帧 */
+.b-proj-fx.proj-petal i {
+  width: calc(var(--bs, 14px) * 1.1);
+  height: calc(var(--bs, 14px) * 1.1);
+  margin-left: calc(var(--bs, 14px) * 1.1 / -2);
+  margin-top: calc(var(--bs, 14px) * 1.1 / -2);
+  background: url('./pe-battle/move-fx-assets/pe/Gfx_PinkPetal__8x8.png') no-repeat 0 0;
+  background-size: 100% 400%;
+  image-rendering: pixelated;
 }
 /* 远程多段物理弹道（种子机关枪/冰锥/岩石暴击/飞弹针/骨棒乱打/鳞射/尖刺加农炮）：
    攻击方不贴脸，站原地朝对手逐发喷射实心粒子。粒子上色统一用 --fc（取自属性色），
@@ -641,35 +623,6 @@
   border-radius: 60% 60% 70% 40% / 55% 55% 60% 60%;
   background: var(--fc, #a23df0);
   box-shadow: 0 0 5px var(--fc, rgba(162, 61, 240, 0.55));
-}
-/* 破坏光线：一截橙色光段，从攻击方中心沿目标方向飞出，穿过对手后冲出屏幕。
-   发射点为容器原点并旋转对齐方向；内部光段沿自身 X 轴平移（--td 为沿该方向的飞行总距离），
-   超长部分被舞台裁剪。边缘用径向渐变柔和淡出并带光晕，避免生硬白边 */
-.b-light-fx {
-  position: absolute;
-  width: 0;
-  height: 0;
-  z-index: 6;
-  pointer-events: none;
-  transform-origin: 0 0;
-}
-.b-light-fx .seg {
-  position: absolute;
-  left: -48px;
-  top: -9px;
-  width: 96px;
-  height: 18px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, #fff 0%, #ffd9a0 40%, #ff8c2e 78%, rgba(255, 106, 0, 0) 100%);
-  opacity: 0;
-  filter: drop-shadow(0 0 8px rgba(255, 150, 60, 0.85));
-  animation: lightDash 0.7s ease-out forwards;
-}
-@keyframes lightDash {
-  0% { transform: translateX(0); opacity: 0; }
-  10% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { transform: translateX(var(--td, 300px)); opacity: 0; }
 }
 /* 日光束：从对手地面底座椭圆中心向上射出柔光淡黄细柱，柱身快速长高后淡出 */
 .b-solar-fx {
@@ -894,7 +847,70 @@
   25% { opacity: 1; }
   100% { transform: scaleX(1); opacity: 0.95; }
 }
-/* 大面积水系冲浪圆形水波 */.b-water-fx {
+/* 极光束：原作极光背景，出招浮现、光束射完淡出 */
+.b-aurora-bg-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  opacity: 0;
+  animation: auroraBgIn 1.05s ease-out forwards;
+}
+@keyframes auroraBgIn {
+  0% { opacity: 0; }
+  16% { opacity: 0.95; }
+  66% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+/* 极光束：彩虹光束从攻击方射向对手，光束上错峰飞出一串彩虹光环 */
+.b-aurora-fx {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.b-aurora-fx b {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 3px;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, #ff8ab8 16%, #ffe066 36%, #8cf59a 56%, #7fd4ff 76%, #c79bff 100%);
+  box-shadow: 0 0 14px rgba(170, 225, 255, 0.85);
+  animation: auroraCore 0.42s ease-out forwards;
+}
+.b-aurora-fx i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 9px;
+  margin: -4.5px 0 0 -11px;
+  border-radius: 50%;
+  border: 2px solid rgba(210, 245, 255, 0.95);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.95), rgba(170, 225, 255, 0.35) 62%, transparent 76%);
+  box-shadow: 0 0 9px rgba(160, 225, 255, 0.9);
+  opacity: 0;
+  animation: auroraRing 0.55s linear forwards;
+  animation-delay: var(--bd, 0s);
+}
+@keyframes auroraCore {
+  0% { transform: scaleX(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0.3; }
+}
+@keyframes auroraRing {
+  0% { transform: translateX(0) scale(0.45); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translateX(var(--tx, 300px)) scale(1.15); opacity: 0; }
+}
+/* 大面积水系圆形水波（潮旋/水之波动/泼冷水） */
+.b-water-fx {
   position: absolute;
   top: 0; right: 0; bottom: 0; left: 0;
   z-index: 5;
@@ -949,7 +965,7 @@
   height: 100%;
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.75) 0 10px, rgba(255, 255, 255, 0) 10px 24px) top left / 100% 2px no-repeat,
-    linear-gradient(180deg, #8b83ff 0%, #6f67ff 7%, #625aff 26%, #625aff 100%);
+    linear-gradient(180deg, rgba(139, 131, 255, 0.5) 0%, rgba(111, 103, 255, 0.5) 7%, rgba(98, 90, 255, 0.5) 26%, rgba(98, 90, 255, 0.5) 100%);
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35);
   opacity: 0;
   will-change: transform, opacity;
@@ -992,7 +1008,7 @@
   transform: none;
 }
 .b-surf-fx.is-enemy .b-surf-water {
-  background: linear-gradient(180deg, #8b83ff 0%, #6f67ff 7%, #625aff 26%, #625aff 100%);
+  background: linear-gradient(180deg, rgba(139, 131, 255, 0.5) 0%, rgba(111, 103, 255, 0.5) 7%, rgba(98, 90, 255, 0.5) 26%, rgba(98, 90, 255, 0.5) 100%);
   box-shadow: none;
 }
 .b-surf-fx.is-enemy .b-surf-water::after {
@@ -1007,14 +1023,14 @@
 .b-surf-fx.is-muddy .b-surf-water {
   background:
     repeating-linear-gradient(90deg, rgba(255, 236, 190, 0.6) 0 10px, rgba(255, 236, 190, 0) 10px 24px) top left / 100% 2px no-repeat,
-    linear-gradient(180deg, #c69a55 0%, #a77b3f 7%, #8a5f31 26%, #6f4a24 100%);
+    linear-gradient(180deg, rgba(198, 154, 85, 0.55) 0%, rgba(167, 123, 63, 0.55) 7%, rgba(138, 95, 49, 0.55) 26%, rgba(111, 74, 36, 0.55) 100%);
   box-shadow: inset 0 2px 0 rgba(255, 230, 180, 0.25);
 }
 .b-surf-fx.is-muddy .b-surf-wave {
   filter: sepia(0.85) saturate(1.5) brightness(0.88) drop-shadow(0 0 8px rgba(170, 120, 60, 0.45));
 }
 .b-surf-fx.is-enemy.is-muddy .b-surf-water {
-  background: linear-gradient(180deg, #c69a55 0%, #a77b3f 7%, #8a5f31 26%, #6f4a24 100%);
+  background: linear-gradient(180deg, rgba(198, 154, 85, 0.55) 0%, rgba(167, 123, 63, 0.55) 7%, rgba(138, 95, 49, 0.55) 26%, rgba(111, 74, 36, 0.55) 100%);
   box-shadow: none;
 }
 /* 临别礼物：紫黑色柔光椭圆，拉长→压缩 */
@@ -1163,6 +1179,82 @@
 @keyframes aquaBand {
   0%, 100% { opacity: .35; transform: translate(-50%, -50%) rotate(-14deg) scale(.9); }
   50% { opacity: .9; transform: translate(-50%, -50%) rotate(-14deg) scale(1.05); }
+}
+/* 缩入壳中：水色壳盖自上下合拢把本体收进去，合拢瞬间闪白，再张开并弹出防御脉冲 */
+.b-shell-fx {
+  position: absolute;
+  z-index: 9;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.b-shell-half {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 54%;
+  background: linear-gradient(180deg, #d8f1ff 0%, #8cc4ee 30%, #4a86c8 72%, #2f629e 100%);
+  border: 2px solid #eaf8ff;
+  box-shadow: 0 0 8px rgba(110, 190, 255, 0.8), inset 0 0 7px rgba(255, 255, 255, 0.6);
+  opacity: 0;
+}
+.b-shell-half.is-top {
+  top: 0;
+  border-radius: 50% 50% 46% 46% / 82% 82% 26% 26%;
+  transform-origin: 50% 100%;
+  animation: shellHalfTop 1s cubic-bezier(0.3, 0.9, 0.4, 1) forwards;
+}
+.b-shell-half.is-bottom {
+  bottom: 0;
+  border-radius: 46% 46% 50% 50% / 26% 26% 82% 82%;
+  transform-origin: 50% 0%;
+  animation: shellHalfBottom 1s cubic-bezier(0.3, 0.9, 0.4, 1) forwards;
+}
+@keyframes shellHalfTop {
+  0% { transform: translateY(-130%) scale(.92); opacity: 0; }
+  22% { transform: translateY(0) scale(1); opacity: 1; }
+  64% { transform: translateY(0) scale(1); opacity: 1; }
+  78% { transform: translateY(-4%) scale(1.02); opacity: 1; }
+  100% { transform: translateY(-130%) scale(.92); opacity: 0; }
+}
+@keyframes shellHalfBottom {
+  0% { transform: translateY(130%) scale(.92); opacity: 0; }
+  22% { transform: translateY(0) scale(1); opacity: 1; }
+  64% { transform: translateY(0) scale(1); opacity: 1; }
+  78% { transform: translateY(4%) scale(1.02); opacity: 1; }
+  100% { transform: translateY(130%) scale(.92); opacity: 0; }
+}
+.b-shell-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120%;
+  height: 120%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(180,230,255,.75) 38%, rgba(120,190,255,0) 70%);
+  opacity: 0;
+  animation: shellFlash .42s ease-out .2s forwards;
+}
+@keyframes shellFlash {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.35); }
+  35% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+}
+/* 壳张开时向外扩散的防御提升脉冲 */
+.b-shell-pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  border: 2px solid rgba(150, 220, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(120, 200, 255, 0.7);
+  opacity: 0;
+  animation: shellPulse .5s ease-out .62s forwards;
+}
+@keyframes shellPulse {
+  0% { opacity: .9; transform: translate(-50%, -50%) scale(.55); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
 }
 /* 魔法闪耀：粉色半透明遮罩全屏一闪（中心扩散 → 淡出） */
 .b-fairy-fx {
@@ -1356,7 +1448,7 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
-/* 挖洞/潜水第二段：攻击方复制体从目标脚边破土/出水；素材土堆/水花/水滴 */
+/* 命中原作贴图（impact/落雷等）：绝对定位在精灵中心，由 JS 写入位置与素材 */
 .b-charge-asset {
   position: absolute;
   z-index: 6;
@@ -1365,14 +1457,6 @@
   image-rendering: pixelated;
   background-repeat: no-repeat;
 }
-.b-charge-clone {
-  position: absolute;
-  z-index: 6;
-  object-fit: contain;
-  pointer-events: none;
-  image-rendering: pixelated;
-}
-.b-charge-clone.cg-out-sink { animation: cgOutSink 0.32s ease-out; }
 /* 尘土/水花粒子：挖洞钻地/破土、潜水入水/跃出时脚部溅起的颗粒（颜色由 JS 经 --fc 传入） */
 .b-ground-fx {
   position: absolute;
@@ -1397,21 +1481,23 @@
   25% { opacity: 1; }
   100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.8); }
 }
-/* 守住系护盾：宝可梦周身淡蓝护盾光圈（常驻轻缓脉冲），挡下攻击（block 事件）时白光一闪 + 光圈扩张 */
+/* 守住系护盾：Gfx_GuardRing 绿色圆环从脚下往头顶依次出现，全部亮起后整组收起
+   挡下攻击时整体白光一闪 + 光圈扩张 */
 .b-shield {
   position: absolute;
   transform: translate(-50%, -50%);
-  border-radius: 50%;
-  border: 2.5px solid rgba(150, 225, 255, 0.8);
-  background: radial-gradient(circle, rgba(170, 230, 255, 0.18) 55%, rgba(150, 225, 255, 0.06));
-  box-shadow: 0 0 12px rgba(150, 225, 255, 0.5), inset 0 0 14px rgba(180, 235, 255, 0.3);
   z-index: 4;
   pointer-events: none;
-  animation: bShieldPulse 1.1s ease-in-out infinite;
 }
-@keyframes bShieldPulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
-  50% { transform: translate(-50%, -50%) scale(1.02); opacity: 1; }
+.b-shield-ring {
+  position: absolute;
+  left: 50%;
+  display: block;
+  background: url('./pe-battle/move-fx-assets/pe/Gfx_GuardRing__64x32.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 4px rgba(110, 220, 150, 0.7));
+  opacity: 0.85;
 }
 .b-shield.b-shield-hit { animation: bShieldHit 0.4s ease-out; }
 @keyframes bShieldHit {

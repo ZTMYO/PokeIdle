@@ -1070,9 +1070,7 @@ function clearTeam() {
 function slotHtml(i, p, disabled) {
   const poke = p ? getPokemonByIndex(String(p.species)) : null;
   const name = p?.nickname || (poke ? poke.name : p ? `#${p.species}` : '');
-  const shiny = p && p.shiny
-    ? '<svg viewBox="0 0 1024 1024" width="10" height="10" style="flex-shrink:0;color:var(--ui-color);vertical-align:-1px;"><use xlink:href="#icon-star"/></svg>'
-    : '';
+  const badge = p ? pokemonSourceBadge(p) : '';
   const dis = disabled ? ' swap-disabled' : '';
   if (!p) return `<div class="team-member empty${dis}" data-slot="${i}">
     <span class="member-empty">空</span>
@@ -1083,7 +1081,7 @@ function slotHtml(i, p, disabled) {
   return `<div class="team-member${dis}" data-slot="${i}">
     <img class="member-icon" data-icon="${p.species}" alt="" draggable="false">
     <div class="member-body">
-      <div class="member-top"><span class="member-name">${name}${shiny}</span></div>
+      <div class="member-top"><span class="member-name">${name}</span>${badge ? `<span class="team-member-badge">${badge}</span>` : ''}</div>
       <div class="member-mid">
         <span class="member-lv">${genderBadge(ensureGender(p))}Lv${p.level || 1}</span>
         <span class="xp-nums">${Math.floor(cur)} / ${need}</span>
