@@ -87,6 +87,9 @@ let _confirmDiscardEgg = null; // 两次点击丢弃：第一次点击进入待�
 let _eggQuery = '';           // 蛋搜索关键词
 let _eggSortBy = null;    // 蛋列表排序列：null=默认按时间降序 | name | iv
 let _eggSortDir = -1;     // 1 升序 / -1 降序
+let _eggBatch = false;    // 批量丢弃模式（右键 / 手机长按列表进入）
+const _eggBatchSelected = new Set(); // 批量丢弃选中的蛋 id
+let _eggVisibleIds = []; // 当前筛选/排序后的蛋 id，供右上角「全选」使用
 let _breedRounds = 1;         // 连续繁殖轮数（提交树果时选择，1~MAX_BREED_ROUNDS）
 export const MAX_BREED_ROUNDS = 10;  // 连续繁殖轮数上限
 
@@ -176,6 +179,10 @@ export function showNurseryView() {
   _pickGenderFilter = '';
   _pickEggFilter = '';
   _pickIvSel = [];
+  // 重新进入饲育屋：清掉残留的批量丢弃状态
+  _eggBatch = false;
+  _eggBatchSelected.clear();
+  hideEggBatchMenu();
   // 先结算离开期间产出的蛋（自动入库），再进入页面；有新蛋时底部弹出提示
   const produced = settleBreeding();
   render();
@@ -1740,7 +1747,10 @@ function enterEggPage(fav) {
   _favView = fav;
   _confirmDiscardEgg = null; // 新打开不残留上次的待确认丢弃态
   _eggQuery = '';
+  _eggBatch = false;         // 切页退出批量丢弃
+  _eggBatchSelected.clear();
   hideEggRowMenu(); // 切页不残留上一次的行菜单
+  hideEggBatchMenu();
   hideFoodTip(); // 切到蛋列表：饲育屋页面上的 tooltip 一起收掉
   const content = $('nurseryContent');
   if (content) {
@@ -1787,10 +1797,18 @@ export function renderEggView() {
   const box = $('nurseryContent');
   if (!box) return;
   // 收藏页只看收藏的蛋；普通蛋页反过来，把收藏的蛋移出列表，避免和其他蛋混在一起被误丢
-  const eggs = (gameData.roster || []).filter(p => p.inRoster && !isPokemon(p) && (_favView ? p.fav : !p.fav));
-  const progressText = eggs.length
-    ? (_favView ? `共 ${eggs.length} 个收藏` : `共 ${eggs.length} 个蛋`)
-    : (_favView ? '暂无收藏的蛋' : '暂无宝可梦蛋');
+  // 批量丢弃时孵化中的蛋不参与（无法丢弃），直接从列表隐去
+  const eggs = (gameData.roster || []).filter(p => p.inRoster && !isPokemon(p) && (_favView ? p.fav : !p.fav) && !(_eggBatch && isIncubating(p.id)));
+  // 已被取走 / 进入孵化器的选中项及时清掉，避免底部计数与实际不符
+  if (_eggBatch && _eggBatchSelected.size) {
+    const alive = new Set(eggs.map(p => p.id));
+    for (const id of [..._eggBatchSelected]) if (!alive.has(id)) _eggBatchSelected.delete(id);
+  }
+  const progressText = _eggBatch
+    ? '请点击选中你要丢弃的蛋'
+    : eggs.length
+      ? (_favView ? `共 ${eggs.length} 个收藏` : `共 ${eggs.length} 个蛋`)
+      : (_favView ? '暂无收藏的蛋' : '暂无宝可梦蛋');
   // 待确认丢弃的蛋若已不存在（已丢弃/被取走）或已进入孵化中（不可丢弃），自动清除待确认态
   if (_confirmDiscardEgg) {
     const eg = (gameData.roster || []).find(p => p.id === _confirmDiscardEgg);
@@ -1825,6 +1843,7 @@ export function renderEggView() {
     va = a.obtainedAt || 0; vb = b.obtainedAt || 0;
     return (va - vb) * _eggSortDir;
   });
+  _eggVisibleIds = sorted.map((p) => p.id);
   // 蛋是否在孵化中（孵蛋器槽位 eggRef 指向该蛋）
   function isIncubating(id) {
     return (gameData.incubators || []).some(s => s && s.eggRef === id);
@@ -1840,8 +1859,9 @@ export function renderEggView() {
     const poke = getPokemonByIndex(String(eg.species));
     const name = poke ? poke.name : `#${eg.species}`;
     const iv = eggIvSlash(eg);
+    const sel = _eggBatch && _eggBatchSelected.has(eg.id);
     return `
-      <div class="pokedex-entry roster-row nursery-egg-row" data-egg-id="${eg.id}">
+      <div class="pokedex-entry roster-row nursery-egg-row${sel ? ' roster-batch-sel' : ''}" data-egg-id="${eg.id}">
         <span class="pokedex-name">${eggIconHtml(eg, poke)}<span class="egg-name-text">${name}</span><span class="egg-name-suffix">的蛋</span>${eg.shiny ? '<span class="egg-shiny">★</span>' : ''}</span>
         <span class="roster-iv${iv === '31/31/31/31/31/31' ? ' iv-perfect' : ''}">${iv}</span>
         ${_favView ? '' : eggDiscardCell(eg)}
@@ -1857,8 +1877,16 @@ export function renderEggView() {
     });
     root.querySelectorAll('.nursery-egg-row').forEach(row => {
       row.addEventListener('click', (e) => {
+        // 批量丢弃：点击行切换选中
+        if (_eggBatch) {
+          const id = row.dataset.eggId;
+          if (_eggBatchSelected.has(id)) { _eggBatchSelected.delete(id); row.classList.remove('roster-batch-sel'); }
+          else { _eggBatchSelected.add(id); row.classList.add('roster-batch-sel'); }
+          updateEggBatchBar();
+          return;
+        }
         const eg = (gameData.roster || []).find(p => p.id === row.dataset.eggId);
-        if (eg) showEggRowMenu(eg, e.clientX, e.clientY);
+        if (eg) showEggRowMenu(eg, e.clientX, e.clientY, row);
       });
     });
   }
@@ -1869,6 +1897,10 @@ export function renderEggView() {
     // 更新进度
     const progress = existingPage.querySelector('.pokedex-progress');
     if (progress) progress.textContent = progressText;
+    const selAll = existingPage.querySelector('#nurseryEggSelectAll');
+    if (selAll) selAll.style.display = _eggBatch ? '' : 'none';
+    // 批量丢弃态：切换容器类（隐藏逐行丢弃按钮 / 收藏入口）
+    existingPage.classList.toggle('egg-batch', _eggBatch);
     // 更新表头排序标记
     existingPage.querySelectorAll('[data-sort]').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
     const cur = existingPage.querySelector(`[data-sort="${_eggSortBy}"]`);
@@ -1889,8 +1921,9 @@ export function renderEggView() {
 
   // 首次渲染：创建完整 HTML
   box.innerHTML = `
-    <div class="nursery-egg-page view-list${_favView ? ' nursery-egg-fav' : ''}">
+    <div class="nursery-egg-page view-list${_favView ? ' nursery-egg-fav' : ''}${_eggBatch ? ' egg-batch' : ''}">
       <div class="pokedex-progress">${progressText}</div>
+      <button class="incubator-log-btn" id="nurseryEggSelectAll" style="display:${_eggBatch ? '' : 'none'};">全选</button>
       <div class="pokedex-search">
         <div class="pokedex-search-row">
           <div class="pokedex-search-input-wrap">
@@ -1923,6 +1956,13 @@ export function renderEggView() {
     });
   }
   if (clearBtn) clearBtn.addEventListener('click', () => { _eggQuery = ''; input.value = ''; renderEggView(); });
+  // 批量丢弃：右上角「全选」把当前筛选/排序结果全部勾上
+  box.querySelector('#nurseryEggSelectAll')?.addEventListener('click', () => {
+    if (!_eggBatch) return;
+    for (const id of _eggVisibleIds) _eggBatchSelected.add(id);
+    renderEggView();
+    updateEggBatchBar();
+  });
   // 排序（3 段 toggle：升序 → 降序 → 回到默认时间降序）
   box.querySelectorAll('.nursery-egg-header [data-sort]').forEach(el => {
     el.addEventListener('click', () => {
@@ -1944,17 +1984,28 @@ export function renderEggView() {
   box.querySelector('#nurseryEggFavBtn')?.addEventListener('click', openFavView);
   // 丢弃 + 行点击（收藏菜单）
   bindEggRowEvents(box);
+  // 右键 / 手机长按列表：批量丢弃入口（收藏的蛋列表不提供）
+  const listScroll = box.querySelector('.nursery-egg-page .list-scroll');
+  listScroll?.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (_favView) { hideEggBatchMenu(); return; }
+    if (_eggBatch) { cancelEggBatchDiscard(); return; } // 批量模式再右键 = 退出
+    showEggBatchMenu(e.clientX, e.clientY);
+  });
 }
 
 // 蛋行单击菜单：普通蛋页给「收藏」，收藏页给「取消收藏」
 let _eggMenuUnwatch = null;
+let _eggMenuRowEl = null; // 菜单当前对应的行，打开期间保持 hover 高亮
 function hideEggRowMenu() {
   const menu = document.getElementById('nurseryEggCtxMenu');
   if (menu) menu.style.display = 'none';
+  _eggMenuRowEl?.classList.remove('menu-active');
+  _eggMenuRowEl = null;
   _eggMenuUnwatch?.();
   _eggMenuUnwatch = null;
 }
-function showEggRowMenu(eg, x, y) {
+function showEggRowMenu(eg, x, y, row) {
   let menu = document.getElementById('nurseryEggCtxMenu');
   if (!menu) {
     menu = document.createElement('div');
@@ -1963,6 +2014,10 @@ function showEggRowMenu(eg, x, y) {
     document.body.appendChild(menu);
   }
   menu.innerHTML = `<div class="shop-ctx-item" data-fav-toggle>${_favView ? '取消收藏' : '收藏'}</div>`;
+  // 高亮被点击的行：菜单浮在列表上，不标出行就分不清对哪个蛋生效
+  _eggMenuRowEl?.classList.remove('menu-active');
+  _eggMenuRowEl = row || null;
+  _eggMenuRowEl?.classList.add('menu-active');
   const { x: lx, y: ly } = logicViewport(x, y);
   const b = popupBounds();
   menu.style.display = 'block';
@@ -1984,6 +2039,107 @@ function toggleEggFav(id) {
   else eg.fav = true;
   saveGame();
   renderEggView();
+}
+
+// ---------- 批量丢弃 ----------
+// 右键 / 手机长按列表弹出的入口菜单（与仓库批量放生同一套样式）
+let _eggBatchMenuUnwatch = null;
+function hideEggBatchMenu() {
+  const menu = document.getElementById('nurseryEggBatchCtxMenu');
+  if (menu) menu.style.display = 'none';
+  _eggBatchMenuUnwatch?.();
+  _eggBatchMenuUnwatch = null;
+}
+function showEggBatchMenu(x, y) {
+  let menu = document.getElementById('nurseryEggBatchCtxMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'nurseryEggBatchCtxMenu';
+    menu.className = 'shop-ctx-menu';
+    document.body.appendChild(menu);
+  }
+  menu.innerHTML = '<div class="shop-ctx-item" data-batch-discard>批量丢弃</div>';
+  const { x: lx, y: ly } = logicViewport(x, y);
+  const b = popupBounds();
+  menu.style.display = 'block';
+  menu.style.left = Math.min(lx, b.right - 72) + 'px';
+  menu.style.top = Math.min(ly, b.bottom - 40) + 'px';
+  menu.onclick = (e) => {
+    if (!e.target.closest('[data-batch-discard]')) return;
+    hideEggBatchMenu();
+    startEggBatchDiscard();
+  };
+  _eggBatchMenuUnwatch?.();
+  _eggBatchMenuUnwatch = watchOutsidePress(menu, hideEggBatchMenu);
+}
+
+function startEggBatchDiscard() {
+  if (_favView) return; // 收藏的蛋不参与批量丢弃
+  _eggBatch = true;
+  _eggBatchSelected.clear();
+  _confirmDiscardEgg = null;
+  hideEggRowMenu();
+  setEggViewTitle('批量丢弃');
+  renderEggView();
+}
+
+export function cancelEggBatchDiscard() {
+  if (!_eggBatch) return;
+  _eggBatch = false;
+  _eggBatchSelected.clear();
+  hideConfirmBar();
+  setEggViewTitle(_favView ? '收藏的蛋' : '宝可梦蛋');
+  renderEggView();
+}
+
+export function isEggBatchDiscarding() {
+  return _eggBatch && isNurseryEggView();
+}
+
+// 底部确认栏：选中数变化时只更新文案，避免反复滑入滑出
+function updateEggBatchBar() {
+  const n = _eggBatchSelected.size;
+  if (n === 0) { hideConfirmBar(); return; }
+  const exist = document.getElementById('confirmBar');
+  if (exist && exist.dataset.role === 'eggBatchDiscard') {
+    exist.querySelector('.text-box-content').textContent = `已选中 ${n} 个蛋，确定丢弃？`;
+    return;
+  }
+  const bar = showConfirmBar(
+    `已选中 ${n} 个蛋，确定丢弃？`,
+    () => { doEggBatchDiscard(); return true; },
+    () => cancelEggBatchDiscard(),
+    { height: '40px' }
+  );
+  if (bar) bar.dataset.role = 'eggBatchDiscard';
+}
+
+function doEggBatchDiscard() {
+  if (_eggBatchSelected.size === 0) return;
+  const arr = gameData.roster || [];
+  let n = 0;
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const p = arr[i];
+    if (!_eggBatchSelected.has(p.id) || isPokemon(p) || p.fav) continue;
+    if (isIncubatingId(p.id)) continue;
+    arr.splice(i, 1);
+    n++;
+  }
+  _eggBatch = false;
+  _eggBatchSelected.clear();
+  saveGame();
+  addSystemLog(`批量丢弃了 ${n} 个蛋`);
+  setEggViewTitle(_favView ? '收藏的蛋' : '宝可梦蛋');
+  showConfirmBar(`已丢弃 ${n} 个蛋`, null, null, { noButtons: true, height: '40px' });
+  setTimeout(() => {
+    hideConfirmBar();
+    renderEggView();
+  }, 1500);
+}
+
+// 蛋是否正在孵化（与 renderEggView 内的同名判断口径一致）
+function isIncubatingId(id) {
+  return (gameData.incubators || []).some(s => s && s.eggRef === id);
 }
 
 // 蛋个体值斜杠串（与孵蛋器选蛋页一致）
@@ -2012,7 +2168,10 @@ export function leaveNurseryEggView() {
   _eggView = false;
   _favView = false;
   _confirmDiscardEgg = null; // 退出蛋仓库清除待确认丢弃态
+  _eggBatch = false;
+  _eggBatchSelected.clear();
   hideEggRowMenu();
+  hideEggBatchMenu();
   removeEggConfirmBar();
   const content = $('nurseryContent');
   if (content) { content.style.display = ''; content.style.flexDirection = ''; }

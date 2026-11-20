@@ -3,7 +3,7 @@ import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcl
 import { $, showView, updateTextBox, hideTextBox, showTextBoxNow, setIdleCharacter, isOnGameView, isIdleStageVisible, isDualLayout, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive, isEggShowActive, isStageOccupied } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
 import { playEncounterTransition, isEncounterTransitionRunning } from './transition.js';
-import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, takeBuffForRenew, clearBuffRenewPending, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
+import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, recordLegendFound, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, takeBuffForRenew, clearBuffRenewPending, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { catchBonusFor, computeObtainScore, computeMeetScore, recordLuck } from './scoring.js';
@@ -1019,6 +1019,8 @@ export async function throwBall(ballType) {
         ball: ballType,   // 捕获球种（高级筛选「球种」按它筛）
       });
       setLastObtainedEntryId(entry.id);
+      // 今日神兽发现：仅野外遭遇（每日神兽池）捕获才点亮统计页对应地区，其它来源不算
+      if (_encounterSource === 'normal' && currentEncounter.legend) recordLegendFound(currentEncounter);
       _lastCatchEntryId = entry.id; // 「是否查看详情」用：与孵蛋结果各记各的，避免互相顶掉
       // 记录遭遇日志（score 含个体值加成，需先建档拿到 ivs）
       addEncounterLog(idx, {

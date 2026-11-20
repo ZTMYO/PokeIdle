@@ -137,6 +137,8 @@ export function showView(id) {
     const cfModal = document.getElementById('cfModal');
     if (cfModal) cfModal.style.display = 'none';
   }
+  // 统计详情弹框挂在 console 上（不在 dataView 里），切走时要收掉，别浮在新页面上
+  if (id !== 'dataView') document.getElementById('statModalMask')?.remove();
   if (id === 'idleView' && phase === 'encounter') {
     id = 'encounterView';
   }

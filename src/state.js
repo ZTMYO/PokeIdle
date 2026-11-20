@@ -452,6 +452,7 @@ export function getDefaultSave() {
     tmShop: null,   // 商店今日招式机货架：{ date, ids }，由 tm.js 管理
     music: { mode: 'region', album: 3, playlist: [] }, // 音乐点播：当前地区 / 固定世代 / 我的喜爱（由 music.js 管理）
     legendPool: null, // 每日神兽池：{ date, byRegion: { 地区: [编号…] } }，由 items.js 管理
+    legendFound: null, // 今日神兽发现：{ date, byRegion: { 地区: [编号…] } }，只记野外捕获的每日神兽
     legendPity: 0,    // 神兽池软保底计数：连着多少场遇敌没出神兽
     trades: null, // 交换广场：{ refreshedAt: Date.now(), offers: [{ npc, want, give, traded }] }，由 trade.js 管理
     battleNpcs: null, // NPC 挑战：{ refreshedAt: Date.now(), list: [{ id, tier, title, name, sprite, lvBonus, candy, mons }] }，由 npcs.js 管理

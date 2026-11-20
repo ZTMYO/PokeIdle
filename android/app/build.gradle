@@ -22,7 +22,7 @@ android {
         applicationId "com.pokemon.idle"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 12400
+        versionCode 12401
         versionName "1.24.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

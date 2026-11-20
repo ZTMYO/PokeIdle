@@ -340,6 +340,24 @@ export function rollLegendEncounter(buffed = (honeyBuffActive || charmBuffActive
   return getPokemonByIndex(list[randInt(0, list.length - 1)]) || null;
 }
 
+// 今日神兽发现记录：{ date, byRegion: { 地区: [编号…] } }
+// 只由"野外遭遇捕获"触发（battle.js 捕获成功时调用）：孵蛋/交换/时空扭曲等其他来源抓到神兽都不算，
+// 否则会误导玩家去对应地区蹲点。记录只用于统计页点亮地区，不对外暴露当天池里的其它神兽
+export function recordLegendFound(poke) {
+  if (!poke || !poke.legend) return;
+  const idx = String(poke.index);
+  const pool = gameData.legendPool;
+  const today = evoDateStr();
+  if (!pool || pool.date !== today) return;
+  const region = poke.region;
+  // 必须确实属于今天这个地区的池子：跨天恢复的旧遭遇、其它来源的神兽都不点亮
+  if (!region || !(pool.byRegion?.[region] || []).includes(idx)) return;
+  const rec = gameData.legendFound;
+  if (!rec || rec.date !== today) gameData.legendFound = { date: today, byRegion: {} };
+  const list = gameData.legendFound.byRegion[region] || (gameData.legendFound.byRegion[region] = []);
+  if (!list.includes(idx)) list.push(idx);
+}
+
 // 清掉每日限量货与每日神兽池（{ date, ids } 或 { date, byRegion }），__refreshAll() 用它做调试刷新
 export function clearDailyStock() {
   let n = 0;

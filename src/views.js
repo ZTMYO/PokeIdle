@@ -1,8 +1,8 @@
 import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, SQUARE_SHINY_CHANCE, EGG_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_SPAWN_MIN, TWIST_SPAWN_MAX, TWIST_SPAWN_HONEY_MIN, TWIST_SPAWN_HONEY_MAX, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, PENGUIN_STEPS, PENGUIN_BREAK_CHANCE, PENGUIN_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
 import { TENT_DEX_GATE, TENT_FLOOR_LEVELS, TENT_PAYOUT_MULT, TENT_RECORD_MAX } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, flushSave, setSaveSuspended, formatNum, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon } from './state.js';
-import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress, viewportToLogic, tryLoadPokemonIcon, isDualLayout } from './ui.js';
-import { doCandyExchange, doSellBall, useBuffNowOrDefer, refillBuffIfEmpty, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf, BASIC_ITEM_ORDER } from './items.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, getCurrentRoadInfo, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, flushSave, setSaveSuspended, formatNum, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon } from './state.js';
+import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress, viewportToLogic, tryLoadPokemonIcon, tryLoadImage, isDualLayout } from './ui.js';
+import { doCandyExchange, doSellBall, useBuffNowOrDefer, refillBuffIfEmpty, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf, BASIC_ITEM_ORDER, ensureLegendPool } from './items.js';
 import { formatLogTime } from './pokedex.js';
 import { stopAutoFleeTimer, startAutoFleeTimer, autoCatch } from './battle.js';
 import { setVolume, setBattleMusic, setMusicEnabled, setSfxEnabled, playBattle, endBattle } from './audio.js';
@@ -133,6 +133,37 @@ const fmtPlayTime = s => {
   return `${pad(h)}:${pad(m)}`;
 };
 
+// 今日神兽：一个地区一行，行内图标的数量与当天该地区池子里的神兽数一致。
+// 未捕获的槽位一律显示 unknown 占位（不能剧透是哪只，也不能用剪影）；
+// 只有"野外遭遇捕获"后才换成对应神兽图标（数据由 items.js 的 recordLegendFound 写入）
+let _legendListSig = '';
+function renderLegendToday() {
+  const box = $('dataLegendList');
+  if (!box) return;
+  const today = dayKey();
+  const pool = ensureLegendPool();
+  const byRegion = pool && pool.date === today ? (pool.byRegion || {}) : {};
+  const rec = gameData.legendFound && gameData.legendFound.date === today ? (gameData.legendFound.byRegion || {}) : {};
+  const sig = today + '|' + REGION_CYCLE.map((n) => `${(byRegion[n] || []).length}:${(rec[n] || []).join(',')}`).join('|');
+  if (sig === _legendListSig) return;
+  _legendListSig = sig;
+  box.innerHTML = REGION_CYCLE.map((name) => {
+    const ids = byRegion[name] || [];
+    const found = new Set((rec[name] || []).map(String));
+    // 按池子顺序排布：捕获哪只就点亮哪个槽位，其余保持 unknown
+    const imgs = ids.map((id) => (found.has(String(id))
+      ? `<img class="stat-legend-icon" data-legend-icon="${id}" alt="">`
+      : '<img class="stat-legend-icon is-unknown" data-legend-unknown alt="">')).join('')
+      || '<span class="stat-legend-none">—</span>';
+    return `<div class="stat-legend-row"><span class="stat-legend-region">${name}</span><div class="stat-legend-icons">${imgs}</div></div>`;
+  }).join('');
+  box.querySelectorAll('[data-legend-icon]').forEach((img) => {
+    const p = getPokemonByIndex(String(img.dataset.legendIcon));
+    if (p) tryLoadPokemonIcon(img, p);
+  });
+  box.querySelectorAll('[data-legend-unknown]').forEach((img) => tryLoadImage(img, 'pokemon-data/icon/unknown.png'));
+}
+
 function refreshDataStats() {
   const stats = gameData.stats;
   const pokedex = gameData.pokedex;
@@ -203,12 +234,14 @@ function refreshDataStats() {
   $('dataTotalShinyHatched').textContent = formatNum(totalShinyHatched);
   $('dataTotalShinyTraded').textContent = formatNum(totalShinyTraded);
   $('dataTradesTotal').textContent = formatNum(stats.totalTrades || 0);
-  $('dataLegendPity').textContent = `${gameData.legendPity || 0} / ${LEGEND_PITY}`;
+  const pity = Math.min(gameData.legendPity || 0, LEGEND_PITY);
+  $('dataLegendPity').textContent = `${pity}/${LEGEND_PITY}`;
   $('dataRegion').textContent = region.name;
   $('dataWalkDist').textContent = walkText;
   $('dataDexPct').textContent = `${totalUnique}/${totalSpecies} (${pct}%)`;
+  const avgBalls = totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0';
   $('dataBallsUsed').textContent = formatNum(stats.totalBallsUsed);
-  $('dataBallsAvg').textContent = totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0';
+  $('dataBallsAvg').textContent = avgBalls;
   $('dataBlockMade').textContent = formatNum(stats.totalBlockMade || 0);
   $('dataPlantings').textContent = formatNum(stats.totalPlantings || 0);
   $('dataHarvests').textContent = formatNum(stats.totalHarvests || 0);
@@ -238,21 +271,37 @@ function refreshDataStats() {
   const pg = wlStat(gameData.penguinRecords || [], true);
   const vf = wlStat(gameData.voltorbRecords || [], true);
   const tent = wlStat(gameData.battleTent?.records || [], true);
-  $('dataCasinoWL').textContent = `胜 ${cs.w} / 负 ${cs.l} / 平 ${cs.p}`;
-  $('dataCasinoNet').textContent = `${cs.net > 0 ? '+' : ''}${formatNum(cs.net)} 币`;
-  $('dataMjWL').textContent = `胜 ${mj.w} / 负 ${mj.l} / 平 ${mj.p}`;
-  $('dataMjNet').textContent = `${mj.net > 0 ? '+' : ''}${formatNum(mj.net)} 币`;
-  $('dataPgWL').textContent = `胜 ${pg.w} / 负 ${pg.l} / 平 ${pg.p}`;
-  $('dataPgNet').textContent = `${pg.net > 0 ? '+' : ''}${formatNum(pg.net)} 币`;
-  $('dataVfWL').textContent = `胜 ${vf.w} / 负 ${vf.l} / 平 ${vf.p}`;
-  $('dataVfNet').textContent = `${vf.net > 0 ? '+' : ''}${formatNum(vf.net)} 币`;
-  $('dataTentWL').textContent = `胜 ${tent.w} / 负 ${tent.l} / 平 ${tent.p}`;
-  $('dataTentNet').textContent = `${tent.net > 0 ? '+' : ''}${formatNum(tent.net)} 币`;
+  $('dataCasinoWL').textContent = `${cs.w}/${cs.l}/${cs.p}`;
+  $('dataCasinoNet').textContent = `${cs.net > 0 ? '+' : ''}${formatNum(cs.net)}`;
+  $('dataMjWL').textContent = `${mj.w}/${mj.l}/${mj.p}`;
+  $('dataMjNet').textContent = `${mj.net > 0 ? '+' : ''}${formatNum(mj.net)}`;
+  $('dataPgWL').textContent = `${pg.w}/${pg.l}/${pg.p}`;
+  $('dataPgNet').textContent = `${pg.net > 0 ? '+' : ''}${formatNum(pg.net)}`;
+  $('dataVfWL').textContent = `${vf.w}/${vf.l}/${vf.p}`;
+  $('dataVfNet').textContent = `${vf.net > 0 ? '+' : ''}${formatNum(vf.net)}`;
+  $('dataTentWL').textContent = `${tent.w}/${tent.l}/${tent.p}`;
+  $('dataTentNet').textContent = `${tent.net > 0 ? '+' : ''}${formatNum(tent.net)}`;
+  // 分类卡片上的概览数值（点开卡片在弹框里看完整明细）
+  const earnedTotal = Object.values(earned).reduce((n, v) => n + (Number(v) || 0), 0);
+  $('dataPvLegend').textContent = `保底 ${pity}/${LEGEND_PITY}`;
+  // 冒险进度：与状态栏同口径，在路上显示「22#道路（帕底亚）」，否则显示地区
+  const gps = gameData.gps;
+  const onRoad = !!(gps && gps.path && gps.path.length >= 2 && gps.seg < gps.path.length - 1 && gps.totalPx > 0);
+  const road = onRoad ? getCurrentRoadInfo() : null;
+  $('dataPvRegion').textContent = road ? `${road.num}#道路（${road.name}）` : region.name;
+  $('dataPvBalls').textContent = `${formatNum(stats.totalBallsUsed)} 球`;
+  $('dataPvFarm').textContent = `收获 ${formatNum(stats.totalHarvests || 0)} 次`;
+  $('dataPvBounty').textContent = `今日 ${formatNum(stats.bountyClaimsToday || 0)}`;
+  $('dataPvNpc').textContent = `胜 ${formatNum(stats.totalNpcWins || 0)}`;
+  const casinoNet = cs.net + mj.net + pg.net + vf.net + tent.net;
+  $('dataPvCasino').textContent = `净 ${casinoNet > 0 ? '+' : ''}${formatNum(casinoNet)}`;
+  $('dataPvEarned').textContent = `共 ${formatNum(earnedTotal)} 件`;
+  renderLegendToday();
   const earnedEl = $('dataEarned');
   if (earnedEl) {
     // 只列基础道具：进化道具/专属道具/薄荷加起来上百种，一行一个铺不开
     earnedEl.innerHTML = ['candy', ...BASIC_ITEM_ORDER].map((k) =>
-      `<div class="stat-row"><span>${ITEM_NAMES[k] || k}</span><span>${formatNum(earned[k] || 0)}</span></div>`
+      `<tr><td>${ITEM_NAMES[k] || k}</td><td>${formatNum(earned[k] || 0)}</td></tr>`
     ).join('');
   }
 }
@@ -276,8 +325,10 @@ function renderRosterMix() {
     ['炫彩', cnt((p) => p.variant === 'rainbow')],
   ];
   box.innerHTML = list.map(([k, v]) =>
-    `<div class="stat-row"><span>${k}</span><span>${formatNum(v)}</span></div>`
+    `<tr><td>${k}</td><td>${formatNum(v)}</td></tr>`
   ).join('');
+  const pv = $('dataPvRoster');
+  if (pv) pv.textContent = `闪光 ${formatNum(list[4][1])} · 神兽 ${formatNum(list[5][1])}`;
 }
 
 // 宿敌：野外遇见最多、一次没抓到的那只（按图鉴条目，孵蛋/交换不算遭遇）
@@ -291,18 +342,21 @@ function renderNemesis() {
     if (!wild.length || wild.some((l) => l.result === 'caught')) continue;
     if (!best || wild.length > best.n) best = { idx, n: wild.length };
   }
-  let text = '暂无 · 遇到的都抓到了';
+  let text = '暂无';
   if (best) {
     const poke = getPokemonByIndex(String(best.idx));
     text = `${poke ? (poke.form || poke.name) : best.idx} · 遇见 ${formatNum(best.n)} 次未捕获`;
   }
-  box.innerHTML = `<div class="stat-row"><span>宿敌</span><span>${text}</span></div>`;
+  // 和别的卡片一样，只留一行 subtitle 放值
+  box.innerHTML = `<div class="stat-card-preview">${text}</div>`;
 }
 
 export function showDataView() {
   pushNav('dataView');
 
   const content = $('dataContent');
+  // 上一次进入残留的弹框（挂在 body 上）先清掉，避免 id 重复
+  document.querySelectorAll('#statModalMask').forEach((m) => m.remove());
   // 数值 span 由 refreshDataStats 按 id 填充，避免整页重建导致滚动位置丢失
   content.innerHTML = `
     <div class="stat-inner">
@@ -310,7 +364,7 @@ export function showDataView() {
       <div class="stat-row"><span>称号</span><span id="dataRating"></span></div>
       <div class="stat-row"><span>抽卡欧气</span><span id="dataGachaRating"></span></div>
 
-      <div class="stat-section">数据总览</div>
+      <div class="stat-section stat-gap">数据总览</div>
       <table class="stat-table">
         <thead>
           <tr><th>项目</th><th>今日</th><th>累计</th></tr>
@@ -331,58 +385,172 @@ export function showDataView() {
         </tbody>
       </table>
 
-      <div class="stat-section">冒险进度</div>
-      <div class="stat-row"><span>当前地区</span><span id="dataRegion"></span></div>
-      <div class="stat-row"><span>行走距离</span><span id="dataWalkDist"></span></div>
-      <div class="stat-row"><span>图鉴完成度</span><span id="dataDexPct"></span></div>
-      <div class="stat-row"><span>当前神兽保底</span><span id="dataLegendPity"></span></div>
+      <div class="stat-grid">
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">今日神兽</div>
+          <div class="stat-card-preview" id="dataPvLegend"></div>
+          <div class="stat-detail">
+            <div class="stat-legend-meta">保底 <b id="dataLegendPity"></b> · 野外捕获后点亮对应图标</div>
+            <div id="dataLegendList" class="stat-legend-list"></div>
+          </div>
+        </div>
 
-      <div class="stat-section">仓库情况</div>
-      <div id="dataRosterMix"></div>
-      <div class="stat-section">宿敌</div>
-      <div id="dataNemesis"></div>
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">冒险进度</div>
+          <div class="stat-card-preview" id="dataPvRegion"></div>
+          <div class="stat-detail">
+            <table class="stat-table">
+              <tbody>
+                <tr><td>当前地区</td><td id="dataRegion"></td></tr>
+                <tr><td>行走距离</td><td id="dataWalkDist"></td></tr>
+                <tr><td>图鉴完成度</td><td id="dataDexPct"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div class="stat-section">消耗统计</div>
-      <div class="stat-row"><span>精灵球使用</span><span id="dataBallsUsed"></span></div>
-      <div class="stat-row"><span>平均球/遇敌</span><span id="dataBallsAvg"></span></div>
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">仓库情况</div>
+          <div class="stat-card-preview" id="dataPvRoster"></div>
+          <div class="stat-detail">
+            <table class="stat-table"><tbody id="dataRosterMix"></tbody></table>
+          </div>
+        </div>
 
-      <div class="stat-section">农场与合成</div>
-      <div class="stat-row"><span>合成树果方块</span><span id="dataBlockMade"></span></div>
-      <div class="stat-row"><span>种植次数</span><span id="dataPlantings"></span></div>
-      <div class="stat-row"><span>收获次数</span><span id="dataHarvests"></span></div>
-      <div class="stat-row"><span>收获树果</span><span id="dataBerriesHarvested"></span></div>
-      <div class="stat-row"><span>完成需求</span><span id="dataBoardTrades"></span></div>
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">消耗统计</div>
+          <div class="stat-card-preview" id="dataPvBalls"></div>
+          <div class="stat-detail">
+            <table class="stat-table">
+              <tbody>
+                <tr><td>精灵球使用</td><td id="dataBallsUsed"></td></tr>
+                <tr><td>平均球/遇敌</td><td id="dataBallsAvg"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div class="stat-section">地区悬赏</div>
-      <div class="stat-row"><span>累计完成悬赏</span><span id="dataBountyClaims"></span></div>
-      <div class="stat-row"><span>今日完成悬赏</span><span id="dataBountyToday"></span></div>
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">农场与合成</div>
+          <div class="stat-card-preview" id="dataPvFarm"></div>
+          <div class="stat-detail">
+            <table class="stat-table">
+              <tbody>
+                <tr><td>合成树果方块</td><td id="dataBlockMade"></td></tr>
+                <tr><td>种植次数</td><td id="dataPlantings"></td></tr>
+                <tr><td>收获次数</td><td id="dataHarvests"></td></tr>
+                <tr><td>收获树果</td><td id="dataBerriesHarvested"></td></tr>
+                <tr><td>完成需求</td><td id="dataBoardTrades"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div class="stat-section">NPC 对战</div>
-      <div class="stat-row"><span>累计战胜训练家</span><span id="dataNpcWins"></span></div>
-      <div class="stat-row"><span>战胜普通训练家</span><span id="dataNpcNoviceWins"></span></div>
-      <div class="stat-row"><span>战胜精英</span><span id="dataNpcEliteWins"></span></div>
-      <div class="stat-row"><span>战胜馆主</span><span id="dataNpcLeaderWins"></span></div>
-      <div class="stat-row"><span>战胜冠军</span><span id="dataNpcChampionWins"></span></div>
-      <div class="stat-row"><span>对战糖果</span><span id="dataNpcCandy"></span></div>
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">地区悬赏</div>
+          <div class="stat-card-preview" id="dataPvBounty"></div>
+          <div class="stat-detail">
+            <table class="stat-table">
+              <tbody>
+                <tr><td>累计完成悬赏</td><td id="dataBountyClaims"></td></tr>
+                <tr><td>今日完成悬赏</td><td id="dataBountyToday"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div class="stat-section">游戏厅战绩</div>
-      <div class="stat-row"><span>21点 胜/负/平</span><span id="dataCasinoWL"></span></div>
-      <div class="stat-row"><span>21点 净盈亏</span><span id="dataCasinoNet"></span></div>
-      <div class="stat-row"><span>麻将 胜/负/平</span><span id="dataMjWL"></span></div>
-      <div class="stat-row"><span>麻将 净盈亏</span><span id="dataMjNet"></span></div>
-      <div class="stat-row"><span>跳企鹅 胜/负/平</span><span id="dataPgWL"></span></div>
-      <div class="stat-row"><span>跳企鹅 净盈亏</span><span id="dataPgNet"></span></div>
-      <div class="stat-row"><span>电球翻牌 胜/负/平</span><span id="dataVfWL"></span></div>
-      <div class="stat-row"><span>电球翻牌 净盈亏</span><span id="dataVfNet"></span></div>
-      <div class="stat-row"><span>对战帐篷 胜/负/平</span><span id="dataTentWL"></span></div>
-      <div class="stat-row"><span>对战帐篷 净盈亏</span><span id="dataTentNet"></span></div>
-      <div class="stat-row"><span>卡册收集进度</span><span id="dataCardPct"></span></div>
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">NPC 对战</div>
+          <div class="stat-card-preview" id="dataPvNpc"></div>
+          <div class="stat-detail">
+            <table class="stat-table">
+              <tbody>
+                <tr><td>累计战胜训练家</td><td id="dataNpcWins"></td></tr>
+                <tr><td>战胜普通训练家</td><td id="dataNpcNoviceWins"></td></tr>
+                <tr><td>战胜精英</td><td id="dataNpcEliteWins"></td></tr>
+                <tr><td>战胜馆主</td><td id="dataNpcLeaderWins"></td></tr>
+                <tr><td>战胜冠军</td><td id="dataNpcChampionWins"></td></tr>
+                <tr><td>对战糖果</td><td id="dataNpcCandy"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div class="stat-section">道具累计获得</div>
-      <div id="dataEarned"></div>
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">游戏厅战绩</div>
+          <div class="stat-card-preview" id="dataPvCasino"></div>
+          <div class="stat-detail">
+            <table class="stat-table stat-table-sm">
+              <thead>
+                <tr><th>游戏</th><th>胜/负/平</th><th>净盈亏</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>21点</td><td id="dataCasinoWL"></td><td id="dataCasinoNet"></td></tr>
+                <tr><td>麻将</td><td id="dataMjWL"></td><td id="dataMjNet"></td></tr>
+                <tr><td>跳企鹅</td><td id="dataPgWL"></td><td id="dataPgNet"></td></tr>
+                <tr><td>电球翻牌</td><td id="dataVfWL"></td><td id="dataVfNet"></td></tr>
+                <tr><td>对战帐篷</td><td id="dataTentWL"></td><td id="dataTentNet"></td></tr>
+                <tr><td>卡册收集</td><td colspan="2" id="dataCardPct"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="stat-card" data-stat-card>
+          <div class="stat-card-title">道具累计获得</div>
+          <div class="stat-card-preview" id="dataPvEarned"></div>
+          <div class="stat-detail">
+            <table class="stat-table"><tbody id="dataEarned"></tbody></table>
+          </div>
+        </div>
+
+        <!-- 宿敌：纯展示卡，没有可点开的明细 -->
+        <div class="stat-card stat-card-static">
+          <div class="stat-card-title">宿敌</div>
+          <div id="dataNemesis"></div>
+        </div>
+      </div>
+
+      <div id="statModalMask" class="stat-modal-mask">
+        <div class="stat-modal">
+          <div class="stat-modal-head">
+            <span id="statModalTitle"></span>
+            <button type="button" id="statModalClose" class="stat-modal-close" aria-label="关闭">✕</button>
+          </div>
+          <div id="statModalBody" class="stat-modal-body"></div>
+        </div>
+      </div>
     </div>
   `;
+  // 分类卡片：把隐藏的明细块挪进弹框里展示（不复制 DOM，id 唯一，每秒刷新照常生效）
+  const mask = $('statModalMask');
+  // 挂到掌机 console 内（同高级筛选 / 捕捉条件）：absolute 遮罩只覆盖整台掌机，
+  // 也避开 .screen 的 isolation 层叠上下文，不会被下屏的背包页签压住
+  const host = document.querySelector('.console') || document.body;
+  host.appendChild(mask);
+  const modalBody = $('statModalBody');
+  let openCard = null;
+  const closeStatModal = () => {
+    const detail = modalBody.firstElementChild;
+    if (openCard && detail) openCard.appendChild(detail);
+    openCard = null;
+    mask.classList.remove('open');
+  };
+  content.querySelectorAll('.stat-card[data-stat-card]').forEach((card) => {
+    card.addEventListener('click', () => {
+      const detail = card.querySelector('.stat-detail');
+      if (!detail) return;
+      if (openCard) closeStatModal();
+      $('statModalTitle').textContent = card.querySelector('.stat-card-title')?.textContent || '';
+      modalBody.appendChild(detail);
+      openCard = card;
+      mask.classList.add('open');
+    });
+  });
+  mask.addEventListener('click', (e) => { if (e.target === mask) closeStatModal(); });
+  $('statModalClose').addEventListener('click', closeStatModal);
   // 初始填充 + 每秒实时刷新全部动态值；离开统计页后定时器自动停止
+  _legendListSig = ''; // 页面重建后图标 DOM 也重建，签名失效
   refreshDataStats();
   renderRosterMix(); // 这两块要扫仓库和全部相遇日志，只在进页面时算一次，不跟每秒刷新
   renderNemesis();

@@ -1419,19 +1419,21 @@ const RANGED_PHYS_MULTI = {
   '鳞射':       { shape: 'scale',   color: TYPE_COLORS['龙'] },
   '尖刺加农炮': { shape: 'pill',    color: TYPE_COLORS['一般'] },
 };
-// 远程单体物理（冰砾/毒针/毒千针/垃圾射击）：不贴脸，发射一发粒子/团块直射对手
+// 远程单体物理（冰砾/毒针/毒千针/垃圾射击/种子炸弹）：不贴脸，发射一发粒子/团块直射对手
 const RANGED_SINGLE = {
   '冰砾':     { shape: 'sphere', color: TYPE_COLORS['冰'] },
   '毒针':     { shape: 'needle', color: TYPE_COLORS['毒'] },
   '毒千针':   { shape: 'needle', color: TYPE_COLORS['毒'] },
   '垃圾射击': { shape: 'blob',   color: TYPE_COLORS['毒'] },
+  // 种子炸弹：复用种子机关枪的原作种子素材，单发大种子 + 命中后炸开一簇树叶
+  '种子炸弹': { shape: 'seed',   color: TYPE_COLORS['草'], size: 1.4, leafBurst: true },
 };
 
 // 弹道粒子：一串粒子从攻击方位置飞向目标，逐一在目标处消失（shape: 'bubble' 气泡 / 'star' 星形 / 'pebble' 圆石 / 'flame' 火焰 / 'ball' 圆球 / 'confuse' 柔和球）。
 // 我方（左下→右上）由大变小，敌方（右上→左下）由小变大；始末大小/位移/错峰由 CSS 变量传入。
 // 圆球类招式仅发射单球：先在攻击方位置蓄力变大，再沿直线飞向目标（动画见 ballCharge）；
 // solid 为 true 时去掉柔和光晕（实心岩石球，如击落）
-function spawnProjStream(side, shape, color, solid) {
+function spawnProjStream(side, shape, color, solid, tex) {
   const from = $(`${side}-img`);
   const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
   const box = $(`${side}-box`);
@@ -1450,11 +1452,21 @@ function spawnProjStream(side, shape, color, solid) {
   fx.style.left = sx + 'px';
   fx.style.top = sy + 'px';
   if (shape === 'ball' || shape === 'confuse') {
+    if (tex) {
+      fx.className = 'b-proj-fx proj-img';
+      fx.style.setProperty('--img', `url(${new URL('./pe-battle/move-fx-assets/pe/' + tex.img, import.meta.url).href})`);
+    }
     const b = document.createElement('i');
     b.style.setProperty('--bx', (ex - sx).toFixed(1) + 'px');
     b.style.setProperty('--by', (ey - sy).toFixed(1) + 'px');
     b.style.setProperty('--bs', (16 + Math.random() * 4).toFixed(1) + 'px');
     if (solid) b.style.boxShadow = 'none';
+    if (tex) {
+      b.style.setProperty('--bs', tex.px + 'px');
+      b.style.setProperty('--frames', String(tex.frames));
+      b.style.setProperty('--bgy', (tex.frames > 1 ? (tex.frame / (tex.frames - 1)) * 100 : 0) + '%');
+      if (tex.filter) b.style.filter = tex.filter;
+    }
     fx.appendChild(b);
     box.appendChild(fx);
     return new Promise((resolve) => setTimeout(() => { fx.remove(); resolve(); }, 740));
@@ -1480,7 +1492,7 @@ function spawnProjStream(side, shape, color, solid) {
   box.appendChild(fx);
   return new Promise((resolve) => setTimeout(() => { fx.remove(); resolve(); }, 700));
 }
-function spawnProjOne(side, shape, color) {
+function spawnProjOne(side, shape, color, size = 1) {
   const from = $(`${side}-img`);
   const to = $(`${side === 'bp' ? 'be' : 'bp'}-img`);
   const box = $(`${side}-box`);
@@ -1505,7 +1517,7 @@ function spawnProjOne(side, shape, color) {
   b.style.setProperty('--by', (ey - sy + (Math.random() * 12 - 6)).toFixed(1) + 'px');
   b.style.setProperty('--sf', shrink ? 1.5 : 0.45);
   b.style.setProperty('--se', shrink ? 0.45 : 1.5);
-  b.style.setProperty('--bs', (9 + Math.random() * 5).toFixed(1) + 'px');
+  b.style.setProperty('--bs', ((9 + Math.random() * 5) * size).toFixed(1) + 'px');
   fx.appendChild(b);
   box.appendChild(fx);
   // 飞行动画 0.35s：等待其飞抵目标（略留余量覆盖起始延迟），随后移除粒子
@@ -1979,26 +1991,6 @@ function spawnScreenFlash() {
   stage.appendChild(fx);
   setTimeout(() => fx.remove(), 420);
 }
-// 大面积水系招式（潮旋/水之波动/泼冷水/冲浪/热水）：蓝色半透明水幕整片覆盖战场，
-// 沿对角线涌过（我方从左下角涌向右上角，敌方从右上角涌向左下角，由 --dx/--dy 控制位移）
-function spawnWaterSweep(side) {
-  const stage = document.querySelector('.battle-fight');
-  if (!stage) return;
-  const fx = document.createElement('span');
-  fx.className = 'b-water-fx';
-  const wave = document.createElement('i');
-  if (side === 'bp') {
-    wave.style.setProperty('--dx', '30%');  // 左下 → 右上
-    wave.style.setProperty('--dy', '-30%');
-  } else {
-    wave.classList.add('be'); // 锚点翻到右上角，再向左下涌（与我方镜像）
-    wave.style.setProperty('--dx', '-30%'); // 右上 → 左下
-    wave.style.setProperty('--dy', '30%');
-  }
-  fx.appendChild(wave);
-  stage.appendChild(fx);
-  setTimeout(() => fx.remove(), 700);
-}
 // 抓狂：攻击方左右来回平移两次，之后走普通受击
 async function flailWindup(side) {
   const img = $(`${side}-img`);
@@ -2081,11 +2073,12 @@ const SURF_WAVE_SRC = {
   bp: './pe-battle/move-fx-assets/surf-player.png',
   be: './pe-battle/move-fx-assets/surf-enemy.png',
 };
-function spawnSurfWave(side, muddy = false) {
+function spawnSurfWave(side, tint = 'water') {
   const stage = document.querySelector('.battle-fight');
   if (!stage) return;
   const fx = document.createElement('span');
-  fx.className = 'b-surf-fx ' + (side === 'bp' ? 'is-player' : 'is-enemy') + (muddy ? ' is-muddy' : '');
+  fx.className = 'b-surf-fx ' + (side === 'bp' ? 'is-player' : 'is-enemy')
+    + (tint === 'mud' ? ' is-muddy' : tint === 'sludge' ? ' is-sludge' : '');
   const water = document.createElement('span');
   water.className = 'b-surf-water';
   const wave = document.createElement('img');
@@ -2094,6 +2087,17 @@ function spawnSurfWave(side, muddy = false) {
   wave.alt = '';
   water.appendChild(wave);
   fx.appendChild(water);
+  if (tint === 'sludge') {
+    for (let i = 0; i < 10; i++) {
+      const b = document.createElement('span');
+      b.className = 'b-sludge-bubble';
+      b.style.left = (8 + Math.random() * 84).toFixed(1) + '%';
+      b.style.bottom = (4 + Math.random() * 22).toFixed(1) + '%';
+      b.style.setProperty('--bd', (Math.random() * 0.35).toFixed(2) + 's');
+      b.style.setProperty('--bsz', (8 + Math.random() * 8).toFixed(0) + 'px');
+      fx.appendChild(b);
+    }
+  }
   stage.appendChild(fx);
   setTimeout(() => fx.remove(), 1000);
 }
@@ -4680,7 +4684,7 @@ async function playEvents(events, battle, hitRef, hitType, multiSide, rangedOpts
       // 原作粒子流招式命中时补抖动/后撤；knockback 用定向后撤（远离攻击方）
       if (opts?.knockback) hitRecoil(dSide);
       else if (!skipFx || opts?.hitShake) shake(dSide);
-      if (!skipFx) {
+      if (!skipFx && !opts?.skipImpact) {
         spawnImpactAsset(dSide);
       }
       // 水系近战命中：原作 WaterImpact 水花 + 蟹钳锤同款小气泡
@@ -5687,6 +5691,11 @@ async function doAttackInner(actor, side, moveId, battle) {
         const tSide = foe === curMon(battle, 'p') ? 'bp' : 'be';
         spawnImpactAsset(tSide);
       }
+      // 种子机关枪：原作脚本只有种子 sprite、没有命中贴图，每颗种子飞抵时补一张 impact
+      if (mv.name === '种子机关枪') {
+        const tSide = foe === curMon(battle, 'p') ? 'bp' : 'be';
+        spawnImpactAsset(tSide);
+      }
     },
   });
   if (peDone) {
@@ -5717,12 +5726,20 @@ async function doAttackInner(actor, side, moveId, battle) {
   const isDragon = mv.type === '龙' && moveCat(mv) === 'spec' && mv.name !== '龙卷风';
   // 吸血招式（吸取/超级吸取/终极吸取/吸取拳/吸取之吻等 drain 类）：命中后粒子从目标吸回攻击方
   const isDrain = mv.effect && mv.effect.kind === 'drain';
-  // 大面积水系招式（潮旋/水之波动/泼冷水/冲浪/浊流）：蓝色半透明水幕沿对角线涌过战场
-  const isWaterSweep = mv.name === '潮旋' || mv.name === '水之波动' || mv.name === '泼冷水' || mv.name === '冲浪' || mv.name === '浊流';
+  // 大范围水系招式（冲浪/浊流）：原作浪花贴图横扫战场（其余水系招式都有原作脚本或有自己的弹道特效）
+  const isSurfWave = mv.name === '冲浪' || mv.name === '浊流';
+  const isSludgeWave = mv.name === '污泥波';
   const isHotWater = mv.name === '热水';
-  // 圆球弹道招式（按属性着色）；火花/磷火复用火焰球
-  const BALL_COLOR = { '能量球': '#3fa129', '暗影球': '#7a52c9', '电球': '#ffd93b', '火焰球': '#ff7a2e', '火花': '#ff7a2e', '磷火': '#ff7a2e', '大字爆炎': '#ff7a2e', '意念头锤': '#F8669C', '污泥炸弹': '#8943B0', '击落': '#D3A865', '加农光炮': '#60a1b8' };
-  const isBall = Object.prototype.hasOwnProperty.call(BALL_COLOR, mv.name);
+  const BALL_COLOR = { '暗影球': '#7a52c9', '火花': '#ff7a2e', '磷火': '#ff7a2e', '大字爆炎': '#ff7a2e' };
+  const BALL_IMG = {
+    '能量球': { img: 'Gfx_Orbs__16x16.png', frames: 3, frame: 2, px: 28 },
+    '电球': { img: 'Gfx_Shock3__32x32.png', frames: 3, frame: 2, px: 30 },
+    '火焰球': { img: 'Gfx_WispFire__32x32.png', frames: 4, frame: 3, px: 30 },
+    '意念头锤': { img: 'Gfx_HollowOrb__16x16.png', frames: 1, frame: 0, px: 30, filter: 'sepia(1) saturate(6) hue-rotate(-55deg) brightness(1.05)' },
+    '击落': { img: 'Gfx_Rocks__32x32.png', frames: 6, frame: 0, px: 30 },
+    '加农光炮': { img: 'Gfx_WeatherBall__32x32.png', frames: 1, frame: 0, px: 30 },
+  };
+  const isBall = Object.prototype.hasOwnProperty.call(BALL_COLOR, mv.name) || Object.prototype.hasOwnProperty.call(BALL_IMG, mv.name);
   // 圆石弹道（原始之力 岩石 / 掷泥 地面）：一串实心圆粒飞向对手，颜色按属性取
   const isPebble = mv.name === '原始之力' || mv.name === '掷泥';
   const PEBBLE_COLOR = { '原始之力': '#D3A865', '掷泥': '#9C5A59' };
@@ -5739,7 +5756,7 @@ async function doAttackInner(actor, side, moveId, battle) {
   const rangedSingle = RANGED_SINGLE[mv.name];
   if (!multiPhys) {
     // 特攻弹道招式：出手的同一下前倾，和发射物同帧（物理冲撞走下面的 lungeAttack，吸血招式在命中段自带前倾）
-    if (!isPhys && !isDrain && moveCat(mv) === 'spec' && mv.effect?.target !== 'self') lunge(side);
+    if (!isPhys && !isDrain && moveCat(mv) === 'spec' && mv.effect?.target !== 'self' && mv.name !== '能量球') lunge(side);
     if (isSound) {
       const selfSound = mv.effect?.target === 'self' || mv.effect?.kind === 'cure';
       spawnSoundWave(side, selfSound ? side : (side === 'bp' ? 'be' : 'bp')); // 从攻击方发出声波，自身增益只原地扩散
@@ -5749,12 +5766,13 @@ async function doAttackInner(actor, side, moveId, battle) {
       await battleSleep(mv.name === '翅膀攻击' ? 500 : 430); // 等旋风消失时再结算
     } else if (isHotWater) {
       await spawnProjStream(side, 'drop', '#ffb36b');
-    } else if (isWaterSweep) {
-      const isSurfWave = mv.name === '冲浪' || mv.name === '浊流';
-      if (isSurfWave) spawnSurfWave(side, mv.name === '浊流'); // 冲浪/浊流：原版浪花贴图
-      else spawnWaterSweep(side); // 其余水系：蓝色水幕沿对角线涌过战场
-      // 冲浪水层 0.9s 才涌到对面，等浪拍到目标身上再结算（受击颤抖与浪头同帧）
-      await battleSleep(isSurfWave ? 700 : 560);
+    } else if (isSurfWave) {
+      spawnSurfWave(side, mv.name === '浊流' ? 'mud' : 'water'); // 冲浪/浊流：原版浪花贴图
+      // 水层 0.9s 才涌到对面，等浪拍到目标身上再结算（受击颤抖与浪头同帧）
+      await battleSleep(700);
+    } else if (isSludgeWave) {
+      spawnSurfWave(side, 'sludge');
+      await battleSleep(700);
     } else if (isDragon) {
       spawnDragonWave(side); // 龙息能量波弹道
       await battleSleep(480); // 等能量波飞抵目标再结算伤害（动画 0.6s，到位约 0.5s）
@@ -5780,7 +5798,12 @@ async function doAttackInner(actor, side, moveId, battle) {
     } else if (isLeafStream) {
       await spawnProjStream(side, mv.name === '花瓣舞' ? 'petal' : 'leaf');
     } else if (isBall) {
-      await spawnProjStream(side, 'ball', BALL_COLOR[mv.name], mv.name === '击落');
+      const proj = spawnProjStream(side, 'ball', BALL_COLOR[mv.name], mv.name === '击落', BALL_IMG[mv.name]);
+      if (mv.name === '能量球') {
+        await battleSleep(170);
+        lunge(side);
+      }
+      await proj;
     } else if (isIceBeam) {
       spawnIceBeam(side); // 一道淡蓝色直线射到对手
       await battleSleep(360); // 等光束射到对手处再结算伤害
@@ -5817,11 +5840,14 @@ async function doAttackInner(actor, side, moveId, battle) {
       spawnDrainParticles(side === 'bp' ? 'be' : 'bp', side);
       await battleSleep(520); // 等粒子吸回再结算伤害（粒子约 0.45-0.65s）
     } else {
-      // 远程单体物理（冰砾）：留原位射一发冰球，等弹到对手处再结算伤害
+      // 远程单体物理（冰砾/种子炸弹）：留原位射一发弹道，粒子飞抵对手即算命中
       if (rangedSingle) {
         raiseAttacker(side);
-        await spawnProjOne(side, rangedSingle.shape, rangedSingle.color);
-        await battleSleep(120); // 冰球落点后留一小拍再结算
+        await spawnProjOne(side, rangedSingle.shape, rangedSingle.color, rangedSingle.size);
+        // impact 与弹道同帧落在对手身上；若等到结算事件再补，粒子淡出后会有明显空档
+        const tSide = side === 'bp' ? 'be' : 'bp';
+        spawnImpactAsset(tSide);
+        if (rangedSingle.leafBurst) spawnLeafBurstFx(tSide); // 种子炸弹：命中处炸开一簇树叶
         lowerAttacker(side);
       } else {
         if (isPhys) lungeAttack(side);
@@ -5835,7 +5861,11 @@ async function doAttackInner(actor, side, moveId, battle) {
   // 近战多段：各击在 playEvents 的 step 里逐击摆动；远程多段：逐击喷射粒子，弹到即结算伤害
   if (mv.type === '火' && moveCat(mv) !== 'status') spawnFireBurst(side === 'bp' ? 'be' : 'bp');
   if (moveCat(mv) !== 'status' && IMPACT_TINT_TYPES.has(mv.type)) spawnImpactTint(side === 'bp' ? 'be' : 'bp', TYPE_COLORS[mv.type]);
-  await playEvents(evs, battle, foe, mv.type, multiPhys ? side : null, rangedPhys || null, waterBubbles ? { waterBubbles: true } : null);
+  const evOpts = {};
+  if (waterBubbles) evOpts.waterBubbles = true;
+  if (rangedSingle) evOpts.skipImpact = true; // 单体弹道的 impact 已在飞抵目标时播放，结算时不再重复
+  await playEvents(evs, battle, foe, mv.type, multiPhys ? side : null, rangedPhys || null,
+    Object.keys(evOpts).length ? evOpts : null);
   hideCosmicBg();
   syncFieldFx(battle); // 出招结算后刷新护盾/钉子表现（守住生效、撒菱/毒菱/隐形岩落场）
 }
@@ -5990,7 +6020,7 @@ function fxdbgRestoreDom(battle) {
   fight.querySelectorAll('.pe-root, .pe-bg, .pe-surf, .pe-tint').forEach((el) => el.remove());
   // 一次性特效若没等到 animationend 也会残留，重播前统一清场（常驻状态粒子不动）
   fight.querySelectorAll('.b-dmg, .b-proj-fx, .b-solar-fx,'
-    + ' .b-lightning-fx, .b-rock-fx, .b-snow-fx, .b-sonic-fx, .b-beam-fx, .b-aurora-fx, .b-aurora-bg-fx, .b-fairy-fx, .b-water-fx, .b-surf-fx, .b-shell-fx,'
+    + ' .b-lightning-fx, .b-rock-fx, .b-snow-fx, .b-sonic-fx, .b-beam-fx, .b-aurora-fx, .b-aurora-bg-fx, .b-fairy-fx, .b-surf-fx, .b-shell-fx,'
     + ' .fx-orbit-back, .fx-orbit-front, .b-charge-asset, .b-wind-fx, .b-dragon-fx, .b-psy-fx, .b-ground-fx, .fx-spark-asset, .fx-orig,'
     + ' .b-screen-flash, .b-cosmic-bg, .b-impact-bg, .b-impact-tint, .b-fire-burst, .b-gust-stream,'
     + ' .b-memento-orb, .b-mist-stream, .b-volt-flash, .b-aqua-ring, .aqua-band, .aqua-drop')

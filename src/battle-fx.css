@@ -526,6 +526,16 @@
   background-size: 100% 400%;
   image-rendering: pixelated;
 }
+/* 种子炸弹：直接复用原作种子机关枪的 Gfx_Seed 种子素材，单颗大种子飞向对手 */
+.b-proj-fx.proj-seed i {
+  width: calc(var(--bs, 14px) * 1.6);
+  height: calc(var(--bs, 14px) * 1.6);
+  margin-left: calc(var(--bs, 14px) * 1.6 / -2);
+  margin-top: calc(var(--bs, 14px) * 1.6 / -2);
+  background: url('./pe-battle/move-fx-assets/pe/Gfx_Seed__16x16.png') no-repeat 0 0;
+  background-size: 100% 300%;
+  image-rendering: pixelated;
+}
 /* 远程多段物理弹道（种子机关枪/冰锥/岩石暴击/飞弹针/骨棒乱打/鳞射/尖刺加农炮）：
    攻击方不贴脸，站原地朝对手逐发喷射实心粒子。粒子上色统一用 --fc（取自属性色），
    各招式靠形状区分（种子圆头 / 冰锥菱形 / 岩石碎石 / 飞弹针尖刺 / 骨棒骨节 / 鳞射鳞片 / 炮弹圆头） */
@@ -613,6 +623,14 @@
   38% { transform: translate(0, 0) scale(1.1); }
   85% { transform: translate(var(--bx, 0px), var(--by, 0px)) scale(0.9); opacity: 1; }
   100% { transform: translate(var(--bx, 0px), var(--by, 0px)) scale(0.9); opacity: 0; }
+}
+.b-proj-fx.proj-img i {
+  background-image: var(--img);
+  background-repeat: no-repeat;
+  background-size: 100% calc(var(--frames, 1) * 100%);
+  background-position: 0 var(--bgy, 0%);
+  image-rendering: pixelated;
+  animation: ballCharge 0.7s ease-out forwards;
 }
 /* 溶解液：一串向下垂的酸液滴，颜色由 JS 经 --fc 注入（毒系紫） */
 .b-proj-fx.proj-acid i {
@@ -909,46 +927,6 @@
   12% { opacity: 1; }
   100% { transform: translateX(var(--tx, 300px)) scale(1.15); opacity: 0; }
 }
-/* 大面积水系圆形水波（潮旋/水之波动/泼冷水） */
-.b-water-fx {
-  position: absolute;
-  top: 0; right: 0; bottom: 0; left: 0;
-  z-index: 5;
-  pointer-events: none;
-  overflow: visible; /* 关键：允许圆形从屏幕外面进来 */
-}
-.b-water-fx i {
-  --dx: 0%;
-  --dy: 0%;
-  position: absolute;
-  width: 640px;
-  height: 400px;
-  border-radius: 50%;
-  background: radial-gradient(ellipse 60% 45% at 50% 50%, rgba(165, 220, 255, 0.85), rgba(120, 195, 255, 0.4) 55%, transparent 82%);
-  box-shadow: 0 0 30px #72bfff;
-  left: -320px;
-  bottom: -200px;
-  animation: waterSweep 0.65s ease-in-out forwards;
-}
-/* 敌方释放：水幕锚点翻转到右上角，从屏幕外涌向左下角（与我方镜像） */
-.b-water-fx i.be {
-  left: auto;
-  right: -320px;
-  top: -200px;
-  bottom: auto;
-}
-
-@keyframes waterSweep {
-  0% {
-    transform: translate(0,0) scale(0.7);
-    opacity: 1;
-  }
-  100% {
-    /* 整体斜向平移到对角，同时大幅扩张铺满战场 */
-    transform: translate(var(--dx), var(--dy)) scale(1.6);
-    opacity: 0.8;
-  }
-}
 /* 冲浪/浊流：透明浪花贴图 + CSS 水层。我方水层在浪花下方，敌方水层在浪花上方。 */
 .b-surf-fx {
   position: absolute;
@@ -976,17 +954,33 @@
 .b-surf-fx.is-enemy .b-surf-water {
   animation: surfWaterDown 0.9s ease-in-out forwards;
 }
+/* 冲浪/浊流：0.9s 的水幕在 700ms 结算（约 78% 时间、ease-in-out 折合约 88% 行程），
+   横向的"拍到对面"由浪花贴图自己的 surfWaveUp/Down 补足；水层只负责上涌/下压，
+   水平位移保持原值（水层宽 200%，再推就露出侧边的竖向硬边）。透明度保持到 80% 再收，
+   不然会出现还没碰到对手就已经淡掉的情况 */
 @keyframes surfWaterUp {
   0% { transform: translate(-15%, 100%); opacity: 0; }
   12% { opacity: 1; }
-  64% { opacity: 1; }
+  80% { opacity: 1; }
   100% { transform: translate(25%, 6%); opacity: 0; }
 }
+/* 敌方：浪头（水层下沿）从视口顶部进来，结算那一刻正好落在我方身上，之后继续下扫一点再淡出。
+   水层高 200%，translateY 的百分比按 2 倍高度折算：-50% = 整个水层贴着视口上沿、
+   浪头刚好处在视口顶；-5% ≈ 浪头落在我方脚下再露出视口底 */
 @keyframes surfWaterDown {
-  0% { transform: translate(15%, -45%); opacity: 0; }
+  0% { transform: translate(15%, -50%); opacity: 0; }
   12% { opacity: 1; }
-  64% { opacity: 1; }
-  100% { transform: translate(-25%, 35%); opacity: 0; }
+  80% { opacity: 1; }
+  100% { transform: translate(-25%, -5%); opacity: 0; }
+}
+/* 浪花贴图的额外横向冲程：结算那一刻浪头正好压在对手身上（贴图自身宽度 31%，20% ≈ 0.12 屏宽） */
+@keyframes surfWaveUp {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(20%); }
+}
+@keyframes surfWaveDown {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-20%); }
 }
 .b-surf-wave {
   position: absolute;
@@ -998,16 +992,23 @@
   filter: drop-shadow(0 0 8px rgba(110, 180, 255, 0.45));
   will-change: transform;
 }
-.b-surf-fx.is-player .b-surf-wave { left: 15%; bottom: 100%; }
+.b-surf-fx.is-player .b-surf-wave {
+  left: 15%;
+  bottom: 100%;
+  animation: surfWaveUp 0.9s ease-in-out forwards;
+}
 .b-surf-fx.is-enemy .b-surf-wave {
   right: 15%;
   bottom: 0;
   width: 31%;
   height: auto;
   object-fit: initial;
-  transform: none;
+  animation: surfWaveDown 0.9s ease-in-out forwards;
 }
 .b-surf-fx.is-enemy .b-surf-water {
+  /* 敌方浪头在水层下沿、水体往上铺：加高到 200%（下扫的 translateY 也按 200% 折算过），
+     保证整段下扫顶边都在画面之外，不会在天空处露出水体的横向硬边 */
+  height: 200%;
   background: linear-gradient(180deg, rgba(139, 131, 255, 0.5) 0%, rgba(111, 103, 255, 0.5) 7%, rgba(98, 90, 255, 0.5) 26%, rgba(98, 90, 255, 0.5) 100%);
   box-shadow: none;
 }
@@ -1032,6 +1033,35 @@
 .b-surf-fx.is-enemy.is-muddy .b-surf-water {
   background: linear-gradient(180deg, rgba(198, 154, 85, 0.55) 0%, rgba(167, 123, 63, 0.55) 7%, rgba(138, 95, 49, 0.55) 26%, rgba(111, 74, 36, 0.55) 100%);
   box-shadow: none;
+}
+.b-surf-fx.is-sludge .b-surf-water {
+  background:
+    repeating-linear-gradient(90deg, rgba(240, 205, 255, 0.6) 0 10px, rgba(240, 205, 255, 0) 10px 24px) top left / 100% 2px no-repeat,
+    linear-gradient(180deg, rgba(174, 108, 214, 0.55) 0%, rgba(146, 84, 196, 0.55) 7%, rgba(118, 64, 170, 0.55) 26%, rgba(88, 44, 132, 0.55) 100%);
+  box-shadow: inset 0 2px 0 rgba(235, 205, 255, 0.3);
+}
+.b-surf-fx.is-sludge .b-surf-wave {
+  filter: sepia(1) saturate(4.5) hue-rotate(215deg) brightness(0.95) drop-shadow(0 0 8px rgba(150, 80, 210, 0.5));
+}
+.b-surf-fx.is-enemy.is-sludge .b-surf-water {
+  background: linear-gradient(180deg, rgba(174, 108, 214, 0.55) 0%, rgba(146, 84, 196, 0.55) 7%, rgba(118, 64, 170, 0.55) 26%, rgba(88, 44, 132, 0.55) 100%);
+  box-shadow: none;
+}
+.b-sludge-bubble {
+  position: absolute;
+  z-index: 2;
+  width: var(--bsz, 12px);
+  height: var(--bsz, 12px);
+  background: url('./pe-battle/move-fx-assets/pe/Gfx_PoisonBubble__16x16.png') no-repeat 0 0 / 100% 300%;
+  image-rendering: pixelated;
+  opacity: 0;
+  animation: sludgeBubbleRise 0.8s ease-out forwards;
+  animation-delay: var(--bd, 0s);
+}
+@keyframes sludgeBubbleRise {
+  0% { transform: translateY(8px) scale(0.6); opacity: 0; }
+  25% { opacity: 0.95; }
+  100% { transform: translateY(-46px) scale(1.05); opacity: 0; }
 }
 /* 临别礼物：紫黑色柔光椭圆，拉长→压缩 */
 .b-memento-orb {

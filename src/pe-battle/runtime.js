@@ -19,8 +19,6 @@ for (const t of Object.values(PE.templates)) {
   if (/Gfx_MagentaHeart/i.test(t.img || '')) { t.img = null; t.heart = true; }
   if (/Gfx_Spotlight/i.test(t.img || '')) t.img = null;
 }
-// 泥巴射击：原作和高压水枪共用同一颗蓝色水球（Gfx_WaterOrb），这里保留球体形状与 4 帧流光，
-// 只在渲染时染成泥巴色（素材库里没有现成泥球，Gfx_MudSand 是方形噪点土粒，直接换贴图更难看）
 if (PE.templates.gMudShotOrbSpriteTemplate) PE.templates.gMudShotOrbSpriteTemplate.mudTint = true;
 for (const k of Object.keys(PE.backgrounds)) {
   if (/_contests\.png$/.test(PE.backgrounds[k] || '')) delete PE.backgrounds[k];
@@ -47,6 +45,8 @@ const NO_CONTACT_LABELS = new Set([
 const FAST_POWDER_MOVES = /^Move_(POISON_POWDER|STUN_SPORE|SLEEP_POWDER|SPORE|COTTON_SPORE)$/;
 // 吸取类：伤害/吸血靠吸收光球表现，不做命中贴图，也不做草系树叶炸开
 const DRAIN_MOVE_LABELS = /^Move_(ABSORB|MEGA_DRAIN|GIGA_DRAIN|LEECH_LIFE|DREAM_EATER|DRAIN_PUNCH)$/;
+// 动作复用：十字劈→劈瓦，居合劈→劈开，泼冷水→水枪（原作没有泼冷水的脚本）
+const MOVE_LABEL_ALIAS = { 238: 'Move_BRICK_BREAK', 15: 'Move_SLASH', 886: 'Move_WATER_GUN' };
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const rgb555 = (c) => [c & 31, (c >> 5) & 31, (c >> 10) & 31];
 const hex = (c) => {
@@ -1367,7 +1367,8 @@ const CB = {
       amp = 16;
       phase = rnd(0, 255);
     } else if (dragonClaw) {
-      life = 24;
+      // 收尾的余烬比爪痕活得久，原作会给结算留下明显空等；压到 16 帧，淡出更跟手
+      life = 16;
       yv = 0.65;
       speed = 18;
       amp = 12;
@@ -1920,7 +1921,7 @@ const CB = {
   AnimAcidPoisonBubble(s) { initTgt(s); drift(s, rnd(-0.5, 0.5), -0.9, 26); },
   AnimAcidPoisonDroplet(s) { initAtk(s); linearTo(s, 16, TGT_X, TGT_Y, 10); },
   AnimToxicBubble(s) { initTgt(s); s.x2 = A(s.args, 0); s.y2 = A(s.args, 1); drift(s, 0, -0.8, 34); },
-  AnimSludgeBombHitParticle(s) { initTgt(s); burstAround(s, 26, 2.0, 0.06); },
+  AnimSludgeBombHitParticle(s) { initTgt(s); s.sx = 0.7; s.sy = 0.7; burstAround(s, 16, 0.6, 0.04); },
   AnimSludgeProjectile(s) { initAtk(s); linearTo(s, 18, TGT_X, TGT_Y, 12); },
   AnimBubbleEffect(s) {
     // Keep target-local offsets at roughly sprite scale; the screen mapping
@@ -2406,6 +2407,7 @@ const CB = {
     const end = A(s.args, 3, 0);
     if (!sel || start === end) { s.dead = true; return; }
     const delay = Math.max(1, A(s.args, 1, 0));
+    const step = s.E.label === 'Move_OVERHEAT' && color === 19026 ? 3 : 1;
     let amount = start;
     let timer = 0;
     applyPalSelector(s.E, sel, color, amount);
@@ -2413,7 +2415,8 @@ const CB = {
       if (timer++ < delay) return;
       timer = 0;
       if (amount === end) { s.dead = true; return; }
-      amount += amount < end ? 1 : -1;
+      const next = amount + (amount < end ? step : -step);
+      amount = amount < end ? Math.min(end, next) : Math.max(end, next);
       applyPalSelector(s.E, sel, color, amount);
     };
   },
@@ -2897,6 +2900,12 @@ const TASKS = {
     return TASKS.AnimTask_ShakeMon(E, [A(args, 0, 1), A(args, 1, 3), A(args, 2, 0), A(args, 3, 6), A(args, 4, 1)]);
   },
   AnimTask_BlendBattleAnimPal(E, args) {
+    // 龙爪收尾的褪色原作是 4 帧一档、8 档（32 帧），比爪痕余烬还长，会拖住结算；收尾段加速到 1 帧一档
+    if (E.label === 'Move_DRAGON_CLAW' && A(args, 2, 0) > A(args, 3, 0)) {
+      const fast = args.slice();
+      fast[1] = 1;
+      return blendPalTask(E, fast);
+    }
     if (E.label === 'Move_ICE_PUNCH' && !E._icePunchTintQueued) {
       E._icePunchTintQueued = true;
       const tick = blendPalTask(E, args);
@@ -3898,7 +3907,7 @@ export class EmeraldFx {
   }
 
   hasMove(id) {
-    const label = PE.moves[id];
+    const label = MOVE_LABEL_ALIAS[id] || PE.moves[id];
     if (!label || label === 'Move_NONE' || label === 'Move_COUNT') return false;
     const start = PE.labels[label];
     if (start === undefined) return false;
@@ -4008,7 +4017,7 @@ export class EmeraldFx {
   }
 
   playMove(id, opts = {}) {
-    const label = PE.moves[id];
+    const label = MOVE_LABEL_ALIAS[id] || PE.moves[id];
     if (!label) return Promise.resolve();
     return this.play(label, opts);
   }
@@ -4335,6 +4344,16 @@ class Session {
             this.wait = 7;
             break;
           }
+          if (this.label === 'Move_OVERHEAT' && Number(cmd[1]) >= 15) {
+            // 命中后的灰色余韵，原作停 15 帧才复原调色，比火焰特效收得还晚，会拖住结算
+            this.wait = 4;
+            break;
+          }
+          if (this.label === 'Move_BRICK_BREAK' && Number(cmd[1]) >= 30) {
+            // 精简后的劈瓦：蓄力 task 共 23 帧（14 后仰 + 6 停顿 + 3 突进），等它落到对手身前就出拳
+            this.wait = 24;
+            break;
+          }
           if (this.label === 'Move_SMOG' && Number(cmd[1]) >= 100) {
             this.wait = 24;
             break;
@@ -4377,6 +4396,11 @@ class Session {
           if (this.label === 'Move_FORESIGHT' && cmd[1] === 'AnimTask_BlendMonInAndOut') break;
           if (this.label === 'Move_REVERSAL' && cmd[1] === 'AnimTask_BlendColorCycle') break;
           if (this.label === 'Move_MIMIC' && cmd[1] === 'AnimTask_BlendColorCycle') break;
+          if (this.label === 'Move_BRICK_BREAK' && cmd[1] === 'AnimTask_WindUpLunge') {
+            // 精简劈瓦：后仰蓄力从 24+10 帧压到 14+6 帧，只留一小段
+            this.createTask(cmd[1], [0, -24, 0, 14, 6, 24, 3]);
+            break;
+          }
           this.createTask(cmd[1], cmd.slice(3));
           break;
         case 'c': {
@@ -4407,11 +4431,18 @@ class Session {
           const first = PE.labels[cmd[1]];
           const second = PE.labels[cmd[2]];
           if (second === undefined) break;
+          let next;
           if (this.twoTurn && first !== undefined) {
-            this.pc = this.turn === 2 ? second : first;
+            next = this.turn === 2 ? second : first;
           } else {
-            this.pc = first !== undefined ? first : second;
+            next = first !== undefined ? first : second;
           }
+          if (this.label === 'Move_BRICK_BREAK' && !this._bbTrimmed) {
+            this._bbTrimmed = true;
+            const pared = this.brickBreakPared(next);
+            if (pared !== undefined) next = pared;
+          }
+          this.pc = next;
           break;
         }
         case 'j': {
@@ -4488,6 +4519,24 @@ class Session {
 
   visualBusy() {
     return this.sprites.some((s) => !s.noWait) || this.tasks.length > 0;
+  }
+
+  // 劈瓦：原作是「突进 + 火花」×2 之后才蓄力出拳，精简成一小段蓄力后的一记贴身拳。
+  // 直接从子脚本开头跳到蓄力 task；碎裂墙壁那条的绿墙原本在第一段突进后才生成，这里提前立起来。
+  // 蓄力 task 自己会把攻击方送到目标身前，再触发自动突进会叠成两段位移，所以禁用自动突进。
+  brickBreakPared(start) {
+    let wind = -1;
+    let wall = null;
+    for (let i = start; i < PE.script.length && i < start + 64; i++) {
+      const c = PE.script[i];
+      if (!c) break;
+      if (c[0] === 't' && c[1] === 'AnimTask_WindUpLunge') { wind = i; break; }
+      if (c[0] === 's' && c[1] === 'gBrickBreakWallSpriteTemplate') wall = c;
+    }
+    if (wind < 0) return undefined;
+    this.meleeStarted = true;
+    if (wall) this.createSprite(wall[1], wall[2] === 'TARGET', wall[3] || 0, wall.slice(4));
+    return wind;
   }
 
   maybeMeleeLunge(name) {
@@ -4608,6 +4657,12 @@ class Session {
       || (this.label === 'Move_OUTRAGE' && name === 'gOutrageFlameSpriteTemplate')) {
       tmpl = { ...tmpl, img: 'pe/Gfx_WispFire__32x32.png', frames: 4 };
     }
+    if (this.label === 'Move_SLUDGE_BOMB' && name === 'gSludgeProjectileSpriteTemplate') {
+      tmpl = { ...tmpl, img: 'pe/Gfx_MudSand__16x16.png', frames: 1 };
+    }
+    if (this.label === 'Move_SLUDGE_BOMB' && name === 'gSludgeBombHitParticleSpriteTemplate') {
+      tmpl = { ...tmpl, an: [[['f', 0, 1], ['e']]] };
+    }
     if (this.label === 'Move_LEECH_LIFE' && name === 'gLeechLifeNeedleSpriteTemplate') { this._projFired = true; return null; }
     if (this.noContact && /Fist|Foot/i.test(name)) return null;
     // 弹道 sprite 出现才算真正出手：前倾跟着这一刻起手，和发射物同帧（充能用的 Charge 球不算出手）
@@ -4677,6 +4732,18 @@ class Session {
     startAnim(spr, 0);
     const cb = behaviorFor(tmpl.cb);
     try { cb(spr); } catch (e) { console.warn('fx', name, e); }
+    // 种子机关枪：原作脚本只发射种子 sprite、没有 HitSplat，每颗种子飞抵目标时补一次命中回调
+    if (this.label === 'Move_BULLET_SEED' && name === 'gBulletSeedSpriteTemplate' && this.opts?.onImpact) {
+      const seedTick = spr.onTick;
+      const flight = 14; // AnimBulletSeed 的 linearTo 飞行帧数
+      spr.onTick = () => {
+        seedTick?.();
+        if (!spr._seedHit && spr.age >= flight) {
+          spr._seedHit = true;
+          try { this.opts.onImpact(); } catch (_) {}
+        }
+      };
+    }
     if (this.label === 'Move_HYDRO_PUMP' && name === 'gWaterHitSplatSpriteTemplate') {
       spr.gx = TGT_X;
       spr.gy = TGT_Y;

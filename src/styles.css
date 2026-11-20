@@ -1868,6 +1868,92 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 .stat-section + .stat-section {
   margin-top: 6px;
 }
+.stat-section.stat-gap { margin-top: 10px; }
+
+/* 分类卡片：两列概览，点击把明细挪进弹框查看 */
+.stat-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 5px;
+  margin-top: 8px;
+}
+.stat-card {
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid rgba(var(--ui-color-rgb), 0.25);
+  border-radius: 4px;
+  background: rgba(var(--ui-color-rgb), 0.04);
+  user-select: none;
+}
+.stat-card[data-stat-card] { cursor: pointer; }
+@media (hover: hover) {
+  .stat-card[data-stat-card]:hover { background: rgba(var(--ui-color-rgb), 0.1); }
+}
+.stat-card[data-stat-card]:active { transform: translateY(1px); }
+/* 纯展示卡（宿敌）：外观一致，但不可点击 */
+.stat-card-static { cursor: default; }
+.stat-card-title {
+  font-size: 11px;
+  font-weight: 700;
+}
+.stat-card-preview {
+  margin-top: 1px;
+  font-size: 9.5px;
+  opacity: 0.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stat-detail { display: none; }
+
+/* 今日神兽：一个地区一行，图标数量＝当天该地区池子里的神兽数 */
+.stat-legend-meta {
+  margin-bottom: 4px;
+  font-size: 9.5px;
+  opacity: 0.6;
+}
+.stat-legend-meta b {
+  font-size: 10.5px;
+  font-weight: 700;
+  opacity: 1;
+}
+.stat-legend-list {
+  padding: 0;
+}
+.stat-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+}
+.stat-legend-region {
+  flex: 0 0 34px;
+  font-size: 10px;
+  opacity: 0.6;
+}
+.stat-legend-icons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.stat-legend-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.stat-legend-icon.is-unknown {
+  opacity: 0.24;
+  filter: grayscale(1);
+}
+.stat-legend-none {
+  font-size: 10px;
+  opacity: 0.3;
+}
+
+/* 明细行与表格（沿用旧样式） */
 .stat-row {
   display: flex;
   justify-content: space-between;
@@ -1899,6 +1985,88 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 .stat-table td:last-child {
   font-weight: 600;
 }
+/* 多列战绩表：数值列字号收小，避免「胜/负/平」挤爆窄弹框 */
+.stat-table-sm th { font-size: 9px; }
+.stat-table-sm td { font-size: 10px; white-space: nowrap; }
+.stat-table-sm td:first-child { opacity: 0.7; }
+
+/* 统计页：滚动交给 #dataContent，外层留给弹框定位 */
+#dataView {
+  position: relative;
+  overflow: hidden;
+}
+#dataContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+}
+
+/* 统计详情弹框：整屏压暗 + 居中面板 + 标题栏 + 可滚内容区（对齐高级筛选 / 捕捉条件） */
+.stat-modal-mask {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+}
+.stat-modal-mask.open { display: flex; }
+.stat-modal {
+  display: flex;
+  flex-direction: column;
+  width: 82%;
+  max-width: 220px;
+  max-height: 72%;
+  font-size: 11px;
+  color: var(--ui-color);
+  background: var(--console-body);
+  border: 2px solid var(--screen-bg-dark);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  animation: albumFadeIn 0.18s ease;
+}
+.stat-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ui-color-dark);
+  border-bottom: 1px solid rgba(var(--ui-color-rgb), 0.25);
+}
+.stat-modal-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+@media (hover: hover) {
+  .stat-modal-close:hover { opacity: 1; }
+}
+.stat-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px 10px;
+  text-align: left;
+}
+.stat-modal-body .stat-detail { display: block; }
+.stat-modal-body .stat-table { margin-bottom: 0; }
+.stat-modal-body .stat-table td { padding: 2px 6px; }
 
 /* ===== 成就系统 ===== */
 .ach-head {
@@ -6953,6 +7121,12 @@ html.power-save .sponsor-heart-fx { display: none; }
   overflow: hidden;
 }
 .nursery-egg-row .pokedex-name { display: flex; align-items: center; overflow: hidden; }
+/* 行菜单打开时保持与 hover 同款底色，标出菜单作用于哪一行 */
+.nursery-egg-row.menu-active { background: rgba(var(--ui-color-rgb),0.06); }
+/* 批量丢弃：隐藏逐行丢弃按钮与「收藏」入口，只用行选中来操作 */
+.nursery-egg-page.egg-batch .nursery-egg-row .bounty-trade-btn-col,
+.nursery-egg-page.egg-batch .nursery-egg-header .bounty-trade-btn-col,
+.nursery-egg-page.egg-batch .nursery-egg-fav-btn { display: none; }
 .nursery-egg-row .pokedex-name .egg-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 「的蛋」后缀不参与省略，名字再长也保住结尾 */
 .nursery-egg-row .pokedex-name .egg-name-suffix { flex-shrink: 0; white-space: nowrap; }
@@ -13279,6 +13453,14 @@ body.booting { visibility: hidden; }
   right: 8px;
   z-index: 5;
 }
+/* 批量丢弃「全选」：与仓库批量放生同款 */
+.nursery-egg-page { position: relative; }
+#nurseryEggSelectAll {
+  position: absolute;
+  top: 1px;
+  right: 8px;
+  z-index: 5;
+}
 
 /* 高级筛选生效时的条件预览条（替代 pokedex-search-row） */
 #rosterAdvBar {
@@ -14112,6 +14294,8 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   color: var(--screen-bg);
 }
 .player-card-error { min-height: 13px; margin-top: 3px; color: #c94a58; font-size: 10px; }
+/* 没有错误信息时不占位 */
+.player-card-error:empty { display: none; }
 .player-card-make {
   width: 100%;
   margin-top: 4px;
