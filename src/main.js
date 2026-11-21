@@ -1276,9 +1276,12 @@ async function init() {
 
     // 恢复树果混合 QTE 进行中状态：重连后直接接着进度玩（不给重置机会）
     if (sessionState.qteState) setQteState(sessionState.qteState);
+    }
 
     // 恢复生效中的增益：会话记录优先，但会话里余量已经归零（过期瞬间/被中断）时不能挡掉主存档的好记录，
-    // 否则"自动续杯后立刻退出"回来就没 buff；会话分支还要带上保底，别把没兑现的必闪刷掉
+    // 否则"自动续杯后立刻退出"回来就没 buff；会话分支还要带上保底，别把没兑现的必闪刷掉。
+    // 大退（进程被系统杀掉，beforeunload/pagehide 没触发、没有会话快照）时主存档 gameData.buffs 才是唯一来源，
+    // 所以这段必须放在 if (sessionState) 外面，否则重开游戏 buff 不激活、粒子和倒计时也不恢复（道具白消耗）
     const buffKeepPaused = willEncounter || !!gameData.wildEncounter;
     const sessHoney = sessionState?.honeyBuffActive
       ? { left: sessionState.honeyRemaining || 0, paused: sessionState.honeyPausedRemaining || 0 }
@@ -1293,6 +1296,7 @@ async function init() {
     restoreCharmRecord(charmRec, buffKeepPaused);
     markBuffStateRestored();   // 到此 buff 状态已就绪，之后存档才会重写 buffs 字段
 
+    if (sessionState) {
     // 恢复战斗状态
     if (sessionState.phase === 'encounter' && sessionState.encounter) {
       const poke = getPokemonByIndex(sessionState.encounter.index);

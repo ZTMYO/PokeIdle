@@ -137,8 +137,9 @@ export function showView(id) {
     const cfModal = document.getElementById('cfModal');
     if (cfModal) cfModal.style.display = 'none';
   }
-  // 统计详情弹框挂在 console 上（不在 dataView 里），切走时要收掉，别浮在新页面上
-  if (id !== 'dataView') document.getElementById('statModalMask')?.remove();
+  // 统计详情弹框挂在 console 上（不在 dataView 里），切走时要收掉，别浮在新页面上。
+  // 只关闭不删除：弹框里装着卡片明细块和每秒刷新的节点，删掉会让定时刷新找不到 id 报错
+  document.getElementById('statModalMask')?.classList.remove('open');
   if (id === 'idleView' && phase === 'encounter') {
     id = 'encounterView';
   }
@@ -545,6 +546,8 @@ const TOUCH_TEXT_RULES = [
   [/右键/g, '长按'],
   [/滚动滚轮或点击底部圆点/g, '左右滑动或点击底部圆点'],
   [/背包滚轮翻到第二页/g, '背包滑动翻到第二页'],
+  // 配招：桌面端写拖拽，触屏换成点选流程
+  [/把招式拖进空槽即可装备/g, '再点空招式槽装上'],
 ];
 export function touchText(html) {
   if (!matchMedia('(hover: none)').matches) return html; // 有鼠标的设备保持原措辞
@@ -632,6 +635,10 @@ export function setIdleCharacter(state, itemKey) {
       el.style.backgroundSize = '320px 322px';
       startGetItemAnim(el, rowY);
     }
+  } else if (state === 'stand') {
+    // 遇敌转场：停在站立帧，不再播走路/跑步循环（碰面那一下主角要停住）
+    el.classList.add('stand');
+    el.classList.add(getCharPrefix());
   } else {
     if (road.isBike()) {
       el.classList.add('bike');

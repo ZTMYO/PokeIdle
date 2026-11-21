@@ -327,6 +327,16 @@ html.mobile-app #quitHide { display: none !important; }
   background-size: 900% 100%;
   animation: brendanRun 0.45s steps(1) infinite;
 }
+/* 遇敌转场：停在走路序列的站立帧（第 1 帧），不播循环动画 */
+.walk-gif.stand {
+  width: 32px;
+  height: 44px;
+  background-size: 900% 100%;
+  background-position: 0% 0;
+  animation: none;
+}
+.walk-gif.brendan.stand { background-image: url('./character/brendan-walk.png'); }
+.walk-gif.may.stand     { background-image: url('./character/may-walk.png'); }
 .walk-gif.fishing {
   width: 64px;
   height: 74px;

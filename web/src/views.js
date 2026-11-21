@@ -235,7 +235,9 @@ function refreshDataStats() {
   $('dataTotalShinyTraded').textContent = formatNum(totalShinyTraded);
   $('dataTradesTotal').textContent = formatNum(stats.totalTrades || 0);
   const pity = Math.min(gameData.legendPity || 0, LEGEND_PITY);
-  $('dataLegendPity').textContent = `${pity}/${LEGEND_PITY}`;
+  // 弹框头部/正文可能在切页时被收走，取不到就跳过，别让每秒刷新抛错
+  const pityEl = $('dataLegendPity');
+  if (pityEl) pityEl.textContent = `${pity}/${LEGEND_PITY}`;
   $('dataRegion').textContent = region.name;
   $('dataWalkDist').textContent = walkText;
   $('dataDexPct').textContent = `${totalUnique}/${totalSpecies} (${pct}%)`;
@@ -541,7 +543,8 @@ export function showDataView() {
       const detail = card.querySelector('.stat-detail');
       if (!detail) return;
       if (openCard) closeStatModal();
-      $('statModalTitle').textContent = card.querySelector('.stat-card-title')?.textContent || '';
+      const titleEl = mask.querySelector('#statModalTitle');
+      if (titleEl) titleEl.textContent = card.querySelector('.stat-card-title')?.textContent || '';
       modalBody.appendChild(detail);
       openCard = card;
       mask.classList.add('open');
@@ -2732,7 +2735,8 @@ const TUTORIAL_SECTIONS = [
   {
     title: '配招',
     html: `<p>在<b>宝可梦</b>仓库的个体详情页配置招式（最多 <b>4</b> 个）：<b>自动</b>按等级搭配；<b>手动</b>进入独立的配招页自由调整。</p>`
-      + `<p>点招式可以查看详细解释，把招式拖进槽位即可装备；<b>右键点击</b>招式列表可以排序。</p>`
+      + `<p>点候选招式看详情，把招式拖进空槽即可装备；换招要先点已有招式右侧的 <b>×</b> 移出。</p>`
+      + `<p><b>右键</b>候选列表可以排序。</p>`
   },
   {
     title: '配队',

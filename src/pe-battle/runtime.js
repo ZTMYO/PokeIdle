@@ -4645,6 +4645,13 @@ class Session {
     // 攀瀑：原作命中段另撒了一层 SmallBubbles 的四分之一圆碎片，观感杂乱；
     // 只保留 WaterHitSplat 水花，气泡由战斗页在命中帧统一补
     if (this.label === 'Move_WATERFALL' && name === 'gSmallDriftingBubblesSpriteTemplate') return null;
+    // 攀瀑/潜水命中的 RisingWaterHitEffect：脚本用 20 → -20 的 y 逐帧抬高，做出"自下而上升起"的冲击水花。
+    // 敌方出招时舞台锚点上下互换（stagePoint 的 y 轴整轴镜像），这套偏移会被翻成从上往下落，
+    // 这里先把 y 偏移取反抵消掉，保证双方看到的攀瀑水花都是从下往上
+    if (name === 'gWaterHitSplatSpriteTemplate' && this.pc === PE.labels.RisingWaterHitEffect
+      && this.opponent && args.length > 1) {
+      args[1] = -A(args, 1);
+    }
     // 草系招式命中：用飞叶快刀同款树叶炸开，替代通用白色命中贴图（吸取类除外，它们的贴图落在自己身上）
     if (this.opts?.type === '草' && !DRAIN_MOVE_LABELS.test(this.label) && !this._leafBurstDone && /HitSplat|Impact|Whip/i.test(name)) {
       this._leafBurstDone = true;

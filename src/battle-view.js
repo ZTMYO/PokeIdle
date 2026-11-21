@@ -818,9 +818,11 @@ ${bottomHtml}
 
 // 队伍剩余数量：显示两侧各自存活的宝可梦数（精灵球图标，复用游戏已捕获标记 icon-owned）
 function renderTeamInfo(battle) {
+  const be = $('be-team'), bp = $('bp-team');
+  if (!be || !bp) return; // 战斗页已卸载
   const ball = (n) => '<svg class="b-ball"><use xlink:href="#icon-owned"></use></svg>'.repeat(Math.max(0, n));
-  $('be-team').innerHTML = ball(battle.eTeam.filter((x) => x.mon.hp > 0).length);
-  $('bp-team').innerHTML = ball(battle.pTeam.filter((x) => x.mon.hp > 0).length);
+  be.innerHTML = ball(battle.eTeam.filter((x) => x.mon.hp > 0).length);
+  bp.innerHTML = ball(battle.pTeam.filter((x) => x.mon.hp > 0).length);
 }
 
 // 血条按指定 HP 区间做过渡：先关过渡瞬时定位到"命中前"血量，再开过渡滑到"命中后"。
@@ -906,6 +908,7 @@ function renderMon(mon, side, enter) {
   // 变身后的百变怪：以复制对象的外观渲染（图片/属性随 _transformOf 切换）
   const pd = getPokemonByIndex(mon._transformOf || mon.idx);
   const img = $(`${side}-img`);
+  if (!img) return null; // 战斗页已卸载/被替换（撤退或界面切走），异步出场直接放弃
   // 清除上一只残留的战斗动画类（faint 带 forwards 会停在不可见状态；其余互斥类按 CSS 后定义覆盖）
   img.classList.remove(...B_ANIM_CLS);
   if (mon.variant !== 'rainbow') clearBattleRainbow(img);
@@ -1354,7 +1357,9 @@ function popDmg(side, amount, mon) {
   // 伤害占最大 HP 比例高时标红（红=重创）
   if (mon && mon.maxHp > 0 && amount / mon.maxHp >= 0.25) s.classList.add('heavy');
   s.textContent = '-' + amount;
-  $(`${side}-box`).appendChild(s);
+  const box = $(`${side}-box`);
+  if (!box) return; // 战斗页已卸载
+  box.appendChild(s);
   setTimeout(() => s.remove(), 900);
 }
 function popHeal(side, amount) {
@@ -6096,6 +6101,8 @@ async function battleLoop(battle) {
   _busy = true;
   try {
     while (!battle.winner && !_fleeing) {
+      // 战斗页被卸载/替换（撤退、界面切走）后不再继续空跑
+      if (!$('battleContent')?.querySelector('.battle-fight')) { doRetreat(battle); return; }
       // 每回合开始标记当前出战宝可梦为"参战"（含开场首只与换人上场的，供经验结算判定）
       markParticipated(battle, 'p');
       battle._acted = new Set(); // 本回合已行动的个体（畏缩判定：已行动者不再畏缩）
@@ -6265,6 +6272,7 @@ async function battleLoop(battle) {
         resetCounter(curMon(battle, 'p'));
         setText(`${curMon(battle, 'p').name}上场了！`);
         const ballP = renderMon(curMon(battle, 'p'), 'bp', true);
+        if (!ballP) { doRetreat(battle); return; } // 战斗页已卸载：不再继续异步出场
         renderTeamInfo(battle);
         panelIn('bp'); // 新宝可梦上场：信息卡片滑入屏幕
         if (ballP) await ballP; // 等精灵球登场动画播完，避免对手在动画期间行动
@@ -6279,6 +6287,7 @@ async function battleLoop(battle) {
         resetCounter(curMon(battle, 'e'));
         setText(`${curMon(battle, 'e').name}上场了！`);
         const ballE = renderMon(curMon(battle, 'e'), 'be', true);
+        if (!ballE) { doRetreat(battle); return; } // 战斗页已卸载：不再继续异步出场
         renderTeamInfo(battle);
         panelIn('be'); // 新宝可梦上场：信息卡片滑入屏幕
         if (ballE) await ballE; // 等精灵球登场动画播完，避免对手在动画期间行动
@@ -6333,8 +6342,9 @@ async function battleLoop(battle) {
     if (_fleeing) { doRetreat(battle); return; }
     finishBattle(battle);
   } catch (e) {
-    if (!(e instanceof BattleFled)) throw e;
-    doRetreat(battle); // 撤退请求中断：不结算
+    // 异常也按撤退收尾，避免 Promise 未处理把整场战斗卡在动画里
+    if (!(e instanceof BattleFled)) console.warn('battle loop', e);
+    doRetreat(battle);
   } finally {
     _busy = false;
     _fleeing = false;

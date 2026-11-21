@@ -280,6 +280,9 @@ let _encPokeHooked = false; // 已注册到世界步进器（step/render）
 // 这只待开战个体自己的种类/闪光/等级：图标滚到脚下这段时间里，这三个全局值可能被别的流程改写
 // （孵蛋页等），开战时按这份快照还原，保证打的是图标上亮着的那一只（种类/闪光/等级都不会串）
 let _encPokeSnapshot = null;
+// 遇敌转场期间暂留的图标：碰面这一刻先不收，等溶解把画面盖满（切遭遇页）后再移除，
+// 否则转场刚起步宝可梦就凭空消失、主角还在原地跑
+let _encPokeHeldEl = null;
 
 // 这只图标是否允许存在：挂机中，或上屏被别的流程占着（NPC 对战 / 孵蛋演出，见 _encPokeRender）
 function encPokeAlivePhase() {
@@ -354,13 +357,23 @@ function spawnEncounterPoke(poke, shiny, cb) {
   startEncPokeRaf();
 }
 
-function despawnEncounterPoke() {
-  if (_encPokeEl) { _encPokeEl.remove(); _encPokeEl = null; }
+// keep：遇敌转场马上要盖满画面，这只先留在屏幕上（等转场揭开前再移除），别让图标提前消失
+function despawnEncounterPoke(keep = false) {
+  if (_encPokeEl) {
+    if (keep) { releaseEncounterPokeIcon(); _encPokeHeldEl = _encPokeEl; }
+    else _encPokeEl.remove();
+    _encPokeEl = null;
+  }
   _encPokeCb = null;
   _encPokeSnapshot = null;
   _encPokeWaiting = false;
   stopEncPokeRaf();
   stopEncPokeWait();
+}
+
+// 转场遮罩已经把画面盖满了：这时候才收掉碰面时暂留的那只图标
+function releaseEncounterPokeIcon() {
+  if (_encPokeHeldEl) { _encPokeHeldEl.remove(); _encPokeHeldEl = null; }
 }
 
 // 上屏被顶掉时自己往前走：路面停了（单屏下画面被对战/孵蛋页盖住），步进器不再被调用，
@@ -402,7 +415,8 @@ function fireEncPokeIfReady() {
   const cb = _encPokeCb;
   const snap = _encPokeSnapshot;
   _encPokeWaiting = false;
-  despawnEncounterPoke();
+  // 有回调 = 马上进遭遇（会播转场）：图标先留在画面上，等转场盖满再收
+  despawnEncounterPoke(!!cb);
   // 还原这只自己的种类/闪光/等级（别的流程可能借走过这三个全局值）
   if (snap) {
     setCurrentEncounter(snap.poke); // 内部会重摇等级，下面按快照覆盖
@@ -748,14 +762,19 @@ export function showEncounter(poke, opts = {}) {
   const _onHome = isOnGameView();
   // 进入战斗道路必须暂停（后台遇敌同样暂停），结束由 goIdle 统一恢复
   road.pause();
+  // 主角停在原地（站立帧）：从碰面到转场盖满这段时间里别再播跑步/走路循环
+  setIdleCharacter('stand');
   // 显示视觉画面（仅在首页时切换视图；入场"文案顶起主角"动画由 showView 统一处理）
   let tr = null;
   if (_onHome) {
-    // 逐格溶解盖满后再 showView，揭开时遭遇页已经渲染好了
+    // 逐格溶解盖满后再 showView，揭开时遭遇页已经渲染好了；这一刻才收掉滚到脚下的宝可梦图标
     tr = playEncounterTransition(() => {
       showView('encounterView');
       $('fleeBtn').style.display = '';
+      releaseEncounterPokeIcon();
     }, { skip: _bgCatchup });
+  } else {
+    releaseEncounterPokeIcon();
   }
   // 渲染遭遇画面（名字/图片/类型/标签/文案等）
   // 仅在有自定义文案时写入（如钓鱼"上钩了"）；恢复会话走 showEncounter(poke, true) 时 msg 为 null，
