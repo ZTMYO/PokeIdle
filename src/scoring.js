@@ -187,6 +187,21 @@ function ivBonus(ivs, ivRandomKey, guaranteedIvs = 0) {
 // 老玩家之间就分不出差别了（实测 1000 场与 3000 场只差 0.3 分，人人同一档）。
 export const LUCK_WINDOW = 500;
 
+// ---- 抽奖中奖计入抽卡欧气 ----
+// 每日抽奖中奖也属于"运气"，按奖等折算成几次出货补进抽卡欧气的滚动窗口
+// （一等 8 / 二等 4 / 三等 2，未知奖等按 1）。没中奖的日子不记 0：抽奖是白给的一次机会，
+// 不该反过来稀释自己的抽卡评定。
+const LOTTERY_LUCK_ONES = { 1: 8, 2: 4, 3: 2 };
+export function recordLotteryLuck(gd, tierId) {
+  const st = gd && gd.stats;
+  if (!st) return;
+  const ones = LOTTERY_LUCK_ONES[Number(tierId)] || 1;
+  if (!Array.isArray(st.recentGacha)) st.recentGacha = [];
+  for (let i = 0; i < ones; i++) st.recentGacha.push(1);
+  // 和 gacha.js 的滚动窗口一致：最近 500 抽
+  if (st.recentGacha.length > LUCK_WINDOW) st.recentGacha.splice(0, st.recentGacha.length - LUCK_WINDOW);
+}
+
 // 记分并维护滚动窗口；返回原分数，方便直接写在日志对象的 score 字段里
 export function recordLuck(gd, score) {
   const st = gd && gd.stats;

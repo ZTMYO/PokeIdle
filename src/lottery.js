@@ -1,8 +1,9 @@
 // ===== 每日抽奖 =====
 // 服务器每天固定时间抽一二三等奖；奖品支持道具和蛋。没有账号，只上传匿名标识 + 昵称。
 import { $, showView, showConfirmBar, hideConfirmBar, tryLoadImage } from './ui.js';
-import { pushNav } from './state.js';
+import { pushNav, gameData, saveGame } from './state.js';
 import { prizeName, prizeIcon, grantPrize, normalizePrize } from './prizes.js';
+import { recordLotteryLuck } from './scoring.js';
 import { DEV } from './build-info.js';
 import { installId } from './identity.js';
 
@@ -227,6 +228,9 @@ async function claimLottery(day, tier) {
     if (data.ok && !data.already && data.prize) {
       const p = normalizePrize(data.prize);
       if (p && grantPrize(p)) {
+        // 中奖计入抽卡欧气（按奖等折算，见 scoring.js 的 recordLotteryLuck）
+        recordLotteryLuck(gameData, tier);
+        saveGame();
         showConfirmBar(`已领取 ${esc(prizeName(p))}${p.kind === 'egg' ? '，已放入仓库' : ''}`, null, null, { singleButton: true });
       } else {
         showConfirmBar('奖品发放失败，请联系管理员', null, null, { singleButton: true });
@@ -407,16 +411,17 @@ function openLotteryDetail(h) {
   const count = Number(h.count) || 0;
   const dlg = document.createElement('div');
   dlg.id = 'lotteryDetailDialog';
-  dlg.className = 'lot-detail-overlay';
-  dlg.innerHTML = `<div class="lot-detail-panel" role="dialog" aria-modal="true" aria-label="开奖详情">
-    <div class="lot-detail-title"><span>开奖详情</span><button type="button" class="lot-detail-close" data-lot-close aria-label="关闭">✕</button></div>
-    <div class="lot-detail-body">
+  // 样式对齐统计页模态框：整屏压暗 + 居中面板 + 标题栏（左标题右关闭），不再单独放底部关闭按钮
+  dlg.className = 'stat-modal-mask open';
+  dlg.innerHTML = `<div class="stat-modal" role="dialog" aria-modal="true" aria-label="开奖详情">
+    <div class="stat-modal-head"><span>开奖详情</span><button type="button" class="stat-modal-close" data-lot-close aria-label="关闭">✕</button></div>
+    <div class="stat-modal-body">
       <div class="lot-detail-sub">${esc(date)} · ${count} 人参与</div>
       <div class="lot-detail-list">${tiers.length ? tiers.map((t) => tierDetailHtml(t)).join('') : '<div class="lot-empty">无奖品记录</div>'}</div>
     </div>
-    <div class="lot-detail-foot"><button type="button" class="lot-detail-ok" data-lot-close>关闭</button></div>
   </div>`;
-  view.appendChild(dlg);
+  // 和统计页模态框一样挂到掌机 console 上：absolute 遮罩覆盖整台掌机，别被当前页面/视口裁住
+  (document.querySelector('.console') || view).appendChild(dlg);
   dlg.addEventListener('click', (e) => { if (e.target === dlg) closeLotteryDetail(); });
   dlg.querySelectorAll('[data-lot-close]').forEach((el) => {
     el.addEventListener('click', (e) => { e.stopPropagation(); closeLotteryDetail(); });
@@ -450,7 +455,7 @@ function renderLotteryView() {
   } else {
     stateHtml = `<div class="lot-state">
         <div class="lot-input-row">
-          <input id="lotName" class="lot-input" maxlength="${MAX_NAME}" autocomplete="off" placeholder="输入昵称，最多 ${MAX_NAME} 个字" value="${esc(savedName)}" />
+          <input id="lotName" class="lot-input" maxlength="${MAX_NAME}" autocomplete="off" placeholder="输入你的昵称，最多 ${MAX_NAME} 个字" value="${esc(savedName)}" />
           <button class="lot-btn" id="lotEnter">参与抽奖</button>
         </div>
         <div class="lot-msg" id="lotMsg"></div>

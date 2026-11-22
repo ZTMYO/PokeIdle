@@ -137,9 +137,6 @@ export function showView(id) {
     const cfModal = document.getElementById('cfModal');
     if (cfModal) cfModal.style.display = 'none';
   }
-  // 统计详情弹框挂在 console 上（不在 dataView 里），切走时要收掉，别浮在新页面上。
-  // 只关闭不删除：弹框里装着卡片明细块和每秒刷新的节点，删掉会让定时刷新找不到 id 报错
-  document.getElementById('statModalMask')?.classList.remove('open');
   if (id === 'idleView' && phase === 'encounter') {
     id = 'encounterView';
   }
@@ -164,6 +161,14 @@ export function showView(id) {
   }
   const mobileDual = isDualLayout();
   const targetStage = STAGE_VIEWS.has(id);
+  // 统计详情弹框 / 开奖详情弹框挂在 console 上（不属于任何 view），离开所属 app 页时要收掉，别浮在新页面上。
+  // 只关闭不删除：弹框里装着卡片明细块和每秒刷新的节点，删掉会让定时刷新找不到 id 报错。
+  // 双屏下手游模式上屏后台遇敌/结算也会走 showView('encounterView'/'idleView')，
+  // 那种"只切舞台通道"的调用不能动下屏正在浏览的弹框，否则数据一变弹框就没了
+  if (!(mobileDual && targetStage)) {
+    document.getElementById('statModalMask')?.classList.remove('open');
+    document.getElementById('lotteryDetailDialog')?.classList.remove('open');
+  }
   const wasOnGameView = $('idleView').style.display !== 'none' || $('encounterView').style.display !== 'none' || $('hatchView')?.style.display !== 'none';
   VIEW_IDS.forEach(v => {
     const el = $(v);

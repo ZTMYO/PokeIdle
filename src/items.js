@@ -358,6 +358,21 @@ export function recordLegendFound(poke) {
   if (!list.includes(idx)) list.push(idx);
 }
 
+// 今日神兽「已遇到」：遭遇成立就记（抓没抓住都算），统计页用它把对应槽位点亮成灰色图标
+export function recordLegendMet(poke) {
+  if (!poke || !poke.legend) return;
+  const idx = String(poke.index);
+  const pool = gameData.legendPool;
+  const today = evoDateStr();
+  if (!pool || pool.date !== today) return;
+  const region = poke.region;
+  if (!region || !(pool.byRegion?.[region] || []).includes(idx)) return;
+  const rec = gameData.legendMet;
+  if (!rec || rec.date !== today) gameData.legendMet = { date: today, byRegion: {} };
+  const list = gameData.legendMet.byRegion[region] || (gameData.legendMet.byRegion[region] = []);
+  if (!list.includes(idx)) list.push(idx);
+}
+
 // 清掉每日限量货与每日神兽池（{ date, ids } 或 { date, byRegion }），__refreshAll() 用它做调试刷新
 export function clearDailyStock() {
   let n = 0;

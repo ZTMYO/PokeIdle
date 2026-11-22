@@ -1958,6 +1958,11 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
   opacity: 0.24;
   filter: grayscale(1);
 }
+/* 今日神兽：遭遇过但没抓到——灰色图标，比未知占位更亮，能看清是哪只 */
+.stat-legend-icon.is-met {
+  filter: grayscale(1) brightness(0.8);
+  opacity: 0.6;
+}
 .stat-legend-none {
   font-size: 10px;
   opacity: 0.3;
@@ -1986,6 +1991,10 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 .stat-table th:first-child,
 .stat-table td:first-child {
   text-align: left;
+  /* 第一列是"项目/游戏名"这类固定文案：宽度贴合文字即可，把剩余宽度全让给数值列，
+     弹框里才放得下不缩写的完整大数字（如 12,345） */
+  width: 1%;
+  white-space: nowrap;
 }
 .stat-table th {
   font-weight: 600;
@@ -2540,36 +2549,11 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 .lot-row-more { flex: 0 0 auto; align-self: center; opacity: .4; font-size: 13px; line-height: 1; }
 .lot-empty { font-size: 10px; opacity: .5; padding: 6px 2px; }
 
-/* 开奖详情弹框：尺寸/层级对齐仓库高级筛选 */
+/* 开奖详情弹框：样式/层级复用统计页模态框（挂在 console 上，.stat-modal-mask / .stat-modal），这里只放内容样式 */
 #lotteryView { position: relative; }
-#lotteryDetailDialog {
-  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0, 0, 0, .55);
-}
-.lot-detail-panel {
-  display: flex; flex-direction: column;
-  width: min(92%, 420px); height: 88%;
-  background: var(--console-body);
-  border: 2px solid var(--screen-bg-dark);
-  border-radius: 8px; overflow: hidden;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
-  animation: albumFadeIn .18s ease;
-}
-.lot-detail-title {
-  display: flex; align-items: center; justify-content: space-between;
-  flex: 0 0 auto; padding: 8px 12px;
-  font-size: 12px; font-weight: 800; letter-spacing: 1px;
-  color: var(--ui-color-dark);
-  border-bottom: 1px solid rgba(var(--ui-color-rgb), .25);
-}
-.lot-detail-close {
-  width: 18px; height: 18px; padding: 0;
-  font-size: 11px; line-height: 1; color: var(--ui-color);
-  background: transparent; border: none; cursor: pointer;
-}
-@media (hover: hover) { .lot-detail-close:hover { color: var(--ui-color-dark); } }
-.lot-detail-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px 12px; }
+#lotteryDetailDialog { position: absolute; z-index: 1000; }
+/* 开奖名单档位多，面板高度放宽一些（宽度/外观仍跟统计页模态框一致） */
+#lotteryDetailDialog .stat-modal { max-height: 90%; }
 .lot-detail-sub { margin: 0 0 8px; text-align: center; font-size: 9.5px; opacity: .6; }
 .lot-detail-list { display: flex; flex-direction: column; gap: 6px; }
 .lot-detail-tier {
@@ -2582,16 +2566,6 @@ html.sky-night-bg #screen.encounter-see-through #encounterView .encounter-name >
 .lot-detail-icon { width: 24px; height: 24px; flex: 0 0 auto; object-fit: contain; image-rendering: pixelated; }
 .lot-detail-winners { margin-top: 3px; font-size: 9.5px; line-height: 1.5; opacity: .8; word-break: break-all; }
 .lot-detail-winners.muted { opacity: .4; }
-.lot-detail-foot {
-  display: flex; flex: 0 0 auto; padding: 8px 12px;
-  border-top: 1px solid rgba(var(--ui-color-rgb), .25);
-}
-.lot-detail-ok {
-  flex: 1; padding: 6px 0; font: inherit; font-size: 11px; font-weight: 700;
-  color: var(--screen-bg); background: var(--ui-color);
-  border: 1px solid var(--ui-color); border-radius: 6px; cursor: pointer;
-}
-@media (hover: hover) { .lot-detail-ok:hover { opacity: .9; } }
 .act-body { flex: 1; min-height: 0; color: var(--ui-color); text-align: center; }
 .act-body p { margin: 0 0 8px; font-size: 11px; line-height: 1.6; }
 .act-body .act-anim { object-fit: contain; image-rendering: pixelated; }

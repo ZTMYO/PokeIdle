@@ -3,7 +3,7 @@
 // 长按进编辑态可拖拽：拖到哪个图标身上就和它就地换位，快速甩上去则是建合集。
 import { $, showView, showAppView, syncViewChrome, isDualLayout, renderIncubatorView, viewportToLogic } from './ui.js';
 import { pushNav, gameData, saveGame } from './state.js';
-import { allApps, appById, appAvailable } from './apps.js';
+import { allApps, dynamicApps, appById, appAvailable } from './apps.js';
 import { ensureTrades } from './trade.js';
 import { getNowPlaying, isMusicEnabled } from './audio.js';
 import { showMusicView, refreshMusicViewIfOpen } from './music.js';
@@ -43,6 +43,7 @@ let _edit = false;      // 编辑态：图标抖动、可拖拽
 let _dragging = false;  // 拖拽中：挂起重绘，避免拖到一半整页重建
 let _stale = false;     // 重绘被挂起过，退出编辑态时补一次
 let _pageIdx = 0;       // 当前页（重绘后归位，别把玩家弹回第一页）
+let _startupTidy = false; // 启动后第一次对账已补过位（见 tidyStartupLayout）
 
 // 打开孵蛋器应用（从手机进入，返回回到手机主页；全局快捷键 F 也走这里）
 export function showIncubatorView() {
@@ -268,8 +269,35 @@ function findSlot(entry) {
   return null;
 }
 
+// 启动补位：活动图标（act:*）随活动窗口增删，结束一个就在桌面留个洞、新开一个又可能插进别的空位。
+// 启动后第一次对账时把桌面整体前移补位（不留空洞），活动图标再按活动清单顺序统一排到末尾；
+// 全服事件、抽奖是固定应用（id 不是 act:），只跟着补位、不参与活动重排。
+// 一次会话只做一次 —— 之后玩家自己拖出来的空位照旧保留（和 Windows 桌面一样）。
+function tidyStartupLayout(P) {
+  const order = new Map(dynamicApps().map((a, i) => [a.id, i]));
+  const fixed = [];
+  const acts = [];
+  for (const page of P) {
+    for (const entry of page) {
+      if (!entry) continue;
+      if (typeof entry.app === 'string' && order.has(entry.app)) acts.push(entry);
+      else fixed.push(entry);
+    }
+  }
+  acts.sort((a, b) => order.get(a.app) - order.get(b.app));
+  const seq = fixed.concat(acts);
+  P.length = 0;
+  for (let i = 0; i < seq.length; i += PAGE_SIZE) {
+    const pg = new Array(PAGE_SIZE).fill(null);
+    for (let j = 0; j < PAGE_SIZE && i + j < seq.length; j++) pg[j] = seq[i + j];
+    P.push(pg);
+  }
+  if (!P.length) P.push(freshPage());
+}
+
 // 对账：清掉未知 id / 重复 / 空合集，**原位置直接清成空位**（不压缩、不补位）；
 // 整页都是空位的页删掉（至少留一页）；缺的应用（新装等）填进最近的空位
+// 启动后第一次对账会先走 tidyStartupLayout 把活动增删留下的空位补掉
 function normalizeLayout() {
   const seen = new Set();
   const clean = (e) => {
@@ -299,6 +327,7 @@ function normalizeLayout() {
     if (out[i].every((e) => !e)) out.splice(i, 1);
   }
   if (!out.length) out.push(freshPage());
+  if (!_startupTidy) { _startupTidy = true; tidyStartupLayout(out); }
   const findApp = (id) => {
     for (let p = 0; p < out.length; p++) {
       for (let i = 0; i < PAGE_SIZE; i++) if (out[p][i]?.app === id) return { p, i };

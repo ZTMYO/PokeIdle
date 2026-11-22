@@ -405,7 +405,7 @@ export function showDataView() {
               <tbody>
                 <tr><td>当前地区</td><td id="dataRegion"></td></tr>
                 <tr><td>行走距离</td><td id="dataWalkDist"></td></tr>
-                <tr><td>图鉴完成度</td><td id="dataDexPct"></td></tr>
+                <tr><td>图鉴收集</td><td id="dataDexPct"></td></tr>
               </tbody>
             </table>
           </div>
@@ -607,8 +607,13 @@ export function showAchievementView() {
 export function renderSystemLogs() {
   const logs = gameData.systemLogs || [];
   // 按时间倒序，不靠压栈顺序：后台补发会把"当时"的时间戳回填进来（可能比新日志早十几分钟），
-  // 只 reverse() 的话这条会夹在更新的记录中间，看着像日志串了
-  const sorted = [...logs].sort((a, b) => (b.time || 0) - (a.time || 0));
+  // 只 reverse() 的话这条会夹在更新的记录中间，看着像日志串了。
+  // 同一时间戳（补发时一场遭遇的遇到/投球/逃走/续杯都回填成同一时刻）再按插入顺序倒序，
+  // 否则稳定排序会保留旧的插入顺序，看起来像整组日志是正序的。
+  const sorted = logs
+    .map((log, i) => ({ log, i }))
+    .sort((a, b) => (b.log.time || 0) - (a.log.time || 0) || b.i - a.i)
+    .map((x) => x.log);
   // 日志只存宝可梦编号，名字从图鉴数据查表；有形态显示全称（如 地鼠-阿罗拉），无形态显示本体名
   const logName = log => {
     const n = log.details?.pokemon;

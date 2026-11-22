@@ -2,24 +2,16 @@
 // 每个成就按「等级」递进：达标一级即可领取一次糖果，领取后自动进入下一级。
 // 等级无限：阈值/糖果都按 1-2-5 规整序列递进（10,20,50,100,200,500…），数字好记、等级多。
 // 领取一级一级来；未领取的等级会一直累计。图鉴类（maxTiers）达到上限即完结。
-import { gameData, saveGame, formatNum, addSystemLog, dexUnlocked, dexShinyOwned } from './state.js';
+import { gameData, saveGame, formatExact, addSystemLog, dexUnlocked, dexShinyOwned } from './state.js';
 import { updateBackpack, updateStats } from './ui.js';
 import { PX_PER_METER } from './config.js';
 
 // 糖果图标（显示在按钮左侧）
 const CANDY_ICON = '<img src="./items/goods/candy.png" style="width:12px;height:12px;vertical-align:-2px;image-rendering:pixelated;" />';
 
-// 成就进度用向下取整的缩写：1999 显示 1.9K，不会和 2000 的 2K 撞成一样
-function shortFloor(v) {
-  const r = Math.floor(v * 10) / 10;
-  return Number.isInteger(r) ? String(r) : r.toFixed(1);
-}
+// 成就进度/奖励用完整数字（千分位，如 12,345）；只有 M/B 量级才缩写
 function formatProgress(n) {
-  n = Number(n) || 0;
-  if (n >= 1000000000) return shortFloor(n / 1000000000) + 'B';
-  if (n >= 1000000) return shortFloor(n / 1000000) + 'M';
-  if (n >= 1000) return shortFloor(n / 1000) + 'K';
-  return shortFloor(n);
+  return formatExact(Math.floor(Number(n) || 0));
 }
 
 // 图鉴已解锁种类数（去重）
@@ -269,7 +261,7 @@ function buildItem(a) {
   // 达标待领取也画满：99 上限只留给还没达标的
   const pct = (done || claimable > 0) ? 100 : Math.min(99, Math.floor((v / tier.threshold) * 100));
   // 糖果图标 + 数量放在按钮左侧（按钮外），右侧统一「领取」
-  const rewardHTML = `<span class="ach-reward">${CANDY_ICON}×${formatNum(tier.reward)}</span>`;
+  const rewardHTML = `<span class="ach-reward">${CANDY_ICON}×${formatExact(tier.reward)}</span>`;
   const btnHTML = done ? '已达成全部' : '领取';
   return `
     <div class="ach-item" data-ach="${a.id}">
@@ -354,7 +346,7 @@ export function refreshAchievements() {
       if (done) rewardEl.style.display = 'none';
       else {
         rewardEl.style.display = '';
-        rewardEl.innerHTML = `${CANDY_ICON}×${formatNum(tier.reward)}`;
+        rewardEl.innerHTML = `${CANDY_ICON}×${formatExact(tier.reward)}`;
       }
     }
     const btn = item.querySelector('.ach-btn');

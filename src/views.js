@@ -1,6 +1,6 @@
 import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, SQUARE_SHINY_CHANCE, EGG_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_SPAWN_MIN, TWIST_SPAWN_MAX, TWIST_SPAWN_HONEY_MIN, TWIST_SPAWN_HONEY_MAX, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, PENGUIN_STEPS, PENGUIN_BREAK_CHANCE, PENGUIN_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
 import { TENT_DEX_GATE, TENT_FLOOR_LEVELS, TENT_PAYOUT_MULT, TENT_RECORD_MAX } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, getCurrentRoadInfo, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, flushSave, setSaveSuspended, formatNum, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, getCurrentRoadInfo, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, flushSave, setSaveSuspended, formatNum, formatExact as fmtFull, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress, viewportToLogic, tryLoadPokemonIcon, tryLoadImage, isDualLayout } from './ui.js';
 import { doCandyExchange, doSellBall, useBuffNowOrDefer, refillBuffIfEmpty, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf, BASIC_ITEM_ORDER, ensureLegendPool } from './items.js';
 import { formatLogTime } from './pokedex.js';
@@ -132,10 +132,11 @@ const fmtPlayTime = s => {
   const m = Math.floor((s % 3600) / 60);
   return `${pad(h)}:${pad(m)}`;
 };
+// 统计弹框里的数值用完整数字（fmtFull = state.js 的 formatExact，千分位；M/B 量级才缩写）
 
 // 今日神兽：一个地区一行，行内图标的数量与当天该地区池子里的神兽数一致。
-// 未捕获的槽位一律显示 unknown 占位（不能剧透是哪只，也不能用剪影）；
-// 只有"野外遭遇捕获"后才换成对应神兽图标（数据由 items.js 的 recordLegendFound 写入）
+// 没遭遇过的槽位显示 unknown 占位（不剧透、不用剪影）；遭遇过但没抓到显示同款灰色图标；
+// 野外遭遇并捕获后才显示彩色图标（数据分别由 items.js 的 recordLegendMet / recordLegendFound 写入）
 let _legendListSig = '';
 function renderLegendToday() {
   const box = $('dataLegendList');
@@ -144,16 +145,20 @@ function renderLegendToday() {
   const pool = ensureLegendPool();
   const byRegion = pool && pool.date === today ? (pool.byRegion || {}) : {};
   const rec = gameData.legendFound && gameData.legendFound.date === today ? (gameData.legendFound.byRegion || {}) : {};
-  const sig = today + '|' + REGION_CYCLE.map((n) => `${(byRegion[n] || []).length}:${(rec[n] || []).join(',')}`).join('|');
+  const met = gameData.legendMet && gameData.legendMet.date === today ? (gameData.legendMet.byRegion || {}) : {};
+  const sig = today + '|' + REGION_CYCLE.map((n) => `${(byRegion[n] || []).length}:${(met[n] || []).join(',')}:${(rec[n] || []).join(',')}`).join('|');
   if (sig === _legendListSig) return;
   _legendListSig = sig;
   box.innerHTML = REGION_CYCLE.map((name) => {
     const ids = byRegion[name] || [];
     const found = new Set((rec[name] || []).map(String));
-    // 按池子顺序排布：捕获哪只就点亮哪个槽位，其余保持 unknown
+    const metSet = new Set((met[name] || []).map(String));
+    // 按池子顺序排布：遇到哪只就点亮哪个槽位（灰色），抓到哪个对应槽位就变彩色，其余保持 unknown
     const imgs = ids.map((id) => (found.has(String(id))
       ? `<img class="stat-legend-icon" data-legend-icon="${id}" alt="">`
-      : '<img class="stat-legend-icon is-unknown" data-legend-unknown alt="">')).join('')
+      : metSet.has(String(id))
+        ? `<img class="stat-legend-icon is-met" data-legend-icon="${id}" alt="">`
+        : '<img class="stat-legend-icon is-unknown" data-legend-unknown alt="">')).join('')
       || '<span class="stat-legend-none">—</span>';
     return `<div class="stat-legend-row"><span class="stat-legend-region">${name}</span><div class="stat-legend-icons">${imgs}</div></div>`;
   }).join('');
@@ -209,31 +214,31 @@ function refreshDataStats() {
 
   $('dataPlayTotal').textContent = fmtPlayTime(stats.totalPlaySeconds);
   $('dataPlayToday').textContent = fmtPlayTime(stats.playSecondsToday || 0);
-  $('dataTodaySeen').textContent = formatNum(t.seen);
-  $('dataTodayCaught').textContent = formatNum(t.caught);
-  $('dataTodayFled').textContent = formatNum(t.fled);
+  $('dataTodaySeen').textContent = fmtFull(t.seen);
+  $('dataTodayCaught').textContent = fmtFull(t.caught);
+  $('dataTodayFled').textContent = fmtFull(t.fled);
   $('dataTodayRate').textContent = t.catchRate + '%';
-  $('dataTodayShinySeen').textContent = formatNum(t.shinySeen);
-  $('dataTodayShinyCaught').textContent = formatNum(t.shinyCaught);
-  $('dataTodayHatched').textContent = formatNum(t.hatched);
-  $('dataTodayShinyHatched').textContent = formatNum(t.shinyHatched);
-  $('dataTodayShinyTraded').textContent = formatNum(t.shinyTraded);
-  $('dataTodayEvolved').textContent = formatNum(t.evolutions);
-  $('dataTotalEvolved').textContent = formatNum(stats.totalEvolutions || 0);
-  $('dataTradesToday').textContent = formatNum(stats.tradesToday || 0);
+  $('dataTodayShinySeen').textContent = fmtFull(t.shinySeen);
+  $('dataTodayShinyCaught').textContent = fmtFull(t.shinyCaught);
+  $('dataTodayHatched').textContent = fmtFull(t.hatched);
+  $('dataTodayShinyHatched').textContent = fmtFull(t.shinyHatched);
+  $('dataTodayShinyTraded').textContent = fmtFull(t.shinyTraded);
+  $('dataTodayEvolved').textContent = fmtFull(t.evolutions);
+  $('dataTotalEvolved').textContent = fmtFull(stats.totalEvolutions || 0);
+  $('dataTradesToday').textContent = fmtFull(stats.tradesToday || 0);
   $('dataRating').textContent = rating ? rating.name : '暂无评定，先去冒险吧';
   const gachaTier = calcGachaTier();
   $('dataGachaRating').textContent = gachaTier ? gachaTier.name : '还没抽过卡';
-  $('dataTotalSeen').textContent = formatNum(totalSeen);
-  $('dataTotalCaught').textContent = formatNum(stats.totalCatches);
-  $('dataTotalFled').textContent = formatNum(stats.totalFlees);
+  $('dataTotalSeen').textContent = fmtFull(totalSeen);
+  $('dataTotalCaught').textContent = fmtFull(stats.totalCatches);
+  $('dataTotalFled').textContent = fmtFull(stats.totalFlees);
   $('dataTotalRate').textContent = catchRate + '%';
-  $('dataTotalShinySeen').textContent = formatNum(stats.totalShinySeen);
-  $('dataTotalShinyCaught').textContent = formatNum(stats.totalShinyCaught);
-  $('dataTotalHatched').textContent = formatNum(stats.totalEggsHatched);
-  $('dataTotalShinyHatched').textContent = formatNum(totalShinyHatched);
-  $('dataTotalShinyTraded').textContent = formatNum(totalShinyTraded);
-  $('dataTradesTotal').textContent = formatNum(stats.totalTrades || 0);
+  $('dataTotalShinySeen').textContent = fmtFull(stats.totalShinySeen);
+  $('dataTotalShinyCaught').textContent = fmtFull(stats.totalShinyCaught);
+  $('dataTotalHatched').textContent = fmtFull(stats.totalEggsHatched);
+  $('dataTotalShinyHatched').textContent = fmtFull(totalShinyHatched);
+  $('dataTotalShinyTraded').textContent = fmtFull(totalShinyTraded);
+  $('dataTradesTotal').textContent = fmtFull(stats.totalTrades || 0);
   const pity = Math.min(gameData.legendPity || 0, LEGEND_PITY);
   // 弹框头部/正文可能在切页时被收走，取不到就跳过，别让每秒刷新抛错
   const pityEl = $('dataLegendPity');
@@ -242,21 +247,21 @@ function refreshDataStats() {
   $('dataWalkDist').textContent = walkText;
   $('dataDexPct').textContent = `${totalUnique}/${totalSpecies} (${pct}%)`;
   const avgBalls = totalSeen > 0 ? (stats.totalBallsUsed / totalSeen).toFixed(2) : '0';
-  $('dataBallsUsed').textContent = formatNum(stats.totalBallsUsed);
+  $('dataBallsUsed').textContent = fmtFull(stats.totalBallsUsed);
   $('dataBallsAvg').textContent = avgBalls;
-  $('dataBlockMade').textContent = formatNum(stats.totalBlockMade || 0);
-  $('dataPlantings').textContent = formatNum(stats.totalPlantings || 0);
-  $('dataHarvests').textContent = formatNum(stats.totalHarvests || 0);
-  $('dataBerriesHarvested').textContent = formatNum(stats.totalBerriesHarvested || 0);
-  $('dataBoardTrades').textContent = formatNum(stats.totalBoardTrades || 0);
-  $('dataBountyClaims').textContent = formatNum(stats.totalBountyClaims || 0);
-  $('dataBountyToday').textContent = formatNum(stats.bountyClaimsToday || 0);
-  $('dataNpcWins').textContent = formatNum(stats.totalNpcWins || 0);
-  $('dataNpcNoviceWins').textContent = formatNum(stats.totalNpcNoviceWins || 0);
-  $('dataNpcEliteWins').textContent = formatNum(stats.totalNpcEliteWins || 0);
-  $('dataNpcLeaderWins').textContent = formatNum(stats.totalNpcLeaderWins || 0);
-  $('dataNpcChampionWins').textContent = formatNum(stats.totalNpcChampionWins || 0);
-  $('dataNpcCandy').textContent = formatNum(stats.totalNpcCandy || 0);
+  $('dataBlockMade').textContent = fmtFull(stats.totalBlockMade || 0);
+  $('dataPlantings').textContent = fmtFull(stats.totalPlantings || 0);
+  $('dataHarvests').textContent = fmtFull(stats.totalHarvests || 0);
+  $('dataBerriesHarvested').textContent = fmtFull(stats.totalBerriesHarvested || 0);
+  $('dataBoardTrades').textContent = fmtFull(stats.totalBoardTrades || 0);
+  $('dataBountyClaims').textContent = fmtFull(stats.totalBountyClaims || 0);
+  $('dataBountyToday').textContent = fmtFull(stats.bountyClaimsToday || 0);
+  $('dataNpcWins').textContent = fmtFull(stats.totalNpcWins || 0);
+  $('dataNpcNoviceWins').textContent = fmtFull(stats.totalNpcNoviceWins || 0);
+  $('dataNpcEliteWins').textContent = fmtFull(stats.totalNpcEliteWins || 0);
+  $('dataNpcLeaderWins').textContent = fmtFull(stats.totalNpcLeaderWins || 0);
+  $('dataNpcChampionWins').textContent = fmtFull(stats.totalNpcChampionWins || 0);
+  $('dataNpcCandy').textContent = fmtFull(stats.totalNpcCandy || 0);
 
   // 游戏厅战绩（基于 50 条滑动窗口记录统计）
   const wlStat = (records, isMj) => {
@@ -274,15 +279,15 @@ function refreshDataStats() {
   const vf = wlStat(gameData.voltorbRecords || [], true);
   const tent = wlStat(gameData.battleTent?.records || [], true);
   $('dataCasinoWL').textContent = `${cs.w}/${cs.l}/${cs.p}`;
-  $('dataCasinoNet').textContent = `${cs.net > 0 ? '+' : ''}${formatNum(cs.net)}`;
+  $('dataCasinoNet').textContent = `${cs.net > 0 ? '+' : ''}${fmtFull(cs.net)}`;
   $('dataMjWL').textContent = `${mj.w}/${mj.l}/${mj.p}`;
-  $('dataMjNet').textContent = `${mj.net > 0 ? '+' : ''}${formatNum(mj.net)}`;
+  $('dataMjNet').textContent = `${mj.net > 0 ? '+' : ''}${fmtFull(mj.net)}`;
   $('dataPgWL').textContent = `${pg.w}/${pg.l}/${pg.p}`;
-  $('dataPgNet').textContent = `${pg.net > 0 ? '+' : ''}${formatNum(pg.net)}`;
+  $('dataPgNet').textContent = `${pg.net > 0 ? '+' : ''}${fmtFull(pg.net)}`;
   $('dataVfWL').textContent = `${vf.w}/${vf.l}/${vf.p}`;
-  $('dataVfNet').textContent = `${vf.net > 0 ? '+' : ''}${formatNum(vf.net)}`;
+  $('dataVfNet').textContent = `${vf.net > 0 ? '+' : ''}${fmtFull(vf.net)}`;
   $('dataTentWL').textContent = `${tent.w}/${tent.l}/${tent.p}`;
-  $('dataTentNet').textContent = `${tent.net > 0 ? '+' : ''}${formatNum(tent.net)}`;
+  $('dataTentNet').textContent = `${tent.net > 0 ? '+' : ''}${fmtFull(tent.net)}`;
   // 分类卡片上的概览数值（点开卡片在弹框里看完整明细）
   const earnedTotal = Object.values(earned).reduce((n, v) => n + (Number(v) || 0), 0);
   $('dataPvLegend').textContent = `保底 ${pity}/${LEGEND_PITY}`;
@@ -291,46 +296,52 @@ function refreshDataStats() {
   const onRoad = !!(gps && gps.path && gps.path.length >= 2 && gps.seg < gps.path.length - 1 && gps.totalPx > 0);
   const road = onRoad ? getCurrentRoadInfo() : null;
   $('dataPvRegion').textContent = road ? `${road.num}#道路（${road.name}）` : region.name;
-  $('dataPvBalls').textContent = `${formatNum(stats.totalBallsUsed)} 球`;
-  $('dataPvFarm').textContent = `收获 ${formatNum(stats.totalHarvests || 0)} 次`;
-  $('dataPvBounty').textContent = `今日 ${formatNum(stats.bountyClaimsToday || 0)}`;
-  $('dataPvNpc').textContent = `胜 ${formatNum(stats.totalNpcWins || 0)}`;
+  $('dataPvBalls').textContent = `${fmtFull(stats.totalBallsUsed)} 球`;
+  $('dataPvFarm').textContent = `收获 ${fmtFull(stats.totalHarvests || 0)} 次`;
+  $('dataPvBounty').textContent = `今日 ${fmtFull(stats.bountyClaimsToday || 0)}`;
+  $('dataPvNpc').textContent = `胜 ${fmtFull(stats.totalNpcWins || 0)}`;
   const casinoNet = cs.net + mj.net + pg.net + vf.net + tent.net;
-  $('dataPvCasino').textContent = `净 ${casinoNet > 0 ? '+' : ''}${formatNum(casinoNet)}`;
-  $('dataPvEarned').textContent = `共 ${formatNum(earnedTotal)} 件`;
+  $('dataPvCasino').textContent = `净 ${casinoNet > 0 ? '+' : ''}${fmtFull(casinoNet)}`;
+  $('dataPvEarned').textContent = `共 ${fmtFull(earnedTotal)} 件`;
   renderLegendToday();
+  renderRosterMix();
   const earnedEl = $('dataEarned');
   if (earnedEl) {
     // 只列基础道具：进化道具/专属道具/薄荷加起来上百种，一行一个铺不开
     earnedEl.innerHTML = ['candy', ...BASIC_ITEM_ORDER].map((k) =>
-      `<tr><td>${ITEM_NAMES[k] || k}</td><td>${formatNum(earned[k] || 0)}</td></tr>`
+      `<tr><td>${ITEM_NAMES[k] || k}</td><td>${fmtFull(earned[k] || 0)}</td></tr>`
     ).join('');
   }
 }
 
-// 仓库情况：当前仓库的画像，口径与配队页的来源筛选一致（闪光/神兽/变体是叠加项）
+// 仓库情况：当前仓库的画像，口径与配队页的来源筛选一致（闪光/神兽/变体是叠加项）。
+// 挂机时仍在捕获，跟着每秒刷新一起走；单次遍历统计，别对全仓库做 9 遍 filter
 function renderRosterMix() {
   const box = $('dataRosterMix');
   if (!box) return;
   const rows = (gameData.roster || []).filter((p) => p && p.inRoster && isPokemon(p));
-  const cnt = (fn) => rows.filter(fn).length;
-  const inSrc = (keys) => cnt((p) => keys.includes(p.source || 'normal'));
+  let wild = 0, fishing = 0, egg = 0, trade = 0, shiny = 0, legend = 0, rgb = 0, polluted = 0, rainbow = 0;
+  for (const p of rows) {
+    const s = p.source || 'normal';
+    if (s === 'fishing') fishing++;
+    else if (s === 'egg') egg++;
+    else if (s === 'trade') trade++;
+    else wild++; // normal / mass / twist / honey 都算野生
+    if (p.shiny) shiny++;
+    if (getPokemonByIndex(String(p.species))?.legend) legend++;
+    if (p.variant === 'rgb') rgb++;
+    else if (p.variant === 'polluted') polluted++;
+    else if (p.variant === 'rainbow') rainbow++;
+  }
   const list = [
-    ['野生', inSrc(['normal', 'mass', 'twist', 'honey'])],
-    ['钓鱼', inSrc(['fishing'])],
-    ['孵蛋', inSrc(['egg'])],
-    ['交换', inSrc(['trade'])],
-    ['闪光', cnt((p) => !!p.shiny)],
-    ['神兽', cnt((p) => !!getPokemonByIndex(String(p.species))?.legend)],
-    ['RGB', cnt((p) => p.variant === 'rgb')],
-    ['污染', cnt((p) => p.variant === 'polluted')],
-    ['炫彩', cnt((p) => p.variant === 'rainbow')],
+    ['野生', wild], ['钓鱼', fishing], ['孵蛋', egg], ['交换', trade],
+    ['闪光', shiny], ['神兽', legend], ['RGB', rgb], ['污染', polluted], ['炫彩', rainbow],
   ];
   box.innerHTML = list.map(([k, v]) =>
-    `<tr><td>${k}</td><td>${formatNum(v)}</td></tr>`
+    `<tr><td>${k}</td><td>${fmtFull(v)}</td></tr>`
   ).join('');
   const pv = $('dataPvRoster');
-  if (pv) pv.textContent = `闪光 ${formatNum(list[4][1])} · 神兽 ${formatNum(list[5][1])}`;
+  if (pv) pv.textContent = `闪光 ${fmtFull(shiny)} · 神兽 ${fmtFull(legend)}`;
 }
 
 // 宿敌：野外遇见最多、一次没抓到的那只（按图鉴条目，孵蛋/交换不算遭遇）
@@ -347,7 +358,7 @@ function renderNemesis() {
   let text = '暂无';
   if (best) {
     const poke = getPokemonByIndex(String(best.idx));
-    text = `${poke ? (poke.form || poke.name) : best.idx} · 遇见 ${formatNum(best.n)} 次未捕获`;
+    text = `${poke ? (poke.form || poke.name) : best.idx} · 遇见 ${fmtFull(best.n)} 次未捕获`;
   }
   // 和别的卡片一样，只留一行 subtitle 放值
   box.innerHTML = `<div class="stat-card-preview">${text}</div>`;
@@ -405,7 +416,7 @@ export function showDataView() {
               <tbody>
                 <tr><td>当前地区</td><td id="dataRegion"></td></tr>
                 <tr><td>行走距离</td><td id="dataWalkDist"></td></tr>
-                <tr><td>图鉴完成度</td><td id="dataDexPct"></td></tr>
+                <tr><td>图鉴收集</td><td id="dataDexPct"></td></tr>
               </tbody>
             </table>
           </div>
@@ -555,8 +566,7 @@ export function showDataView() {
   // 初始填充 + 每秒实时刷新全部动态值；离开统计页后定时器自动停止
   _legendListSig = ''; // 页面重建后图标 DOM 也重建，签名失效
   refreshDataStats();
-  renderRosterMix(); // 这两块要扫仓库和全部相遇日志，只在进页面时算一次，不跟每秒刷新
-  renderNemesis();
+  renderNemesis(); // 要扫全部相遇日志，只在进页面时算一次，不跟每秒刷新
   $('dataShareBtn')?.addEventListener('click', () => {
     import('./player-card.js').then(m => m.openPlayerCard()).catch(e => console.error('[训练家名片]', e));
   });
@@ -607,8 +617,13 @@ export function showAchievementView() {
 export function renderSystemLogs() {
   const logs = gameData.systemLogs || [];
   // 按时间倒序，不靠压栈顺序：后台补发会把"当时"的时间戳回填进来（可能比新日志早十几分钟），
-  // 只 reverse() 的话这条会夹在更新的记录中间，看着像日志串了
-  const sorted = [...logs].sort((a, b) => (b.time || 0) - (a.time || 0));
+  // 只 reverse() 的话这条会夹在更新的记录中间，看着像日志串了。
+  // 同一时间戳（补发时一场遭遇的遇到/投球/逃走/续杯都回填成同一时刻）再按插入顺序倒序，
+  // 否则稳定排序会保留旧的插入顺序，看起来像整组日志是正序的。
+  const sorted = logs
+    .map((log, i) => ({ log, i }))
+    .sort((a, b) => (b.log.time || 0) - (a.log.time || 0) || b.i - a.i)
+    .map((x) => x.log);
   // 日志只存宝可梦编号，名字从图鉴数据查表；有形态显示全称（如 地鼠-阿罗拉），无形态显示本体名
   const logName = log => {
     const n = log.details?.pokemon;
@@ -2689,7 +2704,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: '统计',
-    html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按最近 500 场遭遇的稀有度与捕获运气综合评价称号，<b>抽卡欧气</b>单独看最近 500 抽的 SR 出货；</p>`
+    html: `<p>在<b>手机</b>页面打开<b>统计</b>应用可查看冒险数据：<b>欧非评定</b>按最近 500 场遭遇的稀有度与捕获运气综合评价称号，<b>抽卡欧气</b>单独看最近 500 抽的 SR 出货，每日抽奖中奖也按奖等折算计入；</p>`
       + `<p>板块分为：数据总览、冒险进度、消耗统计、农场与合成、地区悬赏、NPC对战、游戏厅战绩、道具累计获得。</p>`
       + `<p>「冒险进度」里的<b>神兽保底 X / ${LEGEND_PITY}</b>是当前软保底进度（只算普通道路遇敌，见「<b>神兽机制说明</b>」）。</p>`
   },

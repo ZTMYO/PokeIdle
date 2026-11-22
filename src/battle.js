@@ -3,7 +3,7 @@ import { phase, gameData, allPokemon, getPokemonByIndex, isPowerForm, isWildExcl
 import { $, showView, updateTextBox, hideTextBox, showTextBoxNow, setIdleCharacter, isOnGameView, isIdleStageVisible, isDualLayout, isPageHidden, updateBackpack, updateStats, tryLoadPokemonImage, tryLoadPokemonIcon, isEvolutionShowActive, isEggShowActive, isStageOccupied } from './ui.js';
 import { getBountyTargetIndexes } from './bounty.js';
 import { playEncounterTransition, isEncounterTransitionRunning } from './transition.js';
-import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, recordLegendFound, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, takeBuffForRenew, clearBuffRenewPending, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
+import { pickRandomPokemon, pickWeightedPokemon, findBerryTarget, rollLegendEncounter, recordLegendFound, recordLegendMet, activateHoney, activateShinyCharm, clearCharmCountdown, clearHoneyCountdown, startCharmCountdown, startHoneyCountdown, handleHoneyExpired, handleCharmExpired, takeBuffForRenew, clearBuffRenewPending, TYPE_COLORS, cancelSuspendedEncounterForEgg, pickFamily } from './items.js';
 import { eatBlock } from './mixer.js';
 import { delay, playCatchSequence, playFleeAnim, startShinySparkleLoop, stopShinySparkleLoop } from './animation.js';
 import { catchBonusFor, computeObtainScore, computeMeetScore, recordLuck } from './scoring.js';
@@ -549,6 +549,8 @@ function markEncounterSeen(poke, shiny, source) {
   d.seen++;
   d.lastTime = new Date(simNow()).toISOString();
   if (shiny) { d.shinySeen++; gameData.stats.totalShinySeen++; }
+  // 今日神兽：遭遇即记入「已遇到」（统计页点亮成灰色图标），之后捕获再由 recordLegendFound 变彩色
+  if (source === 'normal' && poke.legend) recordLegendMet(poke);
   addSystemLog('encounter', { pokemon: poke.index, shiny, source }, simNow());
 }
 
