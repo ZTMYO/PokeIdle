@@ -579,9 +579,7 @@ export const ITEM_DESC = {
   'shiny-charm': `使用后下一只遭遇必定闪光
 其余 ${BUFF_DURATION} 秒内闪光概率提升至 ${pct(CHARM_SHINY_CHANCE)}`,
   'bike': `骑行赶路工具\n速度 ${Math.round(ROAD_SPEED_BIKE / ROAD_SPEED_WALK)} 倍且不遇敌、不拾取`,
-  'exp-candy': '使用后给宝可梦增加经验\n在背包里点经验糖果选一只使用',
-  'silver-crown': '把宝可梦的一项个体值练到 31\n在详情页点「个体值」使用',
-  'golden-crown': '把宝可梦的六项个体值全部练到 31\n在详情页点「个体值」使用',
+  'exp-candy': '使用后给宝可梦增加经验',
   '虹色之羽': '对一只污染宝可梦使用\n净化污染并赋予炫彩描边',
   'casinoCoin': '游戏厅的筹码\n在游戏厅柜台用糖果兑换',
   'ticket': '限时活动「航海寻宝」的船票\n活动期间提交悬赏可获得',

@@ -448,6 +448,8 @@ function onBagClick(itemKey) {
     openFeatherPicker(itemKey);
   }
 }
+// 道具盒详情卡的「使用」按钮走同一个入口（等价于点背包槽位），避免 itembox ↔ main 循环依赖
+window.__useBagItem = onBagClick;
 
 // ---------- 游戏 Tick ----------
 let _lastLogTs = -1; // 上次渲染时最新日志的时间戳（新日志或清空日志才会重渲染日志页）

@@ -13961,6 +13961,23 @@ html.ui-dual .app-host { /* 下屏容器要真实盒子，app 页才撑得满、
   text-align: left;
   white-space: pre-line;
 }
+/* 道具盒详情卡底部的「使用」按钮（反向入口，等价于点背包槽位）：样式跟 .shop-btn 一个感觉 */
+.shop-detail-use {
+  display: block;
+  margin: 7px auto 0;
+  padding: 2px 12px;
+  border: 1px solid var(--ui-color);
+  border-radius: 3px;
+  background: none;
+  color: var(--ui-color);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .shop-detail-use:hover { background: rgba(var(--ui-color-rgb), 0.12); }
+}
+.shop-detail-use:active { transform: scale(0.95); }
 .shop-btn.inert { opacity: 0.35; pointer-events: none; }
 
 /* ===== 道具盒 ===== */

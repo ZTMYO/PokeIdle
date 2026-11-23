@@ -4,10 +4,11 @@
 import { $, showView } from './ui.js';
 import { itemDetailOf } from './items.js';
 import { showDetailCard, hideDetailCard } from './item-detail.js';
-import { gameData, pushNav } from './state.js';
+import { gameData, pushNav, honeyBuffActive, charmBuffActive } from './state.js';
 import { ensureBerryFarm } from './berry.js';
 import { ITEM_NAMES, CANDY_EXCHANGE, EVO_PRICES, FORM_ITEM_KEYS } from './config.js';
 import { BERRY_ICONS, BERRY_NAMES, itemIconSrc, evoIconSrc, evoExclusivePool, MINT_KEYS, ensureEvoMeta, BASIC_ITEM_ORDER } from './items.js';
+import * as road from './road.js';
 
 const BERRY_DIR = './items/berries/';
 
@@ -149,6 +150,20 @@ function paintTabs(box) {
   };
 }
 
+// 可在道具盒里反向使用的基础道具：点详情卡底部「使用」等价于点背包里的同名槽位
+// （onBagClick 由 main.js 暴露成 window.__useBagItem，避免 itembox ↔ main 循环依赖）
+const USABLE_KEYS = new Set(['bike', 'exp-candy', 'sweet-honey', 'shiny-charm', 'silver-crown', 'golden-crown', '虹色之羽']);
+function useActionOf(key) {
+  if (!USABLE_KEYS.has(key) || typeof window.__useBagItem !== 'function') return null;
+  // 已经在骑车 / 增益生效中 / 骑行中给增益：背包里也是置灰不可用，这里干脆不显示按钮
+  if (key === 'bike' && road.isManualBike()) return null;
+  if (key === 'sweet-honey' || key === 'shiny-charm') {
+    if (road.isBike()) return null;
+    if (key === 'sweet-honey' ? honeyBuffActive : charmBuffActive) return null;
+  }
+  return { label: '使用', run: () => window.__useBagItem(key) };
+}
+
 function paintList(box, keepScroll = false) {
   const host = box.querySelector('.ib-list');
   if (!host) return;
@@ -165,11 +180,11 @@ function paintList(box, keepScroll = false) {
     ? items.map(rowHtml).join('')
     : `<div class="ib-empty">${_query ? '没有匹配的道具' : '还没有这类道具'}</div>`;
   if (!keepScroll) host.scrollTop = 0; // 切页签/搜索回顶部；实时刷新保留原位
-  // 点任意一行看介绍（文案与图标和商店共用 itemDetailOf）
+  // 点任意一行看介绍（文案与图标和商店共用 itemDetailOf）；可使用的道具在卡片底部多一个「使用」按钮
   host.onclick = (e) => {
     const row = e.target.closest('.ib-row');
     if (!row || !row.dataset.key) return;
-    showDetailCard(itemDetailOf(row.dataset.key), 'itemBoxView');
+    showDetailCard(itemDetailOf(row.dataset.key), 'itemBoxView', useActionOf(row.dataset.key));
   };
 }
 
