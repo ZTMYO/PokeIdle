@@ -7,11 +7,11 @@ import { pushNav, popNav, getPokemonByIndex } from './state.js';
 import { playMahjongSfx } from './audio.js';
 
 // 三档：盘面越大、对数越多越难；通关给该难度的固定气球（与另外两个小游戏共用兑换所）。
-// 盘面尺寸受手机屏幕限制不再放大，难度靠对数拉开；奖励按实际用时压到与另外两个小游戏接近的水平
+// 盘面尺寸受手机屏幕限制不再放大，难度靠对数拉开；奖励与戳戳鸟/推球/箭头迷宫等小游戏同档
 export const FLOW_LEVELS = [
-  { id: 'easy', name: '简单', size: 5, flows: 4, minLen: 4, coins: 15 },
-  { id: 'normal', name: '普通', size: 6, flows: 6, minLen: 4, coins: 30 },
-  { id: 'hard', name: '困难', size: 7, flows: 7, minLen: 4, coins: 60 },
+  { id: 'easy', name: '简单', size: 5, flows: 4, minLen: 4, coins: 30 },
+  { id: 'normal', name: '普通', size: 6, flows: 6, minLen: 4, coins: 60 },
+  { id: 'hard', name: '困难', size: 7, flows: 7, minLen: 4, coins: 120 },
 ];
 export const flowLevelOf = (id) => FLOW_LEVELS.find((l) => l.id === id) || FLOW_LEVELS[1];
 

@@ -422,6 +422,7 @@ export function getDefaultSave() {
       luckyGachaScore:0, luckyGachaCount:0, // 抽卡欧气累计（独立累计，不受抽卡日志 50 条窗口影响）
       recentScores: [],   // 欧非评定滚动窗口：最近 500 场的评分（scoring.js 的 recordLuck 维护）
       recentGacha: [],    // 抽卡欧气滚动窗口：最近 500 抽里每抽是否为 SR（1/0）
+      dayStats: null,     // 今日统计计数：{ date, seen, caught, fled, ... }，addEncounterLog 写入时累加
       totalItemsEarned: { 'poke-ball':0, 'ultra-ball':0, 'master-ball':0, 'candy':START_CANDY, 'sweet-honey':0, 'mystery-egg':0, 'shiny-charm':0, 'bike':0 },
     },
     incubators: Array.from({length: 8}, () => emptyIncubator()),
@@ -826,17 +827,64 @@ export function flushSave() {
   return saveGame();
 }
 
-// 相遇日志：单物种只留最近 40 条、全档最多 1500 条。每只的「首次捕获」（普通/闪光各一条）
+// 相遇日志：单物种只留最近 40 条、全档最多 3000 条。每只的「首次捕获」（普通/闪光各一条）
 // 永远保留 —— 遭遇页的首次捕获提示要读它。写入时裁，读档时再兜底裁一次。
 const LOG_KEEP_SPECIES = 40;
-const LOG_KEEP_TOTAL = 1500;
+const LOG_KEEP_TOTAL = 3000;
+
+// 今日统计计数器：日志本身有总量上限，且「首捕」条目永久保留（成熟存档里能占到 1200+ 条），
+// 剩下的槽位会被今日记录占满 —— 每条新遭遇都会顶掉一条今日旧记录，从日志现算「今日遭遇」
+// 就会永远停住。所以在写入遭遇日志的同一处维护今日计数，统计页只读这份计数。
+function dayKeyOf(ts) {
+  const d = new Date(ts || Date.now());
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+export function emptyDayStats(date) {
+  return { date, seen: 0, caught: 0, fled: 0, shinySeen: 0, shinyCaught: 0, hatched: 0, shinyHatched: 0, trades: 0, shinyTraded: 0 };
+}
+// 计数器口径（与统计页一致）：孵蛋/无来源算孵化，交换单独算，其余算遭遇；主动逃跑计入遭遇但不计逃跑
+function countInto(ds, l) {
+  if (l.source === 'egg' || !l.source) { ds.hatched++; if (l.shiny) ds.shinyHatched++; return; }
+  if (l.source === 'trade') { ds.trades++; if (l.shiny) ds.shinyTraded++; return; }
+  ds.seen++;
+  if (l.result === 'caught') { ds.caught++; if (l.shiny) ds.shinyCaught++; }
+  else if (l.result === 'fled' && !l.selfFlee) ds.fled++;
+  if (l.shiny) ds.shinySeen++;
+}
+// 跨天 / 旧存档缺计数时，按现存日志重建「今天」的起点（日志可能已被裁剪，只能作为起点）
+function ensureDayStats() {
+  const st = gameData && gameData.stats;
+  if (!st) return null;
+  const dk = dayKeyOf(Date.now());
+  if (st.dayStats && st.dayStats.date === dk) return st.dayStats;
+  const ds = emptyDayStats(dk);
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+  for (const arr of Object.values(gameData.encounterLogs || {})) {
+    for (const l of arr) {
+      if (!l || !l.time || l.time < todayStart) continue;
+      countInto(ds, l);
+    }
+  }
+  st.dayStats = ds;
+  return ds;
+}
+export function getDayStats() { return ensureDayStats(); }
+function bumpDayStats(entry) {
+  if (!entry) return;
+  const day = dayKeyOf(entry.time);
+  if (day !== dayKeyOf(Date.now())) return; // 只维护「今天」：补算出的往日记录不计入
+  const ds = ensureDayStats();
+  if (ds) countInto(ds, entry);
+}
 
 export function addEncounterLog(idx, entry) {
   if (!gameData) return;
   if (!gameData.encounterLogs) gameData.encounterLogs = {};
+  ensureDayStats(); // 先重建（不含本条），再写入并累加，避免跨天首条把当天已有记录冲掉
   const key = String(idx);
   if (!gameData.encounterLogs[key]) gameData.encounterLogs[key] = [];
   gameData.encounterLogs[key].push(entry);
+  bumpDayStats(entry);
   trimEncounterLogs();
 }
 
@@ -864,11 +912,14 @@ export function trimEncounterLogs() {
   let total = 0;
   for (const key of Object.keys(logs)) total += logs[key].length;
   if (total > LOG_KEEP_TOTAL) {
+    // 今日记录优先保留：先丢更早的非首捕条目；今日条目只有在非今日的都丢完还不够时才动。
+    // （首捕条目永不丢，成熟存档里它们几乎占满上限，不保护今日就会一遇一只就顶掉一条今日记录）
+    const todayKey = dayKeyOf(Date.now());
     const pack = [];
     for (const key of Object.keys(logs)) {
-      for (const it of logs[key]) if (!keep.has(it)) pack.push({ key, it, t: (it && it.time) || 0 });
+      for (const it of logs[key]) if (!keep.has(it)) pack.push({ key, it, t: (it && it.time) || 0, today: (it && it.time && dayKeyOf(it.time) === todayKey) ? 1 : 0 });
     }
-    pack.sort((a, b) => a.t - b.t);
+    pack.sort((a, b) => (a.today - b.today) || (a.t - b.t));
     const dropSet = new Set();
     for (let i = 0; i < Math.min(pack.length, total - LOG_KEEP_TOTAL); i++) dropSet.add(pack[i].it);
     for (const key of Object.keys(logs)) {

@@ -3,7 +3,7 @@
 // 「愿意给的宝可梦（个体值/性格/闪光具体可见）」，玩家拿符合要求的在仓个体与其交换，
 // 得到的宝可梦来源记为「交换」。
 import { TRADE_COUNT, TRADE_REFRESH_MS, TRADE_GENDER_CHANCE, TRADE_IV_CHANCE, TRADE_IV_MIN, TRADE_SHINY_CHANCE, TRADE_IV_SUM_MIN, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, TRADE_GIVE_LEVEL_MAX, TRADE_VALUE_W, TRADE_VALUE_JITTER, TRADE_GIVE_LEVEL_NONE, TRADE_BASE_FORM_CHANCE, EXP_CANDY_XP, MAX_LEVEL, BREED_ONLY_IDS } from './config.js';
-import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getNature, pushNav, saveGame, addSystemLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon, ivOf, effIvTotal, rollShinyResult } from './state.js';
+import { gameData, allPokemon, getPokemonByIndex, isPowerForm, getNature, pushNav, saveGame, addSystemLog, addEncounterLog, randInt, rollIvs, rollLegendIvs, rollNature, rollGender, addRosterEntry, setLastObtainedEntryId, ensureGender, genderBadge, isPokemon, ivOf, effIvTotal, rollShinyResult } from './state.js';
 import { $, showView, updateStats, tryLoadImage, tryLoadPokemonImage, logicViewport, popupBounds, showConfirmBar, watchOutsidePress } from './ui.js';
 import { showGoodbyeConfirm, showTradeReceive, startShinySparkleOn, stopShinySparkleLoop } from './animation.js';
 import { TYPE_COLORS } from './items.js';
@@ -814,8 +814,7 @@ function doTradeConfirmed(offerId, rid) {
       }
       gameData.stats.tradesToday = (gameData.stats.tradesToday || 0) + 1;
       if (!gameData.encounterLogs) gameData.encounterLogs = {};
-      if (!gameData.encounterLogs[idx]) gameData.encounterLogs[idx] = [];
-      gameData.encounterLogs[idx].push({
+      addEncounterLog(idx, {
         time: Date.now(),
         shiny: o.give.shiny,
         squareShiny: !!o.give.squareShiny,

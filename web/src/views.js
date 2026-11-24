@@ -1,6 +1,6 @@
 import { CANDY_EXCHANGE, ITEM_NAMES, ITEM_RATES, CATCH_RATES, CATCH_BONUS_INC, ULTRA_BALL_ADD, FLEE_CHANCE, FLEE_CHANCE_INC, FLEE_CHANCE_MAX, SHINY_CHANCE, SQUARE_SHINY_CHANCE, EGG_SHINY_CHANCE, CHARM_SHINY_CHANCE, CHARM_UNCAUGHT_CHANCE, ENCOUNTER_MIN, ENCOUNTER_MAX, BUFF_DURATION, BUFF_ENCOUNTER_MIN, BUFF_ENCOUNTER_MAX, HONEY_RARITY_BOOST, CHARM_RARITY_BOOST, FISH_POKEMON_CHANCE, FISH_BUFF_POKEMON_CHANCE, FISH_RARE_RATE, FISH_WAIT_MIN, FISH_WAIT_MAX, FISH_QTY_MIN, FISH_QTY_MAX, FISH_TRIGGER_MIN, FISH_TRIGGER_MAX, FISH_EVO_CHANCE, REGION_CYCLE, PX_PER_METER, AUTO_FLEE_TIMEOUT, ROAD_SPECIAL_CHANCE, ROAD_SPEED_WALK, ROAD_SPEED_RUN, ROAD_SPEED_BIKE, HATCH_DIST_MIN, HATCH_DIST_MAX, BOUNTY_PER_REGION, TM_PRICE_TIERS, TM_SHOP_DAILY, BOUNTY_CANDY_MIN, BOUNTY_CANDY_MAX, BOUNTY_COMMON_QTY_MIN, BOUNTY_COMMON_QTY_MAX, BLOCK_DISTANCE, BLOCK_QUALITY, TRADE_REFRESH_MS, TRADE_SHINY_CHANCE, FARM_PLANT_COST, FARM_MATURE_MIN, FARM_MATURE_MAX, FARM_HARVEST_MIN, FARM_HARVEST_MAX, FARM_MAX_WATER, FARM_WATER_DROP, FARM_BOARD_DEMANDS, FARM_BOARD_BIG_QTY_MIN, FARM_BOARD_BIG_QTY_MAX, FARM_BOARD_MEGA_QTY_MIN, FARM_BOARD_MEGA_QTY_MAX, FARM_HELPER_WORK_STAGE, FARM_HELPER_REST, MASS_GEN_MIN, MASS_GEN_MAX, MASS_DURATION, MASS_COUNT_MIN, MASS_COUNT_MAX, MASS_SPAWN_MIN, MASS_SPAWN_MAX, MASS_SPAWN_HONEY_MIN, MASS_SPAWN_HONEY_MAX, MASS_SHINY_CHANCE, TWIST_GEN_MIN, TWIST_GEN_MAX, TWIST_DURATION, TWIST_COUNT_MIN, TWIST_SHINY_CHANCE, TWIST_SPAWN_MIN, TWIST_SPAWN_MAX, TWIST_SPAWN_HONEY_MIN, TWIST_SPAWN_HONEY_MAX, TWIST_GUARANTEED_IVS, TWIST_RGB_CHANCE, TWIST_POLLUTED_CHANCE, WILD_LEVEL_MAX, LEGEND_ENCOUNTER_RATE, LEGEND_ENCOUNTER_RATE_BUFF, LEGEND_PITY, LEGEND_LEVEL, TRAIN_SLOTS, TRAIN_XP_PER_MIN, TRAIN_LAZY, TRAIN_SATIETY_MAX, TRAIN_SATIETY_DRAIN_PER_MIN, TRAIN_SATIETY_EAT_AT, TRAIN_SATIETY_PER_BERRY, BATTLE_REFRESH_MS, BATTLE_TIER_BAND, COIN_RATE, DEALER_STAND, BJ_MULT, PENGUIN_STEPS, PENGUIN_BREAK_CHANCE, PENGUIN_MULT, HAND_SIZE, RIICHI_COST, GACHA_DRAW_COST, GACHA_DUP_REFUND, EXP_CANDY_XP, EXP_CANDY_DROP, RELEASE_XP_RATE, TRADE_LEVEL_CHANCE, TRADE_WANT_LEVEL_MIN, TRADE_WANT_LEVEL_MAX, FOLLOWER_DRAW_COST, FOLLOWER_TIER_CHANCE, FOLLOWER_TIER_BOOST, FOLLOWER_STAR_MIN, FOLLOWER_EFFECTS, DISPATCH_DURATIONS, DISPATCH_DUR_MULT, DISPATCH_CANDY_PER_HOUR, DISPATCH_CANDY_JITTER, DISPATCH_FREE_SLOTS, DISPATCH_TYPE_BOOST, DISPATCH_VARIANT_CANDY_BONUS, DISPATCH_EVO_MAX_CHANCE, AUTO_CATCH_BALLS_DEFAULT } from './config.js';
 import { TENT_DEX_GATE, TENT_FLOOR_LEVELS, TENT_PAYOUT_MULT, TENT_RECORD_MAX } from './config.js';
-import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, getCurrentRoadInfo, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, flushSave, setSaveSuspended, formatNum, formatExact as fmtFull, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon } from './state.js';
+import { phase, gameData, allPokemon, getPokemonByIndex, getCurrentRegion, getCurrentRoadInfo, currentEncounter, honeyBuffActive, charmBuffActive, saveGame, flushSave, setSaveSuspended, formatNum, formatExact as fmtFull, pad, pushNav, setGameData, getDefaultSave, ensureGpsState, _fishing, isPokemon, emptyDayStats, getDayStats } from './state.js';
 import { $, showView, updateTextBox, hideTextBox, updateBackpack, updateStats, applyWindowBg, isOnGameView, isUiMobile, applyCharSprites, showConfirmBar, logicViewport, popupBounds, getUiMode, applyUiMode, isMobilePlatform, touchText, watchOutsidePress, viewportToLogic, tryLoadPokemonIcon, tryLoadImage, isDualLayout } from './ui.js';
 import { doCandyExchange, doSellBall, useBuffNowOrDefer, refillBuffIfEmpty, ITEM_ICONS, BERRY_ICONS, BERRY_NAMES, sellPriceOf, sellSortRank, itemIconSrc, itemDetailOf, BASIC_ITEM_ORDER, ensureLegendPool } from './items.js';
 import { formatLogTime } from './pokedex.js';
@@ -94,30 +94,14 @@ function dayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 每次调用重新取当天零点，跨天自动归零
+// 今日统计：读取 state 维护的今日计数（跨天自动归零），不再从会被裁剪的遭遇日志反推
 function calcTodayStats() {
-  const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
-  const t = { seen: 0, caught: 0, fled: 0, shinySeen: 0, shinyCaught: 0, hatched: 0, shinyHatched: 0, trades: 0, shinyTraded: 0, evolutions: 0, catchRate: '0.0' };
-  for (const arr of Object.values(gameData.encounterLogs || {})) {
-    for (const l of arr) {
-      if (!l || !l.time || l.time < todayStart) continue;
-      if (l.source === 'egg' || !l.source) {
-        t.hatched++;
-        if (l.shiny) t.shinyHatched++;
-        continue;
-      }
-      if (l.source === 'trade') {
-        t.trades++;
-        if (l.shiny) t.shinyTraded++;
-        continue;
-      }
-      t.seen++;
-      if (l.result === 'caught') { t.caught++; if (l.shiny) t.shinyCaught++; }
-      else if (l.result === 'fled' && !l.selfFlee) t.fled++;
-      if (l.shiny) t.shinySeen++;
-    }
-  }
-  t.evolutions = (gameData.stats && gameData.stats.lastEvoDate === dayKey()) ? (gameData.stats.evolutionsToday || 0) : 0;
+  const dk = dayKey();
+  // 今日计数由写入侧（state.js 的 addEncounterLog）维护，不依赖会被裁剪的日志；
+  // 旧存档 / 跨天时 state 会按现存日志重建一次作为起点，之后照常累加。
+  const ds = getDayStats() || emptyDayStats(dk);
+  const t = { seen: ds.seen || 0, caught: ds.caught || 0, fled: ds.fled || 0, shinySeen: ds.shinySeen || 0, shinyCaught: ds.shinyCaught || 0, hatched: ds.hatched || 0, shinyHatched: ds.shinyHatched || 0, trades: ds.trades || 0, shinyTraded: ds.shinyTraded || 0, evolutions: 0, catchRate: '0.0' };
+  t.evolutions = (gameData.stats && gameData.stats.lastEvoDate === dk) ? (gameData.stats.evolutionsToday || 0) : 0;
   t.catchRate = (t.caught + t.fled) > 0 ? (t.caught / (t.caught + t.fled) * 100).toFixed(1) : '0.0';
   return t;
 }
