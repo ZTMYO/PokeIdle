@@ -23,6 +23,14 @@
   <a href="https://pokeidle.shiliu.space/">https://pokeidle.shiliu.space/</a>
 </p>
 
+## Mac 版下载与安装
+
+Mac 版可免费下载，支持 macOS 13 Ventura 及以上版本。搭载 Apple 芯片和 Intel 处理器的 Mac 使用同一个安装包。
+
+1. 前往发布页，在对应版本的 **Assets** 中下载文件名以 `-macOS-universal.dmg` 结尾的安装包。[Mac 版发布页](https://github.com/LOU1SLOU1S/pokeidle/releases)
+2. 双击打开 DMG，将「口袋挂机」拖到「应用程序」文件夹，然后从「应用程序」启动游戏。
+
+1.23.2 版使用临时签名（ad hoc），未经 Apple 公证。首次启动时，如果 macOS 提示无法验证开发者，请先确认安装包来自上述发布页。若你信任该文件，可在「系统设置」→「隐私与安全性」中找到「口袋挂机」，点按「仍要打开」并确认。[Apple 关于安全打开 App 的说明](https://support.apple.com/zh-cn/102445)
 
 ## 截图预览
 
@@ -150,6 +158,18 @@ npm run build:pc     # 只出 PC（Tauri · NSIS 安装包）
 ```
 
 `npm run build` 依次构建 Windows 安装包与安卓签名 APK，两个产物统一收集到 `dist/`：`口袋挂机_<version>_x64-setup.exe`、`口袋挂机_<version>.apk`——dist/ 里只有这两个包，SHA-256 打在执行输出里（拷贝后逐字节校验，对不上直接报错）。只想出一端：`npm run build:pc`（只出 PC）/ `npm run android:build`（只出安卓）；跑 `npm run build` 时也可以加 `SKIP_PC=1` / `SKIP_ANDROID=1` 跳过某端（PowerShell 下 npm 不转发 `-- xxx` 参数，用环境变量更稳）。只出 PC 时中间产物仍在 `src-tauri/target/release/bundle/nsis/`。
+
+### macOS 版
+
+在装有 Xcode 命令行工具、Node.js 22 和 Rust 稳定版（rustup）的 Mac 上，从项目根目录运行：
+
+```bash
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+npm ci
+npm run build:mac
+```
+
+可分发的通用安装包位于 `dist/PokeIdle-<版本号>-macOS-universal.dmg`，例如 `dist/PokeIdle-1.23.2-macOS-universal.dmg`。构建脚本会校验两种 CPU 架构、应用签名和磁盘映像，并输出安装包的 SHA-256。
 
 ### Android 版
 

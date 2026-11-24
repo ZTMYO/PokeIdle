@@ -1,0 +1,69 @@
+name: macOS download
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install build dependencies
+        run: |
+          npm ci --registry=https://registry.npmjs.org --replace-registry-host=always
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Build the universal disk image
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [[ -n "$APPLE_CERTIFICATE" ]]; then
+            export APPLE_SIGNING_IDENTITY='Developer ID Application'
+          else
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD
+            export APPLE_SIGNING_IDENTITY=-
+          fi
+          if [[ -z "$APPLE_ID$APPLE_PASSWORD$APPLE_TEAM_ID" ]]; then
+            unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+          else
+            : "${APPLE_ID:?}" "${APPLE_PASSWORD:?}" "${APPLE_TEAM_ID:?}"
+          fi
+          npm run build:mac
+
+      - name: Verify disk image
+        run: hdiutil verify dist/*.dmg
+
+      - name: Save workflow download
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.dmg
+          archive: false
+          if-no-files-found: error
+
+      - name: Attach disk image to tagged release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*.dmg
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.dmg --verify-tag --draft --generate-notes
+          fi
