@@ -14,6 +14,31 @@ import { createRainbowSprite } from './rainbow-fx.js';
 import { playPeMove, playPeLabel, setPeSpeedFactor, setPeEnabled } from './pe-battle-anim.js';
 import * as road from './road.js';
 
+// ===== 对战无动画（设置项 battleNoAnim）=====
+// CSS 动画/过渡由 .battle-fight.no-anim 压到 1ms（见 battle-fx.css）；代码里用 Web Animations API
+// 播的特效在这里统一截短到 1ms —— finished/animationend 照常触发，流程不变，只是屏幕上看不到过程，
+// 因此不必逐个改上百处特效函数。原作动画引擎另用 setPeEnabled 关掉（见 applyBattleNoAnim）。
+const _nativeAnimate = Element.prototype.animate;
+Element.prototype.animate = function (frames, opts) {
+  if (this.closest && this.closest('.battle-fight.no-anim')) {
+    const o = typeof opts === 'number' ? { duration: opts } : { ...(opts || {}) };
+    o.duration = 1;
+    o.delay = 0;
+    o.endDelay = 0;
+    o.iterations = 1;
+    return _nativeAnimate.call(this, frames, o);
+  }
+  return _nativeAnimate.call(this, frames, opts);
+};
+
+const battleNoAnim = () => gameData.settings?.battleNoAnim === true;
+// 渲染战斗页 / 重新进入战斗页时同步（设置可能在战斗进行中被改）
+export function applyBattleNoAnim() {
+  const on = battleNoAnim();
+  $('battleContent')?.querySelector('.battle-fight')?.classList.toggle('no-anim', on);
+  setPeEnabled(!on);
+}
+
 // 18 属性标签色（与图鉴/遇敌一致）
 export const TYPE_COLORS = {
   '一般': '#9F9E9A', '格斗': '#A7443E', '飞行': '#72A3D2', '毒': '#793B9B',
@@ -711,6 +736,7 @@ export function restoreBattleTier() {
     void sc.offsetWidth; // 强制重排，让"无过渡"立即生效
     sc.classList.remove('no-theme-trans');
   }
+  applyBattleNoAnim(); // 设置可能在战斗进行中被改：回到战斗页时重新同步无动画状态
 }
 
 async function renderBattlePage(battle) {
@@ -789,6 +815,7 @@ ${bottomHtml}
     </div>`;
   const npcName = $('b-npc-name'); if (npcName) npcName.textContent = battle.preset.name;
   _fxdbgRestore = null; // 上一场战斗的恢复回调不能留到这一场
+  applyBattleNoAnim(); // 对战无动画：挂 no-anim 类并关掉原作动画引擎
   // 自动战斗遮罩：点击恢复手动操作（同时清除遮罩与隐藏态右栏）
   $('b-auto-mask')?.addEventListener('click', () => {
     _auto = false;
@@ -921,6 +948,8 @@ function renderMon(mon, side, enter) {
   lowerAttacker(side); // 换宠/刷新时恢复默认层级（动画被中断时 animationend 不会触发）
   // 登场球动画期间隐藏精灵；两回合招式蓄力（钻地/升空/入水）期间同样保持隐藏
   img.style.visibility = (enter || mon.chargeHidden) ? 'hidden' : '';
+  // 无动画模式：已昏厥的宝可梦保持隐藏，避免同一回合后续事件刷新时把它又显示出来
+  if (battleNoAnim() && mon.hp <= 0) img.style.visibility = 'hidden';
   img.dataset.charged = mon.chargeHidden ? '1' : ''; // 蓄力离场标记与逻辑状态同步（换人/刷新时清除残留）
   // 战斗大图优先，失败回退小图标；霜奶仙特殊外观取组合图（无闪光版），否则闪光取 _shiny（路径含中文，走 tryLoad 的编码/兜底加载）
   const loaded = tryLoadPokemonImage(img, pd, alcremieSuffix(mon.variant) || (mon.shiny ? '_shiny' : '')).then(ok => {
@@ -960,8 +989,11 @@ function renderMon(mon, side, enter) {
   syncStatusFx(side, mon); // 异常状态粒子（睡眠 Zzz / 混乱旋星 / 麻痹火花 / 灼伤火焰 / 中毒毒泡 / 冰冻冰晶）
   syncSeedFx(side, mon); // 寄生种子幼芽（被寄生期间常驻脚下，换宠/解除后移除）
   syncShieldFx(side, mon); // 守住系护盾（当前回合 protected 才显示，回合重置/换人自动撤下）
-  // 上阵/换人：等图片加载完成（此时尺寸才是最终尺寸）再放球，落点为精灵图片底部居中
-  const entryP = enter ? loaded.then(() => ballEntry(side, img)) : loaded;
+  // 上阵/换人：等图片加载完成（此时尺寸才是最终尺寸）再放球，落点为精灵图片底部居中；
+  // 无动画模式不放球也不淡入，等新图解码完再直接显示（否则会先露出上一只的残留画面）
+  const entryP = enter
+    ? loaded.then(() => (battleNoAnim() ? showEntryInstant(img) : ballEntry(side, img)))
+    : loaded;
   // 闪光个体登场：球落地精灵淡入后单次闪光粒子 + 登场音效（开战首只与中途换人都触发，敌我双方通用）
   if (enter && mon.shiny) {
     entryP.then(() => {
@@ -970,6 +1002,15 @@ function renderMon(mon, side, enter) {
     });
   }
   return entryP;
+}
+
+// 无动画模式的登场：不放球、不做淡入；等浏览器把新图解码完再解除隐藏，
+// 避免换人瞬间还显示着上一只（已倒下）的旧画面
+function showEntryInstant(img) {
+  if (!img) return Promise.resolve();
+  const reveal = () => { img.style.visibility = ''; };
+  const decoded = img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+  return decoded.then(reveal, reveal);
 }
 
 // 精灵球登场：闭合球落入弹跳 → 球盖打开闪光 → 精灵淡入（显示在球上层）。播放期间隐藏精灵
@@ -1395,7 +1436,9 @@ function panelIn(side) {
 function faintAnim(side) {
   const el = $(`${side}-img`);
   resetAnim(el);
-  el.classList.add('faint');
+  // 无动画模式：不走倒下动画（被压成 1ms 后残影不好看），直接隐藏，等换人时由 renderMon 恢复
+  if (battleNoAnim()) el.style.visibility = 'hidden';
+  else el.classList.add('faint');
   panelOut(side); // 宝可梦倒下退场：信息卡片同步滑出屏幕
 }
 // 回复：统一使用原作 Gfx_BlueStar 星星粒子

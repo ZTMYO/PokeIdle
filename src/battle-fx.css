@@ -1611,3 +1611,16 @@
   transform: translateY(-50%);
   filter: blur(0.4px);
 }
+
+/* ---- 对战无动画（设置项「对战无动画」）----
+   精灵行动/受击/退场与场地特效的 CSS 动画、过渡统一压到 1ms：过程不可见，
+   但 animationend / transitionend 照常触发，战斗流程按原节奏推进。
+   只保留文字播报、血条与状态图标等界面信息。 */
+.battle-fight.no-anim,
+.battle-fight.no-anim * {
+  animation-duration: 1ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  transition-delay: 0s !important;
+}

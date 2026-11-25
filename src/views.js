@@ -1322,6 +1322,7 @@ export function renderSettings(container, s) {
   const battleMusic = s.battleMusic !== false;
   const darkMode = s.darkMode || false;
   const powerSave = s.powerSave || false;
+  const battleNoAnim = s.battleNoAnim === true; // 对战不播精灵动作/场地特效，只留文字与数值
   const idleBackground = s.idleBackground === true;
   const bgTime = s.idleBackgroundTime || 'auto';   // 背景时段：auto=跟随系统时间
   const bgScene = s.idleBackgroundScene || 'random'; // 背景场景：random=进出遭遇时随机
@@ -1503,6 +1504,13 @@ export function renderSettings(container, s) {
           </div>
         </div>
         <div class="cf-hint" style="padding:0 4px 4px;">场景帧率降低，适合长时间前台挂机</div>
+        <div class="auto-catch-row">
+          <div class="auto-catch-label">对战无动画</div>
+          <div class="toggle-switch" id="toggleBattleNoAnim">
+            <div class="toggle-track ${battleNoAnim ? 'on' : ''}"></div>
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
       </div>
 
       <div class="settings-group settings-pane" data-pane="sound">
@@ -1679,6 +1687,7 @@ export function renderSettings(container, s) {
   });
   container.querySelector('#toggleSeeThroughEncounter')?.addEventListener('click', toggleSeeThroughEncounter);
   container.querySelector('#togglePowerSave')?.addEventListener('click', togglePowerSave);
+  container.querySelector('#toggleBattleNoAnim')?.addEventListener('click', toggleBattleNoAnim);
   container.querySelector('#toggleUiMode')?.addEventListener('click', toggleUiMode);
   // 窗口倍率下拉：展开/收起（同一时刻只开一个）
   const scaleSel = container.querySelector('#windowScaleSelect');
@@ -2245,6 +2254,16 @@ export function togglePowerSave() {
   const container = $('settingsContent');
   renderSettings(container, gameData.settings);
   saveGame();
+}
+// 对战无动画：精灵不做行动/受击/退场动作，招式与场地特效全部跳过，只保留文字播报与血条数值
+export function toggleBattleNoAnim() {
+  ensureSettings();
+  gameData.settings.battleNoAnim = gameData.settings.battleNoAnim !== true;
+  const container = $('settingsContent');
+  renderSettings(container, gameData.settings);
+  saveGame();
+  // 战斗可能正挂在后台：立刻同步到已渲染的战斗页（不改战斗逻辑，只切换表现）
+  import('./battle-view.js').then(m => m.applyBattleNoAnim()).catch(() => {});
 }
 
 // 双屏开关（桌面「双屏模式」/ 手机「手游模式」）：两套布局的视图归属/导航栈完全不同，写档后直接重启界面
