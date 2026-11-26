@@ -369,13 +369,16 @@ html.mobile-app #quitHide { display: none !important; }
   75.01% { background-position: 75% 0; }
   100% { background-position: 75% 0; }
 }
-/* 骑车（3 帧 32×23 → 2x 显示 64×46） */
+/* 骑车（3 帧 32×23 → 2x 显示 64×46）
+   一个循环 = 一次完整踩踏：骑行时路面 180px/秒（ROAD_SPEED_BIKE × 60），
+   一个循环应只吃掉约 45px 路面，所以循环固定 0.25s（每帧 0.25/3 ≈ 83ms），
+   不要因为加帧就顺延总时长，否则踩踏频率会慢下来、看着像路面在推着车走。 */
 .walk-gif.bike {
   width: 64px;
   height: 46px;
   background-size: 192px 46px;
   transform: translateX(-8px);
-  animation: brendanBike 0.375s steps(1) infinite;
+  animation: brendanBike 0.25s steps(1) infinite;
 }
 .walk-gif.brendan.bike { background-image: url('./character/brendan-bike.png'); }
 .walk-gif.may.bike     { background-image: url('./character/may-bike.png'); }

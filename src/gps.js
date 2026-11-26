@@ -655,9 +655,14 @@ function planEventRoute(getEvent, inZone) {
   };
 
   if (!hasActiveSegment(g)) {
-    // 站在节点上：直接从该节点规划到事件点，第一段按全新路段从节点出发
+    // 站在节点上：直接从该节点规划到事件点。若第一段正好就是事件边本身（起点是事件边端点，
+    // 路线只有 [起点, 另一端] 两站），剩余里程必须取「节点→事件点」，不能按整条边全新出发，
+    // 否则会一路走到边另一端的节点才被拉回事件点（表现为距离显示成整条边的长度）。
     const c = fromNode(g.curIdx);
-    startEventRoute(c.tail, c.entryFrom, c.entryEnd, null, null);
+    const startOnEventEdge = c.tail.length === 2;
+    startEventRoute(c.tail, c.entryFrom, c.entryEnd,
+      startOnEventEdge ? c.firstRemainPx : null,
+      startOnEventEdge ? edgePx : null);
     saveGame();
     return true;
   }
