@@ -1430,6 +1430,33 @@ async function init() {
   $('textBoxArrow')?.addEventListener('click', () => advanceTextBox('stage'));
   $('appTextBoxArrow')?.addEventListener('click', () => advanceTextBox('app'));
 
+  // 文字框「继续」：等待玩家推进时（箭头亮着），点屏幕任意位置都算，不再只认右下角那个小三角
+  // ——三角只有 22px，很多玩家找不到就以为游戏卡死。
+  // 双屏（手游/桌面双屏）下点下屏也推进：捕捉成功时提示挂在上屏，玩家的手却常在下屏。
+  const awaitingAdvance = host => {
+    const box = $(host === 'app' ? 'appTextBox' : 'textBox');
+    const arrow = $(host === 'app' ? 'appTextBoxArrow' : 'textBoxArrow');
+    // 文字框收起时子元素的 computed display 仍是 flex，必须连框的显示状态一起判断
+    return !!arrow && !!box && box.classList.contains('show') && box.style.display !== 'none'
+      && getComputedStyle(arrow).display !== 'none';
+  };
+  document.addEventListener('click', e => {
+    // 开场剧情有自己的节奏（第一次点击先补全整句），不在这里抢
+    if (window.__introActive) return;
+    const t = e.target instanceof Element ? e.target : null;
+    if (!t) return;
+    // 只在两块屏幕内生效：标题栏/背包等控件各管各的，别把提示顺手推过去
+    if (!t.closest('#screen, #appScreen')) return;
+    // 小三角自己已绑过；「确定/取消」「逃跑」各有各的语义，这些点击不再额外推进
+    if (t.closest('.text-box-arrow, #catchConfirmBtns, #fleeBtn')) return;
+    const stageReady = awaitingAdvance('stage');
+    const appReady = awaitingAdvance('app');
+    if (!stageReady && !appReady) return;
+    // 点在哪块屏就优先推进哪块；那块没在等继续（例如双屏下屏是普通页面）就推进另一块
+    const inApp = !!t.closest('#appScreen');
+    advanceTextBox(inApp ? (appReady ? 'app' : 'stage') : (stageReady ? 'stage' : 'app'));
+  }, true); // 捕获阶段：下屏很多控件会 stopPropagation，冒泡阶段收不到
+
   // 捕捉/孵蛋确认（查看仓库个体详情，非图鉴）
   $('confirmYes')?.addEventListener('click', () => {
     // 开场剧情中：点击确定开始游戏

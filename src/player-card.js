@@ -120,7 +120,7 @@ function buildModel({ name, gender, accentType }) {
 
   const avatarGender = gender === 'male' ? 'brendan' : gender === 'female' ? 'may' : (gameData?.settings?.gender === 'may' ? 'may' : 'brendan');
   const nameSymbol = gender === 'male' ? '♂' : gender === 'female' ? '♀' : '';
-  const totalDex = allPokemon.length || 1493;
+  const totalDex = allPokemon.length || 1497;
 
   return {
     name, gender, avatarGender, nameSymbol,

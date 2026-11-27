@@ -46364,8 +46364,8 @@
         "index": "0854",
         "name": "来悲茶",
         "name_en": "Sinistea",
-        "image": "pokemon-data/images/0854-来悲茶.gif",
-        "icon": "pokemon-data/icon/0854-来悲茶.png",
+        "image": "pokemon-data/images/0854-来悲茶-赝品.gif",
+        "icon": "pokemon-data/icon/0854-来悲茶-赝品.png",
         "types": [
             "幽灵"
         ],
@@ -46373,7 +46373,7 @@
         "pinyinInitials": "LBC",
         "catchRate": 0.62,
         "genus": "红茶宝可梦",
-        "description": "据说这只宝可梦是因为 害怕寂寞的灵魂住进了 凉透的喝剩红茶而诞生的。",
+        "description": "死于孤独的死者之魂附在了喝剩的红茶上。会在旅馆或民宅出现。",
         "height": 1,
         "weight": 2,
         "stats": [
@@ -46397,14 +46397,55 @@
             "矿物群",
             "不定形群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "来悲茶-赝品"
+    },
+    {
+        "index": "0854-1",
+        "name": "来悲茶",
+        "name_en": "Sinistea",
+        "image": "pokemon-data/images/0854-1-来悲茶-真品.gif",
+        "icon": "pokemon-data/icon/0854-1-来悲茶-真品.png",
+        "types": [
+            "幽灵"
+        ],
+        "pinyin": "LaiBeiCha",
+        "pinyinInitials": "LBC",
+        "catchRate": 0.62,
+        "genus": "红茶宝可梦",
+        "description": "有些爱好者会准备好极为讲究的茶杯和红茶，然后一直等待来悲茶来附身。",
+        "height": 1,
+        "weight": 2,
+        "stats": [
+            40,
+            45,
+            45,
+            74,
+            54,
+            50
+        ],
+        "rarity": 0.4134,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            0,
+            1,
+            2
+        ],
+        "genderRate": -1,
+        "eggGroup": [
+            "矿物群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "来悲茶-真品"
     },
     {
         "index": "0855",
         "name": "怖思壶",
         "name_en": "Polteageist",
-        "image": "pokemon-data/images/0855-怖思壶.gif",
-        "icon": "pokemon-data/icon/0855-怖思壶.png",
+        "image": "pokemon-data/images/0855-怖思壶-赝品.gif",
+        "icon": "pokemon-data/icon/0855-怖思壶-赝品.png",
         "types": [
             "幽灵"
         ],
@@ -46412,7 +46453,7 @@
         "pinyinInitials": "BSH",
         "catchRate": 0.42,
         "genus": "红茶宝可梦",
-        "description": "住在古董茶壶里。 虽然大多数都是赝品，但偶尔也能发现真货。",
+        "description": "由红茶组成的身体风味独特又不失美味，但饮用过量可能会致死。",
         "height": 2,
         "weight": 4,
         "stats": [
@@ -46435,7 +46476,47 @@
             "矿物群",
             "不定形群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "怖思壶-赝品"
+    },
+    {
+        "index": "0855-1",
+        "name": "怖思壶",
+        "name_en": "Polteageist",
+        "image": "pokemon-data/images/0855-1-怖思壶-真品.gif",
+        "icon": "pokemon-data/icon/0855-1-怖思壶-真品.png",
+        "types": [
+            "幽灵"
+        ],
+        "pinyin": "BuSiHu",
+        "pinyinInitials": "BSH",
+        "catchRate": 0.42,
+        "genus": "红茶宝可梦",
+        "description": "不管住在什么茶壶里，对它都不会有影响。但原本的红茶却似乎会给它的性情带来变化。",
+        "height": 2,
+        "weight": 4,
+        "stats": [
+            60,
+            65,
+            65,
+            134,
+            114,
+            70
+        ],
+        "rarity": 0.6679,
+        "legend": false,
+        "region": "伽勒尔",
+        "foods": [
+            1,
+            2
+        ],
+        "genderRate": -1,
+        "eggGroup": [
+            "矿物群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "怖思壶-真品"
     },
     {
         "index": "0856",
@@ -56151,8 +56232,8 @@
         "index": "1012",
         "name": "斯魔茶",
         "name_en": "Poltchageist",
-        "image": "pokemon-data/images/1012-斯魔茶.gif",
-        "icon": "pokemon-data/icon/1012-斯魔茶.png",
+        "image": "pokemon-data/images/1012-斯魔茶-冒牌货.gif",
+        "icon": "pokemon-data/icon/1012-斯魔茶-冒牌货.png",
         "types": [
             "草",
             "幽灵"
@@ -56161,7 +56242,7 @@
         "pinyinInitials": "SMC",
         "catchRate": 0.62,
         "genus": "",
-        "description": "据说，一位茶道大师在技艺臻于完美前抱憾而终，其执念残留于抹茶之中，化为了宝可梦。",
+        "description": "据说是死前未能在茶道上登峰造极的茶道家的遗恨附到抹茶上所变成的宝可梦。",
         "height": 1,
         "weight": 11,
         "stats": [
@@ -56185,14 +56266,56 @@
             "矿物群",
             "不定形群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "斯魔茶-冒牌货"
+    },
+    {
+        "index": "1012-1",
+        "name": "斯魔茶",
+        "name_en": "Poltchageist",
+        "image": "pokemon-data/images/1012-1-斯魔茶-高档货.gif",
+        "icon": "pokemon-data/icon/1012-1-斯魔茶-高档货.png",
+        "types": [
+            "草",
+            "幽灵"
+        ],
+        "pinyin": "SiMoCha",
+        "pinyinInitials": "SMC",
+        "catchRate": 0.62,
+        "genus": "",
+        "description": "会将由粉末构成的身体中的一部分洒到食物上，然后吸取舔了粉末的对手的精气。",
+        "height": 1,
+        "weight": 11,
+        "stats": [
+            40,
+            45,
+            45,
+            74,
+            54,
+            50
+        ],
+        "rarity": 0.4134,
+        "legend": false,
+        "region": "帕底亚",
+        "foods": [
+            0,
+            1,
+            2
+        ],
+        "genderRate": -1,
+        "eggGroup": [
+            "矿物群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "斯魔茶-高档货"
     },
     {
         "index": "1013",
         "name": "来悲粗茶",
         "name_en": "Sinistcha",
-        "image": "pokemon-data/images/1013-来悲粗茶.gif",
-        "icon": "pokemon-data/icon/1013-来悲粗茶.png",
+        "image": "pokemon-data/images/1013-来悲粗茶-凡作.gif",
+        "icon": "pokemon-data/icon/1013-来悲粗茶-凡作.png",
         "types": [
             "草",
             "幽灵"
@@ -56201,7 +56324,7 @@
         "pinyinInitials": "LBCC",
         "catchRate": 0.42,
         "genus": "",
-        "description": "它伪装成茶水，试图诱骗他人喝下以吸取生命能量。不过这个诡计通常难以得逞。",
+        "description": "虽然会假装成茶企图吸取误饮者的精气，但经常会被识破。",
         "height": 2,
         "weight": 22,
         "stats": [
@@ -56224,7 +56347,48 @@
             "矿物群",
             "不定形群"
         ],
-        "noEggGroup": false
+        "noEggGroup": false,
+        "form": "来悲粗茶-凡作"
+    },
+    {
+        "index": "1013-1",
+        "name": "来悲粗茶",
+        "name_en": "Sinistcha",
+        "image": "pokemon-data/images/1013-1-来悲粗茶-杰作.gif",
+        "icon": "pokemon-data/icon/1013-1-来悲粗茶-杰作.png",
+        "types": [
+            "草",
+            "幽灵"
+        ],
+        "pinyin": "LaiBeiCuCha",
+        "pinyinInitials": "LBCC",
+        "catchRate": 0.42,
+        "genus": "",
+        "description": "会住到由著名烧制技艺大师所制作的精美茶碗中。是让爱好者痴迷不已的宝可梦。",
+        "height": 2,
+        "weight": 22,
+        "stats": [
+            71,
+            60,
+            106,
+            121,
+            80,
+            70
+        ],
+        "rarity": 0.6679,
+        "legend": false,
+        "region": "帕底亚",
+        "foods": [
+            0,
+            1
+        ],
+        "genderRate": -1,
+        "eggGroup": [
+            "矿物群",
+            "不定形群"
+        ],
+        "noEggGroup": false,
+        "form": "来悲粗茶-杰作"
     },
     {
         "index": "1014",

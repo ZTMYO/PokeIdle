@@ -126,6 +126,19 @@ function dismissConfirmBarForView(id) {
   hideConfirmBar();
 }
 
+// 逃跑按钮只在「纯遇敌、等丢球」时露出：捕获成功/孵蛋结果那种等玩家点小三角或确定/取消的收尾态，
+// 逃跑已无意义，留着会和右下角的小三角叠在一起
+function syncFleeBtn() {
+  const btn = $('fleeBtn');
+  if (!btn) return;
+  const arrow = $('textBoxArrow');
+  const confirm = $('catchConfirmBtns');
+  const waiting = ($('textBox') && $('textBox').dataset.awaitAdvance === '1')
+    || (arrow && arrow.style.display !== 'none')
+    || (confirm && confirm.style.display !== 'none' && !!$('textBox')?.contains(confirm));
+  btn.style.display = waiting ? 'none' : '';
+}
+
 export function showView(id) {
   const prevView = _currentView; // 切之前的页：判断"刚离开孵蛋页"要用（下面 syncViewChrome 会改写）
   hideFoodTip(); // 切页面：tooltip 不跟着走到新页面
@@ -240,7 +253,7 @@ export function showView(id) {
         if (phase === 'encounter' && currentEncounter) {
           // 遭遇待处理（暂停策略等后台遭遇）：切到战斗页展示，避免回到挂机页看不见
           showView('encounterView');
-          $('fleeBtn').style.display = '';
+          syncFleeBtn();
           const loadPromise = m.renderEncounterScene(currentEncounter);
           const fr = m.catchFilterResult();
           if (gameData.settings?.autoCatch && fr === 'catch') {
@@ -296,7 +309,7 @@ export function showView(id) {
         tc.style.bottom = '52px';
       }
     }
-    $('fleeBtn').style.display = '';
+    syncFleeBtn();
     if (tc) tc.style.display = '';
     if (tc) tc.classList.remove('throwing');
   }
@@ -373,7 +386,12 @@ export function updateTextBox(text, showArrow, owner = 'stage') {
   const { box, content, arrow } = textBoxHost(owner);
   if (!box || !content) return;
   content.textContent = text;
+  // 记下「这条文案在等玩家点继续」：视图切换/重新露出来时据此决定逃跑按钮要不要露
+  box.dataset.awaitAdvance = showArrow ? '1' : '';
   if (arrow) arrow.style.display = showArrow ? 'flex' : 'none';
+  // 等玩家点「继续」（捕获成功等收尾文案）时逃跑已无意义：它会和右下角小三角叠在一起
+  // （逃跑在 right:8px/bottom:6px，三角在 right:6px/bottom:4px），一并收掉
+  if (showArrow && owner === 'stage') $('fleeBtn').style.display = 'none';
   // 已显示就只换文案；但 display 被收掉过（隐藏/冻结留下的半截状态）时还得重新放出来
   if (box.classList.contains('show') && box.style.display !== 'none') return;
   box.style.display = 'flex';

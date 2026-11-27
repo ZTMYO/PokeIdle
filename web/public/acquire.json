@@ -1,7 +1,7 @@
 {
     "meta": {
         "source": "generate-acquire.mjs（evolution-study）从 pokedex.json + evolution.json 推导，规则与游戏代码一致",
-        "dexTotal": 1493,
+        "dexTotal": 1497,
         "note": "methods 是数组：一个形态可能有多种获取方式；编号含形态后缀（如 0006-1）"
     },
     "sources": [
@@ -32169,7 +32169,38 @@
         },
         {
             "index": "0854",
-            "name": "来悲茶",
+            "name": "来悲茶-赝品",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "wild",
+                    "region": "伽勒尔"
+                },
+                {
+                    "type": "tree",
+                    "region": "伽勒尔"
+                },
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "breed",
+                    "parents": [
+                        "0132"
+                    ]
+                }
+            ]
+        },
+        {
+            "index": "0854-1",
+            "name": "来悲茶-真品",
             "region": "伽勒尔",
             "legend": false,
             "methods": [
@@ -32200,7 +32231,7 @@
         },
         {
             "index": "0855",
-            "name": "怖思壶",
+            "name": "怖思壶-赝品",
             "region": "伽勒尔",
             "legend": false,
             "methods": [
@@ -32216,6 +32247,30 @@
                 {
                     "type": "evolve",
                     "from": "0854",
+                    "cond": {
+                        "item": "奇异石"
+                    }
+                }
+            ]
+        },
+        {
+            "index": "0855-1",
+            "name": "怖思壶-真品",
+            "region": "伽勒尔",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "0854-1",
                     "cond": {
                         "item": "奇异石"
                     }
@@ -38656,7 +38711,38 @@
         },
         {
             "index": "1012",
-            "name": "斯魔茶",
+            "name": "斯魔茶-冒牌货",
+            "region": "帕底亚",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "wild",
+                    "region": "帕底亚"
+                },
+                {
+                    "type": "tree",
+                    "region": "帕底亚"
+                },
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "breed",
+                    "parents": [
+                        "0132"
+                    ]
+                }
+            ]
+        },
+        {
+            "index": "1012-1",
+            "name": "斯魔茶-高档货",
             "region": "帕底亚",
             "legend": false,
             "methods": [
@@ -38687,7 +38773,7 @@
         },
         {
             "index": "1013",
-            "name": "来悲粗茶",
+            "name": "来悲粗茶-凡作",
             "region": "帕底亚",
             "legend": false,
             "methods": [
@@ -38703,6 +38789,30 @@
                 {
                     "type": "evolve",
                     "from": "1012",
+                    "cond": {
+                        "item": "奇异石"
+                    }
+                }
+            ]
+        },
+        {
+            "index": "1013-1",
+            "name": "来悲粗茶-杰作",
+            "region": "帕底亚",
+            "legend": false,
+            "methods": [
+                {
+                    "type": "twist"
+                },
+                {
+                    "type": "trade"
+                },
+                {
+                    "type": "egg_shop"
+                },
+                {
+                    "type": "evolve",
+                    "from": "1012-1",
                     "cond": {
                         "item": "奇异石"
                     }
